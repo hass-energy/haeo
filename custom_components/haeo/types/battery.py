@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
-if TYPE_CHECKING:
-    from .fields import (
-        BatterySOCField,
-        BatterySOCSensorField,
-        EnergyField,
-        NameField,
-        PercentageField,
-        PowerField,
-        PriceField,
-    )
+from custom_components.haeo.schema.fields import (
+    BatterySOCField,
+    BatterySOCSensorField,
+    EnergyField,
+    NameField,
+    PercentageField,
+    PowerField,
+    PriceField,
+)
 
 
 @dataclass
@@ -28,7 +27,7 @@ class BatteryConfig:
 
     min_charge_percentage: BatterySOCField = 10
     max_charge_percentage: BatterySOCField = 90
-    efficiency: PercentageField
+    efficiency: PercentageField = 99
 
     max_charge_power: PowerField | None = None
     max_discharge_power: PowerField | None = None

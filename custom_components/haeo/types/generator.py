@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
-if TYPE_CHECKING:
-    from .fields import BooleanField, NameField, PowerForecastField, PriceField
+from custom_components.haeo.schema.fields import BooleanField, NameField, PowerForecastsField, PriceField
 
 
 @dataclass
@@ -15,7 +14,7 @@ class GeneratorConfig:
 
     name: NameField
 
-    forecast: PowerForecastField
+    forecast: PowerForecastsField
 
     price_production: PriceField | None = None
     curtailment: BooleanField = False

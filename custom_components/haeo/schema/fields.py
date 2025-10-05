@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal
 
@@ -60,17 +61,21 @@ class PowerFieldMeta(FieldMeta):
 
 
 @dataclass(frozen=True)
-class PowerSensorMeta(FieldMeta):
+class PowerSensorsFieldMeta(FieldMeta):
     """Metadata for power sensor fields."""
 
     field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["sensor"]] = (SensorDeviceClass.POWER, "sensor")
 
     def _get_field_validators(self) -> dict[str, Any]:
-        return {"value": EntitySelector(EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.POWER]))}
+        return {
+            "value": EntitySelector(
+                EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.POWER])
+            )
+        }
 
 
 @dataclass(frozen=True)
-class PowerForecastFieldMeta(FieldMeta):
+class PowerForecastsFieldMeta(FieldMeta):
     """Metadata for power forecast fields."""
 
     field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["forecast"]] = (SensorDeviceClass.POWER, "forecast")
@@ -199,7 +204,7 @@ class BatterySOCSensorFieldMeta(FieldMeta):
 
 
 @dataclass(frozen=True)
-class EnergySensorFieldMeta(FieldMeta):
+class EnergySensorsFieldMeta(FieldMeta):
     """Metadata for energy sensor fields."""
 
     field_type: tuple[Literal[SensorDeviceClass.ENERGY], Literal["sensor"]] = (SensorDeviceClass.ENERGY, "sensor")
@@ -217,17 +222,21 @@ class EnergySensorFieldMeta(FieldMeta):
 
 
 @dataclass(frozen=True)
-class PriceSensorFieldMeta(FieldMeta):
+class PriceSensorsFieldMeta(FieldMeta):
     """Metadata for price sensor fields."""
 
     field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["sensor"]] = (SensorDeviceClass.MONETARY, "sensor")
 
     def _get_field_validators(self) -> dict[str, Any]:
-        return {"value": EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True))}
+        return {
+            "value": EntitySelector(
+                EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.MONETARY])
+            )
+        }
 
 
 @dataclass(frozen=True)
-class PriceForecastFieldMeta(FieldMeta):
+class PriceForecastsFieldMeta(FieldMeta):
     """Metadata for price forecast fields."""
 
     field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["forecast"]] = (
@@ -240,7 +249,7 @@ class PriceForecastFieldMeta(FieldMeta):
 
 
 @dataclass(frozen=True)
-class PriceLiveAndForecastFieldMeta(FieldMeta):
+class PricesSensorsAndForecastsFieldMeta(FieldMeta):
     """Metadata for price live and forecast configuration fields."""
 
     field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["live_forecast"]] = (
@@ -255,24 +264,27 @@ class PriceLiveAndForecastFieldMeta(FieldMeta):
         }
 
 
-PowerField = Annotated[float, PowerFieldMeta]
-PowerForecastField = Annotated[str, PowerForecastFieldMeta]
+PowerField = Annotated[float, PowerFieldMeta()]
+PowerSensorsField = Annotated[Sequence[str], PowerSensorsFieldMeta()]
+PowerForecastsField = Annotated[Sequence[str], PowerForecastsFieldMeta()]
 
-PowerFlowField = Annotated[float, PowerFlowFieldMeta]
+PowerFlowField = Annotated[float, PowerFlowFieldMeta()]
 
-EnergyField = Annotated[float, EnergyFieldMeta]
-EnergySensorField = Annotated[str, EnergySensorFieldMeta]
+EnergyField = Annotated[float, EnergyFieldMeta()]
+EnergySensorsField = Annotated[Sequence[str], EnergySensorsFieldMeta()]
 
-PercentageField = Annotated[float, PercentageFieldMeta]
-BooleanField = Annotated[bool, BooleanFieldMeta]
+PercentageField = Annotated[float, PercentageFieldMeta()]
+BooleanField = Annotated[bool, BooleanFieldMeta()]
 
-ElementNameField = Annotated[str, ElementNameFieldMeta]
-NameField = Annotated[str, NameFieldMeta]
+ElementNameField = Annotated[str, ElementNameFieldMeta()]
+NameField = Annotated[str, NameFieldMeta()]
 
-BatterySOCField = Annotated[float, BatterySOCFieldMeta]
-BatterySOCSensorField = Annotated[str, BatterySOCSensorFieldMeta]
+BatterySOCField = Annotated[float, BatterySOCFieldMeta()]
+BatterySOCSensorField = Annotated[str, BatterySOCSensorFieldMeta()]
 
-PriceField = Annotated[float, PriceFieldMeta]
-PriceSensorField = Annotated[str, PriceSensorFieldMeta]
-PriceForecastField = Annotated[str, PriceForecastFieldMeta]
-PriceLiveAndForecastField = Annotated[str, PriceLiveAndForecastFieldMeta]
+PriceField = Annotated[float, PriceFieldMeta()]
+PriceSensorsField = Annotated[Sequence[str], PriceSensorsFieldMeta()]
+PriceForecastsField = Annotated[Sequence[str], PriceForecastsFieldMeta()]
+PricesSensorsAndForecastsField = Annotated[
+    dict[Literal["live", "forecast"], Sequence[str]], PricesSensorsAndForecastsFieldMeta()
+]

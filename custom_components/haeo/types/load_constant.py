@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
-if TYPE_CHECKING:
-    from .fields import NameField, PowerField
+from custom_components.haeo.schema.fields import NameField, PowerField
 
 
 @dataclass

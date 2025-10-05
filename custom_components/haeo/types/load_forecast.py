@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
-if TYPE_CHECKING:
-    from .fields import NameField, PowerForecastField
+from custom_components.haeo.schema.fields import NameField, PowerForecastsField
 
 
 @dataclass
@@ -15,6 +14,6 @@ class ForecastLoadConfig:
 
     name: NameField
 
-    forecast: PowerForecastField
+    forecast: PowerForecastsField
 
     element_type: Literal["forecast_load"] = "forecast_load"

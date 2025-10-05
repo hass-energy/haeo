@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
-if TYPE_CHECKING:
-    from .fields import NameField, PowerField, PriceLiveAndForecastField
+from custom_components.haeo.schema.fields import NameField, PowerField, PricesSensorsAndForecastsField
 
 
 @dataclass
@@ -15,8 +14,8 @@ class GridConfig:
 
     name: NameField
 
-    import_price: PriceLiveAndForecastField
-    export_price: PriceLiveAndForecastField
+    import_price: PricesSensorsAndForecastsField
+    export_price: PricesSensorsAndForecastsField
 
     import_limit: PowerField | None = None
     export_limit: PowerField | None = None
