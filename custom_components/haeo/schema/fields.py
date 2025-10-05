@@ -17,6 +17,9 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
 )
 import voluptuous as vol
 
@@ -27,11 +30,11 @@ class FieldMeta(ABC):
 
     field_type: tuple[str | SensorDeviceClass, str]
 
-    def create_schema(self) -> dict[str, Any]:
+    def create_schema(self, **_kwargs: Any) -> dict[str, Any]:
         """Create the voluptuous schema for this field type."""
-        return self._get_field_validators()
+        return self._get_field_validators(**_kwargs)
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         """Get the field key name for this field type."""
         msg = "Subclasses must implement _get_field_validators"
         raise NotImplementedError(msg)
@@ -43,7 +46,7 @@ class PowerFieldMeta(FieldMeta):
 
     field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["constant"]] = (SensorDeviceClass.POWER, "constant")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {
             "value": vol.All(
                 vol.Coerce(float),
@@ -66,7 +69,7 @@ class PowerSensorsFieldMeta(FieldMeta):
 
     field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["sensor"]] = (SensorDeviceClass.POWER, "sensor")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {
             "value": EntitySelector(
                 EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.POWER])
@@ -80,7 +83,7 @@ class PowerForecastsFieldMeta(FieldMeta):
 
     field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["forecast"]] = (SensorDeviceClass.POWER, "forecast")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {
             "value": EntitySelector(
                 EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.POWER])
@@ -94,7 +97,7 @@ class EnergyFieldMeta(FieldMeta):
 
     field_type: tuple[Literal[SensorDeviceClass.ENERGY], Literal["constant"]] = (SensorDeviceClass.ENERGY, "constant")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {
             "value": vol.All(
                 vol.Coerce(float),
@@ -115,7 +118,7 @@ class PriceFieldMeta(FieldMeta):
         "constant",
     )
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {
             "value": vol.All(
                 vol.Coerce(float),
@@ -130,7 +133,7 @@ class PercentageFieldMeta(FieldMeta):
 
     field_type: tuple[Literal["%"], Literal["constant"]] = ("%", "constant")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {"value": vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))}
 
 
@@ -140,7 +143,7 @@ class BooleanFieldMeta(FieldMeta):
 
     field_type: tuple[Literal["boolean"], Literal["constant"]] = ("boolean", "constant")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {"value": BooleanSelector(BooleanSelectorConfig())}
 
 
@@ -150,8 +153,17 @@ class ElementNameFieldMeta(FieldMeta):
 
     field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
 
-    def _get_field_validators(self) -> dict[str, Any]:
-        return {"value": vol.All(str, vol.Strip, vol.Length(min=1, msg="Element name cannot be empty"))}
+    def _get_field_validators(self, participants: Sequence[str], **_kwargs: Any) -> dict[str, Any]:
+        # Only show the participants as options in the selector
+        options = [{"value": participant, "label": participant} for participant in participants]
+        return {
+            "value": vol.All(
+                str,
+                vol.Strip,
+                vol.Length(min=1, msg="Element name cannot be empty"),
+                SelectSelector(SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)),
+            )
+        }
 
 
 @dataclass(frozen=True)
@@ -160,7 +172,7 @@ class NameFieldMeta(FieldMeta):
 
     field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {"value": vol.All(str, vol.Strip, vol.Length(min=1, msg="Name cannot be empty"))}
 
 
@@ -170,7 +182,7 @@ class PowerFlowFieldMeta(FieldMeta):
 
     field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["constant"]] = (SensorDeviceClass.POWER, "constant")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {
             "value": vol.All(
                 vol.Coerce(float),
@@ -187,7 +199,7 @@ class BatterySOCFieldMeta(FieldMeta):
 
     field_type: tuple[Literal[SensorDeviceClass.BATTERY], Literal["constant"]] = (SensorDeviceClass.BATTERY, "constant")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {"value": vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))}
 
 
@@ -197,7 +209,7 @@ class BatterySOCSensorFieldMeta(FieldMeta):
 
     field_type: tuple[Literal[SensorDeviceClass.BATTERY], Literal["sensor"]] = (SensorDeviceClass.BATTERY, "sensor")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {
             "value": EntitySelector(EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.BATTERY]))
         }
@@ -209,7 +221,7 @@ class EnergySensorsFieldMeta(FieldMeta):
 
     field_type: tuple[Literal[SensorDeviceClass.ENERGY], Literal["sensor"]] = (SensorDeviceClass.ENERGY, "sensor")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {
             "value": EntitySelector(
                 EntitySelectorConfig(
@@ -227,7 +239,7 @@ class PriceSensorsFieldMeta(FieldMeta):
 
     field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["sensor"]] = (SensorDeviceClass.MONETARY, "sensor")
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {
             "value": EntitySelector(
                 EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.MONETARY])
@@ -244,7 +256,7 @@ class PriceForecastsFieldMeta(FieldMeta):
         "forecast",
     )
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {"value": EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True))}
 
 
@@ -257,7 +269,7 @@ class PricesSensorsAndForecastsFieldMeta(FieldMeta):
         "live_forecast",
     )
 
-    def _get_field_validators(self) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {
             "live": EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True)),
             "forecast": EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True)),

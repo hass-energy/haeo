@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.const import UnitOfPower
+import pytest
 import voluptuous as vol
 
 from custom_components.haeo.schema import _get_annotated_fields, data_to_config, schema_for_type
@@ -23,6 +24,13 @@ from custom_components.haeo.schema.fields import (
     PriceSensorsField,
     PricesSensorsAndForecastsField,
 )
+
+
+@pytest.fixture
+def schema_params():
+    """Fixture providing schema parameters for tests."""
+    return {"participants": ["battery_1", "grid_1"]}
+
 
 # Test configs for individual field types
 
@@ -177,9 +185,9 @@ def test_default_handling_extraction():
     assert default is None
 
 
-def test_constant_field_schema_creation():
+def test_constant_field_schema_creation(schema_params):
     """Test creating schema for constant field types."""
-    schema = schema_for_type(ConstantFieldTestConfig)
+    schema = schema_for_type(ConstantFieldTestConfig, **schema_params)
 
     assert isinstance(schema, vol.Schema)
 
@@ -238,9 +246,9 @@ def test_complex_field_schema_creation():
     assert set(schema_dict.keys()) == expected_keys
 
 
-def test_constant_field_schema_validation():
+def test_constant_field_schema_validation(schema_params):
     """Test schema validation for constant field types."""
-    schema = schema_for_type(ConstantFieldTestConfig)
+    schema = schema_for_type(ConstantFieldTestConfig, **schema_params)
 
     valid_data = {
         "power_value_value": 100.0,
@@ -344,7 +352,7 @@ async def test_forecast_field_schema_validation_with_invalid_sensor(hass):
         pass
 
 
-def test_constant_field_data_conversion():
+def test_constant_field_data_conversion(schema_params):
     """Test converting data back to constant field config."""
     data = {
         "power_value_value": 100.0,
@@ -357,7 +365,7 @@ def test_constant_field_data_conversion():
         "battery_soc_value": 90.0,
     }
 
-    config = data_to_config(ConstantFieldTestConfig, data)
+    config = data_to_config(ConstantFieldTestConfig, data, **schema_params)
 
     assert isinstance(config, ConstantFieldTestConfig)
     assert config.power_value == 100.0
@@ -418,7 +426,7 @@ def test_complex_field_data_conversion():
     assert config.optional_sensor == {"value": ["sensor.optional_power"]}
 
 
-def test_data_conversion_with_missing_optional_field():
+def test_data_conversion_with_missing_optional_field(schema_params):
     """Test data conversion handles missing optional fields."""
     data = {
         "required_field_value": "test_name",
@@ -426,7 +434,7 @@ def test_data_conversion_with_missing_optional_field():
         # optional_field_value is missing
     }
 
-    config = data_to_config(DefaultTestConfig, data)
+    config = data_to_config(DefaultTestConfig, data, **schema_params)
 
     assert isinstance(config, DefaultTestConfig)
     assert config.required_field == "test_name"
@@ -434,7 +442,7 @@ def test_data_conversion_with_missing_optional_field():
     assert config.field_with_default is True  # Should use default when no data provided
 
 
-def test_data_conversion_with_defaults_config():
+def test_data_conversion_with_defaults_config(schema_params):
     """Test data conversion with default value handling."""
     data = {
         "required_field_value": "required_name",
@@ -442,7 +450,7 @@ def test_data_conversion_with_defaults_config():
         # field_with_default_value missing - should use default
     }
 
-    config = data_to_config(DefaultTestConfig, data)
+    config = data_to_config(DefaultTestConfig, data, **schema_params)
 
     assert isinstance(config, DefaultTestConfig)
     assert config.required_field == "required_name"
@@ -450,10 +458,10 @@ def test_data_conversion_with_defaults_config():
     assert config.optional_field == 0.25
 
 
-def test_constant_field_full_workflow():
+def test_constant_field_full_workflow(schema_params):
     """Test full workflow for constant field types."""
     # Create schema
-    schema = schema_for_type(ConstantFieldTestConfig)
+    schema = schema_for_type(ConstantFieldTestConfig, **schema_params)
 
     # Validate data
     input_data = {
@@ -470,7 +478,7 @@ def test_constant_field_full_workflow():
     validated_data = schema(input_data)
 
     # Convert back to config
-    config = data_to_config(ConstantFieldTestConfig, validated_data)
+    config = data_to_config(ConstantFieldTestConfig, validated_data, **schema_params)
 
     # Verify result
     assert isinstance(config, ConstantFieldTestConfig)
@@ -546,7 +554,7 @@ async def test_complex_field_full_workflow(hass):
     assert config.optional_sensor is None  # Should be None for omitted optional field
 
 
-def test_default_handling_full_workflow():
+def test_default_handling_full_workflow(schema_params):
     """Test full workflow for default value handling."""
     # Test data conversion directly
     expected_validated_data = {
@@ -556,6 +564,6 @@ def test_default_handling_full_workflow():
     }
 
     # Convert to config
-    config = data_to_config(DefaultTestConfig, expected_validated_data)
+    config = data_to_config(DefaultTestConfig, expected_validated_data, **schema_params)
     assert config.field_with_default is True
     assert config.optional_field is None

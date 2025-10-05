@@ -59,52 +59,31 @@ def schema_for_type(cls: type, **kwargs: Any) -> vol.Schema:
     return vol.Schema(schema)
 
 
-def data_to_config[T](cls: type[T], data: dict[str, Any]) -> T:
-    """Convert data to a configuration class."""
-    annotated_fields = _get_annotated_fields(cls)
+def data_to_config[T](cls: type[T], data: dict[str, Any], **kwargs: Any) -> T:
+    """Convert data to a configuration class.
+
+    Args:
+        cls: The configuration class to convert data to
+        data: The data to convert
+        **kwargs: Additional keyword arguments to pass to the configuration class
+
+    Returns:
+        The converted configuration class
+
+    """
     output: dict[str, Any] = {}
 
-    for field, (meta, is_optional, default) in annotated_fields.items():
-        field_data = {}
-        schema_keys = list(meta.create_schema().keys())
+    for field, (meta, is_optional, default) in _get_annotated_fields(cls).items():
+        schema_keys = meta.create_schema(**kwargs).keys()
+        field_data = {k: data.get(f"{field}_{k}", default) for k in schema_keys}
 
-        # Collect all data for this field using .get() to handle missing keys
-        for k in schema_keys:
-            key = f"{field}_{k}"
-            field_data[k] = data.get(key)
-
-        # Handle missing optional fields - use default if provided
-        if not any(field_data.values()) and is_optional:
-            if default is not None and default is not MISSING:
-                if callable(default):
-                    output[field] = default()
-                else:
-                    output[field] = default
-            else:
-                output[field] = None  # Default for optional fields when not provided
-            continue
-
-        # Handle missing required fields - use default if provided
-        if not any(field_data.values()) and not is_optional:
-            if default is not None and default is not MISSING:
-                if callable(default):
-                    output[field] = default()
-                else:
-                    output[field] = default
-                continue
-            # This shouldn't happen if schema validation passed
-            msg = f"Missing required field: {field!r}"
-            raise ValueError(msg)
-
-        # Convert field data to appropriate format based on field type
-        field_type = meta.field_type[1]  # "constant", "sensor", "forecast", etc.
-
-        if field_type == "constant":
-            # For constant fields, extract the single value if present
-            value = field_data.get("value")
-            output[field] = value if value is not None else field_data
+        # For optional fields that weren't provided (all values are defaults), set to None
+        if is_optional and all(v == default for v in field_data.values()):
+            output[field] = None
+        # For constant fields, extract the single value if present
+        elif meta.field_type[1] == "constant":
+            output[field] = field_data.get("value", field_data)
         else:
-            # For non-constant fields, keep the structure as-is
             output[field] = field_data
 
     return cls(**output)
