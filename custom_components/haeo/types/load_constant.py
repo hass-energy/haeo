@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-from .fields import name_field, power_field
+if TYPE_CHECKING:
+    from .fields import NameField, PowerField
 
 
 @dataclass
 class ConstantLoadConfig:
     """Constant load element configuration."""
 
+    name: NameField
+
+    power: PowerField
+
     element_type: Literal["constant_load"] = "constant_load"
-
-    name: str = name_field("Load name")
-
-    power: float = power_field("Constant power consumption in W")

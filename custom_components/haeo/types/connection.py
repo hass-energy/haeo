@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-from .fields import element_name_field, name_field, power_flow_field
+if TYPE_CHECKING:
+    from .fields import ElementNameField, NameField, PowerFlowField
 
 
 @dataclass
 class ConnectionConfig:
     """Connection element configuration."""
 
+    name: NameField
+
+    source: ElementNameField
+    target: ElementNameField
+
+    min_power: PowerFlowField | None = None
+    max_power: PowerFlowField | None = None
+
     element_type: Literal["connection"] = "connection"
-
-    name: str = name_field("Connection name")
-
-    source: str = element_name_field("Source element name")
-    target: str = element_name_field("Target element name")
-
-    min_power: float | None = power_flow_field("Minimum power flow from source to target", optional=True)
-    max_power: float | None = power_flow_field("Maximum power flow from source to target", optional=True)

@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Literal
 
-from .fields import name_field, power_field, price_live_forecast_field
+if TYPE_CHECKING:
+    from .fields import NameField, PowerField, PriceLiveAndForecastField
 
 
 @dataclass
 class GridConfig:
     """Grid element configuration."""
 
+    name: NameField
+
+    import_price: PriceLiveAndForecastField
+    export_price: PriceLiveAndForecastField
+
+    import_limit: PowerField | None = None
+    export_limit: PowerField | None = None
+
     element_type: Literal["grid"] = "grid"
-
-    name: str = name_field("Grid connection name")
-
-    import_price: dict[str, Any] = price_live_forecast_field("Import price configuration (live sensor + forecast)")
-    export_price: dict[str, Any] = price_live_forecast_field("Export price configuration (live sensor + forecast)")
-
-    import_limit: float | None = power_field("Maximum import power in W", optional=True)
-    export_limit: float | None = power_field("Maximum export power in W", optional=True)

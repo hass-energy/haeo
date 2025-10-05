@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-from .fields import name_field
+if TYPE_CHECKING:
+    from .fields import NameField
 
 
 @dataclass
 class NetConfig:
     """Net element configuration."""
 
-    element_type: Literal["net"] = "net"
+    name: NameField
 
-    name: str = name_field("Network node name")
+    element_type: Literal["net"] = "net"

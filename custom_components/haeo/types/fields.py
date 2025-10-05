@@ -1,9 +1,10 @@
-"""Field functions for HAEO type system."""
+"""Field types for HAEO type system using Annotated types."""
 
 from __future__ import annotations
 
-from dataclasses import field
-from typing import TYPE_CHECKING, Any
+from abc import ABC
+from dataclasses import dataclass
+from typing import Annotated, Any, Literal
 
 from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.const import UnitOfPower
@@ -18,295 +19,260 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
+
+@dataclass(frozen=True)
+class FieldMeta(ABC):
+    """Base class for field metadata."""
+
+    field_type: tuple[str | SensorDeviceClass, str]
+
+    def create_schema(self) -> dict[str, Any]:
+        """Create the voluptuous schema for this field type."""
+        return self._get_field_validators()
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        """Get the field key name for this field type."""
+        msg = "Subclasses must implement _get_field_validators"
+        raise NotImplementedError(msg)
 
 
-def name_field(description: str, *, default: str | None = None) -> str | None:
-    """Field for element name."""
-    return field(
-        default=default,
-        metadata={
-            "description": description,
-            "schema": {vol.Required("name"): vol.All(str, vol.Strip, vol.Length(min=1, msg="Name cannot be empty"))},
-        },
-    )
+@dataclass(frozen=True)
+class PowerFieldMeta(FieldMeta):
+    """Metadata for power value fields."""
 
+    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["constant"]] = (SensorDeviceClass.POWER, "constant")
 
-def element_name_field(description: str, *, optional: bool = False, default: str | None = None) -> str | None:
-    """Field for referencing another element."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default=default,
-        metadata={
-            "description": description,
-            "schema": {
-                wrap("element_name"): vol.All(str, vol.Strip, vol.Length(min=1, msg="Element name cannot be empty"))
-            },
-        },
-    )
-
-
-def power_field(description: str, *, optional: bool = False, default: float | None = None) -> float | None:
-    """Field for a constant power value."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default=default,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.POWER, "constant"),
-            "schema": {
-                wrap("power"): vol.All(
-                    vol.Coerce(float),
-                    vol.Range(min=0, min_included=True, msg="Value must be positive"),
-                    NumberSelector(
-                        NumberSelectorConfig(
-                            mode=NumberSelectorMode.BOX,
-                            min=1,
-                            step=1,
-                            unit_of_measurement=UnitOfPower.WATT,
-                        ),
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {
+            "value": vol.All(
+                vol.Coerce(float),
+                vol.Range(min=0, min_included=True, msg="Value must be positive"),
+                NumberSelector(
+                    NumberSelectorConfig(
+                        mode=NumberSelectorMode.BOX,
+                        min=1,
+                        step=1,
+                        unit_of_measurement=UnitOfPower.WATT,
                     ),
+                ),
+            )
+        }
+
+
+@dataclass(frozen=True)
+class PowerSensorMeta(FieldMeta):
+    """Metadata for power sensor fields."""
+
+    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["sensor"]] = (SensorDeviceClass.POWER, "sensor")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {"value": EntitySelector(EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.POWER]))}
+
+
+@dataclass(frozen=True)
+class PowerForecastFieldMeta(FieldMeta):
+    """Metadata for power forecast fields."""
+
+    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["forecast"]] = (SensorDeviceClass.POWER, "forecast")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {
+            "value": EntitySelector(
+                EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.POWER])
+            )
+        }
+
+
+@dataclass(frozen=True)
+class EnergyFieldMeta(FieldMeta):
+    """Metadata for energy value fields."""
+
+    field_type: tuple[Literal[SensorDeviceClass.ENERGY], Literal["constant"]] = (SensorDeviceClass.ENERGY, "constant")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {
+            "value": vol.All(
+                vol.Coerce(float),
+                vol.Range(min=0, min_included=True, msg="Value must be positive"),
+                NumberSelector(
+                    NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, step=1, unit_of_measurement="Wh")
+                ),
+            )
+        }
+
+
+@dataclass(frozen=True)
+class PriceFieldMeta(FieldMeta):
+    """Metadata for price value fields."""
+
+    field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["constant"]] = (
+        SensorDeviceClass.MONETARY,
+        "constant",
+    )
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {
+            "value": vol.All(
+                vol.Coerce(float),
+                NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=1, unit_of_measurement="$/kWh")),
+            )
+        }
+
+
+@dataclass(frozen=True)
+class PercentageFieldMeta(FieldMeta):
+    """Metadata for percentage value fields."""
+
+    field_type: tuple[Literal["%"], Literal["constant"]] = ("%", "constant")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {"value": vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))}
+
+
+@dataclass(frozen=True)
+class BooleanFieldMeta(FieldMeta):
+    """Metadata for boolean value fields."""
+
+    field_type: tuple[Literal["boolean"], Literal["constant"]] = ("boolean", "constant")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {"value": BooleanSelector(BooleanSelectorConfig())}
+
+
+@dataclass(frozen=True)
+class ElementNameFieldMeta(FieldMeta):
+    """Metadata for element name reference fields."""
+
+    field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {"value": vol.All(str, vol.Strip, vol.Length(min=1, msg="Element name cannot be empty"))}
+
+
+@dataclass(frozen=True)
+class NameFieldMeta(FieldMeta):
+    """Metadata for name value fields."""
+
+    field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {"value": vol.All(str, vol.Strip, vol.Length(min=1, msg="Name cannot be empty"))}
+
+
+@dataclass(frozen=True)
+class PowerFlowFieldMeta(FieldMeta):
+    """Metadata for power flow value fields."""
+
+    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["constant"]] = (SensorDeviceClass.POWER, "constant")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {
+            "value": vol.All(
+                vol.Coerce(float),
+                NumberSelector(
+                    NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=1, unit_of_measurement=UnitOfPower.WATT)
+                ),
+            )
+        }
+
+
+@dataclass(frozen=True)
+class BatterySOCFieldMeta(FieldMeta):
+    """Metadata for battery state of charge percentage fields."""
+
+    field_type: tuple[Literal[SensorDeviceClass.BATTERY], Literal["constant"]] = (SensorDeviceClass.BATTERY, "constant")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {"value": vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))}
+
+
+@dataclass(frozen=True)
+class BatterySOCSensorFieldMeta(FieldMeta):
+    """Metadata for battery SOC sensor fields."""
+
+    field_type: tuple[Literal[SensorDeviceClass.BATTERY], Literal["sensor"]] = (SensorDeviceClass.BATTERY, "sensor")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {
+            "value": EntitySelector(EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.BATTERY]))
+        }
+
+
+@dataclass(frozen=True)
+class EnergySensorFieldMeta(FieldMeta):
+    """Metadata for energy sensor fields."""
+
+    field_type: tuple[Literal[SensorDeviceClass.ENERGY], Literal["sensor"]] = (SensorDeviceClass.ENERGY, "sensor")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {
+            "value": EntitySelector(
+                EntitySelectorConfig(
+                    domain="sensor",
+                    multiple=True,
+                    device_class=[SensorDeviceClass.BATTERY, SensorDeviceClass.ENERGY_STORAGE],
                 )
-            },
-            "optional": optional,
-        },
+            )
+        }
+
+
+@dataclass(frozen=True)
+class PriceSensorFieldMeta(FieldMeta):
+    """Metadata for price sensor fields."""
+
+    field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["sensor"]] = (SensorDeviceClass.MONETARY, "sensor")
+
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {"value": EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True))}
+
+
+@dataclass(frozen=True)
+class PriceForecastFieldMeta(FieldMeta):
+    """Metadata for price forecast fields."""
+
+    field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["forecast"]] = (
+        SensorDeviceClass.MONETARY,
+        "forecast",
     )
 
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {"value": EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True))}
 
-def power_sensors_field(description: str, *, optional: bool = False) -> Sequence[str]:
-    """Field for a power sensor."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default_factory=list,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.POWER, "sensor"),
-            "schema": {
-                wrap("sensors"): EntitySelector(
-                    EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.POWER])
-                )
-            },
-        },
+
+@dataclass(frozen=True)
+class PriceLiveAndForecastFieldMeta(FieldMeta):
+    """Metadata for price live and forecast configuration fields."""
+
+    field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["live_forecast"]] = (
+        SensorDeviceClass.MONETARY,
+        "live_forecast",
     )
 
-
-def power_forecast_field(description: str, *, optional: bool = False) -> dict[str, Any]:
-    """Field for a sequence of power forecast sensors."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default_factory=dict,
-        metadata={
-            "default_factory": list,
-            "description": description,
-            "field_type": (SensorDeviceClass.POWER, "forecast"),
-            "schema": {
-                wrap("forecast"): EntitySelector(
-                    EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.POWER]),
-                )
-            },
-        },
-    )
+    def _get_field_validators(self) -> dict[str, Any]:
+        return {
+            "live": EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True)),
+            "forecast": EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True)),
+        }
 
 
-def power_flow_field(description: str, *, optional: bool = False, default: float | None = None) -> float | None:
-    """Field for a power flow value."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default=default,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.POWER, "constant"),
-            "schema": {
-                wrap("power_flow"): vol.All(
-                    vol.Coerce(float),
-                    NumberSelector(
-                        NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=1, unit_of_measurement=UnitOfPower.WATT),
-                    ),
-                )
-            },
-        },
-    )
+PowerField = Annotated[float, PowerFieldMeta]
+PowerForecastField = Annotated[str, PowerForecastFieldMeta]
 
+PowerFlowField = Annotated[float, PowerFlowFieldMeta]
 
-def energy_field(description: str, *, optional: bool = False, default: float | None = None) -> float | None:
-    """Field for an energy value."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default=default,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.ENERGY, "constant"),
-            "schema": {
-                wrap("energy"): vol.All(
-                    vol.Coerce(float),
-                    vol.Range(min=0, min_included=True, msg="Value must be positive"),
-                    NumberSelector(
-                        NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, step=1, unit_of_measurement="Wh"),
-                    ),
-                )
-            },
-        },
-    )
+EnergyField = Annotated[float, EnergyFieldMeta]
+EnergySensorField = Annotated[str, EnergySensorFieldMeta]
 
+PercentageField = Annotated[float, PercentageFieldMeta]
+BooleanField = Annotated[bool, BooleanFieldMeta]
 
-def energy_sensors_field(description: str, *, optional: bool = False) -> Sequence[str]:
-    """Field for a sequence of energy sensors."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default_factory=list,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.ENERGY, "sensor"),
-            "schema": {
-                wrap("sensors"): EntitySelector(
-                    EntitySelectorConfig(
-                        domain="sensor",
-                        multiple=True,
-                        device_class=[SensorDeviceClass.BATTERY, SensorDeviceClass.ENERGY_STORAGE],
-                    ),
-                )
-            },
-        },
-    )
+ElementNameField = Annotated[str, ElementNameFieldMeta]
+NameField = Annotated[str, NameFieldMeta]
 
+BatterySOCField = Annotated[float, BatterySOCFieldMeta]
+BatterySOCSensorField = Annotated[str, BatterySOCSensorFieldMeta]
 
-def energy_forecast_field(description: str, *, optional: bool = False) -> Sequence[str]:
-    """Field for a sequence of energy forecast sensors stored as attributes."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default_factory=list,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.ENERGY, "forecast"),
-            "schema": {
-                wrap("forecast"): EntitySelector(
-                    EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.ENERGY])
-                )
-            },
-        },
-    )
-
-
-def price_field(description: str, *, optional: bool = False) -> float | None:
-    """Field for a price value."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default=None,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.MONETARY, "constant"),
-            "schema": {
-                wrap("price"): vol.All(
-                    vol.Coerce(float),
-                    NumberSelector(
-                        NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=1, unit_of_measurement="$/kWh")
-                    ),
-                )
-            },
-        },
-    )
-
-
-def price_sensors_field(description: str, *, optional: bool = False) -> Sequence[str]:
-    """Field for a sequence of price sensors."""
-    return field(
-        default_factory=list,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.MONETARY, "sensor"),
-            "schema": {wrap("sensors"): EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True))},
-        },
-    )
-
-
-def price_forecast_field(description: str, *, optional: bool = False) -> Sequence[str]:
-    """Field for a sequence of price forecast sensors."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default_factory=list,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.MONETARY, "forecast"),
-            "schema": {wrap("forecast"): EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True))},
-        },
-    )
-
-
-def price_live_forecast_field(description: str) -> dict[str, Any]:
-    """Field for both live price sensor and forecast sensors combined."""
-    return field(
-        default_factory=dict,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.MONETARY, "live_forecast"),
-            "schema": {
-                vol.Optional("live"): EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True)),
-                vol.Optional("forecast"): EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True)),
-            },
-        },
-    )
-
-
-def percentage_field(description: str, *, optional: bool = False, default: float | None = None) -> float | None:
-    """Field for a percentage value."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default=default,
-        metadata={
-            "description": description,
-            "field_type": ("%", "constant"),
-            "schema": {
-                wrap("percentage"): vol.All(
-                    vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100")
-                )
-            },
-        },
-    )
-
-
-def battery_soc_field(description: str, *, optional: bool = False, default: float | None = None) -> float | None:
-    """Field for battery state of charge percentage."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default=default,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.BATTERY, "constant"),
-            "schema": {
-                wrap("battery_soc"): vol.All(
-                    vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100")
-                )
-            },
-        },
-    )
-
-
-def battery_soc_sensor_field(description: str, *, optional: bool = False) -> Sequence[str]:
-    """Field for a battery SOC sensor."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default_factory=list,
-        metadata={
-            "description": description,
-            "field_type": (SensorDeviceClass.BATTERY, "sensor"),
-            "schema": {
-                wrap("sensors"): EntitySelector(
-                    EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.BATTERY])
-                )
-            },
-        },
-    )
-
-
-def boolean_field(description: str, *, optional: bool = False, default: bool | None = None) -> bool | None:
-    """Field for a boolean value."""
-    wrap = vol.Required if not optional else vol.Optional
-    return field(
-        default=default,
-        metadata={
-            "description": description,
-            "field_type": ("boolean", "constant"),
-            "schema": {wrap("value"): BooleanSelector(BooleanSelectorConfig())},
-        },
-    )
+PriceField = Annotated[float, PriceFieldMeta]
+PriceSensorField = Annotated[str, PriceSensorFieldMeta]
+PriceForecastField = Annotated[str, PriceForecastFieldMeta]
+PriceLiveAndForecastField = Annotated[str, PriceLiveAndForecastFieldMeta]
