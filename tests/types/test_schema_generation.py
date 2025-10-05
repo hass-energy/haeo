@@ -9,7 +9,7 @@ from custom_components.haeo.types import ELEMENT_TYPES
 @pytest.fixture
 def schema_params():
     """Fixture providing schema parameters for tests."""
-    return {"participants": ["test_element_1", "test_element_2"]}
+    return {"participants": ["test_element_1", "test_element_2"], "current_element_name": None}
 
 
 @pytest.mark.parametrize(("element_type", "config_class"), [(name, cls) for name, cls in ELEMENT_TYPES.items()])

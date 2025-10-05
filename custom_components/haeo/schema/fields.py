@@ -172,8 +172,17 @@ class NameFieldMeta(FieldMeta):
 
     field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
 
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {"value": vol.All(str, vol.Strip, vol.Length(min=1, msg="Name cannot be empty"))}
+    def _get_field_validators(
+        self, participants: dict[str, Any], current_element_name: str | None, **_kwargs: Any
+    ) -> dict[str, Any]:
+        def validate_unique_name(name: str) -> str:
+            """Validate that the name is unique among participants."""
+            if name in participants and name != current_element_name:
+                msg = "Name already exists"
+                raise vol.Invalid(msg)
+            return name
+
+        return {"value": vol.All(str, vol.Strip, vol.Length(min=1, msg="Name cannot be empty"), validate_unique_name)}
 
 
 @dataclass(frozen=True)

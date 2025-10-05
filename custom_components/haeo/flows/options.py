@@ -16,9 +16,10 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_HORIZON_HOURS, 
 if TYPE_CHECKING:
     from homeassistant.data_entry_flow import FlowResult
 
+from custom_components.haeo.schema import schema_for_type
 from custom_components.haeo.types import ELEMENT_TYPES
 
-from . import get_network_timing_schema, get_schema
+from . import get_network_timing_schema
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,30 +108,32 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         """Configure participant."""
         errors: dict[str, str] = {}
 
-        if user_input is not None:
-            name = user_input[CONF_NAME]
-
-            # Check for duplicate names (excluding current if editing)
-            if self._check_participant_name_exists(
-                name,
-                exclude_current=current_config.get(CONF_NAME) if current_config else None,
-            ):
-                errors[CONF_NAME] = "name_exists"
-            elif not errors:
-                # Add or update participant in configuration
-                participant = {CONF_ELEMENT_TYPE: element_type, **user_input}
-                if current_config:
-                    return await self._update_participant(current_config[CONF_NAME], participant)
-                return await self._add_participant(name, participant)
-
-        # Get participants for schema if needed
-        participants = self.config_entry.data.get("participants", {})
-
-        return self.async_show_form(
-            step_id=f"configure_{element_type}",
-            data_schema=get_schema(element_type, participants=participants),
-            errors=errors,
+        schema = schema_for_type(
+            ELEMENT_TYPES[element_type],
+            participants=self.config_entry.data.get("participants", {}),
+            current_element_name=current_config.get(CONF_NAME) if current_config else None,
         )
+
+        if user_input is not None:
+            # Validate user input against schema
+            try:
+                schema(user_input)
+            except vol.Invalid as e:
+                errors[CONF_NAME] = "name_exists" if "already exists" in str(e) else "invalid_input"
+                if not errors:
+                    return self.async_show_form(step_id=f"configure_{element_type}", data_schema=schema, errors=errors)
+
+            # If validation passes, proceed with business logic
+            if not errors:
+                # Add or update participant in configuration
+                # Keep the flattened structure for HA storage
+                element_config = {CONF_ELEMENT_TYPE: element_type, **user_input}
+                if current_config:
+                    return await self._update_participant(current_config[CONF_NAME], element_config)
+
+                return await self._add_participant(user_input.get("name_value"), element_config)
+
+        return self.async_show_form(step_id=f"configure_{element_type}", data_schema=schema, errors=errors)
 
     async def async_step_edit_participant(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Edit an existing participant."""
@@ -154,10 +157,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required("participant"): SelectSelector(
-                        SelectSelectorConfig(
-                            options=participant_options,
-                            mode=SelectSelectorMode.DROPDOWN,
-                        ),
+                        SelectSelectorConfig(options=participant_options, mode=SelectSelectorMode.DROPDOWN),
                     ),
                 },
             ),
@@ -200,15 +200,6 @@ class HubOptionsFlow(config_entries.OptionsFlow):
                 },
             ),
         )
-
-    def _check_participant_name_exists(self, name: str, exclude_current: str | None = None) -> bool:
-        """Check if a participant name already exists."""
-        participants = self.config_entry.data.get("participants", {})
-        if exclude_current and exclude_current in participants:
-            # If we're editing, allow the current name
-            return name in participants and name != exclude_current
-        # If we're creating, don't allow any duplicates
-        return name in participants
 
     async def _add_participant(self, name: str, participant_config: dict[str, Any]) -> FlowResult:
         """Add a participant to the configuration."""

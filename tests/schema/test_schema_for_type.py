@@ -29,7 +29,10 @@ from custom_components.haeo.schema.fields import (
 @pytest.fixture
 def schema_params():
     """Fixture providing schema parameters for tests."""
-    return {"participants": ["battery_1", "grid_1"]}
+    return {
+        "participants": ["battery_1", "grid_1"],
+        "current_element_name": None,
+    }
 
 
 # Test configs for individual field types
@@ -207,9 +210,9 @@ def test_constant_field_schema_creation(schema_params):
     assert set(schema_dict.keys()) == expected_keys
 
 
-def test_sensor_field_schema_creation():
+def test_sensor_field_schema_creation(schema_params):
     """Test creating schema for sensor field types."""
-    schema = schema_for_type(SensorFieldTestConfig)
+    schema = schema_for_type(SensorFieldTestConfig, **schema_params)
 
     assert isinstance(schema, vol.Schema)
 
@@ -220,9 +223,9 @@ def test_sensor_field_schema_creation():
     assert set(schema_dict.keys()) == expected_keys
 
 
-def test_forecast_field_schema_creation():
+def test_forecast_field_schema_creation(schema_params):
     """Test creating schema for forecast field types."""
-    schema = schema_for_type(ForecastFieldTestConfig)
+    schema = schema_for_type(ForecastFieldTestConfig, **schema_params)
 
     assert isinstance(schema, vol.Schema)
 
@@ -233,9 +236,9 @@ def test_forecast_field_schema_creation():
     assert set(schema_dict.keys()) == expected_keys
 
 
-def test_complex_field_schema_creation():
+def test_complex_field_schema_creation(schema_params):
     """Test creating schema for complex field types."""
-    schema = schema_for_type(ComplexFieldTestConfig)
+    schema = schema_for_type(ComplexFieldTestConfig, **schema_params)
 
     assert isinstance(schema, vol.Schema)
 
@@ -266,7 +269,7 @@ def test_constant_field_schema_validation(schema_params):
     assert result == valid_data
 
 
-async def test_sensor_field_schema_validation_with_invalid_sensor(hass):
+async def test_sensor_field_schema_validation_with_invalid_sensor(hass, schema_params):
     """Test schema validation for sensor field types with invalid sensor."""
     # Set up sensor entities for validation
     hass.states.async_set(
@@ -275,7 +278,7 @@ async def test_sensor_field_schema_validation_with_invalid_sensor(hass):
         attributes={"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.WATT},
     )
 
-    schema = schema_for_type(SensorFieldTestConfig)
+    schema = schema_for_type(SensorFieldTestConfig, **schema_params)
 
     # Test with data that would be invalid if entity validation worked properly
     # In test environment, entity validation may not work as expected
@@ -296,7 +299,7 @@ async def test_sensor_field_schema_validation_with_invalid_sensor(hass):
         pass
 
 
-async def test_forecast_field_schema_validation(hass):
+async def test_forecast_field_schema_validation(hass, schema_params):
     """Test schema validation for forecast field types."""
     # Set up forecast sensor entities for validation
     hass.states.async_set(
@@ -310,7 +313,7 @@ async def test_forecast_field_schema_validation(hass):
         attributes={"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.WATT},
     )
 
-    schema = schema_for_type(ForecastFieldTestConfig)
+    schema = schema_for_type(ForecastFieldTestConfig, **schema_params)
 
     # Test with valid forecast sensors (omit optional field when empty)
     valid_data = {
@@ -323,7 +326,7 @@ async def test_forecast_field_schema_validation(hass):
     assert result == valid_data
 
 
-async def test_forecast_field_schema_validation_with_invalid_sensor(hass):
+async def test_forecast_field_schema_validation_with_invalid_sensor(hass, schema_params):
     """Test schema validation for forecast field types with invalid sensor."""
     # Set up forecast sensor entities for validation
     hass.states.async_set(
@@ -332,7 +335,7 @@ async def test_forecast_field_schema_validation_with_invalid_sensor(hass):
         attributes={"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.WATT},
     )
 
-    schema = schema_for_type(ForecastFieldTestConfig)
+    schema = schema_for_type(ForecastFieldTestConfig, **schema_params)
 
     # Test with data that would be invalid if entity validation worked properly
     # In test environment, entity validation may not work as expected
@@ -378,7 +381,7 @@ def test_constant_field_data_conversion(schema_params):
     assert config.battery_soc == 90.0
 
 
-def test_sensor_field_data_conversion():
+def test_sensor_field_data_conversion(schema_params):
     """Test converting data back to sensor field config."""
     data = {
         "power_sensor_value": ["sensor.power_1"],
@@ -386,7 +389,7 @@ def test_sensor_field_data_conversion():
         "price_sensor_value": ["sensor.price_1"],
     }
 
-    config = data_to_config(SensorFieldTestConfig, data)
+    config = data_to_config(SensorFieldTestConfig, data, **schema_params)
 
     assert isinstance(config, SensorFieldTestConfig)
     # Sensor fields keep their dictionary structure
@@ -395,14 +398,14 @@ def test_sensor_field_data_conversion():
     assert config.price_sensor == {"value": ["sensor.price_1"]}
 
 
-def test_forecast_field_data_conversion():
+def test_forecast_field_data_conversion(schema_params):
     """Test converting data back to forecast field config."""
     data = {
         "power_forecast_value": ["sensor.forecast_1", "sensor.forecast_2"],
         "price_forecast_value": ["sensor.price_forecast"],
     }
 
-    config = data_to_config(ForecastFieldTestConfig, data)
+    config = data_to_config(ForecastFieldTestConfig, data, **schema_params)
 
     assert isinstance(config, ForecastFieldTestConfig)
     # Forecast fields keep their dictionary structure
@@ -410,7 +413,7 @@ def test_forecast_field_data_conversion():
     assert config.price_forecast == {"value": ["sensor.price_forecast"]}
 
 
-def test_complex_field_data_conversion():
+def test_complex_field_data_conversion(schema_params):
     """Test converting data back to complex field config."""
     data = {
         "price_live_and_forecast_live": ["sensor.price_live"],
@@ -418,7 +421,7 @@ def test_complex_field_data_conversion():
         "optional_sensor_value": ["sensor.optional_power"],
     }
 
-    config = data_to_config(ComplexFieldTestConfig, data)
+    config = data_to_config(ComplexFieldTestConfig, data, **schema_params)
 
     assert isinstance(config, ComplexFieldTestConfig)
     # Complex fields keep their structure
@@ -487,7 +490,7 @@ def test_constant_field_full_workflow(schema_params):
     assert config.battery_soc == 90.0
 
 
-async def test_sensor_field_full_workflow(hass):
+async def test_sensor_field_full_workflow(hass, schema_params):
     """Test full workflow for sensor field types."""
     # Set up sensor entities for validation
     hass.states.async_set(
@@ -501,7 +504,7 @@ async def test_sensor_field_full_workflow(hass):
         attributes={"device_class": SensorDeviceClass.BATTERY, "unit_of_measurement": "%"},
     )
 
-    schema = schema_for_type(SensorFieldTestConfig)
+    schema = schema_for_type(SensorFieldTestConfig, **schema_params)
 
     # Test with valid sensor entities (omit optional field when empty)
     input_data = {
@@ -521,7 +524,7 @@ async def test_sensor_field_full_workflow(hass):
     assert config.price_sensor is None  # Should be None for omitted optional field
 
 
-async def test_complex_field_full_workflow(hass):
+async def test_complex_field_full_workflow(hass, schema_params):
     """Test full workflow for complex field types."""
     # Set up sensor entities for validation
     hass.states.async_set(
@@ -535,7 +538,7 @@ async def test_complex_field_full_workflow(hass):
         attributes={"device_class": SensorDeviceClass.MONETARY, "unit_of_measurement": "$/kWh"},
     )
 
-    schema = schema_for_type(ComplexFieldTestConfig)
+    schema = schema_for_type(ComplexFieldTestConfig, **schema_params)
 
     # Test with valid sensor entities (omit optional field when empty)
     input_data = {
