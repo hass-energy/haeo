@@ -1,0 +1,70 @@
+"""Open-Meteo solar forecast parser."""
+
+from collections.abc import Sequence
+from datetime import datetime
+import logging
+from typing import Literal
+
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.util.dt import as_utc
+
+_LOGGER = logging.getLogger(__name__)
+
+DOMAIN: Literal["open_meteo_solar_forecast"] = "open_meteo_solar_forecast"
+
+
+def detect(state: SensorEntity) -> bool:
+    """Check if data matches Open-Meteo solar forecast format.
+
+    Args:
+        state: The sensor state containing forecast data
+
+    Returns:
+        True if data matches Open-Meteo format, False otherwise
+
+    """
+    if not (isinstance(state.attributes, dict) and "watts" in state.attributes):
+        return False
+
+    watts = state.attributes["watts"]
+    if not (isinstance(watts, dict) and len(watts) > 0):
+        return False
+
+    first_key = next(iter(watts.keys()))
+    try:
+        datetime.fromisoformat(first_key)
+    except (ValueError, TypeError):
+        return False
+    else:
+        return True
+
+
+def extract(state: SensorEntity) -> Sequence[tuple[int, float]]:
+    """Extract forecast data from Open-Meteo solar forecast format.
+
+    Args:
+        state: The sensor state containing forecast data
+
+    Returns:
+        List of (timestamp_seconds, value) tuples sorted by timestamp
+
+    """
+    watts = state.attributes.get("watts", {})
+    if not isinstance(watts, dict):
+        return []
+
+    result = []
+    for time_str, power_value in watts.items():
+        try:
+            # Parse ISO timestamp and convert to UTC
+            dt = as_utc(datetime.fromisoformat(time_str))
+            timestamp_seconds = int(dt.timestamp())
+            value = float(power_value)
+            result.append((timestamp_seconds, value))
+        except (ValueError, TypeError) as err:
+            _LOGGER.warning("Failed to parse Open-Meteo forecast item '%s': %s", time_str, err)
+            continue
+
+    # Sort by timestamp
+    result.sort(key=lambda x: x[0])
+    return result

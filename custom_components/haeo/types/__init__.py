@@ -10,17 +10,6 @@ from .generator import GeneratorConfig
 from .grid import GridConfig
 from .net import NetConfig
 
-# List of all element types for iteration
-ELEMENT_TYPES = {
-    "battery": BatteryConfig,
-    "connection": ConnectionConfig,
-    "generator": GeneratorConfig,
-    "grid": GridConfig,
-    "constant_load": ConstantLoadConfig,
-    "forecast_load": ForecastLoadConfig,
-    "net": NetConfig,
-}
-
 # Type-safe discriminated union for element configurations
 ElementConfig = (
     BatteryConfig
@@ -31,3 +20,14 @@ ElementConfig = (
     | NetConfig
     | ConnectionConfig
 )
+
+# List of all element types for iteration
+ELEMENT_TYPES: dict[str, type[ElementConfig]] = {
+    "battery": BatteryConfig,
+    "connection": ConnectionConfig,
+    "generator": GeneratorConfig,
+    "grid": GridConfig,
+    "constant_load": ConstantLoadConfig,
+    "forecast_load": ForecastLoadConfig,
+    "net": NetConfig,
+}
