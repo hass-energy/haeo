@@ -1,0 +1,99 @@
+{
+  "participants": {
+    "dc_net": {
+      "type": "net",
+      "name": "dc_net"
+    },
+    "ac_net": {
+      "type": "net",
+      "name": "ac_net"
+    },
+    "battery": {
+      "type": "battery",
+      "name": "battery",
+      "capacity": 10000,
+      "initial_charge_percentage": 50.0,
+      "min_charge_percentage": 10.0,
+      "max_charge_percentage": 90.0,
+      "efficiency": 0.99,
+      "max_charge_power": 5000,
+      "max_discharge_power": 5000
+    },
+    "solar_generator": {
+      "type": "generator",
+      "name": "solar_generator",
+      "forecast": [
+        "sensor.energy_production_d2_east",
+        "sensor.energy_production_d2_north",
+        "sensor.energy_production_d2_south",
+        "sensor.energy_production_d2_west",
+        "sensor.energy_production_d3_east",
+        "sensor.energy_production_d3_north",
+        "sensor.energy_production_d3_south",
+        "sensor.energy_production_d3_west",
+        "sensor.energy_production_d4_east",
+        "sensor.energy_production_d4_north",
+        "sensor.energy_production_d4_south",
+        "sensor.energy_production_d4_west",
+        "sensor.energy_production_d5_east",
+        "sensor.energy_production_d5_north",
+        "sensor.energy_production_d5_south",
+        "sensor.energy_production_d5_west",
+        "sensor.energy_production_d6_east",
+        "sensor.energy_production_d6_north",
+        "sensor.energy_production_d6_south",
+        "sensor.energy_production_d6_west",
+        "sensor.energy_production_d7_east",
+        "sensor.energy_production_d7_north",
+        "sensor.energy_production_d7_south",
+        "sensor.energy_production_d7_west"
+      ],
+      "curtailment": true
+    },
+    "grid_connection": {
+      "type": "grid",
+      "name": "grid_connection",
+      "import_price": "sensor.home_general_price",
+      "export_price": "sensor.home_feed_in_price",
+      "import_limit": 10000,
+      "export_limit": 5000
+    },
+    "constant_load": {
+      "type": "constant_load",
+      "name": "constant_load",
+      "power": 1000
+    },
+    "battery_to_dc_net": {
+      "type": "connection",
+      "name": "battery_to_dc_net",
+      "source": "battery",
+      "target": "dc_net"
+    },
+    "solar_to_dc_net": {
+      "type": "connection",
+      "name": "solar_to_dc_net",
+      "source": "solar_generator",
+      "target": "dc_net"
+    },
+    "ac_net_to_dc_net": {
+      "type": "connection",
+      "name": "ac_net_to_dc_net",
+      "source": "ac_net",
+      "target": "dc_net"
+    },
+    "grid_to_ac_net": {
+      "type": "connection",
+      "name": "grid_to_ac_net",
+      "source": "grid_connection",
+      "target": "ac_net"
+    },
+    "load_to_ac_net": {
+      "type": "connection",
+      "name": "load_to_ac_net",
+      "source": "constant_load",
+      "target": "ac_net"
+    }
+  },
+  "horizon_hours": 48,
+  "period_minutes": 5
+}

@@ -23,20 +23,18 @@ def detect(state: SensorEntity) -> bool:
         True if data matches Open-Meteo format, False otherwise
 
     """
-    if not (isinstance(state.attributes, dict) and "watts" in state.attributes):
-        return False
+    # Check for watts attribute with timestamp keys (Open-Meteo format)
+    if isinstance(state.attributes, dict) and "watts" in state.attributes:
+        watts = state.attributes["watts"]
+        if isinstance(watts, dict) and len(watts) > 0:
+            first_key = next(iter(watts.keys()))
+            try:
+                datetime.fromisoformat(first_key)
+            except (ValueError, TypeError):
+                return False
+            return True
 
-    watts = state.attributes["watts"]
-    if not (isinstance(watts, dict) and len(watts) > 0):
-        return False
-
-    first_key = next(iter(watts.keys()))
-    try:
-        datetime.fromisoformat(first_key)
-    except (ValueError, TypeError):
-        return False
-    else:
-        return True
+    return False
 
 
 def extract(state: SensorEntity) -> Sequence[tuple[int, float]]:

@@ -5,7 +5,6 @@ from datetime import datetime
 import logging
 from typing import Literal
 
-
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.util.dt import as_utc
 

@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 import logging
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-from homeassistant.components.sensor import SensorEntity
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 from . import aemo_nem, amberelectric, open_meteo_solar_forecast, solcast_solar
 
 _LOGGER = logging.getLogger(__name__)
 
+# Use open_meteo_solar_forecast parser for watts format as well
 ForecastFormat = Literal[aemo_nem.DOMAIN, amberelectric.DOMAIN, open_meteo_solar_forecast.DOMAIN, solcast_solar.DOMAIN]
 
 _FORMATS = {
@@ -32,6 +33,7 @@ def detect_format(state: SensorEntity) -> ForecastFormat | None:
         The detected forecast format
 
     """
+
     valid_formats = [domain for domain, parser in _FORMATS.items() if parser.detect(state)]
 
     if len(valid_formats) == 1:
@@ -57,10 +59,11 @@ def parse_forecast_data(state: SensorEntity) -> Sequence[tuple[int, float]] | No
 
     """
     parser_type = detect_format(state)
+
     if parser_type is None:
         return None
 
-    extractor = _FORMATS[parser_type]
+    extractor = _FORMATS.get(parser_type)
     if extractor is None:
         msg = "Unknown forecast format"
         raise ValueError(msg)
