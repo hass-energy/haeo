@@ -1,12 +1,12 @@
 """Data update coordinator for the Home Assistant Energy Optimization integration."""
 
-from __future__ import annotations
-
 from datetime import datetime, timedelta
 import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 from pulp import value
@@ -21,12 +21,9 @@ from .const import (
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
 )
-from .data_loader import DataLoader
+from .data import load_network
 
 if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
-    from homeassistant.core import HomeAssistant
-
     from .model import Network
 
 _LOGGER = logging.getLogger(__name__)
@@ -61,7 +58,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.optimization_result: dict[str, Any] | None = None
         self.optimization_status = OPTIMIZATION_STATUS_PENDING
         self._last_optimization_duration: float | None = None
-        self.data_loader = DataLoader(hass)
 
         super().__init__(
             hass,
@@ -96,14 +92,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.config[CONF_PERIOD_MINUTES],
             )
 
-            # Create new network with current sensor data (includes sensor availability check)
-            self.network = await self.data_loader.load_network_data(self.entry, period_seconds, n_periods)
-
-            # Check if sensor data is available
-            if not self.network.sensor_data_available:
+            # Build network (raises ValueError when data missing)
+            try:
+                self.network = await load_network(
+                    self.hass,
+                    self.entry,
+                    period_seconds=period_seconds,
+                    n_periods=n_periods,
+                )
+            except ValueError as err:
                 self.optimization_status = OPTIMIZATION_STATUS_FAILED
-                _LOGGER.warning("Required sensor data not available, skipping optimization")
-                # Don't raise UpdateFailed here - let the sensors show as unavailable
+                _LOGGER.warning("Required sensor / forecast data not available: %s", err)
                 end_time = time.time()
                 self._last_optimization_duration = end_time - start_time
                 return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self.last_optimization_duration}

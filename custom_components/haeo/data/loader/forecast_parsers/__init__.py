@@ -1,12 +1,10 @@
 """Forecast parser package for different energy data providers."""
 
-from __future__ import annotations
-
+from collections.abc import Sequence
 import logging
 from typing import TYPE_CHECKING, Literal
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
+from homeassistant.components.sensor import SensorEntity
 
 from . import aemo_nem, amberelectric, open_meteo_solar_forecast, solcast_solar
 

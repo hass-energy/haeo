@@ -1,5 +1,29 @@
 """Constants for the Home Assistant Energy Optimization integration."""
 
+from homeassistant.components.sensor.const import UNIT_CONVERTERS, SensorDeviceClass
+from homeassistant.const import UnitOfEnergy, UnitOfPower
+
+
+def convert_to_base_unit(value: float, from_unit: str | None, device_class: SensorDeviceClass) -> float:
+    """Convert *value* expressed in *from_unit* to the canonical base unit.
+
+    Power   → Watt (W)
+    Energy  → Watt-hour (Wh)
+    Storage → Watt-hour (Wh)
+    All other classes are returned unchanged.
+    """
+    base_units = {
+        SensorDeviceClass.POWER: UnitOfPower.WATT,
+        SensorDeviceClass.ENERGY: UnitOfEnergy.WATT_HOUR,
+        SensorDeviceClass.ENERGY_STORAGE: UnitOfEnergy.WATT_HOUR,
+    }
+
+    if device_class in base_units:
+        return UNIT_CONVERTERS.get(device_class).convert(value, from_unit, base_units[device_class])
+
+    return value
+
+
 # Integration domain
 DOMAIN = "haeo"
 

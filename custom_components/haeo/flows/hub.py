@@ -1,19 +1,15 @@
 """Hub configuration flow for HAEO integration."""
 
-from __future__ import annotations
-
 import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow
 from homeassistant.const import CONF_NAME
+from homeassistant.data_entry_flow import FlowResult
 
 from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES, DOMAIN
 
 from .options import HubOptionsFlow
-
-if TYPE_CHECKING:
-    from homeassistant.data_entry_flow import FlowResult
 
 from . import get_network_timing_schema, validate_network_timing_input
 

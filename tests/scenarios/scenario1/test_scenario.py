@@ -2,8 +2,8 @@
 
 from collections.abc import Sequence
 from typing import Any
+
 from homeassistant.core import HomeAssistant
-import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN

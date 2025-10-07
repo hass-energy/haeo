@@ -1,18 +1,14 @@
 """The Home Assistant Energy Optimization integration."""
 
-from __future__ import annotations
-
 import logging
 from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .coordinator import HaeoDataUpdateCoordinator
-
-if TYPE_CHECKING:
-    from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 

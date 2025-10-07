@@ -1,7 +1,5 @@
 """HAEO type system with field-based metadata."""
 
-from __future__ import annotations
-
 from .battery import BatteryConfig
 from .connection import ConnectionConfig
 from .constant_load import ConstantLoadConfig

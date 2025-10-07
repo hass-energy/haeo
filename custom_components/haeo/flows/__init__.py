@@ -1,10 +1,10 @@
 """Base classes and utilities for HAEO config flows."""
 
-from __future__ import annotations
-
 import logging
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig
 import voluptuous as vol
 
@@ -17,10 +17,6 @@ from custom_components.haeo.const import (
     MAX_NAME_LENGTH,
     MAX_PERIOD_MINUTES,
 )
-
-if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
-    from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 

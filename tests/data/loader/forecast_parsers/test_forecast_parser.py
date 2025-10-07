@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from custom_components.haeo.forecast_parsers import detect_format, parse_forecast_data
+from custom_components.haeo.data.loader.forecast_parsers import detect_format, parse_forecast_data
 
 
 @pytest.fixture

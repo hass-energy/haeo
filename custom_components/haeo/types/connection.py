@@ -1,7 +1,5 @@
 """Network and connection element configurations for HAEO integration."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Literal
 

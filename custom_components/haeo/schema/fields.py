@@ -1,7 +1,5 @@
 """Field types for HAEO type system using Annotated types."""
 
-from __future__ import annotations
-
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass

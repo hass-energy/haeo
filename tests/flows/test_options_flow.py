@@ -1,7 +1,5 @@
 """Test options flow for HAEO."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from homeassistant.const import CONF_NAME
