@@ -14,7 +14,7 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_HORIZON_HOURS, 
 from custom_components.haeo.schema import schema_for_type
 from custom_components.haeo.types import ELEMENT_TYPES
 
-from . import get_network_timing_schema
+from . import get_network_config_schema
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,8 +52,13 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             await self.hass.config_entries.async_reload(self.config_entry.entry_id)
             return self.async_create_entry(title="", data={})
 
-        # Show form with network timing configuration
-        data_schema = get_network_timing_schema(config_entry=self.config_entry)
+        # Show form with network configuration
+        data_schema = get_network_config_schema(
+            config_entry=self.config_entry,
+            existing_names={
+                entry.title for entry in self.hass.config_entries.async_entries("haeo") if entry != self.config_entry
+            },
+        )
 
         return self.async_show_form(
             step_id="configure_network",

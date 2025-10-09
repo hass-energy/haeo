@@ -8,14 +8,36 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import convert_to_base_unit
 
 
-def available(hass: HomeAssistant, sensors: Sequence[str]) -> bool:
+def available(hass: HomeAssistant, sensors: Sequence[str], **_kwargs: Any) -> bool:
+    """Return True if all sensors are available.
+
+    Args:
+        hass: Home Assistant instance
+        sensors: List of sensor entity IDs to check
+        **_kwargs: Additional keyword arguments (unused)
+
+    Returns:
+        True if all sensors are available and have valid states
+
+    """
     return all(
         hass.states.get(sid) is not None and hass.states.get(sid).state not in ("unknown", "unavailable", "none")
         for sid in sensors
     )
 
 
-async def load(hass: HomeAssistant, sensors: Sequence[str], **kwargs: Any) -> float:
+async def load(hass: HomeAssistant, sensors: Sequence[str], **_kwargs: Any) -> float:
+    """Load sensor values and return their sum.
+
+    Args:
+        hass: Home Assistant instance
+        sensors: List of sensor entity IDs to load
+        **_kwargs: Additional keyword arguments (unused)
+
+    Returns:
+        Sum of all sensor values as a float
+
+    """
     total: float = 0.0
     for sid in sensors:
         state = hass.states.get(sid)

@@ -9,7 +9,7 @@ from homeassistant.data_entry_flow import FlowResult
 
 from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES, DOMAIN
 
-from . import get_network_timing_schema, validate_network_timing_input
+from . import get_network_config_schema
 from .options import HubOptionsFlow
 
 _LOGGER = logging.getLogger(__name__)
@@ -24,25 +24,13 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle the initial step for hub creation."""
         if user_input is not None:
-            # Validate input using shared function
-            errors, validated_data = validate_network_timing_input(
-                user_input,
-                hass=self.hass,
-                include_name=True,
-                name_required=True,
+            # Get the schema for validation (includes duplicate name checking)
+            data_schema = get_network_config_schema(
+                existing_names={entry.title for entry in self.hass.config_entries.async_entries("haeo")}
             )
 
-            if errors:
-                data_schema = get_network_timing_schema(include_name=True, name_required=True)
-                return self.async_show_form(
-                    step_id="user",
-                    data_schema=data_schema,
-                    errors=errors,
-                )
-
-            hub_name = validated_data["name"]
-
             # Create the hub entry
+            hub_name = user_input["name"]
             await self.async_set_unique_id(f"haeo_hub_{hub_name.lower().replace(' ', '_')}")
             self._abort_if_unique_id_configured()
 
@@ -52,14 +40,14 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 data={
                     "integration_type": "hub",
                     CONF_NAME: hub_name,
-                    CONF_HORIZON_HOURS: validated_data[CONF_HORIZON_HOURS],
-                    CONF_PERIOD_MINUTES: validated_data[CONF_PERIOD_MINUTES],
+                    CONF_HORIZON_HOURS: user_input[CONF_HORIZON_HOURS],
+                    CONF_PERIOD_MINUTES: user_input[CONF_PERIOD_MINUTES],
                     "participants": {},
                 },
             )
 
-        # Show form with network timing configuration
-        data_schema = get_network_timing_schema(include_name=True, name_required=True)
+        # Show form with network configuration
+        data_schema = get_network_config_schema()
 
         return self.async_show_form(
             step_id="user",

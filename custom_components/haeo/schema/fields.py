@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Annotated, Any, Literal
 
 from homeassistant.components.sensor.const import SensorDeviceClass
-from homeassistant.const import UnitOfPower
+from homeassistant.const import CURRENCY_DOLLAR, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.selector import (
     BooleanSelector,
     BooleanSelectorConfig,
@@ -101,7 +101,9 @@ class EnergyFieldMeta(FieldMeta):
                 vol.Coerce(float),
                 vol.Range(min=0, min_included=True, msg="Value must be positive"),
                 NumberSelector(
-                    NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, step=1, unit_of_measurement="Wh")
+                    NumberSelectorConfig(
+                        mode=NumberSelectorMode.BOX, min=1, step=1, unit_of_measurement=UnitOfEnergy.WATT_HOUR
+                    )
                 ),
             )
         }
@@ -120,7 +122,13 @@ class PriceFieldMeta(FieldMeta):
         return {
             "value": vol.All(
                 vol.Coerce(float),
-                NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=1, unit_of_measurement="$/kWh")),
+                NumberSelector(
+                    NumberSelectorConfig(
+                        mode=NumberSelectorMode.BOX,
+                        step=1,
+                        unit_of_measurement=f"{CURRENCY_DOLLAR}/{UnitOfEnergy.KILO_WATT_HOUR}",
+                    )
+                ),
             )
         }
 
@@ -151,9 +159,10 @@ class ElementNameFieldMeta(FieldMeta):
 
     field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
 
-    def _get_field_validators(self, participants: Sequence[str], **_kwargs: Any) -> dict[str, Any]:
+    def _get_field_validators(self, participants: list[str] | None = None, **_kwargs: Any) -> dict[str, Any]:
         # Only show the participants as options in the selector
-        options = [{"value": participant, "label": participant} for participant in participants]
+        participants_list = participants or []
+        options = [{"value": participant, "label": participant} for participant in participants_list]
         return {
             "value": vol.All(
                 str,
@@ -171,11 +180,15 @@ class NameFieldMeta(FieldMeta):
     field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
 
     def _get_field_validators(
-        self, participants: dict[str, Any], current_element_name: str | None, **_kwargs: Any
+        self,
+        participants: dict[str, Any] | None = None,
+        current_element_name: str | None = None,
+        **_kwargs: Any,
     ) -> dict[str, Any]:
         def validate_unique_name(name: str) -> str:
             """Validate that the name is unique among participants."""
-            if name in participants and name != current_element_name:
+            participants_dict = participants or {}
+            if name in participants_dict and name != current_element_name:
                 msg = "Name already exists"
                 raise vol.Invalid(msg)
             return name

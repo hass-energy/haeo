@@ -2,7 +2,9 @@
 
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
+from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -141,7 +143,11 @@ VALID_TEST_DATA_WITH_IDS = test_data_result.valid_test_data_with_ids
 INVALID_TEST_DATA_WITH_IDS = test_data_result.invalid_test_data_with_ids
 
 # Hub test data (not element-specific)
-HUB_VALID_DATA = {"name": "Test Hub"}
+HUB_VALID_DATA = {
+    "name": "Test Hub",
+    "horizon_hours": 48,
+    "period_minutes": 5,
+}
 
 # Mock participants for schema testing
 MOCK_PARTICIPANTS = {
@@ -162,6 +168,8 @@ def create_mock_config_entry(
             "integration_type": "hub",
             "name": title,
             "participants": {},
+            "horizon_hours": 48,  # Default horizon
+            "period_minutes": 5,  # Default period
         }
 
     return MockConfigEntry(
@@ -256,18 +264,26 @@ def config_entry_minimal_participants():
 @pytest.fixture
 def options_flow_with_minimal_participants(hass, config_entry_minimal_participants):
     """Options flow fixture with minimal participants for connection testing."""
+    # Properly register the config entry with hass
+    config_entry_minimal_participants.add_to_hass(hass)
+
     options_flow = HubOptionsFlow()
     options_flow.hass = hass
     options_flow._config_entry = config_entry_minimal_participants
+
     return options_flow
 
 
 @pytest.fixture
 def options_flow_with_participants(hass, config_entry_with_participants):
     """Options flow fixture with existing participant for duplicate name testing."""
+    # Properly register the config entry with hass
+    config_entry_with_participants.add_to_hass(hass)
+
     options_flow = HubOptionsFlow()
     options_flow.hass = hass
     options_flow._config_entry = config_entry_with_participants
+
     return options_flow
 
 
@@ -291,6 +307,8 @@ def config_entry_with_multiple_participants():
             "integration_type": "hub",
             "name": "Power Network",
             "participants": participants,
+            "horizon_hours": 48,  # Default horizon
+            "period_minutes": 5,  # Default period
         },
     )
 
@@ -404,6 +422,11 @@ async def test_options_flow_configure_duplicate_name(
     """Test configuration with duplicate name for all element types."""
     valid_data = valid_case["config"]
 
+    # Modify the name to conflict with existing participant
+    # Use the name of the first participant in the fixture (e.g., "batte1")
+    conflicting_name = "batte1" if element_type == "battery" else f"{element_type[:6]}1"
+    valid_data = {**valid_data, "name_value": conflicting_name}
+
     # Call the appropriate configure method
     method_name = f"async_step_configure_{element_type}"
     if hasattr(options_flow_with_participants, method_name):
@@ -442,7 +465,36 @@ async def test_options_flow_configure_success(
     if element_type == ELEMENT_TYPE_CONNECTION:
         config_entry = config_entry_minimal_participants
     else:
-        config_entry = create_mock_config_entry()
+        # Use a fresh config entry for non-connection types to avoid participant conflicts
+        config_entry = create_mock_config_entry(
+            data={
+                "integration_type": "hub",
+                "name": "Test Network",
+                "participants": {},
+            }
+        )
+
+    # Properly register the config entry with hass
+    config_entry.add_to_hass(hass)
+
+    # Set up sensor states for grid pricing sensors if needed
+    if element_type == ELEMENT_TYPE_GRID:
+        # Set up mock sensor states for grid pricing
+        hass.states.async_set(
+            "sensor.smart_grid_import_price", "0.25", {"device_class": "monetary", "unit_of_measurement": "$/kWh"}
+        )
+        hass.states.async_set(
+            "sensor.smart_grid_export_price", "0.15", {"device_class": "monetary", "unit_of_measurement": "$/kWh"}
+        )
+
+        # Also set up sensor states for the basic grid case (even though it doesn't use them)
+        # The EntitySelector might be validating even empty arrays
+        hass.states.async_set(
+            "sensor.test_import_price", "0.20", {"device_class": "monetary", "unit_of_measurement": "$/kWh"}
+        )
+        hass.states.async_set(
+            "sensor.test_export_price", "0.10", {"device_class": "monetary", "unit_of_measurement": "$/kWh"}
+        )
 
     options_flow = HubOptionsFlow()
     options_flow.hass = hass

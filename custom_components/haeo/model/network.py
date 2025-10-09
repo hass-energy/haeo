@@ -54,8 +54,12 @@ class Network:
         constraints: MutableSequence[LpConstraint] = []
 
         # Add element-specific constraints (including connection elements)
-        for element in self.elements.values():
-            constraints.extend(element.constraints())
+        for element_name, element in self.elements.items():
+            try:
+                constraints.extend(element.constraints())
+            except Exception as e:
+                msg = f"Failed to generate constraints for element '{element_name}'"
+                raise ValueError(msg) from e
 
         # Add power balance constraints for each element based on the connections
         # We need to identify connection elements and handle their power flows
@@ -99,6 +103,9 @@ class Network:
             The total optimization cost
 
         """
+        # Validate network before optimization
+        self.validate()
+
         # Create the LP problem
         prob = LpProblem(f"{self.name}_optimization", LpMinimize)
 

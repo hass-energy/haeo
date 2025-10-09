@@ -26,10 +26,12 @@ def available(
 async def load(
     hass: HomeAssistant,
     field_value: dict[Literal["live", "forecast"], Sequence[str]],
+    *,
+    forecast_times: Sequence[int],
     **kwargs: Any,
 ):
     live = await sensor_loader.load(hass, field_value.get("live"), **kwargs)
-    forecast = await forecast_loader.load(hass, field_value.get("forecast"), **kwargs)
+    forecast = await forecast_loader.load(hass, field_value.get("forecast"), forecast_times=forecast_times, **kwargs)
 
     if live is None or forecast is None:
         msg = "Live or forecast data is missing"

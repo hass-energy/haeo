@@ -12,7 +12,7 @@
       "type": "battery",
       "name": "battery",
       "capacity": 10000,
-      "initial_charge_percentage": 50.0,
+      "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
       "min_charge_percentage": 10.0,
       "max_charge_percentage": 90.0,
       "efficiency": 0.99,

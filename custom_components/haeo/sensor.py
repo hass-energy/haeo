@@ -5,21 +5,14 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfEnergy, UnitOfPower, UnitOfTime
+from homeassistant.const import CURRENCY_DOLLAR, UnitOfEnergy, UnitOfPower, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    ATTR_ENERGY,
-    ATTR_POWER,
-    DOMAIN,
-    OPTIMIZATION_STATUS_PENDING,
-    OPTIMIZATION_STATUS_SUCCESS,
-    UNIT_CURRENCY,
-)
+from .const import ATTR_ENERGY, ATTR_POWER, DOMAIN, OPTIMIZATION_STATUS_PENDING, OPTIMIZATION_STATUS_SUCCESS
 from .coordinator import HaeoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -243,9 +236,16 @@ class HaeoOptimizationCostSensor(HaeoSensorBase):
         """Initialize the sensor."""
         super().__init__(coordinator, config_entry, "optimization_cost", "Optimization Cost")
         self._attr_device_class = SensorDeviceClass.MONETARY
-        self._attr_native_unit_of_measurement = UNIT_CURRENCY
+        self._attr_native_unit_of_measurement = CURRENCY_DOLLAR  # Default fallback
         self._attr_state_class = SensorStateClass.TOTAL
         self._attr_translation_key = "optimization_cost"
+
+    async def async_added_to_hass(self) -> None:
+        """Set up the sensor when added to hass."""
+        await super().async_added_to_hass()
+        # Update unit of measurement to use the user's configured currency
+        if self.hass and self.hass.config.currency:
+            self._attr_native_unit_of_measurement = self.hass.config.currency
 
     @property
     def native_value(self) -> float | None:

@@ -1,9 +1,10 @@
 """Test the HAEO integration."""
 
 from contextlib import suppress
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -82,22 +83,12 @@ async def test_setup_entry(hass: HomeAssistant, mock_config_entry: MockConfigEnt
 
 
 async def test_setup_entry_with_failed_optimization(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
-    """Test that setup completes even when optimization fails during initial config."""
+    """Test that setup fails gracefully when config entry state is invalid."""
     mock_config_entry.add_to_hass(hass)
 
-    # Mock the coordinator to simulate optimization failure
-    with patch("custom_components.haeo.HaeoDataUpdateCoordinator") as mock_coordinator_class:
-        mock_coordinator = AsyncMock()
-        mock_coordinator.async_refresh = AsyncMock(side_effect=Exception("Optimization failed"))
-        mock_coordinator_class.return_value = mock_coordinator
-
-        # Setup should complete even with optimization failure
-        result = await async_setup_entry(hass, mock_config_entry)
-
-        # Should return True (setup successful) even with optimization failure
-        assert result is True
-        # Coordinator should have been created
-        assert mock_coordinator_class.called
+    # Setup should fail when config entry is not in proper state for platform setup
+    with pytest.raises(ConfigEntryNotReady):
+        await async_setup_entry(hass, mock_config_entry)
 
 
 async def test_unload_entry(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:

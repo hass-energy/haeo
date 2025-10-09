@@ -33,6 +33,12 @@ def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool, object]
             if len(args) == 1:
                 tp = args[0]
                 is_optional = True
+            elif len(args) > 1:
+                # For Union types, try to find the first type with Annotated metadata
+                for arg in args:
+                    if get_origin(arg) is Annotated:
+                        tp = arg
+                        break
 
         # Extract Annotated metadata
         if get_origin(tp) is Annotated:
@@ -81,8 +87,28 @@ def data_to_config[T](cls: type[T], data: dict[str, Any], **kwargs: Any) -> T:
         if is_optional and all(v == default for v in field_data.values()):
             output[field] = None
         # For constant fields, extract the single value if present
-        elif meta.field_type[1] == "constant":
-            output[field] = field_data.get("value", field_data)
+        if meta.field_type[1] == "constant":
+            if "value" in field_data and field_data["value"] is not None:
+                output[field] = field_data["value"]
+            else:
+                # For missing constant fields, use None or the default
+                output[field] = None
+        # For sensor and forecast fields, preserve the dictionary structure
+        elif meta.field_type[1] in ("sensor", "forecast"):
+            if "value" in field_data and field_data["value"] is not None:
+                output[field] = field_data
+            else:
+                # For missing sensor/forecast fields, use None
+                output[field] = None
+        # For live_forecast fields, preserve the dictionary structure
+        elif meta.field_type[1] == "live_forecast":
+            # For testing purposes, handle constant arrays
+            live_data = field_data.get("live")
+            forecast_data = field_data.get("forecast")
+            if live_data is not None or forecast_data is not None:
+                output[field] = field_data
+            else:
+                output[field] = None
         else:
             output[field] = field_data
 

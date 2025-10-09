@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 from homeassistant.const import CONF_NAME, CONF_SOURCE, CONF_TARGET
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import UpdateFailed
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -42,21 +41,23 @@ def mock_config_entry():
         data={
             "integration_type": "hub",
             CONF_NAME: "Power Network",
-            CONF_HORIZON_HOURS: 48,
-            CONF_PERIOD_MINUTES: 5,
+            CONF_HORIZON_HOURS: 1,  # 1 hour for testing
+            CONF_PERIOD_MINUTES: 30,  # 30 minutes for testing
             CONF_PARTICIPANTS: {
                 "test_battery": {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                    CONF_CAPACITY: 10000,
-                    CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_charge",
+                    f"{CONF_CAPACITY}_value": 10000,
+                    f"{CONF_INITIAL_CHARGE_PERCENTAGE}_value": "sensor.battery_soc",  # Use sensor for initial charge
                 },
                 "test_grid": {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
                     CONF_IMPORT_LIMIT: 10000,
                     CONF_EXPORT_LIMIT: 5000,
-                    # For tests, use constant pricing to avoid sensor setup complexity
-                    CONF_IMPORT_PRICE: [0.1] * 576,  # 48 hours in 5-minute steps
-                    CONF_EXPORT_PRICE: [0.05] * 576,  # 48 hours in 5-minute steps
+                    # Use sensor references instead of constant values
+                    f"{CONF_IMPORT_PRICE}_live": ["sensor.import_price"],
+                    f"{CONF_IMPORT_PRICE}_forecast": ["sensor.import_price"],
+                    f"{CONF_EXPORT_PRICE}_live": ["sensor.export_price"],
+                    f"{CONF_EXPORT_PRICE}_forecast": ["sensor.export_price"],
                 },
                 "test_connection": {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
@@ -84,8 +85,24 @@ async def test_coordinator_initialization(hass: HomeAssistant, mock_config_entry
 @patch("custom_components.haeo.model.network.Network.optimize")
 async def test_update_data_success(mock_optimize, hass: HomeAssistant, mock_config_entry) -> None:
     """Test successful data update."""
-    # Set up sensor state for battery sensor
-    hass.states.async_set("sensor.battery_charge", "50", {})
+    # Set up sensor states for pricing with forecast data in Amber Electric format
+
+    # Create a smaller forecast for testing (2 periods instead of 576)
+    forecast_data = [
+        {"start_time": "2025-10-05T00:00:00", "per_kwh": 0.1},
+        {"start_time": "2025-10-05T00:05:00", "per_kwh": 0.1},
+    ]
+
+    hass.states.async_set(
+        "sensor.import_price",
+        "0.10",
+        {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
+    )
+    hass.states.async_set(
+        "sensor.export_price",
+        "0.05",
+        {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
+    )
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
 
@@ -109,9 +126,24 @@ async def test_update_data_success(mock_optimize, hass: HomeAssistant, mock_conf
 async def test_update_data_failure(mock_optimize, hass: HomeAssistant, mock_config_entry) -> None:
     """Test failed data update."""
     # Set up sensor states for battery and grid
-    hass.states.async_set("sensor.battery_charge", "50", {})
-    hass.states.async_set("sensor.import_price", "0.10", {"forecast": [0.10] * 576})
-    hass.states.async_set("sensor.export_price", "0.05", {"forecast": [0.05] * 576})
+    hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
+
+    # Create a smaller forecast for testing (2 periods instead of 576)
+    forecast_data = [
+        {"start_time": "2025-10-05T00:00:00", "per_kwh": 0.1},
+        {"start_time": "2025-10-05T00:30:00", "per_kwh": 0.1},
+    ]
+
+    hass.states.async_set(
+        "sensor.import_price",
+        "0.10",
+        {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
+    )
+    hass.states.async_set(
+        "sensor.export_price",
+        "0.05",
+        {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
+    )
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
 
@@ -198,7 +230,7 @@ async def test_get_future_timestamps_with_result(hass: HomeAssistant, mock_confi
     coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
 
     # Create a network for the coordinator
-    coordinator.network = Network("test", period=300, n_periods=576)
+    coordinator.network = Network("test", period=1800, n_periods=2)
 
     # Set optimization result with timestamp
     test_time = datetime.now()
@@ -209,7 +241,7 @@ async def test_get_future_timestamps_with_result(hass: HomeAssistant, mock_confi
 
     result = coordinator.get_future_timestamps()
 
-    assert len(result) == 576  # 48 hours in 5-minute steps
+    assert len(result) == 2  # 2 periods (1 hour in 30-minute steps)
     # Check that timestamps are ISO format strings
     for timestamp in result:
         assert isinstance(timestamp, str)
@@ -220,16 +252,18 @@ async def test_get_future_timestamps_with_result(hass: HomeAssistant, mock_confi
 async def test_update_data_network_build_failure(hass: HomeAssistant, mock_config_entry) -> None:
     """Test update data when network building fails."""
     # Set up sensor state for battery
-    hass.states.async_set("sensor.battery_charge", "50", {})
+    hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
 
     # Mock failing network build (which now includes sensor data loading)
     with (
-        patch.object(coordinator.data_loader, "load_network_data", side_effect=Exception("Network build failed")),
+        patch("custom_components.haeo.data.load_network", side_effect=ValueError("Network build failed")),
         patch("custom_components.haeo.model.network.Network.optimize", return_value=100.0),
-        pytest.raises(UpdateFailed),
     ):
-        await coordinator._async_update_data()
+        result = await coordinator._async_update_data()
 
+    # Should return a result even when network building fails
+    assert result is not None
+    assert result["cost"] is None
     assert coordinator.optimization_status == OPTIMIZATION_STATUS_FAILED
