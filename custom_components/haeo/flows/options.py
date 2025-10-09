@@ -1,19 +1,16 @@
 """Options flow for HAEO hub management."""
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
+from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES
-
-if TYPE_CHECKING:
-    from homeassistant.data_entry_flow import FlowResult
-
 from custom_components.haeo.schema import schema_for_type
 from custom_components.haeo.types import ELEMENT_TYPES
 

@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
 
+from homeassistant.const import CURRENCY_DOLLAR
 from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -21,7 +22,6 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_NET,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_SUCCESS,
-    UNIT_CURRENCY,
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.sensor import (
@@ -179,7 +179,7 @@ def test_optimization_cost_sensor_init(mock_coordinator, mock_config_entry):
     sensor = HaeoOptimizationCostSensor(mock_coordinator, mock_config_entry)
 
     assert sensor._attr_name == "HAEO Optimization Cost"
-    assert sensor._attr_native_unit_of_measurement == UNIT_CURRENCY
+    assert sensor._attr_native_unit_of_measurement == CURRENCY_DOLLAR
     assert sensor._attr_unique_id == f"{mock_config_entry.entry_id}_optimization_cost"
 
 

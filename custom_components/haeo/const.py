@@ -127,13 +127,13 @@ OPTIMIZATION_STATUS_SUCCESS = "success"
 OPTIMIZATION_STATUS_FAILED = "failed"
 OPTIMIZATION_STATUS_PENDING = "pending"
 
-# Sensor units
-UNIT_CURRENCY = "USD"  # Could be made configurable
 
 # Field property types
 FIELD_TYPE_SENSOR = "sensor"
 FIELD_TYPE_FORECAST = "forecast"
+FIELD_TYPE_LIVE_FORECAST = "live_forecast"
 FIELD_TYPE_CONSTANT = "constant"
+
 
 # Entity attribute keys
 ATTR_ENERGY = "energy"
