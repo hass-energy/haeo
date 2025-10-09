@@ -2,6 +2,7 @@
 
 from homeassistant.components.sensor.const import UNIT_CONVERTERS, SensorDeviceClass
 from homeassistant.const import UnitOfEnergy, UnitOfPower
+import pulp
 
 
 def convert_to_base_unit(value: float, from_unit: str | None, device_class: SensorDeviceClass) -> float:
@@ -107,17 +108,21 @@ CONF_SENSORS = "sensors"
 CONF_SENSOR_ENTITY_ID = "entity_id"
 CONF_SENSOR_ATTRIBUTE = "attribute"
 
+# Dynamically determine available optimizers
+AVAILABLE_OPTIMIZERS = pulp.listSolvers(onlyAvailable=True)
+
 # Horizon and period configuration
 CONF_HORIZON_HOURS = "horizon_hours"
 CONF_PERIOD_MINUTES = "period_minutes"
+CONF_OPTIMIZER = "optimizer"
 DEFAULT_HORIZON_HOURS = 48  # 48 hours default
 DEFAULT_PERIOD_MINUTES = 5  # 5 minutes default
+DEFAULT_OPTIMIZER = "HiGHS"  # Default HiGHS solver
 
 # Validation constants
 MAX_HORIZON_HOURS = 168  # 1 week maximum
 MAX_PERIOD_MINUTES = 60  # 1 hour maximum
 MAX_NAME_LENGTH = 255
-
 
 # Update intervals
 DEFAULT_UPDATE_INTERVAL = 300  # 5 minutes in seconds
