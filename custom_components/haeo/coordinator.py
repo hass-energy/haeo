@@ -14,7 +14,9 @@ from pulp import value
 from .const import (
     ATTR_POWER,
     CONF_HORIZON_HOURS,
+    CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
+    DEFAULT_OPTIMIZER,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
     OPTIMIZATION_STATUS_FAILED,
@@ -108,8 +110,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self.last_optimization_duration}
 
             # Run optimization in executor job to avoid blocking the event loop
-            _LOGGER.debug("Running optimization for network with %d elements", len(self.network.elements))
-            cost = await self.hass.async_add_executor_job(self.network.optimize)
+            optimizer = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER)
+            _LOGGER.debug(
+                "Running optimization for network with %d elements using %s solver",
+                len(self.network.elements),
+                optimizer,
+            )
+            cost = await self.hass.async_add_executor_job(self.network.optimize, optimizer)
 
             # End timing after successful optimization
             end_time = time.time()

@@ -1,4 +1,16 @@
 {
+  "selector": {
+    "optimizer": {
+      "options": {
+        "HiGHS": "HiGHS",
+        "PULP_CBC_CMD": "CBC",
+        "GLPK_CMD": "GLPK",
+        "COIN_CMD": "COIN-OR",
+        "SCIP_PY": "SCIP",
+        "CyLP": "CyLP"
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "optimization_cost": "Optimization Cost",
@@ -26,7 +38,8 @@
         "data": {
           "name": "Network Name",
           "horizon_hours": "Optimization Horizon (hours)",
-          "period_minutes": "Time Period (minutes)"
+          "period_minutes": "Time Period (minutes)",
+          "optimizer": "Optimization Solver"
         }
       }
     },
@@ -149,10 +162,11 @@
       },
       "configure_network": {
         "title": "Configure Network Settings",
-        "description": "Adjust the optimization horizon and time period for your HAEO network",
+        "description": "Adjust the optimization horizon, time period, and solver for your HAEO network",
         "data": {
           "horizon_hours": "Optimization Horizon (hours)",
-          "period_minutes": "Time Period (minutes)"
+          "period_minutes": "Time Period (minutes)",
+          "optimizer": "Optimization Solver"
         }
       },
       "edit_participant": {

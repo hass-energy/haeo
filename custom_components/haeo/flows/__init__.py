@@ -4,15 +4,18 @@ from collections.abc import Sequence
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig
+from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, SelectSelector, SelectSelectorConfig
 import voluptuous as vol
 
 from custom_components.haeo.const import (
     CONF_HORIZON_HOURS,
     CONF_NAME,
+    CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     DEFAULT_HORIZON_HOURS,
+    DEFAULT_OPTIMIZER,
     DEFAULT_PERIOD_MINUTES,
+    get_available_optimizers,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -70,6 +73,15 @@ def get_network_config_schema(
                 else DEFAULT_PERIOD_MINUTES,
             ): NumberSelector(
                 NumberSelectorConfig(min=1, max=60, step=1, mode="slider"),
+            ),
+            vol.Required(
+                CONF_OPTIMIZER,
+                default=config_entry.data.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER) if config_entry else DEFAULT_OPTIMIZER,
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=get_available_optimizers(),
+                    translation_key="optimizer",
+                ),
             ),
         }
     )

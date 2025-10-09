@@ -1,9 +1,12 @@
 """Network class for electrical system modeling and optimization."""
 
 from collections.abc import MutableSequence, Sequence
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass, field
+import io
+import logging
 
-from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, lpSum, value
+from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, getSolver, lpSum, value
 
 from .battery import Battery
 from .connection import Connection
@@ -13,6 +16,8 @@ from .forecast_load import ForecastLoad
 from .generator import Generator
 from .grid import Grid
 from .net import Net
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -94,10 +99,13 @@ class Network:
         """Return the cost expression for the network."""
         return lpSum([e.cost() for e in self.elements.values() if e.cost() != 0])
 
-    def optimize(self) -> float:
+    def optimize(self, optimizer: str = "HiGHS") -> float:
         """Solve the optimization problem and return the cost.
 
         After optimization, access optimized values directly from elements and connections.
+
+        Args:
+            optimizer: The solver to use for optimization
 
         Returns:
             The total optimization cost
@@ -116,13 +124,44 @@ class Network:
         for constraint in self.constraints():
             prob += constraint
 
-        # Solve the problem
-        status = prob.solve()
+        # Get the specified solver
+        try:
+            solver = getSolver(optimizer)
+        except Exception as e:
+            msg = f"Failed to get solver '{optimizer}': {e}"
+            raise ValueError(msg) from e
+
+        # Capture stdout and stderr during optimization
+        stdout_capture = io.StringIO()
+        stderr_capture = io.StringIO()
+
+        try:
+            with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
+                # Solve the problem
+                status = prob.solve(solver)
+        except Exception as e:
+            # Log captured output if available
+            if stdout_capture.getvalue():
+                _LOGGER.debug("Optimization stdout: %s", stdout_capture.getvalue())
+            if stderr_capture.getvalue():
+                _LOGGER.debug("Optimization stderr: %s", stderr_capture.getvalue())
+            msg = f"Optimization failed: {e}"
+            raise ValueError(msg) from e
+        finally:
+            # Always log the captured output for debugging
+            stdout_content = stdout_capture.getvalue()
+            stderr_content = stderr_capture.getvalue()
+
+            if stdout_content.strip():
+                _LOGGER.debug("Optimization stdout: %s", stdout_content)
+            if stderr_content.strip():
+                _LOGGER.debug("Optimization stderr: %s", stderr_content)
 
         if status == 1:  # Optimal solution found
             objective_value = value(prob.objective) if prob.objective is not None else 0.0
             # Handle PuLP return types - value() can return various types
             return float(objective_value) if isinstance(objective_value, (int, float)) else 0.0
+
         msg = f"Optimization failed with status: {LpStatus[status]}"
         raise ValueError(msg)
 
