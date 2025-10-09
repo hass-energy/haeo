@@ -70,7 +70,7 @@ async def load_network(
     for name, config in participant_configs.items():
         params: dict[str, Any] = {}
         for f in fields(config):
-            params[f.name] = await loader.load(hass, f.name, type(config), forecast_times=times)
+            params[f.name] = await loader.load(hass, f.name, type(config), forecast_times=forecast_times)
         net.add(config.element_type, name, **params)
 
     return net

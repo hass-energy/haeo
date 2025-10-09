@@ -2,27 +2,27 @@
   "participants": {
     "dc_net": {
       "type": "net",
-      "name": "dc_net"
+      "name_value": "dc_net"
     },
     "ac_net": {
       "type": "net",
-      "name": "ac_net"
+      "name_value": "ac_net"
     },
     "battery": {
       "type": "battery",
-      "name": "battery",
-      "capacity": 10000,
-      "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
-      "min_charge_percentage": 10.0,
-      "max_charge_percentage": 90.0,
-      "efficiency": 0.99,
-      "max_charge_power": 5000,
-      "max_discharge_power": 5000
+      "name_value": "battery",
+      "capacity_value": 10000,
+      "initial_charge_percentage_value": "sensor.sigen_plant_battery_state_of_charge",
+      "min_charge_percentage_value": 10.0,
+      "max_charge_percentage_value": 90.0,
+      "efficiency_value": 0.99,
+      "max_charge_power_value": 5000,
+      "max_discharge_power_value": 5000
     },
     "solar_generator": {
       "type": "generator",
-      "name": "solar_generator",
-      "forecast": [
+      "name_value": "solar_generator",
+      "forecast_value": [
         "sensor.energy_production_d2_east",
         "sensor.energy_production_d2_north",
         "sensor.energy_production_d2_south",
@@ -48,52 +48,54 @@
         "sensor.energy_production_d7_south",
         "sensor.energy_production_d7_west"
       ],
-      "curtailment": true
+      "curtailment_value": true
     },
     "grid_connection": {
       "type": "grid",
-      "name": "grid_connection",
-      "import_price": "sensor.home_general_price",
-      "export_price": "sensor.home_feed_in_price",
-      "import_limit": 10000,
-      "export_limit": 5000
+      "name_value": "grid_connection",
+      "import_price_live": ["sensor.home_general_price"],
+      "import_price_forecast": ["sensor.home_general_forecast"],
+      "export_price_live": ["sensor.home_feed_in_price"],
+      "export_price_forecast": ["sensor.home_feed_in_forecast"],
+      "import_limit_value": 10000,
+      "export_limit_value": 5000
     },
     "constant_load": {
       "type": "constant_load",
-      "name": "constant_load",
-      "power": 1000
+      "name_value": "constant_load",
+      "power_value": 1000
     },
     "battery_to_dc_net": {
       "type": "connection",
-      "name": "battery_to_dc_net",
-      "source": "battery",
-      "target": "dc_net"
+      "name_value": "battery_to_dc_net",
+      "source_value": "battery",
+      "target_value": "dc_net"
     },
     "solar_to_dc_net": {
       "type": "connection",
-      "name": "solar_to_dc_net",
-      "source": "solar_generator",
-      "target": "dc_net"
+      "name_value": "solar_to_dc_net",
+      "source_value": "solar_generator",
+      "target_value": "dc_net"
     },
     "ac_net_to_dc_net": {
       "type": "connection",
-      "name": "ac_net_to_dc_net",
-      "source": "ac_net",
-      "target": "dc_net"
+      "name_value": "ac_net_to_dc_net",
+      "source_value": "ac_net",
+      "target_value": "dc_net"
     },
     "grid_to_ac_net": {
       "type": "connection",
-      "name": "grid_to_ac_net",
-      "source": "grid_connection",
-      "target": "ac_net"
+      "name_value": "grid_to_ac_net",
+      "source_value": "grid_connection",
+      "target_value": "ac_net"
     },
     "load_to_ac_net": {
       "type": "connection",
-      "name": "load_to_ac_net",
-      "source": "constant_load",
-      "target": "ac_net"
+      "name_value": "load_to_ac_net",
+      "source_value": "constant_load",
+      "target_value": "ac_net"
     }
   },
-  "horizon_hours": 48,
+  "horizon_hours": 24,
   "period_minutes": 5
 }

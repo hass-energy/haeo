@@ -933,6 +933,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "freezegun" },
     { name = "homeassistant" },
     { name = "mypy" },
     { name = "pytest" },
@@ -949,6 +950,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "freezegun", specifier = "==1.5.2" },
     { name = "homeassistant", specifier = ">=2025.4.4" },
     { name = "mypy", specifier = ">=1.18.2" },
     { name = "pytest", specifier = ">=8.3.5,<=8.4.1" },

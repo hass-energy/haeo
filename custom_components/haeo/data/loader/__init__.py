@@ -66,7 +66,7 @@ async def load(hass: HomeAssistant, field_name: str, config_class: type, field_v
     """Load the field."""
     pt = get_property_type(field_name, config_class)
 
-    return {
+    return await {
         FIELD_TYPE_CONSTANT: constant_loader.load,
         FIELD_TYPE_SENSOR: sensor_loader.load,
         FIELD_TYPE_FORECAST: forecast_loader.load,
