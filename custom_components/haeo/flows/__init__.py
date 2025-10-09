@@ -15,7 +15,7 @@ from custom_components.haeo.const import (
     DEFAULT_HORIZON_HOURS,
     DEFAULT_OPTIMIZER,
     DEFAULT_PERIOD_MINUTES,
-    get_available_optimizers,
+    AVAILABLE_OPTIMIZERS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ def get_network_config_schema(
                 default=config_entry.data.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER) if config_entry else DEFAULT_OPTIMIZER,
             ): SelectSelector(
                 SelectSelectorConfig(
-                    options=get_available_optimizers(),
+                    options=AVAILABLE_OPTIMIZERS,
                     translation_key="optimizer",
                 ),
             ),
