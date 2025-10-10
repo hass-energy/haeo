@@ -20,11 +20,19 @@ from custom_components.haeo.data.loader import (
 from custom_components.haeo.schema.fields import FieldMeta
 
 
-def get_property_type(field_name: str, config_class: type) -> str:
+def _get_property_type(field_name: str, config_class: type) -> str:
     """Determine the property type for a field in a config class.
 
     This function inspects the field annotations to determine if a field
     is a sensor, forecast, or constant type.
+
+    Args:
+        field_name: Name of the field
+        config_class: Config class
+
+    Returns:
+        The property type for the field
+
     """
 
     # Get the field from the config class
@@ -50,25 +58,43 @@ def get_property_type(field_name: str, config_class: type) -> str:
     return FIELD_TYPE_CONSTANT
 
 
-def available(hass: HomeAssistant, field_name: str, config_class: type, field_value: Any, **kwargs: Any) -> bool:
-    """Return True if the field is available."""
-    pt = get_property_type(field_name, config_class)
+def available(*, hass: HomeAssistant, field_name: str, config_class: type, value: Any, **kwargs: Any) -> bool:
+    """Return True if the field is available.
+
+    Args:
+        hass: Home Assistant instance
+        field_name: Name of the field
+        config_class: Config class
+        value: Value of the field
+        **kwargs: Additional keyword arguments
+
+    """
+    pt = _get_property_type(field_name, config_class)
 
     return {
         FIELD_TYPE_CONSTANT: constant_loader.available,
         FIELD_TYPE_SENSOR: sensor_loader.available,
         FIELD_TYPE_FORECAST: forecast_loader.available,
         FIELD_TYPE_LIVE_FORECAST: forecast_and_sensor_loader.available,
-    }[pt](hass, field_value, **kwargs)
+    }[pt](hass=hass, value=value, **kwargs)
 
 
-async def load(hass: HomeAssistant, field_name: str, config_class: type, field_value: Any, **kwargs: Any) -> Any:
-    """Load the field."""
-    pt = get_property_type(field_name, config_class)
+async def load(*, hass: HomeAssistant, field_name: str, config_class: type, value: Any, **kwargs: Any) -> Any:
+    """Load the field.
+
+    Args:
+        hass: Home Assistant instance
+        field_name: Name of the field
+        config_class: Config class
+        value: Value of the field
+        **kwargs: Additional keyword arguments
+
+    """
+    pt = _get_property_type(field_name, config_class)
 
     return await {
         FIELD_TYPE_CONSTANT: constant_loader.load,
         FIELD_TYPE_SENSOR: sensor_loader.load,
         FIELD_TYPE_FORECAST: forecast_loader.load,
         FIELD_TYPE_LIVE_FORECAST: forecast_and_sensor_loader.load,
-    }[pt](hass, field_value, **kwargs)
+    }[pt](hass=hass, value=value, **kwargs)

@@ -9,21 +9,44 @@ import numpy as np
 from .forecast_parsers import detect_format, parse_forecast_data
 
 
-def available(hass: HomeAssistant, field_value: Sequence[str], **kwargs: Any) -> bool:
+def available(*, hass: HomeAssistant, value: Sequence[str], **_kwargs: Any) -> bool:
+    """Check if forecast sensors are available and contain valid forecast data.
+
+    Args:
+        hass: Home Assistant instance
+        value: List of sensor entity IDs
+        **_kwargs: Additional keyword arguments (unused)
+
+    Returns:
+        True if all sensors are available and contain forecast data
+
+    """
     return all(
         hass.states.get(entity_id) is not None
         and hass.states.get(entity_id).state not in ("unknown", "unavailable", "none")
         and detect_format(hass.states.get(entity_id)) is not None
-        for entity_id in field_value
+        for entity_id in value
     )
 
 
 async def load(
-    hass: HomeAssistant, field_value: Sequence[str], *, forecast_times: Sequence[int], **kwargs: Any
+    *, hass: HomeAssistant, value: Sequence[str], forecast_times: Sequence[int], **_kwargs: Any
 ) -> list[float]:
+    """Load forecast data from sensors and aggregate into time buckets.
+
+    Args:
+        hass: Home Assistant instance
+        value: List of sensor entity IDs
+        forecast_times: Time intervals for data aggregation
+        **_kwargs: Additional keyword arguments (unused)
+
+    Returns:
+        List of aggregated forecast values for each time bucket
+
+    """
     # Gather all the series data from the sensors grouped into forecast_times buckets
     output = np.zeros(len(forecast_times))
-    for entity_id in field_value:
+    for entity_id in value:
         state = hass.states.get(entity_id)
         if state is None:
             msg = f"Sensor {entity_id} not found"
@@ -37,6 +60,7 @@ async def load(
             output += np.interp(forecast_times, data["timestamp"], data["value"], left=0, right=0)
         else:
             # No forecast data available for this sensor
-            raise ValueError(f"No forecast data available for sensor {entity_id}")
+            msg = f"No forecast data available for sensor {entity_id}"
+            raise ValueError(msg)
 
     return output.tolist()

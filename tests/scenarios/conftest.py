@@ -9,7 +9,7 @@ import pytest
 
 
 @pytest.fixture
-def scenario_path(request) -> Path:
+def scenario_path(request: pytest.FixtureRequest) -> Path:
     """Get the path to the current scenario directory.
 
     This fixture determines the scenario directory based on the test file location.

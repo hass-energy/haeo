@@ -1,6 +1,5 @@
 """Test data and validation for net flow configuration."""
 
-
 # Test data for net flow
 VALID_DATA = [
     {

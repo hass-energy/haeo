@@ -2,15 +2,13 @@
 
 from typing import Any
 
-from homeassistant.core import HomeAssistant
 
-
-def available(hass: HomeAssistant, field_value: Any, **_kwargs: Any) -> bool:
+def available(**_kwargs: Any) -> bool:
     """Return True if the constant field is available.
 
     Args:
-        hass: Home Assistant instance (unused for constants)
-        field_value: The constant field value (unused for availability check)
+        _hass: Home Assistant instance (unused for constants)
+        _field_value: The constant field value (unused for availability check)
         **_kwargs: Additional keyword arguments (unused)
 
     Returns:
@@ -20,7 +18,7 @@ def available(hass: HomeAssistant, field_value: Any, **_kwargs: Any) -> bool:
     return True  # Constants are always available
 
 
-async def load(hass: HomeAssistant, field_value: Any, **_kwargs: Any) -> Any:
+async def load(*, value: Any, **_kwargs: Any) -> Any:
     """Load the constant field value.
 
     Args:
@@ -32,4 +30,4 @@ async def load(hass: HomeAssistant, field_value: Any, **_kwargs: Any) -> Any:
         The constant field value
 
     """
-    return field_value
+    return value

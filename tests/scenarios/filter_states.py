@@ -13,11 +13,12 @@ import json
 from pathlib import Path
 import re
 import sys
+from typing import Any
 from urllib.parse import urljoin
 import urllib.request
 
 
-def get_home_assistant_token():
+def get_home_assistant_token() -> str:
     """Prompt user for Home Assistant long-lived access token."""
     print("Please enter your Home Assistant long-lived access token:")
     token = getpass.getpass("Token: ")
@@ -27,7 +28,7 @@ def get_home_assistant_token():
     return token
 
 
-def fetch_home_assistant_states(url, token):
+def fetch_home_assistant_states(url: str, token: str) -> list[dict[str, Any]]:
     """Fetch states from Home Assistant API."""
     try:
         # Construct the full URL for the states endpoint
@@ -59,7 +60,7 @@ def fetch_home_assistant_states(url, token):
         sys.exit(1)
 
 
-def main():
+def main() -> None:
     """Filter Home Assistant states for HAEO scenario testing."""
     parser = argparse.ArgumentParser(
         description="Filter Home Assistant states for HAEO scenario testing",

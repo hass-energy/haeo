@@ -8,6 +8,7 @@ from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig,
 import voluptuous as vol
 
 from custom_components.haeo.const import (
+    AVAILABLE_OPTIMIZERS,
     CONF_HORIZON_HOURS,
     CONF_NAME,
     CONF_OPTIMIZER,
@@ -15,7 +16,6 @@ from custom_components.haeo.const import (
     DEFAULT_HORIZON_HOURS,
     DEFAULT_OPTIMIZER,
     DEFAULT_PERIOD_MINUTES,
-    AVAILABLE_OPTIMIZERS,
 )
 
 _LOGGER = logging.getLogger(__name__)

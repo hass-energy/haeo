@@ -1,8 +1,7 @@
 """Test options flow for HAEO."""
 
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import Any, NamedTuple
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -33,13 +32,9 @@ ElementType = str
 TestCase = dict[str, Any]
 TestDataWithDescription = tuple[ElementType, TestCase, str]
 
-if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
-    from homeassistant.core import HomeAssistant
-
 
 @pytest.fixture
-def schema_params():
+def schema_params() -> dict[str, list[str] | str | None]:
     """Fixture providing schema parameters for tests."""
     return {
         "participants": ["Battery1", "Grid1", "Load1"],
@@ -187,7 +182,7 @@ async def setup_config_entry(hass: HomeAssistant, entry: MockConfigEntry) -> Non
     await hass.async_block_till_done()
 
 
-async def unload_config_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def unload_config_entry(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     """Unload a config entry after testing."""
     await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
@@ -195,37 +190,37 @@ async def unload_config_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 # Pytest fixtures for data-driven testing
 @pytest.fixture(params=ELEMENT_TYPES)
-def element_type(request):
+def element_type(request: pytest.FixtureRequest) -> str:
     """Parametrized fixture for element types."""
     return request.param
 
 
 @pytest.fixture
-def valid_element_data(element_type):
+def valid_element_data(element_type: str) -> dict[str, Any]:
     """Fixture providing valid data for each element type."""
     return VALID_ELEMENT_DATA[element_type]
 
 
 @pytest.fixture
-def config_entry():
+def config_entry() -> MockConfigEntry:
     """Create basic config entry fixture for testing."""
     return create_mock_config_entry()
 
 
 @pytest.fixture
-def config_entry_with_participants(element_type, valid_element_data):
+def config_entry_with_participants(element_type: str, valid_element_data: dict[str, Any]) -> MockConfigEntry:
     """Config entry fixture with a single existing participant."""
     # valid_element_data is a list of test cases, take the first one
     if isinstance(valid_element_data, list) and len(valid_element_data) > 0:
         test_case = valid_element_data[0]
-        existing_name = test_case.get(CONF_NAME, "Existing Element")
+        existing_name = test_case.get("name_value", "Existing Element")
         config_data = test_case
     else:
-        existing_name = valid_element_data.get(CONF_NAME, "Existing Element")
+        existing_name = valid_element_data.get("name_value", "Existing Element")
         config_data = valid_element_data
 
     participants = {
-        existing_name: {"type": element_type, **{k: v for k, v in config_data.items() if k != CONF_NAME}},
+        existing_name: {"type": element_type, **{k: v for k, v in config_data.items() if k != "name_value"}},
     }
 
     return create_mock_config_entry(
@@ -238,7 +233,7 @@ def config_entry_with_participants(element_type, valid_element_data):
 
 
 @pytest.fixture
-def options_flow(hass, config_entry):
+def options_flow(hass: HomeAssistant, config_entry: MockConfigEntry) -> HubOptionsFlow:
     """Create configured options flow fixture."""
     options_flow = HubOptionsFlow()
     options_flow.hass = hass
@@ -247,7 +242,7 @@ def options_flow(hass, config_entry):
 
 
 @pytest.fixture
-def config_entry_minimal_participants():
+def config_entry_minimal_participants() -> MockConfigEntry:
     """Config entry with minimal participants for connection testing."""
     return create_mock_config_entry(
         data={
@@ -262,7 +257,9 @@ def config_entry_minimal_participants():
 
 
 @pytest.fixture
-def options_flow_with_minimal_participants(hass, config_entry_minimal_participants):
+def options_flow_with_minimal_participants(
+    hass: HomeAssistant, config_entry_minimal_participants: MockConfigEntry
+) -> HubOptionsFlow:
     """Options flow fixture with minimal participants for connection testing."""
     # Properly register the config entry with hass
     config_entry_minimal_participants.add_to_hass(hass)
@@ -275,7 +272,9 @@ def options_flow_with_minimal_participants(hass, config_entry_minimal_participan
 
 
 @pytest.fixture
-def options_flow_with_participants(hass, config_entry_with_participants):
+def options_flow_with_participants(
+    hass: HomeAssistant, config_entry_with_participants: MockConfigEntry
+) -> HubOptionsFlow:
     """Options flow fixture with existing participant for duplicate name testing."""
     # Properly register the config entry with hass
     config_entry_with_participants.add_to_hass(hass)
@@ -288,7 +287,7 @@ def options_flow_with_participants(hass, config_entry_with_participants):
 
 
 @pytest.fixture
-def config_entry_with_multiple_participants():
+def config_entry_with_multiple_participants() -> MockConfigEntry:
     """Fixture providing config entry with multiple participants for connection testing."""
     # Use actual valid data from VALID_TEST_DATA for realistic test participants
     participants = {}
@@ -315,7 +314,9 @@ def config_entry_with_multiple_participants():
 
 # Parameterized schema validation tests
 @pytest.mark.parametrize(("element_type", "valid_case", "description"), VALID_TEST_DATA_WITH_IDS)
-async def test_element_schema_validation_success(element_type, valid_case, description, schema_params) -> None:
+async def test_element_schema_validation_success(
+    element_type: str, valid_case: dict[str, Any], description: str, schema_params: dict[str, list[str] | str | None]
+) -> None:
     """Test successful schema validation for all element types."""
     valid_data = valid_case["config"]
 
@@ -328,23 +329,23 @@ async def test_element_schema_validation_success(element_type, valid_case, descr
 
 
 @pytest.mark.parametrize(("element_type", "invalid_case", "description"), INVALID_TEST_DATA_WITH_IDS)
-async def test_element_schema_validation_errors(element_type, invalid_case, description, schema_params) -> None:
+async def test_element_schema_validation_errors(
+    element_type: str, invalid_case: dict[str, Any], description: str, schema_params: dict[str, list[str] | str | None]
+) -> None:
     """Test schema validation errors for all element types."""
     invalid_data = invalid_case["config"]
     expected_error = invalid_case["error"]
 
     schema = schema_for_type(ELEMENT_TYPES[element_type], **schema_params)
 
-    try:
+    with pytest.raises(Exception) as exc_info:
         schema(invalid_data)
-        assert False, f"Expected validation error for {description}: {invalid_data}"
-    except Exception as e:
-        assert expected_error in str(e).lower()
+    assert expected_error in str(exc_info.value).lower()
 
 
 # Parameterized participant creation tests
 @pytest.mark.parametrize(("element_type", "valid_case", "description"), VALID_TEST_DATA_WITH_IDS)
-async def test_participant_creation(element_type, valid_case, description) -> None:
+async def test_participant_creation(element_type: str, valid_case: dict[str, Any], description: str) -> None:
     """Test participant creation for all element types."""
     test_data = valid_case["config"]
 
@@ -362,7 +363,7 @@ async def test_participant_creation(element_type, valid_case, description) -> No
 
 
 # Test functions for options flow
-async def test_options_flow_init(options_flow) -> None:
+async def test_options_flow_init(options_flow: HubOptionsFlow) -> None:
     """Test options flow initialization."""
     result = await options_flow.async_step_init()
 
@@ -375,7 +376,7 @@ async def test_options_flow_init(options_flow) -> None:
     assert "remove_participant" not in menu_options
 
 
-async def test_options_flow_init_with_participants(options_flow_with_participants) -> None:
+async def test_options_flow_init_with_participants(options_flow_with_participants: HubOptionsFlow) -> None:
     """Test options flow initialization when participants exist."""
     result = await options_flow_with_participants.async_step_init()
 
@@ -388,7 +389,7 @@ async def test_options_flow_init_with_participants(options_flow_with_participant
     assert "remove_participant" in menu_options
 
 
-async def test_options_flow_add_participant_type_selection(options_flow) -> None:
+async def test_options_flow_add_participant_type_selection(options_flow: HubOptionsFlow) -> None:
     """Test participant type selection."""
     result = await options_flow.async_step_add_participant()
 
@@ -397,7 +398,7 @@ async def test_options_flow_add_participant_type_selection(options_flow) -> None
 
 
 @pytest.mark.parametrize("participant_type", ELEMENT_TYPES)
-async def test_options_flow_route_to_participant_config(options_flow, participant_type) -> None:
+async def test_options_flow_route_to_participant_config(options_flow: HubOptionsFlow, participant_type: str) -> None:
     """Test routing to participant configuration."""
     result = await options_flow.async_step_add_participant({"participant_type": participant_type})
     assert result.get("type") == FlowResultType.FORM
@@ -405,7 +406,7 @@ async def test_options_flow_route_to_participant_config(options_flow, participan
 
 
 async def test_options_flow_route_to_connection_config_with_participants(
-    options_flow_with_minimal_participants,
+    options_flow_with_minimal_participants: HubOptionsFlow,
 ) -> None:
     """Test routing to connection configuration with sufficient participants."""
     result = await options_flow_with_minimal_participants.async_step_add_participant(
@@ -417,14 +418,18 @@ async def test_options_flow_route_to_connection_config_with_participants(
 
 @pytest.mark.parametrize(("element_type", "valid_case", "description"), VALID_TEST_DATA_WITH_IDS)
 async def test_options_flow_configure_duplicate_name(
-    element_type, valid_case, options_flow_with_participants, description
+    element_type: str, valid_case: dict[str, Any], options_flow_with_participants: HubOptionsFlow, description: str
 ) -> None:
     """Test configuration with duplicate name for all element types."""
     valid_data = valid_case["config"]
 
-    # Modify the name to conflict with existing participant
-    # Use the name of the first participant in the fixture (e.g., "batte1")
-    conflicting_name = "batte1" if element_type == "battery" else f"{element_type[:6]}1"
+    # Get the conflicting name from the actual existing participant
+    participants = options_flow_with_participants._config_entry.data.get("participants", {})
+    if not participants:
+        pytest.skip("No participants available for duplicate name test")
+
+    # Use the first participant name as the conflicting name
+    conflicting_name = next(iter(participants.keys()))
     valid_data = {**valid_data, "name_value": conflicting_name}
 
     # Call the appropriate configure method
@@ -438,7 +443,7 @@ async def test_options_flow_configure_duplicate_name(
         assert errors.get(CONF_NAME) == "name_exists"
 
 
-async def test_options_flow_no_participants(options_flow) -> None:
+async def test_options_flow_no_participants(options_flow: HubOptionsFlow) -> None:
     """Test behavior when no participants exist."""
     # Test edit participants with no participants
     result = await options_flow.async_step_edit_participant()
@@ -455,10 +460,10 @@ async def test_options_flow_no_participants(options_flow) -> None:
 @pytest.mark.parametrize(("element_type", "valid_case", "description"), VALID_TEST_DATA_WITH_IDS)
 async def test_options_flow_configure_success(
     hass: HomeAssistant,
-    element_type,
-    valid_case,
-    config_entry_minimal_participants,
-    description,
+    element_type: str,
+    valid_case: dict[str, Any],
+    config_entry_minimal_participants: MockConfigEntry,
+    description: str,
 ) -> None:
     """Test successful configuration for all element types."""
     # Use the minimal participants config entry for connection types, basic for others
@@ -540,7 +545,7 @@ async def test_hub_flow_create_hub_success(hass: HomeAssistant) -> None:
     assert data.get("participants") == {}
 
 
-async def test_options_flow_manage_participants_form(options_flow_with_minimal_participants) -> None:
+async def test_options_flow_manage_participants_form(options_flow_with_minimal_participants: HubOptionsFlow) -> None:
     """Test manage participants form display."""
     # Test form display
     result = await options_flow_with_minimal_participants.async_step_edit_participant()

@@ -1,6 +1,5 @@
 """Test data and validation for forecast load flow configuration."""
 
-
 # Test data for load forecast flow
 VALID_DATA = [
     {

@@ -18,6 +18,7 @@ from custom_components.haeo.model import Network
 from custom_components.haeo.model.battery import Battery
 from custom_components.haeo.model.connection import Connection
 from custom_components.haeo.model.constant_load import ConstantLoad
+from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.forecast_load import ForecastLoad
 from custom_components.haeo.model.generator import Generator
 from custom_components.haeo.model.grid import Grid
@@ -1104,7 +1105,7 @@ def _assert_element_energy_vars(element: Any, expected_vars: int) -> None:
         ),
     ],
 )
-def test_element_initialization(element_data) -> None:
+def test_element_initialization(element_data: dict[str, Any]) -> None:
     """Test element initialization using parameterized data."""
     element_type = element_data["type"]
     name = element_data["name"]
@@ -1185,7 +1186,7 @@ def test_element_initialization(element_data) -> None:
         ),
     ],
 )
-def test_element_constraints(element_data) -> None:
+def test_element_constraints(element_data: dict[str, Any]) -> None:
     """Test element constraints generation."""
     element_type = element_data["type"]
     name = element_data["name"]
@@ -1196,6 +1197,7 @@ def test_element_constraints(element_data) -> None:
     }
 
     # Create element based on type
+    element: Element | None = None
     if element_type == ELEMENT_TYPE_BATTERY:
         element = Battery(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
     elif element_type == ELEMENT_TYPE_GRID:

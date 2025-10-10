@@ -1,9 +1,11 @@
 """Test schema for type."""
 
 from dataclasses import dataclass
+from typing import Any
 
 from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.const import UnitOfPower
+from homeassistant.core import HomeAssistant
 import pytest
 import voluptuous as vol
 
@@ -27,7 +29,7 @@ from custom_components.haeo.schema.fields import (
 
 
 @pytest.fixture
-def schema_params():
+def schema_params() -> dict[str, list[str] | str | None]:
     """Fixture providing schema parameters for tests."""
     return {
         "participants": ["battery_1", "grid_1"],
@@ -86,7 +88,7 @@ class DefaultTestConfig:
     optional_field: PriceField | None = None
 
 
-def test_constant_field_extraction():
+def test_constant_field_extraction() -> None:
     """Test extracting constant field types."""
     annotated_fields = _get_annotated_fields(ConstantFieldTestConfig)
 
@@ -110,7 +112,7 @@ def test_constant_field_extraction():
         assert default is not None  # MISSING sentinel
 
 
-def test_sensor_field_extraction():
+def test_sensor_field_extraction() -> None:
     """Test extracting sensor field types."""
     annotated_fields = _get_annotated_fields(SensorFieldTestConfig)
 
@@ -130,7 +132,7 @@ def test_sensor_field_extraction():
         assert default is not None  # MISSING sentinel
 
 
-def test_forecast_field_extraction():
+def test_forecast_field_extraction() -> None:
     """Test extracting forecast field types."""
     annotated_fields = _get_annotated_fields(ForecastFieldTestConfig)
 
@@ -149,7 +151,7 @@ def test_forecast_field_extraction():
     assert default is not None  # MISSING sentinel
 
 
-def test_complex_field_extraction():
+def test_complex_field_extraction() -> None:
     """Test extracting complex field types."""
     annotated_fields = _get_annotated_fields(ComplexFieldTestConfig)
 
@@ -168,7 +170,7 @@ def test_complex_field_extraction():
     assert default is not None  # MISSING sentinel
 
 
-def test_default_handling_extraction():
+def test_default_handling_extraction() -> None:
     """Test extracting fields with default value handling."""
     annotated_fields = _get_annotated_fields(DefaultTestConfig)
 
@@ -188,7 +190,7 @@ def test_default_handling_extraction():
     assert default is None
 
 
-def test_constant_field_schema_creation(schema_params):
+def test_constant_field_schema_creation(schema_params: dict[str, Any]) -> None:
     """Test creating schema for constant field types."""
     schema = schema_for_type(ConstantFieldTestConfig, **schema_params)
 
@@ -210,7 +212,7 @@ def test_constant_field_schema_creation(schema_params):
     assert set(schema_dict.keys()) == expected_keys
 
 
-def test_sensor_field_schema_creation(schema_params):
+def test_sensor_field_schema_creation(schema_params: dict[str, Any]) -> None:
     """Test creating schema for sensor field types."""
     schema = schema_for_type(SensorFieldTestConfig, **schema_params)
 
@@ -223,7 +225,7 @@ def test_sensor_field_schema_creation(schema_params):
     assert set(schema_dict.keys()) == expected_keys
 
 
-def test_forecast_field_schema_creation(schema_params):
+def test_forecast_field_schema_creation(schema_params: dict[str, Any]) -> None:
     """Test creating schema for forecast field types."""
     schema = schema_for_type(ForecastFieldTestConfig, **schema_params)
 
@@ -236,7 +238,7 @@ def test_forecast_field_schema_creation(schema_params):
     assert set(schema_dict.keys()) == expected_keys
 
 
-def test_complex_field_schema_creation(schema_params):
+def test_complex_field_schema_creation(schema_params: dict[str, Any]) -> None:
     """Test creating schema for complex field types."""
     schema = schema_for_type(ComplexFieldTestConfig, **schema_params)
 
@@ -249,7 +251,7 @@ def test_complex_field_schema_creation(schema_params):
     assert set(schema_dict.keys()) == expected_keys
 
 
-def test_constant_field_schema_validation(schema_params):
+def test_constant_field_schema_validation(schema_params: dict[str, Any]) -> None:
     """Test schema validation for constant field types."""
     schema = schema_for_type(ConstantFieldTestConfig, **schema_params)
 
@@ -269,7 +271,7 @@ def test_constant_field_schema_validation(schema_params):
     assert result == valid_data
 
 
-async def test_sensor_field_schema_validation_with_invalid_sensor(hass, schema_params):
+async def test_sensor_field_schema_validation_with_invalid_sensor(hass: Any, schema_params: dict[str, Any]) -> None:
     """Test schema validation for sensor field types with invalid sensor."""
     # Set up sensor entities for validation
     hass.states.async_set(
@@ -299,7 +301,9 @@ async def test_sensor_field_schema_validation_with_invalid_sensor(hass, schema_p
         pass
 
 
-async def test_forecast_field_schema_validation(hass, schema_params):
+async def test_forecast_field_schema_validation(
+    hass: HomeAssistant, schema_params: dict[str, list[str] | str | None]
+) -> None:
     """Test schema validation for forecast field types."""
     # Set up forecast sensor entities for validation
     hass.states.async_set(
@@ -326,7 +330,9 @@ async def test_forecast_field_schema_validation(hass, schema_params):
     assert result == valid_data
 
 
-async def test_forecast_field_schema_validation_with_invalid_sensor(hass, schema_params):
+async def test_forecast_field_schema_validation_with_invalid_sensor(
+    hass: HomeAssistant, schema_params: dict[str, list[str] | str | None]
+) -> None:
     """Test schema validation for forecast field types with invalid sensor."""
     # Set up forecast sensor entities for validation
     hass.states.async_set(
@@ -355,7 +361,7 @@ async def test_forecast_field_schema_validation_with_invalid_sensor(hass, schema
         pass
 
 
-def test_constant_field_data_conversion(schema_params):
+def test_constant_field_data_conversion(schema_params: dict[str, list[str] | str | None]) -> None:
     """Test converting data back to constant field config."""
     data = {
         "power_value_value": 100.0,
@@ -381,7 +387,7 @@ def test_constant_field_data_conversion(schema_params):
     assert config.battery_soc == 90.0
 
 
-def test_sensor_field_data_conversion(schema_params):
+def test_sensor_field_data_conversion(schema_params: dict[str, list[str] | str | None]) -> None:
     """Test converting data back to sensor field config."""
     data = {
         "power_sensor_value": ["sensor.power_1"],
@@ -398,7 +404,7 @@ def test_sensor_field_data_conversion(schema_params):
     assert config.price_sensor == {"value": ["sensor.price_1"]}
 
 
-def test_forecast_field_data_conversion(schema_params):
+def test_forecast_field_data_conversion(schema_params: dict[str, list[str] | str | None]) -> None:
     """Test converting data back to forecast field config."""
     data = {
         "power_forecast_value": ["sensor.forecast_1", "sensor.forecast_2"],
@@ -413,7 +419,7 @@ def test_forecast_field_data_conversion(schema_params):
     assert config.price_forecast == {"value": ["sensor.price_forecast"]}
 
 
-def test_complex_field_data_conversion(schema_params):
+def test_complex_field_data_conversion(schema_params: dict[str, list[str] | str | None]) -> None:
     """Test converting data back to complex field config."""
     data = {
         "price_live_and_forecast_live": ["sensor.price_live"],
@@ -429,7 +435,7 @@ def test_complex_field_data_conversion(schema_params):
     assert config.optional_sensor == {"value": ["sensor.optional_power"]}
 
 
-def test_data_conversion_with_missing_optional_field(schema_params):
+def test_data_conversion_with_missing_optional_field(schema_params: dict[str, list[str] | str | None]) -> None:
     """Test data conversion handles missing optional fields."""
     data = {
         "required_field_value": "test_name",
@@ -445,7 +451,7 @@ def test_data_conversion_with_missing_optional_field(schema_params):
     assert config.field_with_default is True  # Should use default when no data provided
 
 
-def test_data_conversion_with_defaults_config(schema_params):
+def test_data_conversion_with_defaults_config(schema_params: dict[str, list[str] | str | None]) -> None:
     """Test data conversion with default value handling."""
     data = {
         "required_field_value": "required_name",
@@ -461,7 +467,7 @@ def test_data_conversion_with_defaults_config(schema_params):
     assert config.optional_field == 0.25
 
 
-def test_constant_field_full_workflow(schema_params):
+def test_constant_field_full_workflow(schema_params: dict[str, list[str] | str | None]) -> None:
     """Test full workflow for constant field types."""
     # Create schema
     schema = schema_for_type(ConstantFieldTestConfig, **schema_params)
@@ -490,7 +496,9 @@ def test_constant_field_full_workflow(schema_params):
     assert config.battery_soc == 90.0
 
 
-async def test_sensor_field_full_workflow(hass, schema_params):
+async def test_sensor_field_full_workflow(
+    hass: HomeAssistant, schema_params: dict[str, list[str] | str | None]
+) -> None:
     """Test full workflow for sensor field types."""
     # Set up sensor entities for validation
     hass.states.async_set(
@@ -524,7 +532,9 @@ async def test_sensor_field_full_workflow(hass, schema_params):
     assert config.price_sensor is None  # Should be None for omitted optional field
 
 
-async def test_complex_field_full_workflow(hass, schema_params):
+async def test_complex_field_full_workflow(
+    hass: HomeAssistant, schema_params: dict[str, list[str] | str | None]
+) -> None:
     """Test full workflow for complex field types."""
     # Set up sensor entities for validation
     hass.states.async_set(
@@ -557,7 +567,7 @@ async def test_complex_field_full_workflow(hass, schema_params):
     assert config.optional_sensor is None  # Should be None for omitted optional field
 
 
-def test_default_handling_full_workflow(schema_params):
+def test_default_handling_full_workflow(schema_params: dict[str, list[str] | str | None]) -> None:
     """Test full workflow for default value handling."""
     # Test data conversion directly
     expected_validated_data = {

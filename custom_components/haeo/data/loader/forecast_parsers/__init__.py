@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 import logging
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.core import State
 
 from . import aemo_nem, amberelectric, open_meteo_solar_forecast, solcast_solar
 
@@ -21,7 +21,7 @@ _FORMATS = {
 }
 
 
-def detect_format(state: SensorEntity) -> ForecastFormat | None:
+def detect_format(state: State) -> ForecastFormat | None:
     """Detect the forecast data format based on its structure.
 
     Args:
@@ -43,7 +43,7 @@ def detect_format(state: SensorEntity) -> ForecastFormat | None:
     return None
 
 
-def parse_forecast_data(state: SensorEntity) -> Sequence[tuple[int, float]] | None:
+def parse_forecast_data(state: State) -> Sequence[tuple[int, float]] | None:
     """Parse forecast data into standardized (timestamp_seconds, value) format.
 
     Args:

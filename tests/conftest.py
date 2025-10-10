@@ -7,6 +7,6 @@ pytest_plugins = ["pytest_homeassistant_custom_component"]
 
 
 @pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations) -> bool:
+def auto_enable_custom_integrations(enable_custom_integrations: None) -> bool:
     """Enable loading custom integrations in all tests."""
     return enable_custom_integrations is None

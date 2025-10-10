@@ -1,6 +1,5 @@
 """Test data and validation for grid flow configuration."""
 
-
 # Test data for grid flow
 VALID_DATA = [
     {

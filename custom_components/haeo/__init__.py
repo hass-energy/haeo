@@ -1,9 +1,8 @@
 """The Home Assistant Energy Optimization integration."""
 
 import logging
-from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -25,21 +24,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
     entry.runtime_data = coordinator
 
-    # Forward entry setup to supported platforms (sensors, etc.)
-    try:
-        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    except Exception as ex:
-        _LOGGER.exception("Failed to set up HAEO platforms")
-        # Ensure we clean up coordinator on failure so we can retry cleanly
-        entry.runtime_data = None
-        raise ConfigEntryNotReady from ex
+    # Set up platforms first
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    try:
-        # Fetch initial data
-        await coordinator.async_refresh()
-    except Exception as ex:
-        _LOGGER.exception("Failed to initialize HAEO integration")
-        raise ConfigEntryNotReady from ex
+    # Fetch initial data after platforms are set up
+    await coordinator.async_refresh()
 
     _LOGGER.info("HAEO integration setup complete")
     return True

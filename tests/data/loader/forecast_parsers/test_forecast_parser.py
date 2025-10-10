@@ -2,18 +2,41 @@
 
 from datetime import UTC, datetime
 
+from homeassistant.core import HomeAssistant, State
 import pytest
 
 from custom_components.haeo.data.loader.forecast_parsers import detect_format, parse_forecast_data
 
 
+def _create_sensor_state(hass: HomeAssistant, entity_id: str, state_value: str, attributes: dict) -> State:
+    """Create a sensor state and return it.
+
+    Args:
+        hass: Home Assistant instance
+        entity_id: Entity ID to create
+        state_value: State value to set
+        attributes: State attributes to set
+
+    Returns:
+        The created state object
+
+    """
+    hass.states.async_set(entity_id, state_value, attributes)
+
+    if (state := hass.states.get(entity_id)) is None:
+        msg = f"Failed to get state for {entity_id}"
+        raise RuntimeError(msg)
+    return state
+
+
 @pytest.fixture
-def amber_sensor(hass):
+def amber_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with Amber forecast data."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.amber_forecast",
         "0.13",
-        attributes={
+        {
             "forecasts": [
                 {
                     "duration": 5,
@@ -25,16 +48,16 @@ def amber_sensor(hass):
             ]
         },
     )
-    return hass.states.get("sensor.amber_forecast")
 
 
 @pytest.fixture
-def aemo_sensor(hass):
+def aemo_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with AEMO forecast data."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.aemo_forecast",
         "0.0748",
-        attributes={
+        {
             "forecast": [
                 {
                     "start_time": "2025-10-05T21:00:00+10:00",
@@ -44,16 +67,16 @@ def aemo_sensor(hass):
             ]
         },
     )
-    return hass.states.get("sensor.aemo_forecast")
 
 
 @pytest.fixture
-def solcast_sensor(hass):
+def solcast_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with Solcast forecast data."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.solcast_forecast",
         "0",
-        attributes={
+        {
             "detailedForecast": [
                 {
                     "period_start": "2025-10-06T00:00:00+11:00",
@@ -62,50 +85,54 @@ def solcast_sensor(hass):
             ]
         },
     )
-    return hass.states.get("sensor.solcast_forecast")
 
 
 @pytest.fixture
-def open_meteo_sensor(hass):
+def open_meteo_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with Open-Meteo forecast data."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.open_meteo_forecast",
         "175",
-        attributes={
+        {
             "watts": {
                 "2025-10-06T06:45:00+11:00": 175,
                 "2025-10-06T07:00:00+11:00": 200,
             }
         },
     )
-    return hass.states.get("sensor.open_meteo_forecast")
 
 
 @pytest.fixture
-def unknown_format_sensor(hass):
+def unknown_format_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with unknown forecast format."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.unknown_forecast",
         "0",
-        attributes={"unknown_field": "value"},
+        {"unknown_field": "value"},
     )
-    return hass.states.get("sensor.unknown_forecast")
 
 
 @pytest.fixture
-def empty_sensor(hass):
+def empty_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with empty attributes."""
-    hass.states.async_set("sensor.empty_forecast", "0", attributes={})
-    return hass.states.get("sensor.empty_forecast")
+    return _create_sensor_state(
+        hass,
+        "sensor.empty_forecast",
+        "0",
+        {},
+    )
 
 
 @pytest.fixture
-def amber_multi_forecast_sensor(hass):
+def amber_multi_forecast_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with multiple Amber forecast entries."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.amber_multi_forecast",
         "0.13",
-        attributes={
+        {
             "forecasts": [
                 {
                     "duration": 5,
@@ -122,16 +149,16 @@ def amber_multi_forecast_sensor(hass):
             ]
         },
     )
-    return hass.states.get("sensor.amber_multi_forecast")
 
 
 @pytest.fixture
-def amber_timezone_sensor(hass):
+def amber_timezone_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with Amber forecast data with timezone."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.amber_forecast_tz",
         "0.13",
-        attributes={
+        {
             "forecasts": [
                 {
                     "per_kwh": 0.13,
@@ -140,16 +167,16 @@ def amber_timezone_sensor(hass):
             ]
         },
     )
-    return hass.states.get("sensor.amber_forecast_tz")
 
 
 @pytest.fixture
-def amber_invalid_sensor(hass):
+def amber_invalid_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with invalid Amber forecast data."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.amber_invalid",
         "0.13",
-        attributes={
+        {
             "forecasts": [
                 {
                     "per_kwh": 0.13,
@@ -166,16 +193,16 @@ def amber_invalid_sensor(hass):
             ]
         },
     )
-    return hass.states.get("sensor.amber_invalid")
 
 
 @pytest.fixture
-def aemo_multi_forecast_sensor(hass):
+def aemo_multi_forecast_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with multiple AEMO forecast entries."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.aemo_multi_forecast",
         "0.0748",
-        attributes={
+        {
             "forecast": [
                 {
                     "start_time": "2025-10-05T21:00:00+10:00",
@@ -190,16 +217,16 @@ def aemo_multi_forecast_sensor(hass):
             ]
         },
     )
-    return hass.states.get("sensor.aemo_multi_forecast")
 
 
 @pytest.fixture
-def solcast_multi_forecast_sensor(hass):
+def solcast_multi_forecast_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with multiple Solcast forecast entries."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.solcast_multi_forecast",
         "0",
-        attributes={
+        {
             "detailedForecast": [
                 {
                     "period_start": "2025-10-06T00:00:00+11:00",
@@ -212,32 +239,32 @@ def solcast_multi_forecast_sensor(hass):
             ]
         },
     )
-    return hass.states.get("sensor.solcast_multi_forecast")
 
 
 @pytest.fixture
-def open_meteo_multi_forecast_sensor(hass):
+def open_meteo_multi_forecast_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with multiple Open-Meteo forecast entries."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.open_meteo_multi_forecast",
         "175",
-        attributes={
+        {
             "watts": {
                 "2025-10-06T06:45:00+11:00": 175,
                 "2025-10-06T07:00:00+11:00": 200,
             }
         },
     )
-    return hass.states.get("sensor.open_meteo_multi_forecast")
 
 
 @pytest.fixture
-def malformed_sensor(hass):
+def malformed_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with malformed forecast data."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.malformed_forecast",
         "0",
-        attributes={
+        {
             "forecasts": [
                 {
                     "per_kwh": "not_a_number",
@@ -246,16 +273,16 @@ def malformed_sensor(hass):
             ]
         },
     )
-    return hass.states.get("sensor.malformed_forecast")
 
 
 @pytest.fixture
-def invalid_timestamp_sensor(hass):
+def invalid_timestamp_sensor(hass: HomeAssistant) -> State:
     """Create a sensor with invalid timestamp data."""
-    hass.states.async_set(
+    return _create_sensor_state(
+        hass,
         "sensor.invalid_timestamp",
         "0",
-        attributes={
+        {
             "forecasts": [
                 {
                     "per_kwh": 0.13,
@@ -264,46 +291,45 @@ def invalid_timestamp_sensor(hass):
             ]
         },
     )
-    return hass.states.get("sensor.invalid_timestamp")
 
 
-def test_detect_amber_format(amber_sensor):
+def test_detect_amber_format(amber_sensor: State) -> None:
     """Test detection of Amber pricing format."""
     result = detect_format(amber_sensor)
     assert result == "amberelectric"
 
 
-def test_detect_aemo_format(aemo_sensor):
+def test_detect_aemo_format(aemo_sensor: State) -> None:
     """Test detection of AEMO format."""
     result = detect_format(aemo_sensor)
     assert result == "aemo_nem"
 
 
-def test_detect_solcast_format(solcast_sensor):
+def test_detect_solcast_format(solcast_sensor: State) -> None:
     """Test detection of Solcast format."""
     result = detect_format(solcast_sensor)
     assert result == "solcast_solar"
 
 
-def test_detect_open_meteo_format(open_meteo_sensor):
+def test_detect_open_meteo_format(open_meteo_sensor: State) -> None:
     """Test detection of open-meteo format."""
     result = detect_format(open_meteo_sensor)
     assert result == "open_meteo_solar_forecast"
 
 
-def test_detect_unknown_format(unknown_format_sensor):
+def test_detect_unknown_format(unknown_format_sensor: State) -> None:
     """Test detection of unknown format."""
     result = detect_format(unknown_format_sensor)
     assert result is None
 
 
-def test_detect_empty_data(empty_sensor):
+def test_detect_empty_data(empty_sensor: State) -> None:
     """Test detection with empty data."""
     result = detect_format(empty_sensor)
     assert result is None
 
 
-def test_parse_amber_forecast(amber_multi_forecast_sensor):
+def test_parse_amber_forecast(amber_multi_forecast_sensor: State) -> None:
     """Test parsing of Amber forecast data."""
     result = parse_forecast_data(amber_multi_forecast_sensor)
 
@@ -315,7 +341,7 @@ def test_parse_amber_forecast(amber_multi_forecast_sensor):
     assert result[1][1] == 0.15
 
 
-def test_parse_amber_forecast_with_timezone(amber_timezone_sensor):
+def test_parse_amber_forecast_with_timezone(amber_timezone_sensor: State) -> None:
     """Test parsing Amber forecast with timezone conversion."""
     result = parse_forecast_data(amber_timezone_sensor)
 
@@ -326,7 +352,7 @@ def test_parse_amber_forecast_with_timezone(amber_timezone_sensor):
     assert result[0][1] == 0.13
 
 
-def test_parse_amber_forecast_invalid_data(amber_invalid_sensor):
+def test_parse_amber_forecast_invalid_data(amber_invalid_sensor: State) -> None:
     """Test parsing Amber forecast with invalid data."""
     result = parse_forecast_data(amber_invalid_sensor)
 
@@ -334,7 +360,7 @@ def test_parse_amber_forecast_invalid_data(amber_invalid_sensor):
     assert result is None or len(result) == 0
 
 
-def test_parse_aemo_forecast(aemo_multi_forecast_sensor):
+def test_parse_aemo_forecast(aemo_multi_forecast_sensor: State) -> None:
     """Test parsing of AEMO forecast data."""
     result = parse_forecast_data(aemo_multi_forecast_sensor)
 
@@ -345,7 +371,7 @@ def test_parse_aemo_forecast(aemo_multi_forecast_sensor):
     assert result[1][1] == 0.0823
 
 
-def test_parse_solcast_forecast(solcast_multi_forecast_sensor):
+def test_parse_solcast_forecast(solcast_multi_forecast_sensor: State) -> None:
     """Test parsing of Solcast forecast data."""
     result = parse_forecast_data(solcast_multi_forecast_sensor)
 
@@ -356,7 +382,7 @@ def test_parse_solcast_forecast(solcast_multi_forecast_sensor):
     assert result[1][1] == 10
 
 
-def test_parse_open_meteo_forecast(open_meteo_multi_forecast_sensor):
+def test_parse_open_meteo_forecast(open_meteo_multi_forecast_sensor: State) -> None:
     """Test parsing of open-meteo forecast data."""
     result = parse_forecast_data(open_meteo_multi_forecast_sensor)
 
@@ -367,20 +393,20 @@ def test_parse_open_meteo_forecast(open_meteo_multi_forecast_sensor):
     assert result[1][1] == 200
 
 
-def test_parse_unknown_format_returns_none(unknown_format_sensor):
+def test_parse_unknown_format_returns_none(unknown_format_sensor: State) -> None:
     """Test that parsing unknown format returns None."""
     result = parse_forecast_data(unknown_format_sensor)
     assert result is None
 
 
-def test_parse_malformed_data(malformed_sensor):
+def test_parse_malformed_data(malformed_sensor: State) -> None:
     """Test parsing malformed forecast data."""
     # Should handle gracefully and return None or empty list for invalid entries
     result = parse_forecast_data(malformed_sensor)
     assert result is None or len(result) == 0
 
 
-def test_parse_invalid_timestamp(invalid_timestamp_sensor):
+def test_parse_invalid_timestamp(invalid_timestamp_sensor: State) -> None:
     """Test parsing forecast with invalid timestamp."""
     # Should handle gracefully and return None or empty list for invalid entries
     result = parse_forecast_data(invalid_timestamp_sensor)

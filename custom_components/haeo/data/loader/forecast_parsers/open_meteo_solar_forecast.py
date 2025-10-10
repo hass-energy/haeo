@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 from typing import Literal
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.core import State
 from homeassistant.util.dt import as_utc
 
 _LOGGER = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 DOMAIN: Literal["open_meteo_solar_forecast"] = "open_meteo_solar_forecast"
 
 
-def detect(state: SensorEntity) -> bool:
+def detect(state: State) -> bool:
     """Check if data matches Open-Meteo solar forecast format.
 
     Args:
@@ -37,7 +37,7 @@ def detect(state: SensorEntity) -> bool:
     return False
 
 
-def extract(state: SensorEntity) -> Sequence[tuple[int, float]]:
+def extract(state: State) -> Sequence[tuple[int, float]]:
     """Extract forecast data from Open-Meteo solar forecast format.
 
     Args:

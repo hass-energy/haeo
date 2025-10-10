@@ -1,7 +1,7 @@
 """Test the HAEO coordinator."""
 
-from datetime import datetime
-from unittest.mock import patch
+from datetime import UTC, datetime
+from unittest.mock import Mock, patch
 
 from homeassistant.const import CONF_NAME, CONF_SOURCE, CONF_TARGET
 from homeassistant.core import HomeAssistant
@@ -34,7 +34,7 @@ from custom_components.haeo.model import Network
 
 
 @pytest.fixture
-def mock_config_entry():
+def mock_config_entry() -> MockConfigEntry:
     """Create a mock config entry."""
     return MockConfigEntry(
         domain=DOMAIN,
@@ -71,7 +71,7 @@ def mock_config_entry():
     )
 
 
-async def test_coordinator_initialization(hass: HomeAssistant, mock_config_entry) -> None:
+async def test_coordinator_initialization(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
     """Test coordinator initialization."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
 
@@ -83,7 +83,9 @@ async def test_coordinator_initialization(hass: HomeAssistant, mock_config_entry
 
 
 @patch("custom_components.haeo.model.network.Network.optimize")
-async def test_update_data_success(mock_optimize, hass: HomeAssistant, mock_config_entry) -> None:
+async def test_update_data_success(
+    mock_optimize: Mock, hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
     """Test successful data update."""
     # Set up sensor states for pricing with forecast data in Amber Electric format
 
@@ -123,7 +125,9 @@ async def test_update_data_success(mock_optimize, hass: HomeAssistant, mock_conf
 
 
 @patch("custom_components.haeo.model.network.Network.optimize")
-async def test_update_data_failure(mock_optimize, hass: HomeAssistant, mock_config_entry) -> None:
+async def test_update_data_failure(
+    mock_optimize: Mock, hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
     """Test failed data update."""
     # Set up sensor states for battery and grid
     hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
@@ -160,7 +164,7 @@ async def test_update_data_failure(mock_optimize, hass: HomeAssistant, mock_conf
     assert coordinator.optimization_result is None
 
 
-def test_get_element_data(hass: HomeAssistant, mock_config_entry) -> None:
+def test_get_element_data(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
     """Test getting entity data."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
 
@@ -187,7 +191,7 @@ def test_get_element_data(hass: HomeAssistant, mock_config_entry) -> None:
     assert len(result[ATTR_ENERGY]) == 3
 
 
-def test_get_element_data_no_result(hass: HomeAssistant, mock_config_entry) -> None:
+def test_get_element_data_no_result(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
     """Test getting entity data with no optimization result."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
 
@@ -196,7 +200,7 @@ def test_get_element_data_no_result(hass: HomeAssistant, mock_config_entry) -> N
     assert result is None
 
 
-def test_last_optimization_properties(hass: HomeAssistant, mock_config_entry) -> None:
+def test_last_optimization_properties(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
     """Test last optimization properties."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
 
@@ -205,7 +209,7 @@ def test_last_optimization_properties(hass: HomeAssistant, mock_config_entry) ->
     assert coordinator.last_optimization_time is None
 
     # Set optimization result
-    test_time = datetime.now()
+    test_time = datetime.now(UTC)
     coordinator.optimization_result = {
         "cost": 150.0,
         "solution": {},
@@ -216,7 +220,7 @@ def test_last_optimization_properties(hass: HomeAssistant, mock_config_entry) ->
     assert coordinator.last_optimization_time == test_time
 
 
-async def test_get_future_timestamps_no_result(hass: HomeAssistant, mock_config_entry) -> None:
+async def test_get_future_timestamps_no_result(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
     """Test getting future timestamps with no optimization result."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
 
@@ -225,7 +229,7 @@ async def test_get_future_timestamps_no_result(hass: HomeAssistant, mock_config_
     assert result == []
 
 
-async def test_get_future_timestamps_with_result(hass: HomeAssistant, mock_config_entry) -> None:
+async def test_get_future_timestamps_with_result(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
     """Test getting future timestamps with optimization result."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
 
@@ -233,7 +237,7 @@ async def test_get_future_timestamps_with_result(hass: HomeAssistant, mock_confi
     coordinator.network = Network("test", period=1800, n_periods=2)
 
     # Set optimization result with timestamp
-    test_time = datetime.now()
+    test_time = datetime.now(UTC)
     coordinator.optimization_result = {
         "cost": 150.0,
         "timestamp": test_time,
@@ -249,7 +253,7 @@ async def test_get_future_timestamps_with_result(hass: HomeAssistant, mock_confi
         datetime.fromisoformat(timestamp)
 
 
-async def test_update_data_network_build_failure(hass: HomeAssistant, mock_config_entry) -> None:
+async def test_update_data_network_build_failure(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
     """Test update data when network building fails."""
     # Set up sensor state for battery
     hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
