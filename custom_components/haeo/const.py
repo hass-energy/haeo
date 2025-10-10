@@ -5,7 +5,7 @@ from homeassistant.const import UnitOfEnergy, UnitOfPower
 import pulp
 
 
-def convert_to_base_unit(value: float, from_unit: str | None, device_class: SensorDeviceClass) -> float:
+def convert_to_base_unit(value: float, from_unit: str | None, device_class: SensorDeviceClass | None) -> float:
     """Convert *value* expressed in *from_unit* to the canonical base unit.
 
     Power   → Watt (W)
@@ -20,7 +20,9 @@ def convert_to_base_unit(value: float, from_unit: str | None, device_class: Sens
     }
 
     if device_class in base_units:
-        return UNIT_CONVERTERS.get(device_class).convert(value, from_unit, base_units[device_class])
+        converter = UNIT_CONVERTERS.get(device_class)
+        if converter is not None:
+            return converter.convert(value, from_unit, base_units[device_class])
 
     return value
 

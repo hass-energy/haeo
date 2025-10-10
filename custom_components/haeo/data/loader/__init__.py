@@ -1,7 +1,8 @@
 """Loader dispatch module for field type-specific data loading."""
 
+from collections.abc import Callable, Coroutine
 from dataclasses import fields
-from typing import Any, get_origin
+from typing import Any, cast, get_origin
 
 from homeassistant.core import HomeAssistant
 
@@ -71,12 +72,17 @@ def available(*, hass: HomeAssistant, field_name: str, config_class: type, value
     """
     pt = _get_property_type(field_name, config_class)
 
-    return {
-        FIELD_TYPE_CONSTANT: constant_loader.available,
-        FIELD_TYPE_SENSOR: sensor_loader.available,
-        FIELD_TYPE_FORECAST: forecast_loader.available,
-        FIELD_TYPE_LIVE_FORECAST: forecast_and_sensor_loader.available,
-    }[pt](hass=hass, value=value, **kwargs)
+    loader_fn = cast(
+        "Callable[..., bool]",
+        {
+            FIELD_TYPE_CONSTANT: constant_loader.available,
+            FIELD_TYPE_SENSOR: sensor_loader.available,
+            FIELD_TYPE_FORECAST: forecast_loader.available,
+            FIELD_TYPE_LIVE_FORECAST: forecast_and_sensor_loader.available,
+        }[pt],
+    )
+
+    return loader_fn(hass=hass, value=value, **kwargs)
 
 
 async def load(*, hass: HomeAssistant, field_name: str, config_class: type, value: Any, **kwargs: Any) -> Any:
@@ -92,9 +98,14 @@ async def load(*, hass: HomeAssistant, field_name: str, config_class: type, valu
     """
     pt = _get_property_type(field_name, config_class)
 
-    return await {
-        FIELD_TYPE_CONSTANT: constant_loader.load,
-        FIELD_TYPE_SENSOR: sensor_loader.load,
-        FIELD_TYPE_FORECAST: forecast_loader.load,
-        FIELD_TYPE_LIVE_FORECAST: forecast_and_sensor_loader.load,
-    }[pt](hass=hass, value=value, **kwargs)
+    loader_fn = cast(
+        "Callable[..., Coroutine[Any, Any, Any]]",
+        {
+            FIELD_TYPE_CONSTANT: constant_loader.load,
+            FIELD_TYPE_SENSOR: sensor_loader.load,
+            FIELD_TYPE_FORECAST: forecast_loader.load,
+            FIELD_TYPE_LIVE_FORECAST: forecast_and_sensor_loader.load,
+        }[pt],
+    )
+
+    return await loader_fn(hass=hass, value=value, **kwargs)

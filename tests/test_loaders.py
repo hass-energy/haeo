@@ -24,7 +24,8 @@ from custom_components.haeo.data.loader import constant_loader, sensor_loader
 )
 def test_convert_to_base_unit(value: float, unit: str, cls: SensorDeviceClass | str, expected: float) -> None:
     """Ensure the helper converts as expected."""
-    assert convert_to_base_unit(value, unit, cls) == expected
+    device_class = cls if isinstance(cls, SensorDeviceClass) else None
+    assert convert_to_base_unit(value, unit, device_class) == expected
 
 
 # -----------------------------------------------------------------------------

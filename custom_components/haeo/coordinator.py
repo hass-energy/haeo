@@ -1,5 +1,6 @@
 """Data update coordinator for the Home Assistant Energy Optimization integration."""
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 import logging
 import time
@@ -111,6 +112,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Run optimization in executor job to avoid blocking the event loop
             optimizer = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER)
+            if self.network is None:
+                msg = "Network not initialized"
+                raise ValueError(msg)
             _LOGGER.debug(
                 "Running optimization for network with %d elements using %s solver",
                 len(self.network.elements),
@@ -154,13 +158,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return None
 
         element = self.network.elements[element_name]
-        element_data = {}
+        element_data: dict[str, Any] = {}
 
         # Helper to extract values safely
-        def extract_values(variables: list[Any]) -> list[float]:
+        def extract_values(variables: Sequence[Any]) -> list[float]:
             result = []
             for var in variables:
-                val = value(var)
+                val = value(var)  # type: ignore[no-untyped-call]
                 result.append(float(val) if isinstance(val, (int, float)) else 0.0)
             return result
 
@@ -188,14 +192,16 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def last_optimization_cost(self) -> float | None:
         """Get the last optimization cost."""
         if self.optimization_result:
-            return self.optimization_result["cost"]
+            cost = self.optimization_result["cost"]
+            return float(cost) if cost is not None else None
         return None
 
     @property
     def last_optimization_time(self) -> datetime | None:
         """Get the last optimization timestamp."""
         if self.optimization_result:
-            return self.optimization_result["timestamp"]
+            timestamp = self.optimization_result["timestamp"]
+            return timestamp if isinstance(timestamp, datetime) else None
         return None
 
     @property

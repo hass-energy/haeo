@@ -93,7 +93,13 @@ async def load_network(
         params: dict[str, Any] = {}
         for f in fields(config):
             field_value = getattr(config, f.name)
-            params[f.name] = await loader.load(hass, f.name, type(config), forecast_times=forecast_times)
+            params[f.name] = await loader.load(
+                hass=hass,
+                field_name=f.name,
+                config_class=type(config),
+                value=field_value,
+                forecast_times=forecast_times,
+            )
         net.add(**params)
 
     return net

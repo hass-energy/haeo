@@ -5,6 +5,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass, field
 import io
 import logging
+from typing import cast
 
 from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, getSolver, lpSum, value
 
@@ -97,7 +98,10 @@ class Network:
 
     def cost(self) -> float:
         """Return the cost expression for the network."""
-        return lpSum([e.cost() for e in self.elements.values() if e.cost() != 0])
+        result = lpSum([e.cost() for e in self.elements.values() if e.cost() != 0])
+        # lpSum returns either a LpAffineExpression or a number (0 if empty list)
+        # The LpAffineExpression is duck-typed as float in PuLP's optimization context
+        return cast("float", result)
 
     def optimize(self, optimizer: str = "HiGHS") -> float:
         """Solve the optimization problem and return the cost.
@@ -115,7 +119,7 @@ class Network:
         self.validate()
 
         # Create the LP problem
-        prob = LpProblem(f"{self.name}_optimization", LpMinimize)
+        prob = LpProblem(f"{self.name}_optimization", LpMinimize)  # type: ignore[no-untyped-call]
 
         # Add the objective function (minimize cost)
         prob += self.cost(), "Total_Cost"

@@ -2,6 +2,7 @@
 
 from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass
+from typing import cast
 
 from pulp import LpConstraint, LpVariable, lpSum
 
@@ -41,7 +42,7 @@ class Element:
                 energy_change = (
                     self.power_consumption[t - 1] * self.efficiency - self.power_production[t - 1] / self.efficiency
                 ) * (self.period / 3600)
-                constraints.append(self.energy[t] == self.energy[t - 1] + energy_change)  # type: ignore[arg-type]
+                constraints.append(cast("LpConstraint", self.energy[t] == self.energy[t - 1] + energy_change))
 
         return constraints
 

@@ -126,19 +126,23 @@ async def test_async_setup_entry_no_coordinator(
 
 def test_sensor_base_init(mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry) -> None:
     """Test sensor base initialization."""
-    sensor = HaeoSensorBase(mock_coordinator, mock_config_entry, "test_type", "Test Sensor")
+    sensor = HaeoSensorBase(
+        mock_coordinator, mock_config_entry, "test_type", "Test Sensor", "test_element", "test_element_type"
+    )
 
     assert sensor.config_entry == mock_config_entry
     assert sensor.sensor_type == "test_type"
-    assert sensor._attr_name == "HAEO Test Sensor"
+    assert sensor.element_name == "test_element"
+    assert sensor.element_type == "test_element_type"
+    assert sensor._attr_name == "HAEO test_element Test Sensor"
     assert sensor._attr_unique_id == f"{mock_config_entry.entry_id}_test_type"
 
 
 def test_sensor_base_device_info(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
-    """Test device info property."""
-    sensor = HaeoSensorBase(mock_coordinator, mock_config_entry, "test_type", "Test Sensor")
+    """Test device info property for network-level sensor."""
+    sensor = HaeoSensorBase(mock_coordinator, mock_config_entry, "test_type", "Test Sensor", "network", "network")
     device_info = sensor.device_info
 
     assert device_info is not None
@@ -153,7 +157,7 @@ def test_sensor_base_available_success(
 ) -> None:
     """Test availability when coordinator is successful."""
     mock_coordinator.last_update_success = True
-    sensor = HaeoSensorBase(mock_coordinator, mock_config_entry, "test_type", "Test Sensor")
+    sensor = HaeoSensorBase(mock_coordinator, mock_config_entry, "test_type", "Test Sensor", "network", "network")
 
     assert sensor.available is True
 
@@ -163,7 +167,7 @@ def test_sensor_base_available_failure(
 ) -> None:
     """Test availability when coordinator fails."""
     mock_coordinator.last_update_success = False
-    sensor = HaeoSensorBase(mock_coordinator, mock_config_entry, "test_type", "Test Sensor")
+    sensor = HaeoSensorBase(mock_coordinator, mock_config_entry, "test_type", "Test Sensor", "network", "network")
 
     assert sensor.available is False
 
@@ -195,7 +199,7 @@ def test_optimization_cost_sensor_init(
     """Test sensor initialization."""
     sensor = HaeoOptimizationCostSensor(mock_coordinator, mock_config_entry)
 
-    assert sensor._attr_name == "HAEO Optimization Cost"
+    assert sensor._attr_name == "HAEO network Optimization Cost"
     assert sensor._attr_native_unit_of_measurement == CURRENCY_DOLLAR
     assert sensor._attr_unique_id == f"{mock_config_entry.entry_id}_optimization_cost"
 
@@ -249,7 +253,7 @@ def test_optimization_status_sensor_init(
     """Test sensor initialization."""
     sensor = HaeoOptimizationStatusSensor(mock_coordinator, mock_config_entry)
 
-    assert sensor._attr_name == "HAEO Optimization Status"
+    assert sensor._attr_name == "HAEO network Optimization Status"
     assert sensor._attr_unique_id == f"{mock_config_entry.entry_id}_optimization_status"
 
 

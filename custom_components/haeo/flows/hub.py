@@ -3,9 +3,8 @@
 import logging
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry, ConfigFlow
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_NAME
-from homeassistant.data_entry_flow import FlowResult
 
 from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES, DOMAIN
 
@@ -21,12 +20,12 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
     MINOR_VERSION = 1
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step for hub creation."""
         if user_input is not None:
             # Get the schema for validation (includes duplicate name checking)
             data_schema = get_network_config_schema(
-                existing_names={entry.title for entry in self.hass.config_entries.async_entries("haeo")}
+                existing_names=[entry.title for entry in self.hass.config_entries.async_entries("haeo")]
             )
 
             # Create the hub entry

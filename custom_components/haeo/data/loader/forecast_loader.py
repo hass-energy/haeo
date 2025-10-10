@@ -22,9 +22,9 @@ def available(*, hass: HomeAssistant, value: Sequence[str], **_kwargs: Any) -> b
 
     """
     return all(
-        hass.states.get(entity_id) is not None
-        and hass.states.get(entity_id).state not in ("unknown", "unavailable", "none")
-        and detect_format(hass.states.get(entity_id)) is not None
+        (state := hass.states.get(entity_id)) is not None
+        and state.state not in ("unknown", "unavailable", "none")
+        and detect_format(state) is not None
         for entity_id in value
     )
 

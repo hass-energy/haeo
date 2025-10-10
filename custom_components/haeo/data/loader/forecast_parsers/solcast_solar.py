@@ -10,67 +10,74 @@ from homeassistant.util.dt import as_utc
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN: Literal["solcast_solar"] = "solcast_solar"
+Format = Literal["solcast_solar"]
+DOMAIN: Format = "solcast_solar"
 
 
-def detect(state: State) -> bool:
-    """Check if data matches Solcast solar forecast format.
+class Parser:
+    """Parser for Solcast solar forecast data."""
 
-    Args:
-        state: The sensor state containing forecast data
+    DOMAIN: Format = DOMAIN
 
-    Returns:
-        True if data matches Solcast format, False otherwise
+    @staticmethod
+    def detect(state: State) -> bool:
+        """Check if data matches Solcast solar forecast format.
 
-    """
-    if not (isinstance(state.attributes, dict) and "detailedForecast" in state.attributes):
-        return False
+        Args:
+            state: The sensor state containing forecast data
 
-    detailed_forecast = state.attributes["detailedForecast"]
-    if not (isinstance(detailed_forecast, list) and len(detailed_forecast) > 0):
-        return False
+        Returns:
+            True if data matches Solcast format, False otherwise
 
-    # Check if any item has both period_start and pv_estimate
-    return any(
-        isinstance(item, dict) and "period_start" in item and "pv_estimate" in item for item in detailed_forecast
-    )
+        """
+        if not (isinstance(state.attributes, dict) and "detailedForecast" in state.attributes):
+            return False
 
+        detailed_forecast = state.attributes["detailedForecast"]
+        if not (isinstance(detailed_forecast, list) and len(detailed_forecast) > 0):
+            return False
 
-def extract(state: State) -> Sequence[tuple[int, float]]:
-    """Extract forecast data from Solcast solar forecast format.
+        # Check if any item has both period_start and pv_estimate
+        return any(
+            isinstance(item, dict) and "period_start" in item and "pv_estimate" in item for item in detailed_forecast
+        )
 
-    Args:
-        state: The sensor state containing forecast data
+    @staticmethod
+    def extract(state: State) -> Sequence[tuple[int, float]]:
+        """Extract forecast data from Solcast solar forecast format.
 
-    Returns:
-        List of (timestamp_seconds, value) tuples sorted by timestamp
+        Args:
+            state: The sensor state containing forecast data
 
-    """
-    detailed_forecast = state.attributes.get("detailedForecast", [])
-    if not isinstance(detailed_forecast, list):
-        return []
+        Returns:
+            List of (timestamp_seconds, value) tuples sorted by timestamp
 
-    result = []
-    for item in detailed_forecast:
-        if not isinstance(item, dict):
-            continue
+        """
+        detailed_forecast = state.attributes.get("detailedForecast", [])
+        if not isinstance(detailed_forecast, list):
+            return []
 
-        period_start_str = item.get("period_start")
-        pv_estimate = item.get("pv_estimate")
+        result = []
+        for item in detailed_forecast:
+            if not isinstance(item, dict):
+                continue
 
-        if not period_start_str or pv_estimate is None:
-            continue
+            period_start_str = item.get("period_start")
+            pv_estimate = item.get("pv_estimate")
 
-        try:
-            # Parse ISO timestamp and convert to UTC
-            dt = as_utc(datetime.fromisoformat(period_start_str))
-            timestamp_seconds = int(dt.timestamp())
-            value = float(pv_estimate)
-            result.append((timestamp_seconds, value))
-        except (ValueError, TypeError) as err:
-            _LOGGER.warning("Failed to parse Solcast forecast item: %s", err)
-            continue
+            if not period_start_str or pv_estimate is None:
+                continue
 
-    # Sort by timestamp
-    result.sort(key=lambda x: x[0])
-    return result
+            try:
+                # Parse ISO timestamp and convert to UTC
+                dt = as_utc(datetime.fromisoformat(period_start_str))
+                timestamp_seconds = int(dt.timestamp())
+                value = float(pv_estimate)
+                result.append((timestamp_seconds, value))
+            except (ValueError, TypeError) as err:
+                _LOGGER.warning("Failed to parse Solcast forecast item: %s", err)
+                continue
+
+        # Sort by timestamp
+        result.sort(key=lambda x: x[0])
+        return result

@@ -54,6 +54,21 @@ max-args = 10
 max-branches = 15
 max-statements = 60
 
+[tool.mypy]
+strict = true
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_unimported = false
+follow_imports = "normal"
+follow_untyped_imports = true
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = "pulp.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

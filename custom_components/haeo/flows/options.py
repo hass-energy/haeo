@@ -4,8 +4,8 @@ import logging
 from typing import Any
 
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_NAME
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
@@ -22,7 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 class HubOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for HAEO hub."""
 
-    async def async_step_init(self, _user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_init(self, _user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manage the options."""
         # Check if we have participants for conditional menu options
         participants = self.config_entry.data.get("participants", {})
@@ -38,7 +38,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             menu_options=menu_options,
         )
 
-    async def async_step_configure_network(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_configure_network(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Configure network timing parameters."""
         if user_input is not None:
             # Update network timing configuration
@@ -55,9 +55,9 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         # Show form with network configuration
         data_schema = get_network_config_schema(
             config_entry=self.config_entry,
-            existing_names={
+            existing_names=[
                 entry.title for entry in self.hass.config_entries.async_entries("haeo") if entry != self.config_entry
-            },
+            ],
         )
 
         return self.async_show_form(
@@ -65,7 +65,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             data_schema=data_schema,
         )
 
-    async def async_step_add_participant(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_add_participant(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Add a new participant."""
         if user_input is not None:
             participant_type = user_input["participant_type"]
@@ -104,7 +104,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         element_type: str,
         user_input: dict[str, Any] | None = None,
         current_config: dict[str, Any] | None = None,
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Configure participant."""
         errors: dict[str, str] = {}
 
@@ -131,11 +131,15 @@ class HubOptionsFlow(config_entries.OptionsFlow):
                 if current_config:
                     return await self._update_participant(current_config[CONF_NAME], element_config)
 
-                return await self._add_participant(user_input.get("name_value"), element_config)
+                name = user_input.get("name_value")
+                if not name:
+                    errors["base"] = "missing_name"
+                    return self.async_show_form(step_id=f"configure_{element_type}", data_schema=schema, errors=errors)
+                return await self._add_participant(name, element_config)
 
         return self.async_show_form(step_id=f"configure_{element_type}", data_schema=schema, errors=errors)
 
-    async def async_step_edit_participant(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_edit_participant(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Edit an existing participant."""
         participants = self.config_entry.data.get("participants", {})
 
@@ -163,7 +167,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             ),
         )
 
-    async def async_step_remove_participant(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_remove_participant(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Remove a participant."""
         participants = self.config_entry.data.get("participants", {})
 
@@ -201,7 +205,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             ),
         )
 
-    async def _add_participant(self, name: str, participant_config: dict[str, Any]) -> FlowResult:
+    async def _add_participant(self, name: str, participant_config: dict[str, Any]) -> ConfigFlowResult:
         """Add a participant to the configuration."""
         new_data = self.config_entry.data.copy()
         new_participants = new_data["participants"].copy()
@@ -213,7 +217,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         await self.hass.config_entries.async_reload(self.config_entry.entry_id)
         return self.async_create_entry(title="", data={})
 
-    async def _update_participant(self, old_name: str, new_config: dict[str, Any]) -> FlowResult:
+    async def _update_participant(self, old_name: str, new_config: dict[str, Any]) -> ConfigFlowResult:
         """Update a participant in the configuration."""
         new_data = self.config_entry.data.copy()
         new_participants = new_data["participants"].copy()
@@ -248,7 +252,7 @@ def _create_configure_methods() -> None:
                     self: HubOptionsFlow,
                     user_input: dict[str, Any] | None = None,
                     current_config: dict[str, Any] | None = None,
-                ) -> FlowResult:
+                ) -> ConfigFlowResult:
                     """Configure element."""
                     # Call the generic method with the correct signature
                     return await self.async_step_configure_element(elem_type, user_input, current_config)

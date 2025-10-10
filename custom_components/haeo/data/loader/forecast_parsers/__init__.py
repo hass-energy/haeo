@@ -2,7 +2,6 @@
 
 from collections.abc import Sequence
 import logging
-from typing import Literal
 
 from homeassistant.core import State
 
@@ -10,14 +9,23 @@ from . import aemo_nem, amberelectric, open_meteo_solar_forecast, solcast_solar
 
 _LOGGER = logging.getLogger(__name__)
 
-# Use open_meteo_solar_forecast parser for watts format as well
-ForecastFormat = Literal[aemo_nem.DOMAIN, amberelectric.DOMAIN, open_meteo_solar_forecast.DOMAIN, solcast_solar.DOMAIN]
+# Union of all domain literal types from the parser modules
+ForecastFormat = aemo_nem.Format | amberelectric.Format | open_meteo_solar_forecast.Format | solcast_solar.Format
 
-_FORMATS = {
-    aemo_nem.DOMAIN: aemo_nem,
-    amberelectric.DOMAIN: amberelectric,
-    open_meteo_solar_forecast.DOMAIN: open_meteo_solar_forecast,
-    solcast_solar.DOMAIN: solcast_solar,
+# Union of all Parser class types
+ForecastParser = (
+    type[aemo_nem.Parser]
+    | type[amberelectric.Parser]
+    | type[open_meteo_solar_forecast.Parser]
+    | type[solcast_solar.Parser]
+)
+
+# Dictionary mapping domain strings to their parser classes
+_FORMATS: dict[ForecastFormat, ForecastParser] = {
+    aemo_nem.DOMAIN: aemo_nem.Parser,
+    amberelectric.DOMAIN: amberelectric.Parser,
+    open_meteo_solar_forecast.DOMAIN: open_meteo_solar_forecast.Parser,
+    solcast_solar.DOMAIN: solcast_solar.Parser,
 }
 
 
@@ -32,7 +40,7 @@ def detect_format(state: State) -> ForecastFormat | None:
 
     """
 
-    valid_formats = [domain for domain, parser in _FORMATS.items() if parser.detect(state)]
+    valid_formats: list[ForecastFormat] = [domain for domain, parser in _FORMATS.items() if parser.detect(state)]
 
     if len(valid_formats) == 1:
         return valid_formats[0]
@@ -61,9 +69,6 @@ def parse_forecast_data(state: State) -> Sequence[tuple[int, float]] | None:
     if parser_type is None:
         return None
 
-    extractor = _FORMATS.get(parser_type)
-    if extractor is None:
-        msg = "Unknown forecast format"
-        raise ValueError(msg)
-
-    return extractor.extract(state)
+    # Since parser_type is a valid ForecastFormat, it must exist in _FORMATS
+    parser = _FORMATS[parser_type]
+    return parser.extract(state)

@@ -15,6 +15,7 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -162,7 +163,9 @@ class ElementNameFieldMeta(FieldMeta):
     def _get_field_validators(self, participants: list[str] | None = None, **_kwargs: Any) -> dict[str, Any]:
         # Only show the participants as options in the selector
         participants_list = participants or []
-        options = [{"value": participant, "label": participant} for participant in participants_list]
+        options: list[SelectOptionDict] = [
+            SelectOptionDict(value=participant, label=participant) for participant in participants_list
+        ]
         return {
             "value": vol.All(
                 str,

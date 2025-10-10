@@ -10,65 +10,72 @@ from homeassistant.util.dt import as_utc
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN: Literal["amberelectric"] = "amberelectric"
+Format = Literal["amberelectric"]
+DOMAIN: Format = "amberelectric"
 
 
-def detect(state: State) -> bool:
-    """Check if data matches Amber Electric (amberelectric) pricing format.
+class Parser:
+    """Parser for Amber Electric pricing forecast data."""
 
-    Args:
-        state: The sensor state containing forecast data
+    DOMAIN: Format = DOMAIN
 
-    Returns:
-        True if data matches amberelectric format, False otherwise
+    @staticmethod
+    def detect(state: State) -> bool:
+        """Check if data matches Amber Electric (amberelectric) pricing format.
 
-    """
-    if not (isinstance(state.attributes, dict) and "forecasts" in state.attributes):
-        return False
+        Args:
+            state: The sensor state containing forecast data
 
-    forecasts = state.attributes["forecasts"]
-    if not (isinstance(forecasts, list) and len(forecasts) > 0):
-        return False
+        Returns:
+            True if data matches amberelectric format, False otherwise
 
-    # Check if any item has both start_time and per_kwh
-    return any(isinstance(item, dict) and "start_time" in item and "per_kwh" in item for item in forecasts)
+        """
+        if not (isinstance(state.attributes, dict) and "forecasts" in state.attributes):
+            return False
 
+        forecasts = state.attributes["forecasts"]
+        if not (isinstance(forecasts, list) and len(forecasts) > 0):
+            return False
 
-def extract(state: State) -> Sequence[tuple[int, float]]:
-    """Extract forecast data from Amber Electric pricing format.
+        # Check if any item has both start_time and per_kwh
+        return any(isinstance(item, dict) and "start_time" in item and "per_kwh" in item for item in forecasts)
 
-    Args:
-        state: The sensor state containing forecast data
+    @staticmethod
+    def extract(state: State) -> Sequence[tuple[int, float]]:
+        """Extract forecast data from Amber Electric pricing format.
 
-    Returns:
-        List of (timestamp_seconds, value) tuples sorted by timestamp
+        Args:
+            state: The sensor state containing forecast data
 
-    """
-    forecasts = state.attributes.get("forecasts", [])
-    if not isinstance(forecasts, list):
-        return []
+        Returns:
+            List of (timestamp_seconds, value) tuples sorted by timestamp
 
-    result = []
-    for item in forecasts:
-        if not isinstance(item, dict):
-            continue
+        """
+        forecasts = state.attributes.get("forecasts", [])
+        if not isinstance(forecasts, list):
+            return []
 
-        start_time_str = item.get("start_time")
-        per_kwh = item.get("per_kwh")
+        result = []
+        for item in forecasts:
+            if not isinstance(item, dict):
+                continue
 
-        if not start_time_str or per_kwh is None:
-            continue
+            start_time_str = item.get("start_time")
+            per_kwh = item.get("per_kwh")
 
-        try:
-            # Parse ISO timestamp and convert to UTC
-            dt = as_utc(datetime.fromisoformat(start_time_str))
-            timestamp_seconds = int(dt.timestamp())
-            value = float(per_kwh)
-            result.append((timestamp_seconds, value))
-        except (ValueError, TypeError) as err:
-            _LOGGER.warning("Failed to parse Amber forecast item: %s", err)
-            continue
+            if not start_time_str or per_kwh is None:
+                continue
 
-    # Sort by timestamp
-    result.sort(key=lambda x: x[0])
-    return result
+            try:
+                # Parse ISO timestamp and convert to UTC
+                dt = as_utc(datetime.fromisoformat(start_time_str))
+                timestamp_seconds = int(dt.timestamp())
+                value = float(per_kwh)
+                result.append((timestamp_seconds, value))
+            except (ValueError, TypeError) as err:
+                _LOGGER.warning("Failed to parse Amber forecast item: %s", err)
+                continue
+
+        # Sort by timestamp
+        result.sort(key=lambda x: x[0])
+        return result

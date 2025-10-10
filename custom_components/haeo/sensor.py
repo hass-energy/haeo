@@ -135,7 +135,7 @@ def _get_element_sensor_configs(
     element_name: str,
 ) -> list[dict[str, Any]]:
     """Get sensor configurations for an element."""
-    sensor_configs = []
+    sensor_configs: list[dict[str, Any]] = []
 
     # Check if we have optimization data for this element
     optimization_result = coordinator.optimization_result
@@ -164,6 +164,8 @@ class HaeoSensorBase(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity)
     """Base class for HAEO sensors."""
 
     coordinator: HaeoDataUpdateCoordinator
+    element_name: str
+    element_type: str
 
     def __init__(
         self,
@@ -171,8 +173,8 @@ class HaeoSensorBase(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity)
         config_entry: ConfigEntry,
         sensor_type: str,
         name_suffix: str,
-        element_name: str | None = None,
-        element_type: str | None = None,
+        element_name: str,
+        element_type: str,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
@@ -184,20 +186,17 @@ class HaeoSensorBase(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity)
         self._attr_translation_key = element_type or sensor_type
 
         # Set sensor name with HAEO prefix
-        if element_name:
-            # Check if name_suffix already contains the element name to avoid duplication
-            if element_name in name_suffix:
-                self._attr_name = f"HAEO {name_suffix}"
-            else:
-                self._attr_name = f"HAEO {element_name} {name_suffix}"
-        else:
+        # Check if name_suffix already contains the element name to avoid duplication
+        if element_name in name_suffix:
             self._attr_name = f"HAEO {name_suffix}"
-
-        # Set device info based on whether this is a hub-level or entity-level sensor
-        if element_name and element_type:
-            self._attr_device_info = get_device_info_for_element(element_name, element_type, config_entry)
         else:
+            self._attr_name = f"HAEO {element_name} {name_suffix}"
+
+        # Set device info based on element type
+        if element_type == "network":
             self._attr_device_info = get_device_info_for_network(config_entry)
+        else:
+            self._attr_device_info = get_device_info_for_element(element_name, element_type, config_entry)
 
     @property
     def available(self) -> bool:
@@ -206,8 +205,8 @@ class HaeoSensorBase(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity)
         if not super().available:
             return False
 
-        # For entity-specific sensors, check if we can get element data
-        if self.element_name and self.element_type:
+        # For element-specific sensors (not network-level), check if we can get element data
+        if self.element_type != "network":
             try:
                 element_data = self.coordinator.get_element_data(self.element_name)
             except Exception:
@@ -234,7 +233,7 @@ class HaeoOptimizationCostSensor(HaeoSensorBase):
         config_entry: ConfigEntry,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry, "optimization_cost", "Optimization Cost")
+        super().__init__(coordinator, config_entry, "optimization_cost", "Optimization Cost", "network", "network")
         self._attr_device_class = SensorDeviceClass.MONETARY
         self._attr_native_unit_of_measurement = CURRENCY_DOLLAR  # Default fallback
         self._attr_state_class = SensorStateClass.TOTAL
@@ -255,7 +254,7 @@ class HaeoOptimizationCostSensor(HaeoSensorBase):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return extra state attributes."""
-        attrs = {}
+        attrs: dict[str, Any] = {}
         if self.coordinator.last_optimization_time:
             attrs["last_optimization"] = self.coordinator.last_optimization_time.isoformat()
         attrs["optimization_status"] = self.coordinator.optimization_status
@@ -273,7 +272,7 @@ class HaeoOptimizationStatusSensor(HaeoSensorBase):
         config_entry: ConfigEntry,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry, "optimization_status", "Optimization Status")
+        super().__init__(coordinator, config_entry, "optimization_status", "Optimization Status", "network", "network")
         self._attr_translation_key = "optimization_status"
 
     @property
@@ -291,7 +290,7 @@ class HaeoOptimizationStatusSensor(HaeoSensorBase):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return extra state attributes."""
-        attrs = {}
+        attrs: dict[str, Any] = {}
         if self.coordinator.last_optimization_time:
             attrs["last_optimization"] = self.coordinator.last_optimization_time.isoformat()
         if self.coordinator.last_optimization_cost is not None:
@@ -310,7 +309,9 @@ class HaeoOptimizationDurationSensor(HaeoSensorBase):
         config_entry: ConfigEntry,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry, "optimization_duration", "Optimization Duration")
+        super().__init__(
+            coordinator, config_entry, "optimization_duration", "Optimization Duration", "network", "network"
+        )
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
