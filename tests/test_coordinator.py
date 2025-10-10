@@ -51,8 +51,8 @@ def mock_config_entry() -> MockConfigEntry:
                 },
                 "test_grid": {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
-                    CONF_IMPORT_LIMIT: 10000,
-                    CONF_EXPORT_LIMIT: 5000,
+                    f"{CONF_IMPORT_LIMIT}_value": 10000,
+                    f"{CONF_EXPORT_LIMIT}_value": 5000,
                     # Use sensor references instead of constant values
                     f"{CONF_IMPORT_PRICE}_live": ["sensor.import_price"],
                     f"{CONF_IMPORT_PRICE}_forecast": ["sensor.import_price"],
@@ -61,9 +61,9 @@ def mock_config_entry() -> MockConfigEntry:
                 },
                 "test_connection": {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
-                    CONF_SOURCE: "test_battery",
-                    CONF_TARGET: "test_grid",
-                    CONF_MAX_POWER: 5000,
+                    f"{CONF_SOURCE}_value": "test_battery",
+                    f"{CONF_TARGET}_value": "test_grid",
+                    f"{CONF_MAX_POWER}_value": 5000,
                 },
             },
         },
@@ -87,7 +87,8 @@ async def test_update_data_success(
     mock_optimize: Mock, hass: HomeAssistant, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test successful data update."""
-    # Set up sensor states for pricing with forecast data in Amber Electric format
+    # Set up sensor states for battery and pricing with forecast data in Amber Electric format
+    hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
 
     # Create a smaller forecast for testing (2 periods instead of 576)
     forecast_data = [
