@@ -115,17 +115,16 @@ def _create_sensors(
         element_type = element_config.get("type", "")
 
         # Determine which sensors to create for this element
-        sensor_configs = _get_element_sensor_configs(coordinator, element_name)
+        sensor_configs = _get_element_sensor_configs(coordinator, element_name, element_type)
 
-        entities.extend(
-            sensor_config["sensor_class"](
+        for sensor_config in sensor_configs:
+            sensor = sensor_config["sensor_class"](
                 coordinator,
                 config_entry,
                 element_name,
                 element_type,
             )
-            for sensor_config in sensor_configs
-        )
+            entities.append(sensor)
 
     return entities
 
@@ -133,6 +132,7 @@ def _create_sensors(
 def _get_element_sensor_configs(
     coordinator: HaeoDataUpdateCoordinator,
     element_name: str,
+    element_type: str,
 ) -> list[dict[str, Any]]:
     """Get sensor configurations for an element."""
     sensor_configs: list[dict[str, Any]] = []
@@ -156,6 +156,14 @@ def _get_element_sensor_configs(
     # Add energy sensor if element supports it (typically batteries and other storage)
     if has_energy_data:
         sensor_configs.append({"sensor_class": HaeoElementEnergySensor})
+
+    # Add SOC sensor for batteries
+    if element_type == "battery" and has_energy_data:
+        sensor_configs.append({"sensor_class": HaeoElementSOCSensor})
+
+    # Add available power sensor for generators (shows forecast/available capacity)
+    if element_type in ["generator", "solar"]:
+        sensor_configs.append({"sensor_class": HaeoElementAvailablePowerSensor})
 
     return sensor_configs
 
@@ -373,7 +381,23 @@ class HaeoElementPowerSensor(HaeoSensorBase):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return extra state attributes."""
-        attrs = {}
+        attrs: dict[str, Any] = {}
+
+        # Add element metadata for visualization
+        attrs["element_type"] = self.element_type
+
+        # Determine flow direction based on element type
+        # This helps visualization tools understand what to plot
+        if self.element_type in ["generator", "solar"]:
+            attrs["flow_direction"] = "production"
+        elif self.element_type in ["load", "constant_load", "forecast_load"]:
+            attrs["flow_direction"] = "consumption"
+        elif self.element_type in ["battery", "grid"]:
+            # These can be both - visualization should split by sign
+            attrs["flow_direction"] = "bidirectional"
+        else:
+            attrs["flow_direction"] = "unknown"
+
         try:
             element_data = self.coordinator.get_element_data(self.element_name)
             if element_data and ATTR_POWER in element_data:
@@ -458,4 +482,162 @@ class HaeoElementEnergySensor(HaeoSensorBase):
                     _LOGGER.debug("Error getting timestamps for %s: %s", self.element_name, ex)
         except Exception as ex:
             _LOGGER.debug("Error getting energy attributes for %s: %s", self.element_name, ex)
+        return attrs
+
+
+class HaeoElementSOCSensor(HaeoSensorBase):
+    """Sensor for battery state of charge (SOC) percentage."""
+
+    def __init__(
+        self,
+        coordinator: HaeoDataUpdateCoordinator,
+        config_entry: ConfigEntry,
+        element_name: str,
+        element_type: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            coordinator,
+            config_entry,
+            f"{element_name}_state_of_charge",
+            f"{element_name} State of Charge",
+            element_name,
+            element_type,
+        )
+        self.element_name = element_name
+        self._attr_translation_key = "soc"
+        self._attr_device_class = SensorDeviceClass.BATTERY
+        self._attr_native_unit_of_measurement = "%"
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current state of charge percentage."""
+        try:
+            element_data = self.coordinator.get_element_data(self.element_name)
+            if (
+                element_data
+                and ATTR_ENERGY in element_data
+                and self.coordinator.network
+                and self.element_name in self.coordinator.network.elements
+            ):
+                element = self.coordinator.network.elements[self.element_name]
+                if hasattr(element, "capacity"):
+                    energy_data = element_data[ATTR_ENERGY]
+                    if energy_data and element.capacity > 0:
+                        # Convert energy (Wh) to percentage
+                        return float((energy_data[0] / element.capacity) * 100.0)
+        except Exception as ex:
+            _LOGGER.debug("Error getting SOC for %s: %s", self.element_name, ex)
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return extra state attributes."""
+        attrs = {}
+        try:
+            element_data = self.coordinator.get_element_data(self.element_name)
+            if (
+                element_data
+                and ATTR_ENERGY in element_data
+                and self.coordinator.network
+                and self.element_name in self.coordinator.network.elements
+            ):
+                element = self.coordinator.network.elements[self.element_name]
+                if hasattr(element, "capacity") and element.capacity > 0:
+                    energy_data = element_data[ATTR_ENERGY]
+
+                    # Convert energy values to SOC percentages
+                    soc_data = [(energy / element.capacity) * 100.0 for energy in energy_data]
+
+                    # Add forecast data
+                    attrs["forecast"] = soc_data
+                    attrs["capacity"] = element.capacity
+
+                    # Add timestamped forecast
+                    try:
+                        timestamps = self.coordinator.get_future_timestamps()
+                        if len(timestamps) == len(soc_data):
+                            attrs["timestamped_forecast"] = [
+                                {"timestamp": ts, "value": value}
+                                for ts, value in zip(timestamps, soc_data, strict=False)
+                            ]
+                    except Exception as ex:
+                        _LOGGER.debug("Error getting timestamps for %s: %s", self.element_name, ex)
+        except Exception as ex:
+            _LOGGER.debug("Error getting SOC attributes for %s: %s", self.element_name, ex)
+        return attrs
+
+
+class HaeoElementAvailablePowerSensor(HaeoSensorBase):
+    """Sensor for element available power (forecast/capacity for generators)."""
+
+    def __init__(
+        self,
+        coordinator: HaeoDataUpdateCoordinator,
+        config_entry: ConfigEntry,
+        element_name: str,
+        element_type: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            coordinator,
+            config_entry,
+            f"{element_name}_available_power",
+            f"{element_name} Available Power",
+            element_name,
+            element_type,
+        )
+        self.element_name = element_name
+        self._attr_translation_key = "available_power"
+        self._attr_device_class = SensorDeviceClass.POWER
+        self._attr_native_unit_of_measurement = UnitOfPower.WATT
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current available power (from forecast)."""
+        try:
+            if self.coordinator.network and self.element_name in self.coordinator.network.elements:
+                element = self.coordinator.network.elements[self.element_name]
+                # Get forecast data if available
+                if hasattr(element, "forecast") and element.forecast is not None:
+                    # Return the current period's forecast value (first value)
+                    return float(element.forecast[0]) if element.forecast else None
+        except Exception as ex:
+            _LOGGER.debug("Error getting available power for %s: %s", self.element_name, ex)
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return extra state attributes."""
+        attrs: dict[str, Any] = {}
+
+        # Add element metadata
+        attrs["element_type"] = self.element_type
+        attrs["flow_direction"] = "forecast"  # Special type to distinguish from actual power
+
+        try:
+            if self.coordinator.network and self.element_name in self.coordinator.network.elements:
+                element = self.coordinator.network.elements[self.element_name]
+
+                # Get forecast data if available
+                if hasattr(element, "forecast") and element.forecast is not None:
+                    forecast_data = [float(v) for v in element.forecast]
+
+                    # Add forecast data
+                    attrs["forecast"] = forecast_data
+
+                    # Add timestamped forecast
+                    try:
+                        timestamps = self.coordinator.get_future_timestamps()
+                        if len(timestamps) == len(forecast_data):
+                            attrs["timestamped_forecast"] = [
+                                {"timestamp": ts, "value": value}
+                                for ts, value in zip(timestamps, forecast_data, strict=False)
+                            ]
+                    except Exception as ex:
+                        _LOGGER.debug("Error getting timestamps for %s: %s", self.element_name, ex)
+        except Exception as ex:
+            _LOGGER.debug("Error getting available power attributes for %s: %s", self.element_name, ex)
         return attrs

@@ -170,16 +170,31 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if hasattr(element, "power") and element.power is not None:
             # Connections have a single power attribute (net flow)
             element_data[ATTR_POWER] = extract_values(element.power)
-        elif hasattr(element, "power_consumption") and element.power_consumption is not None:
-            # Elements like batteries have separate consumption and production
-            consumption = extract_values(element.power_consumption)
+        elif (hasattr(element, "power_consumption") and element.power_consumption is not None) or (
+            hasattr(element, "power_production") and element.power_production is not None
+        ):
+            # Elements can have consumption, production, or both
+            consumption = (
+                extract_values(element.power_consumption)
+                if hasattr(element, "power_consumption") and element.power_consumption is not None
+                else None
+            )
             production = (
                 extract_values(element.power_production)
                 if hasattr(element, "power_production") and element.power_production is not None
-                else [0.0] * len(consumption)
+                else None
             )
-            # Net power = production - consumption (positive = net production, negative = net consumption)
-            element_data[ATTR_POWER] = [p - c for p, c in zip(production, consumption, strict=False)]
+
+            # Calculate net power based on what's available
+            if consumption is not None and production is not None:
+                # Both consumption and production (e.g., batteries, grid)
+                element_data[ATTR_POWER] = [p - c for p, c in zip(production, consumption, strict=False)]
+            elif production is not None:
+                # Only production (e.g., generators, solar)
+                element_data[ATTR_POWER] = production
+            elif consumption is not None:
+                # Only consumption (e.g., loads)
+                element_data[ATTR_POWER] = [-c for c in consumption]  # Negative for consumption
 
         if hasattr(element, "energy") and element.energy is not None:
             element_data["energy"] = extract_values(element.energy)

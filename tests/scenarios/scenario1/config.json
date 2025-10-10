@@ -11,13 +11,15 @@
     "battery": {
       "type": "battery",
       "name_value": "battery",
-      "capacity_value": 10000,
+      "capacity_value": 32240,
       "initial_charge_percentage_value": "sensor.sigen_plant_battery_state_of_charge",
       "min_charge_percentage_value": 10.0,
       "max_charge_percentage_value": 90.0,
       "efficiency_value": 0.99,
-      "max_charge_power_value": 5000,
-      "max_discharge_power_value": 5000
+      "max_charge_power_value": 16800,
+      "max_discharge_power_value": 19200,
+      "charge_cost_value": 0.02,
+      "discharge_cost_value": -0.0001
     },
     "solar_generator": {
       "type": "generator",

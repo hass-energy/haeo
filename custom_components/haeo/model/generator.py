@@ -55,4 +55,6 @@ class Generator(Element):
             # ones * price will either be a noop if price is a sequence or will create a sequence if price is a scalar
             price_production=(ones * price_production).tolist() if price_production is not None else None,
             price_consumption=(ones * price_consumption).tolist() if price_consumption is not None else None,
+            # Store the forecast for sensors to access
+            forecast=list(forecast),
         )

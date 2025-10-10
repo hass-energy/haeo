@@ -85,7 +85,7 @@ async def load_network(
 
     # Get the data for each participant and add to the network
     # This converts from Schema mode (with entity IDs) to Data mode (with loaded values)
-    for config in participant_configs.values():
+    for name, config in participant_configs.items():
         # Load all fields using the high-level config_load function
         loaded_params = await config_load(
             config,
