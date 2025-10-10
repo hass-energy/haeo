@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 import logging
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -25,9 +25,7 @@ from .const import (
     OPTIMIZATION_STATUS_SUCCESS,
 )
 from .data import load_network
-
-if TYPE_CHECKING:
-    from .model import Network
+from .model import Network
 
 _LOGGER = logging.getLogger(__name__)
 

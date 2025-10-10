@@ -34,6 +34,10 @@ ignore = [
     'D203',    # Don't put a newline between the class and docstring (D211 is used instead)
     'D213',    # Multiline docstrings have an empty first line (Incompatible with D212)
     'PLR0913', # Parameter limits are a something for code review not linting
+    'PLR0915', # Too many statements is something for code review not linting
+    'PLR0912', # Too many branches is something for code review not linting
+    'C901',    # Complexity is not a good linting rule, it should be a code review issue
+    'TC001',   # Don't use TYPE_CHECKING blocks, they sometimes break code that uses reflection to work
 ]
 
 [tool.ruff.lint.isort]
