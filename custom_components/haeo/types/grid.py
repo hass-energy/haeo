@@ -1,21 +1,41 @@
 """Grid element configuration for HAEO integration."""
 
-from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal, NotRequired, TypedDict
 
-from custom_components.haeo.schema.fields import NameField, PowerField, PricesSensorsAndForecastsField
+from custom_components.haeo.schema.fields import (
+    NameFieldData,
+    NameFieldSchema,
+    PowerFieldData,
+    PowerFieldSchema,
+    PricesSensorsAndForecastsFieldData,
+    PricesSensorsAndForecastsFieldSchema,
+)
 
 
-@dataclass
-class GridConfig:
+class GridConfigSchema(TypedDict):
     """Grid element configuration."""
 
-    name: NameField
+    element_type: Literal["grid"]
+    name: NameFieldSchema
+    import_price: PricesSensorsAndForecastsFieldSchema
+    export_price: PricesSensorsAndForecastsFieldSchema
 
-    import_price: PricesSensorsAndForecastsField
-    export_price: PricesSensorsAndForecastsField
+    # Optional fields
+    import_limit: NotRequired[PowerFieldSchema]
+    export_limit: NotRequired[PowerFieldSchema]
 
-    import_limit: PowerField | None = None
-    export_limit: PowerField | None = None
 
-    element_type: Literal["grid"] = "grid"
+class GridConfigData(TypedDict):
+    """Grid element configuration."""
+
+    element_type: Literal["grid"]
+    name: NameFieldData
+    import_price: PricesSensorsAndForecastsFieldData
+    export_price: PricesSensorsAndForecastsFieldData
+
+    # Optional fields
+    import_limit: NotRequired[PowerFieldData]
+    export_limit: NotRequired[PowerFieldData]
+
+
+GRID_CONFIG_DEFAULTS: dict[str, Any] = {}

@@ -108,8 +108,9 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         """Configure participant."""
         errors: dict[str, str] = {}
 
+        schema_cls, *_ = ELEMENT_TYPES[element_type]
         schema = schema_for_type(
-            ELEMENT_TYPES[element_type],
+            schema_cls,
             participants=self.config_entry.data.get("participants", {}),
             current_element_name=current_config.get(CONF_NAME) if current_config else None,
         )

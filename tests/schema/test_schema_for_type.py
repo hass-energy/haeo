@@ -1,7 +1,6 @@
 """Test schema for type."""
 
-from dataclasses import dataclass
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 
 from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.const import UnitOfPower
@@ -11,20 +10,20 @@ import voluptuous as vol
 
 from custom_components.haeo.schema import _get_annotated_fields, data_to_config, schema_for_type
 from custom_components.haeo.schema.fields import (
-    BatterySOCField,
-    BatterySOCSensorField,
-    BooleanField,
-    ElementNameField,
-    EnergyField,
-    NameField,
-    PercentageField,
-    PowerField,
-    PowerForecastsField,
-    PowerSensorsField,
-    PriceField,
-    PriceForecastsField,
-    PriceSensorsField,
-    PricesSensorsAndForecastsField,
+    BatterySOCFieldSchema,
+    BatterySOCSensorFieldSchema,
+    BooleanFieldSchema,
+    ElementNameFieldSchema,
+    EnergyFieldSchema,
+    NameFieldSchema,
+    PercentageFieldSchema,
+    PowerFieldSchema,
+    PowerForecastsFieldSchema,
+    PowerSensorsFieldSchema,
+    PriceFieldSchema,
+    PriceForecastsFieldSchema,
+    PriceSensorsFieldSchema,
+    PricesSensorsAndForecastsFieldSchema,
 )
 
 
@@ -40,52 +39,47 @@ def schema_params() -> dict[str, list[str] | str | None]:
 # Test configs for individual field types
 
 
-@dataclass
-class ConstantFieldTestConfig:
+class ConstantFieldTestConfig(TypedDict):
     """Test config for constant field types."""
 
-    power_value: PowerField
-    energy_value: EnergyField
-    price_value: PriceField
-    percentage_value: PercentageField
-    boolean_value: BooleanField
-    element_name: ElementNameField
-    name: NameField
-    battery_soc: BatterySOCField
+    power_value: PowerFieldSchema
+    energy_value: EnergyFieldSchema
+    price_value: PriceFieldSchema
+    percentage_value: PercentageFieldSchema
+    boolean_value: BooleanFieldSchema
+    element_name: ElementNameFieldSchema
+    name: NameFieldSchema
+    battery_soc: BatterySOCFieldSchema
 
 
-@dataclass
-class SensorFieldTestConfig:
+class SensorFieldTestConfig(TypedDict):
     """Test config for sensor field types."""
 
-    power_sensor: PowerSensorsField
-    battery_soc_sensor: BatterySOCSensorField
-    price_sensor: PriceSensorsField | None = None
+    power_sensor: PowerSensorsFieldSchema
+    battery_soc_sensor: BatterySOCSensorFieldSchema
+    price_sensor: NotRequired[PriceSensorsFieldSchema]
 
 
-@dataclass
-class ForecastFieldTestConfig:
+class ForecastFieldTestConfig(TypedDict):
     """Test config for forecast field types."""
 
-    power_forecast: PowerForecastsField
-    price_forecast: PriceForecastsField | None = None
+    power_forecast: PowerForecastsFieldSchema
+    price_forecast: NotRequired[PriceForecastsFieldSchema]
 
 
-@dataclass
-class ComplexFieldTestConfig:
+class ComplexFieldTestConfig(TypedDict):
     """Test config for complex field types."""
 
-    price_live_and_forecast: PricesSensorsAndForecastsField
-    optional_sensor: PowerSensorsField | None = None
+    price_live_and_forecast: PricesSensorsAndForecastsFieldSchema
+    optional_sensor: NotRequired[PowerSensorsFieldSchema]
 
 
-@dataclass
-class DefaultTestConfig:
+class DefaultTestConfig(TypedDict):
     """Test config for default value handling."""
 
-    required_field: ElementNameField
-    field_with_default: BooleanField = True
-    optional_field: PriceField | None = None
+    required_field: ElementNameFieldSchema
+    field_with_default: NotRequired[BooleanFieldSchema]
+    optional_field: NotRequired[PriceFieldSchema]
 
 
 def test_constant_field_extraction() -> None:
@@ -105,11 +99,10 @@ def test_constant_field_extraction() -> None:
 
     assert set(annotated_fields.keys()) == expected_fields
 
-    # All constant fields should be required (no defaults)
+    # All constant fields should be required
     for field_name in expected_fields:
-        _, is_optional, default = annotated_fields[field_name]
+        _, is_optional = annotated_fields[field_name]
         assert not is_optional
-        assert default is not None  # MISSING sentinel
 
 
 def test_sensor_field_extraction() -> None:
@@ -121,15 +114,13 @@ def test_sensor_field_extraction() -> None:
     assert set(annotated_fields.keys()) == expected_fields
 
     # Check that price_sensor is optional, others are required
-    _, is_optional, default = annotated_fields["price_sensor"]
+    _, is_optional = annotated_fields["price_sensor"]
     assert is_optional
-    assert default is None
 
     # Other sensor fields should be required
     for field_name in ["power_sensor", "battery_soc_sensor"]:
-        _, is_optional, default = annotated_fields[field_name]
+        _, is_optional = annotated_fields[field_name]
         assert not is_optional
-        assert default is not None  # MISSING sentinel
 
 
 def test_forecast_field_extraction() -> None:
@@ -141,14 +132,12 @@ def test_forecast_field_extraction() -> None:
     assert set(annotated_fields.keys()) == expected_fields
 
     # Check that price_forecast is optional, power_forecast is required
-    _, is_optional, default = annotated_fields["price_forecast"]
+    _, is_optional = annotated_fields["price_forecast"]
     assert is_optional
-    assert default is None
 
     # power_forecast should be required
-    _, is_optional, default = annotated_fields["power_forecast"]
+    _, is_optional = annotated_fields["power_forecast"]
     assert not is_optional
-    assert default is not None  # MISSING sentinel
 
 
 def test_complex_field_extraction() -> None:
@@ -160,14 +149,12 @@ def test_complex_field_extraction() -> None:
     assert set(annotated_fields.keys()) == expected_fields
 
     # Check optional field
-    _, is_optional, default = annotated_fields["optional_sensor"]
+    _, is_optional = annotated_fields["optional_sensor"]
     assert is_optional
-    assert default is None
 
     # Check required complex field
-    _, is_optional, default = annotated_fields["price_live_and_forecast"]
+    _, is_optional = annotated_fields["price_live_and_forecast"]
     assert not is_optional
-    assert default is not None  # MISSING sentinel
 
 
 def test_default_handling_extraction() -> None:
@@ -175,19 +162,16 @@ def test_default_handling_extraction() -> None:
     annotated_fields = _get_annotated_fields(DefaultTestConfig)
 
     # Field with no default
-    _, is_optional, default = annotated_fields["required_field"]
+    _, is_optional = annotated_fields["required_field"]
     assert not is_optional
-    assert default is not None  # MISSING sentinel
 
     # Field with default value
-    _, is_optional, default = annotated_fields["field_with_default"]
+    _, is_optional = annotated_fields["field_with_default"]
     assert not is_optional
-    assert default is True
 
     # Field with None default (optional)
-    _, is_optional, default = annotated_fields["optional_field"]
+    _, is_optional = annotated_fields["optional_field"]
     assert is_optional
-    assert default is None
 
 
 def test_constant_field_schema_creation(schema_params: dict[str, Any]) -> None:

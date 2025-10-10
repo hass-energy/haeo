@@ -6,7 +6,6 @@ optimization.  All field handling is delegated to specialised Loader
 implementations found in sibling modules.
 """
 
-from dataclasses import fields
 from datetime import timedelta
 import logging
 from typing import Any
@@ -16,10 +15,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.data import loader
 from custom_components.haeo.model import Network
+from custom_components.haeo.schema import available as config_available
 from custom_components.haeo.schema import data_to_config
-from custom_components.haeo.types import ELEMENT_TYPES, ElementConfig
+from custom_components.haeo.schema import load as config_load
+from custom_components.haeo.types import ELEMENT_TYPES, ElementConfigSchema
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,34 +40,29 @@ async def load_network(
         _LOGGER.warning("No participants configured for hub")
         return None
 
-    # Convert raw participant dicts -> typed config objects (dataclasses)
-    participant_configs: dict[str, ElementConfig] = {}
+    # Convert raw participant dicts -> typed config objects (TypedDicts in Schema mode)
+    participant_configs: dict[str, ElementConfigSchema] = {}
     for name, p_data in participants.items():
         element_type = p_data[CONF_ELEMENT_TYPE]
-        config_cls = ELEMENT_TYPES.get(element_type)
-        if not config_cls:
+        element_types = ELEMENT_TYPES.get(element_type)
+        if not element_types:
             _LOGGER.error("Unknown element type %s", element_type)
             continue
+        schema_cls, _, _ = element_types
         participant_configs[name] = data_to_config(
-            config_cls, p_data, participants=participants, current_element_name=name
+            schema_cls, p_data, participants=participants, current_element_name=name
         )
 
     # Check that all required sensor data is available before loading
     missing_sensors: list[str] = []
     for name, config in participant_configs.items():
-        for f in fields(config):
-            if f.name not in ("element_type", "name"):
-                field_value = getattr(config, f.name)
-
-                # Check if sensor/forecast data is available
-                if not loader.available(
-                    hass=hass,
-                    field_name=f.name,
-                    config_class=type(config),
-                    value=field_value,
-                    forecast_times=[],  # Empty for availability check
-                ):
-                    missing_sensors.append(f"{name}.{f.name}")
+        # Check availability for entire config
+        if not config_available(
+            config,
+            hass=hass,
+            forecast_times=[],  # Empty for availability check
+        ):
+            missing_sensors.append(name)
 
     if missing_sensors:
         raise ValueError("Missing sensor data for: " + ", ".join(missing_sensors))
@@ -89,17 +84,16 @@ async def load_network(
     net = Network(name=f"haeo_network_{entry.entry_id}", period=period_seconds, n_periods=n_periods)
 
     # Get the data for each participant and add to the network
+    # This converts from Schema mode (with entity IDs) to Data mode (with loaded values)
     for config in participant_configs.values():
-        params: dict[str, Any] = {}
-        for f in fields(config):
-            field_value = getattr(config, f.name)
-            params[f.name] = await loader.load(
-                hass=hass,
-                field_name=f.name,
-                config_class=type(config),
-                value=field_value,
-                forecast_times=forecast_times,
-            )
-        net.add(**params)
+        # Load all fields using the high-level config_load function
+        loaded_params = await config_load(
+            config,
+            hass=hass,
+            forecast_times=forecast_times,
+        )
+
+        # net.add expects ElementConfigData with loaded values
+        net.add(**loaded_params)
 
     return net

@@ -1,35 +1,59 @@
 """Battery element configuration for HAEO integration."""
 
-from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.schema.fields import (
-    BatterySOCField,
-    BatterySOCSensorField,
-    EnergyField,
-    NameField,
-    PercentageField,
-    PowerField,
-    PriceField,
+    BatterySOCFieldData,
+    BatterySOCFieldSchema,
+    BatterySOCSensorFieldData,
+    BatterySOCSensorFieldSchema,
+    EnergyFieldData,
+    EnergyFieldSchema,
+    NameFieldData,
+    NameFieldSchema,
+    PercentageFieldData,
+    PercentageFieldSchema,
+    PowerFieldData,
+    PowerFieldSchema,
+    PriceFieldData,
+    PriceFieldSchema,
 )
 
 
-@dataclass
-class BatteryConfig:
-    """Battery element configuration."""
+class BatteryConfigSchema(TypedDict):
+    """Battery configuration with sensor entity IDs."""
 
-    name: NameField
+    element_type: Literal["battery"]
+    name: NameFieldSchema
+    capacity: EnergyFieldSchema
+    initial_charge_percentage: BatterySOCSensorFieldSchema
+    min_charge_percentage: NotRequired[BatterySOCFieldSchema]
+    max_charge_percentage: NotRequired[BatterySOCFieldSchema]
+    efficiency: NotRequired[PercentageFieldSchema]
+    max_charge_power: NotRequired[PowerFieldSchema]
+    max_discharge_power: NotRequired[PowerFieldSchema]
+    charge_cost: NotRequired[PriceFieldSchema]
+    discharge_cost: NotRequired[PriceFieldSchema]
 
-    capacity: EnergyField
-    initial_charge_percentage: BatterySOCSensorField
 
-    min_charge_percentage: BatterySOCField = 10
-    max_charge_percentage: BatterySOCField = 90
-    efficiency: PercentageField = 99
+class BatteryConfigData(TypedDict):
+    """Battery configuration with loaded sensor values."""
 
-    max_charge_power: PowerField | None = None
-    max_discharge_power: PowerField | None = None
-    charge_cost: PriceField | None = None
-    discharge_cost: PriceField | None = None
+    element_type: Literal["battery"]
+    name: NameFieldData
+    capacity: EnergyFieldData
+    initial_charge_percentage: BatterySOCSensorFieldData
+    min_charge_percentage: NotRequired[BatterySOCFieldData]
+    max_charge_percentage: NotRequired[BatterySOCFieldData]
+    efficiency: NotRequired[PercentageFieldData]
+    max_charge_power: NotRequired[PowerFieldData]
+    max_discharge_power: NotRequired[PowerFieldData]
+    charge_cost: NotRequired[PriceFieldData]
+    discharge_cost: NotRequired[PriceFieldData]
 
-    element_type: Literal["battery"] = "battery"
+
+BATTERY_CONFIG_DEFAULTS: dict[str, Any] = {
+    "min_charge_percentage": 10.0,
+    "max_charge_percentage": 90.0,
+    "efficiency": 99.0,
+}

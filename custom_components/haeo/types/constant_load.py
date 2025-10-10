@@ -1,17 +1,24 @@
 """Constant load element configuration for HAEO integration."""
 
-from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal, TypedDict
 
-from custom_components.haeo.schema.fields import NameField, PowerField
+from custom_components.haeo.schema.fields import NameFieldData, NameFieldSchema, PowerFieldData, PowerFieldSchema
 
 
-@dataclass
-class ConstantLoadConfig:
+class ConstantLoadConfigSchema(TypedDict):
     """Constant load element configuration."""
 
-    name: NameField
+    element_type: Literal["constant_load"]
+    name: NameFieldSchema
+    power: PowerFieldSchema
 
-    power: PowerField
 
-    element_type: Literal["constant_load"] = "constant_load"
+class ConstantLoadConfigData(TypedDict):
+    """Constant load element configuration."""
+
+    element_type: Literal["constant_load"]
+    name: NameFieldData
+    power: PowerFieldData
+
+
+CONSTANT_LOAD_CONFIG_DEFAULTS: dict[str, Any] = {}

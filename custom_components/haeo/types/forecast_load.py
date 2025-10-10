@@ -1,17 +1,29 @@
 """Forecast load element configuration for HAEO integration."""
 
-from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal, TypedDict
 
-from custom_components.haeo.schema.fields import NameField, PowerForecastsField
+from custom_components.haeo.schema.fields import (
+    NameFieldData,
+    NameFieldSchema,
+    PowerForecastsFieldData,
+    PowerForecastsFieldSchema,
+)
 
 
-@dataclass
-class ForecastLoadConfig:
+class ForecastLoadConfigSchema(TypedDict):
     """Forecast load element configuration."""
 
-    name: NameField
+    element_type: Literal["forecast_load"]
+    name: NameFieldSchema
+    forecast: PowerForecastsFieldSchema
 
-    forecast: PowerForecastsField
 
-    element_type: Literal["forecast_load"] = "forecast_load"
+class ForecastLoadConfigData(TypedDict):
+    """Forecast load element configuration."""
+
+    element_type: Literal["forecast_load"]
+    name: NameFieldData
+    forecast: PowerForecastsFieldData
+
+
+FORECAST_LOAD_CONFIG_DEFAULTS: dict[str, Any] = {}

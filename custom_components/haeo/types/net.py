@@ -1,15 +1,22 @@
 """Network node element configuration for HAEO integration."""
 
-from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal, TypedDict
 
-from custom_components.haeo.schema.fields import NameField
+from custom_components.haeo.schema.fields import NameFieldData, NameFieldSchema
 
 
-@dataclass
-class NetConfig:
+class NetConfigSchema(TypedDict):
     """Net element configuration."""
 
-    name: NameField
+    element_type: Literal["net"]
+    name: NameFieldSchema
 
-    element_type: Literal["net"] = "net"
+
+class NetConfigData(TypedDict):
+    """Net element configuration."""
+
+    element_type: Literal["net"]
+    name: NameFieldData
+
+
+NET_CONFIG_DEFAULTS: dict[str, Any] = {}

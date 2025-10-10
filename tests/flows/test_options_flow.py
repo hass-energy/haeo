@@ -294,7 +294,8 @@ async def test_element_schema_validation_success(
     """Test successful schema validation for all element types."""
     valid_data = valid_case["config"]
 
-    schema = schema_for_type(ELEMENT_TYPES[element_type], **schema_params)
+    schema_cls, _, _ = ELEMENT_TYPES[element_type]
+    schema = schema_for_type(schema_cls, **schema_params)
     result = schema(valid_data)
     assert isinstance(result, dict)
     # Check that all expected fields are present and correct
@@ -310,7 +311,8 @@ async def test_element_schema_validation_errors(
     invalid_data = invalid_case["config"]
     expected_error = invalid_case["error"]
 
-    schema = schema_for_type(ELEMENT_TYPES[element_type], **schema_params)
+    schema_cls, _, _ = ELEMENT_TYPES[element_type]
+    schema = schema_for_type(schema_cls, **schema_params)
 
     with pytest.raises(Exception) as exc_info:
         schema(invalid_data)

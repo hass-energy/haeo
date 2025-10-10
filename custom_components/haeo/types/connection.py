@@ -1,21 +1,41 @@
 """Network and connection element configurations for HAEO integration."""
 
-from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal, NotRequired, TypedDict
 
-from custom_components.haeo.schema.fields import ElementNameField, NameField, PowerFlowField
+from custom_components.haeo.schema.fields import (
+    ElementNameFieldData,
+    ElementNameFieldSchema,
+    NameFieldData,
+    NameFieldSchema,
+    PowerFlowFieldData,
+    PowerFlowFieldSchema,
+)
 
 
-@dataclass
-class ConnectionConfig:
+class ConnectionConfigSchema(TypedDict):
     """Connection element configuration."""
 
-    name: NameField
+    element_type: Literal["connection"]
+    name: NameFieldSchema
+    source: ElementNameFieldSchema
+    target: ElementNameFieldSchema
 
-    source: ElementNameField
-    target: ElementNameField
+    # Optional fields
+    min_power: NotRequired[PowerFlowFieldSchema]
+    max_power: NotRequired[PowerFlowFieldSchema]
 
-    min_power: PowerFlowField | None = None
-    max_power: PowerFlowField | None = None
 
-    element_type: Literal["connection"] = "connection"
+class ConnectionConfigData(TypedDict):
+    """Connection element configuration."""
+
+    element_type: Literal["connection"]
+    name: NameFieldData
+    source: ElementNameFieldData
+    target: ElementNameFieldData
+
+    # Optional fields
+    min_power: NotRequired[PowerFlowFieldData]
+    max_power: NotRequired[PowerFlowFieldData]
+
+
+CONNECTION_CONFIG_DEFAULTS: dict[str, Any] = {}
