@@ -286,32 +286,6 @@ def options_flow_with_participants(
     return options_flow
 
 
-@pytest.fixture
-def config_entry_with_multiple_participants() -> MockConfigEntry:
-    """Fixture providing config entry with multiple participants for connection testing."""
-    # Use actual valid data from VALID_TEST_DATA for realistic test participants
-    participants = {}
-    # Use the first valid case from each element type for the fixture
-    for element_type, valid_case in VALID_ELEMENT_DATA.items():
-        test_data = valid_case["config"]
-        # Use the first few characters of the element type as a simple participant name
-        participant_name = f"{element_type[:6]}1"  # e.g., "batte1", "grid1", etc.
-        participants[participant_name] = {
-            "type": element_type,
-            **{k: v for k, v in test_data.items() if k != CONF_NAME},
-        }
-
-    return create_mock_config_entry(
-        data={
-            "integration_type": "hub",
-            "name": "Power Network",
-            "participants": participants,
-            "horizon_hours": 48,  # Default horizon
-            "period_minutes": 5,  # Default period
-        },
-    )
-
-
 # Parameterized schema validation tests
 @pytest.mark.parametrize(("element_type", "valid_case", "description"), VALID_TEST_DATA_WITH_IDS)
 async def test_element_schema_validation_success(
