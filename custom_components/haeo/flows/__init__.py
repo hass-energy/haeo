@@ -1,6 +1,5 @@
 """Base classes and utilities for HAEO config flows."""
 
-from collections.abc import Sequence
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -34,26 +33,16 @@ OPTIMIZER_KEY_MAP = {v: k for k, v in OPTIMIZER_NAME_MAP.items()}
 
 def get_network_config_schema(
     config_entry: ConfigEntry | None = None,
-    existing_names: Sequence[str] | None = None,
 ) -> vol.Schema:
     """Get schema for network configuration.
 
     Args:
         config_entry: Config entry to get current values from
-        existing_names: Set of existing network names to check for duplicates
 
     Returns:
         Voluptuous schema for network configuration
 
     """
-
-    def validate_unique_network_name(name: str) -> str:
-        """Validate that the network name is unique."""
-        if existing_names and name in existing_names:
-            msg = "Name already exists"
-            raise vol.Invalid(msg)
-        return name
-
     # Build optimizer options with translation-friendly keys
     optimizer_options = [
         SelectOptionDict(value=OPTIMIZER_KEY_MAP.get(opt, opt.lower()), label=opt)
@@ -79,7 +68,6 @@ def get_network_config_schema(
                         vol.Strip,
                         vol.Length(min=1, msg="Name cannot be empty"),
                         vol.Length(max=255, msg="Name cannot be longer than 255 characters"),
-                        validate_unique_network_name,
                     ),
                 }
                 if config_entry is None

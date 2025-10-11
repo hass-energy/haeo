@@ -95,7 +95,18 @@
         "title": "Add Device",
         "description": "Select a device to add to the network",
         "data": {
-          "participant_type": "Device Type"
+          "participant_type": {
+            "name": "Device Type",
+            "options": {
+              "battery": "Battery",
+              "grid": "Grid Connection",
+              "constant_load": "Constant Load",
+              "forecast_load": "Forecast Load",
+              "photovoltaics": "Photovoltaics",
+              "net": "Network Node",
+              "connection": "Connection"
+            }
+          }
         }
       },
       "manage_participants": {

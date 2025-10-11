@@ -23,15 +23,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
     entry.runtime_data = coordinator
 
-    # Set up platforms first
+    # Set up platforms - Home Assistant will handle waiting for them
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    await hass.async_block_till_done()
-
-    # Fetch initial data after platforms are set up
-    await coordinator.async_refresh()
-
-    # Wait for all sensor updates to be processed
-    await hass.async_block_till_done()
 
     _LOGGER.info("HAEO integration setup complete")
     return True

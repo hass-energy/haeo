@@ -73,9 +73,9 @@ class PowerFieldMeta(FieldMeta):
                 NumberSelector(
                     NumberSelectorConfig(
                         mode=NumberSelectorMode.BOX,
-                        min=1,
-                        step=1,
-                        unit_of_measurement=UnitOfPower.WATT,
+                        min=0,
+                        step=0.01,
+                        unit_of_measurement=UnitOfPower.KILO_WATT,
                     ),
                 ),
             )
@@ -126,7 +126,7 @@ class EnergyFieldMeta(FieldMeta):
                 vol.Range(min=0, min_included=True, msg="Value must be positive"),
                 NumberSelector(
                     NumberSelectorConfig(
-                        mode=NumberSelectorMode.BOX, min=1, step=1, unit_of_measurement=UnitOfEnergy.WATT_HOUR
+                        mode=NumberSelectorMode.BOX, min=0, step=0.01, unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR
                     )
                 ),
             )
@@ -210,21 +210,8 @@ class NameFieldMeta(FieldMeta):
     field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
     loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str]())
 
-    def _get_field_validators(
-        self,
-        participants: dict[str, Any] | None = None,
-        current_element_name: str | None = None,
-        **_kwargs: Any,
-    ) -> dict[str, Any]:
-        def validate_unique_name(name: str) -> str:
-            """Validate that the name is unique among participants."""
-            participants_dict = participants or {}
-            if name in participants_dict and name != current_element_name:
-                msg = "Name already exists"
-                raise vol.Invalid(msg)
-            return name
-
-        return {"value": vol.All(str, vol.Strip, vol.Length(min=1, msg="Name cannot be empty"), validate_unique_name)}
+    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
+        return {"value": vol.All(str, vol.Strip, vol.Length(min=1, msg="Name cannot be empty"))}
 
 
 @dataclass(frozen=True)
@@ -239,7 +226,9 @@ class PowerFlowFieldMeta(FieldMeta):
             "value": vol.All(
                 vol.Coerce(float),
                 NumberSelector(
-                    NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=1, unit_of_measurement=UnitOfPower.WATT)
+                    NumberSelectorConfig(
+                        mode=NumberSelectorMode.BOX, step=0.01, unit_of_measurement=UnitOfPower.KILO_WATT
+                    )
                 ),
             )
         }

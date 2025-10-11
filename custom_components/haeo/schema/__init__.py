@@ -181,15 +181,31 @@ def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool]]:
     return annotated
 
 
-def schema_for_type(cls: type, **kwargs: Any) -> vol.Schema:
-    """Create a schema for a TypedDict type."""
+def schema_for_type(cls: type, defaults: dict[str, Any] | None = None, **kwargs: Any) -> vol.Schema:
+    """Create a schema for a TypedDict type.
+
+    Args:
+        cls: The TypedDict class to create schema for
+        defaults: Optional dict of default values to pre-populate (flattened format)
+        **kwargs: Additional arguments passed to field validators
+
+    Returns:
+        Voluptuous schema with optional defaults
+
+    """
     annotated_fields = _get_annotated_fields(cls)
+    defaults = defaults or {}
 
     schema = {}
     for field, (meta, is_optional) in annotated_fields.items():
         for k, s in meta.create_schema(**kwargs).items():
             key = f"{field}_{k}"
-            schema_key = (vol.Optional if is_optional else vol.Required)(key)
+            # Get default value if provided
+            default_value = defaults.get(key)
+            schema_key = (vol.Optional if is_optional else vol.Required)(
+                key,
+                default=default_value if default_value is not None else vol.UNDEFINED,
+            )
             schema[schema_key] = s
 
     return vol.Schema(schema)

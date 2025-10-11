@@ -141,14 +141,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.last_optimization_duration,
             )
 
-        except Exception:
+        except Exception as err:
             # End timing even when optimization fails
             end_time = time.time()
             self._last_optimization_duration = end_time - start_time
 
             # If any exception occurs, mark the optimisation as failed and return a placeholder result
             self.optimization_status = OPTIMIZATION_STATUS_FAILED
-            _LOGGER.exception("Unhandled exception in HAEO update loop - optimisation marked failed")
+            # Use error() with conditional exc_info instead of exception() to avoid always showing traceback
+            _LOGGER.error("Optimization failed: %s", err, exc_info=_LOGGER.isEnabledFor(logging.DEBUG))  # noqa: TRY400
             self.optimization_result = None
             return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self.last_optimization_duration}
 

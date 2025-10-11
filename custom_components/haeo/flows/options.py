@@ -5,12 +5,10 @@ from typing import Any
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
-from homeassistant.const import CONF_NAME
-from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
-from homeassistant.helpers.translation import async_get_translations
+from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_HORIZON_HOURS, CONF_OPTIMIZER, CONF_PERIOD_MINUTES
 from custom_components.haeo.schema import schema_for_type
 from custom_components.haeo.types import ELEMENT_TYPES
 
@@ -45,6 +43,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             new_data = self.config_entry.data.copy()
             new_data[CONF_HORIZON_HOURS] = user_input[CONF_HORIZON_HOURS]
             new_data[CONF_PERIOD_MINUTES] = user_input[CONF_PERIOD_MINUTES]
+            new_data[CONF_OPTIMIZER] = user_input.get(CONF_OPTIMIZER, "highs")
 
             self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
 
@@ -53,12 +52,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data={})
 
         # Show form with network configuration
-        data_schema = get_network_config_schema(
-            config_entry=self.config_entry,
-            existing_names=[
-                entry.title for entry in self.hass.config_entries.async_entries("haeo") if entry != self.config_entry
-            ],
-        )
+        data_schema = get_network_config_schema(config_entry=self.config_entry)
 
         return self.async_show_form(
             step_id="configure_network",
@@ -73,18 +67,10 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             # Route to generic configuration step
             return await self.async_step_configure_element(participant_type)
 
-        # Get translations for options
-        translations = await async_get_translations(
-            self.hass, self.hass.config.language, "options", integrations=["haeo"], config_flow=True
-        )
+        # Create options list with element types as values
+        options = list(ELEMENT_TYPES.keys())
 
-        # Create options with translated labels
-        options = [
-            SelectOptionDict(value=element_type, label=translations.get(f"entity.device.{element_type}", element_type))
-            for element_type in ELEMENT_TYPES
-        ]
-
-        # Show participant type selection with proper i18n support
+        # Show participant type selection with translation support via selector
         return self.async_show_form(
             step_id="add_participant",
             data_schema=vol.Schema(
@@ -93,6 +79,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
                         SelectSelectorConfig(
                             options=options,
                             mode=SelectSelectorMode.DROPDOWN,
+                            translation_key="participant_type",
                         ),
                     ),
                 },
@@ -108,37 +95,78 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         """Configure participant."""
         errors: dict[str, str] = {}
 
-        schema_cls, *_ = ELEMENT_TYPES[element_type]
+        schema_cls, _, element_defaults = ELEMENT_TYPES[element_type]
+        # Extract current element name for duplicate checking (stored as name_value in flattened config)
+        current_element_name = current_config.get("name_value") if current_config else None
+
+        # Flatten element defaults (convert field_name to field_name_value format)
+        flattened_defaults = {f"{k}_value": v for k, v in element_defaults.items()}
+
+        # Merge: start with element defaults, override with current config if editing
+        merged_defaults = {**flattened_defaults, **(current_config or {})}
+
+        # Create schema with merged defaults
         schema = schema_for_type(
             schema_cls,
+            defaults=merged_defaults,
             participants=self.config_entry.data.get("participants", {}),
-            current_element_name=current_config.get(CONF_NAME) if current_config else None,
+            current_element_name=current_element_name,
         )
 
         if user_input is not None:
             # Validate user input against schema
             try:
                 schema(user_input)
-            except vol.Invalid as e:
-                errors[CONF_NAME] = "name_exists" if "already exists" in str(e) else "invalid_input"
-                if not errors:
-                    return self.async_show_form(step_id=f"configure_{element_type}", data_schema=schema, errors=errors)
+            except vol.Invalid:
+                errors["base"] = "invalid_input"
+                _LOGGER.exception("Validation error")
+
+            # Check for duplicate names
+            if not errors:
+                name = user_input.get("name_value")
+                if not name:
+                    errors["base"] = "missing_name"
+                else:
+                    participants = self.config_entry.data.get("participants", {})
+                    current_name = current_config.get("name_value") if current_config else None
+
+                    # Check if name already exists (excluding current element when editing)
+                    if name in participants and name != current_name:
+                        errors["name_value"] = "name_exists"
 
             # If validation passes, proceed with business logic
             if not errors:
+                name = user_input.get("name_value")
+                if not name:
+                    errors["base"] = "missing_name"
+                    return self.async_show_form(
+                        step_id=f"configure_{element_type}",
+                        data_schema=schema,
+                        errors=errors,
+                    )
+
                 # Add or update participant in configuration
                 # Keep the flattened structure for HA storage
                 element_config = {CONF_ELEMENT_TYPE: element_type, **user_input}
                 if current_config:
-                    return await self._update_participant(current_config[CONF_NAME], element_config)
+                    old_name = current_config.get("name_value")
+                    if not old_name:
+                        errors["base"] = "invalid_config"
+                        return self.async_show_form(
+                            step_id=f"configure_{element_type}",
+                            data_schema=schema,
+                            errors=errors,
+                        )
+                    return await self._update_participant(old_name, element_config)
 
-                name = user_input.get("name_value")
-                if not name:
-                    errors["base"] = "missing_name"
-                    return self.async_show_form(step_id=f"configure_{element_type}", data_schema=schema, errors=errors)
                 return await self._add_participant(name, element_config)
 
-        return self.async_show_form(step_id=f"configure_{element_type}", data_schema=schema, errors=errors)
+        # When showing the form (first time or with errors)
+        return self.async_show_form(
+            step_id=f"configure_{element_type}",
+            data_schema=schema,
+            errors=errors,
+        )
 
     async def async_step_edit_participant(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Edit an existing participant."""
@@ -227,13 +255,14 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         if old_name in new_participants:
             del new_participants[old_name]
 
-        new_name = new_config[CONF_NAME]
+        new_name = new_config.get("name_value", old_name)
         new_participants[new_name] = new_config
 
         new_data["participants"] = new_participants
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
 
+        await self.hass.config_entries.async_reload(self.config_entry.entry_id)
         return self.async_create_entry(title="", data={})
 
 

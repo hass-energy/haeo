@@ -6,7 +6,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_NAME
 
-from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES, DOMAIN
+from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_OPTIMIZER, CONF_PERIOD_MINUTES, DOMAIN
 
 from . import get_network_config_schema
 from .options import HubOptionsFlow
@@ -22,28 +22,32 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step for hub creation."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
-            # Get the schema for validation (includes duplicate name checking)
-            data_schema = get_network_config_schema(
-                existing_names=[entry.title for entry in self.hass.config_entries.async_entries("haeo")]
-            )
+            # Validate that the name is unique
+            hub_name = user_input[CONF_NAME]
+            existing_names = [entry.title for entry in self.hass.config_entries.async_entries(DOMAIN)]
 
-            # Create the hub entry
-            hub_name = user_input["name"]
-            await self.async_set_unique_id(f"haeo_hub_{hub_name.lower().replace(' ', '_')}")
-            self._abort_if_unique_id_configured()
+            if hub_name in existing_names:
+                errors[CONF_NAME] = "name_exists"
+            else:
+                # Check unique_id to prevent duplicates
+                await self.async_set_unique_id(f"haeo_hub_{hub_name.lower().replace(' ', '_')}")
+                self._abort_if_unique_id_configured()
 
-            # Create the hub entry
-            return self.async_create_entry(
-                title=hub_name,
-                data={
-                    "integration_type": "hub",
-                    CONF_NAME: hub_name,
-                    CONF_HORIZON_HOURS: user_input[CONF_HORIZON_HOURS],
-                    CONF_PERIOD_MINUTES: user_input[CONF_PERIOD_MINUTES],
-                    "participants": {},
-                },
-            )
+                # Create the hub entry
+                return self.async_create_entry(
+                    title=hub_name,
+                    data={
+                        "integration_type": "hub",
+                        CONF_NAME: hub_name,
+                        CONF_HORIZON_HOURS: user_input[CONF_HORIZON_HOURS],
+                        CONF_PERIOD_MINUTES: user_input[CONF_PERIOD_MINUTES],
+                        CONF_OPTIMIZER: user_input.get(CONF_OPTIMIZER, "highs"),
+                        "participants": {},
+                    },
+                )
 
         # Show form with network configuration
         data_schema = get_network_config_schema()
@@ -51,6 +55,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=data_schema,
+            errors=errors,
         )
 
     @staticmethod
