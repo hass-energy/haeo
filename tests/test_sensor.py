@@ -152,7 +152,7 @@ def test_sensor_base_device_info(
 
     assert device_info is not None
     assert device_info.get("identifiers") == {(DOMAIN, mock_config_entry.entry_id)}
-    assert device_info.get("name") == "HAEO Network"
+    assert device_info.get("translation_key") == "network"
     assert device_info.get("manufacturer") == "HAEO"
     assert device_info.get("model") == "network"
 
@@ -657,7 +657,7 @@ async def test_sensor_name_translations(hass: HomeAssistant, sensor_type: str) -
 @pytest.mark.parametrize("element_type", ELEMENT_TYPES)
 async def test_device_name_translations(hass: HomeAssistant, element_type: str) -> None:
     """Test that device name translations can be loaded."""
-    translations = await async_get_translations(hass, "en", "entity", integrations=[DOMAIN])
+    translations = await async_get_translations(hass, "en", "device", integrations=[DOMAIN])
 
-    translation_key = f"component.{DOMAIN}.entity.device.{element_type}.name"
+    translation_key = f"component.{DOMAIN}.device.{element_type}.name"
     assert translation_key in translations, f"Missing device translation for '{element_type}'"

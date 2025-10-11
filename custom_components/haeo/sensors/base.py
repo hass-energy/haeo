@@ -20,6 +20,7 @@ def get_device_info_for_element(element_name: str, element_type: str, config_ent
         name=element_name,
         manufacturer="HAEO",
         model=element_type,
+        translation_key=element_type,
         via_device=(DOMAIN, config_entry.entry_id),
     )
 
@@ -28,9 +29,9 @@ def get_device_info_for_network(config_entry: ConfigEntry) -> DeviceInfo:
     """Get device info for the main hub."""
     return DeviceInfo(
         identifiers={(DOMAIN, config_entry.entry_id)},
-        name="HAEO Network",
         manufacturer="HAEO",
         model="network",
+        translation_key="network",
         sw_version="1.0.0",
     )
 

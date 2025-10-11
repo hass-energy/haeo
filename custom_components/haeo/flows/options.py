@@ -20,6 +20,11 @@ _LOGGER = logging.getLogger(__name__)
 class HubOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for HAEO hub."""
 
+    def __init__(self) -> None:
+        """Initialize the options flow."""
+        super().__init__()
+        self._editing_participant: dict[str, Any] | None = None
+
     async def async_step_init(self, _user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manage the options."""
         # Check if we have participants for conditional menu options
@@ -64,6 +69,9 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             participant_type = user_input["participant_type"]
 
+            # Clear any editing state (we're adding, not editing)
+            self._editing_participant = None
+
             # Route to generic configuration step
             return await self.async_step_configure_element(participant_type)
 
@@ -96,6 +104,11 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         schema_cls, _, element_defaults = ELEMENT_TYPES[element_type]
+
+        # Use stored editing participant if current_config not provided
+        if current_config is None and self._editing_participant is not None:
+            current_config = self._editing_participant
+
         # Extract current element name for duplicate checking (stored as name_value in flattened config)
         current_element_name = current_config.get("name_value") if current_config else None
 
@@ -180,6 +193,9 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             participant_config = participants[participant_name]
             participant_type = participant_config.get("type")
 
+            # Store the config for use in subsequent form submissions
+            self._editing_participant = participant_config
+
             # Route to generic configure step for editing
             return await self.async_step_configure_element(participant_type, current_config=participant_config)
 
@@ -210,9 +226,26 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             new_data = self.config_entry.data.copy()
             new_participants = new_data["participants"].copy()
             del new_participants[participant_name]
+
+            # Also remove any connections that reference this participant
+            connections_to_remove = []
+            for conn_name, conn_config in new_participants.items():
+                if conn_config.get("type") == "connection" and (
+                    conn_config.get("source_value") == participant_name
+                    or conn_config.get("target_value") == participant_name
+                ):
+                    connections_to_remove.append(conn_name)
+
+            # Remove orphaned connections
+            for conn_name in connections_to_remove:
+                del new_participants[conn_name]
+
             new_data["participants"] = new_participants
 
             self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
+
+            # Clear editing state
+            self._editing_participant = None
 
             await self.hass.config_entries.async_reload(self.config_entry.entry_id)
             return self.async_create_entry(title="", data={})
@@ -243,6 +276,9 @@ class HubOptionsFlow(config_entries.OptionsFlow):
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
 
+        # Clear editing state
+        self._editing_participant = None
+
         await self.hass.config_entries.async_reload(self.config_entry.entry_id)
         return self.async_create_entry(title="", data={})
 
@@ -258,9 +294,29 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         new_name = new_config.get("name_value", old_name)
         new_participants[new_name] = new_config
 
+        # If the name changed, update any connections that reference it
+        if new_name != old_name:
+            for participant_name, participant_config in new_participants.items():
+                if participant_config.get("type") == "connection":
+                    updated = False
+                    # Update source reference
+                    if participant_config.get("source_value") == old_name:
+                        participant_config["source_value"] = new_name
+                        updated = True
+                    # Update target reference
+                    if participant_config.get("target_value") == old_name:
+                        participant_config["target_value"] = new_name
+                        updated = True
+
+                    if updated:
+                        new_participants[participant_name] = participant_config
+
         new_data["participants"] = new_participants
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
+
+        # Clear editing state
+        self._editing_participant = None
 
         await self.hass.config_entries.async_reload(self.config_entry.entry_id)
         return self.async_create_entry(title="", data={})

@@ -11,6 +11,32 @@
       }
     }
   },
+  "device": {
+    "battery": {
+      "name": "Battery"
+    },
+    "grid": {
+      "name": "Grid Connection"
+    },
+    "constant_load": {
+      "name": "Constant Load"
+    },
+    "forecast_load": {
+      "name": "Forecast Load"
+    },
+    "photovoltaics": {
+      "name": "Photovoltaics"
+    },
+    "net": {
+      "name": "Network Node"
+    },
+    "connection": {
+      "name": "Connection"
+    },
+    "network": {
+      "name": "Network"
+    }
+  },
   "entity": {
     "sensor": {
       "optimization_cost": {
@@ -30,32 +56,6 @@
       },
       "soc": {
         "name": "State of Charge"
-      }
-    },
-    "device": {
-      "battery": {
-        "name": "Battery"
-      },
-      "grid": {
-        "name": "Grid Connection"
-      },
-      "constant_load": {
-        "name": "Constant Load"
-      },
-      "forecast_load": {
-        "name": "Forecast Load"
-      },
-      "photovoltaics": {
-        "name": "Photovoltaics"
-      },
-      "net": {
-        "name": "Network Node"
-      },
-      "connection": {
-        "name": "Connection"
-      },
-      "network": {
-        "name": "Network"
       }
     }
   },
