@@ -45,7 +45,7 @@ ELEMENT_TYPE_CONNECTION = "connection"
 ELEMENT_TYPE_GRID = "grid"
 ELEMENT_TYPE_CONSTANT_LOAD = "constant_load"
 ELEMENT_TYPE_FORECAST_LOAD = "forecast_load"
-ELEMENT_TYPE_GENERATOR = "generator"
+ELEMENT_TYPE_PHOTOVOLTAICS = "photovoltaics"
 ELEMENT_TYPE_NET = "net"
 
 ELEMENT_TYPES = [
@@ -54,7 +54,7 @@ ELEMENT_TYPES = [
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_CONSTANT_LOAD,
     ELEMENT_TYPE_FORECAST_LOAD,
-    ELEMENT_TYPE_GENERATOR,
+    ELEMENT_TYPE_PHOTOVOLTAICS,
     ELEMENT_TYPE_NET,
 ]
 # Translation key mapping for element types
@@ -63,7 +63,7 @@ ELEMENT_TYPE_TRANSLATION_KEYS = {
     ELEMENT_TYPE_GRID: "entity.device.grid",
     ELEMENT_TYPE_CONSTANT_LOAD: "entity.device.constant_load",
     ELEMENT_TYPE_FORECAST_LOAD: "entity.device.forecast_load",
-    ELEMENT_TYPE_GENERATOR: "entity.device.generator",
+    ELEMENT_TYPE_PHOTOVOLTAICS: "entity.device.photovoltaics",
     ELEMENT_TYPE_NET: "entity.device.net",
     ELEMENT_TYPE_CONNECTION: "entity.device.connection",
 }
@@ -99,7 +99,7 @@ LOAD_TYPE_FIXED = "fixed"
 LOAD_TYPE_VARIABLE = "variable"
 LOAD_TYPE_FORECAST = "forecast"
 
-# Generator configuration keys
+# Photovoltaics configuration keys
 CONF_CURTAILMENT = "curtailment"
 CONF_PRICE_PRODUCTION = "price_production"
 CONF_PRICE_CONSUMPTION = "price_consumption"

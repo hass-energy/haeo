@@ -17,20 +17,21 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_CONSTANT_LOAD,
     ELEMENT_TYPE_FORECAST_LOAD,
-    ELEMENT_TYPE_GENERATOR,
+    ELEMENT_TYPE_PHOTOVOLTAICS,
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_NET,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_SUCCESS,
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.sensor import (
-    HaeoElementEnergySensor,
-    HaeoElementPowerSensor,
+from custom_components.haeo.sensors import async_setup_entry
+from custom_components.haeo.sensors.base import HaeoSensorBase
+from custom_components.haeo.sensors.energy import HaeoEnergySensor
+from custom_components.haeo.sensors.power import HaeoPowerSensor
+from custom_components.haeo.sensors.types import DataSource
+from custom_components.haeo.sensors.optimization import (
     HaeoOptimizationCostSensor,
     HaeoOptimizationStatusSensor,
-    HaeoSensorBase,
-    async_setup_entry,
 )
 
 
@@ -307,7 +308,7 @@ def test_element_power_sensor_init(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test sensor initialization."""
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     assert sensor.element_name == "test_battery"
     assert sensor._attr_name == "HAEO test_battery Power"
@@ -318,7 +319,7 @@ def test_element_power_sensor_native_value(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test native value property."""
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
     assert sensor.native_value == -50.0  # Net power: 0 production - 50 consumption = -50
 
 
@@ -327,7 +328,7 @@ def test_element_power_sensor_native_value_no_data(
 ) -> None:
     """Test native value when no data available."""
     mock_coordinator.get_element_data.return_value = None
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
     assert sensor.native_value is None
 
 
@@ -336,7 +337,7 @@ def test_element_power_sensor_native_value_empty_data(
 ) -> None:
     """Test native value when data is empty."""
     mock_coordinator.get_element_data.return_value = {ATTR_POWER: []}
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
     assert sensor.native_value is None
 
 
@@ -344,7 +345,7 @@ def test_element_power_sensor_extra_state_attributes(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test extra state attributes."""
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
     attrs = sensor.extra_state_attributes
 
     assert attrs is not None
@@ -358,7 +359,7 @@ def test_element_energy_sensor_init(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test sensor initialization."""
-    sensor = HaeoElementEnergySensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoEnergySensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     assert sensor.element_name == "test_battery"
     assert sensor._attr_name == "HAEO test_battery Energy"
@@ -368,7 +369,7 @@ def test_element_energy_sensor_native_value(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test native value property."""
-    sensor = HaeoElementEnergySensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoEnergySensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
     assert sensor.native_value == 500.0
 
 
@@ -377,7 +378,7 @@ def test_element_energy_sensor_native_value_no_data(
 ) -> None:
     """Test native value when no data available."""
     mock_coordinator.get_element_data.return_value = None
-    sensor = HaeoElementEnergySensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoEnergySensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
     assert sensor.native_value is None
 
 
@@ -386,7 +387,7 @@ def test_element_energy_sensor_native_value_empty_data(
 ) -> None:
     """Test native value when energy data is empty."""
     mock_coordinator.get_element_data.return_value = {ATTR_ENERGY: []}
-    sensor = HaeoElementEnergySensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoEnergySensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
     assert sensor.native_value is None
 
 
@@ -394,7 +395,7 @@ def test_element_energy_sensor_extra_state_attributes(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test extra state attributes."""
-    sensor = HaeoElementEnergySensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoEnergySensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
     attrs = sensor.extra_state_attributes
 
     assert attrs is not None
@@ -434,7 +435,7 @@ def test_sensor_base_device_info_with_generator_element(
         "test_type",
         "Test Sensor",
         "test_generator",
-        ELEMENT_TYPE_GENERATOR,
+        ELEMENT_TYPE_PHOTOVOLTAICS,
     )
     device_info = sensor.device_info
 
@@ -442,7 +443,7 @@ def test_sensor_base_device_info_with_generator_element(
     assert device_info.get("identifiers") == {(DOMAIN, f"{mock_config_entry.entry_id}_test_generator")}
     assert device_info.get("name") == "test_generator"
     assert device_info.get("manufacturer") == "HAEO"
-    assert device_info.get("model") == "entity.device.generator"
+    assert device_info.get("model") == "entity.device.photovoltaics"
 
 
 # Coordinator update tests removed as they require complex Home Assistant context mocking
@@ -458,7 +459,7 @@ def test_coordinator_get_element_data_exception(
         ATTR_POWER: [-50.0, -75.0, -100.0],
     }
 
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     # First verify normal operation
     assert sensor.native_value == -50.0
@@ -467,7 +468,7 @@ def test_coordinator_get_element_data_exception(
     mock_coordinator.get_element_data.side_effect = Exception("Data retrieval failed")
 
     # Create a new sensor instance to test error handling
-    sensor_error = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor_error = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     # Should handle gracefully and return None
     assert sensor_error.native_value is None
@@ -482,7 +483,7 @@ def test_coordinator_get_future_timestamps_exception(
         ATTR_POWER: [-50.0, -75.0, -100.0],
     }
 
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     # First verify normal operation
     attrs = sensor.extra_state_attributes
@@ -494,7 +495,7 @@ def test_coordinator_get_future_timestamps_exception(
     mock_coordinator.get_future_timestamps.side_effect = Exception("Timestamp retrieval failed")
 
     # Create a new sensor instance to test error handling
-    sensor_error = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor_error = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     # Should handle gracefully - the method should not raise an exception
     # and should return attributes with forecast but without timestamped_forecast
@@ -512,7 +513,7 @@ def test_sensor_available_with_coordinator_exception(
     # Make get_element_data raise an exception
     mock_coordinator.get_element_data.side_effect = Exception("Coordinator error")
 
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     # Sensor should be unavailable when coordinator fails
     assert sensor.available is False
@@ -525,7 +526,7 @@ def test_sensor_available_with_no_element_data(
     # Return None for element data (no data available)
     mock_coordinator.get_element_data.return_value = None
 
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     # Sensor should be unavailable when no data is available
     assert sensor.available is False
@@ -566,7 +567,7 @@ def test_native_value_with_no_element_data(
     # Return None for element data
     mock_coordinator.get_element_data.return_value = None
 
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     # Should return None gracefully
     assert sensor.native_value is None
@@ -579,7 +580,7 @@ def test_native_value_with_empty_element_data(
     # Return empty dict for element data
     mock_coordinator.get_element_data.return_value = {}
 
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     # Should return None gracefully
     assert sensor.native_value is None
@@ -589,7 +590,7 @@ def test_battery_sensor_device_info(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test device info for battery sensor."""
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
     device_info = sensor.device_info
 
     assert device_info.get("model") == "entity.device.battery"
@@ -599,7 +600,7 @@ def test_grid_sensor_device_info(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test device info for grid sensor."""
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_grid", ELEMENT_TYPE_GRID)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_grid", ELEMENT_TYPE_GRID)
     device_info = sensor.device_info
 
     assert device_info.get("model") == "entity.device.grid"
@@ -609,17 +610,17 @@ def test_generator_sensor_device_info(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test device info for generator sensor."""
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_generator", ELEMENT_TYPE_GENERATOR)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_generator", ELEMENT_TYPE_PHOTOVOLTAICS)
     device_info = sensor.device_info
 
-    assert device_info.get("model") == "entity.device.generator"
+    assert device_info.get("model") == "entity.device.photovoltaics"
 
 
 def test_load_sensor_device_info(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test device info for load sensor."""
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_load", ELEMENT_TYPE_FORECAST_LOAD)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_load", ELEMENT_TYPE_FORECAST_LOAD)
     device_info = sensor.device_info
 
     assert device_info.get("model") == "entity.device.forecast_load"
@@ -629,7 +630,7 @@ def test_load_fixed_sensor_device_info(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test device info for fixed load sensor."""
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_load_fixed", ELEMENT_TYPE_CONSTANT_LOAD)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_load_fixed", ELEMENT_TYPE_CONSTANT_LOAD)
     device_info = sensor.device_info
 
     assert device_info.get("model") == "entity.device.constant_load"
@@ -639,7 +640,7 @@ def test_load_forecast_sensor_device_info(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test device info for forecast load sensor."""
-    sensor = HaeoElementPowerSensor(
+    sensor = HaeoPowerSensor(
         mock_coordinator,
         mock_config_entry,
         "test_load_forecast",
@@ -654,7 +655,7 @@ def test_net_sensor_device_info(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test device info for net sensor."""
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_net", ELEMENT_TYPE_NET)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_net", ELEMENT_TYPE_NET)
     device_info = sensor.device_info
 
     assert device_info.get("model") == "entity.device.net"
@@ -664,7 +665,7 @@ def test_connection_sensor_device_info(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test device info for connection sensor."""
-    sensor = HaeoElementPowerSensor(mock_coordinator, mock_config_entry, "test_connection", ELEMENT_TYPE_CONNECTION)
+    sensor = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_connection", ELEMENT_TYPE_CONNECTION)
     device_info = sensor.device_info
 
     assert device_info.get("model") == "entity.device.connection"
@@ -680,7 +681,7 @@ def test_sensor_unavailable_when_sensor_data_missing(mock_config_entry: MockConf
     coordinator.get_element_data = Mock(return_value=None)  # Simulate missing element data
 
     # Create a power sensor
-    sensor = HaeoElementPowerSensor(coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
+    sensor = HaeoPowerSensor(coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     # The sensor should be unavailable when element data is missing
     assert not sensor.available

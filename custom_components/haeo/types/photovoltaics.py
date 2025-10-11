@@ -1,4 +1,4 @@
-"""Generator element configuration for HAEO integration."""
+"""Photovoltaics element configuration for HAEO integration."""
 
 from typing import Any, Literal, NotRequired, TypedDict
 
@@ -14,10 +14,10 @@ from custom_components.haeo.schema.fields import (
 )
 
 
-class GeneratorConfigSchema(TypedDict):
-    """Generator element configuration."""
+class PhotovoltaicsConfigSchema(TypedDict):
+    """Photovoltaics element configuration."""
 
-    element_type: Literal["generator"]
+    element_type: Literal["photovoltaics"]
     name: NameFieldSchema
     forecast: PowerForecastsFieldSchema
 
@@ -26,10 +26,10 @@ class GeneratorConfigSchema(TypedDict):
     curtailment: NotRequired[BooleanFieldSchema]
 
 
-class GeneratorConfigData(TypedDict):
-    """Generator element configuration."""
+class PhotovoltaicsConfigData(TypedDict):
+    """Photovoltaics element configuration."""
 
-    element_type: Literal["generator"]
+    element_type: Literal["photovoltaics"]
     name: NameFieldData
     forecast: PowerForecastsFieldData
 
@@ -38,6 +38,6 @@ class GeneratorConfigData(TypedDict):
     curtailment: NotRequired[BooleanFieldData]
 
 
-GENERATOR_CONFIG_DEFAULTS: dict[str, Any] = {
+PHOTOVOLTAICS_CONFIG_DEFAULTS: dict[str, Any] = {
     "curtailment": False,
 }

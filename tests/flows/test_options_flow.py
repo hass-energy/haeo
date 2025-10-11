@@ -17,7 +17,7 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_CONSTANT_LOAD,
     ELEMENT_TYPE_FORECAST_LOAD,
-    ELEMENT_TYPE_GENERATOR,
+    ELEMENT_TYPE_PHOTOVOLTAICS,
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_NET,
 )
@@ -68,8 +68,8 @@ def _get_test_data() -> TestDataResult:
     from .test_data.constant_load import VALID_DATA as LOAD_VALID_DATA  # noqa: PLC0415
     from .test_data.forecast_load import INVALID_DATA as LOAD_FORECAST_INVALID_DATA  # noqa: PLC0415
     from .test_data.forecast_load import VALID_DATA as LOAD_FORECAST_VALID_DATA  # noqa: PLC0415
-    from .test_data.generator import INVALID_DATA as GENERATOR_INVALID_DATA  # noqa: PLC0415
-    from .test_data.generator import VALID_DATA as GENERATOR_VALID_DATA  # noqa: PLC0415
+    from .test_data.photovoltaics import INVALID_DATA as PHOTOVOLTAICS_INVALID_DATA  # noqa: PLC0415
+    from .test_data.photovoltaics import VALID_DATA as PHOTOVOLTAICS_VALID_DATA  # noqa: PLC0415
     from .test_data.grid import INVALID_DATA as GRID_INVALID_DATA  # noqa: PLC0415
     from .test_data.grid import VALID_DATA as GRID_VALID_DATA  # noqa: PLC0415
     from .test_data.net import INVALID_DATA as NET_INVALID_DATA  # noqa: PLC0415
@@ -79,7 +79,7 @@ def _get_test_data() -> TestDataResult:
     valid_data_by_type = {
         ELEMENT_TYPE_BATTERY: BATTERY_VALID_DATA,
         ELEMENT_TYPE_CONNECTION: CONNECTION_VALID_DATA,
-        ELEMENT_TYPE_GENERATOR: GENERATOR_VALID_DATA,
+        ELEMENT_TYPE_PHOTOVOLTAICS: PHOTOVOLTAICS_VALID_DATA,
         ELEMENT_TYPE_GRID: GRID_VALID_DATA,
         ELEMENT_TYPE_CONSTANT_LOAD: LOAD_VALID_DATA,
         ELEMENT_TYPE_FORECAST_LOAD: LOAD_FORECAST_VALID_DATA,
@@ -89,7 +89,7 @@ def _get_test_data() -> TestDataResult:
     invalid_data_by_type = {
         ELEMENT_TYPE_BATTERY: BATTERY_INVALID_DATA,
         ELEMENT_TYPE_CONNECTION: CONNECTION_INVALID_DATA,
-        ELEMENT_TYPE_GENERATOR: GENERATOR_INVALID_DATA,
+        ELEMENT_TYPE_PHOTOVOLTAICS: PHOTOVOLTAICS_INVALID_DATA,
         ELEMENT_TYPE_GRID: GRID_INVALID_DATA,
         ELEMENT_TYPE_CONSTANT_LOAD: LOAD_INVALID_DATA,
         ELEMENT_TYPE_FORECAST_LOAD: LOAD_FORECAST_INVALID_DATA,

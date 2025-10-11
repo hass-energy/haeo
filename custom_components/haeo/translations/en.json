@@ -24,7 +24,7 @@
       "grid": "Grid Connection",
       "constant_load": "Constant Load",
       "forecast_load": "Forecast Load",
-      "generator": "Generator",
+      "photovoltaics": "Photovoltaics",
       "net": "Network Node",
       "connection": "Connection",
       "network": "Network"
@@ -34,7 +34,7 @@
     "step": {
       "user": {
         "title": "HAEO Network Setup",
-        "description": "Create a new HAEO optimization network. Configure the optimization horizon (how far into the future to optimize) and time period (how often to make optimization decisions). After creating the network, you can add individual devices like batteries, grid connections, loads, and generators through the network's configuration options.",
+        "description": "Create a new HAEO optimization network. Configure the optimization horizon (how far into the future to optimize) and time period (how often to make optimization decisions). After creating the network, you can add individual devices like batteries, grid connections, loads, and photovoltaics through the network's configuration options.",
         "data": {
           "name": "Network Name",
           "horizon_hours": "Optimization Horizon (hours)",
@@ -132,11 +132,11 @@
           "forecast_multiplier": "Forecast Multiplier"
         }
       },
-      "configure_generator": {
-        "title": "Configure Generator",
-        "description": "Set up generator forecasting and parameters",
+      "configure_photovoltaics": {
+        "title": "Configure Photovoltaics",
+        "description": "Set up photovoltaics forecasting and parameters",
         "data": {
-          "name": "Generator Name",
+          "name": "Photovoltaics Name",
           "forecast": "Forecast Sensors (Optional)",
           "forecast_aggregation": "Forecast Aggregation Method",
           "forecast_multiplier": "Forecast Multiplier"

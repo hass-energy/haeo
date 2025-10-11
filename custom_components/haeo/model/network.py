@@ -14,7 +14,7 @@ from .connection import Connection
 from .constant_load import ConstantLoad
 from .element import Element
 from .forecast_load import ForecastLoad
-from .generator import Generator
+from .photovoltaics import Photovoltaics
 from .grid import Grid
 from .net import Net
 
@@ -46,7 +46,7 @@ class Network:
         # Set n_periods if not provided and required by element type
         self.elements[name] = {
             "battery": Battery,
-            "generator": Generator,
+            "photovoltaics": Photovoltaics,
             "constant_load": ConstantLoad,
             "forecast_load": ForecastLoad,
             "grid": Grid,

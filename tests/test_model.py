@@ -10,7 +10,7 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_CONSTANT_LOAD,
     ELEMENT_TYPE_FORECAST_LOAD,
-    ELEMENT_TYPE_GENERATOR,
+    ELEMENT_TYPE_PHOTOVOLTAICS,
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_NET,
 )
@@ -20,7 +20,7 @@ from custom_components.haeo.model.connection import Connection
 from custom_components.haeo.model.constant_load import ConstantLoad
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.forecast_load import ForecastLoad
-from custom_components.haeo.model.generator import Generator
+from custom_components.haeo.model.photovoltaics import Photovoltaics
 from custom_components.haeo.model.grid import Grid
 from custom_components.haeo.model.net import Net
 
@@ -311,7 +311,7 @@ def test_generator_initialization_with_curtailment() -> None:
     """Test generator initialization with curtailment."""
     forecast = [DEFAULT_POWER, FORECAST_POWER, FORECAST_POWER_HIGH]
 
-    generator = Generator(
+    generator = Photovoltaics(
         name="test_generator",
         period=SECONDS_PER_HOUR,
         n_periods=GENERATOR_PERIODS,
@@ -330,7 +330,7 @@ def test_generator_initialization_without_curtailment() -> None:
     """Test generator initialization without curtailment."""
     forecast = [1000, 1500, 2000]
 
-    generator = Generator(
+    generator = Photovoltaics(
         name="test_generator",
         period=SECONDS_PER_HOUR,
         n_periods=3,
@@ -345,7 +345,7 @@ def test_generator_initialization_without_curtailment() -> None:
 def test_generator_invalid_forecast_length() -> None:
     """Test generator with invalid forecast length."""
     with pytest.raises(ValueError, match="forecast length"):
-        Generator(
+        Photovoltaics(
             name="test_generator",
             period=SECONDS_PER_HOUR,
             n_periods=3,
@@ -356,7 +356,7 @@ def test_generator_invalid_forecast_length() -> None:
 
 def test_generator_initialization_defaults() -> None:
     """Test generator initialization with default values."""
-    generator = Generator(
+    generator = Photovoltaics(
         name="test_generator",
         period=SECONDS_PER_HOUR,
         n_periods=3,
@@ -371,7 +371,7 @@ def test_generator_initialization_defaults() -> None:
 def test_generator_empty_forecast() -> None:
     """Test generator with empty forecast."""
     with pytest.raises(ValueError, match="forecast length"):
-        Generator(
+        Photovoltaics(
             name="test_generator",
             period=SECONDS_PER_HOUR,
             n_periods=3,
@@ -489,13 +489,13 @@ def test_add_generator() -> None:
     )
 
     generator = network.add(
-        ELEMENT_TYPE_GENERATOR,
+        ELEMENT_TYPE_PHOTOVOLTAICS,
         "test_generator",
         forecast=[1000, 1500, 2000],
         curtailment=True,
     )
 
-    assert isinstance(generator, Generator)
+    assert isinstance(generator, Photovoltaics)
     assert generator.name == "test_generator"
     assert "test_generator" in network.elements
 
@@ -837,7 +837,7 @@ def test_battery_solar_grid_storage_cycle() -> None:
 
     # Add entities
     network.add(
-        ELEMENT_TYPE_GENERATOR,
+        ELEMENT_TYPE_PHOTOVOLTAICS,
         "solar",
         forecast=solar_forecast,
         curtailment=True,
@@ -932,7 +932,7 @@ def test_solar_curtailment_negative_pricing() -> None:
 
     # Add entities
     network.add(
-        ELEMENT_TYPE_GENERATOR,
+        ELEMENT_TYPE_PHOTOVOLTAICS,
         "solar",
         forecast=solar_forecast,
         curtailment=True,  # Allow curtailment
@@ -1012,8 +1012,8 @@ def _create_element_for_test(element_type: str, name: str, **kwargs: Any) -> Any
         return ConstantLoad(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
     if element_type == ELEMENT_TYPE_FORECAST_LOAD:
         return ForecastLoad(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
-    if element_type == ELEMENT_TYPE_GENERATOR:
-        return Generator(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
+    if element_type == ELEMENT_TYPE_PHOTOVOLTAICS:
+        return Photovoltaics(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
     if element_type == ELEMENT_TYPE_NET:
         return Net(name=name, period=SECONDS_PER_HOUR, n_periods=3)
     pytest.fail(f"Unknown element type: {element_type}")
@@ -1087,7 +1087,7 @@ def _assert_element_energy_vars(element: Any, expected_vars: int) -> None:
         ),
         pytest.param(
             {
-                "type": ELEMENT_TYPE_GENERATOR,
+                "type": ELEMENT_TYPE_PHOTOVOLTAICS,
                 "name": "test_generator",
                 "forecast": [1000, 1500, 2000],
                 "curtailment": True,
@@ -1170,7 +1170,7 @@ def test_element_initialization(element_data: dict[str, Any]) -> None:
         ),
         pytest.param(
             {
-                "type": ELEMENT_TYPE_GENERATOR,
+                "type": ELEMENT_TYPE_PHOTOVOLTAICS,
                 "name": "test_generator",
                 "forecast": [1000, 1500, 2000],
                 "curtailment": True,
@@ -1206,8 +1206,8 @@ def test_element_constraints(element_data: dict[str, Any]) -> None:
         element = ConstantLoad(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
     elif element_type == ELEMENT_TYPE_FORECAST_LOAD:
         element = ForecastLoad(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
-    elif element_type == ELEMENT_TYPE_GENERATOR:
-        element = Generator(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
+    elif element_type == ELEMENT_TYPE_PHOTOVOLTAICS:
+        element = Photovoltaics(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
     elif element_type == ELEMENT_TYPE_NET:
         element = Net(name=name, period=SECONDS_PER_HOUR, n_periods=3)
     else:

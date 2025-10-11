@@ -190,7 +190,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 # Both consumption and production (e.g., batteries, grid)
                 element_data[ATTR_POWER] = [p - c for p, c in zip(production, consumption, strict=False)]
             elif production is not None:
-                # Only production (e.g., generators, solar)
+                # Only production (e.g., photovoltaics, solar)
                 element_data[ATTR_POWER] = production
             elif consumption is not None:
                 # Only consumption (e.g., loads)

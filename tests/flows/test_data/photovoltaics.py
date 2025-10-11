@@ -1,29 +1,29 @@
-"""Test data and validation for generator flow configuration."""
+"""Test data and validation for photovoltaics flow configuration."""
 
-# Test data for generator flow
+# Test data for photovoltaics flow
 VALID_DATA = [
     {
-        "description": "Basic generator configuration",
+        "description": "Basic photovoltaics configuration",
         "config": {
-            "name_value": "Test Generator",
-            "forecast_value": ["sensor.generator_power"],
+            "name_value": "Test Photovoltaics",
+            "forecast_value": ["sensor.solar_power"],
             "curtailment_value": False,
         },
     },
     {
-        "description": "Curtailable generator configuration",
+        "description": "Curtailable photovoltaics configuration",
         "config": {
-            "name_value": "Curtailable Generator",
-            "forecast_value": ["sensor.generator_power"],
+            "name_value": "Curtailable Photovoltaics",
+            "forecast_value": ["sensor.solar_power"],
             "curtailment_value": True,
             "price_production_value": 0.03,
         },
     },
     {
-        "description": "Generator with forecast sensors",
+        "description": "Photovoltaics with forecast sensors",
         "config": {
-            "name_value": "Solar Generator",
-            "forecast_value": ["sensor.generator_power"],
+            "name_value": "Solar Photovoltaics",
+            "forecast_value": ["sensor.solar_power"],
             "curtailment_value": True,
             "price_production_value": 0.04,
         },

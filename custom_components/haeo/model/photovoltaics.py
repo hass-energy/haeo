@@ -1,4 +1,4 @@
-"""Generator entity for electrical system modeling."""
+"""Photovoltaics entity for electrical system modeling."""
 
 from collections.abc import Sequence
 
@@ -8,8 +8,8 @@ from pulp import LpVariable
 from .element import Element
 
 
-class Generator(Element):
-    """Generator entity for electrical system modeling."""
+class Photovoltaics(Element):
+    """Photovoltaics (solar) entity for electrical system modeling."""
 
     def __init__(
         self,
@@ -22,10 +22,10 @@ class Generator(Element):
         price_production: float | Sequence[float] | None = None,
         price_consumption: float | Sequence[float] | None = None,
     ) -> None:
-        """Initialize a generator entity.
+        """Initialize a photovoltaics entity.
 
         Args:
-            name: Name of the generator
+            name: Name of the photovoltaics system
             period: Time period in seconds
             n_periods: Number of time periods
             forecast: Forecasted power generation in watts

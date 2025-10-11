@@ -3,7 +3,7 @@
 import pytest
 
 from custom_components.haeo.schema import schema_for_type
-from custom_components.haeo.types import ELEMENT_TYPES_SCHEMA
+from custom_components.haeo.types import ELEMENT_TYPES
 
 
 @pytest.fixture
@@ -12,7 +12,9 @@ def schema_params() -> dict[str, list[str] | str | None]:
     return {"participants": ["test_element_1", "test_element_2"], "current_element_name": None}
 
 
-@pytest.mark.parametrize(("element_type", "config_class"), [(name, cls) for name, cls in ELEMENT_TYPES_SCHEMA.items()])
+@pytest.mark.parametrize(
+    ("element_type", "config_class"), [(name, schema_cls) for name, (schema_cls, *_) in ELEMENT_TYPES.items()]
+)
 def test_schema_for_type(
     element_type: str, config_class: type, schema_params: dict[str, list[str] | str | None]
 ) -> None:
