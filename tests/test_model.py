@@ -1,6 +1,7 @@
 """Test the model components."""
 
 from typing import Any
+from unittest.mock import Mock
 
 from pulp import value
 import pytest
@@ -882,8 +883,6 @@ def test_optimization_failure() -> None:
 
 def test_network_constraint_generation_error() -> None:
     """Test that constraint generation errors are caught and wrapped with context."""
-    from unittest.mock import Mock
-
     network = Network(
         name="test_network",
         period=SECONDS_PER_HOUR,

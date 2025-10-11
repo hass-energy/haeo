@@ -13,7 +13,7 @@ class Connection:
     def __init__(
         self,
         name: str,
-        period: float,
+        period: float,  # noqa: ARG002
         n_periods: int,
         *,
         source: str,

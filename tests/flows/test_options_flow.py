@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+import voluptuous as vol
 
 from custom_components.haeo.const import (
     CONF_CAPACITY,
@@ -314,7 +315,7 @@ async def test_element_schema_validation_errors(
     schema_cls, _, _ = ELEMENT_TYPES[element_type]
     schema = schema_for_type(schema_cls, **schema_params)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises((vol.Invalid, vol.MultipleInvalid)) as exc_info:
         schema(invalid_data)
     assert expected_error in str(exc_info.value).lower()
 
