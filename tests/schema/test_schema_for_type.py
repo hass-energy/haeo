@@ -165,9 +165,9 @@ def test_default_handling_extraction() -> None:
     _, is_optional = annotated_fields["required_field"]
     assert not is_optional
 
-    # Field with default value
+    # Field with NotRequired (optional, may have default at runtime)
     _, is_optional = annotated_fields["field_with_default"]
-    assert not is_optional
+    assert is_optional  # NotRequired means optional
 
     # Field with None default (optional)
     _, is_optional = annotated_fields["optional_field"]
@@ -360,15 +360,16 @@ def test_constant_field_data_conversion(schema_params: dict[str, list[str] | str
 
     config = data_to_config(ConstantFieldTestConfig, data, **schema_params)
 
-    assert isinstance(config, ConstantFieldTestConfig)
-    assert config.power_value == 100.0
-    assert config.energy_value == 500.0
-    assert config.price_value == 0.15
-    assert config.percentage_value == 80.0
-    assert config.boolean_value is True
-    assert config.element_name == "battery_1"
-    assert config.name == "My Battery"
-    assert config.battery_soc == 90.0
+    assert config == {
+        "power_value": 100.0,
+        "energy_value": 500.0,
+        "price_value": 0.15,
+        "percentage_value": 80.0,
+        "boolean_value": True,
+        "element_name": "battery_1",
+        "name": "My Battery",
+        "battery_soc": 90.0,
+    }
 
 
 def test_sensor_field_data_conversion(schema_params: dict[str, list[str] | str | None]) -> None:
@@ -381,11 +382,11 @@ def test_sensor_field_data_conversion(schema_params: dict[str, list[str] | str |
 
     config = data_to_config(SensorFieldTestConfig, data, **schema_params)
 
-    assert isinstance(config, SensorFieldTestConfig)
-    # Sensor fields keep their dictionary structure
-    assert config.power_sensor == {"value": ["sensor.power_1"]}
-    assert config.battery_soc_sensor == {"value": "sensor.battery_soc"}
-    assert config.price_sensor == {"value": ["sensor.price_1"]}
+    assert config == {
+        "power_sensor": ["sensor.power_1"],
+        "battery_soc_sensor": "sensor.battery_soc",
+        "price_sensor": ["sensor.price_1"],
+    }
 
 
 def test_forecast_field_data_conversion(schema_params: dict[str, list[str] | str | None]) -> None:
@@ -397,10 +398,10 @@ def test_forecast_field_data_conversion(schema_params: dict[str, list[str] | str
 
     config = data_to_config(ForecastFieldTestConfig, data, **schema_params)
 
-    assert isinstance(config, ForecastFieldTestConfig)
-    # Forecast fields keep their dictionary structure
-    assert config.power_forecast == {"value": ["sensor.forecast_1", "sensor.forecast_2"]}
-    assert config.price_forecast == {"value": ["sensor.price_forecast"]}
+    assert config == {
+        "power_forecast": ["sensor.forecast_1", "sensor.forecast_2"],
+        "price_forecast": ["sensor.price_forecast"],
+    }
 
 
 def test_complex_field_data_conversion(schema_params: dict[str, list[str] | str | None]) -> None:
@@ -413,10 +414,10 @@ def test_complex_field_data_conversion(schema_params: dict[str, list[str] | str 
 
     config = data_to_config(ComplexFieldTestConfig, data, **schema_params)
 
-    assert isinstance(config, ComplexFieldTestConfig)
-    # Complex fields keep their structure
-    assert config.price_live_and_forecast == {"live": ["sensor.price_live"], "forecast": ["sensor.price_forecast"]}
-    assert config.optional_sensor == {"value": ["sensor.optional_power"]}
+    assert config == {
+        "price_live_and_forecast": {"live": ["sensor.price_live"], "forecast": ["sensor.price_forecast"]},
+        "optional_sensor": ["sensor.optional_power"],
+    }
 
 
 def test_data_conversion_with_missing_optional_field(schema_params: dict[str, list[str] | str | None]) -> None:
@@ -429,10 +430,7 @@ def test_data_conversion_with_missing_optional_field(schema_params: dict[str, li
 
     config = data_to_config(DefaultTestConfig, data, **schema_params)
 
-    assert isinstance(config, DefaultTestConfig)
-    assert config.required_field == "test_name"
-    assert config.optional_field is None  # Should be None for missing optional field
-    assert config.field_with_default is True  # Should use default when no data provided
+    assert config == {"required_field": "test_name"}
 
 
 def test_data_conversion_with_defaults_config(schema_params: dict[str, list[str] | str | None]) -> None:
@@ -445,10 +443,10 @@ def test_data_conversion_with_defaults_config(schema_params: dict[str, list[str]
 
     config = data_to_config(DefaultTestConfig, data, **schema_params)
 
-    assert isinstance(config, DefaultTestConfig)
-    assert config.required_field == "required_name"
-    assert config.field_with_default is True  # Uses default when no data provided
-    assert config.optional_field == 0.25
+    assert config == {
+        "required_field": "required_name",
+        "optional_field": 0.25,
+    }
 
 
 def test_constant_field_full_workflow(schema_params: dict[str, list[str] | str | None]) -> None:
@@ -473,11 +471,16 @@ def test_constant_field_full_workflow(schema_params: dict[str, list[str] | str |
     # Convert back to config
     config = data_to_config(ConstantFieldTestConfig, validated_data, **schema_params)
 
-    # Verify result
-    assert isinstance(config, ConstantFieldTestConfig)
-    assert config.power_value == 100.0
-    assert config.element_name == "battery_1"
-    assert config.battery_soc == 90.0
+    assert config == {
+        "power_value": 100.0,
+        "energy_value": 500.0,
+        "price_value": 0.15,
+        "percentage_value": 80.0,
+        "boolean_value": True,
+        "element_name": "battery_1",
+        "name": "My Battery",
+        "battery_soc": 90.0,
+    }
 
 
 async def test_sensor_field_full_workflow(
@@ -509,11 +512,10 @@ async def test_sensor_field_full_workflow(
     validated_data = schema(input_data)
     config = data_to_config(SensorFieldTestConfig, validated_data)
 
-    # Verify result
-    assert isinstance(config, SensorFieldTestConfig)
-    assert config.power_sensor == {"value": ["sensor.test_power"]}
-    assert config.battery_soc_sensor == {"value": "sensor.test_battery_soc"}
-    assert config.price_sensor is None  # Should be None for omitted optional field
+    assert config == {
+        "power_sensor": ["sensor.test_power"],
+        "battery_soc_sensor": "sensor.test_battery_soc",
+    }
 
 
 async def test_complex_field_full_workflow(
@@ -545,10 +547,9 @@ async def test_complex_field_full_workflow(
     validated_data = schema(input_data)
     config = data_to_config(ComplexFieldTestConfig, validated_data)
 
-    # Verify result
-    assert isinstance(config, ComplexFieldTestConfig)
-    assert config.price_live_and_forecast == {"live": ["sensor.price_live"], "forecast": ["sensor.price_forecast"]}
-    assert config.optional_sensor is None  # Should be None for omitted optional field
+    assert config == {
+        "price_live_and_forecast": {"live": ["sensor.price_live"], "forecast": ["sensor.price_forecast"]},
+    }
 
 
 def test_default_handling_full_workflow(schema_params: dict[str, list[str] | str | None]) -> None:
@@ -562,5 +563,8 @@ def test_default_handling_full_workflow(schema_params: dict[str, list[str] | str
 
     # Convert to config
     config = data_to_config(DefaultTestConfig, expected_validated_data, **schema_params)
-    assert config.field_with_default is True
-    assert config.optional_field is None
+
+    assert config == {
+        "required_field": "test_element",
+        "field_with_default": True,
+    }

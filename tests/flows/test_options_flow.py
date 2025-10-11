@@ -17,9 +17,9 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_CONSTANT_LOAD,
     ELEMENT_TYPE_FORECAST_LOAD,
-    ELEMENT_TYPE_PHOTOVOLTAICS,
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_NET,
+    ELEMENT_TYPE_PHOTOVOLTAICS,
 )
 from custom_components.haeo.flows.hub import HubConfigFlow
 from custom_components.haeo.flows.options import HubOptionsFlow
@@ -68,12 +68,12 @@ def _get_test_data() -> TestDataResult:
     from .test_data.constant_load import VALID_DATA as LOAD_VALID_DATA  # noqa: PLC0415
     from .test_data.forecast_load import INVALID_DATA as LOAD_FORECAST_INVALID_DATA  # noqa: PLC0415
     from .test_data.forecast_load import VALID_DATA as LOAD_FORECAST_VALID_DATA  # noqa: PLC0415
-    from .test_data.photovoltaics import INVALID_DATA as PHOTOVOLTAICS_INVALID_DATA  # noqa: PLC0415
-    from .test_data.photovoltaics import VALID_DATA as PHOTOVOLTAICS_VALID_DATA  # noqa: PLC0415
     from .test_data.grid import INVALID_DATA as GRID_INVALID_DATA  # noqa: PLC0415
     from .test_data.grid import VALID_DATA as GRID_VALID_DATA  # noqa: PLC0415
     from .test_data.net import INVALID_DATA as NET_INVALID_DATA  # noqa: PLC0415
     from .test_data.net import VALID_DATA as NET_VALID_DATA  # noqa: PLC0415
+    from .test_data.photovoltaics import INVALID_DATA as PHOTOVOLTAICS_INVALID_DATA  # noqa: PLC0415
+    from .test_data.photovoltaics import VALID_DATA as PHOTOVOLTAICS_VALID_DATA  # noqa: PLC0415
 
     # Use test data directly
     valid_data_by_type = {
@@ -527,3 +527,129 @@ async def test_options_flow_manage_participants_form(options_flow_with_minimal_p
     result = await options_flow_with_minimal_participants.async_step_edit_participant()
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "edit_participant"
+
+
+# Phase 2: Additional coverage tests for flows/options.py
+
+
+async def test_options_flow_configure_network_success(hass: HomeAssistant) -> None:
+    """Test successful network configuration update."""
+    # Create a config entry with initial network settings
+    config_entry = create_mock_config_entry(
+        data={
+            "integration_type": "hub",
+            "name": "Test Network",
+            "horizon_hours": 24,
+            "period_minutes": 30,
+            "participants": {},
+        }
+    )
+    config_entry.add_to_hass(hass)
+
+    # Create options flow
+    options_flow = HubOptionsFlow()
+    options_flow.hass = hass
+    options_flow._config_entry = config_entry
+
+    # Submit new network configuration
+    result = await options_flow.async_step_configure_network(user_input={"horizon_hours": 48, "period_minutes": 60})
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    # Verify config was updated
+    assert config_entry.data["horizon_hours"] == 48
+    assert config_entry.data["period_minutes"] == 60
+
+
+async def test_options_flow_edit_participant_workflow(hass: HomeAssistant) -> None:
+    """Test complete edit participant workflow."""
+    # Create config entry with existing participant
+    config_entry = create_mock_config_entry(
+        data={
+            "integration_type": "hub",
+            "name": "Test Network",
+            "participants": {
+                "existing_battery": {
+                    "type": ELEMENT_TYPE_BATTERY,
+                    "name_value": "existing_battery",
+                    "capacity_value": 10000,
+                    "initial_charge_percentage_value": 50.0,
+                }
+            },
+        }
+    )
+    config_entry.add_to_hass(hass)
+
+    options_flow = HubOptionsFlow()
+    options_flow.hass = hass
+    options_flow._config_entry = config_entry
+
+    # Step 1: Show edit form with participant selection
+    result = await options_flow.async_step_edit_participant()
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "edit_participant"
+
+    # Step 2: Select participant to edit
+    result = await options_flow.async_step_edit_participant(user_input={"participant": "existing_battery"})
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "configure_battery"
+
+
+async def test_options_flow_remove_participant_workflow(hass: HomeAssistant) -> None:
+    """Test complete remove participant workflow."""
+    # Create config entry with existing participant
+    config_entry = create_mock_config_entry(
+        data={
+            "integration_type": "hub",
+            "name": "Test Network",
+            "participants": {
+                "battery_to_remove": {
+                    "type": ELEMENT_TYPE_BATTERY,
+                    "name_value": "battery_to_remove",
+                    "capacity_value": 10000,
+                }
+            },
+        }
+    )
+    config_entry.add_to_hass(hass)
+
+    options_flow = HubOptionsFlow()
+    options_flow.hass = hass
+    options_flow._config_entry = config_entry
+
+    # Step 1: Show remove form with participant selection
+    result = await options_flow.async_step_remove_participant()
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "remove_participant"
+
+    # Step 2: Select participant and confirm removal
+    result = await options_flow.async_step_remove_participant(user_input={"participant": "battery_to_remove"})
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+    # Verify participant was removed
+    assert "battery_to_remove" not in config_entry.data["participants"]
+
+
+async def test_options_flow_validation_error_invalid_input(hass: HomeAssistant) -> None:
+    """Test validation error when invalid data is submitted."""
+    config_entry = create_mock_config_entry(
+        data={"integration_type": "hub", "name": "Test Network", "participants": {}}
+    )
+    config_entry.add_to_hass(hass)
+
+    options_flow = HubOptionsFlow()
+    options_flow.hass = hass
+    options_flow._config_entry = config_entry
+
+    # Submit battery config without required name field
+    # This will fail schema validation
+    invalid_data = {
+        "capacity_value": 10000,
+        "initial_charge_percentage_value": 50.0,
+        # name_value is missing - schema validation will catch this
+    }
+
+    result = await options_flow.async_step_configure_battery(user_input=invalid_data)
+    assert result.get("type") == FlowResultType.FORM
+    errors = result.get("errors") or {}
+    # Schema validation catches missing required field
+    assert errors.get(CONF_NAME) == "invalid_input"

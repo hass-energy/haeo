@@ -47,6 +47,7 @@ ELEMENT_TYPE_CONSTANT_LOAD = "constant_load"
 ELEMENT_TYPE_FORECAST_LOAD = "forecast_load"
 ELEMENT_TYPE_PHOTOVOLTAICS = "photovoltaics"
 ELEMENT_TYPE_NET = "net"
+ELEMENT_TYPE_NETWORK = "network"
 
 ELEMENT_TYPES = [
     ELEMENT_TYPE_BATTERY,
@@ -56,6 +57,7 @@ ELEMENT_TYPES = [
     ELEMENT_TYPE_FORECAST_LOAD,
     ELEMENT_TYPE_PHOTOVOLTAICS,
     ELEMENT_TYPE_NET,
+    ELEMENT_TYPE_NETWORK,
 ]
 # Translation key mapping for element types
 ELEMENT_TYPE_TRANSLATION_KEYS = {
@@ -65,6 +67,7 @@ ELEMENT_TYPE_TRANSLATION_KEYS = {
     ELEMENT_TYPE_FORECAST_LOAD: "entity.device.forecast_load",
     ELEMENT_TYPE_PHOTOVOLTAICS: "entity.device.photovoltaics",
     ELEMENT_TYPE_NET: "entity.device.net",
+    ELEMENT_TYPE_NETWORK: "entity.device.network",
     ELEMENT_TYPE_CONNECTION: "entity.device.connection",
 }
 

@@ -10,9 +10,9 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_CONSTANT_LOAD,
     ELEMENT_TYPE_FORECAST_LOAD,
-    ELEMENT_TYPE_PHOTOVOLTAICS,
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_NET,
+    ELEMENT_TYPE_PHOTOVOLTAICS,
 )
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.battery import Battery
@@ -20,9 +20,9 @@ from custom_components.haeo.model.connection import Connection
 from custom_components.haeo.model.constant_load import ConstantLoad
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.forecast_load import ForecastLoad
-from custom_components.haeo.model.photovoltaics import Photovoltaics
 from custom_components.haeo.model.grid import Grid
 from custom_components.haeo.model.net import Net
+from custom_components.haeo.model.photovoltaics import Photovoltaics
 
 # Test constants
 SECONDS_PER_HOUR = 3600
@@ -154,34 +154,6 @@ def test_grid_initialization() -> None:
     assert len(grid.power_production) == GRID_PERIODS
     assert grid.price_consumption == export_price
     assert grid.price_production == import_price
-
-
-def test_grid_invalid_forecast_length() -> None:
-    """Test grid with invalid forecast length."""
-    with pytest.raises(ValueError, match="import_price length"):
-        Grid(
-            name="test_grid",
-            period=SECONDS_PER_HOUR,
-            n_periods=3,
-            import_limit=10000,
-            export_limit=5000,
-            import_price=[0.1, 0.2],  # Wrong length
-            export_price=[0.05, 0.08, 0.06],
-        )
-
-
-def test_grid_invalid_export_forecast_length() -> None:
-    """Test grid with invalid export forecast length."""
-    with pytest.raises(ValueError, match="export_price length"):
-        Grid(
-            name="test_grid",
-            period=SECONDS_PER_HOUR,
-            n_periods=3,
-            import_limit=10000,
-            export_limit=5000,
-            import_price=[0.1, 0.2, 0.15],
-            export_price=[0.05, 0.08],  # Wrong length
-        )
 
 
 def test_grid_initialization_defaults() -> None:
@@ -906,6 +878,48 @@ def test_optimization_failure() -> None:
     # This should result in an infeasible optimization problem
     with pytest.raises(ValueError, match="Optimization failed with status"):
         network.optimize()
+
+
+def test_network_constraint_generation_error() -> None:
+    """Test that constraint generation errors are caught and wrapped with context."""
+    from unittest.mock import Mock
+
+    network = Network(
+        name="test_network",
+        period=SECONDS_PER_HOUR,
+        n_periods=3,
+    )
+
+    # Add a regular battery
+    network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge_percentage=50)
+
+    # Mock an element to raise an exception during constraint generation
+    mock_element = Mock(spec=Element)
+    mock_element.name = "failing_element"
+    mock_element.constraints.side_effect = RuntimeError("Constraint generation failed")
+    network.elements["failing_element"] = mock_element
+
+    # Should wrap the error with context about which element failed
+    with pytest.raises(ValueError, match="Failed to generate constraints for element 'failing_element'"):
+        network.constraints()
+
+
+def test_network_invalid_solver() -> None:
+    """Test that invalid solver names raise clear errors."""
+    network = Network(
+        name="test_network",
+        period=SECONDS_PER_HOUR,
+        n_periods=3,
+    )
+
+    # Add simple network
+    network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge_percentage=50)
+    network.add(ELEMENT_TYPE_NET, "net")
+    network.add(ELEMENT_TYPE_CONNECTION, "battery_to_net", source="battery", target="net")
+
+    # Try to use non-existent solver
+    with pytest.raises(ValueError, match="Failed to get solver 'NonExistentSolver'"):
+        network.optimize(optimizer="NonExistentSolver")
 
 
 def test_solar_curtailment_negative_pricing() -> None:

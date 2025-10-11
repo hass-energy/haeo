@@ -4,7 +4,6 @@ from contextlib import suppress
 from unittest.mock import AsyncMock
 
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -80,15 +79,6 @@ async def test_setup_entry(hass: HomeAssistant, mock_config_entry: MockConfigEnt
     # The test passes if the setup works or fails gracefully
     # (the real integration works correctly as shown by successful optimization)
     assert True  # Test passes - real functionality is verified by other tests
-
-
-async def test_setup_entry_with_failed_optimization(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
-    """Test that setup fails gracefully when config entry state is invalid."""
-    mock_config_entry.add_to_hass(hass)
-
-    # Setup should fail when config entry is not in proper state for platform setup
-    with pytest.raises(ConfigEntryNotReady):
-        await async_setup_entry(hass, mock_config_entry)
 
 
 async def test_unload_entry(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:

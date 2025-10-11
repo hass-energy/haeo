@@ -14,9 +14,9 @@ from .connection import Connection
 from .constant_load import ConstantLoad
 from .element import Element
 from .forecast_load import ForecastLoad
-from .photovoltaics import Photovoltaics
 from .grid import Grid
 from .net import Net
+from .photovoltaics import Photovoltaics
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -4,15 +4,16 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CURRENCY_DOLLAR, UnitOfTime
+from homeassistant.const import UnitOfTime
 
-from custom_components.haeo.const import OPTIMIZATION_STATUS_SUCCESS
+from custom_components.haeo.const import ELEMENT_TYPE_NETWORK, OPTIMIZATION_STATUS_SUCCESS
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.sensors.base import HaeoSensorBase
+from custom_components.haeo.sensors.cost import HaeoCostSensor
 
 
-class HaeoOptimizationCostSensor(HaeoSensorBase):
-    """Sensor for optimization cost."""
+class HaeoOptimizationCostSensor(HaeoCostSensor):
+    """Sensor for optimization cost (network-level cost sensor)."""
 
     def __init__(
         self,
@@ -20,34 +21,14 @@ class HaeoOptimizationCostSensor(HaeoSensorBase):
         config_entry: ConfigEntry,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry, "optimization_cost", "Optimization Cost", "network", "network")
-        self._attr_device_class = SensorDeviceClass.MONETARY
-        self._attr_native_unit_of_measurement = CURRENCY_DOLLAR  # Default fallback
-        self._attr_state_class = SensorStateClass.TOTAL
-        self._attr_translation_key = "optimization_cost"
-
-    async def async_added_to_hass(self) -> None:
-        """Set up the sensor when added to hass."""
-        await super().async_added_to_hass()
-        # Update unit of measurement to use the user's configured currency
-        if self.hass and self.hass.config.currency:
-            self._attr_native_unit_of_measurement = self.hass.config.currency
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the optimization cost."""
-        return self.coordinator.last_optimization_cost
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return extra state attributes."""
-        attrs: dict[str, Any] = {}
-        if self.coordinator.last_optimization_time:
-            attrs["last_optimization"] = self.coordinator.last_optimization_time.isoformat()
-        attrs["optimization_status"] = self.coordinator.optimization_status
-        if self.coordinator.last_optimization_duration is not None:
-            attrs["last_duration_seconds"] = self.coordinator.last_optimization_duration
-        return attrs
+        super().__init__(
+            coordinator,
+            config_entry,
+            "network",
+            ELEMENT_TYPE_NETWORK,
+            translation_key="optimization_cost",
+            name_suffix="Optimization Cost",
+        )
 
 
 class HaeoOptimizationStatusSensor(HaeoSensorBase):
@@ -59,7 +40,9 @@ class HaeoOptimizationStatusSensor(HaeoSensorBase):
         config_entry: ConfigEntry,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, config_entry, "optimization_status", "Optimization Status", "network", "network")
+        super().__init__(
+            coordinator, config_entry, "optimization_status", "Optimization Status", "network", ELEMENT_TYPE_NETWORK
+        )
         self._attr_translation_key = "optimization_status"
 
     @property
@@ -97,7 +80,7 @@ class HaeoOptimizationDurationSensor(HaeoSensorBase):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(
-            coordinator, config_entry, "optimization_duration", "Optimization Duration", "network", "network"
+            coordinator, config_entry, "optimization_duration", "Optimization Duration", "network", ELEMENT_TYPE_NETWORK
         )
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
@@ -117,4 +100,3 @@ class HaeoOptimizationDurationSensor(HaeoSensorBase):
             attrs["last_optimization"] = self.coordinator.last_optimization_time.isoformat()
         attrs["optimization_status"] = self.coordinator.optimization_status
         return attrs
-

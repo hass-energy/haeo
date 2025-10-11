@@ -7,7 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from custom_components.haeo.const import DOMAIN, OPTIMIZATION_STATUS_PENDING
+from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK, OPTIMIZATION_STATUS_PENDING
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -15,14 +15,11 @@ _LOGGER = logging.getLogger(__name__)
 
 def get_device_info_for_element(element_name: str, element_type: str, config_entry: ConfigEntry) -> DeviceInfo:
     """Get device info for a specific element."""
-    # Use translation key for the model name - Home Assistant will resolve this
-    model_translation_key = f"entity.device.{element_type}"
-
     return DeviceInfo(
         identifiers={(DOMAIN, f"{config_entry.entry_id}_{element_name}")},
         name=element_name,
         manufacturer="HAEO",
-        model=model_translation_key,
+        model=element_type,
         via_device=(DOMAIN, config_entry.entry_id),
     )
 
@@ -33,7 +30,7 @@ def get_device_info_for_network(config_entry: ConfigEntry) -> DeviceInfo:
         identifiers={(DOMAIN, config_entry.entry_id)},
         name="HAEO Network",
         manufacturer="HAEO",
-        model="entity.device.network",
+        model="network",
         sw_version="1.0.0",
     )
 
@@ -71,7 +68,7 @@ class HaeoSensorBase(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity)
             self._attr_name = f"HAEO {element_name} {name_suffix}"
 
         # Set device info based on element type
-        if element_type == "network":
+        if element_type == ELEMENT_TYPE_NETWORK:
             self._attr_device_info = get_device_info_for_network(config_entry)
         else:
             self._attr_device_info = get_device_info_for_element(element_name, element_type, config_entry)
@@ -84,7 +81,7 @@ class HaeoSensorBase(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity)
             return False
 
         # For element-specific sensors (not network-level), check if we can get element data
-        if self.element_type != "network":
+        if self.element_type != ELEMENT_TYPE_NETWORK:
             try:
                 element_data = self.coordinator.get_element_data(self.element_name)
             except Exception:
@@ -92,12 +89,11 @@ class HaeoSensorBase(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity)
 
             return element_data is not None
 
-        # For hub-level sensors, check if coordinator has optimization results
-        if self.sensor_type in ["optimization_cost", "optimization_status"]:
+        # For network-level sensors (cost, status), check if coordinator has optimization results
+        if self.element_type == ELEMENT_TYPE_NETWORK:
             return (
                 self.coordinator.optimization_result is not None
                 or self.coordinator.optimization_status != OPTIMIZATION_STATUS_PENDING
             )
 
         return True
-
