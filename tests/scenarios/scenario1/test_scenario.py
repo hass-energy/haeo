@@ -57,6 +57,10 @@ async def test_scenario1_setup_and_optimization(
     coordinator = getattr(mock_config_entry, "runtime_data", None)
     assert coordinator is not None, "Coordinator should be available after setup"
 
+    # Manually trigger the first data refresh (needed because time is frozen)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
     # Wait for the coordinator to complete its first update cycle
     # The optimization runs asynchronously in an executor job, so we need to wait for it
 
