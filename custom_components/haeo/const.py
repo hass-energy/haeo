@@ -59,6 +59,23 @@ ELEMENT_TYPES = [
     ELEMENT_TYPE_NET,
     ELEMENT_TYPE_NETWORK,
 ]
+
+# Sensor types (translation keys for sensors)
+SENSOR_TYPE_OPTIMIZATION_COST = "optimization_cost"
+SENSOR_TYPE_OPTIMIZATION_STATUS = "optimization_status"
+SENSOR_TYPE_OPTIMIZATION_DURATION = "optimization_duration"
+SENSOR_TYPE_POWER = "power"
+SENSOR_TYPE_ENERGY = "energy"
+SENSOR_TYPE_SOC = "soc"
+
+SENSOR_TYPES = [
+    SENSOR_TYPE_OPTIMIZATION_COST,
+    SENSOR_TYPE_OPTIMIZATION_STATUS,
+    SENSOR_TYPE_OPTIMIZATION_DURATION,
+    SENSOR_TYPE_POWER,
+    SENSOR_TYPE_ENERGY,
+    SENSOR_TYPE_SOC,
+]
 # Translation key mapping for element types
 ELEMENT_TYPE_TRANSLATION_KEYS = {
     ELEMENT_TYPE_BATTERY: "entity.device.battery",
@@ -122,7 +139,11 @@ CONF_PERIOD_MINUTES = "period_minutes"
 CONF_OPTIMIZER = "optimizer"
 DEFAULT_HORIZON_HOURS = 48  # 48 hours default
 DEFAULT_PERIOD_MINUTES = 5  # 5 minutes default
-DEFAULT_OPTIMIZER = "HiGHS"  # Default HiGHS solver
+DEFAULT_OPTIMIZER = "highs"  # Default HiGHS solver (using lowercase key)
+
+# Map translation-friendly optimizer keys (lowercase) to actual optimizer names
+OPTIMIZER_NAME_MAP = {name.lower(): name for name in AVAILABLE_OPTIMIZERS}
+
 
 # Validation constants
 MAX_HORIZON_HOURS = 168  # 1 week maximum

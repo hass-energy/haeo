@@ -23,6 +23,7 @@ from .const import (
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
+    OPTIMIZER_NAME_MAP,
 )
 from .data import load_network
 from .model import Network
@@ -114,13 +115,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 msg = "Network was not properly initialized"
                 raise RuntimeError(msg)
 
-            optimizer = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER)
+            optimizer_key = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER)
+            optimizer_name = OPTIMIZER_NAME_MAP.get(optimizer_key, optimizer_key)
             _LOGGER.debug(
                 "Running optimization for network with %d elements using %s solver",
                 len(self.network.elements),
-                optimizer,
+                optimizer_name,
             )
-            cost = await self.hass.async_add_executor_job(self.network.optimize, optimizer)
+            cost = await self.hass.async_add_executor_job(self.network.optimize, optimizer_name)
 
             # End timing after successful optimization
             end_time = time.time()

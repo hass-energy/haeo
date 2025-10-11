@@ -9,7 +9,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from custom_components.haeo.const import ATTR_ENERGY, ATTR_POWER, DOMAIN
+from custom_components.haeo.const import (
+    ATTR_ENERGY,
+    ATTR_POWER,
+    DOMAIN,
+    SENSOR_TYPE_ENERGY,
+    SENSOR_TYPE_POWER,
+    SENSOR_TYPE_SOC,
+)
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.sensors.energy import HaeoEnergySensor
 from custom_components.haeo.sensors.optimization import (
@@ -135,7 +142,7 @@ def _get_element_sensor_configs(
             sensor_configs.append(
                 {
                     "factory": lambda coord, entry, name, etype: HaeoPowerSensor(
-                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key="power"
+                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key=SENSOR_TYPE_POWER
                     )
                 }
             )
@@ -160,7 +167,7 @@ def _get_element_sensor_configs(
             sensor_configs.append(
                 {
                     "factory": lambda coord, entry, name, etype: HaeoPowerSensor(
-                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key="power"
+                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key=SENSOR_TYPE_POWER
                     )
                 }
             )
@@ -168,14 +175,14 @@ def _get_element_sensor_configs(
             sensor_configs.append(
                 {
                     "factory": lambda coord, entry, name, etype: HaeoEnergySensor(
-                        coord, entry, name, etype, translation_key="energy"
+                        coord, entry, name, etype, translation_key=SENSOR_TYPE_ENERGY
                     )
                 }
             )
             sensor_configs.append(
                 {
                     "factory": lambda coord, entry, name, etype: HaeoSOCSensor(
-                        coord, entry, name, etype, translation_key="soc"
+                        coord, entry, name, etype, translation_key=SENSOR_TYPE_SOC
                     )
                 }
             )
@@ -186,7 +193,7 @@ def _get_element_sensor_configs(
             sensor_configs.append(
                 {
                     "factory": lambda coord, entry, name, etype: HaeoPowerSensor(
-                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key="power"
+                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key=SENSOR_TYPE_POWER
                     )
                 }
             )
@@ -197,7 +204,7 @@ def _get_element_sensor_configs(
             sensor_configs.append(
                 {
                     "factory": lambda coord, entry, name, etype: HaeoPowerSensor(
-                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key="power"
+                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key=SENSOR_TYPE_POWER
                     )
                 }
             )
@@ -207,7 +214,7 @@ def _get_element_sensor_configs(
         sensor_configs.append(
             {
                 "factory": lambda coord, entry, name, etype: HaeoPowerSensor(
-                    coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key="power"
+                    coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key=SENSOR_TYPE_POWER
                 )
             }
         )

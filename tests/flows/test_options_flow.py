@@ -5,6 +5,7 @@ from typing import Any, NamedTuple
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.translation import async_get_translations
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 import voluptuous as vol
@@ -654,3 +655,81 @@ async def test_options_flow_validation_error_invalid_input(hass: HomeAssistant) 
     errors = result.get("errors") or {}
     # Schema validation catches missing required field
     assert errors.get(CONF_NAME) == "invalid_input"
+
+
+async def test_options_init_menu_translations(
+    hass: HomeAssistant, config_entry_with_participants: MockConfigEntry
+) -> None:
+    """Test that init menu translations load properly."""
+    config_entry_with_participants.add_to_hass(hass)
+
+    flow = HubOptionsFlow()
+    flow.hass = hass
+    flow._config_entry = config_entry_with_participants
+
+    result = await flow.async_step_init(_user_input=None)
+
+    assert result["type"] == FlowResultType.MENU
+
+    # Verify translations exist for menu options
+    translations = await async_get_translations(hass, "en", "options", integrations=[DOMAIN], config_flow=True)
+
+    for option in result["menu_options"]:
+        translation_key = f"component.{DOMAIN}.options.step.init.menu_options.{option}"
+        assert translation_key in translations, f"Missing translation for menu option '{option}'"
+
+
+@pytest.mark.parametrize("element_type", list(ELEMENT_TYPES.keys()))
+async def test_options_configure_element_translations(
+    hass: HomeAssistant, config_entry_minimal_participants: MockConfigEntry, element_type: str
+) -> None:
+    """Test that configure step has translations for all fields."""
+    config_entry_minimal_participants.add_to_hass(hass)
+
+    # Set up sensor states for grid if needed
+    if element_type == ELEMENT_TYPE_GRID:
+        hass.states.async_set("sensor.import_price", "0.25", {"device_class": "monetary"})
+        hass.states.async_set("sensor.export_price", "0.15", {"device_class": "monetary"})
+
+    flow = HubOptionsFlow()
+    flow.hass = hass
+    flow._config_entry = config_entry_minimal_participants
+
+    # Navigate to the configure step
+    result = await flow.async_step_configure_element(element_type, user_input=None)
+
+    assert result["type"] == FlowResultType.FORM
+    step_name = f"configure_{element_type}"
+
+    # Get translations
+    translations = await async_get_translations(hass, "en", "options", integrations=[DOMAIN], config_flow=True)
+
+    # Verify step title and description
+    assert f"component.{DOMAIN}.options.step.{step_name}.title" in translations
+    assert f"component.{DOMAIN}.options.step.{step_name}.description" in translations
+
+    # Verify all form fields have translations
+    assert result["data_schema"] is not None
+    schema = result["data_schema"].schema
+    for key in schema:
+        field_name = key.schema
+        translation_key = f"component.{DOMAIN}.options.step.{step_name}.data.{field_name}"
+        assert translation_key in translations, f"Missing translation for field '{field_name}' in step '{step_name}'"
+
+
+async def test_options_error_translations_exist(hass: HomeAssistant) -> None:
+    """Test that options flow error translations can be loaded."""
+    translations = await async_get_translations(hass, "en", "options", integrations=[DOMAIN], config_flow=True)
+
+    # Check common error translations
+    assert f"component.{DOMAIN}.options.error.name_exists" in translations
+    assert f"component.{DOMAIN}.options.error.invalid_name" in translations
+
+
+async def test_options_abort_translations_exist(hass: HomeAssistant) -> None:
+    """Test that options flow abort translations can be loaded."""
+    translations = await async_get_translations(hass, "en", "options", integrations=[DOMAIN], config_flow=True)
+
+    # Check abort translations
+    assert f"component.{DOMAIN}.options.abort.no_participants" in translations
+    assert f"component.{DOMAIN}.options.abort.reload_failed" in translations

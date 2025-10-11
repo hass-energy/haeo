@@ -2,32 +2,61 @@
   "selector": {
     "optimizer": {
       "options": {
-        "HiGHS": "HiGHS",
-        "PULP_CBC_CMD": "CBC",
-        "GLPK_CMD": "GLPK",
-        "COIN_CMD": "COIN-OR",
-        "SCIP_PY": "SCIP",
-        "CyLP": "CyLP"
+        "highs": "HiGHS",
+        "pulp_cbc_cmd": "CBC",
+        "glpk_cmd": "GLPK",
+        "coin_cmd": "COIN-OR",
+        "scip_py": "SCIP",
+        "cylp": "CyLP"
       }
     }
   },
   "entity": {
     "sensor": {
-      "optimization_cost": "Optimization Cost",
-      "optimization_status": "Optimization Status",
-      "optimization_duration": "Optimization Duration",
-      "power": "Power",
-      "energy": "Energy"
+      "optimization_cost": {
+        "name": "Optimization Cost"
+      },
+      "optimization_status": {
+        "name": "Optimization Status"
+      },
+      "optimization_duration": {
+        "name": "Optimization Duration"
+      },
+      "power": {
+        "name": "Power"
+      },
+      "energy": {
+        "name": "Energy"
+      },
+      "soc": {
+        "name": "State of Charge"
+      }
     },
     "device": {
-      "battery": "Battery",
-      "grid": "Grid Connection",
-      "constant_load": "Constant Load",
-      "forecast_load": "Forecast Load",
-      "photovoltaics": "Photovoltaics",
-      "net": "Network Node",
-      "connection": "Connection",
-      "network": "Network"
+      "battery": {
+        "name": "Battery"
+      },
+      "grid": {
+        "name": "Grid Connection"
+      },
+      "constant_load": {
+        "name": "Constant Load"
+      },
+      "forecast_load": {
+        "name": "Forecast Load"
+      },
+      "photovoltaics": {
+        "name": "Photovoltaics"
+      },
+      "net": {
+        "name": "Network Node"
+      },
+      "connection": {
+        "name": "Connection"
+      },
+      "network": {
+        "name": "Network"
+      }
     }
   },
   "config": {
@@ -84,80 +113,73 @@
         "title": "Configure Battery",
         "description": "Set up battery parameters for energy optimization",
         "data": {
-          "name": "Battery Name",
-          "capacity": "Capacity",
-          "initial_charge_percentage": "Initial Charge",
-          "initial_charge": "Current Charge Sensor",
-          "min_charge_percentage": "Minimum Charge Level",
-          "max_charge_percentage": "Maximum Charge Level",
-          "max_charge_power": "Maximum Charge Power",
-          "max_discharge_power": "Maximum Discharge Power",
-          "efficiency": "Round-trip Efficiency",
-          "charge_cost": "Charge Cost (Optional)",
-          "discharge_cost": "Discharge Cost (Optional)"
+          "name_value": "Battery Name",
+          "capacity_value": "Capacity",
+          "initial_charge_percentage_value": "Current Charge Sensor",
+          "min_charge_percentage_value": "Minimum Charge Level",
+          "max_charge_percentage_value": "Maximum Charge Level",
+          "max_charge_power_value": "Maximum Charge Power",
+          "max_discharge_power_value": "Maximum Discharge Power",
+          "efficiency_value": "Round-trip Efficiency",
+          "charge_cost_value": "Charge Cost (Optional)",
+          "discharge_cost_value": "Discharge Cost (Optional)"
         }
       },
       "configure_grid": {
         "title": "Configure Grid Connection",
         "description": "Set up grid import/export parameters and pricing",
         "data": {
-          "name": "Grid Connection Name",
-          "import_limit": "Import Limit (Optional)",
-          "export_limit": "Export Limit (Optional)",
-          "import_price": {
-            "name": "Import Price Configuration",
-            "description": "Configure both live and forecast import prices",
-            "data": {
-              "live": "Live Import Price Sensor",
-              "forecast": "Import Price Forecast Sensors"
-            }
-          },
-          "export_price": {
-            "name": "Export Price Configuration",
-            "description": "Configure both live and forecast export prices",
-            "data": {
-              "live": "Live Export Price Sensor",
-              "forecast": "Export Price Forecast Sensors"
-            }
-          }
+          "name_value": "Grid Connection Name",
+          "import_limit_value": "Import Limit (Optional)",
+          "export_limit_value": "Export Limit (Optional)",
+          "import_price_live": "Live Import Price Sensor",
+          "import_price_forecast": "Import Price Forecast Sensors",
+          "export_price_live": "Live Export Price Sensor",
+          "export_price_forecast": "Export Price Forecast Sensors"
         }
       },
-      "configure_load": {
-        "title": "Configure Load",
-        "description": "Set up load forecasting and parameters",
+      "configure_constant_load": {
+        "title": "Configure Constant Load",
+        "description": "Set up a fixed power load",
         "data": {
-          "name": "Load Name",
-          "forecast": "Forecast Sensors (Optional)",
-          "forecast_aggregation": "Forecast Aggregation Method",
-          "forecast_multiplier": "Forecast Multiplier"
+          "name_value": "Load Name",
+          "power_value": "Power"
+        }
+      },
+      "configure_forecast_load": {
+        "title": "Configure Forecast Load",
+        "description": "Set up load forecasting",
+        "data": {
+          "name_value": "Load Name",
+          "forecast_value": "Forecast Sensors"
         }
       },
       "configure_photovoltaics": {
         "title": "Configure Photovoltaics",
         "description": "Set up photovoltaics forecasting and parameters",
         "data": {
-          "name": "Photovoltaics Name",
-          "forecast": "Forecast Sensors (Optional)",
-          "forecast_aggregation": "Forecast Aggregation Method",
-          "forecast_multiplier": "Forecast Multiplier"
+          "name_value": "Photovoltaics Name",
+          "forecast_value": "Forecast Sensors",
+          "price_production_value": "Production Price (Optional)",
+          "curtailment_value": "Allow Curtailment (Optional)"
         }
       },
       "configure_net": {
         "title": "Configure Net Entity",
         "description": "Add a net entity for power balance calculations",
         "data": {
-          "name": "Net Entity Name"
+          "name_value": "Net Entity Name"
         }
       },
       "configure_connection": {
         "title": "Configure Connection",
         "description": "Set up connection parameters between devices. Use negative minimum power for bidirectional connections.",
         "data": {
-          "name": "Connection Name",
-          "source": "Source Device",
-          "target": "Target Device",
-          "min_power": "Minimum Power (negative for bidirectional)",
-          "max_power": "Maximum Power"
+          "name_value": "Connection Name",
+          "source_value": "Source Device",
+          "target_value": "Target Device",
+          "min_power_value": "Minimum Power (negative for bidirectional)",
+          "max_power_value": "Maximum Power"
         }
       },
       "configure_network": {

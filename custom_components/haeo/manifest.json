@@ -9,6 +9,5 @@
   "config_flow": true,
   "requirements": ["pulp>=2.7.0", "numpy>=1.21.0"],
   "dependencies": [],
-  "integration_type": "hub",
-  "platforms": ["sensor"]
+  "integration_type": "hub"
 }

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 from homeassistant.const import CURRENCY_DOLLAR
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.translation import async_get_translations
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -21,8 +22,10 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_NET,
     ELEMENT_TYPE_NETWORK,
     ELEMENT_TYPE_PHOTOVOLTAICS,
+    ELEMENT_TYPES,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_SUCCESS,
+    SENSOR_TYPES,
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.sensors import async_setup_entry
@@ -40,8 +43,8 @@ def mock_coordinator() -> HaeoDataUpdateCoordinator:
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = True
     coordinator.optimization_status = OPTIMIZATION_STATUS_SUCCESS
-    coordinator.last_optimization_cost = 15.50  # type: ignore[misc]
-    coordinator.last_optimization_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)  # type: ignore[misc]
+    coordinator.last_optimization_cost = 15.50
+    coordinator.last_optimization_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
     coordinator.optimization_result = {
         "solution": {
             "test_battery_power": [50.0, 75.0, 100.0],  # Battery transporting power
@@ -640,3 +643,21 @@ def test_sensor_extra_attributes_with_exception(
     assert attrs is not None
     assert "forecast" in attrs
     assert "timestamped_forecast" not in attrs
+
+
+@pytest.mark.parametrize("sensor_type", SENSOR_TYPES)
+async def test_sensor_name_translations(hass: HomeAssistant, sensor_type: str) -> None:
+    """Test that sensor entity name translations can be loaded."""
+    translations = await async_get_translations(hass, "en", "entity", integrations=[DOMAIN])
+
+    translation_key = f"component.{DOMAIN}.entity.sensor.{sensor_type}.name"
+    assert translation_key in translations, f"Missing sensor translation for '{sensor_type}'"
+
+
+@pytest.mark.parametrize("element_type", ELEMENT_TYPES)
+async def test_device_name_translations(hass: HomeAssistant, element_type: str) -> None:
+    """Test that device name translations can be loaded."""
+    translations = await async_get_translations(hass, "en", "entity", integrations=[DOMAIN])
+
+    translation_key = f"component.{DOMAIN}.entity.device.{element_type}.name"
+    assert translation_key in translations, f"Missing device translation for '{element_type}'"
