@@ -3,8 +3,46 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/release/ha-energy-optimiser/haeo.svg)](https://github.com/ha-energy-optimiser/haeo/releases)
 [![License](https://img.shields.io/github/license/ha-energy-optimiser/haeo.svg)](LICENSE)
+[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://ha-energy-optimiser.github.io/haeo/)
 
 HAEO (Home Assistant Energy Optimization) is a custom integration that optimizes your home's energy usage in real-time using linear programming. It helps you minimize energy costs by intelligently managing battery storage, solar generation, grid import/export, and loads based on electricity prices, forecasts, and system constraints.
+
+## 🎯 Project Philosophy
+
+HAEO follows the Unix philosophy: **do one thing and do it well**.
+
+### What HAEO Does
+
+✅ **Energy optimization** using linear programming  
+✅ **Network modeling** with flexible topology  
+✅ **Integration** with Home Assistant's sensor ecosystem
+
+### What HAEO Doesn't Do
+
+HAEO focuses exclusively on optimization and **will not** add features outside this scope:
+
+❌ **Solar forecasting** - Use existing integrations like [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) or [Solcast](https://github.com/BJReplay/ha-solcast-solar)  
+❌ **Price fetching** - Use integrations like Amber Electric, Nordpool, or Tibber  
+❌ **Device control** - Use Home Assistant automations  
+❌ **Load forecasting** - Use existing integrations or template sensors
+
+This focused approach means:
+
+- Better integration with the HA ecosystem
+- Simpler, more maintainable codebase
+- Users can choose best-in-class solutions for each component
+- HAEO does optimization exceptionally well
+
+## 📚 Documentation
+
+**[Read the full documentation →](https://ha-energy-optimiser.github.io/haeo/)**
+
+- **[Installation Guide](https://ha-energy-optimiser.github.io/haeo/user-guide/installation/)** - Get started with HAEO
+- **[Configuration Guide](https://ha-energy-optimiser.github.io/haeo/user-guide/configuration/)** - Set up your energy system
+- **[Entity Configuration](https://ha-energy-optimiser.github.io/haeo/user-guide/entities/)** - Configure batteries, solar, grids, and loads
+- **[Mathematical Modeling](https://ha-energy-optimiser.github.io/haeo/modeling/)** - Understand the optimization
+- **[Developer Guide](https://ha-energy-optimiser.github.io/haeo/developer-guide/)** - Contribute to HAEO
+- **[API Reference](https://ha-energy-optimiser.github.io/haeo/api/)** - Auto-generated API docs
 
 ## ✨ Features
 

@@ -26,3 +26,6 @@ known_devices.yaml
 .storage
 .cloud
 .storage/core.restore_state
+
+# mkdocs site
+site/

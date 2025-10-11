@@ -1,0 +1,200 @@
+site_name: HAEO Documentation
+site_description: Home Assistant Energy Optimization - Real-time energy management using linear programming
+site_author: Trent Houliston
+site_url: https://ha-energy-optimiser.github.io/haeo/
+repo_url: https://github.com/ha-energy-optimiser/haeo
+repo_name: ha-energy-optimiser/haeo
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2025 Trent Houliston
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - announce.dismiss
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
+    - content.tooltips
+    - navigation.expand
+    - navigation.footer
+    - navigation.indexes
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.path
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: timeago
+  # mkdocstrings disabled - using manual API docs instead
+  # Uncomment and configure if you want auto-generated API docs from docstrings
+  # - mkdocstrings:
+  #     handlers:
+  #       python:
+  #         paths: [.]
+  #         options:
+  #           docstring_style: google
+  #           show_source: true
+
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ha-energy-optimiser/haeo
+  version:
+    provider: mike
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+
+  - User Guide:
+      - user-guide/index.md
+      - Installation: user-guide/installation.md
+      - Configuration: user-guide/configuration.md
+      - Forecasts & Sensors: user-guide/forecasts-and-sensors.md
+      - HAEO vs Alternatives: user-guide/alternatives.md
+      - Entities:
+          - user-guide/entities/index.md
+          - Battery: user-guide/entities/battery.md
+          - Grid: user-guide/entities/grid.md
+          - Photovoltaics: user-guide/entities/photovoltaics.md
+          - Loads: user-guide/entities/loads.md
+          - Net: user-guide/entities/net.md
+      - Connections: user-guide/connections.md
+      - Understanding Results: user-guide/optimization.md
+      - Examples:
+          - Sigenergy System: user-guide/examples/sigenergy-system.md
+      - Troubleshooting: user-guide/troubleshooting.md
+
+  - Mathematical Modeling:
+      - modeling/index.md
+      - Overview: modeling/overview.md
+      - Objective Function: modeling/objective-function.md
+      - Time Horizons: modeling/time-horizons.md
+      - Power Balance: modeling/power-balance.md
+      - Components:
+          - Battery: modeling/battery.md
+          - Grid: modeling/grid.md
+          - Loads: modeling/loads.md
+          - Photovoltaics: modeling/photovoltaics.md
+          - Connections: modeling/connections.md
+          - Net Entity: modeling/net-entity.md
+
+  - Developer Guide:
+      - developer-guide/index.md
+      - Architecture: developer-guide/architecture.md
+      - Setup: developer-guide/setup.md
+      - Units & Stability: developer-guide/units.md
+      - Energy Models: developer-guide/energy-models.md
+      - Coordinator: developer-guide/coordinator.md
+      - Testing: developer-guide/testing.md
+      - Contributing: developer-guide/contributing.md
+
+  - API Reference:
+      - api/index.md
+      - Coordinator: api/coordinator.md
+      - Config Flow: api/config-flow.md
+      - Model:
+          - Network: api/model/network.md
+          - Battery: api/model/battery.md
+          - Grid: api/model/grid.md
+          - Loads: api/model/loads.md
+          - Photovoltaics: api/model/photovoltaics.md
+          - Connections: api/model/connections.md
+      - Sensors: api/sensors.md
+      - Data Loaders: api/data-loaders.md
+
+  - Reference:
+      - reference/index.md
+      - Entity Types: reference/entities.md
+      - Sensor Types: reference/sensors.md
+      - Configuration Schema: reference/configuration-schema.md
+      - LP Solvers: reference/solvers.md

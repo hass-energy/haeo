@@ -15,9 +15,38 @@ Pull requests are the best way to propose changes to the codebase.
 
 1. Fork the repo and create your branch from `main`.
 2. If you've changed something, update the documentation.
-3. Make sure your code lints (using `scripts/lint`).
-4. Test you contribution.
-5. Issue that pull request!
+3. Make sure your code lints and passes tests.
+4. Issue that pull request!
+
+## Development Setup
+
+### Prerequisites
+
+- Python 3.13+
+- [uv](https://github.com/astral-sh/uv) package manager
+
+### Quick Start
+
+```bash
+# Clone your fork
+git clone https://github.com/YOUR_USERNAME/haeo.git
+cd haeo
+
+# Install dependencies
+uv sync
+
+# Run tests
+uv run pytest
+
+# Run linters
+uv run ruff check custom_components/ tests/
+uv run ruff format custom_components/ tests/
+
+# Type checking
+uv run mypy custom_components/
+```
+
+See the [Developer Guide](https://ha-energy-optimiser.github.io/haeo/developer-guide/) for detailed setup instructions.
 
 ## Any contributions you make will be under the MIT Software License
 
@@ -44,17 +73,47 @@ People _love_ thorough bug reports. I'm not even kidding.
 
 ## Use a Consistent Coding Style
 
-Use [ruff](https://github.com/astral-sh/ruff) to make sure the code follows the style.
+Use [ruff](https://github.com/astral-sh/ruff) to make sure the code follows the style:
+
+```bash
+# Check code style
+uv run ruff check custom_components/ tests/
+
+# Auto-format code
+uv run ruff format custom_components/ tests/
+```
 
 ## Test your code modification
 
-This custom component is based on [integration_blueprint template](https://github.com/ludeeus/integration_blueprint).
+Run the test suite before submitting:
 
-It comes with development environment in a container, easy to launch
-if you use Visual Studio Code. With this container you will have a stand alone
-Home Assistant instance running and already configured with the included
-[`configuration.yaml`](./config/configuration.yaml)
-file.
+```bash
+# Run all tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=custom_components.haeo --cov-report=html
+
+# Run specific test file
+uv run pytest tests/test_model.py
+```
+
+All tests must pass before your PR can be merged.
+
+## Documentation
+
+If you've added or changed functionality, update the documentation:
+
+```bash
+# Build documentation locally
+uv run mkdocs serve
+
+# View at http://127.0.0.1:8000
+```
+
+Documentation is automatically deployed when changes are merged to `main`.
+
+See the [Contributing Guide](https://ha-energy-optimiser.github.io/haeo/developer-guide/contributing/) in the documentation for more details.
 
 ## License
 

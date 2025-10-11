@@ -1,0 +1,30 @@
+/* Custom styles for HAEO documentation */
+
+/* Improve code block styling */
+.highlight {
+  margin: 1em 0;
+}
+
+/* Better table styling */
+table {
+  width: 100%;
+  margin: 1em 0;
+}
+
+/* Improve math rendering */
+.arithmatex {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Better admonition spacing */
+.admonition {
+  margin: 1.5em 0;
+}
+
+/* Improve mermaid diagram styling */
+.mermaid {
+  text-align: center;
+  margin: 1.5em 0;
+}
+
