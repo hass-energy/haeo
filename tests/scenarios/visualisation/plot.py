@@ -343,7 +343,7 @@ def create_stacked_visualization(
 
         # Set labels and formatting
         ax.set_title(title, fontsize=14, pad=20)
-        ax.set_ylabel("Power (W)", fontsize=11)
+        ax.set_ylabel("Power (kW)", fontsize=11)
         ax.set_xlabel("Time", fontsize=11)
 
         # Set y-axis to start from 0 to avoid confusing zero points

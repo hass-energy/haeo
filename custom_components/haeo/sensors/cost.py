@@ -1,7 +1,6 @@
 """Cost sensor for HAEO elements."""
 
 import logging
-from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -61,22 +60,3 @@ class HaeoCostSensor(HaeoSensorBase):
         # For element-specific cost, would get from element data
         # This can be extended in the future
         return None
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return extra state attributes."""
-        try:
-            # For network-level cost sensor, include optimization metadata
-            if self.element_type == ELEMENT_TYPE_NETWORK:
-                attrs: dict[str, Any] = {}
-                if self.coordinator.last_optimization_time:
-                    attrs["last_optimization"] = self.coordinator.last_optimization_time.isoformat()
-                attrs["optimization_status"] = self.coordinator.optimization_status
-                if self.coordinator.last_optimization_duration is not None:
-                    attrs["last_duration_seconds"] = self.coordinator.last_optimization_duration
-                return attrs if attrs else None
-
-            return None
-        except Exception:
-            _LOGGER.exception("Error getting extra state attributes for cost sensor %s", self.element_name)
-            return None

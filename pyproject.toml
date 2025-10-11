@@ -41,6 +41,8 @@ ignore = [
     'TC001',   # Don't use TYPE_CHECKING blocks, they sometimes break code that uses reflection to work
     'BLE001',  # Do not catch blind exception - integration code needs to handle various exception types gracefully (127+ violations)
     'ANN401',  # Dynamically typed expressions - legitimate use of Any for **kwargs parameters
+    'TRY300',  # Consider moving statement to else block - overly pedantic about code structure
+    'TRY301',  # Abstract raise to inner function - overly pedantic, creates unnecessary indirection
 ]
 
 [tool.ruff.lint.isort]

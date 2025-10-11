@@ -6,7 +6,9 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 import numpy as np
 
-from .forecast_parsers import detect_format, parse_forecast_data
+from custom_components.haeo.const import convert_to_base_unit
+
+from .forecast_parsers import detect_format, get_forecast_units, parse_forecast_data
 
 
 class ForecastLoader:
@@ -68,8 +70,18 @@ class ForecastLoader:
             # Try to parse forecast data first
             forecast_data = parse_forecast_data(state)
             if forecast_data is not None:
+                # Get units from the forecast parser (not from sensor attributes)
+                unit, device_class_str = get_forecast_units(state)
+
+                # Convert forecast values to base units (kW, kWh, etc.)
+                # device_class_str may be a SensorDeviceClass or None
+                converted_forecast = [
+                    (timestamp, convert_to_base_unit(value, unit, device_class_str))  # type: ignore[arg-type]
+                    for timestamp, value in forecast_data
+                ]
+
                 # Use forecast data if available
-                data = np.array(forecast_data, dtype=[("timestamp", np.int64), ("value", np.float64)])
+                data = np.array(converted_forecast, dtype=[("timestamp", np.int64), ("value", np.float64)])
                 output += np.interp(forecast_times, data["timestamp"], data["value"], left=0, right=0)
             else:
                 # No forecast data available for this sensor

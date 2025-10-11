@@ -153,26 +153,27 @@ def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool]]:
         is_optional = field_name in optional_keys
 
         # Handle NotRequired wrapper
-        if typing_get_origin(field_tp).__name__ == "NotRequired":
-            field_tp = get_args(field_tp)[0]
+        unwrapped_tp = field_tp
+        if typing_get_origin(unwrapped_tp).__name__ == "NotRequired":
+            unwrapped_tp = get_args(unwrapped_tp)[0]
             is_optional = True
 
         # Unwrap Optional[...] (Union[..., None])
-        if get_origin(field_tp) is Union:
-            args = [a for a in get_args(field_tp) if a is not type(None)]
+        if get_origin(unwrapped_tp) is Union:
+            args = [a for a in get_args(unwrapped_tp) if a is not type(None)]
             if len(args) == 1:
-                field_tp = args[0]
+                unwrapped_tp = args[0]
                 is_optional = True
             elif len(args) > 1:
                 # For Union types, try to find the first type with Annotated metadata
                 for arg in args:
                     if get_origin(arg) is Annotated:
-                        field_tp = arg
+                        unwrapped_tp = arg
                         break
 
         # Extract Annotated metadata
-        if get_origin(field_tp) is Annotated:
-            *_, meta = get_args(field_tp)
+        if get_origin(unwrapped_tp) is Annotated:
+            *_, meta = get_args(unwrapped_tp)
 
             if isinstance(meta, FieldMeta):
                 annotated[field_name] = (meta, is_optional)

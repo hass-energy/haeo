@@ -389,6 +389,7 @@ def test_parse_open_meteo_forecast(open_meteo_multi_forecast_sensor: State) -> N
     assert result is not None
     assert len(result) == 2
     assert result[0][0] < result[1][0]
+    # Values should be raw (in watts), conversion happens in ForecastLoader
     assert result[0][1] == 175
     assert result[1][1] == 200
 

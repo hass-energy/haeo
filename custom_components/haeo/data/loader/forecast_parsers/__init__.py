@@ -72,3 +72,25 @@ def parse_forecast_data(state: State) -> Sequence[tuple[int, float]] | None:
     # Since parser_type is a valid ForecastFormat, it must exist in _FORMATS
     parser = _FORMATS[parser_type]
     return parser.extract(state)
+
+
+def get_forecast_units(state: State) -> tuple[str | None, str | None]:
+    """Get the unit and device class for forecast data.
+
+    Args:
+        state: The sensor state
+
+    Returns:
+        Tuple of (unit, device_class) for the forecast data, or (None, None) if unknown
+
+    """
+    parser_type = detect_format(state)
+
+    if parser_type is None:
+        return None, None
+
+    # Since parser_type is a valid ForecastFormat, it must exist in _FORMATS
+    parser = _FORMATS[parser_type]
+    unit = getattr(parser, "UNIT", None)
+    device_class = getattr(parser, "DEVICE_CLASS", None)
+    return unit, device_class

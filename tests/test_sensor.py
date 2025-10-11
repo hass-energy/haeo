@@ -40,8 +40,8 @@ def mock_coordinator() -> HaeoDataUpdateCoordinator:
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = True
     coordinator.optimization_status = OPTIMIZATION_STATUS_SUCCESS
-    coordinator.last_optimization_cost = 15.50
-    coordinator.last_optimization_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+    coordinator.last_optimization_cost = 15.50  # type: ignore[misc]
+    coordinator.last_optimization_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)  # type: ignore[misc]
     coordinator.optimization_result = {
         "solution": {
             "test_battery_power": [50.0, 75.0, 100.0],  # Battery transporting power
@@ -218,35 +218,9 @@ def test_optimization_cost_sensor_native_value_none(
     mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test native value when no cost available."""
-    mock_coordinator.last_optimization_cost = None
+    mock_coordinator.last_optimization_cost = None  # type: ignore[misc]
     sensor = HaeoOptimizationCostSensor(mock_coordinator, mock_config_entry)
     assert sensor.native_value is None
-
-
-def test_optimization_cost_sensor_extra_state_attributes(
-    mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
-) -> None:
-    """Test extra state attributes."""
-    sensor = HaeoOptimizationCostSensor(mock_coordinator, mock_config_entry)
-    attrs = sensor.extra_state_attributes
-
-    assert attrs is not None
-    assert "last_optimization" in attrs
-    assert attrs["last_optimization"] == "2024-01-01T12:00:00+00:00"
-    assert attrs["optimization_status"] == OPTIMIZATION_STATUS_SUCCESS
-
-
-def test_optimization_cost_sensor_extra_state_attributes_no_time(
-    mock_coordinator: HaeoDataUpdateCoordinator, mock_config_entry: MockConfigEntry
-) -> None:
-    """Test extra state attributes when no optimization time."""
-    mock_coordinator.last_optimization_time = None
-    sensor = HaeoOptimizationCostSensor(mock_coordinator, mock_config_entry)
-    attrs = sensor.extra_state_attributes
-
-    assert attrs is not None
-    assert "last_optimization" not in attrs
-    assert attrs["optimization_status"] == OPTIMIZATION_STATUS_SUCCESS
 
 
 def test_optimization_status_sensor_init(

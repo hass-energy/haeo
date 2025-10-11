@@ -109,10 +109,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self.last_optimization_duration}
 
             # Run optimization in executor job to avoid blocking the event loop
-            optimizer = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER)
+            # Network must be initialized at this point (load_network succeeded above)
             if self.network is None:
-                msg = "Network not initialized"
-                raise ValueError(msg)
+                msg = "Network was not properly initialized"
+                raise RuntimeError(msg)
+
+            optimizer = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER)
             _LOGGER.debug(
                 "Running optimization for network with %d elements using %s solver",
                 len(self.network.elements),

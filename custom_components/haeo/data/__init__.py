@@ -29,6 +29,12 @@ async def load_network(
 ) -> Network | None:
     """Return a fully-populated `Network`.
 
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry
+        period_seconds: Optimization period in seconds
+        n_periods: Number of periods
+
     Raises:
         ValueError: when required sensor/forecast data is missing.
 
@@ -80,12 +86,21 @@ async def load_network(
         period_time = origin_time + timedelta(seconds=period_seconds * i)
         forecast_times.append(int(period_time.timestamp()))
 
-    # Build network
-    net = Network(name=f"haeo_network_{entry.entry_id}", period=period_seconds, n_periods=n_periods)
+    # ==================================================================================
+    # Unit boundary: seconds → hours
+    # ==================================================================================
+    # The coordinator and data loading layers work in seconds (practical for timestamps).
+    # The model/optimization layer works in hours (necessary for kW·h = kWh math).
+    # This is where we convert period from seconds to hours for the model layer.
+    # ==================================================================================
+    period_hours = period_seconds / 3600
+
+    # Build network with period in hours
+    net = Network(name=f"haeo_network_{entry.entry_id}", period=period_hours, n_periods=n_periods)
 
     # Get the data for each participant and add to the network
     # This converts from Schema mode (with entity IDs) to Data mode (with loaded values)
-    for name, config in participant_configs.items():
+    for config in participant_configs.values():
         # Load all fields using the high-level config_load function
         loaded_params = await config_load(
             config,

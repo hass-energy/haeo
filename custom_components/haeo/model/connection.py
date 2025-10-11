@@ -13,7 +13,7 @@ class Connection:
     def __init__(
         self,
         name: str,
-        period: int,  # noqa: ARG002 this is needed for consistency with other elements
+        period: float,
         n_periods: int,
         *,
         source: str,
@@ -25,12 +25,12 @@ class Connection:
 
         Args:
             name: Name of the connection
-            period: Time period in seconds
+            period: Time period in hours
             n_periods: Number of time periods
             source: Name of the source element
             target: Name of the target element
-            min_power: Minimum power flow (negative for bidirectional)
-            max_power: Maximum power flow
+            min_power: Minimum power flow in kW (negative for bidirectional)
+            max_power: Maximum power flow in kW
 
         """
         self.name = name

@@ -14,7 +14,7 @@ class Grid(Element):
     def __init__(
         self,
         name: str,
-        period: int,
+        period: float,
         n_periods: int,
         *,
         import_limit: float | None = None,
@@ -26,12 +26,12 @@ class Grid(Element):
 
         Args:
             name: Name of the grid connection
-            period: Time period in seconds
+            period: Time period in hours
             n_periods: Number of time periods
-            import_limit: Maximum import power in watts
-            export_limit: Maximum export power in watts
-            import_price: Price per watt when importing
-            export_price: Price per watt when exporting
+            import_limit: Maximum import power in kW
+            export_limit: Maximum export power in kW
+            import_price: Price in $/kWh when importing
+            export_price: Price in $/kWh when exporting
 
         """
 

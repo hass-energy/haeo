@@ -5,6 +5,7 @@ from datetime import datetime
 import logging
 from typing import Literal
 
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 from homeassistant.util.dt import as_utc
 
@@ -18,6 +19,8 @@ class Parser:
     """Parser for Amber Electric pricing forecast data."""
 
     DOMAIN: Format = DOMAIN
+    UNIT: str = "$/kWh"  # Amber Electric prices are in $/kWh
+    DEVICE_CLASS: SensorDeviceClass = SensorDeviceClass.MONETARY
 
     @staticmethod
     def detect(state: State) -> bool:

@@ -5,6 +5,8 @@ from datetime import datetime
 import logging
 from typing import Literal
 
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.const import UnitOfPower
 from homeassistant.core import State
 from homeassistant.util.dt import as_utc
 
@@ -18,6 +20,8 @@ class Parser:
     """Parser for Solcast solar forecast data."""
 
     DOMAIN: Format = DOMAIN
+    UNIT: str = UnitOfPower.KILO_WATT  # Solcast returns kW
+    DEVICE_CLASS: SensorDeviceClass = SensorDeviceClass.POWER
 
     @staticmethod
     def detect(state: State) -> bool:

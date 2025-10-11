@@ -14,7 +14,7 @@ class Photovoltaics(Element):
     def __init__(
         self,
         name: str,
-        period: int,
+        period: float,
         n_periods: int,
         *,
         forecast: Sequence[float],
@@ -26,11 +26,11 @@ class Photovoltaics(Element):
 
         Args:
             name: Name of the photovoltaics system
-            period: Time period in seconds
+            period: Time period in hours
             n_periods: Number of time periods
-            forecast: Forecasted power generation in watts
-            price_production: Price per watt for production
-            price_consumption: Price per watt for consumption (if applicable)
+            forecast: Forecasted power generation in kW
+            price_production: Price in $/kWh for production
+            price_consumption: Price in $/kWh for consumption (if applicable)
             curtailment: Whether generation can be curtailed below forecast
 
         """

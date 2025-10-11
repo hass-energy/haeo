@@ -23,10 +23,17 @@ _LOGGER = logging.getLogger(__name__)
 
 @dataclass
 class Network:
-    """Network class for electrical system modeling."""
+    """Network class for electrical system modeling.
+
+    All values use kW-based units for numerical stability:
+    - Power: kW
+    - Energy: kWh
+    - Time: hours
+    - Price: $/kWh
+    """
 
     name: str
-    period: int
+    period: float  # Period in hours
     n_periods: int
     elements: dict[str, Element] = field(default_factory=dict)
     sensor_data_available: bool = True
@@ -142,7 +149,7 @@ class Network:
         try:
             with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
                 # Solve the problem
-                status = prob.solve(solver)
+                status = prob.solve(solver)  # type: ignore[no-untyped-call]
         except Exception as e:
             # Log captured output if available
             if stdout_capture.getvalue():
@@ -162,7 +169,7 @@ class Network:
                 _LOGGER.debug("Optimization stderr: %s", stderr_content)
 
         if status == 1:  # Optimal solution found
-            objective_value = value(prob.objective) if prob.objective is not None else 0.0
+            objective_value = value(prob.objective) if prob.objective is not None else 0.0  # type: ignore[no-untyped-call]
             # Handle PuLP return types - value() can return various types
             return float(objective_value) if isinstance(objective_value, (int, float)) else 0.0
 

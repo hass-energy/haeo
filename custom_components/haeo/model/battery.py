@@ -12,7 +12,7 @@ class Battery(Element):
     def __init__(
         self,
         name: str,
-        period: int,
+        period: float,
         n_periods: int,
         *,
         capacity: float,
@@ -29,20 +29,20 @@ class Battery(Element):
 
         Args:
             name: Name of the battery
-            period: Time period in seconds
+            period: Time period in hours
             n_periods: Number of time periods
-            capacity: Battery capacity in watt-hours
+            capacity: Battery capacity in kWh
             initial_charge_percentage: Initial charge percentage (0-100), defaults to min_charge_percentage
             min_charge_percentage: Minimum allowed charge percentage
             max_charge_percentage: Maximum allowed charge percentage
-            max_charge_power: Maximum charging power in watts
-            max_discharge_power: Maximum discharging power in watts
+            max_charge_power: Maximum charging power in kW
+            max_discharge_power: Maximum discharging power in kW
             efficiency: Battery efficiency (0-1)
-            charge_cost: Cost per watt when charging
-            discharge_cost: Cost per watt when discharging
+            charge_cost: Cost in $/kWh when charging
+            discharge_cost: Cost in $/kWh when discharging
 
         """
-        self.capacity = capacity  # Store capacity in watt-hours
+        self.capacity = capacity  # Store capacity in kWh
 
         # Use provided initial charge percentage or default to minimum charge percentage
         if initial_charge_percentage is None:

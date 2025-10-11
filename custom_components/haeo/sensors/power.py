@@ -55,7 +55,7 @@ class HaeoPowerSensor(HaeoSensorBase):
         self.data_source = data_source
         self._attr_translation_key = translation_key
         self._attr_device_class = SensorDeviceClass.POWER
-        self._attr_native_unit_of_measurement = UnitOfPower.WATT
+        self._attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property

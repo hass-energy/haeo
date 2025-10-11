@@ -40,7 +40,7 @@ class HaeoEnergySensor(HaeoSensorBase):
         )
         self.element_name = element_name
         self._attr_device_class = SensorDeviceClass.ENERGY_STORAGE
-        self._attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
+        self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_translation_key = translation_key
 

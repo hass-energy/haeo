@@ -8,15 +8,15 @@ import pulp
 def convert_to_base_unit(value: float, from_unit: str | None, device_class: SensorDeviceClass | None) -> float:
     """Convert *value* expressed in *from_unit* to the canonical base unit.
 
-    Power   → Watt (W)
-    Energy  → Watt-hour (Wh)
-    Storage → Watt-hour (Wh)
+    Power   → Kilowatt (kW)
+    Energy  → Kilowatt-hour (kWh)
+    Storage → Kilowatt-hour (kWh)
     All other classes are returned unchanged.
     """
     base_units = {
-        SensorDeviceClass.POWER: UnitOfPower.WATT,
-        SensorDeviceClass.ENERGY: UnitOfEnergy.WATT_HOUR,
-        SensorDeviceClass.ENERGY_STORAGE: UnitOfEnergy.WATT_HOUR,
+        SensorDeviceClass.POWER: UnitOfPower.KILO_WATT,
+        SensorDeviceClass.ENERGY: UnitOfEnergy.KILO_WATT_HOUR,
+        SensorDeviceClass.ENERGY_STORAGE: UnitOfEnergy.KILO_WATT_HOUR,
     }
 
     if device_class in base_units:
