@@ -13,17 +13,17 @@ HAEO follows the Unix philosophy: **do one thing and do it well**.
 
 ### What HAEO Does
 
-✅ **Energy optimization** using linear programming  
-✅ **Network modeling** with flexible topology  
+✅ **Energy optimization** using linear programming
+✅ **Network modeling** with flexible topology
 ✅ **Integration** with Home Assistant's sensor ecosystem
 
 ### What HAEO Doesn't Do
 
 HAEO focuses exclusively on optimization and **will not** add features outside this scope:
 
-❌ **Solar forecasting** - Use existing integrations like [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) or [Solcast](https://github.com/BJReplay/ha-solcast-solar)  
-❌ **Price fetching** - Use integrations like Amber Electric, Nordpool, or Tibber  
-❌ **Device control** - Use Home Assistant automations  
+❌ **Solar forecasting** - Use existing integrations like [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) or [Solcast](https://github.com/BJReplay/ha-solcast-solar)
+❌ **Price fetching** - Use integrations like Amber Electric, Nordpool, or Tibber
+❌ **Device control** - Use Home Assistant automations
 ❌ **Load forecasting** - Use existing integrations or template sensors
 
 This focused approach means:
