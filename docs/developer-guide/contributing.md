@@ -32,6 +32,7 @@ All checks must pass before merging.
 ## Documentation
 
 Update documentation for:
+
 - New features
 - Configuration changes
 - API modifications
@@ -48,5 +49,3 @@ uv run mkdocs serve
 2. Ensure all tests pass
 3. Update documentation
 4. Request review
-
-See [CONTRIBUTING.md](../../CONTRIBUTING.md) for details.

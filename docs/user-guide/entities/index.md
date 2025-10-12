@@ -108,7 +108,7 @@ Example: `sensor.solar_forecast_today`, `sensor.solar_forecast_tomorrow`
 Example: `sensor.load_forecast_today`, `sensor.load_forecast_tomorrow`
 
 !!! info "Forecast Format"
-Forecast sensors should provide attributes with timestamped power values. See the [forecast sensor documentation](../../reference/sensors.md#forecast-sensors) for details.
+Forecast sensors should provide attributes with timestamped power values. See the [Forecasts & Sensors guide](../forecasts-and-sensors.md) for details.
 
 ## Sensor Requirements
 
