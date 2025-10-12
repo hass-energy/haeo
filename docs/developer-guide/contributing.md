@@ -37,6 +37,33 @@ Update documentation for:
 - Configuration changes
 - API modifications
 
+### Markdown Formatting
+
+Write all markdown files using semantic line breaks.
+Follow the [Semantic Line Breaks specification (SemBr)](https://sembr.org/).
+This makes git diffs cleaner and pull request reviews easier.
+
+**Guidelines:**
+
+- Break lines after each sentence (., !, ?)
+- Break lines after independent clauses when it improves clarity (,, ;, :, —)
+- Break lines before lists
+- **Never break lines based on column count or character limits**
+- Break lines only at semantic boundaries
+- If a line exceeds ~120 characters, it's likely a sign that the prose needs simplification or restructuring
+
+**Example:**
+
+```markdown
+All human beings are born free and equal in dignity and rights.
+They are endowed with reason and conscience and should act towards one another in a spirit of brotherhood.
+```
+
+The rendered output remains unchanged,
+but the source is easier to edit and review.
+
+### Building Documentation
+
 Build docs locally:
 
 ```bash

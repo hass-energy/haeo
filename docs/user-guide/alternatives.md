@@ -1,6 +1,7 @@
 # HAEO vs Alternatives
 
-If you're considering energy optimization solutions for Home Assistant, you may have encountered other projects. This page compares HAEO with alternatives to help you make an informed choice.
+If you're considering energy optimization solutions for Home Assistant, you may have encountered other projects.
+This page compares HAEO with alternatives to help you make an informed choice.
 
 ## Quick Comparison
 

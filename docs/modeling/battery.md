@@ -22,7 +22,8 @@ For each time step $t \in \{0, 1, \ldots, T-1\}$, HAEO creates optimization vari
 - $P_{\text{discharge}}(t)$: Discharging power (kW) - implemented as `{name}_power_production_{t}`
 - $E(t)$: Energy stored in battery (kWh) - implemented as `{name}_energy_{t}`
 
-These variables are created using PuLP's `LpVariable` with bounds that enforce the power and energy limits described below.
+These variables are created using PuLP's `LpVariable`.
+They have bounds that enforce the power and energy limits described below.
 
 ### Parameters
 
@@ -41,13 +42,16 @@ The battery model requires these configuration parameters:
 
 #### Energy Balance
 
-The core of the battery model is the energy balance constraint that relates the battery's energy level across time steps:
+The core of the battery model is the energy balance constraint.
+It relates the battery's energy level across time steps:
 
 $$
 E(t+1) = E(t) + \left( P_{\text{charge}}(t) \cdot \sqrt{\eta} - \frac{P_{\text{discharge}}(t)}{\sqrt{\eta}} \right) \cdot \Delta t
 $$
 
-**Efficiency modeling**: HAEO splits the round-trip efficiency symmetrically - using $\sqrt{\eta}$ for charging and $1/\sqrt{\eta}$ for discharging ensures the round-trip efficiency is exactly $\eta$. This approach distributes losses equally between charging and discharging operations.
+**Efficiency modeling**: HAEO splits the round-trip efficiency symmetrically.
+Using $\sqrt{\eta}$ for charging and $1/\sqrt{\eta}$ for discharging ensures the round-trip efficiency is exactly $\eta$.
+This approach distributes losses equally between charging and discharging operations.
 
 This is implemented as:
 
@@ -88,19 +92,23 @@ $$
 \end{align}
 $$
 
-**Note**: While the battery can charge OR discharge, it won't do both simultaneously. Although not explicitly constrained, the optimizer naturally avoids simultaneous charging and discharging since it would waste energy due to efficiency losses.
+**Note**: While the battery can charge OR discharge, it won't do both simultaneously.
+Although not explicitly constrained, the optimizer naturally avoids simultaneous charging and discharging.
+This is because it would waste energy due to efficiency losses.
 
 These bounds are enforced when creating the power variables.
 
 ### Cost Contribution
 
-Battery operation can include charge and discharge costs to model degradation:
+Battery operation can include charge and discharge costs.
+They model degradation:
 
 $$
 \text{Battery Cost} = \sum_{t=0}^{T-1} \left( P_{\text{charge}}(t) \cdot c_{\text{charge}} + P_{\text{discharge}}(t) \cdot c_{\text{discharge}} \right) \cdot \Delta t
 $$
 
-Where $c_{\text{charge}}$ and $c_{\text{discharge}}$ (in \$/kWh) represent the marginal cost of battery usage. These costs are added to the objective function:
+Where $c_{\text{charge}}$ and $c_{\text{discharge}}$ (in \$/kWh) represent the marginal cost of battery usage.
+These costs are added to the objective function:
 
 ```python
 if charge_cost is not None:

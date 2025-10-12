@@ -1,6 +1,7 @@
 # Grid Configuration
 
-The grid entity represents your connection to the electricity network. It allows bidirectional power flow: importing (buying) electricity and exporting (selling) electricity.
+The grid entity represents your connection to the electricity network.
+It allows bidirectional power flow: importing (buying) electricity and exporting (selling) electricity.
 
 ## Overview
 
@@ -54,7 +55,8 @@ HAEO automatically merges multiple forecasts into a continuous timeline.
 
 !!! info "Forecast Sensors Required"
 
-    Grid pricing **must** be provided via forecast sensors. Even for fixed pricing, create a forecast sensor that returns a constant value.
+    Grid pricing **must** be provided via forecast sensors.
+    Even for fixed pricing, create a forecast sensor that returns a constant value.
 
     See [Forecasts & Sensors](../forecasts-and-sensors.md) for examples of creating constant-price forecast sensors and time-of-use tariff sensors.
 
@@ -111,7 +113,8 @@ Use this to model:
 
 !!! warning "Regulatory Limits"
 
-    Some jurisdictions limit export to a percentage of import capacity, or prohibit export entirely. Configure accordingly.
+    Some jurisdictions limit export to a percentage of import capacity, or prohibit export entirely.
+    Configure accordingly.
 
 ## Configuration Examples
 
@@ -170,7 +173,8 @@ Import Limit: 0.001 kW # Minimal import allowed
 
 ## Forecast Integration Compatibility
 
-HAEO works with any Home Assistant integration that provides forecast attributes. Common integrations for electricity pricing:
+HAEO works with any Home Assistant integration that provides forecast attributes.
+Common integrations for electricity pricing:
 
 - Amber Electric (Australia)
 - Nordpool (Europe)
@@ -312,7 +316,8 @@ graph LR
     DC_Net <-->|Inverter<br/>Connection| AC_Net
 ```
 
-The connection between DC and AC nets represents the inverter, with connection power limits matching the inverter rating.
+The connection between DC and AC nets represents the inverter.
+Connection power limits should match the inverter rating.
 
 See [Connection Configuration](../connections.md#hybrid-inverters) for details.
 

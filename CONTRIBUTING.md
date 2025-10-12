@@ -1,6 +1,7 @@
 # Contribution guidelines
 
-Contributing to this project should be as easy and transparent as possible, whether it's:
+Contributing to this project should be as easy and transparent as possible.
+We welcome contributions in many forms, whether it's:
 
 - Reporting a bug
 - Discussing the current state of the code
@@ -50,7 +51,8 @@ See the [Developer Guide](https://ha-energy-optimiser.github.io/haeo/developer-g
 
 ## Any contributions you make will be under the MIT Software License
 
-In short, when you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project. Feel free to contact the maintainers if that's a concern.
+In short, when you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project.
+Feel free to contact the maintainers if that's a concern.
 
 ## Report bugs using Github's [issues](../../issues)
 
@@ -63,8 +65,8 @@ Report a bug by [opening a new issue](../../issues/new/choose); it's that easy!
 
 - A quick summary and/or background
 - Steps to reproduce
-  - Be specific!
-  - Give sample code if you can.
+    - Be specific!
+    - Give sample code if you can.
 - What you expected would happen
 - What actually happens
 - Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
@@ -72,6 +74,8 @@ Report a bug by [opening a new issue](../../issues/new/choose); it's that easy!
 People _love_ thorough bug reports. I'm not even kidding.
 
 ## Use a Consistent Coding Style
+
+### Python Code
 
 Use [ruff](https://github.com/astral-sh/ruff) to make sure the code follows the style:
 
@@ -82,6 +86,35 @@ uv run ruff check custom_components/ tests/
 # Auto-format code
 uv run ruff format custom_components/ tests/
 ```
+
+### JavaScript, JSON, and YAML
+
+Use [Prettier](https://prettier.io/) for JavaScript, JSON, and YAML files:
+
+```bash
+# Check formatting
+npx prettier@3 --check .
+
+# Auto-format
+npx prettier@3 --write .
+```
+
+### Markdown
+
+Use [mdformat](https://mdformat.readthedocs.io/) with [mdformat-mkdocs](https://github.com/KyleKing/mdformat-mkdocs) for markdown files:
+
+```bash
+# Check markdown formatting
+uv run mdformat --check .
+
+# Auto-format markdown
+uv run mdformat docs/ .
+```
+
+Configuration is in `[tool.mdformat]` section of `pyproject.toml`.
+
+**Why mdformat-mkdocs?** It understands MkDocs-specific syntax like admonitions (`!!! info`), tabs, and other Material theme features.
+Standard markdown formatters would break these features.
 
 ## Test your code modification
 

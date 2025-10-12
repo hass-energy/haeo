@@ -36,6 +36,19 @@ jobs:
           uvx ruff format --diff \
             | reviewdog -f=diff -name="ruff format" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
+      - name: Prettier
+        if: ${{ !cancelled() }}
+        run: |
+          npx --yes prettier@3 --check . \
+            | reviewdog -f=prettier -name="prettier" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
+
+      - name: Markdown Format
+        if: ${{ !cancelled() }}
+        run: |
+          uvx mdformat .
+          git diff \
+            | reviewdog -f=diff -name="mdformat" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
+
       - name: Lint
         if: ${{ !cancelled() }}
         run: |

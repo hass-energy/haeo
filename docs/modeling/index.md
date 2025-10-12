@@ -1,10 +1,13 @@
 # Mathematical Modeling
 
-This section explains how HAEO models your energy system using linear programming to find the optimal power flow that minimizes costs.
+This section explains how HAEO models your energy system.
+It uses linear programming to find the optimal power flow that minimizes costs.
 
 ## What is Linear Programming?
 
-Linear programming (LP) is an optimization technique that finds the best outcome in a mathematical model with linear relationships. HAEO uses LP to determine the optimal power flow across your energy network.
+Linear programming (LP) is an optimization technique.
+It finds the best outcome in a mathematical model with linear relationships.
+HAEO uses LP to determine the optimal power flow across your energy network.
 
 ### Why Linear Programming?
 
@@ -92,7 +95,8 @@ $$
 \sum*{\text{inflow}} P*{\text{in}}(t) = \sum*{\text{outflow}} P*{\text{out}}(t)
 $$
 
-This is Kirchhoff's current law applied to power flow. See the [power balance documentation](power-balance.md) for details.
+This is Kirchhoff's current law applied to power flow.
+See the [power balance documentation](power-balance.md) for details.
 
 ### Cost Calculation
 
@@ -106,7 +110,10 @@ See the [objective function documentation](objective-function.md) for the comple
 
 ## How to Read This Section
 
-Each modeling page explains both the mathematical formulation and implementation details in a single, coherent narrative. The documentation uses mathematical notation alongside code examples to provide a complete understanding of how HAEO models each component.
+Each modeling page explains both the mathematical formulation and implementation details.
+They form a single, coherent narrative.
+The documentation uses mathematical notation alongside code examples.
+This provides a complete understanding of how HAEO models each component.
 
 ## Topics Covered
 
@@ -186,7 +193,8 @@ HAEO uses specific unit conventions for numerical stability:
 - **Energy**: kilowatt-hours (kWh)
 - **Time**: hours (h)
 
-This choice keeps numbers in similar ranges (avoiding very large or very small values) which improves solver performance and numerical accuracy.
+This choice keeps numbers in similar ranges (avoiding very large or very small values).
+It improves solver performance and numerical accuracy.
 
 See the [units documentation](../developer-guide/units.md) for detailed explanation.
 

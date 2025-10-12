@@ -2,7 +2,8 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration) [![GitHub Release](https://img.shields.io/github/release/ha-energy-optimiser/haeo.svg)](https://github.com/ha-energy-optimiser/haeo/releases) [![License](https://img.shields.io/github/license/ha-energy-optimiser/haeo.svg)](LICENSE) [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://ha-energy-optimiser.github.io/haeo/)
 
-HAEO (Home Assistant Energy Optimization) is a custom integration that optimizes your home's energy usage in real-time using linear programming. It helps you minimize energy costs by intelligently managing battery storage, solar generation, grid import/export, and loads based on electricity prices, forecasts, and system constraints.
+HAEO (Home Assistant Energy Optimization) is a custom integration that optimizes your home's energy usage in real-time using linear programming.
+It helps you minimize energy costs by intelligently managing battery storage, solar generation, grid import/export, and loads based on electricity prices, forecasts, and system constraints.
 
 ## 🎯 Project Philosophy
 
@@ -54,7 +55,9 @@ This focused approach means:
 
 ## 🎯 How It Works
 
-HAEO builds an energy network model from your configured devices and uses linear programming to find the optimal power flow that minimizes your total energy cost over a configurable time horizon (default 48 hours).
+HAEO builds an energy network model from your configured devices.
+It uses linear programming to find the optimal power flow.
+This minimizes your total energy cost over a configurable time horizon (default 48 hours).
 
 ### The Optimization Process
 
@@ -193,7 +196,8 @@ Balance these based on your hardware and use case.
 
 ### Solar + Battery + Grid
 
-Optimize when to charge your battery from solar vs. grid based on electricity prices, and when to discharge to maximize savings.
+Optimize when to charge your battery from solar vs. grid based on electricity prices.
+This determines when to discharge to maximize savings.
 
 ### Time-of-Use Pricing
 
@@ -253,4 +257,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Note**: This integration performs optimization calculations that may be computationally intensive for large networks or long time horizons. Monitor your Home Assistant instance's performance and adjust configuration as needed.
+**Note**: This integration performs optimization calculations that may be computationally intensive for large networks or long time horizons.
+Monitor your Home Assistant instance's performance.
+Adjust configuration as needed.

@@ -1,6 +1,7 @@
 # Net Entity Configuration
 
-Net entities are virtual nodes that represent power balance points in your network. They don't physically exist but serve as connection hubs.
+Net entities are virtual nodes that represent power balance points in your network.
+They don't physically exist but serve as connection hubs.
 
 ## Purpose
 

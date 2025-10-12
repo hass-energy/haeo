@@ -1,6 +1,7 @@
 # Entity Types
 
-Entities are the building blocks of your HAEO energy network. Each entity represents a physical device or logical grouping in your energy system.
+Entities are the building blocks of your HAEO energy network.
+Each entity represents a physical device or logical grouping in your energy system.
 
 ## Available Entity Types
 
@@ -110,7 +111,8 @@ Example: `sensor.load_forecast_today`, `sensor.load_forecast_tomorrow`
 
 !!! info "Forecast Format"
 
-    Forecast sensors should provide attributes with timestamped power values. See the [Forecasts & Sensors guide](../forecasts-and-sensors.md) for details.
+    Forecast sensors should provide attributes with timestamped power values.
+    See the [Forecasts & Sensors guide](../forecasts-and-sensors.md) for details.
 
 ## Sensor Requirements
 
@@ -147,7 +149,8 @@ For forecast-based pricing, see the [grid configuration guide](grid.md#dynamic-p
 
 ### Forecast Sensors
 
-Forecast sensors must provide future timestamped values in attributes. HAEO supports several common forecast integration formats:
+Forecast sensors must provide future timestamped values in attributes.
+HAEO supports several common forecast integration formats:
 
 - **[Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast)**
 - **Solcast Solar**
@@ -176,7 +179,8 @@ See individual entity pages for detailed forecast configuration.
 
 !!! warning "Sensor Entity IDs"
 
-Editing an entity's name will change its sensor entity IDs. Update any automations or dashboards that reference the old sensor names.
+Editing an entity's name will change its sensor entity IDs.
+Update any automations or dashboards that reference the old sensor names.
 
 ### Deletion
 
@@ -187,7 +191,8 @@ Editing an entity's name will change its sensor entity IDs. Update any automatio
 
 !!! danger "Cascade Effects"
 
-    Removing an entity removes all connections involving that entity. Ensure your network remains [properly connected](../troubleshooting.md#graph-isnt-connected-properly) after removal.
+    Removing an entity removes all connections involving that entity.
+    Ensure your network remains [properly connected](../troubleshooting.md#graph-isnt-connected-properly) after removal.
 
 ## Best Practices
 

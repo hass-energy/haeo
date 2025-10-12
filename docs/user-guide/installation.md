@@ -12,7 +12,8 @@ Before installing HAEO, ensure you have:
 
 !!! info "Solver Information"
 
-    HAEO uses the [PuLP](https://github.com/coin-or/pulp) library for linear programming, which includes the HiGHS solver by default. No additional solver installation is required for basic usage.
+    HAEO uses the [PuLP](https://github.com/coin-or/pulp) library for linear programming, which includes the HiGHS solver by default.
+    No additional solver installation is required for basic usage.
 
 ## Method 1: HACS Installation (Recommended)
 
@@ -97,7 +98,8 @@ Now that HAEO is installed, you're ready to configure your first energy network:
 
 ## Advanced: Additional Solvers
 
-While HiGHS (included with PuLP) is sufficient for most use cases, you can install additional solvers for potentially better performance on large problems:
+While HiGHS (included with PuLP) is sufficient for most use cases, you can install additional solvers.
+They may provide better performance on large problems:
 
 !!! note "Optional Solvers"
 
@@ -143,7 +145,9 @@ See the [LP Solvers reference](../reference/solvers.md) for detailed solver info
 
 !!! warning "Breaking Changes"
 
-    Always check the [release notes](https://github.com/ha-energy-optimiser/haeo/releases) before updating, especially for major version changes. Some updates may require configuration adjustments.
+    Always check the [release notes](https://github.com/ha-energy-optimiser/haeo/releases) before updating.
+    Pay special attention to major version changes.
+    Some updates may require configuration adjustments.
 
 ## Uninstalling HAEO
 

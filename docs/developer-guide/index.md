@@ -1,6 +1,7 @@
 # Developer Guide
 
-Welcome to the HAEO developer documentation! This section covers architecture, development setup, and contribution guidelines.
+Welcome to the HAEO developer documentation!
+This section covers architecture, development setup, and contribution guidelines.
 
 ## Quick Start
 

@@ -1,6 +1,7 @@
 # Battery Configuration
 
-Batteries are energy storage devices that can charge (store energy) and discharge (release energy). HAEO optimizes when to charge and discharge based on electricity prices, solar availability, and system constraints.
+Batteries are energy storage devices that can charge (store energy) and discharge (release energy).
+HAEO optimizes when to charge and discharge based on electricity prices, solar availability, and system constraints.
 
 ## Overview
 
@@ -78,7 +79,8 @@ Operating range for battery SOC:
     - One-way efficiency = √0.97 ≈ **98.5%**
     - Configure as: `Efficiency: 98.5`
 
-HAEO models efficiency as symmetric losses on both charging and discharging. The one-way efficiency is applied to each operation:
+HAEO models efficiency as symmetric losses on both charging and discharging.
+The one-way efficiency is applied to each operation:
 
 - **Charging**: Only 98.5% of input energy is stored
 - **Discharging**: Only 98.5% of stored energy is output
@@ -106,7 +108,8 @@ If not specified, power is unconstrained (limited only by other system constrain
 
 !!! info "Asymmetric Limits"
 
-    Some systems have different charge and discharge power limits. Configure them independently for accurate optimization.
+    Some systems have different charge and discharge power limits.
+    Configure them independently for accurate optimization.
 
 ### Charge Cost
 
@@ -127,7 +130,9 @@ If not specified, power is unconstrained (limited only by other system constrain
 
 !!! tip "Temporal Diminishing"
 
-    The charge cost diminishes linearly over the forecast horizon. Early charging gets more negative (bigger bonus) or less positive (smaller penalty), encouraging proactive battery management.
+    The charge cost diminishes linearly over the forecast horizon.
+    Early charging gets more negative (bigger bonus) or less positive (smaller penalty).
+    This encourages proactive battery management.
 
 **Most users** should leave this at 0 or set slightly negative to encourage charging.
 
@@ -151,7 +156,9 @@ If not specified, power is unconstrained (limited only by other system constrain
 
 !!! info "Fluttering Prevention"
 
-    Without discharge cost, tiny price changes (e.g., 0.1 cent/kWh) can cause the optimizer to cycle the battery repeatedly. A small discharge cost prevents this behavior while still allowing beneficial charging/discharging.
+    Without discharge cost, tiny price changes (e.g., 0.1 cent/kWh) can cause the optimizer to cycle the battery repeatedly.
+    A small discharge cost prevents this behavior.
+    It still allows beneficial charging/discharging.
 
 **Most users** should set this to a small positive value like `0.001` to prevent fluttering.
 
@@ -176,7 +183,8 @@ Discharge Cost: 0.001 $/kWh # Prevent fluttering
 
 ### State of Charge Tracking
 
-HAEO reads your SOC sensor at the start of each optimization and projects how SOC changes over the horizon based on charge/discharge decisions.
+HAEO reads your SOC sensor at the start of each optimization.
+It projects how SOC changes over the horizon based on charge/discharge decisions.
 
 ### Optimization Strategy
 
@@ -215,7 +223,8 @@ Each sensor includes forecast attributes with future timestamped values for visu
 
 If your battery remains idle:
 
-1. **Check price forecasts**: HAEO needs price variation to optimize (see [forecasts page](../forecasts-and-sensors.md))
+1. **Check price forecasts**: HAEO needs price variation to optimize.
+   See the [forecasts page](../forecasts-and-sensors.md) for details.
 2. **Verify SOC sensor**: Ensure it's reporting correctly
 3. **Review constraints**: Too-tight SOC limits may prevent operation
 4. **Check connections**: Battery must be [connected](../connections.md) to the network

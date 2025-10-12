@@ -1,6 +1,7 @@
 # Configuration
 
-This guide explains how to configure your first HAEO energy network through the Home Assistant UI.
+This guide explains how to configure your first HAEO energy network.
+It uses the Home Assistant UI.
 
 ## Overview
 
@@ -265,7 +266,9 @@ While not strictly enforced, your network should form a connected graph for mean
 
 !!! warning "Disconnected Networks"
 
-If your network has isolated subgraphs (entities not connected to others), HAEO will still optimize but may produce unexpected results. Use the [troubleshooting guide](troubleshooting.md#graph-isnt-connected-properly) to diagnose connectivity issues.
+If your network has isolated subgraphs (entities not connected to others), HAEO will still optimize.
+It may produce unexpected results.
+Use the [troubleshooting guide](troubleshooting.md#graph-isnt-connected-properly) to diagnose connectivity issues.
 
 ## Best Practices
 

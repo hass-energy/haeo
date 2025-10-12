@@ -1,10 +1,12 @@
 # Linear Programming Overview
 
-Introduction to linear programming and optimization concepts used by HAEO.
+Introduction to linear programming and optimization concepts.
+These are used by HAEO.
 
 ## What is Linear Programming?
 
-Linear programming (LP) is a method to achieve the best outcome in a mathematical model whose requirements are represented by linear relationships.
+Linear programming (LP) is a method to achieve the best outcome in a mathematical model.
+Its requirements are represented by linear relationships.
 
 ## Key Components
 

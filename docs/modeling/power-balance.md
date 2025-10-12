@@ -36,4 +36,5 @@ for t in range(n_periods):
     problem += inflow == outflow
 ```
 
-Each connection contributes its power variable to either the inflow or outflow sum, and the LP solver ensures these are equal at every time step.
+Each connection contributes its power variable to either the inflow or outflow sum.
+The LP solver ensures these are equal at every time step.

@@ -84,7 +84,8 @@ See the [Open-Meteo Solar Forecast documentation](https://github.com/rany2/ha-op
 
     !!! info "Battery SOC Sensor"
 
-        Replace `sensor.sigenergy_battery_soc` with your actual Sigenergy battery state of charge sensor entity ID. Find it in Developer Tools → States.
+        Replace `sensor.sigenergy_battery_soc` with your actual Sigenergy battery state of charge sensor entity ID.
+        Find it in Developer Tools → States.
 
 4. Click **Submit**
 

@@ -1,6 +1,8 @@
 # HAEO - Home Assistant Energy Optimization
 
-Welcome to the HAEO documentation! HAEO is a Home Assistant custom integration that optimizes your home's energy usage in real-time using linear programming. It helps you minimize energy costs by intelligently managing battery storage, solar generation, grid import/export, and loads based on electricity prices, forecasts, and system constraints.
+Welcome to the HAEO documentation!
+HAEO is a Home Assistant custom integration that optimizes your home's energy usage in real-time using linear programming.
+It helps you minimize energy costs by intelligently managing battery storage, solar generation, grid import/export, and loads based on electricity prices, forecasts, and system constraints.
 
 ## Quick Links
 
@@ -73,7 +75,8 @@ See the [optimization overview](modeling/overview.md) for detailed information.
 
 ### Real-time Optimization
 
-HAEO continuously monitors your energy system and recalculates the optimal strategy as conditions change. With configurable update intervals and time horizons, you can balance computational load with optimization quality.
+HAEO continuously monitors your energy system and recalculates the optimal strategy as conditions change.
+With configurable update intervals and time horizons, you can balance computational load with optimization quality.
 
 ### Multiple Device Support
 

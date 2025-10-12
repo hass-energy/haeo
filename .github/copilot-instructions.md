@@ -183,6 +183,7 @@ uv lock --upgrade                      # Update lock file
     ```python
     type MyIntegrationConfigEntry = ConfigEntry[MyClient]
 
+
     async def async_setup_entry(hass: HomeAssistant, entry: MyIntegrationConfigEntry) -> bool:
         client = MyClient(entry.data[CONF_HOST])
         entry.runtime_data = client
@@ -227,6 +228,20 @@ uv lock --upgrade                      # Update lock file
     async def async_setup_entry(hass: HomeAssistant, entry: PeblarConfigEntry) -> bool:
         """Set up Peblar from a config entry."""
     ```
+- **Markdown Formatting**: Use semantic line breaks (one sentence per line)
+    - Follow the [Semantic Line Breaks specification (SemBr)](https://sembr.org/)
+    - This improves git diffs and makes reviewing changes easier
+    - Break lines at semantic boundaries only:
+        - **Required**: After sentences (., !, ?)
+        - **Recommended**: After independent clauses (,, ;, :, —)
+        - **Optional**: After dependent clauses for clarity
+    - **Never break lines based on column count**
+    - If a line exceeds ~120 characters, consider it a sign that the prose may need simplification
+    - Example:
+        ```markdown
+        All human beings are born free and equal in dignity and rights.
+        They are endowed with reason and conscience and should act towards one another in a spirit of brotherhood.
+        ```
 - **Comment Style**:
     - Use clear, descriptive comments
     - Explain the "why" not just the "what"
@@ -355,8 +370,7 @@ uv lock --upgrade                      # Update lock file
     await self.async_set_unique_id(user_id)
     self._abort_if_unique_id_mismatch(reason="wrong_account")
     return self.async_update_reload_and_abort(
-        self._get_reauth_entry(),
-        data_updates={CONF_API_TOKEN: user_input[CONF_API_TOKEN]}
+        self._get_reauth_entry(), data_updates={CONF_API_TOKEN: user_input[CONF_API_TOKEN]}
     )
     ```
 
@@ -421,18 +435,18 @@ uv lock --upgrade                      # Update lock file
 - **Entity Services**: Register on platform setup
     ```python
     platform.async_register_entity_service(
-        "my_entity_service",
-        {vol.Required("parameter"): cv.string},
-        "handle_service_method"
+        "my_entity_service", {vol.Required("parameter"): cv.string}, "handle_service_method"
     )
     ```
 - **Service Schema**: Always validate input
     ```python
-    SERVICE_SCHEMA = vol.Schema({
-        vol.Required("entity_id"): cv.entity_ids,
-        vol.Required("parameter"): cv.string,
-        vol.Optional("timeout", default=30): cv.positive_int,
-    })
+    SERVICE_SCHEMA = vol.Schema(
+        {
+            vol.Required("entity_id"): cv.entity_ids,
+            vol.Required("parameter"): cv.string,
+            vol.Optional("timeout", default=30): cv.positive_int,
+        }
+    )
     ```
 - **Services File**: Create `services.yaml` with descriptions and field definitions
 
@@ -508,12 +522,14 @@ uv lock --upgrade                      # Update lock file
     except Exception:  # Too broad
         _LOGGER.error("Failed")
 
+
     # ✅ Allowed in config flow for robustness
     async def async_step_user(self, user_input=None):
         try:
             await self._test_connection(user_input)
         except Exception:  # Allowed here
             errors["base"] = "unknown"
+
 
     # ✅ Allowed in background tasks
     async def _background_refresh():
@@ -602,7 +618,9 @@ uv lock --upgrade                      # Update lock file
     SensorEntityDescription(
         key="temperature",
         name="Temperature",
-        value_fn=lambda data: round(data["temp_value"] * 1.8 + 32, 1) if data.get("temp_value") is not None else None,  # ❌ Too long
+        value_fn=lambda data: round(data["temp_value"] * 1.8 + 32, 1)
+        if data.get("temp_value") is not None
+        else None,  # ❌ Too long
     )
     ```
 - **Good pattern**:
@@ -611,9 +629,7 @@ uv lock --upgrade                      # Update lock file
         key="temperature",
         name="Temperature",
         value_fn=lambda data: (  # ✅ Parenthesis on same line as lambda
-            round(data["temp_value"] * 1.8 + 32, 1)
-            if data.get("temp_value") is not None
-            else None
+            round(data["temp_value"] * 1.8 + 32, 1) if data.get("temp_value") is not None else None
         ),
     )
     ```
@@ -625,6 +641,7 @@ uv lock --upgrade                      # Update lock file
     ```python
     class MySensor(SensorEntity):
         _attr_has_entity_name = True
+
         def __init__(self, device: Device, field: str) -> None:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, device.id)},
@@ -640,9 +657,7 @@ uv lock --upgrade                      # Update lock file
     ```python
     async def async_added_to_hass(self) -> None:
         """Subscribe to events."""
-        self.async_on_remove(
-            self.client.events.subscribe("my_event", self._handle_event)
-        )
+        self.async_on_remove(self.client.events.subscribe("my_event", self._handle_event))
     ```
 - **Unsubscribe in `async_will_remove_from_hass`** if not using `async_on_remove`
 - Never subscribe in `__init__` or other methods
@@ -713,6 +728,7 @@ uv lock --upgrade                      # Update lock file
             known_devices.update(new_devices)
             async_add_entities([MySensor(coordinator, device_id) for device_id in new_devices])
 
+
     entry.async_on_unload(coordinator.async_add_listener(_check_device))
     ```
 
@@ -739,9 +755,8 @@ uv lock --upgrade                      # Update lock file
     ```python
     TO_REDACT = [CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE]
 
-    async def async_get_config_entry_diagnostics(
-        hass: HomeAssistant, entry: MyConfigEntry
-    ) -> dict[str, Any]:
+
+    async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: MyConfigEntry) -> dict[str, Any]:
         """Return diagnostics for a config entry."""
         return {
             "entry_data": async_redact_data(entry.data, TO_REDACT),
@@ -795,7 +810,9 @@ uv lock --upgrade                      # Update lock file
 - **Additional Attributes**:
     ```python
     ir.async_create_issue(
-        hass, DOMAIN, "issue_id",
+        hass,
+        DOMAIN,
+        "issue_id",
         breaks_in_ha_version="2024.1.0",
         is_fixable=True,
         is_persistent=True,
@@ -1042,14 +1059,17 @@ except ApiException as err:
 # Redacted diagnostics data
 return async_redact_data(data, {"api_key", "password"})  # ✅ Safe
 
+
 # Test through proper integration setup and fixtures
 @pytest.fixture
 async def init_integration(hass, mock_config_entry, mock_api):
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)  # ✅ Proper setup
 
+
 # Integration-determined polling intervals (not user-configurable)
 SCAN_INTERVAL = timedelta(minutes=5)  # ✅ Common pattern: constant in const.py
+
 
 class MyCoordinator(DataUpdateCoordinator[MyData]):
     def __init__(self, hass: HomeAssistant, client: MyClient, config_entry: ConfigEntry) -> None:
@@ -1092,28 +1112,21 @@ class MySensor(SensorEntity):
 ```python
 async def test_user_flow_success(hass, mock_api):
     """Test successful user flow."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
 
     # Test form submission
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input=TEST_USER_INPUT
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input=TEST_USER_INPUT)
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "My Device"
     assert result["data"] == TEST_USER_INPUT
 
+
 async def test_flow_connection_error(hass, mock_api_error):
     """Test connection error handling."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input=TEST_USER_INPUT
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input=TEST_USER_INPUT)
     assert result["type"] == FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
 ```
@@ -1125,6 +1138,7 @@ async def test_flow_connection_error(hass, mock_api_error):
 def platforms() -> list[Platform]:
     """Overridden fixture to specify platforms to test."""
     return [Platform.SENSOR]  # Or another specific platform as needed.
+
 
 @pytest.mark.usefixtures("entity_registry_enabled_by_default", "init_integration")
 async def test_entities(
@@ -1138,13 +1152,9 @@ async def test_entities(
     await snapshot_platform(hass, entity_registry, snapshot, mock_config_entry.entry_id)
 
     # Ensure entities are correctly assigned to device
-    device_entry = device_registry.async_get_device(
-        identifiers={(DOMAIN, "device_unique_id")}
-    )
+    device_entry = device_registry.async_get_device(identifiers={(DOMAIN, "device_unique_id")})
     assert device_entry
-    entity_entries = er.async_entries_for_config_entry(
-        entity_registry, mock_config_entry.entry_id
-    )
+    entity_entries = er.async_entries_for_config_entry(entity_registry, mock_config_entry.entry_id)
     for entity_entry in entity_entries:
         assert entity_entry.device_id == device_entry.id
 ```
@@ -1163,20 +1173,21 @@ def mock_config_entry() -> MockConfigEntry:
         unique_id="device_unique_id",
     )
 
+
 @pytest.fixture
 def mock_device_api() -> Generator[MagicMock]:
     """Return a mocked device API."""
     with patch("homeassistant.components.my_integration.MyDeviceAPI", autospec=True) as api_mock:
         api = api_mock.return_value
-        api.get_data.return_value = MyDeviceData.from_json(
-            load_fixture("device_data.json", DOMAIN)
-        )
+        api.get_data.return_value = MyDeviceData.from_json(load_fixture("device_data.json", DOMAIN))
         yield api
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
     """Fixture to specify platforms to test."""
     return PLATFORMS
+
 
 @pytest.fixture
 async def init_integration(

@@ -94,7 +94,9 @@ Max Power: 5 kW # 5kW discharging (DC→AC)
 
 The connection limits represent the inverter's power rating.
 
-!!! tip "Power Limits: Elements vs Connections" - **Element limits** (battery charge/discharge rates) represent device capabilities - **Connection limits** (inverter ratings) represent power flow constraints
+!!! tip "Power Limits: Elements vs Connections"
+    - **Element limits** (battery charge/discharge rates) represent device capabilities.
+    - **Connection limits** (inverter ratings) represent power flow constraints.
 
     Both are respected during optimization.
 

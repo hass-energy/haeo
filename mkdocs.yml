@@ -65,15 +65,6 @@ plugins:
   - git-revision-date-localized:
       enable_creation_date: true
       type: timeago
-  # mkdocstrings disabled - using manual API docs instead
-  # Uncomment and configure if you want auto-generated API docs from docstrings
-  # - mkdocstrings:
-  #     handlers:
-  #       python:
-  #         paths: [.]
-  #         options:
-  #           docstring_style: google
-  #           show_source: true
 
 markdown_extensions:
   # Python Markdown
@@ -126,10 +117,12 @@ extra:
     provider: mike
 
 extra_javascript:
-  - javascripts/mathjax.js
-  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+  - javascripts/katex.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js
 
 extra_css:
+  - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css
   - stylesheets/extra.css
 
 nav:
@@ -177,20 +170,6 @@ nav:
       - Coordinator: developer-guide/coordinator.md
       - Testing: developer-guide/testing.md
       - Contributing: developer-guide/contributing.md
-
-  - API Reference:
-      - api/index.md
-      - Coordinator: api/coordinator.md
-      - Config Flow: api/config-flow.md
-      - Model:
-          - Network: api/model/network.md
-          - Battery: api/model/battery.md
-          - Grid: api/model/grid.md
-          - Loads: api/model/loads.md
-          - Photovoltaics: api/model/photovoltaics.md
-          - Connections: api/model/connections.md
-      - Sensors: api/sensors.md
-      - Data Loaders: api/data-loaders.md
 
   - Reference:
       - reference/index.md

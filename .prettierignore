@@ -1,0 +1,9 @@
+# Ignore everything by default
+*
+!*/
+!*.json
+!*.js
+!*.yaml
+!*.yml
+!*.css
+# .md files are handled by mdformat

@@ -43,7 +43,8 @@ scenario_name/
 ./tests/scenarios/filter_states.py states.json -o scenario/states.json --patterns-from-file sensors.txt
 
 # Multiple patterns from file
-./tests/scenarios/filter_states.py http://ha.local:8123 -o scenario/states.json sensor.battery_soc sensor.import_price sensor.house_load
+./tests/scenarios/filter_states.py http://ha.local:8123 \
+     -o scenario/states.json sensor.battery_soc sensor.import_price sensor.house_load
 ```
 
 ## Basic Configuration

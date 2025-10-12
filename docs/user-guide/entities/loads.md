@@ -1,6 +1,7 @@
 # Load Configuration
 
-Loads represent electricity consumption in your system. HAEO supports two types: constant loads (fixed power) and forecast loads (variable power).
+Loads represent electricity consumption in your system.
+HAEO supports two types: constant loads (fixed power) and forecast loads (variable power).
 
 ## Constant Load
 

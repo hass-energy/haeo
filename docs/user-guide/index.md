@@ -1,6 +1,7 @@
 # User Guide
 
-Welcome to the HAEO User Guide! This section will help you install, configure, and use HAEO to optimize your home's energy usage.
+Welcome to the HAEO User Guide!
+This section will help you install, configure, and use HAEO to optimize your home's energy usage.
 
 ## What You'll Learn
 
@@ -45,7 +46,7 @@ flowchart TD
     E --> F[Define Connections]
     F --> G[View Optimization Results]
     G --> H[Create Automations]
-    
+
     click A "installation.html"
     click B "configuration.html"
     click C "entities/battery.html"

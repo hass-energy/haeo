@@ -1,6 +1,7 @@
 # Photovoltaics Configuration
 
-Photovoltaics (solar panels) generate electricity from sunlight. HAEO optimizes how this generated power is used.
+Photovoltaics (solar panels) generate electricity from sunlight.
+HAEO optimizes how this generated power is used.
 
 ## Configuration Fields
 
