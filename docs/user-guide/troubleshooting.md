@@ -52,12 +52,12 @@ HAEO combines them automatically.
 
 #### Common Integrations
 
-| Integration | Forecast Length |
-|------------|-----------------|
-| Open-Meteo Solar Forecast | 7 days |
-| Solcast | 7 days |
-| Amber Electric | 48 hours |
-| Custom Sensors | Varies |
+| Integration               | Forecast Length |
+| ------------------------- | --------------- |
+| Open-Meteo Solar Forecast | 7 days          |
+| Solcast                   | 7 days          |
+| Amber Electric            | 48 hours        |
+| Custom Sensors            | Varies          |
 
 ## Graph Isn't Connected Properly
 
@@ -191,6 +191,7 @@ If these solutions don't help:
 3. **Discussions**: [Ask for help](https://github.com/ha-energy-optimiser/haeo/discussions)
 
 Include:
+
 - Home Assistant version
 - HAEO version
 - Configuration (sanitized)

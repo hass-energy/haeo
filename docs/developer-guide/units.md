@@ -6,18 +6,19 @@ HAEO uses specific unit conventions for numerical stability and solver performan
 
 HAEO uses SI-derived units scaled for energy systems:
 
-| Quantity | Unit | Rationale |
-|----------|------|-----------|
-| Power | kilowatts (kW) | Typical household range: 0.1-20 kW |
-| Energy | kilowatt-hours (kWh) | Battery capacities: 5-100 kWh |
-| Time | hours (h) | Natural for energy calculations |
-| Price | dollars per kWh ($/kWh) | Standard electricity pricing |
+| Quantity | Unit                     | Rationale                          |
+| -------- | ------------------------ | ---------------------------------- |
+| Power    | kilowatts (kW)           | Typical household range: 0.1-20 kW |
+| Energy   | kilowatt-hours (kWh)     | Battery capacities: 5-100 kWh      |
+| Time     | hours (h)                | Natural for energy calculations    |
+| Price    | dollars per kWh (\$/kWh) | Standard electricity pricing       |
 
 ## Why Not Watts and Watt-hours?
 
 Using watts would create numerical issues:
 
 ❌ **Bad: Using Watts**
+
 ```python
 capacity = 13500  # Wh
 power = 5000  # W
@@ -25,6 +26,7 @@ time = 0.0833  # hours (5 minutes)
 ```
 
 ✅ **Good: Using Kilowatts**
+
 ```python
 capacity = 13.5  # kWh
 power = 5  # kW
@@ -40,10 +42,11 @@ Linear programming solvers work best when:
 3. **Avoiding very small numbers** (< 10⁻⁶)
 
 Our unit choice keeps values in the ideal range:
+
 - Battery energy: 5-100 kWh
 - Power flows: 0.1-20 kW
 - Time steps: 0.0833-1 hours
-- Prices: 0.05-0.50 $/kWh
+- Prices: 0.05-0.50 \$/kWh
 
 ## Energy Calculations
 
@@ -78,6 +81,7 @@ When loading data from Home Assistant sensors:
 ```python
 from homeassistant.const import UnitOfPower, UnitOfEnergy
 
+
 def convert_to_kw(value: float, unit: str) -> float:
     """Convert power to kW."""
     if unit == UnitOfPower.WATT:
@@ -109,7 +113,7 @@ def add_battery(
     period: float,  # hours
 ) -> None:
     """Add battery to network.
-    
+
     Args:
         capacity: Battery capacity in kWh (typical: 5-100)
         max_power: Maximum power in kW (typical: 3-10)

@@ -21,14 +21,14 @@ If you're considering energy optimization solutions for Home Assistant, you may 
 
 ### Strengths
 
-✅ **Native Integration**: Full Home Assistant integration
-✅ **UI Configuration**: Everything configurable through HA's UI
-✅ **Flexible Topology**: Model any network structure with connections
-✅ **Active Development**: Regular updates and bug fixes
-✅ **Modern Codebase**: Python 3.13+, type-safe, well-tested
-✅ **Extensible**: Easy to add new entity types
-✅ **Sensors**: Rich sensor data with forecast attributes
-✅ **Multiple Entities**: Support for multiple batteries, grids, loads, etc.
+- ✅ **Native Integration**: Full Home Assistant integration
+- ✅ **UI Configuration**: Everything configurable through HA's UI
+- ✅ **Flexible Topology**: Model any network structure with connections
+- ✅ **Active Development**: Regular updates and bug fixes
+- ✅ **Modern Codebase**: Python 3.13+, type-safe, well-tested
+- ✅ **Extensible**: Easy to add new entity types
+- ✅ **Sensors**: Rich sensor data with forecast attributes
+- ✅ **Multiple Entities**: Support for multiple batteries, grids, loads, etc.
 
 ### Best For
 
@@ -56,17 +56,17 @@ WattWise is an AppDaemon-based energy management system for Home Assistant.
 
 ### Strengths
 
-✅ AppDaemon-based (if you already use AppDaemon)
-✅ Designed for Tibber integration
-✅ Simpler for basic setups
+- ✅ AppDaemon-based (if you already use AppDaemon)
+- ✅ Designed for Tibber integration
+- ✅ Simpler for basic setups
 
 ### Limitations
 
-❌ **Unmaintained**: No active development or bug fixes
-❌ **AppDaemon Dependency**: Requires AppDaemon installation and maintenance
-❌ **Fixed Structure**: Less flexible than HAEO for custom topologies
-❌ **Configuration**: File-based configuration only
-❌ **Limited Documentation**: Harder to get started
+- ❌ **Unmaintained**: No active development or bug fixes
+- ❌ **AppDaemon Dependency**: Requires AppDaemon installation and maintenance
+- ❌ **Fixed Structure**: Less flexible than HAEO for custom topologies
+- ❌ **Configuration**: File-based configuration only
+- ❌ **Limited Documentation**: Harder to get started
 
 ### Best For
 
@@ -97,19 +97,19 @@ EMHASS (Energy Management for Home Assistant) is a Docker add-on for Home Assist
 
 ### Strengths
 
-✅ **Actively Developed**: Regular updates
-✅ **Mature Project**: Well-established in community
-✅ **Web UI**: Configuration through web interface
-✅ **Mixed Integer LP**: Can handle discrete decisions
+- ✅ **Actively Developed**: Regular updates
+- ✅ **Mature Project**: Well-established in community
+- ✅ **Web UI**: Configuration through web interface
+- ✅ **Mixed Integer LP**: Can handle discrete decisions
 
 ### Limitations
 
-❌ **Add-on Only**: Requires Home Assistant OS or Supervised
-❌ **Rigid Configuration**: Less flexible than HAEO
-❌ **Fixed Topology**: Predefined system structure
-❌ **Complex Setup**: Configuration can be challenging
-❌ **Limited Multi-Entity Support**: Harder to model multiple batteries/arrays
-❌ **External Integration**: Shell commands and REST calls vs native sensors
+- ❌ **Add-on Only**: Requires Home Assistant OS or Supervised
+- ❌ **Rigid Configuration**: Less flexible than HAEO
+- ❌ **Fixed Topology**: Predefined system structure
+- ❌ **Complex Setup**: Configuration can be challenging
+- ❌ **Limited Multi-Entity Support**: Harder to model multiple batteries/arrays
+- ❌ **External Integration**: Shell commands and REST calls vs native sensors
 
 ### Best For
 

@@ -5,7 +5,10 @@ Net entities are virtual nodes that enforce power balance.
 ## Purpose
 
 A net entity ensures:
-\[ \sum_{\text{inflows}} P_{\text{in}}(t) = \sum_{\text{outflows}} P_{\text{out}}(t) \]
+
+$$
+\sum_{\text{inflows}} P_{\text{in}}(t) = \sum_{\text{outflows}} P_{\text{out}}(t)
+$$
 
 ## Use Cases
 

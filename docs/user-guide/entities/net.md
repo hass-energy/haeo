@@ -13,6 +13,7 @@ Net entities allow you to:
 ## Configuration
 
 ### Name
+
 Unique identifier for the net entity.
 
 **Example**: `Main_Net`, `Distribution_Point`

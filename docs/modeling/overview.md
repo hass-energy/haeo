@@ -16,7 +16,9 @@ Linear programming (LP) is a method to achieve the best outcome in a mathematica
 
 HAEO solves:
 
-\[ \text{minimize} \sum_{t} \text{Cost}(t) \]
+$$
+\text{minimize} \sum_{t} \text{Cost}(t)
+$$
 
 Subject to power balance, energy limits, and power limits.
 

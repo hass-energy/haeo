@@ -1,9 +1,6 @@
 # HAEO - Home Assistant Energy Optimization
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
-[![GitHub Release](https://img.shields.io/github/release/ha-energy-optimiser/haeo.svg)](https://github.com/ha-energy-optimiser/haeo/releases)
-[![License](https://img.shields.io/github/license/ha-energy-optimiser/haeo.svg)](LICENSE)
-[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://ha-energy-optimiser.github.io/haeo/)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration) [![GitHub Release](https://img.shields.io/github/release/ha-energy-optimiser/haeo.svg)](https://github.com/ha-energy-optimiser/haeo/releases) [![License](https://img.shields.io/github/license/ha-energy-optimiser/haeo.svg)](LICENSE) [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://ha-energy-optimiser.github.io/haeo/)
 
 HAEO (Home Assistant Energy Optimization) is a custom integration that optimizes your home's energy usage in real-time using linear programming. It helps you minimize energy costs by intelligently managing battery storage, solar generation, grid import/export, and loads based on electricity prices, forecasts, and system constraints.
 
@@ -13,18 +10,18 @@ HAEO follows the Unix philosophy: **do one thing and do it well**.
 
 ### What HAEO Does
 
-✅ **Energy optimization** using linear programming
-✅ **Network modeling** with flexible topology
-✅ **Integration** with Home Assistant's sensor ecosystem
+- ✅ **Energy optimization** using linear programming
+- ✅ **Network modeling** with flexible topology
+- ✅ **Integration** with Home Assistant's sensor ecosystem
 
 ### What HAEO Doesn't Do
 
 HAEO focuses exclusively on optimization and **will not** add features outside this scope:
 
-❌ **Solar forecasting** - Use existing integrations like [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) or [Solcast](https://github.com/BJReplay/ha-solcast-solar)
-❌ **Price fetching** - Use integrations like Amber Electric, Nordpool, or Tibber
-❌ **Device control** - Use Home Assistant automations
-❌ **Load forecasting** - Use existing integrations or template sensors
+- ❌ **Solar forecasting** - Use existing integrations like [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) or [Solcast](https://github.com/BJReplay/ha-solcast-solar)
+- ❌ **Price fetching** - Use integrations like Amber Electric, Nordpool, or Tibber
+- ❌ **Device control** - Use Home Assistant automations
+- ❌ **Load forecasting** - Use existing integrations or template sensors
 
 This focused approach means:
 
@@ -105,10 +102,10 @@ HAEO builds an energy network model from your configured devices and uses linear
 2. Click **Add Integration**
 3. Search for **HAEO**
 4. Configure your network:
-   - **Name**: A unique name for your energy network
-   - **Horizon Hours**: Optimization time horizon (1-168 hours, default 48)
-   - **Period Minutes**: Time step for optimization (1-60 minutes, default 5)
-   - **Optimizer**: Choose your solver (HiGHS recommended)
+    - **Name**: A unique name for your energy network
+    - **Horizon Hours**: Optimization time horizon (1-168 hours, default 48)
+    - **Period Minutes**: Time step for optimization (1-60 minutes, default 5)
+    - **Optimizer**: Choose your solver (HiGHS recommended)
 
 ### Adding Devices
 
@@ -129,8 +126,8 @@ After creating your network, you can add devices through the integration's optio
 - **Name**: Identifier for grid connection
 - **Import/Export Limits**: Maximum power in kW (optional)
 - **Import/Export Prices**: Fixed prices OR forecast sensor entities
-  - Use live sensors for real-time pricing
-  - Use forecast sensors for time-of-use optimization
+    - Use live sensors for real-time pricing
+    - Use forecast sensors for time-of-use optimization
 
 #### Photovoltaics Configuration
 

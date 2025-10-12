@@ -9,15 +9,16 @@ All entities inherit from `Element`:
 ```python
 from model.element import Element
 
+
 class MyEntity(Element):
-    def __init__(self, name: str, period: float, n_periods: int, ...):
+    def __init__(self, name: str, period: float, n_periods: int, **kwargs):
         super().__init__(
             name=name,
             period=period,
             n_periods=n_periods,
-            power_consumption=[...],  # LP variables
-            power_production=[...],  # LP variables
-            energy=[...],  # LP variables or constants
+            power_consumption=kwargs.get("power_consumption", []),  # LP variables
+            power_production=kwargs.get("power_production", []),  # LP variables
+            energy=kwargs.get("energy", []),  # LP variables or constants
         )
 ```
 
@@ -37,5 +38,5 @@ Create tests in `tests/test_model.py`:
 def test_my_entity():
     entity = MyEntity(name="test", period=1.0, n_periods=24)
     assert entity is not None
-    # ... more tests
+    # Add more tests here
 ```

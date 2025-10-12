@@ -35,8 +35,9 @@ The coordinator is created automatically when the integration is set up. It runs
 See the source code in `custom_components/haeo/coordinator.py` for full implementation.
 
 !!! tip "Enabling Full API Docs"
+
     To generate full API documentation with docstrings, set the `ENABLE_MKDOCSTRINGS` environment variable when building docs:
-    
+
     ```bash
     ENABLE_MKDOCSTRINGS=true uv run mkdocs build
     ```

@@ -24,6 +24,7 @@ uv sync
 ```
 
 This installs all development dependencies including:
+
 - pytest (testing)
 - ruff (linting/formatting)
 - mypy (type checking)

@@ -5,12 +5,18 @@ How HAEO models energy consumption.
 ## Constant Load
 
 Fixed power consumption:
-\[ P_{\text{load}}(t) = P_{\text{constant}} \quad \forall t \]
+
+$$
+P_{\text{load}}(t) = P_{\text{constant}} \quad \forall t
+$$
 
 ## Forecast Load
 
 Variable power from forecast data:
-\[ P_{\text{load}}(t) = P_{\text{forecast}}(t) \]
+
+$$
+P_{\text{load}}(t) = P_{\text{forecast}}(t)
+$$
 
 Forecasts are provided by Home Assistant sensors.
 

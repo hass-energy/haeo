@@ -4,14 +4,17 @@ How HAEO models power flow constraints between entities.
 
 ## Power Flow Variable
 
-Each connection has a power variable \(P_c(t)\).
+Each connection has a power variable $P_c(t)$.
 
 ## Constraints
 
 Optional min/max limits:
-\[ P_{\min} \leq P_c(t) \leq P_{\max} \]
 
-Negative \(P_{\min}\) allows bidirectional flow.
+$$
+P_{\min} \leq P_c(t) \leq P_{\max}
+$$
+
+Negative $P_{\min}$ allows bidirectional flow.
 
 ## Integration
 

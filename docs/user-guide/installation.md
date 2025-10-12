@@ -11,6 +11,7 @@ Before installing HAEO, ensure you have:
 - **Linear Programming Solver**: HiGHS solver is included with PuLP (no additional setup needed)
 
 !!! info "Solver Information"
+
     HAEO uses the [PuLP](https://github.com/coin-or/pulp) library for linear programming, which includes the HiGHS solver by default. No additional solver installation is required for basic usage.
 
 ## Method 1: HACS Installation (Recommended)
@@ -99,6 +100,7 @@ Now that HAEO is installed, you're ready to configure your first energy network:
 While HiGHS (included with PuLP) is sufficient for most use cases, you can install additional solvers for potentially better performance on large problems:
 
 !!! note "Optional Solvers"
+
     These are **optional** and only recommended for advanced users with large networks or long time horizons.
 
 ### CBC Solver
@@ -140,6 +142,7 @@ See the [LP Solvers reference](../reference/solvers.md) for detailed solver info
 3. Restart Home Assistant
 
 !!! warning "Breaking Changes"
+
     Always check the [release notes](https://github.com/ha-energy-optimiser/haeo/releases) before updating, especially for major version changes. Some updates may require configuration adjustments.
 
 ## Uninstalling HAEO
@@ -155,6 +158,7 @@ See the [LP Solvers reference](../reference/solvers.md) for detailed solver info
 ### Remove Files
 
 Via HACS:
+
 1. Open HACS → Integrations
 2. Find HAEO
 3. Click the three dots (⋮)
@@ -162,6 +166,7 @@ Via HACS:
 5. Restart Home Assistant
 
 Manual removal:
+
 1. Delete the `custom_components/haeo` directory
 2. Restart Home Assistant
 
@@ -197,4 +202,3 @@ chmod -R 755 custom_components/haeo
 ```
 
 See the [troubleshooting page](troubleshooting.md) for more common issues and solutions.
-

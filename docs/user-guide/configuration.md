@@ -30,7 +30,8 @@ You'll see the network configuration form with these fields:
 A unique name for your energy network (e.g., "Home Energy System").
 
 !!! tip "Multiple Networks"
-You can create multiple separate networks if you have distinct energy systems (e.g., main house and guest house).
+
+    You can create multiple separate networks if you have distinct energy systems (e.g., main house and guest house).
 
 #### Horizon Hours
 
@@ -41,7 +42,8 @@ The optimization time horizon in hours (1-168).
 - **Longer (72-168h)**: Better long-term decisions, slower computation
 
 !!! info "Choosing a Horizon"
-Consider your forecast availability:
+
+    Consider your forecast availability:
 
     - If you have 24-hour price forecasts, use at least 24 hours
     - If you have 48-hour solar forecasts, use 48 hours or more
@@ -56,7 +58,8 @@ The time step for optimization in minutes (1-60).
 - **Larger (15-60min)**: Faster solving, coarser control
 
 !!! warning "Computational Impact"
-Smaller periods create more optimization variables:
+
+    Smaller periods create more optimization variables:
 
     - 5-minute periods over 48 hours = 576 time steps
     - 15-minute periods over 48 hours = 192 time steps
@@ -82,7 +85,8 @@ See the [LP Solvers reference](../reference/solvers.md) for detailed comparisons
 Click **Submit** to create your network. HAEO will create the network device and initial sensors.
 
 !!! success "Network Created"
-You'll see a success message and HAEO will appear in your integrations list.
+
+    You'll see a success message and HAEO will appear in your integrations list.
 
 ## Adding Entities
 
@@ -118,7 +122,8 @@ Each entity type has its own configuration requirements. See the detailed guides
 - [Net Entity Configuration](entities/net.md)
 
 !!! tip "Configuration Order"
-We recommend adding entities in this order:
+
+    We recommend adding entities in this order:
 
     1. Grid (your connection to the electricity network)
     2. Battery (if you have one)
@@ -208,7 +213,8 @@ See the [Understanding Results guide](optimization.md) for details on interpreti
 5. Click **Submit**
 
 !!! warning "Reconfiguration Impact"
-Modifying entities triggers a new optimization. Sensors may show "unknown" briefly while recalculating.
+
+    Modifying entities triggers a new optimization. Sensors may show "unknown" briefly while recalculating.
 
 ### Removing Entities
 
@@ -218,7 +224,8 @@ Modifying entities triggers a new optimization. Sensors may show "unknown" brief
 4. Confirm removal
 
 !!! danger "Cascade Effects"
-Removing an entity that has connections will also remove those connections. Ensure your network remains connected.
+
+    Removing an entity that has connections will also remove those connections. Ensure your network remains connected.
 
 ### Removing Connections
 
@@ -235,28 +242,29 @@ HAEO validates your configuration to prevent common errors:
 
 Each entity must have a unique name within the network.
 
-❌ **Invalid**: Two batteries named "Battery"
-✅ **Valid**: "Battery1" and "Battery2"
+- ❌ **Invalid**: Two batteries named "Battery"
+- ✅ **Valid**: "Battery1" and "Battery2"
 
 ### Connection Validity
 
 Connections must reference existing entities.
 
-❌ **Invalid**: Connection from "Battery" to "Solar" when "Solar" doesn't exist
-✅ **Valid**: Connection only created after both entities exist
+- ❌ **Invalid**: Connection from "Battery" to "Solar" when "Solar" doesn't exist
+- ✅ **Valid**: Connection only created after both entities exist
 
 ### Power Limits
 
 Min/max power values must be logical.
 
-❌ **Invalid**: Max power < Min power
-✅ **Valid**: Min ≤ Max
+- ❌ **Invalid**: Max power < Min power
+- ✅ **Valid**: Min ≤ Max
 
 ### Network Connectivity
 
 While not strictly enforced, your network should form a connected graph for meaningful optimization.
 
 !!! warning "Disconnected Networks"
+
 If your network has isolated subgraphs (entities not connected to others), HAEO will still optimize but may produce unexpected results. Use the [troubleshooting guide](troubleshooting.md#graph-isnt-connected-properly) to diagnose connectivity issues.
 
 ## Best Practices
@@ -298,19 +306,19 @@ Now that you understand the basics, dive into configuring specific entity types:
 
 - [Battery Configuration](entities/battery.md)
 
-  Configure battery storage with capacity, SOC, and efficiency settings.
+    Configure battery storage with capacity, SOC, and efficiency settings.
 
 - [Grid Configuration](entities/grid.md)
 
-  Set up grid import/export with pricing and power limits.
+    Set up grid import/export with pricing and power limits.
 
 - [Solar Configuration](entities/photovoltaics.md)
 
-  Configure photovoltaics with forecast integration.
+    Configure photovoltaics with forecast integration.
 
 - [Load Configuration](entities/loads.md)
 
-  Set up constant or forecast-based loads.
+    Set up constant or forecast-based loads.
 
 </div>
 

@@ -15,6 +15,7 @@ HAEO re-optimizes periodically, incorporating updated forecasts and current stat
 ## Forecast Integration
 
 Forecasts provide future values for:
+
 - Electricity prices
 - Solar generation
 - Load consumption

@@ -109,19 +109,19 @@ uv lock --upgrade                      # Update lock file
 
 - **Compatibility**: Python 3.13+
 - **Language Features**: Use the newest features when possible:
-  - Pattern matching
-  - Type hints (modern union syntax `str | None` vs `Optional[str]`)
-  - f-strings (preferred over `%` or `.format()`)
-  - Dataclasses
-  - Walrus operator
+    - Pattern matching
+    - Type hints (modern union syntax `str | None` vs `Optional[str]`)
+    - f-strings (preferred over `%` or `.format()`)
+    - Dataclasses
+    - Walrus operator
 
 ### Strict Typing (Platinum)
 
 - **Comprehensive Type Hints**: Add type hints to all functions, methods, and variables
 - **Custom Config Entry Types**: When using runtime_data:
-  ```python
-  type MyIntegrationConfigEntry = ConfigEntry[MyClient]
-  ```
+    ```python
+    type MyIntegrationConfigEntry = ConfigEntry[MyClient]
+    ```
 - **Library Requirements**: Include `py.typed` file for PEP-561 compliance
 
 ## Code Quality Standards
@@ -140,9 +140,9 @@ uv lock --upgrade                      # Update lock file
 - **Inclusivity**: Use objective, non-discriminatory language
 - **Clarity**: Write for non-native English speakers
 - **Formatting in Messages**:
-  - Use backticks for: file paths, filenames, variable names, field entries
-  - Use sentence case for titles and messages (capitalize only the first word and proper nouns)
-  - Avoid abbreviations when possible
+    - Use backticks for: file paths, filenames, variable names, field entries
+    - Use sentence case for titles and messages (capitalize only the first word and proper nouns)
+    - Avoid abbreviations when possible
 
 ## Code Organization
 
@@ -150,43 +150,43 @@ uv lock --upgrade                      # Update lock file
 
 - Shared constants: `homeassistant/const.py` (use these instead of hardcoding)
 - Integration structure:
-  - `homeassistant/components/{domain}/const.py` - Constants
-  - `homeassistant/components/{domain}/models.py` - Data models
-  - `homeassistant/components/{domain}/coordinator.py` - Update coordinator
-  - `homeassistant/components/{domain}/config_flow.py` - Configuration flow
-  - `homeassistant/components/{domain}/{platform}.py` - Platform implementations
+    - `homeassistant/components/{domain}/const.py` - Constants
+    - `homeassistant/components/{domain}/models.py` - Data models
+    - `homeassistant/components/{domain}/coordinator.py` - Update coordinator
+    - `homeassistant/components/{domain}/config_flow.py` - Configuration flow
+    - `homeassistant/components/{domain}/{platform}.py` - Platform implementations
 
 ### Common Modules
 
 - **coordinator.py**: Centralize data fetching logic
-  ```python
-  class MyCoordinator(DataUpdateCoordinator[MyData]):
-      def __init__(self, hass: HomeAssistant, client: MyClient, config_entry: ConfigEntry) -> None:
-          super().__init__(
-              hass,
-              logger=LOGGER,
-              name=DOMAIN,
-              update_interval=timedelta(minutes=1),
-              config_entry=config_entry,  # ✅ Pass config_entry - it's accepted and recommended
-          )
-  ```
+    ```python
+    class MyCoordinator(DataUpdateCoordinator[MyData]):
+        def __init__(self, hass: HomeAssistant, client: MyClient, config_entry: ConfigEntry) -> None:
+            super().__init__(
+                hass,
+                logger=LOGGER,
+                name=DOMAIN,
+                update_interval=timedelta(minutes=1),
+                config_entry=config_entry,  # ✅ Pass config_entry - it's accepted and recommended
+            )
+    ```
 - **entity.py**: Base entity definitions to reduce duplication
-  ```python
-  class MyEntity(CoordinatorEntity[MyCoordinator]):
-      _attr_has_entity_name = True
-  ```
+    ```python
+    class MyEntity(CoordinatorEntity[MyCoordinator]):
+        _attr_has_entity_name = True
+    ```
 
 ### Runtime Data Storage
 
 - **Use ConfigEntry.runtime_data**: Store non-persistent runtime data
 
-  ```python
-  type MyIntegrationConfigEntry = ConfigEntry[MyClient]
+    ```python
+    type MyIntegrationConfigEntry = ConfigEntry[MyClient]
 
-  async def async_setup_entry(hass: HomeAssistant, entry: MyIntegrationConfigEntry) -> bool:
-      client = MyClient(entry.data[CONF_HOST])
-      entry.runtime_data = client
-  ```
+    async def async_setup_entry(hass: HomeAssistant, entry: MyIntegrationConfigEntry) -> bool:
+        client = MyClient(entry.data[CONF_HOST])
+        entry.runtime_data = client
+    ```
 
 ### Manifest Requirements
 
@@ -198,49 +198,49 @@ uv lock --upgrade                      # Update lock file
 
 - **Version Control**: Always set `VERSION = 1` and `MINOR_VERSION = 1`
 - **Unique ID Management**:
-  ```python
-  await self.async_set_unique_id(device_unique_id)
-  self._abort_if_unique_id_configured()
-  ```
+    ```python
+    await self.async_set_unique_id(device_unique_id)
+    self._abort_if_unique_id_configured()
+    ```
 - **Error Handling**: Define errors in `strings.json` under `config.error`
 - **Step Methods**: Use standard naming (`async_step_user`, `async_step_discovery`, etc.)
 
 ### Integration Ownership
 
 - **manifest.json**: Add GitHub usernames to `codeowners`:
-  ```json
-  {
-    "domain": "my_integration",
-    "name": "My Integration",
-    "codeowners": ["@me"]
-  }
-  ```
+    ```json
+    {
+      "domain": "my_integration",
+      "name": "My Integration",
+      "codeowners": ["@me"]
+    }
+    ```
 
 ### Documentation Standards
 
 - **File Headers**: Short and concise
-  ```python
-  """Integration for Peblar EV chargers."""
-  ```
+    ```python
+    """Integration for Peblar EV chargers."""
+    ```
 - **Method/Function Docstrings**: Required for all
-  ```python
-  async def async_setup_entry(hass: HomeAssistant, entry: PeblarConfigEntry) -> bool:
-      """Set up Peblar from a config entry."""
-  ```
+    ```python
+    async def async_setup_entry(hass: HomeAssistant, entry: PeblarConfigEntry) -> bool:
+        """Set up Peblar from a config entry."""
+    ```
 - **Comment Style**:
-  - Use clear, descriptive comments
-  - Explain the "why" not just the "what"
-  - Keep code block lines under 80 characters when possible
-  - Use progressive disclosure (simple explanation first, complex details later)
+    - Use clear, descriptive comments
+    - Explain the "why" not just the "what"
+    - Keep code block lines under 80 characters when possible
+    - Use progressive disclosure (simple explanation first, complex details later)
 
 ## Async Programming
 
 - All external I/O operations must be async
 - **Best Practices**:
-  - Avoid sleeping in loops
-  - Avoid awaiting in loops - use `gather` instead
-  - No blocking calls
-  - Group executor jobs when possible - switching between event loop and executor is expensive
+    - Avoid sleeping in loops
+    - Avoid awaiting in loops - use `gather` instead
+    - No blocking calls
+    - Group executor jobs when possible - switching between event loop and executor is expensive
 
 ### Async Dependencies (Platinum)
 
@@ -250,31 +250,31 @@ uv lock --upgrade                      # Update lock file
 ### WebSession Injection (Platinum)
 
 - **Pass WebSession**: Support passing web sessions to dependencies
-  ```python
-  async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
-      """Set up integration from config entry."""
-      client = MyClient(entry.data[CONF_HOST], async_get_clientsession(hass))
-  ```
+    ```python
+    async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
+        """Set up integration from config entry."""
+        client = MyClient(entry.data[CONF_HOST], async_get_clientsession(hass))
+    ```
 - For cookies: Use `async_create_clientsession` (aiohttp) or `create_async_httpx_client` (httpx)
 
 ### Blocking Operations
 
 - **Use Executor**: For blocking I/O operations
-  ```python
-  result = await hass.async_add_executor_job(blocking_function, args)
-  ```
+    ```python
+    result = await hass.async_add_executor_job(blocking_function, args)
+    ```
 - **Never Block Event Loop**: Avoid file operations, `time.sleep()`, blocking HTTP calls
 - **Replace with Async**: Use `asyncio.sleep()` instead of `time.sleep()`
 
 ### Thread Safety
 
 - **@callback Decorator**: For event loop safe functions
-  ```python
-  @callback
-  def async_update_callback(self, event):
-      """Safe to run in event loop."""
-      self.async_write_ha_state()
-  ```
+    ```python
+    @callback
+    def async_update_callback(self, event):
+        """Safe to run in event loop."""
+        self.async_write_ha_state()
+    ```
 - **Sync APIs from Threads**: Use sync versions when calling from non-event loop threads
 - **Registry Changes**: Must be done in event loop thread
 
@@ -282,26 +282,27 @@ uv lock --upgrade                      # Update lock file
 
 - **Standard Pattern**: Use for efficient data management
 
-  ```python
-  class MyCoordinator(DataUpdateCoordinator):
-      def __init__(self, hass: HomeAssistant, client: MyClient, config_entry: ConfigEntry) -> None:
-          super().__init__(
-              hass,
-              logger=LOGGER,
-              name=DOMAIN,
-              update_interval=timedelta(minutes=5),
-              config_entry=config_entry,  # ✅ Pass config_entry - it's accepted and recommended
-          )
-          self.client = client
+    ```python
+    class MyCoordinator(DataUpdateCoordinator):
+        def __init__(self, hass: HomeAssistant, client: MyClient, config_entry: ConfigEntry) -> None:
+            super().__init__(
+                hass,
+                logger=LOGGER,
+                name=DOMAIN,
+                update_interval=timedelta(minutes=5),
+                config_entry=config_entry,  # ✅ Pass config_entry - it's accepted and recommended
+            )
+            self.client = client
 
-      async def _async_update_data(self):
-          try:
-              return await self.client.fetch_data()
-          except ApiError as err:
-              raise UpdateFailed(f"API communication error: {err}")
-  ```
+        async def _async_update_data(self):
+            try:
+                return await self.client.fetch_data()
+            except ApiError as err:
+                raise UpdateFailed(f"API communication error: {err}")
+    ```
 
 - **Error Types**: Use `UpdateFailed` for API errors, `ConfigEntryAuthFailed` for auth issues
+
 - **Config Entry**: Always pass `config_entry` parameter to coordinator - it's accepted and recommended
 
 ## Integration Guidelines
@@ -309,46 +310,55 @@ uv lock --upgrade                      # Update lock file
 ### Configuration Flow
 
 - **UI Setup Required**: All integrations must support configuration via UI
+
 - **Manifest**: Set `"config_flow": true` in `manifest.json`
+
 - **Data Storage**:
-  - Connection-critical config: Store in `ConfigEntry.data`
-  - Non-critical settings: Store in `ConfigEntry.options`
+
+    - Connection-critical config: Store in `ConfigEntry.data`
+    - Non-critical settings: Store in `ConfigEntry.options`
+
 - **Validation**: Always validate user input before creating entries
+
 - **Config Entry Naming**:
-  - ❌ Do NOT allow users to set config entry names in config flows
-  - Names are automatically generated or can be customized later in UI
-  - ✅ Exception: Helper integrations MAY allow custom names in config flow
+
+    - ❌ Do NOT allow users to set config entry names in config flows
+    - Names are automatically generated or can be customized later in UI
+    - ✅ Exception: Helper integrations MAY allow custom names in config flow
+
 - **Connection Testing**: Test device/service connection during config flow:
-  ```python
-  try:
-      await client.get_data()
-  except MyException:
-      errors["base"] = "cannot_connect"
-  ```
+
+    ```python
+    try:
+        await client.get_data()
+    except MyException:
+        errors["base"] = "cannot_connect"
+    ```
+
 - **Duplicate Prevention**: Prevent duplicate configurations:
 
-  ```python
-  # Using unique ID
-  await self.async_set_unique_id(identifier)
-  self._abort_if_unique_id_configured()
+    ```python
+    # Using unique ID
+    await self.async_set_unique_id(identifier)
+    self._abort_if_unique_id_configured()
 
-  # Using unique data
-  self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
-  ```
+    # Using unique data
+    self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
+    ```
 
 ### Reauthentication Support
 
 - **Required Method**: Implement `async_step_reauth` in config flow
 - **Credential Updates**: Allow users to update credentials without re-adding
 - **Validation**: Verify account matches existing unique ID:
-  ```python
-  await self.async_set_unique_id(user_id)
-  self._abort_if_unique_id_mismatch(reason="wrong_account")
-  return self.async_update_reload_and_abort(
-      self._get_reauth_entry(),
-      data_updates={CONF_API_TOKEN: user_input[CONF_API_TOKEN]}
-  )
-  ```
+    ```python
+    await self.async_set_unique_id(user_id)
+    self._abort_if_unique_id_mismatch(reason="wrong_account")
+    return self.async_update_reload_and_abort(
+        self._get_reauth_entry(),
+        data_updates={CONF_API_TOKEN: user_input[CONF_API_TOKEN]}
+    )
+    ```
 
 ### Reconfiguration Flow
 
@@ -360,67 +370,70 @@ uv lock --upgrade                      # Update lock file
 
 - **Test Before Setup**: Verify integration can be set up in `async_setup_entry`
 - **Exception Handling**:
-  - `ConfigEntryNotReady`: Device offline or temporary failure
-  - `ConfigEntryAuthFailed`: Authentication issues
-  - `ConfigEntryError`: Unresolvable setup problems
+    - `ConfigEntryNotReady`: Device offline or temporary failure
+    - `ConfigEntryAuthFailed`: Authentication issues
+    - `ConfigEntryError`: Unresolvable setup problems
 
 ### Config Entry Unloading
 
 - **Required**: Implement `async_unload_entry` for runtime removal/reload
 - **Platform Unloading**: Use `hass.config_entries.async_unload_platforms`
 - **Cleanup**: Register callbacks with `entry.async_on_unload`:
-  ```python
-  async def async_unload_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
-      """Unload a config entry."""
-      if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-          entry.runtime_data.listener()  # Clean up resources
-      return unload_ok
-  ```
+    ```python
+    async def async_unload_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
+        """Unload a config entry."""
+        if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+            entry.runtime_data.listener()  # Clean up resources
+        return unload_ok
+    ```
 
 ### Service Actions
 
 - **Registration**: Register all service actions in `async_setup`, NOT in `async_setup_entry`
+
 - **Validation**: Check config entry existence and loaded state:
-  ```python
-  async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-      async def service_action(call: ServiceCall) -> ServiceResponse:
-          if not (entry := hass.config_entries.async_get_entry(call.data[ATTR_CONFIG_ENTRY_ID])):
-              raise ServiceValidationError("Entry not found")
-          if entry.state is not ConfigEntryState.LOADED:
-              raise ServiceValidationError("Entry not loaded")
-  ```
+
+    ```python
+    async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+        async def service_action(call: ServiceCall) -> ServiceResponse:
+            if not (entry := hass.config_entries.async_get_entry(call.data[ATTR_CONFIG_ENTRY_ID])):
+                raise ServiceValidationError("Entry not found")
+            if entry.state is not ConfigEntryState.LOADED:
+                raise ServiceValidationError("Entry not loaded")
+    ```
+
 - **Exception Handling**: Raise appropriate exceptions:
 
-  ```python
-  # For invalid input
-  if end_date < start_date:
-      raise ServiceValidationError("End date must be after start date")
+    ```python
+    # For invalid input
+    if end_date < start_date:
+        raise ServiceValidationError("End date must be after start date")
 
-  # For service errors
-  try:
-      await client.set_schedule(start_date, end_date)
-  except MyConnectionError as err:
-      raise HomeAssistantError("Could not connect to the schedule") from err
-  ```
+    # For service errors
+    try:
+        await client.set_schedule(start_date, end_date)
+    except MyConnectionError as err:
+        raise HomeAssistantError("Could not connect to the schedule") from err
+    ```
 
 ### Service Registration Patterns
 
 - **Entity Services**: Register on platform setup
-  ```python
-  platform.async_register_entity_service(
-      "my_entity_service",
-      {vol.Required("parameter"): cv.string},
-      "handle_service_method"
-  )
-  ```
+    ```python
+    platform.async_register_entity_service(
+        "my_entity_service",
+        {vol.Required("parameter"): cv.string},
+        "handle_service_method"
+    )
+    ```
 - **Service Schema**: Always validate input
-  ```python
-  SERVICE_SCHEMA = vol.Schema({
-      vol.Required("entity_id"): cv.entity_ids,
-      vol.Required("parameter"): cv.string,
-      vol.Optional("timeout", default=30): cv.positive_int,
-  })
-  ```
+    ```python
+    SERVICE_SCHEMA = vol.Schema({
+        vol.Required("entity_id"): cv.entity_ids,
+        vol.Required("parameter"): cv.string,
+        vol.Optional("timeout", default=30): cv.positive_int,
+    })
+    ```
 - **Services File**: Create `services.yaml` with descriptions and field definitions
 
 ### Polling
@@ -429,118 +442,129 @@ uv lock --upgrade                      # Update lock file
 - **Polling intervals are NOT user-configurable**: Never add scan_interval, update_interval, or polling frequency options to config flows or config entries
 - **Integration determines intervals**: Set `update_interval` programmatically based on integration logic, not user input
 - **Minimum Intervals**:
-  - Local network: 5 seconds
-  - Cloud services: 60 seconds
+    - Local network: 5 seconds
+    - Cloud services: 60 seconds
 - **Parallel Updates**: Specify number of concurrent updates:
-  ```python
-  PARALLEL_UPDATES = 1  # Serialize updates to prevent overwhelming device
-  # OR
-  PARALLEL_UPDATES = 0  # Unlimited (for coordinator-based or read-only)
-  ```
+    ```python
+    PARALLEL_UPDATES = 1  # Serialize updates to prevent overwhelming device
+    # OR
+    PARALLEL_UPDATES = 0  # Unlimited (for coordinator-based or read-only)
+    ```
 
 ### Error Handling
 
 - **Exception Types**: Choose most specific exception available
-  - `ServiceValidationError`: User input errors (preferred over `ValueError`)
-  - `HomeAssistantError`: Device communication failures
-  - `ConfigEntryNotReady`: Temporary setup issues (device offline)
-  - `ConfigEntryAuthFailed`: Authentication problems
-  - `ConfigEntryError`: Permanent setup issues
+
+    - `ServiceValidationError`: User input errors (preferred over `ValueError`)
+    - `HomeAssistantError`: Device communication failures
+    - `ConfigEntryNotReady`: Temporary setup issues (device offline)
+    - `ConfigEntryAuthFailed`: Authentication problems
+    - `ConfigEntryError`: Permanent setup issues
+
 - **Try/Catch Best Practices**:
 
-  - Only wrap code that can throw exceptions
-  - Keep try blocks minimal - process data after the try/catch
-  - **Avoid bare exceptions** except in specific cases:
-    - ❌ Generally not allowed: `except:` or `except Exception:`
-    - ✅ Allowed in config flows to ensure robustness
-    - ✅ Allowed in functions/methods that run in background tasks
-  - Bad pattern:
-    ```python
-    try:
-        data = await device.get_data()  # Can throw
-        # ❌ Don't process data inside try block
+    - Only wrap code that can throw exceptions
+
+    - Keep try blocks minimal - process data after the try/catch
+
+    - **Avoid bare exceptions** except in specific cases:
+
+        - ❌ Generally not allowed: `except:` or `except Exception:`
+        - ✅ Allowed in config flows to ensure robustness
+        - ✅ Allowed in functions/methods that run in background tasks
+
+    - Bad pattern:
+
+        ```python
+        try:
+            data = await device.get_data()  # Can throw
+            # ❌ Don't process data inside try block
+            processed = data.get("value", 0) * 100
+            self._attr_native_value = processed
+        except DeviceError:
+            _LOGGER.error("Failed to get data")
+        ```
+
+    - Good pattern:
+
+        ```python
+        try:
+            data = await device.get_data()  # Can throw
+        except DeviceError:
+            _LOGGER.error("Failed to get data")
+            return
+
+        # ✅ Process data outside try block
         processed = data.get("value", 0) * 100
         self._attr_native_value = processed
-    except DeviceError:
-        _LOGGER.error("Failed to get data")
-    ```
-  - Good pattern:
-
-    ```python
-    try:
-        data = await device.get_data()  # Can throw
-    except DeviceError:
-        _LOGGER.error("Failed to get data")
-        return
-
-    # ✅ Process data outside try block
-    processed = data.get("value", 0) * 100
-    self._attr_native_value = processed
-    ```
+        ```
 
 - **Bare Exception Usage**:
 
-  ```python
-  # ❌ Not allowed in regular code
-  try:
-      data = await device.get_data()
-  except Exception:  # Too broad
-      _LOGGER.error("Failed")
+    ```python
+    # ❌ Not allowed in regular code
+    try:
+        data = await device.get_data()
+    except Exception:  # Too broad
+        _LOGGER.error("Failed")
 
-  # ✅ Allowed in config flow for robustness
-  async def async_step_user(self, user_input=None):
-      try:
-          await self._test_connection(user_input)
-      except Exception:  # Allowed here
-          errors["base"] = "unknown"
+    # ✅ Allowed in config flow for robustness
+    async def async_step_user(self, user_input=None):
+        try:
+            await self._test_connection(user_input)
+        except Exception:  # Allowed here
+            errors["base"] = "unknown"
 
-  # ✅ Allowed in background tasks
-  async def _background_refresh():
-      try:
-          await coordinator.async_refresh()
-      except Exception:  # Allowed in task
-          _LOGGER.exception("Unexpected error in background task")
-  ```
+    # ✅ Allowed in background tasks
+    async def _background_refresh():
+        try:
+            await coordinator.async_refresh()
+        except Exception:  # Allowed in task
+            _LOGGER.exception("Unexpected error in background task")
+    ```
 
 - **Setup Failure Patterns**:
-  ```python
-  try:
-      await device.async_setup()
-  except (asyncio.TimeoutError, TimeoutException) as ex:
-      raise ConfigEntryNotReady(f"Timeout connecting to {device.host}") from ex
-  except AuthFailed as ex:
-      raise ConfigEntryAuthFailed(f"Credentials expired for {device.name}") from ex
-  ```
+
+    ```python
+    try:
+        await device.async_setup()
+    except (asyncio.TimeoutError, TimeoutException) as ex:
+        raise ConfigEntryNotReady(f"Timeout connecting to {device.host}") from ex
+    except AuthFailed as ex:
+        raise ConfigEntryAuthFailed(f"Credentials expired for {device.name}") from ex
+    ```
 
 ### Logging
 
 - **Format Guidelines**:
-  - No periods at end of messages
-  - No integration names/domains (added automatically)
-  - No sensitive data (keys, tokens, passwords)
+    - No periods at end of messages
+    - No integration names/domains (added automatically)
+    - No sensitive data (keys, tokens, passwords)
 - Use debug level for non-user-facing messages
 - **Use Lazy Logging**:
-  ```python
-  _LOGGER.debug("This is a log message with %s", variable)
-  ```
+    ```python
+    _LOGGER.debug("This is a log message with %s", variable)
+    ```
 
 ### Unavailability Logging
 
 - **Log Once**: When device/service becomes unavailable (info level)
+
 - **Log Recovery**: When device/service comes back online
+
 - **Implementation Pattern**:
 
-  ```python
-  _unavailable_logged: bool = False
+    ```python
+    _unavailable_logged: bool = False
 
-  if not self._unavailable_logged:
-      _LOGGER.info("The sensor is unavailable: %s", ex)
-      self._unavailable_logged = True
-  # On recovery:
-  if self._unavailable_logged:
-      _LOGGER.info("The sensor is back online")
-      self._unavailable_logged = False
-  ```
+    if not self._unavailable_logged:
+        _LOGGER.info("The sensor is unavailable: %s", ex)
+        self._unavailable_logged = True
+    # On recovery:
+    if self._unavailable_logged:
+        _LOGGER.info("The sensor is back online")
+        self._unavailable_logged = False
+    ```
 
 ## Entity Development
 
@@ -550,11 +574,11 @@ uv lock --upgrade                      # Update lock file
 - Must be unique per platform (not per integration)
 - Don't include integration domain or platform in ID
 - **Implementation**:
-  ```python
-  class MySensor(SensorEntity):
-      def __init__(self, device_id: str) -> None:
-          self._attr_unique_id = f"{device_id}_temperature"
-  ```
+    ```python
+    class MySensor(SensorEntity):
+        def __init__(self, device_id: str) -> None:
+            self._attr_unique_id = f"{device_id}_temperature"
+    ```
 
 **Acceptable ID Sources**:
 
@@ -574,52 +598,52 @@ uv lock --upgrade                      # Update lock file
 - **Lambda/Anonymous Functions**: Often used in EntityDescription for value transformation
 - **Multiline Lambdas**: When lambdas exceed line length, wrap in parentheses for readability
 - **Bad pattern**:
-  ```python
-  SensorEntityDescription(
-      key="temperature",
-      name="Temperature",
-      value_fn=lambda data: round(data["temp_value"] * 1.8 + 32, 1) if data.get("temp_value") is not None else None,  # ❌ Too long
-  )
-  ```
+    ```python
+    SensorEntityDescription(
+        key="temperature",
+        name="Temperature",
+        value_fn=lambda data: round(data["temp_value"] * 1.8 + 32, 1) if data.get("temp_value") is not None else None,  # ❌ Too long
+    )
+    ```
 - **Good pattern**:
-  ```python
-  SensorEntityDescription(
-      key="temperature",
-      name="Temperature",
-      value_fn=lambda data: (  # ✅ Parenthesis on same line as lambda
-          round(data["temp_value"] * 1.8 + 32, 1)
-          if data.get("temp_value") is not None
-          else None
-      ),
-  )
-  ```
+    ```python
+    SensorEntityDescription(
+        key="temperature",
+        name="Temperature",
+        value_fn=lambda data: (  # ✅ Parenthesis on same line as lambda
+            round(data["temp_value"] * 1.8 + 32, 1)
+            if data.get("temp_value") is not None
+            else None
+        ),
+    )
+    ```
 
 ### Entity Naming
 
 - **Use has_entity_name**: Set `_attr_has_entity_name = True`
 - **For specific fields**:
-  ```python
-  class MySensor(SensorEntity):
-      _attr_has_entity_name = True
-      def __init__(self, device: Device, field: str) -> None:
-          self._attr_device_info = DeviceInfo(
-              identifiers={(DOMAIN, device.id)},
-              name=device.name,
-          )
-          self._attr_name = field  # e.g., "temperature", "humidity"
-  ```
+    ```python
+    class MySensor(SensorEntity):
+        _attr_has_entity_name = True
+        def __init__(self, device: Device, field: str) -> None:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, device.id)},
+                name=device.name,
+            )
+            self._attr_name = field  # e.g., "temperature", "humidity"
+    ```
 - **For device itself**: Set `_attr_name = None`
 
 ### Event Lifecycle Management
 
 - **Subscribe in `async_added_to_hass`**:
-  ```python
-  async def async_added_to_hass(self) -> None:
-      """Subscribe to events."""
-      self.async_on_remove(
-          self.client.events.subscribe("my_event", self._handle_event)
-      )
-  ```
+    ```python
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to events."""
+        self.async_on_remove(
+            self.client.events.subscribe("my_event", self._handle_event)
+        )
+    ```
 - **Unsubscribe in `async_will_remove_from_hass`** if not using `async_on_remove`
 - Never subscribe in `__init__` or other methods
 
@@ -632,24 +656,24 @@ uv lock --upgrade                      # Update lock file
 
 - **Mark Unavailable**: When data cannot be fetched from device/service
 - **Coordinator Pattern**:
-  ```python
-  @property
-  def available(self) -> bool:
-      """Return if entity is available."""
-      return super().available and self.identifier in self.coordinator.data
-  ```
+    ```python
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return super().available and self.identifier in self.coordinator.data
+    ```
 - **Direct Update Pattern**:
-  ```python
-  async def async_update(self) -> None:
-      """Update entity."""
-      try:
-          data = await self.client.get_data()
-      except MyException:
-          self._attr_available = False
-      else:
-          self._attr_available = True
-          self._attr_native_value = data.value
-  ```
+    ```python
+    async def async_update(self) -> None:
+        """Update entity."""
+        try:
+            data = await self.client.get_data()
+        except MyException:
+            self._attr_available = False
+        else:
+            self._attr_available = True
+            self._attr_native_value = data.value
+    ```
 
 ### Extra State Attributes
 
@@ -663,44 +687,45 @@ uv lock --upgrade                      # Update lock file
 
 - **Create Devices**: Group related entities under devices
 - **Device Info**: Provide comprehensive metadata:
-  ```python
-  _attr_device_info = DeviceInfo(
-      connections={(CONNECTION_NETWORK_MAC, device.mac)},
-      identifiers={(DOMAIN, device.id)},
-      name=device.name,
-      manufacturer="My Company",
-      model="My Sensor",
-      sw_version=device.version,
-  )
-  ```
+    ```python
+    _attr_device_info = DeviceInfo(
+        connections={(CONNECTION_NETWORK_MAC, device.mac)},
+        identifiers={(DOMAIN, device.id)},
+        name=device.name,
+        manufacturer="My Company",
+        model="My Sensor",
+        sw_version=device.version,
+    )
+    ```
 - For services: Add `entry_type=DeviceEntryType.SERVICE`
 
 ### Dynamic Device Addition
 
 - **Auto-detect New Devices**: After initial setup
+
 - **Implementation Pattern**:
 
-  ```python
-  def _check_device() -> None:
-      current_devices = set(coordinator.data)
-      new_devices = current_devices - known_devices
-      if new_devices:
-          known_devices.update(new_devices)
-          async_add_entities([MySensor(coordinator, device_id) for device_id in new_devices])
+    ```python
+    def _check_device() -> None:
+        current_devices = set(coordinator.data)
+        new_devices = current_devices - known_devices
+        if new_devices:
+            known_devices.update(new_devices)
+            async_add_entities([MySensor(coordinator, device_id) for device_id in new_devices])
 
-  entry.async_on_unload(coordinator.async_add_listener(_check_device))
-  ```
+    entry.async_on_unload(coordinator.async_add_listener(_check_device))
+    ```
 
 ### Stale Device Removal
 
 - **Auto-remove**: When devices disappear from hub/account
 - **Device Registry Update**:
-  ```python
-  device_registry.async_update_device(
-      device_id=device.id,
-      remove_config_entry_id=self.config_entry.entry_id,
-  )
-  ```
+    ```python
+    device_registry.async_update_device(
+        device_id=device.id,
+        remove_config_entry_id=self.config_entry.entry_id,
+    )
+    ```
 - **Manual Deletion**: Implement `async_remove_config_entry_device` when needed
 
 ## Diagnostics and Repairs
@@ -708,20 +733,21 @@ uv lock --upgrade                      # Update lock file
 ### Integration Diagnostics
 
 - **Required**: Implement diagnostic data collection
+
 - **Implementation**:
 
-  ```python
-  TO_REDACT = [CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE]
+    ```python
+    TO_REDACT = [CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE]
 
-  async def async_get_config_entry_diagnostics(
-      hass: HomeAssistant, entry: MyConfigEntry
-  ) -> dict[str, Any]:
-      """Return diagnostics for a config entry."""
-      return {
-          "entry_data": async_redact_data(entry.data, TO_REDACT),
-          "data": entry.runtime_data.data,
-      }
-  ```
+    async def async_get_config_entry_diagnostics(
+        hass: HomeAssistant, entry: MyConfigEntry
+    ) -> dict[str, Any]:
+        """Return diagnostics for a config entry."""
+        return {
+            "entry_data": async_redact_data(entry.data, TO_REDACT),
+            "data": entry.runtime_data.data,
+        }
+    ```
 
 - **Security**: Never expose passwords, tokens, or sensitive coordinates
 
@@ -729,182 +755,182 @@ uv lock --upgrade                      # Update lock file
 
 - **Actionable Issues Required**: All repair issues must be actionable for end users
 - **Issue Content Requirements**:
-  - Clearly explain what is happening
-  - Provide specific steps users need to take to resolve the issue
-  - Use friendly, helpful language
-  - Include relevant context (device names, error details, etc.)
+    - Clearly explain what is happening
+    - Provide specific steps users need to take to resolve the issue
+    - Use friendly, helpful language
+    - Include relevant context (device names, error details, etc.)
 - **Implementation**:
-  ```python
-  ir.async_create_issue(
-      hass,
-      DOMAIN,
-      "outdated_version",
-      is_fixable=False,
-      issue_domain=DOMAIN,
-      severity=ir.IssueSeverity.ERROR,
-      translation_key="outdated_version",
-  )
-  ```
+    ```python
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        "outdated_version",
+        is_fixable=False,
+        issue_domain=DOMAIN,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key="outdated_version",
+    )
+    ```
 - **Translation Strings Requirements**: Must contain user-actionable text in `strings.json`:
-  ```json
-  {
-    "issues": {
-      "outdated_version": {
-        "title": "Device firmware is outdated",
-        "description": "Your device firmware version {current_version} is below the minimum required version {min_version}. To fix this issue: 1) Open the manufacturer's mobile app, 2) Navigate to device settings, 3) Select 'Update Firmware', 4) Wait for the update to complete, then 5) Restart Home Assistant."
+    ```json
+    {
+      "issues": {
+        "outdated_version": {
+          "title": "Device firmware is outdated",
+          "description": "Your device firmware version {current_version} is below the minimum required version {min_version}. To fix this issue: 1) Open the manufacturer's mobile app, 2) Navigate to device settings, 3) Select 'Update Firmware', 4) Wait for the update to complete, then 5) Restart Home Assistant."
+        }
       }
     }
-  }
-  ```
+    ```
 - **String Content Must Include**:
-  - What the problem is
-  - Why it matters
-  - Exact steps to resolve (numbered list when multiple steps)
-  - What to expect after following the steps
+    - What the problem is
+    - Why it matters
+    - Exact steps to resolve (numbered list when multiple steps)
+    - What to expect after following the steps
 - **Avoid Vague Instructions**: Don't just say "update firmware" - provide specific steps
 - **Severity Guidelines**:
-  - `CRITICAL`: Reserved for extreme scenarios only
-  - `ERROR`: Requires immediate user attention
-  - `WARNING`: Indicates future potential breakage
+    - `CRITICAL`: Reserved for extreme scenarios only
+    - `ERROR`: Requires immediate user attention
+    - `WARNING`: Indicates future potential breakage
 - **Additional Attributes**:
-  ```python
-  ir.async_create_issue(
-      hass, DOMAIN, "issue_id",
-      breaks_in_ha_version="2024.1.0",
-      is_fixable=True,
-      is_persistent=True,
-      severity=ir.IssueSeverity.ERROR,
-      translation_key="issue_description",
-  )
-  ```
+    ```python
+    ir.async_create_issue(
+        hass, DOMAIN, "issue_id",
+        breaks_in_ha_version="2024.1.0",
+        is_fixable=True,
+        is_persistent=True,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key="issue_description",
+    )
+    ```
 - Only create issues for problems users can potentially resolve
 
 ### Entity Categories
 
 - **Required**: Assign appropriate category to entities
 - **Implementation**: Set `_attr_entity_category`
-  ```python
-  class MySensor(SensorEntity):
-      _attr_entity_category = EntityCategory.DIAGNOSTIC
-  ```
+    ```python
+    class MySensor(SensorEntity):
+        _attr_entity_category = EntityCategory.DIAGNOSTIC
+    ```
 - Categories include: `DIAGNOSTIC` for system/technical information
 
 ### Device Classes
 
 - **Use When Available**: Set appropriate device class for entity type
-  ```python
-  class MyTemperatureSensor(SensorEntity):
-      _attr_device_class = SensorDeviceClass.TEMPERATURE
-  ```
+    ```python
+    class MyTemperatureSensor(SensorEntity):
+        _attr_device_class = SensorDeviceClass.TEMPERATURE
+    ```
 - Provides context for: unit conversion, voice control, UI representation
 
 ### Disabled by Default
 
 - **Disable Noisy/Less Popular Entities**: Reduce resource usage
-  ```python
-  class MySignalStrengthSensor(SensorEntity):
-      _attr_entity_registry_enabled_default = False
-  ```
+    ```python
+    class MySignalStrengthSensor(SensorEntity):
+        _attr_entity_registry_enabled_default = False
+    ```
 - Target: frequently changing states, technical diagnostics
 
 ### Entity Translations
 
 - **Required with has_entity_name**: Support international users
 - **Implementation**:
-  ```python
-  class MySensor(SensorEntity):
-      _attr_has_entity_name = True
-      _attr_translation_key = "phase_voltage"
-  ```
+    ```python
+    class MySensor(SensorEntity):
+        _attr_has_entity_name = True
+        _attr_translation_key = "phase_voltage"
+    ```
 - Create `strings.json` with translations:
-  ```json
-  {
-    "entity": {
-      "sensor": {
-        "phase_voltage": {
-          "name": "Phase voltage"
+    ```json
+    {
+      "entity": {
+        "sensor": {
+          "phase_voltage": {
+            "name": "Phase voltage"
+          }
         }
       }
     }
-  }
-  ```
+    ```
 
 ### Exception Translations (Gold)
 
 - **Translatable Errors**: Use translation keys for user-facing exceptions
 - **Implementation**:
-  ```python
-  raise ServiceValidationError(
-      translation_domain=DOMAIN,
-      translation_key="end_date_before_start_date",
-  )
-  ```
+    ```python
+    raise ServiceValidationError(
+        translation_domain=DOMAIN,
+        translation_key="end_date_before_start_date",
+    )
+    ```
 - Add to `strings.json`:
-  ```json
-  {
-    "exceptions": {
-      "end_date_before_start_date": {
-        "message": "The end date cannot be before the start date."
+    ```json
+    {
+      "exceptions": {
+        "end_date_before_start_date": {
+          "message": "The end date cannot be before the start date."
+        }
       }
     }
-  }
-  ```
+    ```
 
 ### Icon Translations (Gold)
 
 - **Dynamic Icons**: Support state and range-based icon selection
 - **State-based Icons**:
-  ```json
-  {
-    "entity": {
-      "sensor": {
-        "tree_pollen": {
-          "default": "mdi:tree",
-          "state": {
-            "high": "mdi:tree-outline"
+    ```json
+    {
+      "entity": {
+        "sensor": {
+          "tree_pollen": {
+            "default": "mdi:tree",
+            "state": {
+              "high": "mdi:tree-outline"
+            }
           }
         }
       }
     }
-  }
-  ```
+    ```
 - **Range-based Icons** (for numeric values):
-  ```json
-  {
-    "entity": {
-      "sensor": {
-        "battery_level": {
-          "default": "mdi:battery-unknown",
-          "range": {
-            "0": "mdi:battery-outline",
-            "90": "mdi:battery-90",
-            "100": "mdi:battery"
+    ```json
+    {
+      "entity": {
+        "sensor": {
+          "battery_level": {
+            "default": "mdi:battery-unknown",
+            "range": {
+              "0": "mdi:battery-outline",
+              "90": "mdi:battery-90",
+              "100": "mdi:battery"
+            }
           }
         }
       }
     }
-  }
-  ```
+    ```
 
 ## Testing Requirements
 
 - **Location**: `tests/components/{domain}/`
 - **Coverage Requirement**: Above 95% test coverage for all modules
 - **Best Practices**:
-  - Use pytest fixtures from `tests.common`
-  - Mock all external dependencies
-  - Use snapshots for complex data structures
-  - Follow existing test patterns
+    - Use pytest fixtures from `tests.common`
+    - Mock all external dependencies
+    - Use snapshots for complex data structures
+    - Follow existing test patterns
 
 ### Config Flow Testing
 
 - **100% Coverage Required**: All config flow paths must be tested
 - **Test Scenarios**:
-  - All flow initiation methods (user, discovery, import)
-  - Successful configuration paths
-  - Error recovery scenarios
-  - Prevention of duplicate entries
-  - Flow completion after errors
+    - All flow initiation methods (user, discovery, import)
+    - Successful configuration paths
+    - Error recovery scenarios
+    - Prevention of duplicate entries
+    - Flow completion after errors
 
 ## Integration Templates
 

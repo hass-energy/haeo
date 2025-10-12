@@ -14,18 +14,18 @@ A battery in HAEO represents:
 
 ## Configuration Fields
 
-| Field                         | Type           | Required | Default | Description                                                |
-| ----------------------------- | -------------- | -------- | ------- | ---------------------------------------------------------- |
-| **Name**                      | String         | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
-| **Capacity**                  | Number (kWh)   | Yes      | -       | Total energy storage capacity                              |
-| **Initial Charge Percentage** | Sensor ID      | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
-| **Min Charge Percentage**     | Number (%)     | No       | 10      | Minimum allowed SOC                                        |
-| **Max Charge Percentage**     | Number (%)     | No       | 90      | Maximum allowed SOC                                        |
-| **Efficiency**                | Number (%)     | No       | 99      | **One-way** efficiency (see below)                         |
-| **Max Charge Power**          | Number (kW)    | No       | -       | Maximum charging power                                     |
-| **Max Discharge Power**       | Number (kW)    | No       | -       | Maximum discharging power                                  |
-| **Charge Cost**               | Number ($/kWh) | No       | 0       | Additional charging cost (see below)                       |
-| **Discharge Cost**            | Number ($/kWh) | No       | 0       | Additional discharging cost (see below)                    |
+| Field                         | Type            | Required | Default | Description                                                |
+| ----------------------------- | --------------- | -------- | ------- | ---------------------------------------------------------- |
+| **Name**                      | String          | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
+| **Capacity**                  | Number (kWh)    | Yes      | -       | Total energy storage capacity                              |
+| **Initial Charge Percentage** | Sensor ID       | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
+| **Min Charge Percentage**     | Number (%)      | No       | 10      | Minimum allowed SOC                                        |
+| **Max Charge Percentage**     | Number (%)      | No       | 90      | Maximum allowed SOC                                        |
+| **Efficiency**                | Number (%)      | No       | 99      | **One-way** efficiency (see below)                         |
+| **Max Charge Power**          | Number (kW)     | No       | -       | Maximum charging power                                     |
+| **Max Discharge Power**       | Number (kW)     | No       | -       | Maximum discharging power                                  |
+| **Charge Cost**               | Number (\$/kWh) | No       | 0       | Additional charging cost (see below)                       |
+| **Discharge Cost**            | Number (\$/kWh) | No       | 0       | Additional discharging cost (see below)                    |
 
 ### Name
 
@@ -70,7 +70,8 @@ Operating range for battery SOC:
 ### Efficiency
 
 !!! warning "Important: One-Way Efficiency"
-HAEO uses **one-way efficiency**, not round-trip efficiency.
+
+    HAEO uses **one-way efficiency**, not round-trip efficiency.
 
     **Example**: If your battery has 97% round-trip efficiency:
 
@@ -104,7 +105,8 @@ These limits typically come from:
 If not specified, power is unconstrained (limited only by other system constraints).
 
 !!! info "Asymmetric Limits"
-Some systems have different charge and discharge power limits. Configure them independently for accurate optimization.
+
+    Some systems have different charge and discharge power limits. Configure them independently for accurate optimization.
 
 ### Charge Cost
 
@@ -116,14 +118,16 @@ Some systems have different charge and discharge power limits. Configure them in
 
 1. **Encourage early charging**: Set a **negative** value to incentivize charging early in the forecast window
 
-   - Example: `-0.01` gives a $0.01/kWh "bonus" for charging
-   - This is because the cost **diminishes over the forecast horizon**
+    - Example: `-0.01` gives a \$0.01/kWh "bonus" for charging
+    - This is because the cost **diminishes over the forecast horizon**
 
 2. **Battery degradation**: Set a small positive value to model wear costs
-   - Example: `0.01` adds $0.01/kWh degradation cost
+
+    - Example: `0.01` adds \$0.01/kWh degradation cost
 
 !!! tip "Temporal Diminishing"
-The charge cost diminishes linearly over the forecast horizon. Early charging gets more negative (bigger bonus) or less positive (smaller penalty), encouraging proactive battery management.
+
+    The charge cost diminishes linearly over the forecast horizon. Early charging gets more negative (bigger bonus) or less positive (smaller penalty), encouraging proactive battery management.
 
 **Most users** should leave this at 0 or set slightly negative to encourage charging.
 
@@ -137,15 +141,17 @@ The charge cost diminishes linearly over the forecast horizon. Early charging ge
 
 1. **Prevent fluttering**: Set a small positive value to avoid excessive cycling
 
-   - Example: `0.001` (0.1 cents/kWh)
-   - Prevents battery from charging/discharging for tiny price differences
-   - Reduces wear from unnecessary cycling
+    - Example: `0.001` (0.1 cents/kWh)
+    - Prevents battery from charging/discharging for tiny price differences
+    - Reduces wear from unnecessary cycling
 
 2. **Battery degradation**: Model wear from discharge cycles
-   - Example: `0.01` for more aggressive degradation cost
+
+    - Example: `0.01` for more aggressive degradation cost
 
 !!! info "Fluttering Prevention"
-Without discharge cost, tiny price changes (e.g., 0.1 cent/kWh) can cause the optimizer to cycle the battery repeatedly. A small discharge cost prevents this behavior while still allowing beneficial charging/discharging.
+
+    Without discharge cost, tiny price changes (e.g., 0.1 cent/kWh) can cause the optimizer to cycle the battery repeatedly. A small discharge cost prevents this behavior while still allowing beneficial charging/discharging.
 
 **Most users** should set this to a small positive value like `0.001` to prevent fluttering.
 

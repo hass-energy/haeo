@@ -6,7 +6,7 @@ Welcome to the HAEO documentation! HAEO is a Home Assistant custom integration t
 
 <div class="grid cards" markdown>
 
--   :material-download:{ .lg .middle } __Installation__
+- :material-download:{ .lg .middle } __Installation__
 
     ---
 
@@ -14,7 +14,7 @@ Welcome to the HAEO documentation! HAEO is a Home Assistant custom integration t
 
     [:octicons-arrow-right-24: Installation Guide](user-guide/installation.md)
 
--   :material-cog:{ .lg .middle } __Configuration__
+- :material-cog:{ .lg .middle } __Configuration__
 
     ---
 
@@ -22,7 +22,7 @@ Welcome to the HAEO documentation! HAEO is a Home Assistant custom integration t
 
     [:octicons-arrow-right-24: Configuration Guide](user-guide/configuration.md)
 
--   :material-function:{ .lg .middle } __Mathematical Modeling__
+- :material-function:{ .lg .middle } __Mathematical Modeling__
 
     ---
 
@@ -30,7 +30,7 @@ Welcome to the HAEO documentation! HAEO is a Home Assistant custom integration t
 
     [:octicons-arrow-right-24: Modeling Documentation](modeling/index.md)
 
--   :material-code-braces:{ .lg .middle } __Developer Guide__
+- :material-code-braces:{ .lg .middle } __Developer Guide__
 
     ---
 
@@ -163,23 +163,22 @@ Quick **reference tables and schemas**:
 
 <div class="grid cards" markdown>
 
--   :material-rocket-launch:{ .lg .middle } __New to HAEO?__
+- :material-rocket-launch:{ .lg .middle } __New to HAEO?__
 
     Start with the installation guide to get HAEO up and running.
 
     [:octicons-arrow-right-24: Install HAEO](user-guide/installation.md)
 
--   :material-book-open-variant:{ .lg .middle } __Want to understand the math?__
+- :material-book-open-variant:{ .lg .middle } __Want to understand the math?__
 
     Explore the mathematical modeling documentation.
 
     [:octicons-arrow-right-24: Mathematical Models](modeling/index.md)
 
--   :material-code-tags:{ .lg .middle } __Want to contribute?__
+- :material-code-tags:{ .lg .middle } __Want to contribute?__
 
     Check out the developer guide and contribution workflow.
 
     [:octicons-arrow-right-24: Developer Guide](developer-guide/index.md)
 
 </div>
-

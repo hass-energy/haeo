@@ -51,7 +51,8 @@ A unique identifier for the entity within your network.
 - Appears in sensor entity IDs
 
 !!! tip "Naming Convention"
-Use descriptive names that indicate the entity's purpose:
+
+    Use descriptive names that indicate the entity's purpose:
 
     - `Main_Battery` instead of `Battery1`
     - `Grid_Import` instead of `Grid`
@@ -108,7 +109,8 @@ Example: `sensor.solar_forecast_today`, `sensor.solar_forecast_tomorrow`
 Example: `sensor.load_forecast_today`, `sensor.load_forecast_tomorrow`
 
 !!! info "Forecast Format"
-Forecast sensors should provide attributes with timestamped power values. See the [Forecasts & Sensors guide](../forecasts-and-sensors.md) for details.
+
+    Forecast sensors should provide attributes with timestamped power values. See the [Forecasts & Sensors guide](../forecasts-and-sensors.md) for details.
 
 ## Sensor Requirements
 
@@ -173,6 +175,7 @@ See individual entity pages for detailed forecast configuration.
 5. New optimization runs
 
 !!! warning "Sensor Entity IDs"
+
 Editing an entity's name will change its sensor entity IDs. Update any automations or dashboards that reference the old sensor names.
 
 ### Deletion
@@ -183,7 +186,8 @@ Editing an entity's name will change its sensor entity IDs. Update any automatio
 4. Network is rebuilt without the entity
 
 !!! danger "Cascade Effects"
-Removing an entity removes all connections involving that entity. Ensure your network remains [properly connected](../troubleshooting.md#graph-isnt-connected-properly) after removal.
+
+    Removing an entity removes all connections involving that entity. Ensure your network remains [properly connected](../troubleshooting.md#graph-isnt-connected-properly) after removal.
 
 ## Best Practices
 
@@ -231,22 +235,22 @@ Explore detailed configuration for each entity type:
 
 - [Battery Configuration](battery.md)
 
-  Energy storage with SOC tracking and efficiency modeling.
+    Energy storage with SOC tracking and efficiency modeling.
 
 - [Grid Configuration](grid.md)
 
-  Import/export with dynamic or fixed pricing.
+    Import/export with dynamic or fixed pricing.
 
 - [Photovoltaics Configuration](photovoltaics.md)
 
-  Solar generation with curtailment options.
+    Solar generation with curtailment options.
 
 - [Load Configuration](loads.md)
 
-  Constant and forecast-based consumption.
+    Constant and forecast-based consumption.
 
 - [Net Configuration](net.md)
 
-  Virtual power balance nodes.
+    Virtual power balance nodes.
 
 </div>

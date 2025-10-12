@@ -4,12 +4,12 @@ Linear programming solvers supported by HAEO.
 
 ## Solver Comparison
 
-| Solver | Speed | License | Installation |
-|--------|-------|---------|--------------|
-| HiGHS | Very Fast | MIT | Included with PuLP |
-| CBC | Fast | EPL | `pip install pulp[cbc]` |
-| GLPK | Medium | GPL | `pip install pulp[glpk]` |
-| CPLEX | Very Fast | Commercial | Separate install + license |
+| Solver | Speed     | License    | Installation               |
+| ------ | --------- | ---------- | -------------------------- |
+| HiGHS  | Very Fast | MIT        | Included with PuLP         |
+| CBC    | Fast      | EPL        | `pip install pulp[cbc]`    |
+| GLPK   | Medium    | GPL        | `pip install pulp[glpk]`   |
+| CPLEX  | Very Fast | Commercial | Separate install + license |
 | Gurobi | Very Fast | Commercial | Separate install + license |
 
 ## Recommended: HiGHS
@@ -30,6 +30,7 @@ Optimizer: HiGHS
 ```
 
 Available options:
+
 - `HiGHS`
 - `PULP_CBC_CMD`
 - `GLPK_CMD`
@@ -53,6 +54,7 @@ pip install pulp[glpk]
 ### Commercial Solvers
 
 CPLEX and Gurobi require:
+
 1. Separate installation
 2. Valid license
 3. PuLP configuration

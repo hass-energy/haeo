@@ -5,6 +5,7 @@ HAEO uses Home Assistant's `DataUpdateCoordinator` pattern.
 ## Purpose
 
 The coordinator:
+
 - Manages optimization cycles
 - Loads data from sensors
 - Builds network model
@@ -22,6 +23,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator):
         # Build network
         # Run optimization
         # Return results
+        pass
 ```
 
 ## Update Interval

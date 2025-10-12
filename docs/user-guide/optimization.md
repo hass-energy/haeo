@@ -14,7 +14,7 @@ Total cost over the optimization horizon in dollars.
 
 - **Lower is better**: HAEO minimizes this value
 - **Includes**: Import costs, export revenue, storage costs
-- **Unit**: $ (or your configured currency)
+- **Unit**: \$ (or your configured currency)
 
 ### Optimization Status
 
@@ -112,11 +112,13 @@ HAEO re-optimizes periodically. Balance:
 The optimization cost represents the total forecasted cost over the horizon, not just the immediate cost.
 
 **Example**:
+
 - Horizon: 48 hours
-- Cost: $25.50
-- Average: $0.53/hour
+- Cost: \$25.50
+- Average: \$0.53/hour
 
 This helps you:
+
 - Compare different configurations
 - Understand system economics
 - Validate optimization is working

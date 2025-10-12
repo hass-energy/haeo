@@ -27,8 +27,9 @@ Before installing HAEO, ensure you have:
     - Load forecast (if optimizing loads)
 
 !!! tip "Forecast Sensors"
+
     Many integrations provide forecast data that HAEO can use:
-    
+
     - **Electricity prices**: Amber Electric, Nordpool, Tibber
     - **Solar forecast**: [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast), Solcast
     - **Load forecast**: Custom sensors based on your usage patterns
@@ -78,5 +79,5 @@ If you run into issues:
 4. Report bugs by opening a new issue
 
 !!! warning "Important"
-    Always include your Home Assistant version, HAEO version, and relevant configuration (with sensitive data removed) when asking for help.
 
+    Always include your Home Assistant version, HAEO version, and relevant configuration (with sensitive data removed) when asking for help.

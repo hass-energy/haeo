@@ -36,10 +36,10 @@ If you haven't already:
 
 1. Install via HACS (search for "Open-Meteo Solar Forecast")
 2. Configure with your solar array details:
-   - Location (latitude/longitude)
-   - Peak power (8 kW in our example)
-   - Azimuth and tilt
-   - Module efficiency
+    - Location (latitude/longitude)
+    - Peak power (8 kW in our example)
+    - Azimuth and tilt
+    - Module efficiency
 3. Wait for forecast data to populate
 
 See the [Open-Meteo Solar Forecast documentation](https://github.com/rany2/ha-open-meteo-solar-forecast) for detailed setup.
@@ -47,89 +47,99 @@ See the [Open-Meteo Solar Forecast documentation](https://github.com/rany2/ha-op
 ## Step 2: Create HAEO Network
 
 1. Go to **Settings** → **Devices & Services**
+
 2. Click **Add Integration**
+
 3. Search for **HAEO**
+
 4. Configure network:
 
-```yaml
-Name: Home Energy System
-Horizon Hours: 48
-Period Minutes: 5
-Optimizer: HiGHS
-```
+    ```yaml
+    Name: Home Energy System
+    Horizon Hours: 48
+    Period Minutes: 5
+    Optimizer: HiGHS
+    ```
 
-Click **Submit** to create the network.
+    Click **Submit** to create the network.
 
 ## Step 3: Add Battery
 
 1. Open HAEO configuration
+
 2. Select **Add Battery**
+
 3. Configure:
 
-```yaml
-Name: Sigenergy_Battery
-Capacity: 15 kWh
-Initial Charge Percentage: sensor.sigenergy_battery_soc
-Min Charge Percentage: 20%
-Max Charge Percentage: 95%
-Efficiency: 95%
-Max Charge Power: 6 kW
-Max Discharge Power: 6 kW
-```
+    ```yaml
+    Name: Sigenergy_Battery
+    Capacity: 15 kWh
+    Initial Charge Percentage: sensor.sigenergy_battery_soc
+    Min Charge Percentage: 20%
+    Max Charge Percentage: 95%
+    Efficiency: 95%
+    Max Charge Power: 6 kW
+    Max Discharge Power: 6 kW
+    ```
 
-!!! info "Battery SOC Sensor"
-    Replace `sensor.sigenergy_battery_soc` with your actual Sigenergy battery state of charge sensor entity ID. Find it in Developer Tools → States.
+    !!! info "Battery SOC Sensor"
+
+        Replace `sensor.sigenergy_battery_soc` with your actual Sigenergy battery state of charge sensor entity ID. Find it in Developer Tools → States.
 
 4. Click **Submit**
 
 ## Step 4: Add Grid Connection
 
 1. Select **Add Grid**
+
 2. Configure:
 
-```yaml
-Name: Main_Grid
-Import Price: 0.28 $/kWh  # Or your price sensor
-Export Price: 0.08 $/kWh  # Or your price sensor
-Import Limit: 10 kW
-Export Limit: 5 kW
-```
-
-!!! tip "Dynamic Pricing"
-    If you have price forecast sensors (Amber Electric, Tibber, etc.), use them instead of fixed prices:
-    
     ```yaml
-    Import Price: 
-      - sensor.electricity_import_price_today
-      - sensor.electricity_import_price_tomorrow
-    Export Price:
-      - sensor.electricity_export_price_today
-      - sensor.electricity_export_price_tomorrow
+    Name: Main_Grid
+    Import Price: 0.28 $/kWh # Or your price sensor
+    Export Price: 0.08 $/kWh # Or your price sensor
+    Import Limit: 10 kW
+    Export Limit: 5 kW
     ```
+
+    !!! tip "Dynamic Pricing"
+
+        If you have price forecast sensors (Amber Electric, Tibber, etc.), use them instead of fixed prices:
+
+        ```yaml
+        Import Price:
+          - sensor.electricity_import_price_today
+          - sensor.electricity_import_price_tomorrow
+        Export Price:
+          - sensor.electricity_export_price_today
+          - sensor.electricity_export_price_tomorrow
+        ```
 
 3. Click **Submit**
 
 ## Step 5: Add Solar (Photovoltaics)
 
 1. Select **Add Photovoltaics**
+
 2. Configure:
 
-```yaml
-Name: Rooftop_Solar
-Forecast:
-  - sensor.solar_production_forecast_estimated_energy_today
-  - sensor.solar_production_forecast_estimated_energy_tomorrow
-Curtailment: false
-Production Price: 0 $/kWh
-```
+    ```yaml
+    Name: Rooftop_Solar
+    Forecast:
+      - sensor.solar_production_forecast_estimated_energy_today
+      - sensor.solar_production_forecast_estimated_energy_tomorrow
+    Curtailment: false
+    Production Price: 0 $/kWh
+    ```
 
-!!! warning "Open-Meteo Sensor Names"
-    Open-Meteo Solar Forecast creates sensors with names like:
-    
-    - `sensor.solar_production_forecast_estimated_energy_today`
-    - `sensor.solar_production_forecast_estimated_energy_tomorrow`
-    
-    Adjust based on your actual sensor names. Check Developer Tools → States to find them.
+    !!! warning "Open-Meteo Sensor Names"
+
+        Open-Meteo Solar Forecast creates sensors with names like:
+
+        - `sensor.solar_production_forecast_estimated_energy_today`
+        - `sensor.solar_production_forecast_estimated_energy_tomorrow`
+
+        Adjust based on your actual sensor names. Check Developer Tools → States to find them.
 
 3. Click **Submit**
 
@@ -142,42 +152,46 @@ Choose one option:
 If you don't have load forecasts:
 
 1. Select **Add Constant Load**
+
 2. Configure:
 
-```yaml
-Name: House_Load
-Power: 2.5 kW  # Average household load
-```
+    ```yaml
+    Name: House_Load
+    Power: 2.5 kW # Average household load
+    ```
 
 ### Option B: Forecast Load (Better Optimization)
 
 If you have load forecast sensors:
 
 1. Select **Add Forecast Load**
+
 2. Configure:
 
-```yaml
-Name: House_Load
-Forecast:
-  - sensor.load_forecast_today
-  - sensor.load_forecast_tomorrow
-```
+    ```yaml
+    Name: House_Load
+    Forecast:
+      - sensor.load_forecast_today
+      - sensor.load_forecast_tomorrow
+    ```
 
-!!! tip "Creating Load Forecasts"
-    You can create simple load forecasts based on historical usage patterns using Home Assistant's Statistics sensors or external tools.
+    !!! tip "Creating Load Forecasts"
+
+        You can create simple load forecasts based on historical usage patterns using Home Assistant's Statistics sensors or external tools.
 
 3. Click **Submit**
 
 ## Step 7: Add Net Entity
 
 1. Select **Add Net**
+
 2. Configure:
 
-```yaml
-Name: Main_Net
-```
+    ```yaml
+    Name: Main_Net
+    ```
 
-This creates a virtual power balance point connecting all components.
+    This creates a virtual power balance point connecting all components.
 
 3. Click **Submit**
 
@@ -190,7 +204,7 @@ Now connect all entities via the net:
 ```yaml
 Source: Main_Grid
 Target: Main_Net
-Min Power: -10 kW  # Can import or export
+Min Power: -10 kW # Can import or export
 Max Power: 10 kW
 ```
 
@@ -199,7 +213,7 @@ Max Power: 10 kW
 ```yaml
 Source: Sigenergy_Battery
 Target: Main_Net
-Min Power: -6 kW  # Can charge or discharge
+Min Power: -6 kW # Can charge or discharge
 Max Power: 6 kW
 ```
 
@@ -208,8 +222,8 @@ Max Power: 6 kW
 ```yaml
 Source: Rooftop_Solar
 Target: Main_Net
-Min Power: 0 kW  # One-way flow
-Max Power: None  # Unlimited (solar determines)
+Min Power: 0 kW # One-way flow
+Max Power: None # Unlimited (solar determines)
 ```
 
 ### Connection 4: Net → Load
@@ -217,24 +231,27 @@ Max Power: None  # Unlimited (solar determines)
 ```yaml
 Source: Main_Net
 Target: House_Load
-Min Power: 0 kW  # One-way flow
-Max Power: None  # Unlimited
+Min Power: 0 kW # One-way flow
+Max Power: None # Unlimited
 ```
 
 ## Step 9: Verify Configuration
 
 1. Check the network device page
+
 2. Verify all sensors are created:
-   - `sensor.home_energy_system_optimization_cost`
-   - `sensor.home_energy_system_optimization_status`
-   - `sensor.sigenergy_battery_power`
-   - `sensor.sigenergy_battery_energy`
-   - `sensor.sigenergy_battery_soc`
-   - `sensor.main_grid_power`
-   - `sensor.rooftop_solar_power`
-   - `sensor.house_load_power`
+
+    - `sensor.home_energy_system_optimization_cost`
+    - `sensor.home_energy_system_optimization_status`
+    - `sensor.sigenergy_battery_power`
+    - `sensor.sigenergy_battery_energy`
+    - `sensor.sigenergy_battery_soc`
+    - `sensor.main_grid_power`
+    - `sensor.rooftop_solar_power`
+    - `sensor.house_load_power`
 
 3. Wait for first optimization (may take 10-30 seconds)
+
 4. Check optimization status sensor shows `optimal`
 
 ## Step 10: View Results
@@ -333,8 +350,8 @@ Export Price: sensor.electricity_export_tou
 Fine-tune for battery longevity vs. capacity:
 
 ```yaml
-Min Charge Percentage: 30%  # More conservative
-Max Charge Percentage: 85%  # Extend battery life
+Min Charge Percentage: 30% # More conservative
+Max Charge Percentage: 85% # Extend battery life
 ```
 
 ### Monitor Performance
@@ -375,4 +392,3 @@ See the [troubleshooting guide](../troubleshooting.md) for more solutions.
 - **Add more entities** as your system grows
 
 Congratulations! You've configured a complete HAEO energy optimization system! 🎉
-

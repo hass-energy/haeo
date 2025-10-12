@@ -25,7 +25,7 @@ Sensor implementations that expose optimization results to Home Assistant.
 - `base.py`: Base sensor classes
 - `cost.py`: Cost sensor
 - `energy.py`: Energy sensors
-- `power.py`: Power sensors  
+- `power.py`: Power sensors
 - `soc.py`: State of charge sensors
 - `optimization.py`: Optimization status sensors
 

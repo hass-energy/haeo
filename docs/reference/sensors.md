@@ -4,11 +4,11 @@ All sensor types created by HAEO.
 
 ## Network Sensors
 
-| Sensor | Unit | Description |
-|--------|------|-------------|
-| `{network}_optimization_cost` | $ | Total optimized cost over horizon |
-| `{network}_optimization_status` | - | Optimization status (optimal, feasible, infeasible) |
-| `{network}_optimization_duration` | s | Time taken to solve optimization |
+| Sensor                            | Unit | Description                                         |
+| --------------------------------- | ---- | --------------------------------------------------- |
+| `{network}_optimization_cost`     | \$   | Total optimized cost over horizon                   |
+| `{network}_optimization_status`   | -    | Optimization status (optimal, feasible, infeasible) |
+| `{network}_optimization_duration` | s    | Time taken to solve optimization                    |
 
 ## Entity Sensors
 
@@ -42,8 +42,8 @@ attributes:
 
 ## Sensor States
 
-| State | Meaning |
-|-------|---------|
-| Numeric value | Valid optimization result |
-| `unknown` | Optimization not yet run or failed |
-| `unavailable` | Sensor temporarily unavailable |
+| State         | Meaning                            |
+| ------------- | ---------------------------------- |
+| Numeric value | Valid optimization result          |
+| `unknown`     | Optimization not yet run or failed |
+| `unavailable` | Sensor temporarily unavailable     |

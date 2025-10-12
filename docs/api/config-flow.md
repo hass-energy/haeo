@@ -24,6 +24,7 @@ Initial configuration of the optimization network with horizon, period, and solv
 #### Options Flow
 
 Handles adding, editing, and removing:
+
 - Batteries
 - Grids
 - Photovoltaics

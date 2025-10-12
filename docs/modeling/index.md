@@ -49,17 +49,17 @@ HAEO models your energy system as:
 
 At a high level, HAEO solves:
 
-\[
+$$
 \begin{align}
-\text{minimize} \quad & \sum_{t} \text{Cost}(t) \\
+\text{minimize} \quad & \sum\_{t} \text{Cost}(t) \\
 \text{subject to} \quad & \text{Power balance at all nodes} \\
 & \text{Energy storage dynamics} \\
 & \text{Power limits} \\
 & \text{Energy limits}
 \end{align}
-\]
+$$
 
-Where \(t\) indexes time steps over the optimization horizon.
+Where $t$ indexes time steps over the optimization horizon.
 
 ## Model Components
 
@@ -88,9 +88,9 @@ Each [entity type](../user-guide/entities/index.md) has its own model:
 
 At each net entity and time step, power flow must balance:
 
-\[
-\sum_{\text{inflow}} P_{\text{in}}(t) = \sum_{\text{outflow}} P_{\text{out}}(t)
-\]
+$$
+\sum*{\text{inflow}} P*{\text{in}}(t) = \sum*{\text{outflow}} P*{\text{out}}(t)
+$$
 
 This is Kirchhoff's current law applied to power flow. See the [power balance documentation](power-balance.md) for details.
 
@@ -98,29 +98,15 @@ This is Kirchhoff's current law applied to power flow. See the [power balance do
 
 The objective function sums all costs:
 
-\[
-\text{Total Cost} = \sum_{t} \left( \text{Import Cost}(t) - \text{Export Revenue}(t) + \text{Storage Costs}(t) \right)
-\]
+$$
+\text{Total Cost} = \sum\_{t} \left( \text{Import Cost}(t) - \text{Export Revenue}(t) + \text{Storage Costs}(t) \right)
+$$
 
 See the [objective function documentation](objective-function.md) for the complete formulation.
 
 ## How to Read This Section
 
-Each modeling page provides two views:
-
-=== "Mathematical View"
-
-    Explains the model using mathematical equations and linear programming formulation.
-    
-    Perfect for understanding the theoretical foundation and for academic purposes.
-
-=== "Code View"
-
-    Shows the Python implementation with variable names and code structure.
-    
-    Perfect for developers and those who prefer to see the actual implementation.
-
-Use the tabs at the top of each page to switch between views!
+Each modeling page explains both the mathematical formulation and implementation details in a single, coherent narrative. The documentation uses mathematical notation alongside code examples to provide a complete understanding of how HAEO models each component.
 
 ## Topics Covered
 
@@ -152,39 +138,43 @@ graph LR
 
 ### Variables
 
-- \(P_{\text{import}}(t)\): Grid import power
-- \(P_{\text{export}}(t)\): Grid export power
-- \(P_{\text{charge}}(t)\): Battery charging power
-- \(P_{\text{discharge}}(t)\): Battery discharging power
-- \(E_{\text{battery}}(t)\): Battery energy level
+- $P\_{\text{import}}(t)$: Grid import power
+- $P\_{\text{export}}(t)$: Grid export power
+- $P\_{\text{charge}}(t)$: Battery charging power
+- $P\_{\text{discharge}}(t)$: Battery discharging power
+- $E\_{\text{battery}}(t)$: Battery energy level
 
 ### Objective
 
-\[
-\text{minimize} \sum_{t} \left( P_{\text{import}}(t) \cdot \text{Price}_{\text{import}}(t) - P_{\text{export}}(t) \cdot \text{Price}_{\text{export}}(t) \right) \cdot \Delta t
-\]
+$$
+\text{minimize} \sum*{t} \left( P*{\text{import}}(t) \cdot \text{Price}_{\text{import}}(t) - P_{\text{export}}(t) \cdot \text{Price}\_{\text{export}}(t) \right) \cdot \Delta t
+$$
 
 ### Constraints
 
 Power balance:
-\[
-P_{\text{import}}(t) - P_{\text{export}}(t) + P_{\text{discharge}}(t) - P_{\text{charge}}(t) = P_{\text{load}}(t)
-\]
+
+$$
+P*{\text{import}}(t) - P*{\text{export}}(t) + P*{\text{discharge}}(t) - P*{\text{charge}}(t) = P\_{\text{load}}(t)
+$$
 
 Battery dynamics:
-\[
-E_{\text{battery}}(t+1) = E_{\text{battery}}(t) + \left( P_{\text{charge}}(t) \cdot \eta - \frac{P_{\text{discharge}}(t)}{\eta} \right) \cdot \Delta t
-\]
+
+$$
+E*{\text{battery}}(t+1) = E*{\text{battery}}(t) + \left( P*{\text{charge}}(t) \cdot \eta - \frac{P*{\text{discharge}}(t)}{\eta} \right) \cdot \Delta t
+$$
 
 Battery limits:
-\[
-E_{\text{min}} \leq E_{\text{battery}}(t) \leq E_{\text{max}}
-\]
+
+$$
+E*{\text{min}} \leq E*{\text{battery}}(t) \leq E\_{\text{max}}
+$$
 
 Non-negativity:
-\[
-P_{\text{import}}(t), P_{\text{export}}(t), P_{\text{charge}}(t), P_{\text{discharge}}(t) \geq 0
-\]
+
+$$
+P*{\text{import}}(t), P*{\text{export}}(t), P*{\text{charge}}(t), P*{\text{discharge}}(t) \geq 0
+$$
 
 This simple system demonstrates all key modeling concepts used by HAEO.
 
@@ -217,23 +207,22 @@ Explore specific modeling topics:
 
 <div class="grid cards" markdown>
 
--   [Linear Programming Overview](overview.md)
-    
+- [Linear Programming Overview](overview.md)
+
     Detailed introduction to linear programming concepts.
 
--   [Objective Function](objective-function.md)
-    
+- [Objective Function](objective-function.md)
+
     How HAEO formulates the cost minimization problem.
 
--   [Battery Model](battery.md)
-    
+- [Battery Model](battery.md)
+
     Complete mathematical model of energy storage.
 
--   [Power Balance](power-balance.md)
-    
+- [Power Balance](power-balance.md)
+
     Graph structure and power flow constraints.
 
 </div>
 
 Or return to the [user guide](../user-guide/index.md) for configuration information.
-

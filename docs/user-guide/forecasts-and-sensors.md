@@ -31,10 +31,11 @@ attributes:
 ### Requirements
 
 - **`datetime`**: ISO 8601 format with timezone
-- **`value`**: Numeric value (power in kW, price in $/kWh, etc.)
+- **`value`**: Numeric value (power in kW, price in \$/kWh, etc.)
 - **Coverage**: Must cover the entire optimization horizon
 
 !!! info "Time Coverage"
+
 If your horizon is 48 hours, forecast data must span at least 48 hours from the current time.
 
 ## How HAEO Handles Multiple Forecasts
@@ -58,7 +59,8 @@ Forecast:
 HAEO sums them: **5 kW total at 12:00**
 
 !!! tip "Multiple Arrays"
-For solar systems, you can either:
+
+    For solar systems, you can either:
 
     - Provide separate forecasts and let HAEO sum them
     - Combine forecasts yourself in a template sensor
@@ -161,7 +163,8 @@ template:
 ```
 
 !!! info "Start and End Times"
-Providing entries at the start **and end** of each price block (one second before the next) prevents HAEO from interpolating between different price levels.
+
+    Providing entries at the start **and end** of each price block (one second before the next) prevents HAEO from interpolating between different price levels.
 
 ### Constant Price as Forecast
 

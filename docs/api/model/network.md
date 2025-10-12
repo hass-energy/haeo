@@ -32,9 +32,9 @@ Runs the optimization solver and returns results.
 ### Usage
 
 ```python
-network = Network(period=1/12, n_periods=576)  # 5min periods, 48 hours
-network.add("battery", "main_battery", capacity=15.0, ...)
-network.add("grid", "main_grid", ...)
+network = Network(period=1 / 12, n_periods=576)  # 5min periods, 48 hours
+network.add("battery", "main_battery", capacity=15.0)
+network.add("grid", "main_grid")
 network.connect("main_battery", "main_grid")
 result = network.optimize()
 ```

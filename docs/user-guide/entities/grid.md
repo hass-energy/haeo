@@ -32,9 +32,9 @@ Use descriptive, user-friendly names without special characters:
 
 **Forecast sensor(s)** providing electricity import prices over time.
 
-**Format**: Single sensor or list of sensors
-**Unit**: $/kWh
-**Required**: Yes
+- **Format**: Single sensor or list of sensors
+- **Unit**: \$/kWh
+- **Required**: Yes
 
 **Single forecast sensor**:
 
@@ -53,7 +53,8 @@ Import Price:
 HAEO automatically merges multiple forecasts into a continuous timeline.
 
 !!! info "Forecast Sensors Required"
-Grid pricing **must** be provided via forecast sensors. Even for fixed pricing, create a forecast sensor that returns a constant value.
+
+    Grid pricing **must** be provided via forecast sensors. Even for fixed pricing, create a forecast sensor that returns a constant value.
 
     See [Forecasts & Sensors](../forecasts-and-sensors.md) for examples of creating constant-price forecast sensors and time-of-use tariff sensors.
 
@@ -61,17 +62,18 @@ Grid pricing **must** be provided via forecast sensors. Even for fixed pricing, 
 
 **Forecast sensor(s)** providing electricity export revenue over time.
 
-**Format**: Single sensor or list of sensors
-**Unit**: $/kWh
-**Required**: Yes
+- **Format**: Single sensor or list of sensors
+- **Unit**: \$/kWh
+- **Required**: Yes
 
 Same configuration options as import price.
 
 !!! info "Export vs Import Pricing"
-Typically, export prices are lower than import prices:
 
-    - **Import**: $0.25/kWh (what you pay)
-    - **Export**: $0.10/kWh (what you receive)
+    Typically, export prices are lower than import prices:
+
+    - **Import**: \$0.25/kWh (what you pay)
+    - **Export**: \$0.10/kWh (what you receive)
 
     This price difference incentivizes self-consumption and strategic battery usage.
 
@@ -79,32 +81,37 @@ Typically, export prices are lower than import prices:
 
 Maximum power that can be imported from the grid (kW).
 
-**Optional** - if not specified, import is unlimited.
+- **Optional** - if not specified, import is unlimited.
 
 Use this to model:
 
 - Main breaker capacity
+
 - Grid connection limits
+
 - Fuse ratings
 
-**Example**: `10` for 10 kW maximum import
+- **Example**: `10` for 10 kW maximum import
 
 ### Export Limit
 
 Maximum power that can be exported to the grid (kW).
 
-**Optional** - if not specified, export is unlimited.
+- **Optional** - if not specified, export is unlimited.
 
 Use this to model:
 
 - Inverter export limits
+
 - Grid connection agreements
+
 - Feed-in tariff restrictions
 
-**Example**: `5` for 5 kW maximum export
+- **Example**: `5` for 5 kW maximum export
 
 !!! warning "Regulatory Limits"
-Some jurisdictions limit export to a percentage of import capacity, or prohibit export entirely. Configure accordingly.
+
+    Some jurisdictions limit export to a percentage of import capacity, or prohibit export entirely. Configure accordingly.
 
 ## Configuration Examples
 

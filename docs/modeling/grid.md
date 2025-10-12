@@ -4,17 +4,25 @@ How HAEO models grid import and export.
 
 ## Decision Variables
 
-- \(P_{\text{import}}(t)\): Power imported from grid
-- \(P_{\text{export}}(t)\): Power exported to grid
+- $P\_{\text{import}}(t)$: Power imported from grid
+- $P\_{\text{export}}(t)$: Power exported to grid
 
 ## Cost Contribution
 
-\[ C_{\text{grid}}(t) = P_{\text{import}}(t) \cdot p_{\text{import}}(t) - P_{\text{export}}(t) \cdot p_{\text{export}}(t) \]
+$$
+C*{\text{grid}}(t) = P*{\text{import}}(t) \cdot p*{\text{import}}(t) - P*{\text{export}}(t) \cdot p\_{\text{export}}(t)
+$$
 
 ## Constraints
 
 Optional power limits:
-\[ 0 \leq P_{\text{import}}(t) \leq P_{\text{import}}^{\max} \]
-\[ 0 \leq P_{\text{export}}(t) \leq P_{\text{export}}^{\max} \]
+
+$$
+0 \leq P*{\text{import}}(t) \leq P*{\text{import}}^{\max}
+$$
+
+$$
+0 \leq P*{\text{export}}(t) \leq P*{\text{export}}^{\max}
+$$
 
 See [grid configuration](../user-guide/entities/grid.md) for details.

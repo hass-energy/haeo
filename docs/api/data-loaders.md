@@ -9,6 +9,7 @@ Data loader modules for fetching sensor data and forecasts from Home Assistant.
 Loads forecast data from Home Assistant sensors supporting forecast attributes.
 
 Supports:
+
 - Solar forecasts (Open-Meteo, Solcast)
 - Price forecasts (Amber Electric, Tibber, Nordpool)
 - Load forecasts (custom sensors)
@@ -31,10 +32,10 @@ Loads constant values (fixed prices, fixed loads).
 - `sensor_loader.py`: Current sensor values
 - `constant_loader.py`: Constant values
 - `forecast_parsers/`: Format-specific forecast parsers
-  - `open_meteo_solar_forecast.py`
-  - `solcast_solar.py`
-  - `amberelectric.py`
-  - `aemo_nem.py`
+    - `open_meteo_solar_forecast.py`
+    - `solcast_solar.py`
+    - `amberelectric.py`
+    - `aemo_nem.py`
 
 ## Usage
 
