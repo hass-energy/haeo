@@ -35,7 +35,16 @@ Forecast:
 
 ### Production Price
 
-Price per kWh generated. Usually 0 (solar is free). Positive value models feed-in tariff.
+Price per kWh generated.
+
+- **Typically 0**: Solar generation is free once installed (no fuel cost)
+- **Negative values**: Model opportunity cost if generation could be sold but curtailment reduces revenue
+- **Positive values**: Rarely used (not the same as export price, which is configured on Grid)
+
+!!! note "Production Price vs Export Price"
+    Production price represents the *cost of generating* electricity (typically zero for solar).
+    Export revenue is configured separately via the Grid element's export price.
+    Keep production price at 0 unless modeling specific curtailment opportunity costs.
 
 ### Curtailment
 
@@ -95,4 +104,4 @@ Better daily coverage vs single orientation.
 - [Battery Configuration](battery.md)
 - [Forecasts Guide](../forecasts-and-sensors.md)
 
-[:octicons-arrow-right-24: Continue to Load Configuration](loads.md)
+[:octicons-arrow-right-24: Continue to Load Configuration](constant-load.md)

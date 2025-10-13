@@ -16,14 +16,11 @@ A battery in HAEO is modeled as an energy storage device with:
 
 ### Decision Variables
 
-For each time step $t \in \{0, 1, \ldots, T-1\}$, HAEO creates optimization variables:
+For each time step $t \in \{0, 1, \ldots, T-1\}$:
 
-- $P_{\text{charge}}(t)$: Charging power (kW) - implemented as `{name}_power_consumption_{t}`
-- $P_{\text{discharge}}(t)$: Discharging power (kW) - implemented as `{name}_power_production_{t}`
-- $E(t)$: Energy stored in battery (kWh) - implemented as `{name}_energy_{t}`
-
-These variables are created using PuLP's `LpVariable`.
-They have bounds that enforce the power and energy limits described below.
+- $P_{\text{charge}}(t)$: Charging power (kW)
+- $P_{\text{discharge}}(t)$: Discharging power (kW)
+- $E(t)$: Energy stored in battery (kWh)
 
 ### Parameters
 
@@ -49,19 +46,8 @@ $$
 E(t+1) = E(t) + \left( P_{\text{charge}}(t) \cdot \sqrt{\eta} - \frac{P_{\text{discharge}}(t)}{\sqrt{\eta}} \right) \cdot \Delta t
 $$
 
-**Efficiency modeling**: HAEO splits the round-trip efficiency symmetrically.
-Using $\sqrt{\eta}$ for charging and $1/\sqrt{\eta}$ for discharging ensures the round-trip efficiency is exactly $\eta$.
-This approach distributes losses equally between charging and discharging operations.
-
-This is implemented as:
-
-```python
-for t in range(n_periods - 1):
-    problem += (
-        energy[t + 1]
-        == energy[t] + (power_charge[t] * sqrt(efficiency) - power_discharge[t] / sqrt(efficiency)) * period
-    )
-```
+**Efficiency modeling**: The round-trip efficiency $\eta$ is split symmetrically between charging and discharging.
+Using $\sqrt{\eta}$ for both operations ensures the combined round-trip efficiency equals $\eta$ exactly.
 
 #### Initial Condition
 
@@ -79,8 +65,6 @@ $$
 C \cdot \frac{\text{SOC}_{\min}}{100} \leq E(t) \leq C \cdot \frac{\text{SOC}_{\max}}{100} \quad \forall t
 $$
 
-These bounds are enforced when creating the energy variables.
-
 #### Power Limits
 
 Charging and discharging have maximum rates determined by the inverter and battery specifications:
@@ -92,11 +76,7 @@ $$
 \end{align}
 $$
 
-**Note**: While the battery can charge OR discharge, it won't do both simultaneously.
-Although not explicitly constrained, the optimizer naturally avoids simultaneous charging and discharging.
-This is because it would waste energy due to efficiency losses.
-
-These bounds are enforced when creating the power variables.
+**Note**: The optimizer naturally avoids simultaneous charging and discharging as it would waste energy due to efficiency losses.
 
 ### Cost Contribution
 
@@ -108,17 +88,6 @@ $$
 $$
 
 Where $c_{\text{charge}}$ and $c_{\text{discharge}}$ (in \$/kWh) represent the marginal cost of battery usage.
-These costs are added to the objective function:
-
-```python
-if charge_cost is not None:
-    for t in range(n_periods):
-        objective += power_charge[t] * charge_cost * period
-
-if discharge_cost is not None:
-    for t in range(n_periods):
-        objective += power_discharge[t] * discharge_cost * period
-```
 
 ## Physical Interpretation
 
@@ -304,17 +273,8 @@ Typical battery efficiencies:
 
 ## Related Documentation
 
-- [Battery Configuration Guide](../user-guide/entities/battery.md) - User-facing configuration
-- [Objective Function](objective-function.md) - How battery cost contributes to total cost
-- [Power Balance](power-balance.md) - How battery integrates with network
+- [Battery Configuration Guide](../user-guide/elements/battery.md) - User-facing configuration
+- [Modeling Overview](index.md) - Overall optimization formulation
 - [Units Documentation](../developer-guide/units.md) - Why we use kW/kWh
-
-## Next Steps
-
-Explore related modeling topics:
-
-- [Grid Modeling](grid.md) - Pricing that drives battery decisions
-- [Power Balance](power-balance.md) - How batteries integrate with the network
-- [Time Horizons](time-horizons.md) - How forecasting affects battery strategy
 
 [:octicons-arrow-right-24: Continue to Grid Modeling](grid.md)

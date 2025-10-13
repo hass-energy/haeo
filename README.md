@@ -37,7 +37,7 @@ This focused approach means:
 
 - **[Installation Guide](https://ha-energy-optimiser.github.io/haeo/user-guide/installation/)** - Get started with HAEO
 - **[Configuration Guide](https://ha-energy-optimiser.github.io/haeo/user-guide/configuration/)** - Set up your energy system
-- **[Entity Configuration](https://ha-energy-optimiser.github.io/haeo/user-guide/entities/)** - Configure batteries, solar, grids, and loads
+- **[Element Configuration](https://ha-energy-optimiser.github.io/haeo/user-guide/elements/)** - Configure batteries, solar, grids, and loads
 - **[Mathematical Modeling](https://ha-energy-optimiser.github.io/haeo/modeling/)** - Understand the optimization
 - **[Developer Guide](https://ha-energy-optimiser.github.io/haeo/developer-guide/)** - Contribute to HAEO
 - **[API Reference](https://ha-energy-optimiser.github.io/haeo/api/)** - Auto-generated API docs

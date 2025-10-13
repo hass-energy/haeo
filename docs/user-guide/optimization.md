@@ -16,6 +16,12 @@ Total cost over the optimization horizon in dollars.
 - **Includes**: Import costs, export revenue, storage costs
 - **Unit**: \$ (or your configured currency)
 
+!!! info "Artificial Costs"
+
+    The optimization cost includes small artificial costs for battery discharge and solar generation.
+    These encourage the optimizer to use stored energy and solar power effectively.
+    The actual monetary cost to you is primarily the grid import/export prices.
+
 ### Optimization Status
 
 **Entity ID**: `sensor.{network_name}_optimization_status`
@@ -34,13 +40,12 @@ Current optimization state:
 
 Time taken to solve the optimization in seconds.
 
-- **Typical**: 0.5-5 seconds for small networks
-- **Large networks**: 5-30 seconds
+- **Typical**: 0.5-5 seconds for most home systems
 - **Too slow**: Consider reducing horizon or increasing period
 
-## Entity Sensors
+## Element Sensors
 
-For each configured entity, HAEO creates sensors:
+For each configured element, HAEO creates sensors:
 
 ### Power Sensors
 
@@ -97,7 +102,7 @@ If optimization takes too long:
 
 1. **Reduce horizon**: Use fewer hours
 2. **Increase period**: Use larger time steps
-3. **Simplify network**: Remove unnecessary entities
+3. **Simplify network**: Remove unnecessary elements
 4. **Try different solver**: HiGHS is usually fastest
 
 ### Update Frequency
@@ -126,6 +131,6 @@ This helps you:
 ## Related Documentation
 
 - [Troubleshooting](troubleshooting.md)
-- [Objective Function](../modeling/objective-function.md)
+- [Mathematical Modeling](../modeling/index.md)
 
 [:octicons-arrow-right-24: Continue to Examples](examples/sigenergy-system.md)

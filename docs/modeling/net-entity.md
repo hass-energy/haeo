@@ -23,15 +23,6 @@ Where:
 - $\mathcal{C}_{\text{out}}$: Outbound connections from net
 - $P_c(t)$: Power on connection $c$
 
-**Implementation**:
-
-```python
-for t in range(n_periods):
-    inflow = sum(conn.power[t] for conn in net.inbound)
-    outflow = sum(conn.power[t] for conn in net.outbound)
-    problem += inflow == outflow
-```
-
 ## Physical Interpretation
 
 **Virtual node**: Not a physical device, represents electrical junction.
@@ -76,6 +67,7 @@ Separate buses with inverter connection between them.
 
 ## Related Documentation
 
-- [Net Configuration](../user-guide/entities/net.md)
-- [Power Balance](power-balance.md)
+- [Net Configuration](../user-guide/elements/net.md)
+- [Modeling Overview](index.md)
+- [Connection Modeling](connections.md)
 - [Connections](connections.md)

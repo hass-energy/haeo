@@ -179,32 +179,6 @@ Charge Cost: -0.005 $/kWh # Small bonus to encourage early charging
 Discharge Cost: 0.001 $/kWh # Prevent fluttering
 ```
 
-## How HAEO Uses Battery Configuration
-
-### State of Charge Tracking
-
-HAEO reads your SOC sensor at the start of each optimization.
-It projects how SOC changes over the horizon based on charge/discharge decisions.
-
-### Optimization Strategy
-
-HAEO determines the optimal charge/discharge schedule by:
-
-1. **Price awareness**: Charge during low-price periods, discharge during high-price periods
-2. **SOC constraints**: Keep SOC between min and max limits
-3. **Power limits**: Respect max charge/discharge power
-4. **Efficiency**: Account for losses
-5. **Forecast integration**: Plan ahead based on price and solar forecasts
-
-### Typical Behavior
-
-With time-of-use pricing, you'll typically see:
-
-- **Overnight charging**: When prices are low
-- **Peak discharge**: During expensive peak periods
-- **Solar charging**: During midday if solar exceeds consumption
-- **SOC management**: Maintains reserves for expected high-price periods
-
 ## Sensors Created
 
 HAEO creates these sensors for each battery:
@@ -227,7 +201,7 @@ If your battery remains idle:
    See the [forecasts page](../forecasts-and-sensors.md) for details.
 2. **Verify SOC sensor**: Ensure it's reporting correctly
 3. **Review constraints**: Too-tight SOC limits may prevent operation
-4. **Check connections**: Battery must be [connected](../connections.md) to the network
+4. **Check connections**: Battery must be [connected](connections.md) to the network
 
 ### Unrealistic SOC Predictions
 
@@ -265,7 +239,7 @@ This allows HAEO to:
 
 - [Forecasts & Sensors](../forecasts-and-sensors.md) - Creating SOC sensors
 - [Grid Configuration](grid.md) - Pricing that drives battery decisions
-- [Connections](../connections.md) - Connect battery to network
+- [Connections](connections.md) - Connect battery to network
 - [Battery Modeling](../../modeling/battery.md) - Mathematical details
 - [Units & Stability](../../developer-guide/units.md) - Why kW/kWh units
 
@@ -274,7 +248,7 @@ This allows HAEO to:
 After configuring your battery:
 
 1. [Add a grid connection](grid.md) for import/export pricing
-2. [Define connections](../connections.md) between battery and grid
+2. [Define connections](connections.md) between battery and grid
 3. [View optimization results](../optimization.md) to see battery schedule
 
 [:octicons-arrow-right-24: Continue to Grid Configuration](grid.md)

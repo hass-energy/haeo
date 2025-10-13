@@ -68,7 +68,7 @@ Optimization fails because the network graph is disconnected.
 ### Symptoms
 
 - Optimization status shows `infeasible`
-- Some entities never show power flow
+- Some elements never show power flow
 - Logs mention disconnected components
 
 ### Solutions
@@ -85,9 +85,9 @@ graph LR
     Net --> Load[Load]
 ```
 
-Each entity should have at least one connection.
+Each element should have at least one connection.
 
-#### Check All Entities Have Connections
+#### Check All Elements Have Connections
 
 In HAEO configuration, verify:
 
@@ -98,15 +98,15 @@ In HAEO configuration, verify:
 
 #### Add Missing Connections
 
-If an entity is isolated, add connections:
+If an element is isolated, add connections:
 
 1. Open HAEO options flow
 2. Select **Add Connection**
-3. Connect the isolated entity to the main network
+3. Connect the isolated element to the main network
 
-#### Use Net Entities
+#### Use Net Elements
 
-For complex topologies, use net entities as hubs:
+For complex topologies, use net elements as hubs:
 
 ```mermaid
 graph LR
@@ -116,7 +116,7 @@ graph LR
     Net --> Load[Load]
 ```
 
-This ensures all entities connect to a common point.
+This ensures all elements connect to a common point.
 
 #### Verify Connection Direction
 
@@ -136,10 +136,12 @@ Optimization duration exceeds acceptable limits.
 
 ### Solutions
 
-1. **Reduce horizon hours**: Less lookahead
-2. **Increase period minutes**: Fewer time steps
-3. **Simplify network**: Remove unnecessary entities
-4. **Change solver**: Try HiGHS if using another
+If optimization takes too long:
+
+1. **Reduce horizon**: Use fewer hours (48 → 24)
+2. **Increase period**: Use larger time steps (5min → 15min)
+3. **Simplify network**: Remove unnecessary elements
+4. **Change solver**: Try CBC or GLPK
 
 Target: < 5 seconds for real-time use
 
@@ -160,7 +162,7 @@ Battery remains idle despite price variation.
 
 ### Problem
 
-Entity sensors display `unknown` values.
+Element sensors display `unknown` values.
 
 ### Solutions
 

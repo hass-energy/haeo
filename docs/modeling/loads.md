@@ -20,12 +20,6 @@ $$
 
 Load power is fixed at all time steps.
 
-**Implementation**:
-
-```python
-power_consumption = [power_constant] * n_periods  # List of constants
-```
-
 ### Physical Interpretation
 
 Represents baseline consumption: refrigerators, network equipment, standby power, always-on devices.
@@ -47,12 +41,6 @@ P_{\text{load}}(t) = P_{\text{forecast}}(t) \quad \forall t
 $$
 
 Load follows forecast exactly.
-
-**Implementation**:
-
-```python
-power_consumption = forecast  # List from sensor data
-```
 
 ### Physical Interpretation
 
@@ -82,6 +70,7 @@ Total load at net entity = sum of all connected loads.
 
 ## Related Documentation
 
-- [Load Configuration](../user-guide/entities/loads.md)
-- [Power Balance](power-balance.md)
+- [Load Configuration](../user-guide/elements/constant-load.md)
+- [Forecast Load Configuration](../user-guide/elements/forecast-load.md)
+- [Modeling Overview](index.md)
 - [Forecasts Guide](../user-guide/forecasts-and-sensors.md)

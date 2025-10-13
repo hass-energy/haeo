@@ -1,20 +1,20 @@
 # Connections
 
-Connections define how power flows between entities in your network.
+Connections define how power flows between elements in your network.
 
 ## Overview
 
-A connection represents a power flow path from a source entity to a target entity, with optional power limits.
+A connection represents a power flow path from a source element to a target element, with optional power limits.
 
 ## Configuration
 
 ### Source
 
-The entity where power comes from.
+The element where power comes from.
 
 ### Target
 
-The entity where power goes to.
+The element where power goes to.
 
 ### Min Power (Optional)
 
@@ -60,11 +60,11 @@ graph LR
 
 ## Troubleshooting
 
-See [troubleshooting guide](troubleshooting.md#graph-isnt-connected-properly) for connection issues.
+See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly) for connection issues.
 
 ## Modeling Hybrid Inverters {#hybrid-inverters}
 
-Hybrid inverters (AC-DC converters) can be modeled as connections between net entities:
+Hybrid inverters (AC-DC converters) can be modeled as connections between net elements:
 
 ```mermaid
 graph LR
@@ -83,7 +83,7 @@ graph LR
 
 ### Configuration
 
-Create two net entities (DC and AC) and connect them with power limits:
+Create two net elements (DC and AC) and connect them with power limits:
 
 ```yaml
 Source: DC Net
@@ -102,7 +102,7 @@ The connection limits represent the inverter's power rating.
 
 ## Related Documentation
 
-- [Power Balance](../modeling/power-balance.md)
-- [Connection Modeling](../modeling/connections.md)
+- [Connection Modeling](../../modeling/connections.md)
+- [Net Element Modeling](../../modeling/net-entity.md)
 
-[:octicons-arrow-right-24: Continue to Understanding Results](optimization.md)
+[:octicons-arrow-right-24: Continue to Understanding Results](../optimization.md)

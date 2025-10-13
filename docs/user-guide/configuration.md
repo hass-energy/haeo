@@ -8,8 +8,8 @@ It uses the Home Assistant UI.
 HAEO configuration happens entirely through Home Assistant's UI. You'll:
 
 1. Create a **Network** (the main integration entry)
-2. Add **Entities** (batteries, grids, solar, loads)
-3. Define **Connections** (how energy flows between entities)
+2. Add **Elements** (batteries, grids, solar, loads)
+3. Define **Connections** (how energy flows between elements)
 
 The integration automatically validates your configuration and runs optimizations based on your settings.
 
@@ -32,41 +32,60 @@ A unique name for your energy network (e.g., "Home Energy System").
 
 !!! tip "Multiple Networks"
 
-    You can create multiple separate networks if you have distinct energy systems (e.g., main house and guest house).
+    You can create multiple separate networks if you have distinct energy systems.
+    This is useful for:
+    
+    - Separate buildings (main house and guest house)
+    - Testing configurations without affecting your main network
+    - Different optimization strategies for different areas
 
 #### Horizon Hours
 
 The optimization time horizon in hours (1-168).
+This determines how far into the future HAEO optimizes.
 
-- **Default**: 48 hours
-- **Shorter (12-24h)**: Faster optimization, less lookahead
-- **Longer (72-168h)**: Better long-term decisions, slower computation
+**Recommendations:**
 
-!!! info "Choosing a Horizon"
+- **Start with 48 hours** for most home systems
+- Match your shortest forecast horizon (prices, solar, or load)
+- Longer horizons provide better decisions but take more time to compute
 
-    Consider your forecast availability:
+**Trade-offs:**
 
-    - If you have 24-hour price forecasts, use at least 24 hours
-    - If you have 48-hour solar forecasts, use 48 hours or more
-    - Balance forecast availability with computational performance
+- **Shorter (12-24h)**: Faster optimization, less lookahead for strategic decisions
+- **Longer (72-168h)**: Better long-term planning, slower computation
+
+!!! info "Matching Forecast Availability"
+
+    - 24-hour price forecasts → use at least 24 hours
+    - 48-hour solar forecasts → use 48 hours or more
+    - Balance forecast coverage with computational performance
 
 #### Period Minutes
 
-The time step for optimization in minutes (1-60).
+The time resolution for optimization in minutes (1-60).
+Each period is one time step in the optimization.
 
-- **Default**: 5 minutes
-- **Smaller (1-5min)**: Higher resolution control, more variables
-- **Larger (15-60min)**: Faster solving, coarser control
+**Recommendations:**
+
+- **Start with 5 minutes** for most systems
+- Match your price or forecast resolution when possible
+- Use larger periods if optimization is too slow
+
+**Trade-offs:**
+
+- **Smaller (1-5min)**: Higher resolution control, more accurate modeling
+- **Larger (15-60min)**: Faster computation, coarser control granularity
 
 !!! warning "Computational Impact"
 
-    Smaller periods create more optimization variables:
+    Smaller periods create more variables to optimize:
 
-    - 5-minute periods over 48 hours = 576 time steps
-    - 15-minute periods over 48 hours = 192 time steps
-    - 60-minute periods over 48 hours = 48 time steps
+    - 5-minute periods × 48 hours = 576 time steps
+    - 15-minute periods × 48 hours = 192 time steps  
+    - 60-minute periods × 48 hours = 48 time steps
 
-    More time steps = longer optimization time.
+    More time steps increase optimization time significantly.
 
 #### Optimizer
 
@@ -89,9 +108,9 @@ Click **Submit** to create your network. HAEO will create the network device and
 
     You'll see a success message and HAEO will appear in your integrations list.
 
-## Adding Entities
+## Adding Elements
 
-After creating your network, you need to add entities representing your energy devices.
+After creating your network, you need to add elements representing your energy devices.
 
 ### Opening Options Flow
 
@@ -99,11 +118,12 @@ After creating your network, you need to add entities representing your energy d
 2. Click **Configure** on the HAEO integration
 3. Select the operation you want to perform
 
-### Available Entity Types
+### Available Elements
 
-HAEO supports several entity types:
+HAEO models your energy system using different element types.
+Each element represents a physical or logical component:
 
-| Entity Type       | Description                      | Use Case                      |
+| Element Type      | Description                      | Use Case                      |
 | ----------------- | -------------------------------- | ----------------------------- |
 | **Battery**       | Energy storage with SOC tracking | Home batteries, EV as storage |
 | **Grid**          | Bi-directional grid connection   | Main grid, separate meters    |
@@ -112,33 +132,35 @@ HAEO supports several entity types:
 | **Forecast Load** | Variable loads with forecasts    | Household consumption         |
 | **Net**           | Virtual power balance node       | Grouping connection points    |
 
+See the [elements overview](elements/index.md) for more details about each type.
+
 ### Configuration Steps
 
-Each entity type has its own configuration requirements. See the detailed guides:
+Each element type has its own configuration requirements. See the detailed guides:
 
-- [Battery Configuration](entities/battery.md)
-- [Grid Configuration](entities/grid.md)
-- [Photovoltaics Configuration](entities/photovoltaics.md)
-- [Load Configuration](entities/loads.md)
-- [Net Entity Configuration](entities/net.md)
+- [Battery Configuration](elements/battery.md)
+- [Grid Configuration](elements/grid.md)
+- [Photovoltaics Configuration](elements/photovoltaics.md)
+- [Load Configuration](elements/constant-load.md)
+- [Net Element Configuration](elements/net.md)
 
 !!! tip "Configuration Order"
 
-    We recommend adding entities in this order:
+    We recommend adding elements in this order:
 
     1. Grid (your connection to the electricity network)
     2. Battery (if you have one)
     3. Photovoltaics (if you have solar)
     4. Loads (constant or forecast)
-    5. Net entities (for complex topologies)
+    5. Net elements (for complex topologies)
 
 ## Defining Connections
 
-Connections define how energy flows between entities in your network.
+Connections define how energy flows between elements in your network.
 
 ### What are Connections?
 
-A connection represents a power flow path between two entities:
+A connection represents a power flow path between two elements:
 
 - **Source**: Where energy comes from
 - **Target**: Where energy goes to
@@ -147,11 +169,11 @@ A connection represents a power flow path between two entities:
 ### Adding Connections
 
 1. In the HAEO options flow, select **Add Connection**
-2. Choose the **source** entity
-3. Choose the **target** entity
+2. Choose the **source** element
+3. Choose the **target** element
 4. Set optional **min/max power limits** (in kW)
 
-See the [Connections guide](connections.md) for detailed information and examples.
+See the [Connections guide](elements/connections.md) for detailed information and examples.
 
 ### Example Network Topology
 
@@ -180,7 +202,7 @@ On the HAEO integration page, you'll see:
 
 - **Network device**: Represents your entire energy system
 - **Network sensors**: Optimization status, cost, duration
-- **Entity sensors**: Power, energy, SOC for each configured entity
+- **Element sensors**: Power, energy, SOC for each configured element
 
 ### Device Page
 
@@ -195,7 +217,7 @@ Click on the network device to see:
 HAEO creates multiple sensors for monitoring:
 
 - **Optimization sensors**: Cost, status, duration
-- **Power sensors**: Current optimal power for each entity (kW)
+- **Power sensors**: Current optimal power for each element (kW)
 - **Energy sensors**: Current energy level (batteries, kWh)
 - **SOC sensors**: Battery state of charge (%)
 
@@ -205,28 +227,28 @@ See the [Understanding Results guide](optimization.md) for details on interpreti
 
 ## Modifying Configuration
 
-### Editing Entities
+### Editing Elements
 
 1. Open HAEO options flow
-2. Select **Edit [Entity Type]**
-3. Choose the entity to edit
+2. Select **Edit [Element Type]**
+3. Choose the element to edit
 4. Update the configuration
 5. Click **Submit**
 
 !!! warning "Reconfiguration Impact"
 
-    Modifying entities triggers a new optimization. Sensors may show "unknown" briefly while recalculating.
+    Modifying elements triggers a new optimization. Sensors may show "unknown" briefly while recalculating.
 
-### Removing Entities
+### Removing Elements
 
 1. Open HAEO options flow
-2. Select **Remove [Entity Type]**
-3. Choose the entity to remove
+2. Select **Remove [Element Type]**
+3. Choose the element to remove
 4. Confirm removal
 
 !!! danger "Cascade Effects"
 
-    Removing an entity that has connections will also remove those connections. Ensure your network remains connected.
+    Removing an element that has connections will also remove those connections. Ensure your network remains connected.
 
 ### Removing Connections
 
@@ -239,19 +261,19 @@ See the [Understanding Results guide](optimization.md) for details on interpreti
 
 HAEO validates your configuration to prevent common errors:
 
-### Entity Name Uniqueness
+### Element Name Uniqueness
 
-Each entity must have a unique name within the network.
+Each element must have a unique name within the network.
 
 - ❌ **Invalid**: Two batteries named "Battery"
 - ✅ **Valid**: "Battery1" and "Battery2"
 
 ### Connection Validity
 
-Connections must reference existing entities.
+Connections must reference existing elements.
 
 - ❌ **Invalid**: Connection from "Battery" to "Solar" when "Solar" doesn't exist
-- ✅ **Valid**: Connection only created after both entities exist
+- ✅ **Valid**: Connection only created after both elements exist
 
 ### Power Limits
 
@@ -266,9 +288,8 @@ While not strictly enforced, your network should form a connected graph for mean
 
 !!! warning "Disconnected Networks"
 
-If your network has isolated subgraphs (entities not connected to others), HAEO will still optimize.
-It may produce unexpected results.
-Use the [troubleshooting guide](troubleshooting.md#graph-isnt-connected-properly) to diagnose connectivity issues.
+    If your network has isolated subgraphs (elements not connected to others), HAEO will still optimize but may produce unexpected results.
+    Use the [troubleshooting guide](troubleshooting.md#graph-isnt-connected-properly) to diagnose connectivity issues.
 
 ## Best Practices
 
@@ -282,9 +303,9 @@ Begin with a minimal configuration:
 
 ### Use Meaningful Names
 
-Choose descriptive entity names:
+Choose descriptive element names using friendly, readable format:
 
-- ✅ "Main_Battery", "Grid_Import", "Rooftop_Solar"
+- ✅ "Main Battery", "Grid Import", "Rooftop Solar"
 - ❌ "Battery1", "Thing", "Device"
 
 ### Document Constraints
@@ -303,23 +324,23 @@ See [performance considerations](optimization.md#performance-considerations) for
 
 ## Next Steps
 
-Now that you understand the basics, dive into configuring specific entity types:
+Now that you understand the basics, dive into configuring specific element types:
 
 <div class="grid cards" markdown>
 
-- [Battery Configuration](entities/battery.md)
+- [Battery Configuration](elements/battery.md)
 
     Configure battery storage with capacity, SOC, and efficiency settings.
 
-- [Grid Configuration](entities/grid.md)
+- [Grid Configuration](elements/grid.md)
 
     Set up grid import/export with pricing and power limits.
 
-- [Solar Configuration](entities/photovoltaics.md)
+- [Solar Configuration](elements/photovoltaics.md)
 
     Configure photovoltaics with forecast integration.
 
-- [Load Configuration](entities/loads.md)
+- [Load Configuration](elements/constant-load.md)
 
     Set up constant or forecast-based loads.
 

@@ -134,14 +134,15 @@ nav:
       - Configuration: user-guide/configuration.md
       - Forecasts & Sensors: user-guide/forecasts-and-sensors.md
       - HAEO vs Alternatives: user-guide/alternatives.md
-      - Entities:
-          - user-guide/entities/index.md
-          - Battery: user-guide/entities/battery.md
-          - Grid: user-guide/entities/grid.md
-          - Photovoltaics: user-guide/entities/photovoltaics.md
-          - Loads: user-guide/entities/loads.md
-          - Net: user-guide/entities/net.md
-      - Connections: user-guide/connections.md
+      - Elements:
+          - user-guide/elements/index.md
+          - Battery: user-guide/elements/battery.md
+          - Grid: user-guide/elements/grid.md
+          - Photovoltaics: user-guide/elements/photovoltaics.md
+          - Constant Load: user-guide/elements/constant-load.md
+          - Forecast Load: user-guide/elements/forecast-load.md
+          - Net: user-guide/elements/net.md
+          - Connections: user-guide/elements/connections.md
       - Understanding Results: user-guide/optimization.md
       - Examples:
           - Sigenergy System: user-guide/examples/sigenergy-system.md
@@ -149,17 +150,12 @@ nav:
 
   - Mathematical Modeling:
       - modeling/index.md
-      - Overview: modeling/overview.md
-      - Objective Function: modeling/objective-function.md
-      - Time Horizons: modeling/time-horizons.md
-      - Power Balance: modeling/power-balance.md
-      - Components:
-          - Battery: modeling/battery.md
-          - Grid: modeling/grid.md
-          - Loads: modeling/loads.md
-          - Photovoltaics: modeling/photovoltaics.md
-          - Connections: modeling/connections.md
-          - Net Entity: modeling/net-entity.md
+      - Battery: modeling/battery.md
+      - Grid: modeling/grid.md
+      - Loads: modeling/loads.md
+      - Photovoltaics: modeling/photovoltaics.md
+      - Connections: modeling/connections.md
+      - Net Entity: modeling/net-entity.md
 
   - Developer Guide:
       - developer-guide/index.md

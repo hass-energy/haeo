@@ -1,236 +1,304 @@
 # Mathematical Modeling
 
-This section explains how HAEO models your energy system.
-It uses linear programming to find the optimal power flow that minimizes costs.
+HAEO uses linear programming (LP) to optimize energy flows across your network.
+This section explains the mathematical formulation behind HAEO's optimization engine.
 
-## What is Linear Programming?
+## Linear Programming Overview
 
-Linear programming (LP) is an optimization technique.
-It finds the best outcome in a mathematical model with linear relationships.
-HAEO uses LP to determine the optimal power flow across your energy network.
+Linear programming finds optimal values for decision variables that minimize (or maximize) an objective function subject to linear constraints.
 
-### Why Linear Programming?
-
-Linear programming is ideal for energy optimization because:
-
-1. **Fast solving**: Even large problems solve in seconds
-2. **Global optimum**: Always finds the best solution (if one exists)
-3. **Well-understood**: Mature algorithms and solvers
-4. **Handles constraints**: Naturally models power limits, SOC ranges, etc.
-
-### Key Concepts
-
-```mermaid
-graph TD
-    A[Energy System] --> B[Mathematical Model]
-    B --> C[Objective Function<br/>Minimize Cost]
-    B --> D[Constraints<br/>Physical Limits]
-    C --> E[LP Solver]
-    D --> E
-    E --> F[Optimal Solution<br/>Power Schedule]
-```
-
-**Objective Function**: What we want to minimize (total cost)
-
-**Decision Variables**: What the optimizer controls (power flows)
-
-**Constraints**: Rules that must be satisfied (power limits, SOC ranges, power balance)
-
-**Optimal Solution**: The power schedule that minimizes cost while satisfying all constraints
-
-## HAEO's Approach
-
-HAEO models your energy system as:
-
-1. **Network graph**: Entities (nodes) connected by power flows (edges)
-2. **Time horizon**: Multiple time steps into the future
-3. **Decision variables**: Power flow at each time step
-4. **Constraints**: Physical and operational limits
-5. **Objective**: Minimize total cost over the horizon
-
-### Mathematical Representation
-
-At a high level, HAEO solves:
+**Standard LP form**:
 
 $$
 \begin{align}
-\text{minimize} \quad & \sum\_{t} \text{Cost}(t) \\
-\text{subject to} \quad & \text{Power balance at all nodes} \\
-& \text{Energy storage dynamics} \\
-& \text{Power limits} \\
-& \text{Energy limits}
+\text{minimize} \quad & c^T x \\
+\text{subject to} \quad & Ax \leq b \\
+& A_{\text{eq}} x = b_{\text{eq}} \\
+& l \leq x \leq u
 \end{align}
 $$
 
-Where $t$ indexes time steps over the optimization horizon.
+Where:
+- $x$: Decision variables (what the optimizer chooses)
+- $c$: Objective coefficients (costs/prices)
+- $A$, $b$: Inequality constraint matrices
+- $A_{\text{eq}}$, $b_{\text{eq}}$: Equality constraint matrices
+- $l$, $u$: Variable bounds
 
-## Model Components
+**Linearity requirement**: All relationships must be linear.
+No quadratic terms ($x^2$), products ($xy$), or nonlinear functions ($\sin(x)$, etc.).
 
-### Time Discretization
+### Why Linear Programming?
 
-HAEO divides the optimization horizon into discrete time steps:
+LP is ideal for energy optimization:
 
-- **Horizon**: Total optimization period (e.g., 48 hours)
-- **Period**: Time step size (e.g., 5 minutes)
-- **Time steps**: Horizon / Period (e.g., 576 steps)
+1. **Fast solving**: Modern solvers handle thousands of variables in seconds
+2. **Global optimum**: Always finds the best solution when one exists
+3. **Natural fit**: Power flows, energy balances, and costs are inherently linear
+4. **Scalability**: Handles large time horizons efficiently
 
-Each decision variable is defined for every time step.
+!!! info "HAEO Uses LP, Not MILP"
+    HAEO uses pure linear programming, not Mixed-Integer Linear Programming (MILP).
+    This avoids binary variables for on/off decisions, keeping solve times fast.
+    Energy systems with continuous power flows don't need MILP's discrete decision capabilities.
 
-### Entity Models
+## HAEO's Optimization Problem
 
-Each [entity type](../user-guide/entities/index.md) has its own model:
-
-- **[Battery](battery.md)**: Energy storage with SOC dynamics
-- **[Grid](grid.md)**: Import/export with pricing
-- **[Photovoltaics](photovoltaics.md)**: Generation with optional curtailment
-- **[Loads](loads.md)**: Fixed or forecast-based consumption
-- **[Connections](connections.md)**: Power flow constraints
-- **[Net](net-entity.md)**: Power balance nodes
-
-### Power Balance
-
-At each net entity and time step, power flow must balance:
-
-$$
-\sum*{\text{inflow}} P*{\text{in}}(t) = \sum*{\text{outflow}} P*{\text{out}}(t)
-$$
-
-This is Kirchhoff's current law applied to power flow.
-See the [power balance documentation](power-balance.md) for details.
-
-### Cost Calculation
-
-The objective function sums all costs:
+HAEO formulates energy system optimization as a linear program:
 
 $$
-\text{Total Cost} = \sum\_{t} \left( \text{Import Cost}(t) - \text{Export Revenue}(t) + \text{Storage Costs}(t) \right)
+\begin{align}
+\text{minimize} \quad & \sum_{t=0}^{T-1} \text{Cost}(t) \\
+\text{subject to} \quad & \text{Power balance at each net} \\
+& \text{Energy storage dynamics} \\
+& \text{Power flow limits} \\
+& \text{Energy capacity limits}
+\end{align}
 $$
 
-See the [objective function documentation](objective-function.md) for the complete formulation.
+Where:
+- $t$: Time step index (0 to $T-1$)
+- $T$: Number of time steps in optimization horizon
 
-## How to Read This Section
+### Problem Scale
 
-Each modeling page explains both the mathematical formulation and implementation details.
-They form a single, coherent narrative.
-The documentation uses mathematical notation alongside code examples.
-This provides a complete understanding of how HAEO models each component.
+Typical residential system (48-hour horizon, 5-minute periods):
 
-## Topics Covered
+- **Time steps**: 576
+- **Decision variables**: ~4000 (power flows, energy states)
+- **Constraints**: ~5000 (power balance, limits, dynamics)
+- **Solve time**: 0.5-2 seconds (HiGHS solver)
 
-### Foundation
+### Feasibility and Optimality
 
-- **[Linear Programming Overview](overview.md)** - Introduction to LP concepts
-- **[Objective Function](objective-function.md)** - Cost minimization formulation
-- **[Time Horizons](time-horizons.md)** - Time discretization and forecasting
-- **[Power Balance](power-balance.md)** - Graph structure and Kirchhoff's law
+- **Feasible solution**: Satisfies all constraints (power balance, limits)
+- **Optimal solution**: Feasible solution with minimum cost
+- **Infeasible**: No solution exists (load exceeds supply capacity)
 
-### Component Models
+## Network Structure
 
-- **[Battery Model](battery.md)** - Energy storage with SOC dynamics
-- **[Grid Model](grid.md)** - Import/export with pricing
-- **[Load Models](loads.md)** - Constant and forecast loads
-- **[Photovoltaics Model](photovoltaics.md)** - Solar generation
-- **[Connection Model](connections.md)** - Power flow constraints
-- **[Net Entity Model](net-entity.md)** - Power balance nodes
+HAEO models energy systems as directed graphs:
 
-## Example: Simple System
-
-Let's model a simple system with grid, battery, and load:
+- **Nodes**: Elements (battery, grid, solar, load) and nets (balance points)
+- **Edges**: Connections with power flow variables
+- **Direction**: Source → Target defines positive power flow direction
 
 ```mermaid
 graph LR
-    Grid[Grid] <--> Battery[Battery]
-    Battery --> Load[Load]
+    Grid((Grid)) <-->|P_grid| Net((Net))
+    Solar((Solar)) -->|P_solar| Net
+    Battery((Battery)) <-->|P_batt| Net
+    Net -->|P_load| Load((Load))
+    
+    style Net fill:#90EE90
 ```
 
-### Variables
+### Power Balance Constraint
 
-- $P\_{\text{import}}(t)$: Grid import power
-- $P\_{\text{export}}(t)$: Grid export power
-- $P\_{\text{charge}}(t)$: Battery charging power
-- $P\_{\text{discharge}}(t)$: Battery discharging power
-- $E\_{\text{battery}}(t)$: Battery energy level
-
-### Objective
+At each net element and every time step:
 
 $$
-\text{minimize} \sum*{t} \left( P*{\text{import}}(t) \cdot \text{Price}_{\text{import}}(t) - P_{\text{export}}(t) \cdot \text{Price}\_{\text{export}}(t) \right) \cdot \Delta t
+\sum_{c \in \mathcal{C}_{\text{in}}} P_c(t) = \sum_{c \in \mathcal{C}_{\text{out}}} P_c(t)
 $$
 
-### Constraints
+Where:
+- $\mathcal{C}_{\text{in}}$: Connections with net as target (inflows)
+- $\mathcal{C}_{\text{out}}$: Connections with net as source (outflows)
+- $P_c(t)$: Power flow through connection $c$ at time $t$
 
-Power balance:
+This enforces Kirchhoff's current law: power in equals power out.
+
+## Time Discretization
+
+The optimization horizon is divided into discrete periods:
+
+- **Horizon**: Total optimization period (hours)
+- **Period**: Time step duration (minutes)
+- **Time steps**: $T = \text{Horizon} / \text{Period}$
+
+Each decision variable exists for every time step.
+
+## Decision Variables
+
+HAEO's LP solver determines optimal values for these variables:
+
+| Variable | Symbol | Units | Description | Count |
+|----------|--------|-------|-------------|-------|
+| Connection power | $P_c(t)$ | kW | Power flow through connection $c$ | $N_c \times T$ |
+| Battery energy | $E_b(t)$ | kWh | Stored energy in battery $b$ | $N_b \times T$ |
+| Grid import | $P_{\text{import}}(t)$ | kW | Power imported from grid | $N_g \times T$ |
+| Grid export | $P_{\text{export}}(t)$ | kW | Power exported to grid | $N_g \times T$ |
+| Solar curtailment | $P_{\text{curtail}}(t)$ | kW | Curtailed solar generation | $N_s \times T$ |
+
+Where:
+- $N_c$: Number of connections
+- $N_b$: Number of batteries
+- $N_g$: Number of grids
+- $N_s$: Number of solar arrays with curtailment enabled
+- $T$: Number of time steps
+
+## Element Models
+
+Each element type has specific constraints and variables:
+
+- **[Battery](battery.md)**: Energy storage with SOC dynamics and charge/discharge limits
+- **[Grid](grid.md)**: Bidirectional power flow with import/export pricing
+- **[Photovoltaics](photovoltaics.md)**: Generation following forecast with optional curtailment
+- **[Loads](loads.md)**: Constant or forecast-based power consumption
+- **[Connections](connections.md)**: Power flow with directional limits
+- **[Net](net-entity.md)**: Virtual balance points enforcing power conservation
+
+## Objective Function
+
+HAEO minimizes total system cost over the optimization horizon:
 
 $$
-P*{\text{import}}(t) - P*{\text{export}}(t) + P*{\text{discharge}}(t) - P*{\text{charge}}(t) = P\_{\text{load}}(t)
+\text{minimize} \sum_{t=0}^{T-1} \left( C_{\text{grid}}(t) + C_{\text{battery}}(t) + C_{\text{solar}}(t) \right) \Delta t
 $$
 
-Battery dynamics:
+Where $\Delta t$ is the period duration in hours.
+
+### Cost Components
+
+**Grid costs** (import minus export revenue):
 
 $$
-E*{\text{battery}}(t+1) = E*{\text{battery}}(t) + \left( P*{\text{charge}}(t) \cdot \eta - \frac{P*{\text{discharge}}(t)}{\eta} \right) \cdot \Delta t
+C_{\text{grid}}(t) = \sum_{g} \left( P_{\text{import},g}(t) \cdot p_{\text{import},g}(t) - P_{\text{export},g}(t) \cdot p_{\text{export},g}(t) \right)
+$$
+
+**Battery costs** (artificial costs for optimization):
+
+$$
+C_{\text{battery}}(t) = \sum_{b} \left( P_{\text{charge},b}(t) \cdot c_{\text{charge},b} + P_{\text{discharge},b}(t) \cdot c_{\text{discharge},b} \right)
+$$
+
+**Solar curtailment costs**:
+
+$$
+C_{\text{solar}}(t) = \sum_{s} P_{\text{curtail},s}(t) \cdot c_{\text{production},s}
+$$
+
+All prices/costs are in $/kWh, powers in kW, giving costs in $ per time step.
+
+## Constraints
+
+HAEO enforces multiple constraint types:
+
+### Equality Constraints
+
+- **Power balance**: At each net, inflow equals outflow
+- **Energy dynamics**: Battery energy evolution over time
+
+### Inequality Constraints
+
+- **Power limits**: Connection flows, charge/discharge rates, import/export limits
+- **Energy limits**: Battery SOC minimum and maximum
+- **Non-negativity**: Power flows, curtailment ≥ 0
+
+## Solver
+
+HAEO uses **HiGHS** as the default LP solver:
+
+- **Open source**: MIT licensed
+- **Fast**: State-of-the-art performance
+- **Python integration**: Via PuLP library
+- **Actively maintained**: Continuous improvements
+
+Alternative solvers (CBC, GLPK, Gurobi) are supported.
+See [solver reference](../reference/solvers.md) for details.
+
+## Example: Grid-Battery-Load System
+
+Simple system with grid, battery, and load:
+
+```mermaid
+graph LR
+    Grid((Grid)) <--> Net((Net))
+    Battery((Battery)) <--> Net
+    Net --> Load((Load))
+    
+    style Net fill:#90EE90
+```
+
+**Decision variables**:
+- $P_{\text{import}}(t)$, $P_{\text{export}}(t)$: Grid power flows
+- $P_{\text{charge}}(t)$, $P_{\text{discharge}}(t)$: Battery power flows
+- $E(t)$: Battery energy state
+
+**Objective**:
+
+$$
+\text{minimize} \sum_{t} \left( P_{\text{import}}(t) p_{\text{import}}(t) - P_{\text{export}}(t) p_{\text{export}}(t) + P_{\text{discharge}}(t) c_{\text{discharge}} \right) \Delta t
+$$
+
+**Constraints**:
+
+Power balance at net:
+
+$$
+P_{\text{import}}(t) - P_{\text{export}}(t) + P_{\text{discharge}}(t) - P_{\text{charge}}(t) = P_{\text{load}}(t)
+$$
+
+Battery energy dynamics:
+
+$$
+E(t+1) = E(t) + \left( P_{\text{charge}}(t) \eta - \frac{P_{\text{discharge}}(t)}{\eta} \right) \Delta t
 $$
 
 Battery limits:
 
 $$
-E*{\text{min}} \leq E*{\text{battery}}(t) \leq E\_{\text{max}}
+E_{\min} \leq E(t) \leq E_{\max}
 $$
 
-Non-negativity:
+This demonstrates all core HAEO modeling concepts.
 
-$$
-P*{\text{import}}(t), P*{\text{export}}(t), P*{\text{charge}}(t), P*{\text{discharge}}(t) \geq 0
-$$
+## Units
 
-This simple system demonstrates all key modeling concepts used by HAEO.
-
-## Units and Numerical Stability
-
-HAEO uses specific unit conventions for numerical stability:
+HAEO uses consistent units for numerical stability:
 
 - **Power**: kilowatts (kW)
 - **Energy**: kilowatt-hours (kWh)
 - **Time**: hours (h)
+- **Cost**: dollars ($)
 
-This choice keeps numbers in similar ranges (avoiding very large or very small values).
-It improves solver performance and numerical accuracy.
+This keeps values in similar numerical ranges, improving solver performance.
+See [units documentation](../developer-guide/units.md) for details.
 
-See the [units documentation](../developer-guide/units.md) for detailed explanation.
+## Element-Specific Models
 
-## Solver Details
-
-HAEO uses the [PuLP](https://github.com/coin-or/pulp) library with various solver backends:
-
-- **HiGHS** (default): Modern, fast, open-source
-- **CBC**: Reliable COIN-OR solver
-- **GLPK**: GNU solver
-- **Commercial**: CPLEX, Gurobi (if installed)
-
-See the [solver reference](../reference/solvers.md) for comparisons and configuration.
-
-## Next Steps
-
-Explore specific modeling topics:
+Each element type has detailed mathematical formulation:
 
 <div class="grid cards" markdown>
 
-- [Linear Programming Overview](overview.md)
+- **[Battery Model](battery.md)**
 
-    Detailed introduction to linear programming concepts.
+    Energy storage with SOC dynamics, efficiency, and charge/discharge limits.
 
-- [Objective Function](objective-function.md)
+- **[Grid Model](grid.md)**
 
-    How HAEO formulates the cost minimization problem.
+    Bidirectional power flow with time-varying import/export pricing.
 
-- [Battery Model](battery.md)
+- **[Photovoltaics Model](photovoltaics.md)**
 
-    Complete mathematical model of energy storage.
+    Solar generation following forecasts with optional curtailment.
 
-- [Power Balance](power-balance.md)
+- **[Load Models](loads.md)**
 
-    Graph structure and power flow constraints.
+    Constant power consumption or forecast-based demand profiles.
+
+- **[Connection Model](connections.md)**
+
+    Power flow constraints between elements with directional limits.
+
+- **[Net Element Model](net-entity.md)**
+
+    Virtual balance points enforcing power conservation (Kirchhoff's law).
 
 </div>
 
-Or return to the [user guide](../user-guide/index.md) for configuration information.
+## Related Documentation
+
+- **[User Guide](../user-guide/index.md)** - Configuring HAEO networks
+- **[Solver Reference](../reference/solvers.md)** - LP solver options
+- **[Units Guide](../developer-guide/units.md)** - Unit conventions

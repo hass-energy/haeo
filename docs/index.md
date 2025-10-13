@@ -69,7 +69,7 @@ flowchart LR
 3. **Solves optimization** using linear programming to find the lowest-cost solution
 4. **Publishes results** as Home Assistant sensors for use in automations
 
-See the [optimization overview](modeling/overview.md) for detailed information.
+See the [mathematical modeling documentation](modeling/index.md) for detailed information.
 
 ## Key Features
 
@@ -113,7 +113,7 @@ Perfect for **end users** who want to install and configure HAEO:
 
 - [Installation](user-guide/installation.md) - HACS and manual installation
 - [Configuration](user-guide/configuration.md) - Setting up your first network
-- [Entity Guides](user-guide/entities/index.md) - Detailed configuration for each device type
+- [Element Guides](user-guide/elements/index.md) - Detailed configuration for each device type
 - [Examples](user-guide/examples/sigenergy-system.md) - Complete system walkthroughs
 - [Troubleshooting](user-guide/troubleshooting.md) - Common issues and solutions
 
@@ -121,12 +121,10 @@ Perfect for **end users** who want to install and configure HAEO:
 
 For those interested in **how the optimization works**:
 
-- [Overview](modeling/overview.md) - Introduction to linear programming
-- [Objective Function](modeling/objective-function.md) - Cost minimization approach
-- [Power Balance](modeling/power-balance.md) - Graph structure and constraints
-- [Component Models](modeling/battery.md) - Mathematical formulation of each device
-
-Each page includes both mathematical equations and code implementation views.
+- [Mathematical Modeling Overview](modeling/index.md) - Complete linear programming formulation
+- [Battery Model](modeling/battery.md) - Energy storage with SOC dynamics
+- [Grid Model](modeling/grid.md) - Import/export with pricing
+- [Component Models](modeling/battery.md) - All element mathematical models
 
 ### :material-code-braces: Developer Guide
 
@@ -137,15 +135,6 @@ For **contributors and developers**:
 - [Units](developer-guide/units.md) - Unit system and numerical stability
 - [Testing](developer-guide/testing.md) - Running and writing tests
 - [Contributing](developer-guide/contributing.md) - Contribution guidelines
-
-### :material-book-open: API Reference
-
-Auto-generated **API documentation** from code:
-
-- [Coordinator](api/coordinator.md) - Data update coordinator
-- [Model Classes](api/model/network.md) - Network and entity models
-- [Sensors](api/sensors.md) - Sensor implementations
-- [Data Loaders](api/data-loaders.md) - Forecast and sensor data loading
 
 ### :material-file-document: Reference
 

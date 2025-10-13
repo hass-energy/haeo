@@ -8,7 +8,7 @@ Connections model power flow paths between entities with optional limits.
 
 For each time step $t$:
 
-- $P_c(t)$: Power flow on connection (kW) - `{name}_power_{t}`
+- $P_c(t)$: Power flow on connection (kW)
 
 ### Parameters
 
@@ -24,15 +24,6 @@ For each time step $t$:
 $$
 P_{\min} \leq P_c(t) \leq P_{\max} \quad \forall t
 $$
-
-**Implementation**:
-
-```python
-power = [
-    LpVariable(f"{name}_power_{i}", lowBound=min_power, upBound=max_power)
-    for i in range(n_periods)
-]
-```
 
 #### Direction Convention
 
@@ -74,6 +65,6 @@ Connection power participates in net entity balance:
 
 ## Related Documentation
 
-- [Connections Guide](../user-guide/connections.md)
+- [Connections Guide](../user-guide/elements/connections.md)
 - [Net Entity Modeling](net-entity.md)
-- [Power Balance](power-balance.md)
+- [Modeling Overview](index.md)

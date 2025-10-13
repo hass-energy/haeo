@@ -8,8 +8,8 @@ The grid entity models bidirectional utility connection with time-varying pricin
 
 For each time step $t$:
 
-- $P_{\text{import}}(t)$: Power imported from grid (kW) - `{name}_import_{t}`
-- $P_{\text{export}}(t)$: Power exported to grid (kW) - `{name}_export_{t}`
+- $P_{\text{import}}(t)$: Power imported from grid (kW)
+- $P_{\text{export}}(t)$: Power exported to grid (kW)
 
 ### Parameters
 
@@ -26,24 +26,13 @@ $$
 P_{\text{import}}(t) \geq 0, \quad P_{\text{export}}(t) \geq 0
 $$
 
-Enforced via `lowBound=0` when creating LP variables.
-
 #### Power Limits
+
+If configured:
 
 $$
 P_{\text{import}}(t) \leq P_{\text{import}}^{\max}, \quad P_{\text{export}}(t) \leq P_{\text{export}}^{\max}
 $$
-
-Optional. Enforced via `upBound` if configured.
-
-**Implementation**:
-
-```python
-power_production = [
-    LpVariable(f"{name}_import_{i}", lowBound=0, upBound=import_limit)
-    for i in range(n_periods)
-]
-```
 
 ### Cost Contribution
 
@@ -78,7 +67,6 @@ Import is positive cost. Export is negative cost (revenue).
 
 ## Related Documentation
 
-- [Grid Configuration](../user-guide/entities/grid.md)
-- [Objective Function](objective-function.md)
+- [Grid Configuration](../user-guide/elements/grid.md)
+- [Modeling Overview](index.md)
 - [Battery Modeling](battery.md)
-- [Power Balance](power-balance.md)

@@ -8,12 +8,6 @@ Before installing HAEO, ensure you have:
 
 - **Home Assistant** version 2025.4.4 or newer
 - **HACS** (Home Assistant Community Store) installed (recommended)
-- **Linear Programming Solver**: HiGHS solver is included with PuLP (no additional setup needed)
-
-!!! info "Solver Information"
-
-    HAEO uses the [PuLP](https://github.com/coin-or/pulp) library for linear programming, which includes the HiGHS solver by default.
-    No additional solver installation is required for basic usage.
 
 ## Method 1: HACS Installation (Recommended)
 
@@ -149,6 +143,8 @@ See the [LP Solvers reference](../reference/solvers.md) for detailed solver info
     Pay special attention to major version changes.
     Some updates may require configuration adjustments.
 
+See the [troubleshooting page](troubleshooting.md) for help with common installation issues.
+
 ## Uninstalling HAEO
 
 ### Remove the Integration
@@ -173,36 +169,3 @@ Manual removal:
 
 1. Delete the `custom_components/haeo` directory
 2. Restart Home Assistant
-
-## Troubleshooting Installation
-
-### HAEO Doesn't Appear in Integration List
-
-- Ensure you restarted Home Assistant after installation
-- Check the file permissions are correct (`haeo` directory should be readable)
-- Review Home Assistant logs for error messages:
-    ```
-    Settings → System → Logs
-    ```
-
-### Import Errors
-
-If you see import errors in the logs:
-
-- Verify Python version is 3.13 or newer
-- Ensure all dependencies installed correctly
-- Try clearing the `__pycache__` directories:
-    ```bash
-    find custom_components/haeo -type d -name __pycache__ -exec rm -rf {} +
-    ```
-
-### Permission Errors
-
-On some systems, file permissions may cause issues:
-
-```bash
-# Set correct permissions (from Home Assistant config directory)
-chmod -R 755 custom_components/haeo
-```
-
-See the [troubleshooting page](troubleshooting.md) for more common issues and solutions.

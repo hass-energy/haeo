@@ -37,8 +37,8 @@
 
 For full configuration guide, see:
 
-- [Battery Configuration](../user-guide/entities/battery.md)
-- [Grid Configuration](../user-guide/entities/grid.md)
-- [Photovoltaics Configuration](../user-guide/entities/photovoltaics.md)
-- [Load Configuration](../user-guide/entities/loads.md)
-- [Net Configuration](../user-guide/entities/net.md)
+- [Battery Configuration](../user-guide/elements/battery.md)
+- [Grid Configuration](../user-guide/elements/grid.md)
+- [Photovoltaics Configuration](../user-guide/elements/photovoltaics.md)
+- [Load Configuration](../user-guide/elements/constant-load.md)
+- [Net Configuration](../user-guide/elements/net.md)

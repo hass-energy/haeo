@@ -124,4 +124,4 @@ async def test_coordinator_update(hass, mock_config_entry):
 ## Related Documentation
 
 - [Architecture](architecture.md)
-- [Sensors](../user-guide/sensors.md)
+- [Sensor Reference](../reference/sensors.md)

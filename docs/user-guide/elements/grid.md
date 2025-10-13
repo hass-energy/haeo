@@ -79,6 +79,16 @@ Same configuration options as import price.
 
     This price difference incentivizes self-consumption and strategic battery usage.
 
+!!! note "Export Prices as Negative Costs"
+    Export prices are automatically treated as negative costs in optimization.
+    Enter positive values (e.g., 0.10) and HAEO converts them to revenue.
+    The optimizer maximizes profit from selling electricity at these prices.
+
+!!! warning "Export Price Must Be Less Than Import Price"
+    If export price equals or exceeds import price, the optimizer will find arbitrage opportunities.
+    It will charge batteries from the grid and immediately export, creating infinite profit loops.
+    Always ensure import price > export price to match real-world utility economics.
+
 ### Import Limit
 
 Maximum power that can be imported from the grid (kW).
@@ -171,68 +181,10 @@ Export Price: sensor.feed_in_price
 Import Limit: 0.001 kW # Minimal import allowed
 ```
 
-## Forecast Integration Compatibility
-
-HAEO works with any Home Assistant integration that provides forecast attributes.
-Common integrations for electricity pricing:
-
-- Amber Electric (Australia)
-- Nordpool (Europe)
-- Tibber (Europe)
-- Octopus Energy (UK)
-- Custom template sensors
-
-See the complete list in [Forecasts & Sensors](../forecasts-and-sensors.md#supported-forecast-integrations).
-
-## Dynamic Pricing Benefits
-
-When you configure dynamic pricing through forecast sensors, HAEO:
-
-1. **Reads price forecasts** at each optimization cycle
-2. **Plans ahead** to minimize total cost over the horizon
-3. **Charges batteries** when prices are low
-4. **Discharges batteries** when prices are high
-5. **Adjusts export** based on export price forecasts
-
-Example optimization behavior with time-of-use pricing:
-
-```mermaid
-gantt
-    title Battery Strategy with Time-of-Use Pricing
-    dateFormat HH:mm
-    axisFormat %H:%M
-
-    section Price
-    Off-Peak $0.15: 00:00, 06:00
-    Shoulder $0.25: 06:00, 16:00
-    Peak $0.45: 16:00, 21:00
-    Shoulder $0.25: 21:00, 24:00
-
-    section Battery
-    Charge from Grid: 00:00, 06:00
-    Charge from Solar: 10:00, 16:00
-    Discharge to Load: 16:00, 21:00
-```
-
 ## How HAEO Uses Grid Configuration
 
-### Import Modeling
-
-Import represents purchasing electricity:
-
-- **Positive cost**: Increases total system cost
-- **Power variable**: Optimization determines import power at each time step
-- **Price impact**: Higher prices reduce import, encourage battery discharge
-
-### Export Modeling
-
-Export represents selling electricity:
-
-- **Negative cost**: Reduces total system cost (revenue)
-- **Power variable**: Optimization determines export power at each time step
-- **Price impact**: Higher export prices encourage more export
-
-### Net Grid Power
+When you configure grid pricing through forecast sensors, HAEO optimizes over the forecast horizon to minimize total cost.
+The optimizer charges batteries when prices are low, discharges when prices are high, and adjusts export based on export price forecasts.
 
 The grid can import or export, but not simultaneously:
 
@@ -279,55 +231,13 @@ If HAEO isn't responding to price changes:
 
 See the [troubleshooting guide](../troubleshooting.md) for more solutions.
 
-## Multiple Grids
-
-Some installations have multiple grid connections:
-
-```mermaid
-graph LR
-    Grid1[Grid Import] --> Net[Main Net]
-    Grid2[Grid Export] --> Net
-    Battery[Battery] <--> Net
-    Solar[Solar] --> Net
-```
-
-Configure separate grid entities for:
-
-- Different pricing structures
-- Separate import/export meters
-- Multiple connection points
-
-## Hybrid Inverter Modeling
-
-For hybrid (AC/DC) inverter systems, model the inverter as a **connection** between AC and DC nets:
-
-```mermaid
-graph LR
-    subgraph DC Side
-        Battery[Battery] <--> DC_Net[DC Net]
-        Solar[Solar] --> DC_Net
-    end
-
-    subgraph AC Side
-        Grid[Grid] <--> AC_Net[AC Net]
-        AC_Net --> Load[Load]
-    end
-
-    DC_Net <-->|Inverter<br/>Connection| AC_Net
-```
-
-The connection between DC and AC nets represents the inverter.
-Connection power limits should match the inverter rating.
-
-See [Connection Configuration](../connections.md#hybrid-inverters) for details.
-
 ## Related Documentation
 
 - [Forecasts & Sensors](../forecasts-and-sensors.md) - Creating price forecast sensors
 - [Battery Configuration](battery.md) - Batteries work with grid pricing
-- [Connections](../connections.md) - Connect grid to your network
+- [Connections](connections.md) - Connect grid to your network
 - [Grid Modeling](../../modeling/grid.md) - Mathematical formulation
-- [Troubleshooting Forecasts](../troubleshooting.md#forecasts-are-not-long-enough) - Forecast issues
+- [Troubleshooting](../troubleshooting.md) - Common issues
 
 ## Next Steps
 
@@ -335,7 +245,7 @@ After configuring your grid:
 
 1. [Add a battery](battery.md) to store cheap electricity
 2. [Add solar](photovoltaics.md) to generate free electricity
-3. [Define connections](../connections.md) between components
+3. [Define connections](connections.md) between components
 4. [View results](../optimization.md) to see optimal power flows
 
 [:octicons-arrow-right-24: Continue to Photovoltaics Configuration](photovoltaics.md)

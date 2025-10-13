@@ -11,7 +11,7 @@ Virtual balance points enforcing power conservation (Kirchhoff's law).
 
 ## Name
 
-Descriptive of electrical location: "Main Net", "AC Panel", "DC Bus", "Building A Net"
+Descriptive of electrical location: "Main Net", "AC Panel", "DC Bus", "Home Circuit"
 
 ## Purpose
 
@@ -85,10 +85,34 @@ Nets are virtual - no physical measurements. Monitor connected entity sensors in
 
 **Complexity**: More configuration, more constraints, but models real architecture accurately.
 
+## Hybrid Inverter Modeling
+
+For hybrid (AC/DC) inverter systems, use separate AC and DC nets with a connection between them:
+
+```mermaid
+graph LR
+    subgraph DC Side
+        Battery[Battery] <--> DC_Net[DC Net]
+        Solar[Solar] --> DC_Net
+    end
+
+    subgraph AC Side
+        Grid[Grid] <--> AC_Net[AC Net]
+        AC_Net --> Load[Load]
+    end
+
+    DC_Net <-->|Inverter<br/>Connection| AC_Net
+```
+
+The **connection** between DC and AC nets represents the inverter.
+Set connection power limits to match the inverter rating.
+
+See [Connections](connections.md) for configuring the inverter connection.
+
 ## Related Documentation
 
 - [Net Entity Modeling](../../modeling/net-entity.md)
-- [Power Balance](../../modeling/power-balance.md)
-- [Connections Guide](../connections.md)
+- [Mathematical Modeling](../../modeling/index.md)
+- [Connections Guide](connections.md)
 
-[:octicons-arrow-right-24: Continue to Connections Guide](../connections.md)
+[:octicons-arrow-right-24: Continue to Connections Guide](connections.md)

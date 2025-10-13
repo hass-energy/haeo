@@ -12,7 +12,7 @@ None - generation follows forecast.
 
 **With curtailment enabled**:
 
-- $P_{\text{solar}}(t)$: Actual generation (kW) - `{name}_power_{t}`
+- $P_{\text{solar}}(t)$: Actual generation (kW)
 
 ### Parameters
 
@@ -29,12 +29,6 @@ $$
 
 Generation exactly matches forecast.
 
-**Implementation**:
-
-```python
-power_production = forecast  # List of constants
-```
-
 #### With Curtailment
 
 $$
@@ -42,15 +36,6 @@ $$
 $$
 
 Generation can be reduced below forecast.
-
-**Implementation**:
-
-```python
-power_production = [
-    LpVariable(f"{name}_power_{i}", lowBound=0, upBound=forecast[i])
-    for i in range(n_periods)
-]
-```
 
 ### Cost Contribution
 
@@ -86,6 +71,6 @@ Curtailment requires inverter with active power limiting.
 
 ## Related Documentation
 
-- [Photovoltaics Configuration](../user-guide/entities/photovoltaics.md)
+- [Photovoltaics Configuration](../user-guide/elements/photovoltaics.md)
 - [Grid Modeling](grid.md)
-- [Objective Function](objective-function.md)
+- [Modeling Overview](index.md)

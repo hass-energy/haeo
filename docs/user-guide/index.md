@@ -9,8 +9,8 @@ This guide covers everything you need to know as an end user:
 
 1. **[Installation](installation.md)** - Install HAEO via HACS or manually
 2. **[Configuration](configuration.md)** - Set up your first energy network
-3. **[Entities](entities/index.md)** - Configure batteries, grids, solar, and loads
-4. **[Connections](connections.md)** - Define how energy flows between devices
+3. **[Elements](elements/index.md)** - Configure batteries, grids, solar, and loads
+4. **[Connections](elements/connections.md)** - Define how energy flows between devices
 5. **[Understanding Results](optimization.md)** - Interpret optimization outputs
 6. **[Examples](examples/sigenergy-system.md)** - Complete system configuration walkthroughs
 7. **[Troubleshooting](troubleshooting.md)** - Solve common issues
@@ -37,24 +37,45 @@ Before installing HAEO, ensure you have:
 
 ## Quick Start Path
 
-```mermaid
-flowchart TD
-    A[Install HAEO] --> B[Create Network]
-    B --> C[Add Battery]
-    C --> D[Add Grid]
-    D --> E[Add Solar/Loads]
-    E --> F[Define Connections]
-    F --> G[View Optimization Results]
-    G --> H[Create Automations]
+The typical workflow for setting up HAEO is:
 
-    click A "installation.html"
-    click B "configuration.html"
-    click C "entities/battery.html"
-    click D "entities/grid.html"
-    click E "entities/photovoltaics.html"
-    click F "connections.html"
-    click G "optimization.html"
-```
+1. Install HAEO via HACS or manually
+2. Create a network through the UI
+3. Add a battery (if you have one)
+4. Add a grid connection
+5. Add solar panels or loads
+6. Define connections between components
+7. View optimization results in sensors
+8. Create automations based on the optimal schedule
+
+## Project Philosophy
+
+HAEO follows a focused, Unix-like philosophy: **do one thing well**.
+
+### What HAEO Does
+
+HAEO focuses exclusively on **energy optimization**.
+It computes the optimal schedule for your batteries, loads, and other devices based on forecasts and constraints.
+
+### What HAEO Doesn't Do
+
+HAEO intentionally does not include:
+
+- **Solar forecasting** - Use Open-Meteo, Solcast, or other specialized integrations
+- **Price fetching** - Use Amber, Nordpool, Tibber, or other provider integrations  
+- **Device control** - Use Home Assistant automations to implement the optimal schedule
+- **Load forecasting** - Use existing integrations or template sensors
+
+### Why This Approach?
+
+This focused design means:
+
+- **Better integration**: Works seamlessly with the existing Home Assistant ecosystem
+- **Flexibility**: Choose the best-in-class solution for each component
+- **Maintainability**: Simpler codebase focused on optimization algorithms
+- **Reliability**: Fewer moving parts and external dependencies
+
+HAEO provides optimization results as sensors with forecast attributes, letting you build automations with the full power of Home Assistant.
 
 ## Installation Methods
 

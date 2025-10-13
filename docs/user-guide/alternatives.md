@@ -27,9 +27,9 @@ This page compares HAEO with alternatives to help you make an informed choice.
 - ✅ **Flexible Topology**: Model any network structure with connections
 - ✅ **Active Development**: Regular updates and bug fixes
 - ✅ **Modern Codebase**: Python 3.13+, type-safe, well-tested
-- ✅ **Extensible**: Easy to add new entity types
+- ✅ **Extensible**: Easy to add new element types
 - ✅ **Sensors**: Rich sensor data with forecast attributes
-- ✅ **Multiple Entities**: Support for multiple batteries, grids, loads, etc.
+- ✅ **Multiple Elements**: Support for multiple batteries, grids, loads, etc.
 
 ### Best For
 
@@ -109,7 +109,7 @@ EMHASS (Energy Management for Home Assistant) is a Docker add-on for Home Assist
 - ❌ **Rigid Configuration**: Less flexible than HAEO
 - ❌ **Fixed Topology**: Predefined system structure
 - ❌ **Complex Setup**: Configuration can be challenging
-- ❌ **Limited Multi-Entity Support**: Harder to model multiple batteries/arrays
+- ❌ **Limited Multi-Element Support**: Harder to model multiple batteries/arrays
 - ❌ **External Integration**: Shell commands and REST calls vs native sensors
 
 ### Best For
@@ -125,7 +125,7 @@ EMHASS (Energy Management for Home Assistant) is a Docker add-on for Home Assist
 
 - Native Home Assistant integration
 - Flexible system topology (multiple batteries, complex connections)
-- UI-based entity configuration
+- UI-based element configuration
 - Custom network structures (AC/DC splits, multiple meters)
 - Pure Python implementation
 
@@ -168,31 +168,7 @@ EMHASS (Energy Management for Home Assistant) is a Docker add-on for Home Assist
 | Forecast Data | Sensor attributes | Sensor attributes | REST API          |
 | Control       | HA automations    | AppDaemon         | Shell commands    |
 
-## Project Philosophy
-
-### HAEO: Do One Thing Well
-
-HAEO focuses exclusively on **optimization**. It:
-
-- ✅ Uses existing HA integrations for forecasts (solar, prices, loads)
-- ✅ Leverages native HA sensor ecosystem
-- ✅ Provides optimization results via sensors
-- ✅ Lets users build automations for control
-
-HAEO **will not** add:
-
-- ❌ Solar forecasting (use Open-Meteo, Solcast, etc.)
-- ❌ Price fetching (use Amber, Nordpool, Tibber, etc.)
-- ❌ Device control (use HA automations)
-- ❌ Load forecasting (use existing integrations or templates)
-
-This focused approach means:
-
-- Better integration with existing HA ecosystem
-- Simpler, more maintainable codebase
-- Users choose best-in-class solutions for each component
-
-### When to Choose HAEO
+## When to Choose HAEO
 
 Choose HAEO if you:
 
@@ -219,7 +195,7 @@ Consider alternatives if you:
 
 1. Install HAEO via HACS
 2. Create network in HAEO UI
-3. Add entities (battery, grid, solar, loads)
+3. Add elements (battery, grid, solar, loads)
 4. Define connections
 5. Map WattWise sensors to HAEO equivalents
 6. Update automations to use HAEO sensors
@@ -231,8 +207,8 @@ Consider alternatives if you:
 1. Document your EMHASS configuration
 2. Install HAEO via HACS
 3. Create equivalent network in HAEO
-4. Add entities matching your EMHASS setup
-5. Define connections between entities
+4. Add elements matching your EMHASS setup
+5. Define connections between elements
 6. Update automations to use HAEO sensors
 7. Run both in parallel initially
 8. Verify HAEO optimization matches expectations
