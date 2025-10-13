@@ -12,20 +12,20 @@ class Element:
     name: str
     period: float  # hours
     n_periods: int
-    
+
     power_consumption: Sequence[LpVariable | float] | None = None
     power_production: Sequence[LpVariable | float] | None = None
     energy: Sequence[LpVariable | float] | None = None
-    
+
     price_consumption: Sequence[float] | None = None
     price_production: Sequence[float] | None = None
-    
+
     efficiency: float = 1.0
     forecast: Sequence[float] | None = None
-    
+
     def constraints(self) -> Sequence[LpConstraint]:
         return []
-    
+
     def cost(self) -> float:
         # Base implementation handles pricing
         pass
@@ -37,6 +37,7 @@ class Element:
 from pulp import LpVariable
 from .element import Element
 
+
 class MyEntity(Element):
     def __init__(
         self,
@@ -47,11 +48,8 @@ class MyEntity(Element):
         my_limit: float,
     ) -> None:
         # Create decision variables
-        power_production = [
-            LpVariable(f"{name}_power_{i}", lowBound=0, upBound=my_limit)
-            for i in range(n_periods)
-        ]
-        
+        power_production = [LpVariable(f"{name}_power_{i}", lowBound=0, upBound=my_limit) for i in range(n_periods)]
+
         super().__init__(
             name=name,
             period=period,
@@ -89,7 +87,7 @@ def test_my_entity():
         n_periods=24,
         my_limit=10.0,
     )
-    
+
     assert len(entity.power_production) == 24
     assert entity.constraints() == []
 ```
@@ -97,19 +95,19 @@ def test_my_entity():
 ## Common Patterns
 
 **Fixed generation** (no curtailment):
+
 ```python
 power_production = forecast  # List of floats
 ```
 
 **Bounded generation** (with curtailment):
+
 ```python
-power_production = [
-    LpVariable(f"{name}_power_{i}", lowBound=0, upBound=forecast[i])
-    for i in range(n_periods)
-]
+power_production = [LpVariable(f"{name}_power_{i}", lowBound=0, upBound=forecast[i]) for i in range(n_periods)]
 ```
 
 **Bidirectional power**:
+
 ```python
 power_consumption = [LpVariable(f"{name}_consume_{i}", lowBound=0, upBound=max_c) ...]
 power_production = [LpVariable(f"{name}_produce_{i}", lowBound=0, upBound=max_p) ...]

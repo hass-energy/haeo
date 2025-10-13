@@ -5,11 +5,11 @@ Use this for variable household consumption, scheduled devices, or HVAC systems.
 
 ## Configuration Fields
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| **Name** | String | Yes | - | Unique identifier |
-| **Type** | "Forecast Load" | Yes | - | Element type |
-| **Forecast** | Sensor(s) | Yes | - | Power consumption forecast sensor(s) |
+| Field        | Type            | Required | Default | Description                          |
+| ------------ | --------------- | -------- | ------- | ------------------------------------ |
+| **Name**     | String          | Yes      | -       | Unique identifier                    |
+| **Type**     | "Forecast Load" | Yes      | -       | Element type                         |
+| **Forecast** | Sensor(s)       | Yes      | -       | Power consumption forecast sensor(s) |
 
 ## Name
 
@@ -72,20 +72,20 @@ template:
           forecast: >
             {% set forecast_list = [] %}
             {% set start = now() %}
-            
+
             {% for hour in range(48) %}
               {% set forecast_time = start + timedelta(hours=hour) %}
               {% set history_time = forecast_time - timedelta(days=7) %}
-              
+
               {% set avg_power = states.sensor.home_power_consumption
-                                  .history(history_time - timedelta(minutes=30), 
+                                  .history(history_time - timedelta(minutes=30),
                                           history_time + timedelta(minutes=30))
-                                  | map(attribute='state') 
-                                  | map('float', 0) 
-                                  | list 
-                                  | average 
+                                  | map(attribute='state')
+                                  | map('float', 0)
+                                  | list
+                                  | average
                                   | default(1.0) %}
-              
+
               {% set entry = {
                 "datetime": forecast_time.isoformat(),
                 "value": avg_power
@@ -158,12 +158,12 @@ template:
           forecast: >
             {% set forecast_list = [] %}
             {% set start = now() %}
-            
+
             {% for hour in range(48) %}
               {% set forecast_time = start + timedelta(hours=hour) %}
               {% set h = forecast_time.hour %}
               {% set power = 7.4 if h >= 22 or h < 6 else 0 %}
-              
+
               {% set entry = {
                 "datetime": forecast_time.isoformat(),
                 "value": power

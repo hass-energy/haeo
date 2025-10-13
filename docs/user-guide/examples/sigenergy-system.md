@@ -18,12 +18,12 @@ graph LR
         Battery[Battery<br/>32kWh] <--> DC[DC Net]
         Solar[Solar<br/>27kW] --> DC
     end
-    
+
     subgraph AC Side
         Grid[Grid<br/>±10kW/±5kW] <--> AC[AC Net]
         AC --> Load[Load<br/>1kW]
     end
-    
+
     DC <-->|Inverter<br/>30kW| AC
 ```
 
@@ -80,6 +80,7 @@ Discharge Cost: 0.02 $/kWh
 ```
 
 !!! info "Battery Sensor"
+
     Replace `sensor.sigen_plant_battery_state_of_charge` with your actual Sigenergy SOC sensor.
     Find it in Developer Tools → States.
 
@@ -103,6 +104,7 @@ Production Price: 0 $/kWh
 ```
 
 !!! tip "Solar Forecast Sensors"
+
     This example uses Solcast forecasts with separate sensors for each array orientation.
     If you have a single combined forecast sensor, use that instead.
 
@@ -113,12 +115,13 @@ Configure grid with pricing and limits:
 ```yaml
 Name: Grid
 Import Price: sensor.home_general_forecast
-Export Price: sensor.home_feed_in_forecast  
+Export Price: sensor.home_feed_in_forecast
 Import Limit: 10 kW
 Export Limit: 5 kW
 ```
 
 !!! info "Price Sensors"
+
     Replace with your actual price forecast sensors.
     See [Forecasts & Sensors](../forecasts-and-sensors.md) for creating constant-price forecasts if needed.
 
@@ -138,12 +141,14 @@ Connect elements to create the hybrid inverter topology:
 #### DC Side Connections
 
 **Battery to DC Net** (bidirectional):
+
 ```yaml
 Source: Battery
 Target: DC Net
 ```
 
 **Solar to DC Net** (unidirectional):
+
 ```yaml
 Source: Solar
 Target: DC Net
@@ -152,12 +157,14 @@ Target: DC Net
 #### AC Side Connections
 
 **Grid to AC Net** (bidirectional):
+
 ```yaml
 Source: Grid
 Target: AC Net
 ```
 
 **AC Net to Load** (unidirectional):
+
 ```yaml
 Source: AC Net
 Target: Constant Load
@@ -166,6 +173,7 @@ Target: Constant Load
 #### Inverter Connection
 
 **AC Net to DC Net** (bidirectional, 30kW limit):
+
 ```yaml
 Source: AC Net
 Target: DC Net

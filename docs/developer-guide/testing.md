@@ -47,7 +47,7 @@ def test_battery_creation():
         max_charge_power=5.0,
         max_discharge_power=5.0,
     )
-    
+
     assert battery.capacity == 10.0
     assert len(battery.power_consumption) == 24
     assert len(battery.energy) == 24
@@ -58,15 +58,15 @@ def test_battery_creation():
 ```python
 def test_simple_optimization():
     network = Network(name="test", period=1.0, n_periods=24)
-    
+
     # Add entities
     network.elements["grid"] = Grid(...)
     network.elements["load"] = ConstantLoad(...)
     network.elements["net"] = Net(...)
-    
+
     # Add connections
     network.connections.append(Connection(...))
-    
+
     # Optimize
     cost = network.optimize()
     assert cost > 0
@@ -86,6 +86,7 @@ async def test_setup_entry(hass, mock_config_entry):
 **Minimum**: 95% for all modules
 
 Check coverage:
+
 ```bash
 uv run pytest --cov=custom_components.haeo --cov-report=term-missing
 ```

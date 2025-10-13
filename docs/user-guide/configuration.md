@@ -34,7 +34,7 @@ A unique name for your energy network (e.g., "Home Energy System").
 
     You can create multiple separate networks if you have distinct energy systems.
     This is useful for:
-    
+
     - Separate buildings (main house and guest house)
     - Testing configurations without affecting your main network
     - Different optimization strategies for different areas
@@ -82,7 +82,7 @@ Each period is one time step in the optimization.
     Smaller periods create more variables to optimize:
 
     - 5-minute periods × 48 hours = 576 time steps
-    - 15-minute periods × 48 hours = 192 time steps  
+    - 15-minute periods × 48 hours = 192 time steps
     - 60-minute periods × 48 hours = 48 time steps
 
     More time steps increase optimization time significantly.

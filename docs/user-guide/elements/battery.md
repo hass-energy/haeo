@@ -198,7 +198,7 @@ Each sensor includes forecast attributes with future timestamped values for visu
 If your battery remains idle:
 
 1. **Check price forecasts**: HAEO needs price variation to optimize.
-   See the [forecasts page](../forecasts-and-sensors.md) for details.
+    See the [forecasts page](../forecasts-and-sensors.md) for details.
 2. **Verify SOC sensor**: Ensure it's reporting correctly
 3. **Review constraints**: Too-tight SOC limits may prevent operation
 4. **Check connections**: Battery must be [connected](connections.md) to the network

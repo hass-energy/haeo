@@ -93,7 +93,7 @@ template:
           {% set now_time = now() %}
           {% set hour = now_time.hour %}
           {% set minute = now_time.minute %}
-          
+
           {# Peak: 4pm-9pm weekdays #}
           {% if now_time.weekday() < 5 and hour >= 16 and hour < 21 %}
             0.52
@@ -186,32 +186,32 @@ template:
           forecast: >
             {% set forecast_list = [] %}
             {% set start = now() %}
-            
+
             {# Generate forecast for next 48 hours using weekly pattern #}
             {% for hour in range(48) %}
               {% set forecast_time = start + timedelta(hours=hour) %}
-              
+
               {# Look back exactly 7 days to get same time last week #}
               {% set history_time = forecast_time - timedelta(days=7) %}
-              
+
               {# Get average consumption from that hour last week #}
               {# Using 1-hour window centered on the target time #}
               {% set history_start = history_time - timedelta(minutes=30) %}
               {% set history_end = history_time + timedelta(minutes=30) %}
-              
+
               {% set avg_power = state_attr('sensor.home_power_consumption', 'statistics') %}
               {% if avg_power %}
                 {% set power_value = avg_power.mean | float(1.0) %}
               {% else %}
                 {# Fallback: query last week's value directly #}
                 {% set power_value = states.sensor.home_power_consumption.history(history_start, history_end)
-                                      | map(attribute='state') 
-                                      | map('float', 0) 
-                                      | list 
-                                      | average 
+                                      | map(attribute='state')
+                                      | map('float', 0)
+                                      | list
+                                      | average
                                       | default(1.0) %}
               {% endif %}
-              
+
               {% set entry = {
                 "datetime": forecast_time.isoformat(),
                 "value": power_value

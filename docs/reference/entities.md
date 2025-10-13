@@ -2,14 +2,14 @@
 
 ## Entity Types
 
-| Entity | Direction | Storage | Forecasts | Complexity | Typical Use |
-|--------|-----------|---------|-----------|------------|-------------|
-| Battery | Bidirectional | Yes | SOC sensor | Medium | Home batteries, EV storage |
-| Grid | Bidirectional | No | Price sensors | Simple | Utility import/export |
-| Photovoltaics | Generation | No | Solar forecast | Simple | Rooftop solar, arrays |
-| Constant Load | Consumption | No | None | Simple | Baseline loads |
-| Forecast Load | Consumption | No | Load forecast | Medium | Variable consumption |
-| Net | Pass-through | No | None | Simple | Balance points |
+| Entity        | Direction     | Storage | Forecasts      | Complexity | Typical Use                |
+| ------------- | ------------- | ------- | -------------- | ---------- | -------------------------- |
+| Battery       | Bidirectional | Yes     | SOC sensor     | Medium     | Home batteries, EV storage |
+| Grid          | Bidirectional | No      | Price sensors  | Simple     | Utility import/export      |
+| Photovoltaics | Generation    | No      | Solar forecast | Simple     | Rooftop solar, arrays      |
+| Constant Load | Consumption   | No      | None           | Simple     | Baseline loads             |
+| Forecast Load | Consumption   | No      | Load forecast  | Medium     | Variable consumption       |
+| Net           | Pass-through  | No      | None           | Simple     | Balance points             |
 
 ## Entity Selection
 
@@ -24,14 +24,14 @@
 
 ## Capabilities
 
-| Entity | Decision Variables | Constraints |
-|--------|-------------------|-------------|
-| Battery | Charge, discharge, energy | Power limits, SOC range, energy balance |
-| Grid | Import, export | Optional power limits |
-| Photovoltaics | Generation (if curtailment) | Non-negativity, forecast bound |
-| Constant Load | None (parameter) | Fixed value |
-| Forecast Load | None (parameter) | Follows forecast |
-| Net | None (enforces balance) | Power balance (Kirchhoff's law) |
+| Entity        | Decision Variables          | Constraints                             |
+| ------------- | --------------------------- | --------------------------------------- |
+| Battery       | Charge, discharge, energy   | Power limits, SOC range, energy balance |
+| Grid          | Import, export              | Optional power limits                   |
+| Photovoltaics | Generation (if curtailment) | Non-negativity, forecast bound          |
+| Constant Load | None (parameter)            | Fixed value                             |
+| Forecast Load | None (parameter)            | Follows forecast                        |
+| Net           | None (enforces balance)     | Power balance (Kirchhoff's law)         |
 
 ## Configuration Details
 

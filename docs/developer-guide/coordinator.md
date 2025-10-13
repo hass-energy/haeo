@@ -5,6 +5,7 @@ Coordinator manages optimization cycles and data distribution.
 ## Purpose
 
 Central orchestrator that:
+
 - Schedules optimization (default every 5 min)
 - Loads sensor data and forecasts
 - Builds network model
@@ -19,7 +20,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Extract config
         self.horizon_hours = config_entry.data["horizon_hours"]
         self.period_minutes = config_entry.data["period_minutes"]
-        
+
         # Initialize
         super().__init__(
             hass,
@@ -28,7 +29,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(minutes=self.period_minutes),
             config_entry=config_entry,
         )
-    
+
     async def _async_update_data(self) -> dict[str, Any]:
         # Main update cycle
         pass
@@ -65,16 +66,16 @@ async def _load_data(self) -> dict[str, Any]:
 ```python
 def _build_network(self, data: dict[str, Any]) -> Network:
     network = Network(name=self.name, period=self.period, n_periods=self.n_periods)
-    
+
     # Create entities from config
     for entity_id, config in self.config_entry.data["participants"].items():
         entity = self._create_entity(entity_id, config, data)
         network.elements[entity_id] = entity
-    
+
     # Create connections
     for conn_config in self.config_entry.data["connections"]:
         network.connections.append(Connection(...))
-    
+
     return network
 ```
 
@@ -116,7 +117,7 @@ Coordinator marks data unavailable on failure. Next update cycle retries.
 async def test_coordinator_update(hass, mock_config_entry):
     coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
     await coordinator.async_refresh()
-    
+
     assert coordinator.data is not None
     assert coordinator.data["_network"]["status"] == "optimal"
 ```

@@ -50,6 +50,7 @@ Usually $c_{\text{production}} = 0$ (solar is free).
 **No curtailment**: Standard operation - use all available solar.
 
 **Curtailment**: Reduce generation when:
+
 - Export prices are negative (you pay to export)
 - Export limits prevent sending power to grid
 - Battery full and load satisfied
@@ -58,12 +59,12 @@ Curtailment requires inverter with active power limiting.
 
 ## Configuration Impact
 
-| Parameter | Impact |
-|-----------|--------|
-| Curtailment disabled | Solar always at forecast, simplest |
-| Curtailment enabled | Can reduce generation, needs compatible inverter |
-| Production price > 0 | Models feed-in tariff (rare) |
-| Production price < 0 | Models solar contract costs (very rare) |
+| Parameter            | Impact                                           |
+| -------------------- | ------------------------------------------------ |
+| Curtailment disabled | Solar always at forecast, simplest               |
+| Curtailment enabled  | Can reduce generation, needs compatible inverter |
+| Production price > 0 | Models feed-in tariff (rare)                     |
+| Production price < 0 | Models solar contract costs (very rare)          |
 
 **Negative export prices**: Curtailment becomes economically beneficial.
 

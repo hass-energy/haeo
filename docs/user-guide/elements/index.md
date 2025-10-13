@@ -6,10 +6,10 @@ Each element represents a physical device or logical component in your energy sy
 !!! info "Elements vs Home Assistant Entities"
 
     In HAEO documentation:
-    
+
     - **Element** = A component in your energy optimization (battery, grid, solar, etc.)
     - **Entity** = A Home Assistant sensor or device entity (e.g., `sensor.battery_power`)
-    
+
     This page describes HAEO elements. Each element creates several Home Assistant entities (sensors).
 
 ## Element Types

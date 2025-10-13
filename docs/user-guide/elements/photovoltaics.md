@@ -4,12 +4,12 @@ Solar panels that generate electricity. HAEO optimizes how generated power is us
 
 ## Configuration Fields
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| **Name** | String | Yes | - | Unique identifier |
-| **Forecast** | Sensor(s) | Yes | - | Solar generation forecast |
-| **Production Price** | Number (\$/kWh) | No | 0 | Value per kWh generated |
-| **Curtailment** | Boolean | No | false | Allow reducing generation |
+| Field                | Type            | Required | Default | Description               |
+| -------------------- | --------------- | -------- | ------- | ------------------------- |
+| **Name**             | String          | Yes      | -       | Unique identifier         |
+| **Forecast**         | Sensor(s)       | Yes      | -       | Solar generation forecast |
+| **Production Price** | Number (\$/kWh) | No       | 0       | Value per kWh generated   |
+| **Curtailment**      | Boolean         | No       | false   | Allow reducing generation |
 
 ### Name
 
@@ -20,11 +20,13 @@ Descriptive identifier: "Rooftop Solar", "East Array", "Ground Mount"
 Forecast sensor(s) providing solar power predictions (kW).
 
 Single sensor:
+
 ```yaml
 Forecast: sensor.solcast_pv_forecast
 ```
 
 Multiple sensors (merged):
+
 ```yaml
 Forecast:
   - sensor.solar_forecast_today
@@ -42,6 +44,7 @@ Price per kWh generated.
 - **Positive values**: Rarely used (not the same as export price, which is configured on Grid)
 
 !!! note "Production Price vs Export Price"
+
     Production price represents the *cost of generating* electricity (typically zero for solar).
     Export revenue is configured separately via the Grid element's export price.
     Keep production price at 0 unless modeling specific curtailment opportunity costs.
@@ -67,9 +70,9 @@ Curtailment: false  # Standard operation
 
 ## Sensors Created
 
-| Sensor | Unit | Description |
-|--------|------|-------------|
-| `{name}_power` | kW | Current/forecast generation |
+| Sensor         | Unit | Description                 |
+| -------------- | ---- | --------------------------- |
+| `{name}_power` | kW   | Current/forecast generation |
 
 **Forecast attribute**: Future generation values with timestamps.
 
@@ -90,7 +93,7 @@ Configure separate photovoltaics entities for different orientations/locations:
 Name: East Panels
 Forecast: sensor.solar_forecast_east
 
-# West-facing  
+# West-facing
 Name: West Panels
 Forecast: sensor.solar_forecast_west
 ```

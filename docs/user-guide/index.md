@@ -62,7 +62,7 @@ It computes the optimal schedule for your batteries, loads, and other devices ba
 HAEO intentionally does not include:
 
 - **Solar forecasting** - Use Open-Meteo, Solcast, or other specialized integrations
-- **Price fetching** - Use Amber, Nordpool, Tibber, or other provider integrations  
+- **Price fetching** - Use Amber, Nordpool, Tibber, or other provider integrations
 - **Device control** - Use Home Assistant automations to implement the optimal schedule
 - **Load forecasting** - Use existing integrations or template sensors
 

@@ -4,10 +4,10 @@ Virtual balance points enforcing power conservation (Kirchhoff's law).
 
 ## Configuration Fields
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| **Name** | String | Yes | - | Unique identifier |
-| **Type** | "Net" | Yes | - | Entity type |
+| Field    | Type   | Required | Default | Description       |
+| -------- | ------ | -------- | ------- | ----------------- |
+| **Name** | String | Yes      | -       | Unique identifier |
+| **Type** | "Net"  | Yes      | -       | Entity type       |
 
 ## Name
 
@@ -33,7 +33,7 @@ graph LR
     Solar-->Net
     Battery<-->Net
     Net-->Load
-    
+
     style Net fill:#90EE90
 ```
 
@@ -48,7 +48,7 @@ graph LR
     DC<-->|Inverter|AC[AC Net]
     Grid<-->AC
     AC-->Load
-    
+
     style DC fill:#E1F5FF
     style AC fill:#FFF5E1
 ```
@@ -77,6 +77,7 @@ Nets are virtual - no physical measurements. Monitor connected entity sensors in
 ## Multiple Nets
 
 **Use when**:
+
 - Physical separation (AC/DC)
 - Intermediate limits (inverter, feeder capacity)
 - Hierarchical distribution

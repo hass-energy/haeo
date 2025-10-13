@@ -54,12 +54,12 @@ Import is positive cost. Export is negative cost (revenue).
 
 ## Configuration Impact
 
-| Parameter | Lower Value | Higher Value |
-|-----------|-------------|--------------|
-| Import limit | Risk infeasibility if too low | More flexibility, higher potential cost |
-| Export limit | Wasted solar/battery if too low | More revenue potential |
-| Import price | Lower grid costs | Incentivizes self-consumption |
-| Export price | Less incentive to export | More revenue from exports |
+| Parameter    | Lower Value                     | Higher Value                            |
+| ------------ | ------------------------------- | --------------------------------------- |
+| Import limit | Risk infeasibility if too low   | More flexibility, higher potential cost |
+| Export limit | Wasted solar/battery if too low | More revenue potential                  |
+| Import price | Lower grid costs                | Incentivizes self-consumption           |
+| Export price | Less incentive to export        | More revenue from exports               |
 
 **Time-varying prices**: Enable optimization value through time-shifting with battery.
 

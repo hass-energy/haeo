@@ -5,11 +5,11 @@ Use this for baseline consumption from always-on devices.
 
 ## Configuration Fields
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| **Name** | String | Yes | - | Unique identifier |
-| **Type** | "Constant Load" | Yes | - | Element type |
-| **Power** | Number (kW) | Yes | - | Fixed consumption power |
+| Field     | Type            | Required | Default | Description             |
+| --------- | --------------- | -------- | ------- | ----------------------- |
+| **Name**  | String          | Yes      | -       | Unique identifier       |
+| **Type**  | "Constant Load" | Yes      | -       | Element type            |
+| **Power** | Number (kW)     | Yes      | -       | Fixed consumption power |
 
 ## Name
 

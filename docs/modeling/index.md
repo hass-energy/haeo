@@ -19,6 +19,7 @@ $$
 $$
 
 Where:
+
 - $x$: Decision variables (what the optimizer chooses)
 - $c$: Objective coefficients (costs/prices)
 - $A$, $b$: Inequality constraint matrices
@@ -38,6 +39,7 @@ LP is ideal for energy optimization:
 4. **Scalability**: Handles large time horizons efficiently
 
 !!! info "HAEO Uses LP, Not MILP"
+
     HAEO uses pure linear programming, not Mixed-Integer Linear Programming (MILP).
     This avoids binary variables for on/off decisions, keeping solve times fast.
     Energy systems with continuous power flows don't need MILP's discrete decision capabilities.
@@ -57,6 +59,7 @@ $$
 $$
 
 Where:
+
 - $t$: Time step index (0 to $T-1$)
 - $T$: Number of time steps in optimization horizon
 
@@ -89,7 +92,7 @@ graph LR
     Solar((Solar)) -->|P_solar| Net
     Battery((Battery)) <-->|P_batt| Net
     Net -->|P_load| Load((Load))
-    
+
     style Net fill:#90EE90
 ```
 
@@ -102,6 +105,7 @@ $$
 $$
 
 Where:
+
 - $\mathcal{C}_{\text{in}}$: Connections with net as target (inflows)
 - $\mathcal{C}_{\text{out}}$: Connections with net as source (outflows)
 - $P_c(t)$: Power flow through connection $c$ at time $t$
@@ -122,15 +126,16 @@ Each decision variable exists for every time step.
 
 HAEO's LP solver determines optimal values for these variables:
 
-| Variable | Symbol | Units | Description | Count |
-|----------|--------|-------|-------------|-------|
-| Connection power | $P_c(t)$ | kW | Power flow through connection $c$ | $N_c \times T$ |
-| Battery energy | $E_b(t)$ | kWh | Stored energy in battery $b$ | $N_b \times T$ |
-| Grid import | $P_{\text{import}}(t)$ | kW | Power imported from grid | $N_g \times T$ |
-| Grid export | $P_{\text{export}}(t)$ | kW | Power exported to grid | $N_g \times T$ |
-| Solar curtailment | $P_{\text{curtail}}(t)$ | kW | Curtailed solar generation | $N_s \times T$ |
+| Variable          | Symbol                  | Units | Description                       | Count          |
+| ----------------- | ----------------------- | ----- | --------------------------------- | -------------- |
+| Connection power  | $P_c(t)$                | kW    | Power flow through connection $c$ | $N_c \times T$ |
+| Battery energy    | $E_b(t)$                | kWh   | Stored energy in battery $b$      | $N_b \times T$ |
+| Grid import       | $P_{\text{import}}(t)$  | kW    | Power imported from grid          | $N_g \times T$ |
+| Grid export       | $P_{\text{export}}(t)$  | kW    | Power exported to grid            | $N_g \times T$ |
+| Solar curtailment | $P_{\text{curtail}}(t)$ | kW    | Curtailed solar generation        | $N_s \times T$ |
 
 Where:
+
 - $N_c$: Number of connections
 - $N_b$: Number of batteries
 - $N_g$: Number of grids
@@ -216,11 +221,12 @@ graph LR
     Grid((Grid)) <--> Net((Net))
     Battery((Battery)) <--> Net
     Net --> Load((Load))
-    
+
     style Net fill:#90EE90
 ```
 
 **Decision variables**:
+
 - $P_{\text{import}}(t)$, $P_{\text{export}}(t)$: Grid power flows
 - $P_{\text{charge}}(t)$, $P_{\text{discharge}}(t)$: Battery power flows
 - $E(t)$: Battery energy state
@@ -260,7 +266,7 @@ HAEO uses consistent units for numerical stability:
 - **Power**: kilowatts (kW)
 - **Energy**: kilowatt-hours (kWh)
 - **Time**: hours (h)
-- **Cost**: dollars ($)
+- **Cost**: dollars (\$)
 
 This keeps values in similar numerical ranges, improving solver performance.
 See [units documentation](../developer-guide/units.md) for details.

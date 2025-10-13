@@ -80,11 +80,13 @@ Same configuration options as import price.
     This price difference incentivizes self-consumption and strategic battery usage.
 
 !!! note "Export Prices as Negative Costs"
+
     Export prices are automatically treated as negative costs in optimization.
     Enter positive values (e.g., 0.10) and HAEO converts them to revenue.
     The optimizer maximizes profit from selling electricity at these prices.
 
 !!! warning "Export Price Must Be Less Than Import Price"
+
     If export price equals or exceeds import price, the optimizer will find arbitrage opportunities.
     It will charge batteries from the grid and immediately export, creating infinite profit loops.
     Always ensure import price > export price to match real-world utility economics.

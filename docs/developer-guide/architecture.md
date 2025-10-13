@@ -34,6 +34,7 @@ Persistent storage of network configuration (entities, connections, timing param
 Central manager scheduling optimization cycles (default 5 min), loading data, building network, running solver, distributing results.
 
 **Update cycle**:
+
 1. Load sensor states and forecasts
 2. Build network model from config
 3. Run LP optimization
@@ -49,6 +50,7 @@ Central manager scheduling optimization cycles (default 5 min), loading data, bu
 ### Network Builder
 
 Creates optimization model from config:
+
 - Instantiates entity objects (Battery, Grid, etc.)
 - Creates Connection objects
 - Builds Network container
@@ -57,6 +59,7 @@ Creates optimization model from config:
 ### Network Model (`model/`)
 
 LP representation:
+
 - **Element**: Base class for entities
 - **Battery, Grid, Photovoltaics, Load, Net**: Specific entities
 - **Connection**: Power flow paths
@@ -69,6 +72,7 @@ HiGHS (default) via PuLP. Solves minimization problem, returns optimal cost and 
 ### Sensors (`sensor.py`)
 
 Expose results to HA:
+
 - Network sensors: cost, status, duration
 - Entity sensors: power, energy, SOC
 - All include forecast attributes
@@ -108,6 +112,7 @@ custom_components/haeo/
 ## Extension Points
 
 **Adding entity types**:
+
 1. Create model class in `model/`
 2. Add config schema in `types/`
 3. Update network builder in `coordinator.py`

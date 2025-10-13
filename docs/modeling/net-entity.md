@@ -19,6 +19,7 @@ $$
 $$
 
 Where:
+
 - $\mathcal{C}_{\text{in}}$: Inbound connections to net
 - $\mathcal{C}_{\text{out}}$: Outbound connections from net
 - $P_c(t)$: Power on connection $c$
@@ -34,6 +35,7 @@ Where:
 ## Use Cases
 
 **Single net (simple)**:
+
 ```mermaid
 graph LR
     Grid-->Net
@@ -45,6 +47,7 @@ graph LR
 Central hub where all entities connect.
 
 **Dual net (AC/DC)**:
+
 ```mermaid
 graph LR
     Solar-->DC[DC Net]
@@ -58,10 +61,10 @@ Separate buses with inverter connection between them.
 
 ## Configuration Impact
 
-| Topology | Complexity | Use When |
-|----------|-----------|----------|
-| Single net | Simple | Standard residential |
-| Multiple nets | Complex | Hybrid inverters, multi-building |
+| Topology      | Complexity | Use When                         |
+| ------------- | ---------- | -------------------------------- |
+| Single net    | Simple     | Standard residential             |
+| Multiple nets | Complex    | Hybrid inverters, multi-building |
 
 **Well-formed network**: All entities must connect to at least one net, directly or indirectly.
 

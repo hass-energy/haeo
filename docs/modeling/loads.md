@@ -59,10 +59,10 @@ Total load at net entity = sum of all connected loads.
 
 ## Configuration Impact
 
-| Load Type | Accuracy Needed | Best For |
-|-----------|----------------|----------|
-| Constant | Rough estimate | Simple setup, stable consumption |
-| Forecast | High accuracy | Variable loads, optimization value |
+| Load Type | Accuracy Needed | Best For                           |
+| --------- | --------------- | ---------------------------------- |
+| Constant  | Rough estimate  | Simple setup, stable consumption   |
+| Forecast  | High accuracy   | Variable loads, optimization value |
 
 **Overestimating load**: May cause infeasibility if supply can't meet.
 
