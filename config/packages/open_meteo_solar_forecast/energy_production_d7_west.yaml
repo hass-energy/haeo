@@ -1,0 +1,16 @@
+# Solar Forecast Sensor: sensor.energy_production_d7_west (Day 7)
+energy_production_d7_west:
+  command_line:
+    - sensor:
+        unique_id: "sensor.energy_production_d7_west"
+        name: "West solar production forecast Estimated energy production - 7 days from now"
+        command: "python3 config/transform_sensor.py config/packages/open_meteo_solar_forecast/energy_production_d7_west.json day_offset --day-offset 7"
+        value_template: "{{ value_json.state }}"
+        json_attributes_path: "$.attributes"
+        json_attributes:
+          - watts
+          - wh_period
+          - unit_of_measurement
+          - device_class
+          - friendly_name
+        scan_interval: 3600

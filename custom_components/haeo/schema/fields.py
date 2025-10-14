@@ -107,7 +107,9 @@ class PowerForecastsFieldMeta(FieldMeta):
     def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
         return {
             "value": EntitySelector(
-                EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.POWER])
+                EntitySelectorConfig(
+                    domain="sensor", multiple=True, device_class=[SensorDeviceClass.POWER, SensorDeviceClass.ENERGY]
+                )
             )
         }
 

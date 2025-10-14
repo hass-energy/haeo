@@ -970,10 +970,11 @@ wheels = [
 ]
 
 [[package]]
-name = "haeo-modelling"
+name = "haeo"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
+    { name = "homeassistant" },
     { name = "numpy" },
     { name = "pulp", extra = ["open-py"] },
 ]
@@ -981,7 +982,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "freezegun" },
-    { name = "homeassistant" },
     { name = "matplotlib" },
     { name = "mdformat" },
     { name = "mdformat-frontmatter" },
@@ -1003,6 +1003,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "homeassistant", specifier = ">=2025.4.4" },
     { name = "numpy", specifier = ">=2.2.2" },
     { name = "pulp", extras = ["open-py"], specifier = ">=3.3.0" },
 ]
@@ -1010,7 +1011,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "freezegun", specifier = "==1.5.2" },
-    { name = "homeassistant", specifier = ">=2025.4.4" },
     { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "mdformat", specifier = ">=0.7.22" },
     { name = "mdformat-frontmatter", specifier = ">=2.0.8" },

@@ -1,0 +1,19 @@
+{
+  "entity_id": "sensor.sigen_plant_battery_state_of_charge",
+  "state": "85.2",
+  "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "%",
+    "device_class": "battery",
+    "icon": "mdi:battery",
+    "friendly_name": "Sigen Plant Battery State of Charge"
+  },
+  "last_changed": "2025-10-05T10:58:12.997274+00:00",
+  "last_reported": "2025-10-05T10:59:21.995466+00:00",
+  "last_updated": "2025-10-05T10:58:12.997274+00:00",
+  "context": {
+    "id": "01K6T0B9C5MVZ7W5T2P6RK40KG",
+    "parent_id": null,
+    "user_id": null
+  }
+}

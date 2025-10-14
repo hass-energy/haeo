@@ -1,11 +1,15 @@
 [project]
-name = "haeo-modelling"
+name = "haeo"
 version = "0.1.0"
 description = "Home Assistant Energy Network Optimizer"
 readme = "README.md"
 requires-python = ">=3.13.2,<3.14"
 
-dependencies = ["numpy>=2.2.2", "pulp[open-py]>=3.3.0"]
+dependencies = [
+    "numpy>=2.2.2",
+    "pulp[open-py]>=3.3.0",
+    "homeassistant>=2025.4.4",
+]
 
 [dependency-groups]
 dev = [
@@ -13,7 +17,6 @@ dev = [
     "pytest-cov>=6.1.1,<=6.2.1",
     "ruff>=0.13.1",
     "mypy>=1.18.2",
-    "homeassistant>=2025.4.4",
     "pytest-homeassistant-custom-component>=0.13.260,<=0.13.281",
     "freezegun==1.5.2",
     "matplotlib>=3.10.7",
@@ -64,15 +67,15 @@ split-on-trailing-comma = false
 [tool.ruff.lint.per-file-ignores]
 
 "tests/**/*.py" = [
-    'S101',  # Assert is allowed in tests
-    'B011',  # Assert false is allowed in tests
-    'PT015', # Assert that always fails is fine in a test
-    'SLF001', # Accessing private methods is ok in testing
-    'ARG001', # Unused function argument - test fixtures often provide unused parameters for setup
+    'S101',    # Assert is allowed in tests
+    'B011',    # Assert false is allowed in tests
+    'PT015',   # Assert that always fails is fine in a test
+    'SLF001',  # Accessing private methods is ok in testing
+    'ARG001',  # Unused function argument - test fixtures often provide unused parameters for setup
     'PLR2004', # Magic value used in comparison - test assertions often use simple numeric values
-    'S110', # Try-except-pass detected - test exception handling patterns differ from production code
-    'SIM105', # Use contextlib.suppress instead of try-except-pass - test exception handling patterns differ
-    'BLE001', # Do not catch blind exception - test code needs to handle various exception types
+    'S110',    # Try-except-pass detected - test exception handling patterns differ from production code
+    'SIM105',  # Use contextlib.suppress instead of try-except-pass - test exception handling patterns differ
+    'BLE001',  # Do not catch blind exception - test code needs to handle various exception types
 ]
 
 
@@ -108,6 +111,17 @@ markers = [
 ]
 
 [tool.mdformat]
-wrap = "no"  # Don't wrap prose (preserve manual line breaks)
-number = true  # Renumber ordered lists
+wrap = "no"        # Don't wrap prose (preserve manual line breaks)
+number = true      # Renumber ordered lists
 end_of_line = "lf"
+
+[tool.setuptools]
+package-dir = { "" = "." }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["custom_components*"]
+
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"

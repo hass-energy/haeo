@@ -1,0 +1,26 @@
+# Amber Electric Sensor: sensor.home_feed_in_price
+home_feed_in_price:
+  command_line:
+    - sensor:
+        unique_id: "sensor.home_feed_in_price"
+        name: "Home - Feed In Price"
+        command: "python3 config/transform_sensor.py config/packages/amberelectric/home_feed_in_price.json passthrough"
+        value_template: "{{ value_json.state }}"
+        json_attributes_path: "$.attributes"
+        json_attributes:
+          - state_class
+          - duration
+          - date
+          - per_kwh
+          - nem_date
+          - spot_per_kwh
+          - start_time
+          - end_time
+          - renewables
+          - estimate
+          - spike_status
+          - channel_type
+          - unit_of_measurement
+          - attribution
+          - friendly_name
+        scan_interval: 3600

@@ -1,0 +1,29 @@
+{
+  "entity_id": "sensor.home_general_price",
+  "state": "0.15",
+  "attributes": {
+    "state_class": "measurement",
+    "duration": 5,
+    "date": "2025-10-05",
+    "per_kwh": 0.15,
+    "nem_date": "2025-10-05T21:00:00+10:00",
+    "spot_per_kwh": 0.06,
+    "start_time": "2025-10-05T10:55:01+00:00",
+    "end_time": "2025-10-05T11:00:00+00:00",
+    "renewables": 22,
+    "estimate": false,
+    "spike_status": "none",
+    "channel_type": "general",
+    "unit_of_measurement": "$/kWh",
+    "attribution": "Data provided by Amber Electric",
+    "friendly_name": "Home - General Price"
+  },
+  "last_changed": "2025-10-05T10:56:22.751147+00:00",
+  "last_reported": "2025-10-05T10:58:23.642691+00:00",
+  "last_updated": "2025-10-05T10:56:22.751147+00:00",
+  "context": {
+    "id": "01K6T07XPZF04CQQ23VSV70XRF",
+    "parent_id": null,
+    "user_id": null
+  }
+}

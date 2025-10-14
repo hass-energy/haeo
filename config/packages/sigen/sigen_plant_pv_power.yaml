@@ -1,0 +1,16 @@
+# SiGen Plant Sensor: sensor.sigen_plant_pv_power
+sigen_plant_pv_power:
+  command_line:
+    - sensor:
+        unique_id: "sensor.sigen_plant_pv_power"
+        name: "Sigen Plant PV Power"
+        command: "python3 config/transform_sensor.py config/packages/sigen/sigen_plant_pv_power.json passthrough"
+        value_template: "{{ value_json.state }}"
+        json_attributes_path: "$.attributes"
+        json_attributes:
+          - state_class
+          - unit_of_measurement
+          - device_class
+          - icon
+          - friendly_name
+        scan_interval: 3600

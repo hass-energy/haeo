@@ -1,0 +1,15 @@
+# SiGen Plant Sensor: sensor.sigen_plant_ess_rated_discharging_power
+sigen_plant_ess_rated_discharging_power:
+  command_line:
+    - sensor:
+        unique_id: "sensor.sigen_plant_ess_rated_discharging_power"
+        name: "Sigen Plant ESS Rated Discharging Power"
+        command: "python3 config/transform_sensor.py config/packages/sigen/sigen_plant_ess_rated_discharging_power.json passthrough"
+        value_template: "{{ value_json.state }}"
+        json_attributes_path: "$.attributes"
+        json_attributes:
+          - state_class
+          - unit_of_measurement
+          - device_class
+          - friendly_name
+        scan_interval: 3600

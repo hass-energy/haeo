@@ -1,0 +1,16 @@
+# Solar Forecast Sensor: sensor.energy_production_d3_north (Day 3)
+energy_production_d3_north:
+  command_line:
+    - sensor:
+        unique_id: "sensor.energy_production_d3_north"
+        name: "North solar production forecast Estimated energy production - 3 days from now"
+        command: "python3 config/transform_sensor.py config/packages/open_meteo_solar_forecast/energy_production_d3_north.json day_offset --day-offset 3"
+        value_template: "{{ value_json.state }}"
+        json_attributes_path: "$.attributes"
+        json_attributes:
+          - watts
+          - wh_period
+          - unit_of_measurement
+          - device_class
+          - friendly_name
+        scan_interval: 3600

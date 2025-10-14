@@ -1,0 +1,17 @@
+# Amber Electric Sensor: sensor.home_general_forecast
+home_general_forecast:
+  command_line:
+    - sensor:
+        unique_id: "sensor.home_general_forecast"
+        name: "Home - General Forecast"
+        command: "python3 config/transform_sensor.py config/packages/amberelectric/home_general_forecast.json wrap_forecasts"
+        value_template: "{{ value_json.state }}"
+        json_attributes_path: "$.attributes"
+        json_attributes:
+          - state_class
+          - forecasts
+          - channel_type
+          - unit_of_measurement
+          - attribution
+          - friendly_name
+        scan_interval: 3600
