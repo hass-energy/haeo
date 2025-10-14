@@ -78,16 +78,22 @@ def get_network_config_schema(
                 default=config_entry.data.get(CONF_HORIZON_HOURS, DEFAULT_HORIZON_HOURS)
                 if config_entry
                 else DEFAULT_HORIZON_HOURS,
-            ): NumberSelector(
-                NumberSelectorConfig(min=1, max=168, step=1, mode=NumberSelectorMode.SLIDER),
+            ): vol.All(
+                vol.Coerce(int),
+                NumberSelector(
+                    NumberSelectorConfig(min=1, max=168, step=1, mode=NumberSelectorMode.SLIDER),
+                ),
             ),
             vol.Required(
                 CONF_PERIOD_MINUTES,
                 default=config_entry.data.get(CONF_PERIOD_MINUTES, DEFAULT_PERIOD_MINUTES)
                 if config_entry
                 else DEFAULT_PERIOD_MINUTES,
-            ): NumberSelector(
-                NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.SLIDER),
+            ): vol.All(
+                vol.Coerce(int),
+                NumberSelector(
+                    NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.SLIDER),
+                ),
             ),
             vol.Required(
                 CONF_OPTIMIZER,

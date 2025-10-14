@@ -272,3 +272,126 @@ async def test_update_data_network_build_failure(hass: HomeAssistant, mock_confi
     assert result is not None
     assert result["cost"] is None
     assert coordinator.optimization_status == OPTIMIZATION_STATUS_FAILED
+
+
+@patch("custom_components.haeo.model.network.Network.optimize")
+async def test_calculate_time_parameters_with_integer_values(
+    mock_optimize: Mock, hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """Test that integer values in config work correctly for horizon_hours and period_minutes."""
+    # Config entry with explicit integer values
+    int_config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            **mock_config_entry.data,
+            CONF_HORIZON_HOURS: 1,  # Integer (as enforced by schema)
+            CONF_PERIOD_MINUTES: 30,  # Integer (as enforced by schema)
+        },
+        entry_id="test_int_entry_id",
+    )
+
+    # Set up sensor states
+    hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
+
+    forecast_data = [
+        {"start_time": "2025-10-05T00:00:00", "per_kwh": 0.1},
+        {"start_time": "2025-10-05T00:30:00", "per_kwh": 0.1},
+    ]
+
+    hass.states.async_set(
+        "sensor.import_price",
+        "0.10",
+        {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
+    )
+    hass.states.async_set(
+        "sensor.export_price",
+        "0.05",
+        {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
+    )
+
+    coordinator = HaeoDataUpdateCoordinator(hass, int_config_entry)
+
+    # Mock optimization result
+    mock_cost = 100.0
+    mock_optimize.return_value = mock_cost
+
+    async def async_job() -> float:
+        return mock_cost
+
+    # Should work correctly with integer config values
+    with patch.object(hass, "async_add_executor_job", return_value=async_job()):
+        result = await coordinator._async_update_data()
+
+    # Verify the coordinator successfully handled integer config values
+    assert result is not None
+    assert coordinator.optimization_status == OPTIMIZATION_STATUS_SUCCESS
+    assert coordinator.optimization_result is not None
+    assert coordinator.optimization_result["cost"] == mock_cost
+
+
+@patch("custom_components.haeo.model.network.Network.optimize")
+async def test_sensor_state_change_triggers_optimization(
+    mock_optimize: Mock, hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """Test that sensor state changes trigger optimization refresh."""
+    # Set up initial sensor states
+    hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
+
+    forecast_data = [
+        {"start_time": "2025-10-05T00:00:00", "per_kwh": 0.1},
+        {"start_time": "2025-10-05T00:30:00", "per_kwh": 0.1},
+    ]
+
+    hass.states.async_set(
+        "sensor.import_price",
+        "0.10",
+        {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
+    )
+    hass.states.async_set(
+        "sensor.export_price",
+        "0.05",
+        {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
+    )
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+
+    # Mock optimization result
+    mock_cost = 100.0
+    mock_optimize.return_value = mock_cost
+
+    # Track how many times refresh is called
+    refresh_count = 0
+    original_refresh = coordinator.async_refresh
+
+    async def mock_refresh() -> None:
+        nonlocal refresh_count
+        refresh_count += 1
+        await original_refresh()
+
+    with patch.object(coordinator, "async_refresh", mock_refresh):
+        # Initial setup
+        await hass.async_block_till_done()
+
+        # Change sensor state
+        hass.states.async_set("sensor.battery_soc", "60", {"device_class": "battery", "unit_of_measurement": "%"})
+        await hass.async_block_till_done()
+
+        # Verify that refresh was triggered by state change
+        assert refresh_count > 0
+
+
+async def test_coordinator_cleanup(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
+    """Test that coordinator cleanup properly unsubscribes from state changes."""
+    # Set up minimal sensor state
+    hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+
+    # Verify state change listener was set up
+    assert coordinator._state_change_unsub is not None
+
+    # Clean up coordinator
+    coordinator.cleanup()
+
+    # Verify cleanup occurred
+    assert coordinator._state_change_unsub is None

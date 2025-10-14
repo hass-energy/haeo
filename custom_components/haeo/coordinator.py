@@ -1,13 +1,14 @@
 """Data update coordinator for the Home Assistant Energy Optimization integration."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta
 import logging
 import time
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 from pulp import value
@@ -16,6 +17,7 @@ from .const import (
     ATTR_POWER,
     CONF_HORIZON_HOURS,
     CONF_OPTIMIZER,
+    CONF_PARTICIPANTS,
     CONF_PERIOD_MINUTES,
     DEFAULT_OPTIMIZER,
     DEFAULT_UPDATE_INTERVAL,
@@ -48,6 +50,42 @@ def _calculate_time_parameters(horizon_hours: int, period_minutes: int) -> tuple
     return period_seconds, n_periods
 
 
+def _extract_entity_ids(config: Any) -> set[str]:
+    """Extract all entity IDs from participant configuration.
+
+    Args:
+        config: Configuration dictionary containing participants
+
+    Returns:
+        Set of entity IDs referenced in the configuration
+
+    """
+    entity_ids: set[str] = set()
+    participants = dict(config.get(CONF_PARTICIPANTS, {}))
+
+    for participant_config in participants.values():
+        for key, field_value in participant_config.items():
+            # Skip non-entity fields
+            if key in ("element_type", "name"):
+                continue
+
+            # Check if it's a dict with 'value' field (this is how entity IDs are stored)
+            if isinstance(field_value, dict) and "value" in field_value:
+                value_content = field_value["value"]
+                # Handle both single entity ID (str) and list of entity IDs
+                if isinstance(value_content, str) and value_content.startswith("sensor."):
+                    entity_ids.add(value_content)
+                elif isinstance(value_content, list):
+                    entity_ids.update(
+                        eid for eid in value_content if isinstance(eid, str) and eid.startswith("sensor.")
+                    )
+            # Handle direct string values (for backwards compatibility or simpler config)
+            elif isinstance(field_value, str) and field_value.startswith("sensor."):
+                entity_ids.add(field_value)
+
+    return entity_ids
+
+
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Data update coordinator for HAEO integration."""
 
@@ -60,6 +98,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.optimization_result: dict[str, Any] | None = None
         self.optimization_status = OPTIMIZATION_STATUS_PENDING
         self._last_optimization_duration: float | None = None
+        self._state_change_unsub: Callable[[], None] | None = None
 
         super().__init__(
             hass,
@@ -67,6 +106,37 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             name=f"{DOMAIN}_{entry.entry_id}",
             update_interval=timedelta(seconds=DEFAULT_UPDATE_INTERVAL),
         )
+
+        # Set up state change listeners for all entity IDs in configuration
+        self._setup_state_change_listeners()
+
+    def _setup_state_change_listeners(self) -> None:
+        """Set up listeners for entity state changes to trigger optimization."""
+        entity_ids = _extract_entity_ids(self.config)
+
+        if entity_ids:
+            _LOGGER.debug("Setting up state change listeners for %d entities", len(entity_ids))
+
+            @callback
+            def _state_change_listener(_event: Event[EventStateChangedData]) -> None:
+                """Handle state changes for tracked entities."""
+                _LOGGER.debug("Entity state changed, triggering optimization update")
+                # Schedule an immediate refresh
+                self.hass.async_create_task(self.async_refresh())
+
+            # Track state changes for all relevant entities
+            self._state_change_unsub = async_track_state_change_event(
+                self.hass,
+                list(entity_ids),
+                _state_change_listener,
+            )
+
+    def cleanup(self) -> None:
+        """Clean up coordinator resources."""
+        if self._state_change_unsub is not None:
+            _LOGGER.debug("Unsubscribing from state change listeners")
+            self._state_change_unsub()
+            self._state_change_unsub = None
 
     def get_future_timestamps(self) -> list[str]:
         """Get list of ISO timestamps for each optimization period."""
