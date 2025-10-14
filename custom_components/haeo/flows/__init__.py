@@ -79,10 +79,10 @@ def get_network_config_schema(
                 if config_entry
                 else DEFAULT_HORIZON_HOURS,
             ): vol.All(
-                vol.Coerce(int),
                 NumberSelector(
                     NumberSelectorConfig(min=1, max=168, step=1, mode=NumberSelectorMode.SLIDER),
                 ),
+                vol.Coerce(int),
             ),
             vol.Required(
                 CONF_PERIOD_MINUTES,
@@ -90,10 +90,10 @@ def get_network_config_schema(
                 if config_entry
                 else DEFAULT_PERIOD_MINUTES,
             ): vol.All(
-                vol.Coerce(int),
                 NumberSelector(
                     NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.SLIDER),
                 ),
+                vol.Coerce(int),
             ),
             vol.Required(
                 CONF_OPTIMIZER,

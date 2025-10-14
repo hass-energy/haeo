@@ -4,14 +4,13 @@ from datetime import UTC, datetime, timedelta
 import json
 from pathlib import Path
 import sys
-from typing import Any
 from unittest.mock import patch
 
 import pytest
 
 # Import the module under test
 from config import transform_sensor
-from config.transform_sensor import JSONDict, ForecastList
+from config.transform_sensor import JSONDict
 
 
 @pytest.fixture
