@@ -1,11 +1,11 @@
 {
   "participants": {
     "dc_net": {
-      "type": "net",
+      "type": "node",
       "name_value": "dc_net"
     },
     "ac_net": {
-      "type": "net",
+      "type": "node",
       "name_value": "ac_net"
     },
     "battery": {

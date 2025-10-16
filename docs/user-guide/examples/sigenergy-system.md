@@ -216,4 +216,4 @@ The inverter connection power limit ensures:
 - DC→AC discharge cannot exceed 30 kW
 - Realistic system constraints are modeled
 
-See [Net Element](../elements/net.md) for more on hybrid inverter modeling.
+See [Node](../elements/node.md) for more on hybrid inverter modeling.

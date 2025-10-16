@@ -36,7 +36,7 @@ Fixed power consumption that doesn't vary over time.
 
 Variable consumption based on forecast data.
 
-### **[Net](net.md)**
+### **[Node](node.md)**
 
 Virtual power balance node for grouping connections and managing complex topologies.
 
@@ -106,7 +106,7 @@ Explore detailed configuration for each element type:
 
     Variable consumption with forecasts.
 
-- [Net Configuration](net.md)
+- [Node Configuration](node.md)
 
     Virtual power balance nodes.
 

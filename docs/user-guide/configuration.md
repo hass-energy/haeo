@@ -142,7 +142,7 @@ Each element type has its own configuration requirements. See the detailed guide
 - [Grid Configuration](elements/grid.md)
 - [Photovoltaics Configuration](elements/photovoltaics.md)
 - [Load Configuration](elements/constant-load.md)
-- [Net Element Configuration](elements/net.md)
+- [Node Configuration](elements/node.md)
 
 !!! tip "Configuration Order"
 
@@ -152,7 +152,7 @@ Each element type has its own configuration requirements. See the detailed guide
     2. Battery (if you have one)
     3. Photovoltaics (if you have solar)
     4. Loads (constant or forecast)
-    5. Net elements (for complex topologies)
+    5. Nodes (for complex topologies)
 
 ## Defining Connections
 

@@ -20,7 +20,7 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_CONSTANT_LOAD,
     ELEMENT_TYPE_FORECAST_LOAD,
     ELEMENT_TYPE_GRID,
-    ELEMENT_TYPE_NET,
+    ELEMENT_TYPE_NODE,
     ELEMENT_TYPE_PHOTOVOLTAICS,
 )
 from custom_components.haeo.flows.hub import HubConfigFlow
@@ -72,8 +72,8 @@ def _get_test_data() -> TestDataResult:
     from .test_data.forecast_load import VALID_DATA as LOAD_FORECAST_VALID_DATA  # noqa: PLC0415
     from .test_data.grid import INVALID_DATA as GRID_INVALID_DATA  # noqa: PLC0415
     from .test_data.grid import VALID_DATA as GRID_VALID_DATA  # noqa: PLC0415
-    from .test_data.net import INVALID_DATA as NET_INVALID_DATA  # noqa: PLC0415
-    from .test_data.net import VALID_DATA as NET_VALID_DATA  # noqa: PLC0415
+    from .test_data.node import INVALID_DATA as NODE_INVALID_DATA  # noqa: PLC0415
+    from .test_data.node import VALID_DATA as NODE_VALID_DATA  # noqa: PLC0415
     from .test_data.photovoltaics import INVALID_DATA as PHOTOVOLTAICS_INVALID_DATA  # noqa: PLC0415
     from .test_data.photovoltaics import VALID_DATA as PHOTOVOLTAICS_VALID_DATA  # noqa: PLC0415
 
@@ -85,7 +85,7 @@ def _get_test_data() -> TestDataResult:
         ELEMENT_TYPE_GRID: GRID_VALID_DATA,
         ELEMENT_TYPE_CONSTANT_LOAD: LOAD_VALID_DATA,
         ELEMENT_TYPE_FORECAST_LOAD: LOAD_FORECAST_VALID_DATA,
-        ELEMENT_TYPE_NET: NET_VALID_DATA,
+        ELEMENT_TYPE_NODE: NODE_VALID_DATA,
     }
 
     invalid_data_by_type = {
@@ -95,7 +95,7 @@ def _get_test_data() -> TestDataResult:
         ELEMENT_TYPE_GRID: GRID_INVALID_DATA,
         ELEMENT_TYPE_CONSTANT_LOAD: LOAD_INVALID_DATA,
         ELEMENT_TYPE_FORECAST_LOAD: LOAD_FORECAST_INVALID_DATA,
-        ELEMENT_TYPE_NET: NET_INVALID_DATA,
+        ELEMENT_TYPE_NODE: NODE_INVALID_DATA,
     }
 
     # Create flat lists with descriptions for parametrized tests

@@ -19,8 +19,8 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_CONSTANT_LOAD,
     ELEMENT_TYPE_FORECAST_LOAD,
     ELEMENT_TYPE_GRID,
-    ELEMENT_TYPE_NET,
     ELEMENT_TYPE_NETWORK,
+    ELEMENT_TYPE_NODE,
     ELEMENT_TYPE_PHOTOVOLTAICS,
     ELEMENT_TYPES,
     OPTIMIZATION_STATUS_FAILED,
@@ -391,11 +391,11 @@ def test_element_sensor_extra_state_attributes(
 
     assert attrs is not None
     assert "forecast" in attrs
-    assert isinstance(attrs["forecast"], list)
+    assert isinstance(attrs["forecast"], dict)
     assert len(attrs["forecast"]) == 3
-    assert "timestamped_forecast" in attrs
-    assert len(attrs["timestamped_forecast"]) == 3
-    assert "value" in attrs["timestamped_forecast"][0]
+    # Verify forecast values are floats
+    for value in attrs["forecast"].values():
+        assert isinstance(value, float)
 
 
 @pytest.mark.parametrize(
@@ -406,7 +406,7 @@ def test_element_sensor_extra_state_attributes(
         ("test_photovoltaics", ELEMENT_TYPE_PHOTOVOLTAICS, "photovoltaics"),
         ("test_load_constant", ELEMENT_TYPE_CONSTANT_LOAD, "constant_load"),
         ("test_load_forecast", ELEMENT_TYPE_FORECAST_LOAD, "forecast_load"),
-        ("test_net", ELEMENT_TYPE_NET, "net"),
+        ("test_node", ELEMENT_TYPE_NODE, "node"),
         ("test_connection", ELEMENT_TYPE_CONNECTION, "connection"),
     ],
 )
@@ -474,7 +474,7 @@ def test_coordinator_get_future_timestamps_exception(
     attrs = sensor.extra_state_attributes
     assert attrs is not None
     assert "forecast" in attrs
-    assert "timestamped_forecast" in attrs
+    assert isinstance(attrs["forecast"], dict)
 
     # Now make get_future_timestamps raise an exception
     mock_coordinator.get_future_timestamps.side_effect = Exception("Timestamp retrieval failed")
@@ -483,11 +483,10 @@ def test_coordinator_get_future_timestamps_exception(
     sensor_error = HaeoPowerSensor(mock_coordinator, mock_config_entry, "test_battery", ELEMENT_TYPE_BATTERY)
 
     # Should handle gracefully - the method should not raise an exception
-    # and should return attributes with forecast but without timestamped_forecast
+    # Forecast should be missing due to the exception
     attrs_error = sensor_error.extra_state_attributes
     assert attrs_error is not None
-    assert "forecast" in attrs_error
-    # timestamped_forecast should be missing due to the exception
+    assert "forecast" not in attrs_error
     assert "timestamped_forecast" not in attrs_error
 
 
@@ -641,8 +640,8 @@ def test_sensor_extra_attributes_with_exception(
 
     attrs = sensor.extra_state_attributes
     assert attrs is not None
-    assert "forecast" in attrs
-    assert "timestamped_forecast" not in attrs
+    # When timestamp retrieval fails, forecast should not be present
+    assert "forecast" not in attrs
 
 
 @pytest.mark.parametrize("sensor_type", SENSOR_TYPES)

@@ -12,12 +12,14 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from custom_components.haeo.const import (
     ATTR_ENERGY,
     ATTR_POWER,
+    CONF_ELEMENT_TYPE,
     DOMAIN,
     SENSOR_TYPE_ENERGY,
     SENSOR_TYPE_POWER,
     SENSOR_TYPE_SOC,
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.schema import load
 from custom_components.haeo.sensors.energy import HaeoEnergySensor
 from custom_components.haeo.sensors.optimization import (
     HaeoOptimizationCostSensor,
@@ -27,8 +29,42 @@ from custom_components.haeo.sensors.optimization import (
 from custom_components.haeo.sensors.power import HaeoPowerSensor
 from custom_components.haeo.sensors.soc import HaeoSOCSensor
 from custom_components.haeo.sensors.types import DataSource
+from custom_components.haeo.types import ElementConfigData, get_model_description
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def _get_model_description(element_config: dict[str, Any], hass: HomeAssistant) -> str:
+    """Get model description string from element configuration.
+
+    Args:
+        element_config: Schema mode element configuration
+        hass: Home Assistant instance for loading data
+
+    Returns:
+        Formatted model description string
+
+    """
+    element_type = str(element_config.get(CONF_ELEMENT_TYPE, ""))
+
+    # Load element config into Data mode
+    loaded_config: ElementConfigData
+    try:
+        loaded_config = await load(
+            element_config,  # type: ignore[arg-type]
+            hass=hass,
+            forecast_times=[],
+        )
+    except Exception:
+        # Fallback to generic title-cased element type
+        return element_type.replace("_", " ").title()
+
+    # Call type-specific model_description function via dispatch
+    try:
+        return get_model_description(loaded_config)
+    except ValueError:
+        # Fallback for unknown element types
+        return element_type.replace("_", " ").title()
 
 
 async def async_register_devices(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
@@ -48,14 +84,18 @@ async def async_register_devices(hass: HomeAssistant, config_entry: ConfigEntry)
     # Register devices for each participant element
     participants = config_entry.data.get("participants", {})
     for element_name, element_config in participants.items():
-        element_type = element_config.get("type", "")
+        # Use element name directly for all types
+        device_name = element_name
+
+        # Build detailed model string
+        model_string = await _get_model_description(element_config, hass)
 
         device_registry_client.async_get_or_create(
             config_entry_id=config_entry.entry_id,
             identifiers={(DOMAIN, f"{config_entry.entry_id}_{element_name}")},
-            name=element_name,
+            name=device_name,
             manufacturer="HAEO",
-            model=f"entity.device.{element_type}",
+            model=model_string,
             via_device=(DOMAIN, config_entry.entry_id),
         )
 

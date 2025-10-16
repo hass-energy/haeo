@@ -74,7 +74,7 @@ This minimizes your total energy cost over a configurable time horizon (default 
 - **Photovoltaics**: Solar generation with optional curtailment
 - **Constant Load**: Fixed power loads
 - **Forecast Load**: Variable loads with forecast data
-- **Net**: Virtual metering points for grouping energy flows
+- **Node**: Virtual metering points for grouping energy flows
 - **Connection**: Power flow paths between devices with optional constraints
 
 ## 📦 Installation

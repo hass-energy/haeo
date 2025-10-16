@@ -70,17 +70,11 @@ class HaeoEnergySensor(HaeoSensorBase):
             if element_data and ATTR_ENERGY in element_data:
                 energy_data = element_data[ATTR_ENERGY]
 
-                # Add forecast data
-                attrs["forecast"] = energy_data
-
-                # Add timestamped forecast
+                # Add timestamped forecast as dictionary
                 try:
                     timestamps = self.coordinator.get_future_timestamps()
                     if len(timestamps) == len(energy_data):
-                        attrs["timestamped_forecast"] = [
-                            {"timestamp": ts, "value": value}
-                            for ts, value in zip(timestamps, energy_data, strict=False)
-                        ]
+                        attrs["forecast"] = dict(zip(timestamps, energy_data, strict=False))
                 except Exception as ex:
                     _LOGGER.debug("Error getting timestamps for %s: %s", self.element_name, ex)
         except Exception as ex:

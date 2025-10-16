@@ -20,7 +20,7 @@ It helps you minimize energy costs by intelligently managing battery storage, so
 
     ---
 
-    Learn how to configure your energy system entities and connections.
+    Learn how to configure your energy system elements and connections.
 
     [:octicons-arrow-right-24: Configuration Guide](user-guide/configuration.md)
 
@@ -84,7 +84,7 @@ With configurable update intervals and time horizons, you can balance computatio
 - **Grids**: Import/export with pricing (fixed or forecast-based)
 - **Photovoltaics**: Solar generation with optional curtailment capability
 - **Loads**: Both constant and forecast-based consumption
-- **Net entities**: Virtual nodes for grouping and balancing power flows
+- **Nodes**: Virtual balance points for grouping and balancing power flows
 
 ### Price-based Strategy
 
@@ -140,7 +140,7 @@ For **contributors and developers**:
 
 Quick **reference tables and schemas**:
 
-- [Entity Types](reference/entities.md) - Complete entity reference
+- [Element Types](reference/elements.md) - Complete element reference
 - [Sensor Types](reference/sensors.md) - All sensor types and meanings
 - [Configuration Schema](reference/configuration-schema.md) - Full config options
 - [LP Solvers](reference/solvers.md) - Supported solvers and setup

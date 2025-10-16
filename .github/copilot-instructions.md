@@ -8,7 +8,7 @@ HAEO is a Home Assistant custom integration that optimizes energy usage across b
 
 ### Core Components
 
-- **Energy Network Modeling**: Battery, Grid, Load, Generator, and Net entities
+- **Energy Network Modeling**: Battery, Grid, Load, Generator, and Node entities
 - **Linear Programming Optimization**: Constraint-based optimization with configurable solvers
 - **Home Assistant Integration**: Config flow, sensors, coordinator pattern
 - **Real-time Data**: Integration with HA sensor data and forecasts
@@ -18,7 +18,7 @@ HAEO is a Home Assistant custom integration that optimizes energy usage across b
 ### Core Integration Structure
 
 - **Network**: Container that manages entities and connections, runs optimization
-- **Entities**: Battery, Grid, Load, Generator, Net - each with power/energy variables
+- **Entities**: Battery, Grid, Load, Generator, Node - each with power/energy variables
 - **Connections**: Define power flow constraints between entities
 - **Coordinator**: Bridges HA entities with optimization network, manages data updates
 - **Config Flow**: Configuration validation and UI management

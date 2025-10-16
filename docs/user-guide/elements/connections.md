@@ -64,7 +64,7 @@ See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly)
 
 ## Modeling Hybrid Inverters {#hybrid-inverters}
 
-Hybrid inverters (AC-DC converters) can be modeled as connections between net elements:
+Hybrid inverters (AC-DC converters) can be modeled as connections between nodes:
 
 ```mermaid
 graph LR
@@ -83,7 +83,7 @@ graph LR
 
 ### Configuration
 
-Create two net elements (DC and AC) and connect them with power limits:
+Create two net nodes (DC and AC) and connect them with power limits:
 
 ```yaml
 Source: DC Net
@@ -104,6 +104,6 @@ The connection limits represent the inverter's power rating.
 ## Related Documentation
 
 - [Connection Modeling](../../modeling/connections.md)
-- [Net Element Modeling](../../modeling/net-entity.md)
+- [Node Modeling](../../modeling/node.md)
 
 [:octicons-arrow-right-24: Continue to Understanding Results](../optimization.md)

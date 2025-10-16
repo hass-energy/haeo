@@ -82,23 +82,23 @@ Typical residential system (48-hour horizon, 5-minute periods):
 
 HAEO models energy systems as directed graphs:
 
-- **Nodes**: Elements (battery, grid, solar, load) and nets (balance points)
+- **Nodes**: Elements (battery, grid, solar, load) and nodes (balance points)
 - **Edges**: Connections with power flow variables
 - **Direction**: Source → Target defines positive power flow direction
 
 ```mermaid
 graph LR
-    Grid((Grid)) <-->|P_grid| Net((Net))
-    Solar((Solar)) -->|P_solar| Net
-    Battery((Battery)) <-->|P_batt| Net
-    Net -->|P_load| Load((Load))
+    Grid((Grid)) <-->|P_grid| Node((Node))
+    Solar((Solar)) -->|P_solar| Node
+    Battery((Battery)) <-->|P_batt| Node
+    Node -->|P_load| Load((Load))
 
     style Net fill:#90EE90
 ```
 
 ### Power Balance Constraint
 
-At each net element and every time step:
+At each node and every time step:
 
 $$
 \sum_{c \in \mathcal{C}_{\text{in}}} P_c(t) = \sum_{c \in \mathcal{C}_{\text{out}}} P_c(t)
@@ -106,8 +106,8 @@ $$
 
 Where:
 
-- $\mathcal{C}_{\text{in}}$: Connections with net as target (inflows)
-- $\mathcal{C}_{\text{out}}$: Connections with net as source (outflows)
+- $\mathcal{C}_{\text{in}}$: Connections with node as target (inflows)
+- $\mathcal{C}_{\text{out}}$: Connections with node as source (outflows)
 - $P_c(t)$: Power flow through connection $c$ at time $t$
 
 This enforces Kirchhoff's current law: power in equals power out.
@@ -151,7 +151,7 @@ Each element type has specific constraints and variables:
 - **[Photovoltaics](photovoltaics.md)**: Generation following forecast with optional curtailment
 - **[Loads](loads.md)**: Constant or forecast-based power consumption
 - **[Connections](connections.md)**: Power flow with directional limits
-- **[Net](net-entity.md)**: Virtual balance points enforcing power conservation
+- **[Node](node.md)**: Virtual balance points enforcing power conservation
 
 ## Objective Function
 
@@ -218,11 +218,11 @@ Simple system with grid, battery, and load:
 
 ```mermaid
 graph LR
-    Grid((Grid)) <--> Net((Net))
-    Battery((Battery)) <--> Net
-    Net --> Load((Load))
+    Grid((Grid)) <--> Node((Node))
+    Battery((Battery)) <--> Node
+    Node --> Load((Load))
 
-    style Net fill:#90EE90
+    style Node fill:#90EE90
 ```
 
 **Decision variables**:
@@ -297,7 +297,7 @@ Each element type has detailed mathematical formulation:
 
     Power flow constraints between elements with directional limits.
 
-- **[Net Element Model](net-entity.md)**
+- **[Node Model](node.md)**
 
     Virtual balance points enforcing power conservation (Kirchhoff's law).
 

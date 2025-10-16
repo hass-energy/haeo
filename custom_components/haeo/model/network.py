@@ -15,7 +15,7 @@ from .constant_load import ConstantLoad
 from .element import Element
 from .forecast_load import ForecastLoad
 from .grid import Grid
-from .net import Net
+from .node import Node
 from .photovoltaics import Photovoltaics
 
 _LOGGER = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ class Network:
             "constant_load": ConstantLoad,
             "forecast_load": ForecastLoad,
             "grid": Grid,
-            "net": Net,
+            "node": Node,
             "connection": Connection,
         }[element_type.lower()](name=name, period=self.period, n_periods=self.n_periods, **kwargs)
         return self.elements[name]

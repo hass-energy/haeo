@@ -104,9 +104,9 @@ If an element is isolated, add connections:
 2. Select **Add Connection**
 3. Connect the isolated element to the main network
 
-#### Use Net Elements
+#### Use Nodes
 
-For complex topologies, use net elements as hubs:
+For complex topologies, use nodes as hubs:
 
 ```mermaid
 graph LR

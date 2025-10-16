@@ -87,18 +87,12 @@ class HaeoSOCSensor(HaeoSensorBase):
                     # Convert energy values to SOC percentages
                     soc_data = [(energy / element.capacity) * 100.0 for energy in energy_data]
 
-                    # Add forecast data
-                    attrs["forecast"] = soc_data
+                    # Add timestamped forecast as dictionary
                     attrs["capacity"] = element.capacity
-
-                    # Add timestamped forecast
                     try:
                         timestamps = self.coordinator.get_future_timestamps()
                         if len(timestamps) == len(soc_data):
-                            attrs["timestamped_forecast"] = [
-                                {"timestamp": ts, "value": value}
-                                for ts, value in zip(timestamps, soc_data, strict=False)
-                            ]
+                            attrs["forecast"] = dict(zip(timestamps, soc_data, strict=False))
                     except Exception as ex:
                         _LOGGER.debug("Error getting timestamps for %s: %s", self.element_name, ex)
         except Exception as ex:

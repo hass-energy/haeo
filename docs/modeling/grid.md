@@ -1,6 +1,6 @@
 # Grid Modeling
 
-The grid entity models bidirectional utility connection with time-varying pricing for import and export.
+The grid element models bidirectional utility connection with time-varying pricing for import and export.
 
 ## Model Formulation
 

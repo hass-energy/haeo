@@ -17,7 +17,7 @@
         "constant_load": "Constant Load",
         "forecast_load": "Forecast Load",
         "photovoltaics": "Photovoltaics",
-        "net": "Network Node",
+        "node": "Node",
         "connection": "Connection"
       }
     }
@@ -38,8 +38,8 @@
     "photovoltaics": {
       "name": "Photovoltaics"
     },
-    "net": {
-      "name": "Network Node"
+    "node": {
+      "name": "Node"
     },
     "connection": {
       "name": "Connection"
@@ -175,11 +175,11 @@
           "curtailment_value": "Allow Curtailment (Optional)"
         }
       },
-      "configure_net": {
-        "title": "Configure Net Entity",
-        "description": "Add a net entity for power balance calculations",
+      "configure_node": {
+        "title": "Configure Node",
+        "description": "Add a node for power balance calculations",
         "data": {
-          "name_value": "Net Entity Name"
+          "name_value": "Node Name"
         }
       },
       "configure_connection": {

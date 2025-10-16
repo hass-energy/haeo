@@ -55,7 +55,10 @@ Typical systems use both:
 - **Constant load**: Baseline (0.5-2 kW)
 - **Forecast load**: Variable consumption (time-dependent)
 
-Total load at net entity = sum of all connected loads.
+- Total forecasts (all forecast-derived) must add up to load entity total
+- When mixing constant and forecast-derived, constant sets baseline
+
+Total load at node = sum of all connected loads.
 
 ## Configuration Impact
 

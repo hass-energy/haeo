@@ -1,106 +1,45 @@
 # Testing
 
-HAEO uses pytest for testing.
+HAEO uses pytest with 95% minimum coverage target.
 
-## Running Tests
+## Test Organization
 
-```bash
-# All tests
-uv run pytest
-
-# Specific file
-uv run pytest tests/test_model.py
-
-# With coverage
-uv run pytest --cov=custom_components.haeo --cov-report=html
-
-# Verbose
-uv run pytest -v --tb=short
-```
+- `tests/conftest.py` - Shared fixtures (Home Assistant instance, mock config entries, common scenarios)
+- `tests/test_*.py` - Component tests (model, coordinator, sensors, flows)
+- `tests/scenarios/*.py` - Complete system integration tests
 
 ## Test Structure
 
-```
-tests/
-├── conftest.py              # Shared fixtures
-├── test_model.py            # Entity/network tests
-├── test_coordinator.py      # Coordinator tests
-├── test_sensor.py           # Sensor tests
-├── flows/
-│   ├── test_config_flow.py
-│   └── test_options_flow.py
-└── scenarios/
-    └── test_systems.py
-```
+**Unit tests**: Fast, isolated verification of element constraints, cost functions, data validation
 
-## Example Tests
+**Integration tests**: Coordinator data flow, sensor updates, config entry lifecycle
 
-### Model Test
+**Scenario tests**: Complete battery + solar + grid systems with realistic data
 
-```python
-def test_battery_creation():
-    battery = Battery(
-        name="test",
-        period=1.0,
-        n_periods=24,
-        capacity=10.0,
-        max_charge_power=5.0,
-        max_discharge_power=5.0,
-    )
+## Adding Element Tests
 
-    assert battery.capacity == 10.0
-    assert len(battery.power_consumption) == 24
-    assert len(battery.energy) == 24
-```
+When adding new element types:
 
-### Network Test
+1. Add to `ELEMENT_TYPES` in `const.py`
+2. Add test data in `tests/flows/test_data/`
+3. Parameterized tests automatically include the new type
 
-```python
-def test_simple_optimization():
-    network = Network(name="test", period=1.0, n_periods=24)
+Parameterized tests marked with `@pytest.mark.parametrize` run once per element type.
 
-    # Add entities
-    network.elements["grid"] = Grid(...)
-    network.elements["load"] = ConstantLoad(...)
-    network.elements["net"] = Net(...)
+## CI Requirements
 
-    # Add connections
-    network.connections.append(Connection(...))
+All PRs must pass:
 
-    # Optimize
-    cost = network.optimize()
-    assert cost > 0
-```
-
-### Integration Test
-
-```python
-async def test_setup_entry(hass, mock_config_entry):
-    mock_config_entry.add_to_hass(hass)
-    assert await async_setup_entry(hass, mock_config_entry)
-    await hass.async_block_till_done()
-```
-
-## Coverage Target
-
-**Minimum**: 95% for all modules
-
-Check coverage:
-
-```bash
-uv run pytest --cov=custom_components.haeo --cov-report=term-missing
-```
-
-## Key Testing Areas
-
-- Entity creation and constraints
-- Network building and validation
-- Optimization solve
-- Coordinator update cycle
-- Config flow steps
-- Sensor updates
+- All tests
+- Coverage ≥ 95%
+- Ruff linting
+- MyPy type checking
 
 ## Related Documentation
 
-- [Architecture](architecture.md)
-- [Energy Models](energy-models.md)
+- [Architecture](architecture.md) - System design
+- [Energy Models](energy-models.md) - Model implementation
+- [Coordinator](coordinator.md) - Update cycle
+- [Data Loading](data-loading.md) - Loader testing
+- [Config Flow](config-flow.md) - Flow testing patterns
+- [Setup](setup.md) - Environment setup

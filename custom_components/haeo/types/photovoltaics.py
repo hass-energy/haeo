@@ -41,3 +41,16 @@ class PhotovoltaicsConfigData(TypedDict):
 PHOTOVOLTAICS_CONFIG_DEFAULTS: dict[str, Any] = {
     "curtailment": False,
 }
+
+
+def model_description(config: PhotovoltaicsConfigData) -> str:  # noqa: ARG001
+    """Generate model description string for photovoltaics element.
+
+    Args:
+        config: Photovoltaics configuration data.
+
+    Returns:
+        Formatted model description string.
+
+    """
+    return "Solar"

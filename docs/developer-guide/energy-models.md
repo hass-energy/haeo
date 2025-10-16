@@ -1,120 +1,87 @@
 # Implementing Energy Models
 
-Guide to creating new entity types in HAEO.
+Guide for adding new element types to HAEO's optimization engine.
+
+## Integration Points
+
+HAEO uses linear programming (PuLP) to optimize energy networks.
+Elements contribute decision variables, constraints, and costs to the optimization problem.
+
+**Model Classes**: `custom_components/haeo/model/*.py` - Create your element class inheriting from `Element`
+
+**Configuration Schema**: `types/entity_config.py` - Add `TypedDict` for your element's configuration
+
+**Network Builder**: `coordinator.py` `_create_entity()` - Add case to instantiate your element from config
+
+**Config Flow**: `flows/options.py` - Add step functions for UI configuration
+
+**Tests**: `tests/test_model.py` and `tests/scenarios/` - Verify element behavior
 
 ## Element Base Class
 
-All entities inherit from `Element`:
+Inherit from `Element` which provides:
 
-```python
-@dataclass
-class Element:
-    name: str
-    period: float  # hours
-    n_periods: int
+- `power_consumption` / `power_production` sequences - Use `LpVariable` for controllable power, floats for fixed
+- `energy` sequence - Optional state tracking (batteries need this)
+- `price_consumption` / `price_production` - Optional pricing data for cost optimization
+- `period` (hours) and `n_periods` - Time structure for optimization horizon
+- `constraints()` method - Override to add linear constraints
+- `cost()` method - Override to add costs beyond basic pricing
 
-    power_consumption: Sequence[LpVariable | float] | None = None
-    power_production: Sequence[LpVariable | float] | None = None
-    energy: Sequence[LpVariable | float] | None = None
+Variable naming: Include element name and time index (`f"{name}_power_{t}"`) for uniqueness.
 
-    price_consumption: Sequence[float] | None = None
-    price_production: Sequence[float] | None = None
+## HAEO Constraints
 
-    efficiency: float = 1.0
-    forecast: Sequence[float] | None = None
+### Units
 
-    def constraints(self) -> Sequence[LpConstraint]:
-        return []
+All optimization uses kW (power), kWh (energy), hours (time).
+Data loading in `coordinator.py` converts Home Assistant's W/Wh automatically.
 
-    def cost(self) -> float:
-        # Base implementation handles pricing
-        pass
-```
+### Linear Programming Only
 
-## Minimal Implementation
+PuLP requires linear constraints.
+No variable multiplication or exponents.
+Use constant efficiency instead of curves, linearize nonlinear physics.
 
-```python
-from pulp import LpVariable
-from .element import Element
+### Variable Bounds vs Constraints
 
+Set bounds during `LpVariable()` creation when possible - more efficient than separate constraints.
 
-class MyEntity(Element):
-    def __init__(
-        self,
-        name: str,
-        period: float,
-        n_periods: int,
-        *,
-        my_limit: float,
-    ) -> None:
-        # Create decision variables
-        power_production = [LpVariable(f"{name}_power_{i}", lowBound=0, upBound=my_limit) for i in range(n_periods)]
+## Connections
 
-        super().__init__(
-            name=name,
-            period=period,
-            n_periods=n_periods,
-            power_production=power_production,
-        )
-```
+Connections enforce Kirchhoff's Current Law between elements.
+Created in `coordinator.py`, not as separate model classes.
+Node elements enforce the constraints.
 
-## Integration Checklist
-
-1. **Model class**: Create in `custom_components/haeo/model/my_entity.py`
-2. **Config schema**: Add in `types/entity_config.py`
-3. **Network builder**: Update `_create_entity()` in `coordinator.py`
-4. **Config flow**: Add step in `flows/options.py`
-5. **Tests**: Add in `tests/test_model.py`
-6. **Documentation**: Add modeling and user guide pages
-
-## Best Practices
-
-**Units**: Always kW (power), kWh (energy), hours (time)
-
-**Variables**: Use `LpVariable` with bounds for optimizable values, constants for fixed
-
-**Constraints**: Keep linear. Set bounds in variable creation when possible (more efficient)
-
-**Names**: Include entity name and time index: `f"{name}_power_{t}"`
-
-## Example Test
-
-```python
-def test_my_entity():
-    entity = MyEntity(
-        name="test",
-        period=1.0,
-        n_periods=24,
-        my_limit=10.0,
-    )
-
-    assert len(entity.power_production) == 24
-    assert entity.constraints() == []
-```
+Properties: source, target, power flow variables, optional capacity limit, optional efficiency (transmission losses).
 
 ## Common Patterns
 
-**Fixed generation** (no curtailment):
+### Constraints
 
-```python
-power_production = forecast  # List of floats
-```
+Override `constraints()` to return list of linear constraints:
 
-**Bounded generation** (with curtailment):
+- **State bounds**: Energy storage limits (battery SOC 0-100%)
+- **Ramp rates**: Limit power change between consecutive periods
+- **Mutual exclusivity**: Binary variables for mode selection (expensive, avoid if possible)
+- **Minimum runtime**: Binary variables ensuring minimum on/off duration (expensive)
 
-```python
-power_production = [LpVariable(f"{name}_power_{i}", lowBound=0, upBound=forecast[i]) for i in range(n_periods)]
-```
+### Costs
 
-**Bidirectional power**:
+Override `cost()` to add to optimization objective:
 
-```python
-power_consumption = [LpVariable(f"{name}_consume_{i}", lowBound=0, upBound=max_c) ...]
-power_production = [LpVariable(f"{name}_produce_{i}", lowBound=0, upBound=max_p) ...]
-```
+- **Energy pricing**: `sum(power[t] * price[t] * period)` for each time period
+- **Degradation**: Add throughput costs (battery cycles)
+- **Demand charges**: Add peak demand variable + constraints
+- **Opportunity costs**: Lost revenue from curtailment/flexibility
 
 ## Related Documentation
 
-- [Architecture](architecture.md)
-- [Battery Model](../modeling/battery.md)
-- [Testing](testing.md)
+- [Architecture](architecture.md) - System overview
+- [Data Loading](data-loading.md) - How forecast data flows into models
+- [Coordinator](coordinator.md) - Network building and optimization
+- [Battery Model](../modeling/battery.md) - Complete battery implementation
+- [Grid Model](../modeling/grid.md) - Import/export with pricing
+- [Load Model](../modeling/loads.md) - Fixed and flexible loads
+- [Node Model](../modeling/node.md) - Kirchhoff's law enforcement
+- [Testing](testing.md) - Model testing patterns

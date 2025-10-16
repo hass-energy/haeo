@@ -12,7 +12,7 @@ from custom_components.haeo.const import (
     ELEMENT_TYPE_CONSTANT_LOAD,
     ELEMENT_TYPE_FORECAST_LOAD,
     ELEMENT_TYPE_GRID,
-    ELEMENT_TYPE_NET,
+    ELEMENT_TYPE_NODE,
     ELEMENT_TYPE_PHOTOVOLTAICS,
 )
 from custom_components.haeo.model import Network
@@ -22,7 +22,7 @@ from custom_components.haeo.model.constant_load import ConstantLoad
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.forecast_load import ForecastLoad
 from custom_components.haeo.model.grid import Grid
-from custom_components.haeo.model.net import Net
+from custom_components.haeo.model.node import Node
 from custom_components.haeo.model.photovoltaics import Photovoltaics
 
 # Test constants
@@ -354,8 +354,8 @@ def test_generator_empty_forecast() -> None:
 
 
 def test_net_initialization() -> None:
-    """Test net initialization."""
-    net = Net(
+    """Test node initialization."""
+    net = Node(
         name="test_net",
         period=SECONDS_PER_HOUR,
         n_periods=3,
@@ -369,15 +369,15 @@ def test_net_initialization() -> None:
 
 
 def test_net_constraints() -> None:
-    """Test net constraints generation."""
-    net = Net(
+    """Test node constraints generation."""
+    net = Node(
         name="test_net",
         period=SECONDS_PER_HOUR,
         n_periods=3,
     )
 
     constraints = net.constraints()
-    # Net constraints are generated when connected to other elements, so may be empty initially
+    # Node constraints are generated when connected to other elements, so may be empty initially
     # The exact number depends on implementation details
     assert isinstance(constraints, list)
 
@@ -474,16 +474,16 @@ def test_add_generator() -> None:
 
 
 def test_add_net() -> None:
-    """Test adding a net to the network."""
+    """Test adding a node to the network."""
     network = Network(
         name="test_network",
         period=SECONDS_PER_HOUR,
         n_periods=3,
     )
 
-    net = network.add(ELEMENT_TYPE_NET, "test_net")
+    net = network.add(ELEMENT_TYPE_NODE, "test_net")
 
-    assert isinstance(net, Net)
+    assert isinstance(net, Node)
     assert net.name == "test_net"
     assert "test_net" in network.elements
 
@@ -774,7 +774,7 @@ def test_simple_optimization() -> None:
         export_price=[0.05, 0.08, 0.06],
     )
     network.add(ELEMENT_TYPE_FORECAST_LOAD, "load", forecast=[1000, 1500, 2000])
-    network.add(ELEMENT_TYPE_NET, "net")
+    network.add(ELEMENT_TYPE_NODE, "net")
 
     # Connect them: grid -> net <- load
     network.add(ELEMENT_TYPE_CONNECTION, "grid_to_net", source="grid", target="net")
@@ -840,7 +840,7 @@ def test_battery_solar_grid_storage_cycle() -> None:
         export_price=export_prices,
     )
 
-    network.add(ELEMENT_TYPE_NET, "net")
+    network.add(ELEMENT_TYPE_NODE, "net")
 
     # Connect everything through the net
     network.add(ELEMENT_TYPE_CONNECTION, "solar_to_net", source="solar", target="net")
@@ -913,7 +913,7 @@ def test_network_invalid_solver() -> None:
 
     # Add simple network
     network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge_percentage=50)
-    network.add(ELEMENT_TYPE_NET, "net")
+    network.add(ELEMENT_TYPE_NODE, "net")
     network.add(ELEMENT_TYPE_CONNECTION, "battery_to_net", source="battery", target="net")
 
     # Try to use non-existent solver
@@ -963,7 +963,7 @@ def test_solar_curtailment_negative_pricing() -> None:
         export_price=export_prices,
     )
 
-    network.add(ELEMENT_TYPE_NET, "net")
+    network.add(ELEMENT_TYPE_NODE, "net")
 
     # Connect entities
     network.add(ELEMENT_TYPE_CONNECTION, "solar_to_net", source="solar", target="net")
@@ -1027,8 +1027,8 @@ def _create_element_for_test(element_type: str, name: str, **kwargs: Any) -> Any
         return ForecastLoad(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
     if element_type == ELEMENT_TYPE_PHOTOVOLTAICS:
         return Photovoltaics(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
-    if element_type == ELEMENT_TYPE_NET:
-        return Net(name=name, period=SECONDS_PER_HOUR, n_periods=3)
+    if element_type == ELEMENT_TYPE_NODE:
+        return Node(name=name, period=SECONDS_PER_HOUR, n_periods=3)
     pytest.fail(f"Unknown element type: {element_type}")
 
 
@@ -1110,7 +1110,7 @@ def _assert_element_energy_vars(element: Any, expected_vars: int) -> None:
         ),
         pytest.param(
             {
-                "type": ELEMENT_TYPE_NET,
+                "type": ELEMENT_TYPE_NODE,
                 "name": "test_net",
                 "expected_power_vars": 3,
             },
@@ -1192,7 +1192,7 @@ def test_element_initialization(element_data: dict[str, Any]) -> None:
         ),
         pytest.param(
             {
-                "type": ELEMENT_TYPE_NET,
+                "type": ELEMENT_TYPE_NODE,
                 "name": "test_net",
             },
             id="net",
@@ -1221,13 +1221,13 @@ def test_element_constraints(element_data: dict[str, Any]) -> None:
         element = ForecastLoad(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
     elif element_type == ELEMENT_TYPE_PHOTOVOLTAICS:
         element = Photovoltaics(name=name, period=SECONDS_PER_HOUR, n_periods=3, **kwargs)
-    elif element_type == ELEMENT_TYPE_NET:
-        element = Net(name=name, period=SECONDS_PER_HOUR, n_periods=3)
+    elif element_type == ELEMENT_TYPE_NODE:
+        element = Node(name=name, period=SECONDS_PER_HOUR, n_periods=3)
     else:
         pytest.fail(f"Unknown element type: {element_type}")
 
     constraints = element.constraints()
     assert isinstance(constraints, list)
     # Most elements should have at least some constraints
-    if element_type != ELEMENT_TYPE_NET:  # Net constraints depend on connections
+    if element_type != ELEMENT_TYPE_NODE:  # Net constraints depend on connections
         assert len(constraints) >= 0

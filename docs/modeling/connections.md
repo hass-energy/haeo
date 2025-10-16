@@ -1,6 +1,6 @@
 # Connection Modeling
 
-Connections model power flow paths between entities with optional limits.
+Connections model power flow paths between elements with optional limits.
 
 ## Model Formulation
 
@@ -32,22 +32,22 @@ $$
 
 #### Power Balance Integration
 
-Connection power participates in net entity balance:
+Connection power participates in node balance:
 
-- **At source net**: Connection is outflow
-- **At target net**: Connection is inflow
+- **At source node**: Connection is outflow
+- **At target node**: Connection is inflow
 
 ## Physical Interpretation
 
 **Unidirectional** ($P_{\min} = 0$):
 
-- Solar → Net (generation only)
-- Net → Load (consumption only)
+- Solar → Node (generation only)
+- Node → Load (consumption only)
 
 **Bidirectional** ($P_{\min} < 0$):
 
-- Grid ↔ Net (import/export)
-- Battery ↔ Net (charge/discharge)
+- Grid ↔ Node (import/export)
+- Battery ↔ Node (charge/discharge)
 - Inverter between AC/DC nets
 
 **Power limits**:
@@ -64,10 +64,10 @@ Connection power participates in net entity balance:
 | $P_{\min} < 0, P_{\max} > 0$ | Bidirectional (e.g., ±8 kW inverter)     |
 | No limits                    | Unlimited (e.g., direct grid connection) |
 
-**Inverter modeling**: Connection with ±max_power between DC and AC nets.
+**Inverter modeling**: Connection with ±max_power between DC and AC nodes.
 
 ## Related Documentation
 
 - [Connections Guide](../user-guide/elements/connections.md)
-- [Net Entity Modeling](net-entity.md)
+- [Node Modeling](node.md)
 - [Modeling Overview](index.md)

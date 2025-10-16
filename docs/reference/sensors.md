@@ -81,6 +81,6 @@ automation:
 
 ## Related Documentation
 
-- [Entity Reference](entities.md)
+- [Element Reference](elements.md)
 - [Battery Configuration](../user-guide/elements/battery.md)
 - [Troubleshooting](../user-guide/troubleshooting.md)

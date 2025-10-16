@@ -103,16 +103,11 @@ class HaeoPowerSensor(HaeoSensorBase):
                         power_data = [float(v) for v in element.forecast]
 
             if power_data:
-                # Add forecast data
-                attrs["forecast"] = power_data
-
-                # Add timestamped forecast
+                # Add timestamped forecast as dictionary
                 try:
                     timestamps = self.coordinator.get_future_timestamps()
                     if len(timestamps) == len(power_data):
-                        attrs["timestamped_forecast"] = [
-                            {"timestamp": ts, "value": value} for ts, value in zip(timestamps, power_data, strict=False)
-                        ]
+                        attrs["forecast"] = dict(zip(timestamps, power_data, strict=False))
                 except Exception as ex:
                     _LOGGER.debug("Error getting timestamps for %s: %s", self.element_name, ex)
 

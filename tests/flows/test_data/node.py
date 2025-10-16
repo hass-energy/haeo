@@ -1,10 +1,10 @@
-"""Test data and validation for net flow configuration."""
+"""Test data and validation for node flow configuration."""
 
-# Test data for net flow
+# Test data for node flow
 VALID_DATA = [
     {
-        "description": "Basic net configuration",
-        "config": {"name_value": "Test Net"},
+        "description": "Basic node configuration",
+        "config": {"name_value": "Test Node"},
     },
 ]
 

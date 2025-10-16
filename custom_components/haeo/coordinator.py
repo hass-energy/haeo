@@ -138,6 +138,23 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._state_change_unsub()
             self._state_change_unsub = None
 
+    def _check_sensors_available(self) -> tuple[bool, list[str]]:
+        """Check if all configured sensors are available.
+
+        Returns:
+            Tuple of (all_available, list_of_unavailable_entity_ids)
+
+        """
+        entity_ids = _extract_entity_ids(self.config)
+        unavailable = []
+
+        for entity_id in entity_ids:
+            state = self.hass.states.get(entity_id)
+            if state is None or state.state in ("unavailable", "unknown"):
+                unavailable.append(entity_id)
+
+        return len(unavailable) == 0, unavailable
+
     def get_future_timestamps(self) -> list[str]:
         """Get list of ISO timestamps for each optimization period."""
         if not self.optimization_result or not self.network:
@@ -156,6 +173,23 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Update data from Home Assistant entities and run optimization."""
         # Start timing the entire optimization process
         start_time = time.time()
+
+        # Check if all sensors are available before proceeding
+        sensors_available, unavailable_sensors = self._check_sensors_available()
+        if not sensors_available:
+            max_display = 5
+            sensor_list = ", ".join(unavailable_sensors[:max_display])
+            if len(unavailable_sensors) > max_display:
+                sensor_list += "..."
+            _LOGGER.info(
+                "Waiting for %d sensor(s) to become available: %s",
+                len(unavailable_sensors),
+                sensor_list,
+            )
+            self.optimization_status = OPTIMIZATION_STATUS_PENDING
+            end_time = time.time()
+            self._last_optimization_duration = end_time - start_time
+            return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self._last_optimization_duration}
 
         try:
             # Calculate time parameters from configuration

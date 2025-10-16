@@ -27,3 +27,16 @@ class ForecastLoadConfigData(TypedDict):
 
 
 FORECAST_LOAD_CONFIG_DEFAULTS: dict[str, Any] = {}
+
+
+def model_description(config: ForecastLoadConfigData) -> str:  # noqa: ARG001
+    """Generate model description string for forecast load element.
+
+    Args:
+        config: Forecast load configuration data.
+
+    Returns:
+        Formatted model description string.
+
+    """
+    return "Forecast Load"

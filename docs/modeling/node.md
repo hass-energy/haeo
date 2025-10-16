@@ -1,4 +1,4 @@
-# Net Entity Modeling
+# Node Modeling
 
 Virtual balance nodes that enforce power conservation (Kirchhoff's law).
 
@@ -6,13 +6,13 @@ Virtual balance nodes that enforce power conservation (Kirchhoff's law).
 
 ### Decision Variables
 
-None - net entities only enforce constraints.
+None - nodes only enforce constraints.
 
 ### Constraints
 
 #### Power Balance
 
-At each net entity and time step:
+At each node and time step:
 
 $$
 \sum_{c \in \mathcal{C}_{\text{in}}} P_c(t) = \sum_{c \in \mathcal{C}_{\text{out}}} P_c(t)
@@ -20,8 +20,8 @@ $$
 
 Where:
 
-- $\mathcal{C}_{\text{in}}$: Inbound connections to net
-- $\mathcal{C}_{\text{out}}$: Outbound connections from net
+- $\mathcal{C}_{\text{in}}$: Inbound connections to node
+- $\mathcal{C}_{\text{out}}$: Outbound connections from node
 - $P_c(t)$: Power on connection $c$
 
 ## Physical Interpretation
@@ -30,7 +30,7 @@ Where:
 
 **Kirchhoff's law**: Current in equals current out (applied to power).
 
-**No storage**: Energy cannot accumulate at net (unlike battery).
+**No storage**: Energy cannot accumulate at a node (unlike battery).
 
 ## Use Cases
 
@@ -44,15 +44,15 @@ graph LR
     Net-->Load
 ```
 
-Central hub where all entities connect.
+Central hub where all elements connect.
 
-**Dual net (AC/DC)**:
+**Dual node (AC/DC)**:
 
 ```mermaid
 graph LR
-    Solar-->DC[DC Net]
+    Solar-->DC[DC Node]
     Battery<-->DC
-    DC<-->|Inverter|AC[AC Net]
+    DC<-->|Inverter|AC[AC Node]
     Grid<-->AC
     AC-->Load
 ```
@@ -61,16 +61,16 @@ Separate buses with inverter connection between them.
 
 ## Configuration Impact
 
-| Topology      | Complexity | Use When                         |
-| ------------- | ---------- | -------------------------------- |
-| Single net    | Simple     | Standard residential             |
-| Multiple nets | Complex    | Hybrid inverters, multi-building |
+| Topology       | Complexity | Use When                         |
+| -------------- | ---------- | -------------------------------- |
+| Single node    | Simple     | Standard residential             |
+| Multiple nodes | Complex    | Hybrid inverters, multi-building |
 
-**Well-formed network**: All entities must connect to at least one net, directly or indirectly.
+**Well-formed network**: All elements must connect to at least one node, directly or indirectly.
 
 ## Related Documentation
 
-- [Net Configuration](../user-guide/elements/net.md)
+- [Node Configuration](../user-guide/elements/node.md)
 - [Modeling Overview](index.md)
 - [Connection Modeling](connections.md)
 - [Connections](connections.md)

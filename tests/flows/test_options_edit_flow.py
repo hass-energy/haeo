@@ -209,7 +209,7 @@ async def test_edit_flow_updates_connection_references_on_rename(hass: HomeAssis
                     "name_value": "Grid",
                 },
                 "Net Node": {
-                    "type": "net",
+                    "type": "node",
                     "name_value": "Net Node",
                 },
                 "Battery to Net": {
@@ -284,7 +284,7 @@ async def test_edit_flow_updates_connection_target_references_on_rename(hass: Ho
                     "name_value": "Battery",
                 },
                 "Old Net": {
-                    "type": "net",
+                    "type": "node",
                     "name_value": "Old Net",
                 },
                 "Connection": {
@@ -308,7 +308,7 @@ async def test_edit_flow_updates_connection_target_references_on_rename(hass: Ho
     await flow.async_step_edit_participant({"participant": "Old Net"})
 
     with patch.object(hass.config_entries, "async_reload", new_callable=AsyncMock):
-        result = await flow.async_step_configure_net(
+        result = await flow.async_step_configure_node(
             {
                 "name_value": "New Net",
             }
@@ -509,7 +509,7 @@ async def test_remove_participant_removes_orphaned_connections(hass: HomeAssista
                     "name_value": "Grid",
                 },
                 "Net": {
-                    "type": "net",
+                    "type": "node",
                     "name_value": "Net",
                 },
                 "Battery to Net": {
@@ -566,7 +566,7 @@ async def test_remove_participant_removes_connections_by_target(hass: HomeAssist
                     "name_value": "Battery",
                 },
                 "Net": {
-                    "type": "net",
+                    "type": "node",
                     "name_value": "Net",
                 },
                 "Battery to Net": {
