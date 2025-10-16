@@ -52,8 +52,6 @@ class HubOptionsFlow(config_entries.OptionsFlow):
 
             self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
 
-            # Reload the integration once so new timing takes effect
-            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
             return self.async_create_entry(title="", data={})
 
         # Show form with network configuration
@@ -247,7 +245,6 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             # Clear editing state
             self._editing_participant = None
 
-            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
             return self.async_create_entry(title="", data={})
 
         # Show form for participant selection
@@ -279,7 +276,6 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         # Clear editing state
         self._editing_participant = None
 
-        await self.hass.config_entries.async_reload(self.config_entry.entry_id)
         return self.async_create_entry(title="", data={})
 
     async def _update_participant(self, old_name: str, new_config: dict[str, Any]) -> ConfigFlowResult:
@@ -318,7 +314,6 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         # Clear editing state
         self._editing_participant = None
 
-        await self.hass.config_entries.async_reload(self.config_entry.entry_id)
         return self.async_create_entry(title="", data={})
 
 
