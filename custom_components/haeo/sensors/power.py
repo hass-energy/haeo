@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import UnitOfPower
 
 from custom_components.haeo.const import ATTR_POWER
@@ -21,9 +21,10 @@ class HaeoPowerSensor(HaeoSensorBase):
     def __init__(
         self,
         coordinator: HaeoDataUpdateCoordinator,
-        config_entry: ConfigEntry,
+        subentry: ConfigSubentry,
         element_name: str,
         element_type: str,
+        device_id: str,
         data_source: DataSource = DataSource.OPTIMIZED,
         translation_key: str = "power",
         name_suffix: str | None = None,
@@ -32,9 +33,10 @@ class HaeoPowerSensor(HaeoSensorBase):
 
         Args:
             coordinator: The data update coordinator
-            config_entry: The config entry
+            subentry: The config subentry for this element
             element_name: Name of the element
             element_type: Type of the element
+            device_id: The device ID to link this entity to
             data_source: Where to get the data from
             translation_key: Translation key for the sensor name
             name_suffix: Optional name suffix (defaults to translation_key)
@@ -45,11 +47,12 @@ class HaeoPowerSensor(HaeoSensorBase):
 
         super().__init__(
             coordinator,
-            config_entry,
+            subentry,
             sensor_id,
             f"{element_name} {suffix}",
             element_name,
             element_type,
+            device_id,
         )
         self.element_name = element_name
         self.data_source = data_source

@@ -1,0 +1,181 @@
+"""Test hub configuration flow - 100% coverage."""
+
+from homeassistant.config_entries import SOURCE_USER
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.haeo.const import (
+    CONF_HORIZON_HOURS,
+    CONF_NAME,
+    CONF_OPTIMIZER,
+    CONF_PERIOD_MINUTES,
+    DEFAULT_HORIZON_HOURS,
+    DEFAULT_OPTIMIZER,
+    DEFAULT_PERIOD_MINUTES,
+    DOMAIN,
+    ELEMENT_TYPES,
+    INTEGRATION_TYPE_HUB,
+)
+from custom_components.haeo.flows.hub import HubConfigFlow
+
+
+async def test_user_flow_success(hass: HomeAssistant) -> None:
+    """Test successful hub creation via user flow."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "user"
+    assert result["errors"] == {}
+
+    # Configure with valid data
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_NAME: "Test Hub",
+            CONF_HORIZON_HOURS: 48,
+            CONF_PERIOD_MINUTES: 5,
+            CONF_OPTIMIZER: "highs",
+        },
+    )
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Test Hub"
+    assert result["data"][CONF_NAME] == "Test Hub"
+    assert result["data"]["integration_type"] == INTEGRATION_TYPE_HUB
+    assert result["data"][CONF_HORIZON_HOURS] == 48
+    assert result["data"][CONF_PERIOD_MINUTES] == 5
+    assert result["data"][CONF_OPTIMIZER] == "highs"
+
+    # Verify entry was created
+    entries = hass.config_entries.async_entries(DOMAIN)
+    assert len(entries) == 1
+    assert entries[0].title == "Test Hub"
+
+
+async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
+    """Test that duplicate hub names are rejected."""
+    # Create existing hub
+    existing_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "integration_type": INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Existing Hub",
+            CONF_HORIZON_HOURS: DEFAULT_HORIZON_HOURS,
+            CONF_PERIOD_MINUTES: DEFAULT_PERIOD_MINUTES,
+            CONF_OPTIMIZER: DEFAULT_OPTIMIZER,
+        },
+        title="Existing Hub",
+    )
+    existing_entry.add_to_hass(hass)
+
+    # Try to create hub with same name
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_NAME: "Existing Hub",
+            CONF_HORIZON_HOURS: 24,
+            CONF_PERIOD_MINUTES: 10,
+            CONF_OPTIMIZER: "highs",
+        },
+    )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {CONF_NAME: "name_exists"}
+
+    # Verify flow can recover from error
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_NAME: "New Hub",
+            CONF_HORIZON_HOURS: 24,
+            CONF_PERIOD_MINUTES: 10,
+            CONF_OPTIMIZER: "highs",
+        },
+    )
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["title"] == "New Hub"
+
+
+async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> None:
+    """Test that unique_id prevents duplicate hub configurations."""
+    # Create first hub
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_NAME: "Test Hub",
+            CONF_HORIZON_HOURS: 48,
+            CONF_PERIOD_MINUTES: 5,
+            CONF_OPTIMIZER: "highs",
+        },
+    )
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+
+    # Try to create hub with same name (case-insensitive, spaces normalized)
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_NAME: "test hub",  # Same name, different case
+            CONF_HORIZON_HOURS: 24,
+            CONF_PERIOD_MINUTES: 10,
+            CONF_OPTIMIZER: "highs",
+        },
+    )
+
+    # Should be rejected due to unique_id check
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+
+
+async def test_user_flow_default_values(hass: HomeAssistant) -> None:
+    """Test that default values are suggested in the form."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["data_schema"] is not None
+
+    # Check suggested values exist in the schema
+    schema_keys = {vol_key.schema: vol_key for vol_key in result["data_schema"].schema}
+
+    # Verify default values
+    assert schema_keys[CONF_HORIZON_HOURS].default() == DEFAULT_HORIZON_HOURS
+    assert schema_keys[CONF_PERIOD_MINUTES].default() == DEFAULT_PERIOD_MINUTES
+    assert schema_keys[CONF_OPTIMIZER].default() == DEFAULT_OPTIMIZER
+
+
+async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
+    """Test that hub correctly advertises supported subentry types."""
+    # Create hub entry
+    hub_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "integration_type": INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_HORIZON_HOURS: DEFAULT_HORIZON_HOURS,
+            CONF_PERIOD_MINUTES: DEFAULT_PERIOD_MINUTES,
+            CONF_OPTIMIZER: DEFAULT_OPTIMIZER,
+        },
+        entry_id="test_hub_id",
+    )
+    hub_entry.add_to_hass(hass)
+
+    # Get supported subentry types
+    subentry_types = HubConfigFlow.async_get_supported_subentry_types(hub_entry)
+
+    # Should include all element types plus network (which is registered separately)
+    expected_types = set(ELEMENT_TYPES) | {"network"}
+    assert set(subentry_types.keys()) == expected_types
+
+    # Verify each type has a flow class
+    for flow_class in subentry_types.values():
+        assert flow_class is not None
+        assert hasattr(flow_class, "async_step_user")
+        assert hasattr(flow_class, "async_step_reconfigure")

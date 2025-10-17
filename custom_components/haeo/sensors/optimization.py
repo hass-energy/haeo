@@ -3,7 +3,7 @@
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import UnitOfTime
 
 from custom_components.haeo.const import (
@@ -24,14 +24,16 @@ class HaeoOptimizationCostSensor(HaeoCostSensor):
     def __init__(
         self,
         coordinator: HaeoDataUpdateCoordinator,
-        config_entry: ConfigEntry,
+        subentry: ConfigSubentry,
+        device_id: str,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(
             coordinator,
-            config_entry,
+            subentry,
             "network",
             ELEMENT_TYPE_NETWORK,
+            device_id,
             translation_key=SENSOR_TYPE_OPTIMIZATION_COST,
             name_suffix="Optimization Cost",
         )
@@ -43,11 +45,18 @@ class HaeoOptimizationStatusSensor(HaeoSensorBase):
     def __init__(
         self,
         coordinator: HaeoDataUpdateCoordinator,
-        config_entry: ConfigEntry,
+        subentry: ConfigSubentry,
+        device_id: str,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(
-            coordinator, config_entry, "optimization_status", "Optimization Status", "network", ELEMENT_TYPE_NETWORK
+            coordinator,
+            subentry,
+            "optimization_status",
+            "Optimization Status",
+            "network",
+            ELEMENT_TYPE_NETWORK,
+            device_id,
         )
         self._attr_translation_key = SENSOR_TYPE_OPTIMIZATION_STATUS
 
@@ -82,11 +91,18 @@ class HaeoOptimizationDurationSensor(HaeoSensorBase):
     def __init__(
         self,
         coordinator: HaeoDataUpdateCoordinator,
-        config_entry: ConfigEntry,
+        subentry: ConfigSubentry,
+        device_id: str,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(
-            coordinator, config_entry, "optimization_duration", "Optimization Duration", "network", ELEMENT_TYPE_NETWORK
+            coordinator,
+            subentry,
+            "optimization_duration",
+            "Optimization Duration",
+            "network",
+            ELEMENT_TYPE_NETWORK,
+            device_id,
         )
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS

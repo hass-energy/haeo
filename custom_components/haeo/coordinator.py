@@ -15,6 +15,7 @@ from pulp import value
 
 from .const import (
     ATTR_POWER,
+    CONF_ELEMENT_TYPE,
     CONF_HORIZON_HOURS,
     CONF_OPTIMIZER,
     CONF_PARTICIPANTS,
@@ -31,6 +32,47 @@ from .data import load_network
 from .model import Network
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _get_child_elements(hass: HomeAssistant, hub_entry_id: str) -> dict[str, dict[str, Any]]:
+    """Get all element configs from hub's subentries.
+
+    Args:
+        hass: Home Assistant instance
+        hub_entry_id: The parent hub entry ID
+
+    Returns:
+        Dictionary mapping element names to their configurations
+        Note: Excludes the Network subentry (which is for optimization sensors only)
+
+    """
+    hub_entry = hass.config_entries.async_get_entry(hub_entry_id)
+    if not hub_entry:
+        return {}
+
+    elements = {}
+    for subentry in hub_entry.subentries.values():
+        # Skip the Network subentry - it's for optimization sensors, not a participant
+        if subentry.subentry_type == "network":
+            continue
+
+        name = subentry.data.get("name_value")
+
+        # Fail loudly if required fields are missing
+        if not name:
+            msg = f"Subentry {subentry.subentry_id} is missing required 'name_value' field"
+            raise ValueError(msg)
+
+        # Build element config from subentry data
+        # The subentry_type becomes CONF_ELEMENT_TYPE, and we include all other data
+        element_config = {
+            CONF_ELEMENT_TYPE: subentry.subentry_type,
+            **subentry.data,
+        }
+        # Remove name_value since it's used as the key
+        element_config.pop("name_value", None)
+        elements[name] = element_config
+    return elements
 
 
 def _calculate_time_parameters(horizon_hours: int, period_minutes: int) -> tuple[int, int]:
@@ -93,7 +135,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Initialize the coordinator."""
         self.hass = hass
         self.entry = entry
-        self.config = entry.data
+
+        # Build config with participants from child subentries
+        self.config = {
+            **entry.data,
+            CONF_PARTICIPANTS: _get_child_elements(hass, entry.entry_id),
+        }
+
         self.network: Network | None = None
         self.optimization_result: dict[str, Any] | None = None
         self.optimization_status = OPTIMIZATION_STATUS_PENDING
@@ -105,6 +153,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER,
             name=f"{DOMAIN}_{entry.entry_id}",
             update_interval=timedelta(seconds=DEFAULT_UPDATE_INTERVAL),
+            config_entry=entry,
         )
 
         # Set up state change listeners for all entity IDs in configuration
@@ -138,7 +187,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._state_change_unsub()
             self._state_change_unsub = None
 
-    def _check_sensors_available(self) -> tuple[bool, list[str]]:
+    def check_sensors_available(self) -> tuple[bool, list[str]]:
         """Check if all configured sensors are available.
 
         Returns:
@@ -175,7 +224,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         start_time = time.time()
 
         # Check if all sensors are available before proceeding
-        sensors_available, unavailable_sensors = self._check_sensors_available()
+        sensors_available, unavailable_sensors = self.check_sensors_available()
         if not sensors_available:
             max_display = 5
             sensor_list = ", ".join(unavailable_sensors[:max_display])
@@ -205,6 +254,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self.entry,
                     period_seconds=period_seconds,
                     n_periods=n_periods,
+                    config=self.config,
                 )
             except ValueError as err:
                 self.optimization_status = OPTIMIZATION_STATUS_FAILED

@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import UnitOfEnergy
 
 from custom_components.haeo.const import ATTR_ENERGY
@@ -20,9 +20,10 @@ class HaeoEnergySensor(HaeoSensorBase):
     def __init__(
         self,
         coordinator: HaeoDataUpdateCoordinator,
-        config_entry: ConfigEntry,
+        subentry: ConfigSubentry,
         element_name: str,
         element_type: str,
+        device_id: str,
         translation_key: str = "energy",
         name_suffix: str | None = None,
     ) -> None:
@@ -32,11 +33,12 @@ class HaeoEnergySensor(HaeoSensorBase):
 
         super().__init__(
             coordinator,
-            config_entry,
+            subentry,
             sensor_id,
             f"{element_name} {suffix}",
             element_name,
             element_type,
+            device_id,
         )
         self.element_name = element_name
         self._attr_device_class = SensorDeviceClass.ENERGY_STORAGE

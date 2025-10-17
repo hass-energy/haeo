@@ -3,7 +3,7 @@
 import logging
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import CURRENCY_DOLLAR
 
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
@@ -19,9 +19,10 @@ class HaeoCostSensor(HaeoSensorBase):
     def __init__(
         self,
         coordinator: HaeoDataUpdateCoordinator,
-        config_entry: ConfigEntry,
+        subentry: ConfigSubentry,
         element_name: str,
         element_type: str,
+        device_id: str,
         translation_key: str = "cost",
         name_suffix: str | None = None,
     ) -> None:
@@ -31,11 +32,12 @@ class HaeoCostSensor(HaeoSensorBase):
 
         super().__init__(
             coordinator,
-            config_entry,
+            subentry,
             sensor_id,
             f"{element_name} {suffix}",
             element_name,
             element_type,
+            device_id,
         )
         self.element_name = element_name
         self._attr_translation_key = translation_key

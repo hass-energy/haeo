@@ -98,15 +98,18 @@ In HAEO configuration, verify:
 
 #### Add Missing Connections
 
-If an element is isolated, add connections:
+If an element is isolated, add connection entries to link it to the network:
 
-1. Open HAEO options flow
-2. Select **Add Connection**
-3. Connect the isolated element to the main network
+1. Navigate to **Settings** → **Devices & Services**
+2. Click **Add Integration** and search for "HAEO"
+3. Select **Connection** as the entry type
+4. Choose the isolated element as source or target
+5. Connect it to another element in your network
+6. Submit the connection
 
 #### Use Nodes
 
-For complex topologies, use nodes as hubs:
+For complex topologies, use nodes as connection hubs:
 
 ```mermaid
 graph LR

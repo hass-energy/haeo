@@ -1,20 +1,14 @@
 """Schema utilities for flattening and reconstructing HAEO type configurations."""
 
-from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, get_args, get_origin, get_type_hints
+from typing import Annotated, Any, TypeVar, Union, get_args, get_origin, get_type_hints
 from typing import get_origin as typing_get_origin
 
 import voluptuous as vol
 
-from custom_components.haeo.data.loader import ConstantLoader
+from custom_components.haeo.data.loader import ConstantLoader, Loader
+from custom_components.haeo.types import ELEMENT_TYPES, ElementConfigData, ElementConfigSchema
 
 from .fields import FieldMeta
-
-if TYPE_CHECKING:
-    from custom_components.haeo.data.loader import Loader
-    from custom_components.haeo.types import ElementConfigData, ElementConfigSchema
-
-# Import at module level for runtime use
-from custom_components.haeo.types import ELEMENT_TYPES
 
 T = TypeVar("T")
 
@@ -217,7 +211,7 @@ def data_to_config[T](cls: type[T], data: dict[str, Any], **kwargs: Any) -> T:
     Args:
         cls: The TypedDict configuration class
         data: The flattened data from config flow
-        **kwargs: Additional keyword arguments (e.g., participants list)
+        **kwargs: Additional keyword arguments (e.g., participants list, current_element_name)
 
     Returns:
         A dictionary matching the TypedDict schema
@@ -230,6 +224,11 @@ def data_to_config[T](cls: type[T], data: dict[str, Any], **kwargs: Any) -> T:
         output["element_type"] = data["type"]
     elif "element_type" in data:
         output["element_type"] = data["element_type"]
+
+    # Add name from either data or kwargs (only if present and not None)
+    name = data.get("name") or data.get("name_value") or kwargs.get("current_element_name")
+    if name is not None:
+        output["name"] = name
 
     for field, (meta, is_optional) in _get_annotated_fields(cls).items():
         schema_keys = meta.create_schema(**kwargs).keys()

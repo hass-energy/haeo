@@ -1,8 +1,9 @@
 """The Home Assistant Energy Optimization integration."""
 
 import logging
+from types import MappingProxyType
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
@@ -15,13 +16,57 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 type HaeoConfigEntry = ConfigEntry[HaeoDataUpdateCoordinator | None]
 
 
+async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) -> None:
+    """Ensure a Network subentry exists for the hub.
+
+    The Network subentry represents the optimization network and holds
+    the optimization sensors (Cost, Status, Duration).
+
+    Args:
+        hass: Home Assistant instance
+        hub_entry: The hub config entry
+
+    """
+    # Check if Network subentry already exists
+    for subentry in hub_entry.subentries.values():
+        if subentry.subentry_type == "network":
+            _LOGGER.debug("Network subentry already exists for hub %s", hub_entry.entry_id)
+            return
+
+    # Create Network subentry by adding it to the hub's subentries collection
+    _LOGGER.info("Creating Network subentry for hub %s", hub_entry.entry_id)
+
+    # Create a ConfigSubentry object and add it to the hub
+    network_subentry = ConfigSubentry(
+        data=MappingProxyType({"name_value": "Network"}),
+        subentry_type="network",
+        title="Network",
+        unique_id=None,
+    )
+
+    hass.config_entries.async_add_subentry(hub_entry, network_subentry)
+    _LOGGER.debug("Network subentry created successfully")
+
+
+async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
+    """Handle options update or subentry changes."""
+    _LOGGER.info("HAEO configuration changed, reloading integration")
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimization from a config entry."""
     _LOGGER.info("Setting up HAEO integration")
 
+    # Ensure Network subentry exists (auto-create if missing)
+    await _ensure_network_subentry(hass, entry)
+
     # Store coordinator in runtime data first (required for platform setup)
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
     entry.runtime_data = coordinator
+
+    # Register update listener for config changes and subentry additions/removals
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     # Set up platforms - Home Assistant will handle waiting for them
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

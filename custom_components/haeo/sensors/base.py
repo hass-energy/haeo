@@ -3,37 +3,14 @@
 import logging
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.config_entries import ConfigSubentry
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK, OPTIMIZATION_STATUS_PENDING
+from custom_components.haeo.const import ELEMENT_TYPE_NETWORK, OPTIMIZATION_STATUS_PENDING
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def get_device_info_for_element(element_name: str, element_type: str, config_entry: ConfigEntry) -> DeviceInfo:
-    """Get device info for a specific element."""
-    return DeviceInfo(
-        identifiers={(DOMAIN, f"{config_entry.entry_id}_{element_name}")},
-        name=element_name,
-        manufacturer="HAEO",
-        model=element_type,
-        translation_key=element_type,
-        via_device=(DOMAIN, config_entry.entry_id),
-    )
-
-
-def get_device_info_for_network(config_entry: ConfigEntry) -> DeviceInfo:
-    """Get device info for the main hub."""
-    return DeviceInfo(
-        identifiers={(DOMAIN, config_entry.entry_id)},
-        manufacturer="HAEO",
-        model="network",
-        translation_key="network",
-        sw_version="1.0.0",
-    )
 
 
 class HaeoSensorBase(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
@@ -46,19 +23,28 @@ class HaeoSensorBase(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity)
     def __init__(
         self,
         coordinator: HaeoDataUpdateCoordinator,
-        config_entry: ConfigEntry,
+        subentry: ConfigSubentry,
         sensor_type: str,
         name_suffix: str,
         element_name: str,
         element_type: str,
+        device_id: str,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
-        self.config_entry = config_entry
+
+        # Verify coordinator has config_entry
+        if not coordinator.config_entry:
+            msg = "Coordinator must have a config_entry"
+            raise ValueError(msg)
+
+        self.coordinator = coordinator
+        self.subentry = subentry
         self.sensor_type = sensor_type
         self.element_name = element_name
         self.element_type = element_type
-        self._attr_unique_id = f"{config_entry.entry_id}_{sensor_type}"
+        self._attr_has_entity_name = True
+        self._attr_unique_id = f"{subentry.subentry_id}_{sensor_type}"
         self._attr_translation_key = element_type or sensor_type
 
         # Set sensor name with HAEO prefix
@@ -68,11 +54,10 @@ class HaeoSensorBase(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity)
         else:
             self._attr_name = f"HAEO {element_name} {name_suffix}"
 
-        # Set device info based on element type
-        if element_type == ELEMENT_TYPE_NETWORK:
-            self._attr_device_info = get_device_info_for_network(config_entry)
-        else:
-            self._attr_device_info = get_device_info_for_element(element_name, element_type, config_entry)
+        # Link directly to the pre-created device by fetching it from the device registry
+        # This ensures proper subentry association without relying on device_info matching
+        device_reg = dr.async_get(coordinator.hass)
+        self.device_entry = device_reg.async_get(device_id)
 
     @property
     def available(self) -> bool:

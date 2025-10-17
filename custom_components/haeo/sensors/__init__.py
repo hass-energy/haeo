@@ -13,6 +13,7 @@ from custom_components.haeo.const import (
     ATTR_ENERGY,
     ATTR_POWER,
     CONF_ELEMENT_TYPE,
+    CONF_PARTICIPANTS,
     DOMAIN,
     SENSOR_TYPE_ENERGY,
     SENSOR_TYPE_POWER,
@@ -67,37 +68,55 @@ async def _get_model_description(element_config: dict[str, Any], hass: HomeAssis
         return element_type.replace("_", " ").title()
 
 
-async def async_register_devices(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
-    """Register devices with the device registry."""
+async def async_register_devices(
+    hass: HomeAssistant, config_entry: ConfigEntry, coordinator: HaeoDataUpdateCoordinator
+) -> dict[str, str]:
+    """Register devices with proper subentry associations BEFORE entities are created.
+
+    Returns a mapping of element_name -> device_id for linking entities to devices.
+    """
     device_registry_client = device_registry.async_get(hass)
+    device_ids: dict[str, str] = {}
 
-    # Register the main network device
-    device_registry_client.async_get_or_create(
-        config_entry_id=config_entry.entry_id,
-        identifiers={(DOMAIN, config_entry.entry_id)},
-        name="HAEO Network",
-        manufacturer="HAEO",
-        model="entity.device.network",
-        sw_version="1.0.0",
-    )
+    # Register each subentry's device with explicit subentry association
+    for subentry in config_entry.subentries.values():
+        element_name = subentry.data.get("name_value")
+        if not element_name:
+            _LOGGER.warning("Subentry %s has no name_value, skipping device registration", subentry.subentry_id)
+            continue
 
-    # Register devices for each participant element
-    participants = config_entry.data.get("participants", {})
-    for element_name, element_config in participants.items():
-        # Use element name directly for all types
-        device_name = element_name
+        element_type = subentry.subentry_type
 
-        # Build detailed model string
-        model_string = await _get_model_description(element_config, hass)
+        # Build device name and model description
+        if element_type == "network":
+            device_name = element_name
+            model_string = "Energy Optimization Network"
+        else:
+            device_name = element_name
+            # Get element config from coordinator for detailed model description
+            participants = coordinator.config.get(CONF_PARTICIPANTS, {})
+            element_config = participants.get(element_name, {})
+            if element_config:
+                model_string = await _get_model_description(element_config, hass)
+            else:
+                # Fallback if not in coordinator config
+                model_string = element_type.replace("_", " ").title()
 
-        device_registry_client.async_get_or_create(
+        # Create device with subentry association from the start
+        device = device_registry_client.async_get_or_create(
             config_entry_id=config_entry.entry_id,
+            config_subentry_id=subentry.subentry_id,
             identifiers={(DOMAIN, f"{config_entry.entry_id}_{element_name}")},
             name=device_name,
             manufacturer="HAEO",
             model=model_string,
-            via_device=(DOMAIN, config_entry.entry_id),
+            translation_key=element_type,
         )
+
+        # Store device ID for entity creation
+        device_ids[element_name] = device.id
+
+    return device_ids
 
 
 async def async_setup_entry(
@@ -113,13 +132,11 @@ async def async_setup_entry(
         _LOGGER.debug("No coordinator available, skipping sensor setup")
         return
 
-    # Register devices with the device registry
-    try:
-        await async_register_devices(hass, config_entry)
-    except Exception as ex:
-        _LOGGER.warning("Failed to register devices", exc_info=ex)
+    # FIRST: Register devices with subentry associations and get device IDs
+    device_ids = await async_register_devices(hass, config_entry, coordinator)
 
-    entities = _create_sensors(coordinator, config_entry)
+    # SECOND: Create sensors with explicit device_id links
+    entities = _create_sensors(coordinator, config_entry, device_ids)
 
     if entities:
         async_add_entities(entities)
@@ -128,26 +145,67 @@ async def async_setup_entry(
 def _create_sensors(
     coordinator: HaeoDataUpdateCoordinator,
     config_entry: ConfigEntry,
+    device_ids: dict[str, str],
 ) -> list[SensorEntity]:
-    """Create all HAEO sensors."""
+    """Create all HAEO sensors with explicit device ID links."""
     entities: list[SensorEntity] = []
 
-    # Add hub-level optimization sensors
-    entities.append(HaeoOptimizationCostSensor(coordinator, config_entry))
-    entities.append(HaeoOptimizationStatusSensor(coordinator, config_entry))
-    entities.append(HaeoOptimizationDurationSensor(coordinator, config_entry))
+    # Build mapping of participant names to subentries from hub's subentries
+    participant_subentries: dict[str, Any] = {}
+    network_subentry = None
+    for subentry in config_entry.subentries.values():
+        name = subentry.data.get("name_value")
+        if name:
+            participant_subentries[name] = subentry
+            # Track network subentry separately for optimization sensors
+            if subentry.subentry_type == "network":
+                network_subentry = subentry
 
-    # Add element-specific sensors
-    participants = config_entry.data.get("participants", {})
+    # Create network-level optimization sensors if network subentry exists
+    if network_subentry:
+        network_name = network_subentry.data.get("name_value", "Network")
+        network_device_id = device_ids.get(network_name)
+        if network_device_id:
+            # Create the three optimization sensors
+            sensor_configs = _get_element_sensor_configs(coordinator, network_name, "network")
+            for sensor_config in sensor_configs:
+                sensor = sensor_config["factory"](
+                    coordinator, network_subentry, network_name, "network", network_device_id
+                )
+                entities.append(sensor)
+        else:
+            _LOGGER.warning("No device ID found for network element, skipping optimization sensors")
+
+    # Add element-specific sensors for all participants (from coordinator.config)
+    # All elements are treated equally - no special cases
+    participants = coordinator.config.get(CONF_PARTICIPANTS, {})
     for element_name, element_config in participants.items():
         element_type = element_config.get("type", "")
+
+        # Find the subentry for this participant
+        subentry = participant_subentries.get(element_name)
+        if not subentry:
+            _LOGGER.warning(
+                "No subentry found for participant %s, skipping sensor creation",
+                element_name,
+            )
+            continue
+
+        # Get the device ID for this element
+        device_id = device_ids.get(element_name)
+        if not device_id:
+            _LOGGER.warning(
+                "No device ID found for element %s, skipping sensor creation",
+                element_name,
+            )
+            continue
 
         # Determine which sensors to create for this element
         sensor_configs = _get_element_sensor_configs(coordinator, element_name, element_type)
 
         for sensor_config in sensor_configs:
-            # Use factory to create the sensor
-            sensor = sensor_config["factory"](coordinator, config_entry, element_name, element_type)
+            # Use factory to create the sensor with device_id for direct linking
+            sensor = sensor_config["factory"](coordinator, subentry, element_name, element_type, device_id)
             entities.append(sensor)
 
     return entities
@@ -176,24 +234,48 @@ def _get_element_sensor_configs(
         has_energy_data = True
 
     # Define sensors based on element type
+    if element_type == "network":
+        # Network element gets the optimization sensors
+        sensor_configs.append(
+            {"factory": lambda coord, entry, _name, _etype, dev_id: HaeoOptimizationCostSensor(coord, entry, dev_id)}
+        )
+        sensor_configs.append(
+            {"factory": lambda coord, entry, _name, _etype, dev_id: HaeoOptimizationStatusSensor(coord, entry, dev_id)}
+        )
+        sensor_configs.append(
+            {
+                "factory": lambda coord, entry, _name, _etype, dev_id: HaeoOptimizationDurationSensor(
+                    coord, entry, dev_id
+                )
+            }
+        )
+        return sensor_configs
+
     if element_type in ["photovoltaics", "solar"]:
         # Photovoltaics/Solar: optimized power output + available power forecast
         if has_power_data:
             sensor_configs.append(
                 {
-                    "factory": lambda coord, entry, name, etype: HaeoPowerSensor(
-                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key=SENSOR_TYPE_POWER
+                    "factory": lambda coord, entry, name, etype, dev_id: HaeoPowerSensor(
+                        coord,
+                        entry,
+                        name,
+                        etype,
+                        dev_id,
+                        data_source=DataSource.OPTIMIZED,
+                        translation_key=SENSOR_TYPE_POWER,
                     )
                 }
             )
         # Available power shows the forecast/capacity
         sensor_configs.append(
             {
-                "factory": lambda coord, entry, name, etype: HaeoPowerSensor(
+                "factory": lambda coord, entry, name, etype, dev_id: HaeoPowerSensor(
                     coord,
                     entry,
                     name,
                     etype,
+                    dev_id,
                     data_source=DataSource.FORECAST,
                     translation_key="available_power",
                     name_suffix="Available Power",
@@ -206,23 +288,29 @@ def _get_element_sensor_configs(
         if has_power_data:
             sensor_configs.append(
                 {
-                    "factory": lambda coord, entry, name, etype: HaeoPowerSensor(
-                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key=SENSOR_TYPE_POWER
+                    "factory": lambda coord, entry, name, etype, dev_id: HaeoPowerSensor(
+                        coord,
+                        entry,
+                        name,
+                        etype,
+                        dev_id,
+                        data_source=DataSource.OPTIMIZED,
+                        translation_key=SENSOR_TYPE_POWER,
                     )
                 }
             )
         if has_energy_data:
             sensor_configs.append(
                 {
-                    "factory": lambda coord, entry, name, etype: HaeoEnergySensor(
-                        coord, entry, name, etype, translation_key=SENSOR_TYPE_ENERGY
+                    "factory": lambda coord, entry, name, etype, dev_id: HaeoEnergySensor(
+                        coord, entry, name, etype, dev_id, translation_key=SENSOR_TYPE_ENERGY
                     )
                 }
             )
             sensor_configs.append(
                 {
-                    "factory": lambda coord, entry, name, etype: HaeoSOCSensor(
-                        coord, entry, name, etype, translation_key=SENSOR_TYPE_SOC
+                    "factory": lambda coord, entry, name, etype, dev_id: HaeoSOCSensor(
+                        coord, entry, name, etype, dev_id, translation_key=SENSOR_TYPE_SOC
                     )
                 }
             )
@@ -232,8 +320,14 @@ def _get_element_sensor_configs(
         if has_power_data:
             sensor_configs.append(
                 {
-                    "factory": lambda coord, entry, name, etype: HaeoPowerSensor(
-                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key=SENSOR_TYPE_POWER
+                    "factory": lambda coord, entry, name, etype, dev_id: HaeoPowerSensor(
+                        coord,
+                        entry,
+                        name,
+                        etype,
+                        dev_id,
+                        data_source=DataSource.OPTIMIZED,
+                        translation_key=SENSOR_TYPE_POWER,
                     )
                 }
             )
@@ -243,8 +337,14 @@ def _get_element_sensor_configs(
         if has_power_data:
             sensor_configs.append(
                 {
-                    "factory": lambda coord, entry, name, etype: HaeoPowerSensor(
-                        coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key=SENSOR_TYPE_POWER
+                    "factory": lambda coord, entry, name, etype, dev_id: HaeoPowerSensor(
+                        coord,
+                        entry,
+                        name,
+                        etype,
+                        dev_id,
+                        data_source=DataSource.OPTIMIZED,
+                        translation_key=SENSOR_TYPE_POWER,
                     )
                 }
             )
@@ -253,8 +353,14 @@ def _get_element_sensor_configs(
     elif has_power_data:
         sensor_configs.append(
             {
-                "factory": lambda coord, entry, name, etype: HaeoPowerSensor(
-                    coord, entry, name, etype, data_source=DataSource.OPTIMIZED, translation_key=SENSOR_TYPE_POWER
+                "factory": lambda coord, entry, name, etype, dev_id: HaeoPowerSensor(
+                    coord,
+                    entry,
+                    name,
+                    etype,
+                    dev_id,
+                    data_source=DataSource.OPTIMIZED,
+                    translation_key=SENSOR_TYPE_POWER,
                 )
             }
         )

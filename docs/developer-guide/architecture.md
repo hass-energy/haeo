@@ -26,33 +26,66 @@ graph TD
 ### Config Flow (`config_flow.py`, `flows/`)
 
 User-facing configuration via HA UI.
-Validates and stores entity/connection config.
+HAEO uses Home Assistant's **ConfigSubentry architecture** where elements are managed as subentries of the main hub entry.
+
+**Entry Types**:
+
+- **Hub Entry**: Main coordination entry containing optimization settings
+- **ConfigSubentries**: Elements (network, battery, grid, etc.) managed as subentries via `ConfigSubentryFlow`
+
+This architecture provides:
+
+- Independent configuration of each element through HA's native subentry UI
+- Automatic parent-child relationship management by Home Assistant
+- Easy addition/removal of elements via the UI
+- Proper device registry association with subentry IDs
+- No manual `parent_entry_id` tracking needed
 
 See: [Config Entries documentation](https://developers.home-assistant.io/docs/config_entries_index)
 
 ### Config Entry
 
-Persistent storage of network configuration (elements, connections, timing parameters).
+**Hub Entry Storage**:
+
+- `data`: Stores only `integration_type: "hub"` marker
+- `options`: Stores optimization settings (horizon_hours, period_minutes, optimizer)
+- `subentries`: Dictionary of ConfigSubentry objects (managed by Home Assistant)
+
+**Element ConfigSubentry Storage**:
+
+- `data`: Stores element configuration (name_value, capacity, sensors, defaults, etc.)
+- `subentry_type`: Element type identifier (battery, grid, photovoltaics, etc.)
+- `subentry_id`: Unique identifier for this subentry
+- `title`: Display name for the element
+
+Parent-child relationship is maintained by Home Assistant through the hub entry's `subentries` property.
+No `parent_entry_id` is stored in subentry data.
+
 HA loads this data on startup to recreate the integration state.
 
 ### Coordinator (`coordinator.py`)
 
 Central manager scheduling optimization cycles (default 5 min), loading data, building network, running solver, distributing results.
+Each hub entry creates one coordinator instance.
 
 See: [Data Update Coordinator documentation](https://developers.home-assistant.io/docs/integration_fetching_data)
 
 **Update cycle**:
 
-1. Check sensor availability (wait if not ready)
-2. Load sensor states and forecasts via data loaders
-3. Build network model from config using `load_network()`
-4. Run LP optimization in executor thread
-5. Extract and store results
-6. Sensors auto-update via coordinator pattern
+1. Access subentries via `config_entry.subentries` property
+2. Check sensor availability (wait if not ready)
+3. Load sensor states and forecasts via data loaders
+4. Build network model from subentry configs using `load_network()`
+5. Run LP optimization in executor thread
+6. Extract and store results
+7. Sensors auto-update via coordinator pattern
 
 **HAEO-specific features**:
+
+- Accesses subentries directly through the hub entry's `subentries` dictionary
 - State change listeners trigger optimization when configured sensors change
 - Waits for all configured sensors before first optimization
+- Handles dynamic addition/removal of element subentries automatically
 
 ### Data Loaders (`data/`)
 
@@ -117,6 +150,14 @@ See: [Sensor entity documentation](https://developers.home-assistant.io/docs/cor
 - Cost (`sensors/cost.py`): Element-specific costs
 
 **Forecast format**: All sensors include `forecast` attribute as `{timestamp: value}` dictionary.
+
+**Device Registration**: Two-phase device creation ensures proper subentry association:
+
+1. **Pre-register devices** (`async_register_devices()`): Creates devices with `config_subentry_id` parameter before entities
+2. **Link entities to devices**: Sensors fetch `DeviceEntry` from registry and set `self.device_entry` attribute
+3. Home Assistant platform recognizes the device_entry and links entities without auto-creating duplicate devices
+
+This prevents devices from appearing in "Devices that don't belong to a sub-entry" and ensures single device per element.
 
 ### Model Architecture (`model/`)
 

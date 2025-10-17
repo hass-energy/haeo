@@ -22,9 +22,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinator for HAEO optimization updates."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry):
-        """Initialize coordinator."""
-        self.entry = entry
-        self.config = entry.data
+        """Initialize coordinator for a hub entry."""
+        self.entry = entry  # Hub config entry
         self.network: Network | None = None
         self.optimization_result: dict[str, Any] | None = None
         self.optimization_status = OPTIMIZATION_STATUS_PENDING
@@ -41,9 +40,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Set up state change listeners for immediate updates
         self._setup_state_change_listeners()
 
+    def _get_child_elements(self) -> list[ConfigEntry]:
+        """Discover element and connection subentries."""
+        return [
+            entry
+            for entry in self.hass.config_entries.async_entries(DOMAIN)
+            if entry.data.get(CONF_PARENT_ENTRY_ID) == self.entry.entry_id
+        ]
+
     def _setup_state_change_listeners(self) -> None:
-        """Set up listeners for entity state changes."""
-        entity_ids = _extract_entity_ids(self.config)
+        """Set up listeners for entity state changes in child elements."""
+        # Collect entity IDs from all child element subentries
+        entity_ids = set()
+        for child_entry in self._get_child_elements():
+            entity_ids.update(_extract_entity_ids(child_entry.data))
 
         @callback
         def _state_change_listener(_event: Event[EventStateChangedData]) -> None:
@@ -56,8 +66,21 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Main update cycle - see detailed steps below."""
+        # Discover current child elements (may have changed since last update)
+        child_elements = self._get_child_elements()
+
+        # Build network from child element configurations
+        # ... (rest of update logic)
         pass
 ```
+
+**Key subentry handling**:
+
+- Coordinator created only for hub entries (identified by `integration_type: "hub"`)
+- `_get_child_elements()` discovers subentries by querying config entry registry
+- Subentries identified by matching `parent_entry_id` with hub's `entry_id`
+- Discovery happens on each update - supports dynamic element addition/removal
+- State change listeners monitor sensors from all child elements
 
 ## Update Cycle
 
@@ -293,11 +316,13 @@ The coordinator monitors configured sensors and triggers immediate re-optimizati
 ```python
 def _setup_state_change_listeners(self) -> None:
     """Set up listeners for configured sensor state changes."""
-    # Collect all sensor entity IDs from config
+    # Collect all sensor entity IDs from child element subentries
     sensor_ids: set[str] = set()
-    for participant_config in self.config_entry.data[CONF_PARTICIPANTS].values():
-        for field_name, field_config in participant_config.items():
-            # ... extract sensor IDs from each field configuration
+    for child_entry in self._get_child_elements():
+        # Extract sensor IDs from element configuration
+        for field_name, field_value in child_entry.data.items():
+            if field_name.endswith("_sensor") and isinstance(field_value, str):
+                sensor_ids.add(field_value)
 
     # Subscribe to state changes
     for entity_id in sensor_ids:
@@ -321,10 +346,12 @@ def _handle_state_change(self, event: Event) -> None:
 ```
 
 **Behavior**:
+
 - State change → immediate `async_request_refresh()` call
 - Debounced by coordinator (ignores if update already in progress)
 - Goes through full update cycle (availability check → data load → optimize)
 - Results in fresh optimization based on latest sensor data
+- Dynamically updates when elements are added/removed
 
 **Use cases**:
 - Energy price changes (grid pricing sensors)

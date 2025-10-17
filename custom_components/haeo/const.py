@@ -30,14 +30,19 @@ def convert_to_base_unit(value: float, from_unit: str | None, device_class: Sens
 # Integration domain
 DOMAIN = "haeo"
 
+# Integration types
+INTEGRATION_TYPE_HUB = "hub"
+
 # Configuration keys
 CONF_NAME = "name"
+CONF_INTEGRATION_TYPE = "integration_type"
 CONF_SOURCE = "source"
 CONF_TARGET = "target"
 CONF_MIN_POWER = "min_power"
 CONF_MAX_POWER = "max_power"
 CONF_ELEMENT_TYPE = "type"
 CONF_PARTICIPANTS = "participants"
+CONF_PARENT_ENTRY_ID = "parent_entry_id"
 
 # Component types
 ELEMENT_TYPE_BATTERY = "battery"

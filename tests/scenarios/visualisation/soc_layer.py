@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from .colors import get_element_color
-
-if TYPE_CHECKING:
-    from .colors import ColorMapper
+from .colors import ColorMapper, get_element_color
 
 _LOGGER = logging.getLogger(__name__)
 

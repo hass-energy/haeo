@@ -25,7 +25,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def load_network(
-    hass: HomeAssistant, entry: ConfigEntry, *, period_seconds: int, n_periods: int
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    *,
+    period_seconds: int,
+    n_periods: int,
+    config: dict[str, Any] | None = None,
 ) -> Network | None:
     """Return a fully-populated `Network`.
 
@@ -34,13 +39,14 @@ async def load_network(
         entry: Config entry
         period_seconds: Optimization period in seconds
         n_periods: Number of periods
+        config: Optional config dict (if not provided, uses entry.data)
 
     Raises:
         ValueError: when required sensor/forecast data is missing.
 
     """
     # These are the times which will be used to load the data
-    cfg = entry.data
+    cfg = config if config is not None else entry.data
     participants: dict[str, dict[str, Any]] = cfg.get("participants", {})
     if not participants:
         _LOGGER.warning("No participants configured for hub")
@@ -61,10 +67,10 @@ async def load_network(
 
     # Check that all required sensor data is available before loading
     missing_sensors: list[str] = []
-    for name, config in participant_configs.items():
+    for name, element_config in participant_configs.items():
         # Check availability for entire config
         if not config_available(
-            config,
+            element_config,
             hass=hass,
             forecast_times=[],  # Empty for availability check
         ):
@@ -100,10 +106,10 @@ async def load_network(
 
     # Get the data for each participant and add to the network
     # This converts from Schema mode (with entity IDs) to Data mode (with loaded values)
-    for config in participant_configs.values():
+    for element_config in participant_configs.values():
         # Load all fields using the high-level config_load function
         loaded_params = await config_load(
-            config,
+            element_config,
             hass=hass,
             forecast_times=forecast_times,
         )

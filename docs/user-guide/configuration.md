@@ -7,13 +7,14 @@ It uses the Home Assistant UI.
 
 HAEO configuration happens entirely through Home Assistant's UI. You'll:
 
-1. Create a **Network** (the main integration entry)
-2. Add **Elements** (batteries, grids, solar, loads)
-3. Define **Connections** (how energy flows between elements)
+1. Create a **Hub** (the main integration entry coordinating optimization)
+2. Add **Element Entries** (batteries, grids, solar, loads)
+3. Add **Connection Entries** (defining how energy flows between elements)
 
-The integration automatically validates your configuration and runs optimizations based on your settings.
+Each element and connection is a separate configuration entry linked to the hub.
+The hub coordinates optimization across all linked entries.
 
-## Creating Your First Network
+## Creating Your First Hub
 
 ### Step 1: Add the Integration
 
@@ -22,22 +23,24 @@ The integration automatically validates your configuration and runs optimization
 3. Search for **HAEO** or **Home Assistant Energy Optimization**
 4. Click on it to start the configuration flow
 
-### Step 2: Configure Network Settings
+### Step 2: Configure Hub Settings
 
-You'll see the network configuration form with these fields:
+You'll see the hub configuration form with these fields:
 
 #### Name
 
-A unique name for your energy network (e.g., "Home Energy System").
+A unique name for your energy hub (e.g., "Home Energy System").
 
-!!! tip "Multiple Networks"
+!!! tip "Multiple Hubs"
 
-    You can create multiple separate networks if you have distinct energy systems.
+    You can create multiple separate hubs if you have distinct energy systems.
     This is useful for:
 
     - Separate buildings (main house and guest house)
-    - Testing configurations without affecting your main network
+    - Testing configurations without affecting your main hub
     - Different optimization strategies for different areas
+
+    Each hub manages its own set of element and connection entries independently.
 
 #### Horizon Hours
 
@@ -100,23 +103,41 @@ The linear programming solver to use:
 
 See the [LP Solvers reference](../reference/solvers.md) for detailed comparisons.
 
-### Step 3: Complete Initial Setup
+### Step 3: Complete Hub Setup
 
-Click **Submit** to create your network. HAEO will create the network device and initial sensors.
+Click **Submit** to create your hub. HAEO will create the hub device and initial sensors.
 
-!!! success "Network Created"
+!!! success "Hub Created"
 
-    You'll see a success message and HAEO will appear in your integrations list.
+    You'll see a success message and HAEO hub will appear in your integrations list.
+    The hub is now ready to coordinate optimization, but you need to add elements first.
 
 ## Adding Elements
 
-After creating your network, you need to add elements representing your energy devices.
+After creating your hub, you need to add elements representing your energy devices.
+Elements are managed as **subentries** under the hub integration.
 
-### Opening Options Flow
+### Adding an Element
 
-1. Find HAEO in **Settings** → **Devices & Services**
-2. Click **Configure** on the HAEO integration
-3. Select the operation you want to perform
+1. Navigate to **Settings** → **Devices & Services**
+2. Find your **HAEO** hub integration
+3. Click on the hub to open its details page
+4. Click the **Add Entry** button in the subentries section
+5. Select the element type you want to add from the list
+6. Configure the element parameters
+7. Click **Submit** to create the element
+
+!!! tip "Subentry Management"
+
+    Elements appear as subentries under your hub in the devices & services UI.
+    You can add, edit, or remove elements independently without affecting the hub configuration.
+    Changes to elements automatically trigger a re-optimization.
+
+!!! note "Network Element"
+
+    A special "Network" element is automatically created when you set up your hub.
+    This represents the optimization network itself and provides network-level sensors (cost, status, duration).
+    You don't need to manually add this element.
 
 ### Available Elements
 
@@ -168,10 +189,16 @@ A connection represents a power flow path between two elements:
 
 ### Adding Connections
 
-1. In the HAEO options flow, select **Add Connection**
-2. Choose the **source** element
-3. Choose the **target** element
-4. Set optional **min/max power limits** (in kW)
+Connections are added as subentries under your hub, just like elements:
+
+1. Navigate to **Settings** → **Devices & Services**
+2. Find your **HAEO** hub integration
+3. Click on the hub to open its details page
+4. Click the **Add Entry** button in the subentries section
+5. Select **Connection** from the element type list
+6. Select the source and target elements (from your existing elements)
+7. Configure optional power limits and efficiency
+8. Click **Submit** to create the connection
 
 See the [Connections guide](elements/connections.md) for detailed information and examples.
 
@@ -229,33 +256,77 @@ See the [Understanding Results guide](optimization.md) for details on interpreti
 
 ### Editing Elements
 
-1. Open HAEO options flow
-2. Select **Edit [Element Type]**
-3. Choose the element to edit
+To edit an existing element:
+
+1. Navigate to **Settings** → **Devices & Services**
+2. Find the element entry you want to edit
+3. Click **Configure** on that entry
 4. Update the configuration
 5. Click **Submit**
 
 !!! warning "Reconfiguration Impact"
 
-    Modifying elements triggers a new optimization. Sensors may show "unknown" briefly while recalculating.
+    Modifying elements triggers a new optimization.
+    Sensors may show "unknown" briefly while recalculating.
 
 ### Removing Elements
 
-1. Open HAEO options flow
-2. Select **Remove [Element Type]**
-3. Choose the element to remove
-4. Confirm removal
+To remove an element:
+
+1. Navigate to **Settings** → **Devices & Services**
+2. Find your **HAEO** hub integration
+3. Click on the hub to see the subentries list
+4. Find the element subentry you want to remove
+5. Click the three-dot menu on that subentry
+6. Select **Delete**
+7. Confirm removal
 
 !!! danger "Cascade Effects"
 
-    Removing an element that has connections will also remove those connections. Ensure your network remains connected.
+    If the element is used in connections with other elements, removing it may affect network connectivity.
+    The hub will automatically adjust optimization for remaining elements.
+
+### Editing Connections
+
+To edit an existing connection:
+
+1. Navigate to **Settings** → **Devices & Services**
+2. Find your **HAEO** hub integration
+3. Click on the hub to see the subentries list
+4. Find the connection subentry you want to edit
+5. Click on the subentry to open its details
+6. Click **Reconfigure**
+7. Update the configuration (power limits, efficiency, etc.)
+8. Click **Submit**
 
 ### Removing Connections
 
-1. Open HAEO options flow
-2. Select **Remove Connection**
-3. Choose the connection to remove
-4. Confirm removal
+To remove a connection:
+
+1. Navigate to **Settings** → **Devices & Services**
+2. Find your **HAEO** hub integration
+3. Click on the hub to see the subentries list
+4. Find the connection subentry you want to remove
+5. Click the three-dot menu on that subentry
+6. Select **Delete**
+7. Confirm removal
+
+!!! info "Network Impact"
+
+    Removing a connection may affect energy flow paths in your network.
+    Ensure remaining connections maintain network connectivity for optimal results.
+
+### Editing Hub Settings
+
+To change optimization settings for the hub:
+
+1. Navigate to **Settings** → **Devices & Services**
+2. Find the HAEO hub entry
+3. Click **Configure** on the hub entry
+4. Modify horizon hours, period minutes, or optimizer
+5. Click **Submit**
+
+Changes to hub settings trigger immediate re-optimization with the new parameters.
 
 ## Validation
 
@@ -263,7 +334,7 @@ HAEO validates your configuration to prevent common errors:
 
 ### Element Name Uniqueness
 
-Each element must have a unique name within the network.
+Each element must have a unique name within its hub.
 
 - ❌ **Invalid**: Two batteries named "Battery"
 - ✅ **Valid**: "Battery1" and "Battery2"

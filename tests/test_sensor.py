@@ -13,6 +13,7 @@ from custom_components.haeo.const import (
     ATTR_ENERGY,
     ATTR_POWER,
     CONF_ELEMENT_TYPE,
+    CONF_PARTICIPANTS,
     DOMAIN,
     ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
@@ -60,6 +61,16 @@ def mock_coordinator() -> HaeoDataUpdateCoordinator:
         datetime(2024, 1, 1, 14, 0, 0, tzinfo=UTC),
         datetime(2024, 1, 1, 15, 0, 0, tzinfo=UTC),
     ]
+    # Add config attribute with participants dict
+    coordinator.config = {
+        CONF_PARTICIPANTS: {
+            "test_battery": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY},
+            "test_grid": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID},
+            "test_load_fixed": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONSTANT_LOAD},
+            "test_load_forecast": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_FORECAST_LOAD},
+            "test_connection": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION},
+        },
+    }
     return coordinator
 
 

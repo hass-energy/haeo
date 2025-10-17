@@ -3,12 +3,22 @@
 import logging
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, ConfigSubentryFlow
 from homeassistant.const import CONF_NAME
+from homeassistant.core import callback
 
-from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_OPTIMIZER, CONF_PERIOD_MINUTES, DOMAIN
+from custom_components.haeo.const import (
+    CONF_HORIZON_HOURS,
+    CONF_OPTIMIZER,
+    CONF_PERIOD_MINUTES,
+    DOMAIN,
+    INTEGRATION_TYPE_HUB,
+)
+from custom_components.haeo.types import ELEMENT_TYPES
 
 from . import get_network_config_schema
+from .element import create_subentry_flow_class
+from .network import NetworkSubentryFlow
 from .options import HubOptionsFlow
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,12 +50,11 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(
                     title=hub_name,
                     data={
-                        "integration_type": "hub",
+                        "integration_type": INTEGRATION_TYPE_HUB,
                         CONF_NAME: hub_name,
                         CONF_HORIZON_HOURS: user_input[CONF_HORIZON_HOURS],
                         CONF_PERIOD_MINUTES: user_input[CONF_PERIOD_MINUTES],
                         CONF_OPTIMIZER: user_input.get(CONF_OPTIMIZER, "highs"),
-                        "participants": {},
                     },
                 )
 
@@ -59,6 +68,24 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     @staticmethod
-    def async_get_options_flow(_config_entry: ConfigEntry) -> HubOptionsFlow:
+    def async_get_options_flow(config_entry: ConfigEntry) -> HubOptionsFlow:
         """Get the options flow for this handler."""
+        _ = config_entry  # Unused but required by signature
         return HubOptionsFlow()
+
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(cls, config_entry: ConfigEntry) -> dict[str, type[ConfigSubentryFlow]]:
+        """Return subentries supported by this integration."""
+        _ = config_entry  # Unused but required by signature
+
+        # Register regular element flows
+        flows: dict[str, type[ConfigSubentryFlow]] = {
+            element_type: create_subentry_flow_class(element_type, schema_cls, defaults)
+            for element_type, (schema_cls, _, defaults) in ELEMENT_TYPES.items()
+        }
+
+        # Register network flow separately - it's special (auto-created, can't be deleted)
+        flows["network"] = NetworkSubentryFlow
+
+        return flows

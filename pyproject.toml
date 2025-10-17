@@ -55,7 +55,8 @@ ignore = [
     'PLR0915', # Too many statements is something for code review not linting
     'PLR0912', # Too many branches is something for code review not linting
     'C901',    # Complexity is not a good linting rule, it should be a code review issue
-    'TC001',   # Don't use TYPE_CHECKING blocks, they sometimes break code that uses reflection to work
+    'TC001',   # Don't use TYPE_CHECKING blocks
+    'TC002',   # Don't use TYPE_CHECKING blocks
     'TC003',   # Don't use TYPE_CHECKING blocks
     'BLE001',  # Do not catch blind exception - integration code needs to handle various exception types gracefully (127+ violations)
     'ANN401',  # Dynamically typed expressions - legitimate use of Any for **kwargs parameters
@@ -104,6 +105,7 @@ module = "pulp.*"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
+timeout = 5
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]

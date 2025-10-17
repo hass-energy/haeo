@@ -3,8 +3,16 @@
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.translation import async_get_translations
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_NAME, CONF_OPTIMIZER, CONF_PERIOD_MINUTES, DOMAIN
+from custom_components.haeo.const import (
+    CONF_HORIZON_HOURS,
+    CONF_NAME,
+    CONF_OPTIMIZER,
+    CONF_PERIOD_MINUTES,
+    DOMAIN,
+    ELEMENT_TYPES,
+)
 from custom_components.haeo.flows import get_network_config_schema
 from custom_components.haeo.flows.hub import HubConfigFlow
 
@@ -93,3 +101,28 @@ async def test_schema_coerces_floats_to_integers(hass: HomeAssistant) -> None:
     assert isinstance(validated_data[CONF_PERIOD_MINUTES], int), "period_minutes should be coerced to int"
     assert validated_data[CONF_HORIZON_HOURS] == 24
     assert validated_data[CONF_PERIOD_MINUTES] == 5
+
+
+def test_hub_registers_subentry_types(hass: HomeAssistant) -> None:
+    """Test that hub flow registers all supported subentry types."""
+    flow = HubConfigFlow()
+    flow.hass = hass
+
+    # Create a mock hub config entry
+    mock_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_NAME: "Test Hub"},
+        entry_id="test_hub_id",
+    )
+
+    # Get supported subentry types
+    subentry_types = flow.async_get_supported_subentry_types(mock_entry)
+
+    # Verify all element types are registered
+    expected_types = ELEMENT_TYPES
+
+    assert subentry_types is not None
+    for element_type in expected_types:
+        assert element_type in subentry_types
+        # Verify the value is a flow class
+        assert callable(subentry_types[element_type])

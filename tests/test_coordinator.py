@@ -34,8 +34,8 @@ from custom_components.haeo.model import Network
 
 
 @pytest.fixture
-def mock_config_entry() -> MockConfigEntry:
-    """Create a mock config entry."""
+def mock_hub_entry() -> MockConfigEntry:
+    """Create a mock hub config entry."""
     return MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -43,50 +43,105 @@ def mock_config_entry() -> MockConfigEntry:
             CONF_NAME: "Power Network",
             CONF_HORIZON_HOURS: 1,  # 1 hour for testing
             CONF_PERIOD_MINUTES: 30,  # 30 minutes for testing
-            CONF_PARTICIPANTS: {
-                "test_battery": {
-                    CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                    f"{CONF_CAPACITY}_value": 10000,
-                    f"{CONF_INITIAL_CHARGE_PERCENTAGE}_value": "sensor.battery_soc",  # Use sensor for initial charge
-                },
-                "test_grid": {
-                    CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
-                    f"{CONF_IMPORT_LIMIT}_value": 10000,
-                    f"{CONF_EXPORT_LIMIT}_value": 5000,
-                    # Use sensor references instead of constant values
-                    f"{CONF_IMPORT_PRICE}_live": ["sensor.import_price"],
-                    f"{CONF_IMPORT_PRICE}_forecast": ["sensor.import_price"],
-                    f"{CONF_EXPORT_PRICE}_live": ["sensor.export_price"],
-                    f"{CONF_EXPORT_PRICE}_forecast": ["sensor.export_price"],
-                },
-                "test_connection": {
-                    CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
-                    f"{CONF_SOURCE}_value": "test_battery",
-                    f"{CONF_TARGET}_value": "test_grid",
-                    f"{CONF_MAX_POWER}_value": 5000,
-                },
-            },
         },
-        entry_id="test_entry_id",
+        entry_id="hub_entry_id",
     )
 
 
-async def test_coordinator_initialization(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
+@pytest.fixture
+def mock_battery_subentry(mock_hub_entry: MockConfigEntry) -> MockConfigEntry:
+    """Create a mock battery subentry."""
+    return MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "parent_entry_id": mock_hub_entry.entry_id,
+            "name_value": "test_battery",
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+            f"{CONF_CAPACITY}_value": 10000,
+            f"{CONF_INITIAL_CHARGE_PERCENTAGE}_value": "sensor.battery_soc",
+        },
+        entry_id="battery_subentry_id",
+        title="Test Battery",
+    )
+
+
+@pytest.fixture
+def mock_grid_subentry(mock_hub_entry: MockConfigEntry) -> MockConfigEntry:
+    """Create a mock grid subentry."""
+    return MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "parent_entry_id": mock_hub_entry.entry_id,
+            "name_value": "test_grid",
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
+            f"{CONF_IMPORT_LIMIT}_value": 10000,
+            f"{CONF_EXPORT_LIMIT}_value": 5000,
+            f"{CONF_IMPORT_PRICE}_live": ["sensor.import_price"],
+            f"{CONF_IMPORT_PRICE}_forecast": ["sensor.import_price"],
+            f"{CONF_EXPORT_PRICE}_live": ["sensor.export_price"],
+            f"{CONF_EXPORT_PRICE}_forecast": ["sensor.export_price"],
+        },
+        entry_id="grid_subentry_id",
+        title="Test Grid",
+    )
+
+
+@pytest.fixture
+def mock_connection_subentry(mock_hub_entry: MockConfigEntry) -> MockConfigEntry:
+    """Create a mock connection subentry."""
+    return MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "parent_entry_id": mock_hub_entry.entry_id,
+            "name_value": "test_connection",
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
+            f"{CONF_SOURCE}_value": "test_battery",
+            f"{CONF_TARGET}_value": "test_grid",
+            f"{CONF_MAX_POWER}_value": 5000,
+        },
+        entry_id="connection_subentry_id",
+        title="Battery to Grid",
+    )
+
+
+async def test_coordinator_initialization(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
+) -> None:
     """Test coordinator initialization."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+    # Add entries to hass
+    mock_hub_entry.add_to_hass(hass)
+    mock_battery_subentry.add_to_hass(hass)
+    mock_grid_subentry.add_to_hass(hass)
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     assert coordinator.hass == hass
-    assert coordinator.entry == mock_config_entry
-    assert coordinator.config == mock_config_entry.data
+    assert coordinator.entry == mock_hub_entry
+    # Config should have participants dict built from child entries
+    assert CONF_PARTICIPANTS in coordinator.config
+    assert "test_battery" in coordinator.config[CONF_PARTICIPANTS]
+    assert "test_grid" in coordinator.config[CONF_PARTICIPANTS]
     assert coordinator.network is None
     assert coordinator.optimization_result is None
 
 
 @patch("custom_components.haeo.model.network.Network.optimize")
 async def test_update_data_success(
-    mock_optimize: Mock, hass: HomeAssistant, mock_config_entry: MockConfigEntry
+    mock_optimize: Mock,
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
 ) -> None:
     """Test successful data update."""
+    # Add entries to hass
+    mock_hub_entry.add_to_hass(hass)
+    mock_battery_subentry.add_to_hass(hass)
+    mock_grid_subentry.add_to_hass(hass)
+
     # Set up sensor states for battery and pricing with forecast data in Amber Electric format
     hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
 
@@ -107,7 +162,7 @@ async def test_update_data_success(
         {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
     )
 
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Mock optimization result - now returns only cost
     mock_cost = 100.0
@@ -127,9 +182,18 @@ async def test_update_data_success(
 
 @patch("custom_components.haeo.model.network.Network.optimize")
 async def test_update_data_failure(
-    mock_optimize: Mock, hass: HomeAssistant, mock_config_entry: MockConfigEntry
+    mock_optimize: Mock,
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
 ) -> None:
     """Test failed data update."""
+    # Add entries to hass
+    mock_hub_entry.add_to_hass(hass)
+    mock_battery_subentry.add_to_hass(hass)
+    mock_grid_subentry.add_to_hass(hass)
+
     # Set up sensor states for battery and grid
     hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
 
@@ -150,7 +214,7 @@ async def test_update_data_failure(
         {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
     )
 
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Mock optimization failure
     mock_optimize.side_effect = Exception("Optimization failed")
@@ -165,9 +229,14 @@ async def test_update_data_failure(
     assert coordinator.optimization_result is None
 
 
-def test_get_element_data(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
+def test_get_element_data(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
+) -> None:
     """Test getting entity data."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Build a network with entities
     coordinator.network = Network("test", period=3600, n_periods=3)
@@ -192,18 +261,28 @@ def test_get_element_data(hass: HomeAssistant, mock_config_entry: MockConfigEntr
     assert len(result[ATTR_ENERGY]) == 3
 
 
-def test_get_element_data_no_result(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
+def test_get_element_data_no_result(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
+) -> None:
     """Test getting entity data with no optimization result."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     result = coordinator.get_element_data("test_battery")
 
     assert result is None
 
 
-def test_last_optimization_properties(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
+def test_last_optimization_properties(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
+) -> None:
     """Test last optimization properties."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Initially no optimization result
     assert coordinator.last_optimization_cost is None
@@ -221,18 +300,38 @@ def test_last_optimization_properties(hass: HomeAssistant, mock_config_entry: Mo
     assert coordinator.last_optimization_time == test_time
 
 
-async def test_get_future_timestamps_no_result(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
+async def test_get_future_timestamps_no_result(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
+) -> None:
     """Test getting future timestamps with no optimization result."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+    # Add entries to hass
+    mock_hub_entry.add_to_hass(hass)
+    mock_battery_subentry.add_to_hass(hass)
+    mock_grid_subentry.add_to_hass(hass)
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     result = coordinator.get_future_timestamps()
 
     assert result == []
 
 
-async def test_get_future_timestamps_with_result(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
+async def test_get_future_timestamps_with_result(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
+) -> None:
     """Test getting future timestamps with optimization result."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+    # Add entries to hass
+    mock_hub_entry.add_to_hass(hass)
+    mock_battery_subentry.add_to_hass(hass)
+    mock_grid_subentry.add_to_hass(hass)
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Create a network for the coordinator
     coordinator.network = Network("test", period=1800, n_periods=2)
@@ -254,12 +353,22 @@ async def test_get_future_timestamps_with_result(hass: HomeAssistant, mock_confi
         datetime.fromisoformat(timestamp)
 
 
-async def test_update_data_network_build_failure(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
+async def test_update_data_network_build_failure(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
+) -> None:
     """Test update data when network building fails."""
+    # Add entries to hass
+    mock_hub_entry.add_to_hass(hass)
+    mock_battery_subentry.add_to_hass(hass)
+    mock_grid_subentry.add_to_hass(hass)
+
     # Set up sensor state for battery
     hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
 
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Mock failing network build (which now includes sensor data loading)
     with (
@@ -276,19 +385,62 @@ async def test_update_data_network_build_failure(hass: HomeAssistant, mock_confi
 
 @patch("custom_components.haeo.model.network.Network.optimize")
 async def test_calculate_time_parameters_with_integer_values(
-    mock_optimize: Mock, hass: HomeAssistant, mock_config_entry: MockConfigEntry
+    mock_optimize: Mock,
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
 ) -> None:
     """Test that integer values in config work correctly for horizon_hours and period_minutes."""
+    # Add entries to hass
+    mock_hub_entry.add_to_hass(hass)
+    mock_battery_subentry.add_to_hass(hass)
+    mock_grid_subentry.add_to_hass(hass)
+
     # Config entry with explicit integer values
-    int_config_entry = MockConfigEntry(
+    int_hub_entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            **mock_config_entry.data,
+            **mock_hub_entry.data,
             CONF_HORIZON_HOURS: 1,  # Integer (as enforced by schema)
             CONF_PERIOD_MINUTES: 30,  # Integer (as enforced by schema)
         },
         entry_id="test_int_entry_id",
     )
+    int_hub_entry.add_to_hass(hass)
+
+    # Create new battery and grid subentries with the int_hub as parent
+    int_battery_subentry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "parent_entry_id": int_hub_entry.entry_id,
+            "name_value": "test_battery",
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+            f"{CONF_CAPACITY}_value": 10000,
+            f"{CONF_INITIAL_CHARGE_PERCENTAGE}_value": "sensor.battery_soc",
+        },
+        entry_id="int_battery_subentry_id",
+        title="Test Battery",
+    )
+    int_battery_subentry.add_to_hass(hass)
+
+    int_grid_subentry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "parent_entry_id": int_hub_entry.entry_id,
+            "name_value": "test_grid",
+            CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
+            f"{CONF_IMPORT_LIMIT}_value": 10000,
+            f"{CONF_EXPORT_LIMIT}_value": 5000,
+            f"{CONF_IMPORT_PRICE}_live": ["sensor.import_price"],
+            f"{CONF_IMPORT_PRICE}_forecast": ["sensor.import_price"],
+            f"{CONF_EXPORT_PRICE}_live": ["sensor.export_price"],
+            f"{CONF_EXPORT_PRICE}_forecast": ["sensor.export_price"],
+        },
+        entry_id="int_grid_subentry_id",
+        title="Test Grid",
+    )
+    int_grid_subentry.add_to_hass(hass)
 
     # Set up sensor states
     hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
@@ -309,7 +461,7 @@ async def test_calculate_time_parameters_with_integer_values(
         {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
     )
 
-    coordinator = HaeoDataUpdateCoordinator(hass, int_config_entry)
+    coordinator = HaeoDataUpdateCoordinator(hass, int_hub_entry)
 
     # Mock optimization result
     mock_cost = 100.0
@@ -331,9 +483,18 @@ async def test_calculate_time_parameters_with_integer_values(
 
 @patch("custom_components.haeo.model.network.Network.optimize")
 async def test_sensor_state_change_triggers_optimization(
-    mock_optimize: Mock, hass: HomeAssistant, mock_config_entry: MockConfigEntry
+    mock_optimize: Mock,
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
 ) -> None:
     """Test that sensor state changes trigger optimization refresh."""
+    # Add entries to hass
+    mock_hub_entry.add_to_hass(hass)
+    mock_battery_subentry.add_to_hass(hass)
+    mock_grid_subentry.add_to_hass(hass)
+
     # Set up initial sensor states
     hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
 
@@ -353,7 +514,7 @@ async def test_sensor_state_change_triggers_optimization(
         {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
     )
 
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Mock optimization result
     mock_cost = 100.0
@@ -380,12 +541,22 @@ async def test_sensor_state_change_triggers_optimization(
         assert refresh_count > 0
 
 
-async def test_coordinator_cleanup(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
+async def test_coordinator_cleanup(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: MockConfigEntry,
+    mock_grid_subentry: MockConfigEntry,
+) -> None:
     """Test that coordinator cleanup properly unsubscribes from state changes."""
+    # Add entries to hass
+    mock_hub_entry.add_to_hass(hass)
+    mock_battery_subentry.add_to_hass(hass)
+    mock_grid_subentry.add_to_hass(hass)
+
     # Set up minimal sensor state
     hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
 
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_config_entry)
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Verify state change listener was set up
     assert coordinator._state_change_unsub is not None

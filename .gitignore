@@ -18,10 +18,6 @@ coverage.xml
 
 
 # Home Assistant configuration
-config/*
-!config/configuration.yaml
-!config/packages
-!config/packages/*
 home-assistant*
 known_devices.yaml
 .HA_VERSION

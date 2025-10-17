@@ -12,7 +12,14 @@ from homeassistant.helpers.event import async_track_state_change_event
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.const import (
+    CONF_HORIZON_HOURS,
+    CONF_NAME,
+    CONF_OPTIMIZER,
+    CONF_PERIOD_MINUTES,
+    DOMAIN,
+    INTEGRATION_TYPE_HUB,
+)
 from tests.scenarios.visualization import visualize_scenario_results
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,15 +48,39 @@ async def test_scenario1_setup_and_optimization(
         f"Battery sensor has invalid state: {battery_sensor.state}"
     )
 
-    # Create mock config entry - pass config directly since keys match constants
+    # Create hub config entry (without participants, which are now subentries)
+    hub_config = {
+        "integration_type": INTEGRATION_TYPE_HUB,
+        CONF_NAME: "Test Hub",
+        CONF_HORIZON_HOURS: scenario_config.get(CONF_HORIZON_HOURS, 24),
+        CONF_PERIOD_MINUTES: scenario_config.get(CONF_PERIOD_MINUTES, 5),
+        CONF_OPTIMIZER: scenario_config.get(CONF_OPTIMIZER, "highs"),
+    }
+
     mock_config_entry = MockConfigEntry(
         domain=DOMAIN,
-        data=scenario_config,
+        data=hub_config,
     )
-
-    # Set up the integration using proper integration setup pattern
+    # Add hub to hass first so we have the entry_id for subentries
     mock_config_entry.add_to_hass(hass)
 
+    # Create element subentries from participants
+    # Add them to hass BEFORE setting up the hub so they're available during coordinator init
+    participants = scenario_config.get("participants", {})
+    for element_config in participants.values():
+        # Create subentry for this element with proper parent reference
+        # Note: connections are elements too - they're part of the network topology
+        element_entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                "parent_entry_id": mock_config_entry.entry_id,
+                **element_config,
+            },
+        )
+        # Add subentry to hass before hub setup
+        element_entry.add_to_hass(hass)
+
+    # Now set up the hub - coordinator will find the subentries via _get_child_elements()
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
