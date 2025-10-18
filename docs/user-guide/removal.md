@@ -73,12 +73,6 @@ If you want to remove historical sensor data from the database:
 
 If the integration was removed while in a bad state or the directory deletion failed, you may need to manually clean up:
 
-### Confirm the component files are gone
-
-1. Use the File Editor add-on, Samba share, or SSH to inspect `/custom_components/`.
-2. If `/custom_components/haeo/` still exists, delete the directory.
-3. Restart Home Assistant once more to reload component caches.
-
 ### Check for orphaned devices and entities
 
 1. Navigate to **Settings** → **Devices & Services** → **Devices**.
