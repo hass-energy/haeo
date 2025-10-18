@@ -1,8 +1,10 @@
 """Network node element configuration for HAEO integration."""
 
-from typing import Any, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 from custom_components.haeo.schema.fields import NameFieldData, NameFieldSchema
+
+ELEMENT_TYPE: Final = "node"
 
 
 class NodeConfigSchema(TypedDict):
@@ -22,7 +24,7 @@ class NodeConfigData(TypedDict):
 NODE_CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
-def model_description(config: NodeConfigData) -> str:  # noqa: ARG001
+def model_description(config: NodeConfigData) -> str:
     """Generate model description string for node element.
 
     Args:
@@ -32,4 +34,4 @@ def model_description(config: NodeConfigData) -> str:  # noqa: ARG001
         Formatted model description string.
 
     """
-    return "Node"
+    return f"Node: {config['name']}"

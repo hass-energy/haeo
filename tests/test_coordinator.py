@@ -13,25 +13,24 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import (
     ATTR_ENERGY,
     ATTR_POWER,
-    CONF_CAPACITY,
     CONF_ELEMENT_TYPE,
-    CONF_EXPORT_LIMIT,
-    CONF_EXPORT_PRICE,
     CONF_HORIZON_HOURS,
-    CONF_IMPORT_LIMIT,
-    CONF_IMPORT_PRICE,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_MAX_POWER,
     CONF_PARTICIPANTS,
     CONF_PERIOD_MINUTES,
     DOMAIN,
-    ELEMENT_TYPE_BATTERY,
-    ELEMENT_TYPE_CONNECTION,
-    ELEMENT_TYPE_GRID,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_SUCCESS,
 )
-from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator, _get_child_elements
+from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID
+from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
+from custom_components.haeo.elements.connection import CONF_MAX_POWER
+from custom_components.haeo.elements.grid import (
+    CONF_EXPORT_LIMIT,
+    CONF_EXPORT_PRICE,
+    CONF_IMPORT_LIMIT,
+    CONF_IMPORT_PRICE,
+)
 from custom_components.haeo.model import Network
 
 
@@ -540,3 +539,61 @@ async def test_coordinator_cleanup(
 
     # Verify cleanup occurred
     assert coordinator._state_change_unsub is None
+
+
+async def test_unavailable_sensors_handling(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: ConfigSubentry,
+    mock_grid_subentry: ConfigSubentry,
+) -> None:
+    """Test handling of unavailable sensors during update."""
+
+    # Set battery as available but grid prices as unavailable
+    hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
+    hass.states.async_set("sensor.import_price", "unavailable")
+    hass.states.async_set("sensor.export_price", "unknown")
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    result = await coordinator._async_update_data()
+
+    # Should return failed status with None cost when required sensors unavailable
+    assert result is not None
+    assert result["cost"] is None
+    # Sensor unavailability causes optimization failure, not pending state
+    assert coordinator.optimization_status == OPTIMIZATION_STATUS_FAILED
+
+
+async def test_hub_entry_not_found(hass: HomeAssistant) -> None:
+    """Test handling when hub entry doesn't exist."""
+
+    # Try to get elements for non-existent entry
+    result = _get_child_elements(hass, "nonexistent_id")
+
+    assert result == {}
+
+
+async def test_missing_name_in_subentry(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Test handling of subentry missing required name field."""
+
+    # Create a subentry without name_value field
+    bad_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                # Missing name_value field
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Bad Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(mock_hub_entry, bad_subentry)
+
+    # Should raise ValueError for missing name
+    with pytest.raises(ValueError, match="missing required 'name_value' field"):
+        _get_child_elements(hass, mock_hub_entry.entry_id)

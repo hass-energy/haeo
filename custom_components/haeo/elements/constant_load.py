@@ -1,8 +1,12 @@
 """Constant load element configuration for HAEO integration."""
 
-from typing import Any, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 from custom_components.haeo.schema.fields import NameFieldData, NameFieldSchema, PowerFieldData, PowerFieldSchema
+
+ELEMENT_TYPE: Final = "constant_load"
+
+CONF_POWER: Final = "power"
 
 
 class ConstantLoadConfigSchema(TypedDict):

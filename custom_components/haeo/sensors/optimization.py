@@ -1,21 +1,19 @@
 """Optimization-level sensors for HAEO integration."""
 
-from typing import Any
+from typing import Any, Final
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.const import UnitOfTime
+from homeassistant.const import EntityCategory, UnitOfTime
 
-from custom_components.haeo.const import (
-    ELEMENT_TYPE_NETWORK,
-    OPTIMIZATION_STATUS_SUCCESS,
-    SENSOR_TYPE_OPTIMIZATION_COST,
-    SENSOR_TYPE_OPTIMIZATION_DURATION,
-    SENSOR_TYPE_OPTIMIZATION_STATUS,
-)
+from custom_components.haeo.const import ELEMENT_TYPE_NETWORK, OPTIMIZATION_STATUS_SUCCESS
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.sensors.base import HaeoSensorBase
 from custom_components.haeo.sensors.cost import HaeoCostSensor
+
+SENSOR_TYPE_OPTIMIZATION_COST: Final = "optimization_cost"
+SENSOR_TYPE_OPTIMIZATION_STATUS: Final = "optimization_status"
+SENSOR_TYPE_OPTIMIZATION_DURATION: Final = "optimization_duration"
 
 
 class HaeoOptimizationCostSensor(HaeoCostSensor):
@@ -59,6 +57,7 @@ class HaeoOptimizationStatusSensor(HaeoSensorBase):
             device_id,
         )
         self._attr_translation_key = SENSOR_TYPE_OPTIMIZATION_STATUS
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
     def native_value(self) -> str:
@@ -108,6 +107,8 @@ class HaeoOptimizationDurationSensor(HaeoSensorBase):
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_translation_key = SENSOR_TYPE_OPTIMIZATION_DURATION
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_entity_registry_enabled_default = False
 
     @property
     def native_value(self) -> float | None:

@@ -1,7 +1,5 @@
 """State of Charge layer plotting for HAEO visualizations."""
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 

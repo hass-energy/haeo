@@ -322,5 +322,19 @@
       "energy": { "name": "Energy" },
       "soc": { "name": "State of Charge" }
     }
+  },
+  "issues": {
+    "missing_sensor": {
+      "title": "Missing sensor data for {element_name}",
+      "description": "The HAEO integration cannot find sensor data for element '{element_name}'. The sensor entity '{sensor_entity_id}' may not exist or may be unavailable.\n\nTo fix this issue:\n1. Check that the sensor entity exists in Home Assistant\n2. Verify the sensor is available and reporting data\n3. If the sensor was removed, reconfigure the element to use a different sensor\n4. If the sensor is temporarily unavailable, this issue will automatically dismiss when the sensor becomes available again"
+    },
+    "optimization_failure": {
+      "title": "Optimization failed",
+      "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. Issues with the selected solver\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your network configuration for conflicting constraints\n4. Try a different optimization solver in the integration settings\n5. This issue will automatically dismiss when optimization succeeds"
+    },
+    "invalid_config": {
+      "title": "Invalid configuration for {element_name}",
+      "description": "Element '{element_name}' has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the '{element_name}' element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
+    }
   }
 }

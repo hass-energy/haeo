@@ -1,11 +1,12 @@
 """Test the HAEO sensor platform."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from types import MappingProxyType
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.const import CURRENCY_DOLLAR
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.translation import async_get_translations
 import pytest
@@ -17,47 +18,92 @@ from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_PARTICIPANTS,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
+    OPTIMIZATION_STATUS_FAILED,
+    OPTIMIZATION_STATUS_PENDING,
+    OPTIMIZATION_STATUS_SUCCESS,
+)
+from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.elements import (
     ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_CONSTANT_LOAD,
     ELEMENT_TYPE_FORECAST_LOAD,
     ELEMENT_TYPE_GRID,
-    ELEMENT_TYPE_NETWORK,
     ELEMENT_TYPE_NODE,
     ELEMENT_TYPE_PHOTOVOLTAICS,
     ELEMENT_TYPES,
-    OPTIMIZATION_STATUS_FAILED,
-    OPTIMIZATION_STATUS_SUCCESS,
-    SENSOR_TYPES,
 )
-from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.sensors import async_setup_entry
+from custom_components.haeo.sensors import SENSOR_TYPES, async_setup_entry
 from custom_components.haeo.sensors.base import HaeoSensorBase
-from custom_components.haeo.sensors.cost import HaeoCostSensor
-from custom_components.haeo.sensors.energy import HaeoEnergySensor
-from custom_components.haeo.sensors.optimization import HaeoOptimizationCostSensor, HaeoOptimizationStatusSensor
+from custom_components.haeo.sensors.optimization import (
+    HaeoOptimizationCostSensor,
+    HaeoOptimizationDurationSensor,
+    HaeoOptimizationStatusSensor,
+)
 from custom_components.haeo.sensors.power import HaeoPowerSensor
-from custom_components.haeo.sensors.soc import HaeoSOCSensor
+from tests.conftest import SensorTestData
+
+type SubentryFactory = Callable[[str, str], ConfigSubentry]
+
+ELEMENT_SENSOR_KEYS = ["power", "energy", "soc", "element_cost"]
+FORECAST_SENSOR_KEYS = ["power", "energy", "soc"]
+OPTIMIZATION_SENSOR_KEYS = ["optimization_cost", "optimization_status", "optimization_duration"]
+
+
+def _ensure_capacity(metadata: SensorTestData, coordinator: Any) -> None:
+    """Ensure coordinator has capacity information when required."""
+
+    if metadata.requires_capacity:
+        element = Mock()
+        element.capacity = 10_000
+        network = Mock()
+        network.elements = {metadata.element_name: element}
+        coordinator.network = network
+
+
+def instantiate_sensor(
+    metadata: SensorTestData,
+    coordinator: Any,
+    factory: SubentryFactory,
+    device_id: str,
+) -> tuple[HaeoSensorBase, ConfigSubentry]:
+    """Create a sensor instance from structured metadata."""
+
+    subentry = factory(metadata.element_name, metadata.element_type)
+    if metadata.category == "optimization":
+        sensor = metadata.cls(coordinator, subentry, device_id)
+    else:
+        sensor = metadata.cls(
+            coordinator,
+            subentry,
+            metadata.element_name,
+            metadata.element_type,
+            device_id,
+        )
+    return cast("HaeoSensorBase", sensor), subentry
 
 
 @pytest.fixture
-def mock_coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> HaeoDataUpdateCoordinator:
+def mock_coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> Mock:
     """Create a mock coordinator."""
+
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.hass = hass
     coordinator.config_entry = mock_config_entry
     coordinator.last_update_success = True
     coordinator.optimization_status = OPTIMIZATION_STATUS_SUCCESS
     coordinator.last_optimization_cost = 15.50
+    coordinator.last_optimization_duration = 7.5
     coordinator.last_optimization_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
     coordinator.optimization_result = {
         "solution": {
-            "test_battery_power": [50.0, 75.0, 100.0],  # Battery transporting power
+            "test_battery_power": [50.0, 75.0, 100.0],
             "test_battery_energy": [500.0, 600.0, 700.0],
         },
     }
     coordinator.get_element_data.return_value = {
-        ATTR_POWER: [-50.0, -75.0, -100.0],  # Net power (negative = consuming)
+        ATTR_POWER: [-50.0, -75.0, -100.0],
         ATTR_ENERGY: [500.0, 600.0, 700.0],
     }
     coordinator.get_future_timestamps.return_value = [
@@ -65,7 +111,6 @@ def mock_coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) ->
         datetime(2024, 1, 1, 14, 0, 0, tzinfo=UTC),
         datetime(2024, 1, 1, 15, 0, 0, tzinfo=UTC),
     ]
-    # Add config attribute with participants dict
     coordinator.config = {
         CONF_PARTICIPANTS: {
             "test_battery": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY},
@@ -75,12 +120,14 @@ def mock_coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) ->
             "test_connection": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION},
         },
     }
+    coordinator.network = None
     return coordinator
 
 
 @pytest.fixture
 def mock_config_entry() -> MockConfigEntry:
     """Create a mock config entry."""
+
     return MockConfigEntry(
         title="Test HAEO",
         domain=DOMAIN,
@@ -100,103 +147,93 @@ def mock_config_entry() -> MockConfigEntry:
 @pytest.fixture
 def mock_add_entities() -> AsyncMock:
     """Create a mock add entities callback."""
+
     return AsyncMock()
 
 
 @pytest.fixture
 def mock_device_id() -> str:
-    """Create a mock device ID for testing."""
+    """Return a mock device ID."""
+
     return "test_device_id"
 
 
 @pytest.fixture
-def mock_subentry(mock_config_entry: MockConfigEntry, hass: HomeAssistant) -> ConfigSubentry:
-    """Create a mock subentry for testing."""
-    mock_config_entry.add_to_hass(hass)
-    subentry = ConfigSubentry(
-        data=MappingProxyType({"name_value": "test_battery"}),
-        subentry_type=ELEMENT_TYPE_BATTERY,
-        title="Test Battery",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(mock_config_entry, subentry)
-    return subentry
+def subentry_factory(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> SubentryFactory:
+    """Return a factory for creating config subentries in tests."""
+
+    entry_added = False
+
+    def factory(element_name: str, element_type: str) -> ConfigSubentry:
+        nonlocal entry_added
+        if not entry_added:
+            mock_config_entry.add_to_hass(hass)
+            entry_added = True
+        subentry = ConfigSubentry(
+            data=MappingProxyType({"name_value": element_name}),
+            subentry_type=element_type,
+            title=element_name.replace("_", " ").title(),
+            unique_id=None,
+        )
+        hass.config_entries.async_add_subentry(mock_config_entry, subentry)
+        return subentry
+
+    return factory
 
 
 async def test_async_setup_entry(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
-    mock_coordinator: HaeoDataUpdateCoordinator,
+    mock_coordinator: Mock,
     mock_add_entities: AsyncMock,
+    subentry_factory: SubentryFactory,
 ) -> None:
-    """Test setting up sensors from config entry."""
-    mock_config_entry.add_to_hass(hass)
+    """Test setting up sensors from a config entry."""
+
     mock_config_entry.runtime_data = mock_coordinator
 
-    # Create network subentry for optimization sensors
-    network_subentry = ConfigSubentry(
-        data=MappingProxyType({"name_value": "network"}),
-        subentry_type="network",
-        title="Energy Network",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(mock_config_entry, network_subentry)
-
-    # Create subentries for participants in the coordinator config
-    for participant_name in [
-        "test_battery",
-        "test_grid",
-        "test_load_fixed",
-        "test_load_forecast",
-        "test_connection",
-    ]:
-        subentry = ConfigSubentry(
-            data=MappingProxyType({"name_value": participant_name}),
-            subentry_type="battery",  # Type doesn't matter for this test
-            title=participant_name,
-            unique_id=None,
-        )
-        hass.config_entries.async_add_subentry(mock_config_entry, subentry)
+    subentry_factory("network", ELEMENT_TYPE_NETWORK)
+    for name, participant in mock_coordinator.config[CONF_PARTICIPANTS].items():
+        subentry_factory(name, participant[CONF_ELEMENT_TYPE])
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # Verify that entities were added
     mock_add_entities.assert_called_once()
     added_entities = mock_add_entities.call_args[0][0]
+    sensor_types = {type(entity) for entity in added_entities}
 
-    # Should have optimization sensors + entity sensors for each participant
-    assert len(added_entities) >= 2  # At least cost and status sensors
-
-    # Check for specific sensor types
-    sensor_types = [type(entity).__name__ for entity in added_entities]
-    assert "HaeoOptimizationCostSensor" in sensor_types
-    assert "HaeoOptimizationStatusSensor" in sensor_types
+    assert HaeoOptimizationCostSensor in sensor_types
+    assert HaeoOptimizationStatusSensor in sensor_types
+    assert HaeoOptimizationDurationSensor in sensor_types
+    assert any(isinstance(entity, HaeoPowerSensor) for entity in added_entities)
 
 
 async def test_async_setup_entry_no_coordinator(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_add_entities: AsyncMock
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_add_entities: AsyncMock,
+    subentry_factory: SubentryFactory,
 ) -> None:
-    """Test setting up sensors with no coordinator."""
-    mock_config_entry.add_to_hass(hass)
-    # Don't set runtime_data (coordinator)
-    # MockConfigEntry doesn't have runtime_data attribute by default
+    """Test that sensors are not created when coordinator is missing."""
+
+    subentry_factory("network", ELEMENT_TYPE_NETWORK)
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
-    # Should not add any entities when no coordinator
     mock_add_entities.assert_not_called()
 
 
 def test_sensor_base_init(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
 ) -> None:
     """Test sensor base initialization."""
+
+    subentry = subentry_factory("test_element", "test_element_type")
     sensor = HaeoSensorBase(
         mock_coordinator,
-        mock_subentry,
+        subentry,
         "test_type",
         "Test Sensor",
         "test_element",
@@ -208,19 +245,20 @@ def test_sensor_base_init(
     assert sensor.element_name == "test_element"
     assert sensor.element_type == "test_element_type"
     assert sensor._attr_name == "HAEO test_element Test Sensor"
-    assert sensor._attr_unique_id == f"{mock_subentry.subentry_id}_test_type"
+    assert sensor._attr_unique_id == f"{subentry.subentry_id}_test_type"
 
 
 def test_sensor_base_device_info(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
 ) -> None:
-    """Test device entry linking for sensor."""
+    """Test device entry linking for a network sensor."""
+
+    subentry = subentry_factory("network", ELEMENT_TYPE_NETWORK)
     sensor = HaeoSensorBase(
         mock_coordinator,
-        mock_subentry,
+        subentry,
         "test_type",
         "Test Sensor",
         "network",
@@ -228,27 +266,25 @@ def test_sensor_base_device_info(
         mock_device_id,
     )
 
-    # Sensor uses direct device registry linking via device_id property
-    # Device won't exist in registry during unit tests, so device_id will be None
     assert sensor.device_id is None
     assert sensor.device_entry is None
 
 
 def test_sensor_base_available_success(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
 ) -> None:
     """Test availability when coordinator is successful."""
-    mock_coordinator.last_update_success = True
+
+    subentry = subentry_factory("network", ELEMENT_TYPE_NETWORK)
     sensor = HaeoSensorBase(
         mock_coordinator,
-        mock_subentry,
+        subentry,
         "test_type",
         "Test Sensor",
         "network",
-        "network",
+        ELEMENT_TYPE_NETWORK,
         mock_device_id,
     )
 
@@ -256,311 +292,52 @@ def test_sensor_base_available_success(
 
 
 def test_sensor_base_available_failure(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
 ) -> None:
     """Test availability when coordinator fails."""
+
     mock_coordinator.last_update_success = False
+    subentry = subentry_factory("network", ELEMENT_TYPE_NETWORK)
     sensor = HaeoSensorBase(
         mock_coordinator,
-        mock_subentry,
+        subentry,
         "test_type",
         "Test Sensor",
         "network",
-        "network",
+        ELEMENT_TYPE_NETWORK,
         mock_device_id,
     )
 
     assert sensor.available is False
 
 
-def test_sensor_base_device_info_with_element(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-) -> None:
-    """Test device linking with element info."""
-    sensor = HaeoSensorBase(
-        mock_coordinator,
-        mock_subentry,
-        "test_type",
-        "Test Sensor",
-        "test_battery",
-        ELEMENT_TYPE_BATTERY,
-        mock_device_id,
-    )
-
-    # Sensor uses direct device registry linking
-    # Device won't exist in registry during unit tests
-    assert sensor.device_id is None
-    assert sensor.device_entry is None
-
-
-def test_optimization_cost_sensor_init(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-) -> None:
-    """Test sensor initialization."""
-    sensor = HaeoOptimizationCostSensor(mock_coordinator, mock_subentry, mock_device_id)
-
-    assert sensor._attr_name == "HAEO network Optimization Cost"
-    assert sensor._attr_native_unit_of_measurement == CURRENCY_DOLLAR
-    assert sensor._attr_unique_id == f"{mock_subentry.subentry_id}_network_cost"
-
-
-def test_optimization_cost_sensor_native_value(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-) -> None:
-    """Test native value property."""
-    sensor = HaeoOptimizationCostSensor(mock_coordinator, mock_subentry, mock_device_id)
-    assert sensor.native_value == 15.50
-
-
-def test_optimization_cost_sensor_native_value_none(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-) -> None:
-    """Test native value when no cost available."""
-    mock_coordinator.last_optimization_cost = None  # type: ignore[misc]
-    sensor = HaeoOptimizationCostSensor(mock_coordinator, mock_subentry, mock_device_id)
-    assert sensor.native_value is None
-
-
-def test_optimization_status_sensor_init(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-) -> None:
-    """Test sensor initialization."""
-    sensor = HaeoOptimizationStatusSensor(mock_coordinator, mock_subentry, mock_device_id)
-
-    assert sensor._attr_name == "HAEO network Optimization Status"
-    assert sensor._attr_unique_id == f"{mock_subentry.subentry_id}_optimization_status"
-
-
-def test_optimization_status_sensor_native_value_success(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-) -> None:
-    """Test native value for successful optimization."""
-    sensor = HaeoOptimizationStatusSensor(mock_coordinator, mock_subentry, mock_device_id)
-    assert sensor.native_value == OPTIMIZATION_STATUS_SUCCESS
-
-
-def test_optimization_status_sensor_native_value_failure(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-) -> None:
-    """Test native value for failed optimization."""
-    mock_coordinator.optimization_status = OPTIMIZATION_STATUS_FAILED
-    sensor = HaeoOptimizationStatusSensor(mock_coordinator, mock_subentry, mock_device_id)
-    assert sensor.native_value == OPTIMIZATION_STATUS_FAILED
-
-
-def test_optimization_status_sensor_icon_success(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-) -> None:
-    """Test icon for successful optimization."""
-    sensor = HaeoOptimizationStatusSensor(mock_coordinator, mock_subentry, mock_device_id)
-    assert sensor.icon == "mdi:check-circle"
-
-
-def test_optimization_status_sensor_icon_failure(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-) -> None:
-    """Test icon for failed optimization."""
-    mock_coordinator.optimization_status = OPTIMIZATION_STATUS_FAILED
-    sensor = HaeoOptimizationStatusSensor(mock_coordinator, mock_subentry, mock_device_id)
-    assert sensor.icon == "mdi:alert-circle"
-
-
-def test_optimization_status_sensor_extra_state_attributes(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-) -> None:
-    """Test extra state attributes."""
-    sensor = HaeoOptimizationStatusSensor(mock_coordinator, mock_subentry, mock_device_id)
-    attrs = sensor.extra_state_attributes
-
-    assert attrs is not None
-    assert attrs["last_optimization"] == "2024-01-01T12:00:00+00:00"
-    assert attrs["last_cost"] == 15.50
-
-
 @pytest.mark.parametrize(
-    ("sensor_class", "expected_name_suffix", "expected_unique_id"),
+    ("element_name", "element_type"),
     [
-        (HaeoPowerSensor, "Power", "power"),
-        (HaeoEnergySensor, "Energy", "energy"),
-        (HaeoSOCSensor, "State of Charge", "state_of_charge"),
-        (HaeoCostSensor, "Cost", "cost"),
-    ],
-)
-def test_element_sensor_init(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-    sensor_class: type,
-    expected_name_suffix: str,
-    expected_unique_id: str,
-) -> None:
-    """Test element sensor initialization."""
-    sensor = sensor_class(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
-
-    assert sensor.element_name == "test_battery"
-    assert sensor._attr_name == f"HAEO test_battery {expected_name_suffix}"
-    assert sensor._attr_unique_id == f"{mock_subentry.subentry_id}_test_battery_{expected_unique_id}"
-
-
-@pytest.mark.parametrize(
-    "sensor_class",
-    [HaeoPowerSensor, HaeoEnergySensor, HaeoSOCSensor, HaeoCostSensor],
-)
-def test_element_sensor_native_value(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-    sensor_class: type,
-) -> None:
-    """Test element sensor native value property."""
-    # SOC sensor needs additional setup for mock element
-    if sensor_class == HaeoSOCSensor:
-        mock_element = Mock()
-        mock_element.capacity = 10000
-        mock_network = Mock()
-        mock_network.elements = {"test_battery": mock_element}
-        mock_coordinator.network = mock_network
-
-    sensor = sensor_class(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
-    # Cost sensor returns None for element-level (not implemented yet), others return numeric
-    if sensor_class == HaeoCostSensor:
-        assert sensor.native_value is None
-    else:
-        assert sensor.native_value is not None
-        assert isinstance(sensor.native_value, (int, float))
-
-
-@pytest.mark.parametrize(
-    "sensor_class",
-    [HaeoPowerSensor, HaeoEnergySensor, HaeoSOCSensor, HaeoCostSensor],
-)
-def test_element_sensor_native_value_no_data(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-    sensor_class: type,
-) -> None:
-    """Test element sensor native value when no data available."""
-    mock_coordinator.get_element_data.return_value = None
-    sensor = sensor_class(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
-    assert sensor.native_value is None
-
-
-@pytest.mark.parametrize(
-    ("sensor_class", "attribute_key"),
-    [
-        (HaeoPowerSensor, ATTR_POWER),
-        (HaeoEnergySensor, ATTR_ENERGY),
-        (HaeoSOCSensor, ATTR_ENERGY),
-    ],
-)
-def test_element_sensor_native_value_empty_data(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-    sensor_class: type,
-    attribute_key: str,
-) -> None:
-    """Test element sensor native value when data is empty."""
-    mock_coordinator.get_element_data.return_value = {attribute_key: []}
-    sensor = sensor_class(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
-    assert sensor.native_value is None
-
-
-@pytest.mark.parametrize(
-    "sensor_class",
-    [HaeoPowerSensor, HaeoEnergySensor, HaeoSOCSensor],
-)
-def test_element_sensor_extra_state_attributes(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
-    sensor_class: type,
-) -> None:
-    """Test element sensor extra state attributes."""
-    # SOC sensor needs additional setup for mock element
-    if sensor_class == HaeoSOCSensor:
-        mock_element = Mock()
-        mock_element.capacity = 10000
-        mock_network = Mock()
-        mock_network.elements = {"test_battery": mock_element}
-        mock_coordinator.network = mock_network
-
-    sensor = sensor_class(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
-    attrs = sensor.extra_state_attributes
-
-    assert attrs is not None
-    assert "forecast" in attrs
-    assert isinstance(attrs["forecast"], dict)
-    assert len(attrs["forecast"]) == 3
-    # Verify forecast values are floats
-    for value in attrs["forecast"].values():
-        assert isinstance(value, float)
-
-
-@pytest.mark.parametrize(
-    ("element_name", "element_type", "expected_model"),
-    [
-        ("test_battery", ELEMENT_TYPE_BATTERY, "battery"),
-        ("test_grid", ELEMENT_TYPE_GRID, "grid"),
-        ("test_photovoltaics", ELEMENT_TYPE_PHOTOVOLTAICS, "photovoltaics"),
-        ("test_load_constant", ELEMENT_TYPE_CONSTANT_LOAD, "constant_load"),
-        ("test_load_forecast", ELEMENT_TYPE_FORECAST_LOAD, "forecast_load"),
-        ("test_node", ELEMENT_TYPE_NODE, "node"),
-        ("test_connection", ELEMENT_TYPE_CONNECTION, "connection"),
+        ("test_battery", ELEMENT_TYPE_BATTERY),
+        ("test_grid", ELEMENT_TYPE_GRID),
+        ("test_photovoltaics", ELEMENT_TYPE_PHOTOVOLTAICS),
+        ("test_load_constant", ELEMENT_TYPE_CONSTANT_LOAD),
+        ("test_load_forecast", ELEMENT_TYPE_FORECAST_LOAD),
+        ("test_node", ELEMENT_TYPE_NODE),
+        ("test_connection", ELEMENT_TYPE_CONNECTION),
     ],
 )
 def test_sensor_base_device_info_with_element_types(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
     element_name: str,
     element_type: str,
-    expected_model: str,
-    mock_subentry: ConfigSubentry,
-    mock_device_id: str,
 ) -> None:
-    """Test device linking with different element types."""
+    """Test device entry linking for different element types."""
+
+    subentry = subentry_factory(element_name, element_type)
     sensor = HaeoSensorBase(
         mock_coordinator,
-        mock_subentry,
+        subentry,
         "test_type",
         "Test Sensor",
         element_name,
@@ -568,270 +345,473 @@ def test_sensor_base_device_info_with_element_types(
         mock_device_id,
     )
 
-    # Sensor uses direct device registry linking
-    # Device won't exist in registry during unit tests
     assert sensor.device_id is None
     assert sensor.device_entry is None
 
 
-def test_coordinator_get_element_data_exception(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+@pytest.mark.parametrize("sensor_key", ELEMENT_SENSOR_KEYS)
+def test_element_sensor_init(
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+    sensor_key: str,
 ) -> None:
-    """Test handling exception when getting element data."""
-    # Set up normal data first
-    mock_coordinator.get_element_data.return_value = {
-        ATTR_POWER: [-50.0, -75.0, -100.0],
-    }
+    """Test element sensor initialization."""
 
-    sensor = HaeoPowerSensor(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
+    metadata = sensor_test_data[sensor_key]
+    _ensure_capacity(metadata, mock_coordinator)
+    sensor, subentry = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
 
-    # First verify normal operation
+    assert sensor.element_name == metadata.element_name
+    assert sensor._attr_name == f"HAEO {metadata.element_name} {metadata.name_suffix}"
+    assert sensor._attr_unique_id == f"{subentry.subentry_id}_{metadata.unique_suffix}"
+    assert sensor._attr_translation_key == metadata.translation_key
+
+
+@pytest.mark.parametrize("sensor_key", ELEMENT_SENSOR_KEYS)
+def test_element_sensor_native_value(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+    sensor_key: str,
+) -> None:
+    """Test element sensor native value property."""
+
+    metadata = sensor_test_data[sensor_key]
+    _ensure_capacity(metadata, mock_coordinator)
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
+    value = sensor.native_value
+    if metadata.expect_native_value:
+        assert value is not None
+        assert isinstance(value, (int, float))
+    else:
+        assert value is None
+
+
+@pytest.mark.parametrize("sensor_key", ELEMENT_SENSOR_KEYS)
+def test_element_sensor_native_value_no_data(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+    sensor_key: str,
+) -> None:
+    """Test element sensor native value when coordinator returns no data."""
+
+    metadata = sensor_test_data[sensor_key]
+    mock_coordinator.get_element_data.return_value = None
+    _ensure_capacity(metadata, mock_coordinator)
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
+    assert sensor.native_value is None
+
+
+@pytest.mark.parametrize("sensor_key", FORECAST_SENSOR_KEYS)
+def test_element_sensor_native_value_empty_data(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+    sensor_key: str,
+) -> None:
+    """Test element sensor native value when underlying data is empty."""
+
+    metadata = sensor_test_data[sensor_key]
+    _ensure_capacity(metadata, mock_coordinator)
+    mock_coordinator.get_element_data.return_value = {metadata.attribute_key: []}
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
+    assert sensor.native_value is None
+
+
+@pytest.mark.parametrize("sensor_key", FORECAST_SENSOR_KEYS)
+def test_element_sensor_extra_state_attributes(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+    sensor_key: str,
+) -> None:
+    """Test element sensor extra state attributes include forecast."""
+
+    metadata = sensor_test_data[sensor_key]
+    _ensure_capacity(metadata, mock_coordinator)
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+    attrs = sensor.extra_state_attributes
+
+    assert attrs is not None
+    assert attrs["element_type"] == metadata.element_type
+    assert "forecast" in attrs
+    forecast = attrs["forecast"]
+    assert isinstance(forecast, dict)
+    assert len(forecast) == len(mock_coordinator.get_future_timestamps.return_value)
+
+
+def test_coordinator_get_element_data_exception(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+) -> None:
+    """Test that element sensors handle exceptions from coordinator."""
+
+    metadata = sensor_test_data["power"]
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
     assert sensor.native_value == -50.0
 
-    # Now make get_element_data raise an exception
     mock_coordinator.get_element_data.side_effect = Exception("Data retrieval failed")
+    sensor_error, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
 
-    # Create a new sensor instance to test error handling
-    sensor_error = HaeoPowerSensor(
-        mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id
-    )
-
-    # Should handle gracefully and return None
     assert sensor_error.native_value is None
 
 
 def test_coordinator_get_future_timestamps_exception(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
 ) -> None:
-    """Test handling exception when getting future timestamps."""
-    # Set up normal data - keep get_element_data working but make get_future_timestamps fail
-    mock_coordinator.get_element_data.return_value = {
-        ATTR_POWER: [-50.0, -75.0, -100.0],
-    }
+    """Test element sensor attributes when timestamp retrieval fails."""
 
-    sensor = HaeoPowerSensor(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
-
-    # First verify normal operation
+    metadata = sensor_test_data["power"]
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
     attrs = sensor.extra_state_attributes
     assert attrs is not None
     assert "forecast" in attrs
-    assert isinstance(attrs["forecast"], dict)
 
-    # Now make get_future_timestamps raise an exception
     mock_coordinator.get_future_timestamps.side_effect = Exception("Timestamp retrieval failed")
-
-    # Create a new sensor instance to test error handling
-    sensor_error = HaeoPowerSensor(
-        mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id
-    )
-
-    # Should handle gracefully - the method should not raise an exception
-    # Forecast should be missing due to the exception
+    sensor_error, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
     attrs_error = sensor_error.extra_state_attributes
+
     assert attrs_error is not None
     assert "forecast" not in attrs_error
-    assert "timestamped_forecast" not in attrs_error
 
 
 def test_sensor_available_with_coordinator_exception(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
 ) -> None:
-    """Test sensor availability when coordinator throws exceptions."""
-    # Make get_element_data raise an exception
+    """Test availability when coordinator raises exception."""
+
+    metadata = sensor_test_data["power"]
     mock_coordinator.get_element_data.side_effect = Exception("Coordinator error")
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
 
-    sensor = HaeoPowerSensor(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
-
-    # Sensor should be unavailable when coordinator fails
     assert sensor.available is False
 
 
 def test_sensor_available_with_no_element_data(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
 ) -> None:
-    """Test sensor availability when element data is None."""
-    # Return None for element data (no data available)
+    """Test availability when no element data is returned."""
+
+    metadata = sensor_test_data["power"]
     mock_coordinator.get_element_data.return_value = None
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
 
-    sensor = HaeoPowerSensor(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
-
-    # Sensor should be unavailable when no data is available
     assert sensor.available is False
 
 
-def test_optimization_sensor_available_pending_status(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+@pytest.mark.parametrize("sensor_key", OPTIMIZATION_SENSOR_KEYS)
+def test_optimization_sensor_init(
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+    sensor_key: str,
+) -> None:
+    """Test optimization sensor initialization."""
+
+    metadata = sensor_test_data[sensor_key]
+    sensor, subentry = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
+    assert sensor._attr_name == f"HAEO {metadata.element_name} {metadata.name_suffix}"
+    assert sensor._attr_unique_id == f"{subentry.subentry_id}_{metadata.unique_suffix}"
+
+
+def test_optimization_sensor_available_pending_status(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
 ) -> None:
     """Test optimization sensor availability with pending status."""
-    # Set up coordinator with pending status and no results
+
+    metadata = sensor_test_data["optimization_cost"]
     mock_coordinator.optimization_result = None
-    mock_coordinator.optimization_status = "pending"
+    mock_coordinator.optimization_status = OPTIMIZATION_STATUS_PENDING
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
 
-    sensor = HaeoOptimizationCostSensor(mock_coordinator, mock_subentry, mock_device_id)
-
-    # Sensor should be unavailable when status is pending and no results
     assert sensor.available is False
 
 
 def test_optimization_sensor_available_with_results(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
 ) -> None:
     """Test optimization sensor availability with results."""
-    # Set up coordinator with results
+
+    metadata = sensor_test_data["optimization_cost"]
     mock_coordinator.optimization_result = {"cost": 100.0}
-    mock_coordinator.optimization_status = "success"
+    mock_coordinator.optimization_status = OPTIMIZATION_STATUS_SUCCESS
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
 
-    sensor = HaeoOptimizationCostSensor(mock_coordinator, mock_subentry, mock_device_id)
-
-    # Sensor should be available when results exist
     assert sensor.available is True
 
 
-def test_native_value_with_no_element_data(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+def test_optimization_cost_sensor_native_value(
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
 ) -> None:
-    """Test native value when element data is missing."""
-    # Return None for element data
-    mock_coordinator.get_element_data.return_value = None
+    """Test optimization cost sensor native value."""
 
-    sensor = HaeoPowerSensor(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
+    metadata = sensor_test_data["optimization_cost"]
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
 
-    # Should return None gracefully
+    assert sensor.native_value == pytest.approx(15.50)
+
+
+def test_optimization_cost_sensor_native_value_none(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+) -> None:
+    """Test optimization cost sensor when no cost available."""
+
+    metadata = sensor_test_data["optimization_cost"]
+    mock_coordinator.last_optimization_cost = None
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
     assert sensor.native_value is None
 
 
-def test_native_value_with_empty_element_data(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+def test_optimization_status_sensor_native_value_success(
+    mock_coordinator: Mock,
     mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
 ) -> None:
-    """Test native value when element data is empty."""
-    # Return empty dict for element data
-    mock_coordinator.get_element_data.return_value = {}
+    """Test optimization status sensor native value for success."""
 
-    sensor = HaeoPowerSensor(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
+    metadata = sensor_test_data["optimization_status"]
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
 
-    # Should return None gracefully
-    assert sensor.native_value is None
+    assert isinstance(sensor, HaeoOptimizationStatusSensor)
+    assert sensor.native_value == OPTIMIZATION_STATUS_SUCCESS
+
+
+def test_optimization_status_sensor_native_value_failure(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+) -> None:
+    """Test optimization status sensor native value for failure."""
+
+    metadata = sensor_test_data["optimization_status"]
+    mock_coordinator.optimization_status = OPTIMIZATION_STATUS_FAILED
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
+    assert isinstance(sensor, HaeoOptimizationStatusSensor)
+    assert sensor.native_value == OPTIMIZATION_STATUS_FAILED
+
+
+def test_optimization_status_sensor_icon_success(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+) -> None:
+    """Test optimization status sensor icon for success."""
+
+    metadata = sensor_test_data["optimization_status"]
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
+    assert isinstance(sensor, HaeoOptimizationStatusSensor)
+    assert sensor.icon == "mdi:check-circle"
+
+
+def test_optimization_status_sensor_icon_failure(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+) -> None:
+    """Test optimization status sensor icon for failure."""
+
+    metadata = sensor_test_data["optimization_status"]
+    mock_coordinator.optimization_status = OPTIMIZATION_STATUS_FAILED
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
+    assert isinstance(sensor, HaeoOptimizationStatusSensor)
+    assert sensor.icon == "mdi:alert-circle"
+
+
+def test_optimization_status_sensor_extra_state_attributes(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+) -> None:
+    """Test optimization status sensor extra attributes."""
+
+    metadata = sensor_test_data["optimization_status"]
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
+    assert isinstance(sensor, HaeoOptimizationStatusSensor)
+    attrs = sensor.extra_state_attributes
+
+    assert attrs is not None
+    assert attrs["last_optimization"] == "2024-01-01T12:00:00+00:00"
+    assert attrs["last_cost"] == 15.50
+    assert attrs["last_duration_seconds"] == 7.5
+
+
+def test_optimization_duration_sensor_native_value(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+) -> None:
+    """Test optimization duration sensor native value."""
+
+    metadata = sensor_test_data["optimization_duration"]
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
+    assert isinstance(sensor, HaeoOptimizationDurationSensor)
+    assert sensor.native_value == pytest.approx(7.5)
+
+
+def test_optimization_duration_sensor_extra_state_attributes(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+) -> None:
+    """Test optimization duration sensor extra attributes."""
+
+    metadata = sensor_test_data["optimization_duration"]
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
+    assert isinstance(sensor, HaeoOptimizationDurationSensor)
+    attrs = sensor.extra_state_attributes
+
+    assert attrs is not None
+    assert attrs["last_optimization"] == "2024-01-01T12:00:00+00:00"
+    assert attrs["optimization_status"] == OPTIMIZATION_STATUS_SUCCESS
+
+
+def test_optimization_duration_sensor_disabled_by_default(
+    mock_coordinator: Mock,
+    mock_device_id: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+) -> None:
+    """Optimization duration sensor should be disabled by default."""
+
+    metadata = sensor_test_data["optimization_duration"]
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
+
+    assert isinstance(sensor, HaeoOptimizationDurationSensor)
+    assert sensor.entity_registry_enabled_default is False
 
 
 def test_sensor_unavailable_when_sensor_data_missing(
-    mock_config_entry: MockConfigEntry, mock_subentry: ConfigSubentry, mock_device_id: str, hass: HomeAssistant
+    mock_config_entry: MockConfigEntry,
+    mock_device_id: str,
+    hass: HomeAssistant,
+    subentry_factory: SubentryFactory,
 ) -> None:
-    """Test that sensors show as unavailable when underlying sensor data is missing."""
-    # Create a coordinator with missing sensor data
+    """Test sensors when coordinator has no data."""
+
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
-    coordinator.last_update_success = True  # Required for coordinator availability
+    coordinator.last_update_success = True
     coordinator.optimization_status = OPTIMIZATION_STATUS_FAILED
     coordinator.optimization_result = None
-    coordinator.get_element_data = Mock(return_value=None)  # Simulate missing element data
-    coordinator.config_entry = mock_config_entry  # Required for sensor initialization
-    coordinator.hass = hass  # Required for device registry access
+    coordinator.get_element_data = Mock(return_value=None)
+    coordinator.get_future_timestamps = Mock(return_value=[])
+    coordinator.config_entry = mock_config_entry
+    coordinator.hass = hass
+    coordinator.last_optimization_cost = None
+    coordinator.last_optimization_duration = None
+    coordinator.last_optimization_time = None
 
-    # Create a power sensor
-    sensor = HaeoPowerSensor(coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
+    element_subentry = subentry_factory("test_battery", ELEMENT_TYPE_BATTERY)
+    power_sensor = HaeoPowerSensor(coordinator, element_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
+    assert not power_sensor.available
 
-    # The sensor should be unavailable when element data is missing
-    assert not sensor.available
-
-    # Test optimization status sensor
-    status_sensor = HaeoOptimizationStatusSensor(coordinator, mock_subentry, mock_device_id)
-
-    # Should be available since optimization status is set (even if failed)
+    network_subentry = subentry_factory("network", ELEMENT_TYPE_NETWORK)
+    status_sensor = HaeoOptimizationStatusSensor(coordinator, network_subentry, mock_device_id)
     assert status_sensor.available
     assert status_sensor.native_value == OPTIMIZATION_STATUS_FAILED
 
 
-@pytest.mark.parametrize(
-    "sensor_class",
-    [HaeoPowerSensor, HaeoEnergySensor, HaeoSOCSensor],
-)
+@pytest.mark.parametrize("sensor_key", FORECAST_SENSOR_KEYS)
 def test_sensor_native_value_with_exception(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+    mock_coordinator: Mock,
     mock_device_id: str,
-    sensor_class: type,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+    sensor_key: str,
 ) -> None:
-    """Test that sensors return None when exception occurs accessing data."""
-    mock_coordinator.get_element_data.side_effect = RuntimeError("Data access error")
+    """Test sensors return None when data access raises exception."""
 
-    sensor = sensor_class(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
+    metadata = sensor_test_data[sensor_key]
+    mock_coordinator.get_element_data.side_effect = RuntimeError("Data access error")
+    _ensure_capacity(metadata, mock_coordinator)
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
 
     assert sensor.native_value is None
 
 
-@pytest.mark.parametrize(
-    ("sensor_class", "attribute_key"),
-    [
-        (HaeoPowerSensor, ATTR_POWER),
-        (HaeoEnergySensor, ATTR_ENERGY),
-        (HaeoSOCSensor, ATTR_ENERGY),
-    ],
-)
+@pytest.mark.parametrize("sensor_key", FORECAST_SENSOR_KEYS)
 def test_sensor_extra_attributes_with_exception(
-    mock_coordinator: HaeoDataUpdateCoordinator,
-    mock_config_entry: MockConfigEntry,
-    mock_subentry: ConfigSubentry,
+    mock_coordinator: Mock,
     mock_device_id: str,
-    sensor_class: type,
-    attribute_key: str,
+    subentry_factory: SubentryFactory,
+    sensor_test_data: dict[str, SensorTestData],
+    sensor_key: str,
 ) -> None:
-    """Test that sensors handle timestamp exceptions gracefully in extra_state_attributes."""
-    # SOC sensor needs additional setup for mock element
-    if sensor_class == HaeoSOCSensor:
-        mock_element = Mock()
-        mock_element.capacity = 10000
-        mock_network = Mock()
-        mock_network.elements = {"test_battery": mock_element}
-        mock_coordinator.network = mock_network
+    """Test sensors handle timestamp exceptions in attributes."""
 
-    mock_coordinator.get_element_data.return_value = {attribute_key: [100.0, 200.0, 300.0]}
+    metadata = sensor_test_data[sensor_key]
+    _ensure_capacity(metadata, mock_coordinator)
+    mock_coordinator.get_element_data.return_value = {metadata.attribute_key: [100.0, 200.0, 300.0]}
     mock_coordinator.get_future_timestamps.side_effect = RuntimeError("Timestamp error")
 
-    sensor = sensor_class(mock_coordinator, mock_subentry, "test_battery", ELEMENT_TYPE_BATTERY, mock_device_id)
-
+    sensor, _ = instantiate_sensor(metadata, mock_coordinator, subentry_factory, mock_device_id)
     attrs = sensor.extra_state_attributes
+
     assert attrs is not None
-    # When timestamp retrieval fails, forecast should not be present
     assert "forecast" not in attrs
 
 
 @pytest.mark.parametrize("sensor_type", SENSOR_TYPES)
 async def test_sensor_name_translations(hass: HomeAssistant, sensor_type: str) -> None:
-    """Test that sensor entity name translations can be loaded."""
-    translations = await async_get_translations(hass, "en", "entity", integrations=[DOMAIN])
+    """Test that sensor translations can be loaded."""
 
+    translations = await async_get_translations(hass, "en", "entity", integrations=[DOMAIN])
     translation_key = f"component.{DOMAIN}.entity.sensor.{sensor_type}.name"
-    assert translation_key in translations, f"Missing sensor translation for '{sensor_type}'"
+    assert translation_key in translations
 
 
 @pytest.mark.parametrize("element_type", ELEMENT_TYPES)
 async def test_device_name_translations(hass: HomeAssistant, element_type: str) -> None:
-    """Test that device name translations can be loaded."""
-    translations = await async_get_translations(hass, "en", "device", integrations=[DOMAIN])
+    """Test that device translations can be loaded."""
 
+    translations = await async_get_translations(hass, "en", "device", integrations=[DOMAIN])
     translation_key = f"component.{DOMAIN}.device.{element_type}.name"
-    assert translation_key in translations, f"Missing device translation for '{element_type}'"
+    assert translation_key in translations

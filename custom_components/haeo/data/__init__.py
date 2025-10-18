@@ -15,11 +15,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigSchema
 from custom_components.haeo.model import Network
 from custom_components.haeo.schema import available as config_available
 from custom_components.haeo.schema import data_to_config
 from custom_components.haeo.schema import load as config_load
-from custom_components.haeo.types import ELEMENT_TYPES, ElementConfigSchema
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,13 +56,17 @@ async def load_network(
     participant_configs: dict[str, ElementConfigSchema] = {}
     for name, p_data in participants.items():
         element_type = p_data[CONF_ELEMENT_TYPE]
-        element_types = ELEMENT_TYPES.get(element_type)
-        if not element_types:
-            _LOGGER.error("Unknown element type %s", element_type)
-            continue
-        schema_cls, _, _ = element_types
+        # Element type must be valid since it was validated during config flow
+        # If it's not in ELEMENT_TYPES, that's a programming error (config flow failed to validate)
+        if element_type not in ELEMENT_TYPES:
+            msg = f"Invalid element type {element_type} - config flow validation failed"
+            raise RuntimeError(msg)
+        registry_entry = ELEMENT_TYPES[element_type]
         participant_configs[name] = data_to_config(
-            schema_cls, p_data, participants=participants, current_element_name=name
+            registry_entry.schema,
+            p_data,
+            participants=participants,
+            current_element_name=name,
         )
 
     # Check that all required sensor data is available before loading

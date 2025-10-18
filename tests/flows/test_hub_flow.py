@@ -14,9 +14,9 @@ from custom_components.haeo.const import (
     DEFAULT_OPTIMIZER,
     DEFAULT_PERIOD_MINUTES,
     DOMAIN,
-    ELEMENT_TYPES,
     INTEGRATION_TYPE_HUB,
 )
+from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.flows.hub import HubConfigFlow
 
 

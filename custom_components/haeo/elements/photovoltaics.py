@@ -1,6 +1,6 @@
 """Photovoltaics element configuration for HAEO integration."""
 
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.schema.fields import (
     BooleanFieldData,
@@ -12,6 +12,13 @@ from custom_components.haeo.schema.fields import (
     PriceFieldData,
     PriceFieldSchema,
 )
+
+ELEMENT_TYPE: Final = "photovoltaics"
+
+CONF_FORECAST: Final = "forecast"
+CONF_PRICE_PRODUCTION: Final = "price_production"
+CONF_PRICE_CONSUMPTION: Final = "price_consumption"
+CONF_CURTAILMENT: Final = "curtailment"
 
 
 class PhotovoltaicsConfigSchema(TypedDict):
@@ -43,7 +50,7 @@ PHOTOVOLTAICS_CONFIG_DEFAULTS: dict[str, Any] = {
 }
 
 
-def model_description(config: PhotovoltaicsConfigData) -> str:  # noqa: ARG001
+def model_description(config: PhotovoltaicsConfigData) -> str:
     """Generate model description string for photovoltaics element.
 
     Args:
@@ -53,4 +60,4 @@ def model_description(config: PhotovoltaicsConfigData) -> str:  # noqa: ARG001
         Formatted model description string.
 
     """
-    return "Solar"
+    return f"Photovoltaics: {config['name']}"

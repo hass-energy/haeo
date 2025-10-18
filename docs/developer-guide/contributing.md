@@ -19,6 +19,59 @@ Thank you for your interest in contributing!
 - **Tests** for new features
 - **Ruff** formatting
 
+### Type Safety Guidelines
+
+HAEO uses Python's type system to make invalid states impossible.
+Follow these guidelines when writing code:
+
+**Use type assertions for architectural invariants:**
+
+```python
+from custom_components.haeo.elements import assert_config_entry_exists, assert_subentry_has_name
+
+# ✅ Good: Type assertion for controlled data
+hub_entry = assert_config_entry_exists(
+    hass.config_entries.async_get_entry(hub_entry_id),
+    hub_entry_id,
+)
+
+# ❌ Bad: Defensive logging for controlled data
+hub_entry = hass.config_entries.async_get_entry(hub_entry_id)
+if not hub_entry:
+    _LOGGER.warning("Hub entry not found")
+    return
+```
+
+**Keep defensive checks for external boundaries:**
+
+```python
+# ✅ Good: Defensive handling of external API responses
+try:
+    data = await api.get_forecast()
+except ApiError as err:
+    _LOGGER.error("Failed to fetch forecast: %s", err)
+    return None
+
+# ✅ Good: Defensive handling of Home Assistant state
+state = hass.states.get(entity_id)
+if state is None:
+    _LOGGER.warning("Entity %s not found", entity_id)
+    return None
+```
+
+**When to use each approach:**
+
+| Situation | Approach | Why |
+|-----------|----------|-----|
+| Config entry we created | Type assertion | We control the ID, missing = programming error |
+| Config flow validated data | Type assertion | Validation guaranteed, missing = programming error |
+| Element type from registry | Type assertion | Registry defines valid types |
+| External API response | Defensive check + test | API can fail, legitimate runtime condition |
+| Home Assistant entity state | Defensive check + test | Entity might not exist, user-caused |
+| User input (initial) | Defensive check + test | User can provide invalid data |
+
+See [Testing Guide](testing.md#type-safety-philosophy) for detailed examples.
+
 ## Testing
 
 ```bash

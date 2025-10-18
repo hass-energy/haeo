@@ -223,14 +223,14 @@ custom_components/haeo/
 │   ├── soc.py
 │   ├── cost.py
 │   └── types.py
-├── types/                   # TypedDict configurations
+├── elements/                # Element metadata, schemas, and defaults
 │   ├── __init__.py
 │   ├── battery.py
 │   ├── grid.py
 │   ├── photovoltaics.py
 │   ├── constant_load.py
 │   ├── forecast_load.py
-│   ├── net.py
+│   ├── node.py
 │   └── connection.py
 └── translations/            # i18n strings
     └── en.json
@@ -245,12 +245,12 @@ custom_components/haeo/
    - Define power/energy variables
    - Implement `cost()` and `constraints()` methods
 
-2. **Add TypedDict configs** in `types/`:
+2. **Add element metadata** in `elements/`:
    - `*ConfigSchema`: For config flow validation
    - `*ConfigData`: For runtime with loaded values
    - Define field metadata using annotations
 
-3. **Register element type** in `types/__init__.py`:
+3. **Register element type** in `elements/__init__.py`:
    - Add to `ELEMENT_TYPES` mapping
 
 4. **Create config flow** in `flows/elements/`:

@@ -6,6 +6,7 @@ from types import MappingProxyType
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 
 from .coordinator import HaeoDataUpdateCoordinator
 
@@ -99,3 +100,66 @@ async def async_reload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> Non
     """Reload config entry."""
     await async_unload_entry(hass, entry)
     await async_setup_entry(hass, entry)
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant,
+    config_entry: HaeoConfigEntry,
+    device_entry: dr.DeviceEntry,
+) -> bool:
+    """Remove a device when its corresponding config entry is removed.
+
+    This handles cleanup of stale devices when elements (batteries, grids, etc.)
+    are removed from the HAEO network.
+
+    Args:
+        hass: Home Assistant instance
+        config_entry: The hub config entry
+        device_entry: The device to potentially remove
+
+    Returns:
+        True if device can be removed, False if it should be kept
+
+    """
+    device_registry = dr.async_get(hass)
+    if device_registry.async_get(device_entry.id) is None:
+        # Device already removed or does not exist; nothing to clean up
+        return False
+
+    # Get all current element names from subentries
+    current_element_names = {
+        subentry.data.get("name_value")
+        for subentry in config_entry.subentries.values()
+        if subentry.data.get("name_value")
+    }
+
+    # Check if this device's identifier matches any current element
+    # Device identifiers are (DOMAIN, f"{config_entry.entry_id}_{element_name}")
+    has_haeo_identifier = False
+    for identifier in device_entry.identifiers:
+        if identifier[0] == config_entry.domain:
+            has_haeo_identifier = True
+            # Extract element name from identifier
+            identifier_str = identifier[1]
+
+            # Hub device has identifier (DOMAIN, entry_id) without element suffix - always keep
+            if identifier_str == config_entry.entry_id:
+                return False
+
+            if identifier_str.startswith(f"{config_entry.entry_id}_"):
+                element_name = identifier_str.replace(f"{config_entry.entry_id}_", "", 1)
+
+                # If element still exists, keep the device
+                if element_name in current_element_names:
+                    return False
+
+    # If device has no HAEO identifiers, it's not managed by us - keep it
+    if not has_haeo_identifier:
+        return False
+
+    # Device doesn't match any current element - allow removal
+    _LOGGER.info(
+        "Removing stale device %s (was associated with removed element)",
+        device_entry.name,
+    )
+    return True

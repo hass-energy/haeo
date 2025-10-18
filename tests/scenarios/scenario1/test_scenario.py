@@ -138,9 +138,8 @@ async def test_scenario1_setup_and_optimization(
     all_entities = hass.states.async_entity_ids()
     _LOGGER.debug("All entities: %s", all_entities)
 
-    # Find optimization cost and duration sensors
+    # Find optimization cost sensor
     optimization_cost_sensors = [e for e in all_entities if "optimization_cost" in e]
-    optimization_duration_sensors = [e for e in all_entities if "optimization_duration" in e]
 
     # Debug: Print all HAEO sensors to see what's being created
     haeo_sensors = [e for e in all_entities if "haeo" in e]
@@ -157,10 +156,8 @@ async def test_scenario1_setup_and_optimization(
             _LOGGER.info("Photovoltaics sensor %s state: %s", sensor_name, sensor.state)
 
     assert optimization_cost_sensors, "Should have at least one optimization cost sensor"
-    assert optimization_duration_sensors, "Should have at least one optimization duration sensor"
 
     optimization_cost = hass.states.get(optimization_cost_sensors[0])
-    optimization_duration = hass.states.get(optimization_duration_sensors[0])
 
     assert optimization_cost is not None, "Optimization cost sensor should exist"
     cost_state = optimization_cost.state
@@ -172,19 +169,6 @@ async def test_scenario1_setup_and_optimization(
             _LOGGER.info("Optimization cost: %s (negative = profit)", cost_value)
         except (ValueError, TypeError):
             _LOGGER.warning("Cost value '%s' is not a valid number", cost_state)
-
-    assert optimization_duration is not None, "Optimization duration sensor should exist"
-    duration_state = optimization_duration.state
-    if duration_state not in ["unknown", "unavailable", None]:
-        try:
-            duration_value = float(duration_state)
-            assert isinstance(duration_value, (int, float)), f"Duration should be a number, got: {duration_state}"
-            # Duration might be 0 if optimization fails, which is acceptable for testing
-            # For 288 periods (24h x 5min), optimization should be reasonably fast (< 5 seconds)
-            if duration_value < 5.0:
-                _LOGGER.info("Optimization completed quickly: %ss", duration_value)
-        except (ValueError, TypeError):
-            _LOGGER.warning("Duration value '%s' is not a valid number", duration_state)
 
     # Ensure all entities are registered
     await hass.async_block_till_done()

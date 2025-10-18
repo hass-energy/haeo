@@ -14,7 +14,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.types import ELEMENT_TYPES
+from custom_components.haeo.elements import ELEMENT_TYPES
 
 from . import get_network_config_schema
 from .element import create_subentry_flow_class
@@ -81,8 +81,8 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
         # Register regular element flows
         flows: dict[str, type[ConfigSubentryFlow]] = {
-            element_type: create_subentry_flow_class(element_type, schema_cls, defaults)
-            for element_type, (schema_cls, _, defaults) in ELEMENT_TYPES.items()
+            element_type: create_subentry_flow_class(element_type, entry.schema, entry.defaults)
+            for element_type, entry in ELEMENT_TYPES.items()
         }
 
         # Register network flow separately - it's special (auto-created, can't be deleted)

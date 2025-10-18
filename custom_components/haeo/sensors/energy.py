@@ -1,7 +1,7 @@
 """Energy sensor for HAEO elements."""
 
 import logging
-from typing import Any
+from typing import Any, Final
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigSubentry
@@ -12,6 +12,8 @@ from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.sensors.base import HaeoSensorBase
 
 _LOGGER = logging.getLogger(__name__)
+
+SENSOR_TYPE_ENERGY: Final = "energy"
 
 
 class HaeoEnergySensor(HaeoSensorBase):

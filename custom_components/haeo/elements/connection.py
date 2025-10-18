@@ -1,6 +1,6 @@
 """Network and connection element configurations for HAEO integration."""
 
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.schema.fields import (
     ElementNameFieldData,
@@ -10,6 +10,13 @@ from custom_components.haeo.schema.fields import (
     PowerFlowFieldData,
     PowerFlowFieldSchema,
 )
+
+ELEMENT_TYPE: Final = "connection"
+
+CONF_SOURCE: Final = "source"
+CONF_TARGET: Final = "target"
+CONF_MIN_POWER: Final = "min_power"
+CONF_MAX_POWER: Final = "max_power"
 
 
 class ConnectionConfigSchema(TypedDict):

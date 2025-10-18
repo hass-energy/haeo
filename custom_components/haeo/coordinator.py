@@ -30,6 +30,11 @@ from .const import (
 )
 from .data import load_network
 from .model import Network
+from .repairs import (
+    create_missing_sensor_issue,
+    create_optimization_persistent_failure_issue,
+    dismiss_optimization_failure_issue,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -259,6 +264,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except ValueError as err:
                 self.optimization_status = OPTIMIZATION_STATUS_FAILED
                 _LOGGER.warning("Required sensor / forecast data not available: %s", err)
+
+                # Create repair issue for missing sensor data
+                error_msg = str(err)
+                if "sensor" in error_msg.lower():
+                    # Extract element name from error message if possible
+                    element_name = "unknown"
+                    for key in self.config.get(CONF_PARTICIPANTS, {}):
+                        if key in error_msg:
+                            element_name = key
+                            break
+                    create_missing_sensor_issue(self.hass, element_name, error_msg)
+
                 end_time = time.time()
                 self._last_optimization_duration = end_time - start_time
                 return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self.last_optimization_duration}
@@ -289,6 +306,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             }
             self.optimization_status = OPTIMIZATION_STATUS_SUCCESS
 
+            # Dismiss any existing optimization failure repair issues
+            dismiss_optimization_failure_issue(self.hass, self.entry.entry_id)
+
             _LOGGER.debug(
                 "Optimization completed successfully with cost: %s in %.3f seconds",
                 cost,
@@ -302,6 +322,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # If any exception occurs, mark the optimisation as failed and return a placeholder result
             self.optimization_status = OPTIMIZATION_STATUS_FAILED
+
+            # Create repair issue for persistent optimization failures
+            create_optimization_persistent_failure_issue(
+                self.hass,
+                self.entry.entry_id,
+                str(err),
+            )
+
             # Use error() with conditional exc_info instead of exception() to avoid always showing traceback
             _LOGGER.error("Optimization failed: %s", err, exc_info=_LOGGER.isEnabledFor(logging.DEBUG))  # noqa: TRY400
             self.optimization_result = None

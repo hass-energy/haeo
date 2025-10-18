@@ -1,0 +1,254 @@
+# Quality Scale Status for HAEO Integration
+# This file tracks compliance with Home Assistant's quality scale requirements
+
+version: 1
+integration: haeo
+current_tier: gold
+target_tier: platinum
+
+# BRONZE TIER REQUIREMENTS
+bronze:
+  config-flow:
+    status: done
+    comment: UI configuration flow implemented in flows/hub.py, flows/element.py, flows/options.py
+
+  config-flow-test-coverage:
+    status: done
+    comment: Flow tests in tests/flows/ covering user flow, element creation, options
+
+  runtime-data:
+    status: done
+    comment: Uses ConfigEntry.runtime_data for coordinator storage (line 36 __init__.py)
+
+  entity-unique-id:
+    status: done
+    comment: All sensor classes implement unique_id based on subentry_id (sensors/base.py line 49)
+
+  has-entity-name:
+    status: done
+    comment: All sensors set has_entity_name = True (sensors/base.py line 48)
+
+  test-before-configure:
+    status: exempt
+    comment: HAEO is a local calculation integration with no external services to test during setup
+
+  test-before-setup:
+    status: done
+    comment: async_setup_entry validates configuration and returns bool (__init__.py)
+
+  unique-config-entry:
+    status: done
+    comment: Uses async_set_unique_id and _abort_if_unique_id_configured (flows/hub.py lines 45-46)
+
+  docs-high-level-description:
+    status: done
+    comment: README.md and docs/index.md contain comprehensive overview
+
+  docs-installation-instructions:
+    status: done
+    comment: Installation instructions in README.md lines 82-99
+
+  docs-removal-instructions:
+    status: done
+    comment: Comprehensive removal guide in docs/user-guide/removal.md with UI steps, cleanup procedures, troubleshooting
+
+  entity-event-setup:
+    status: done
+    comment: Coordinator uses async_track_state_change_event with proper lifecycle management
+
+  brands:
+    status: todo
+    comment: Need to verify branding assets exist or create them
+
+  common-modules:
+    status: done
+    comment: Well-organized module structure with data/, model/, flows/, sensors/ separation
+
+  dependency-transparency:
+    status: done
+    comment: Dependencies listed in manifest.json (pulp>=2.7.0, numpy>=1.21.0)
+
+  appropriate-polling:
+    status: done
+    comment: Uses DataUpdateCoordinator with event-based triggers and appropriate intervals
+
+  action-setup:
+    status: not-applicable
+    comment: Integration does not provide service actions
+
+# SILVER TIER REQUIREMENTS
+silver:
+  integration-owner:
+    status: done
+    comment: Codeowner @TrentHouliston in manifest.json
+
+  test-coverage:
+    status: review
+    comment: |
+      Current 94% coverage (2097 statements, 133 missed), just 1% shy of >95% requirement.
+      Recent additions: repairs.py tests (9 tests), device removal tests (5 tests).
+      Need ~21 more statements covered to reach 95% Silver tier requirement.
+
+  entity-unavailable:
+    status: done
+    comment: Sensors implement available property checking coordinator state and element data (sensors/base.py)
+
+  log-when-unavailable:
+    status: review
+    comment: Need to verify coordinator logs unavailability only once per occurrence
+
+  action-exceptions:
+    status: not-applicable
+    comment: Integration does not provide service actions
+
+  config-entry-unloading:
+    status: done
+    comment: async_unload_entry implemented (__init__.py lines 84-102)
+
+  reauthentication-flow:
+    status: exempt
+    comment: HAEO is a local calculation integration that does not authenticate to external services
+
+  docs-configuration-parameters:
+    status: done
+    comment: Configuration schema documented in docs/reference/configuration-schema.md
+
+  docs-installation-parameters:
+    status: done
+    comment: Installation parameters covered in documentation
+
+  parallel-updates:
+    status: done
+    comment: PARALLEL_UPDATES = 0 set in sensor.py (unlimited updates safe for coordinator-based read-only sensors)
+
+# GOLD TIER REQUIREMENTS
+gold:
+  devices:
+    status: done
+    comment: Device registry integration implemented in sensors/__init__.py (async_register_devices)
+
+  diagnostics:
+    status: done
+    comment: diagnostics.py module created with async_get_config_entry_diagnostics, includes network structure, optimization results, redacted config data
+
+  discovery:
+    status: exempt
+    comment: HAEO is a virtual calculation hub that models energy flows, no physical devices to discover
+
+  discovery-update-info:
+    status: exempt
+    comment: Depends on discovery (G3), same exemption applies
+
+  reconfiguration-flow:
+    status: done
+    comment: Options flow implemented for hub and element reconfiguration (flows/options.py)
+
+  dynamic-devices:
+    status: done
+    comment: Subentry system allows adding elements (batteries, grids, loads) dynamically
+
+  stale-devices:
+    status: done
+    comment: async_remove_config_entry_device implemented in __init__.py to cleanup devices when elements are removed
+
+  entity-category:
+    status: done
+    comment: Sensors properly categorized - optimization status/duration marked as EntityCategory.DIAGNOSTIC (sensors/optimization.py)
+
+  entity-device-class:
+    status: done
+    comment: Sensors use appropriate device classes - SensorDeviceClass.POWER, ENERGY, BATTERY for respective sensor types (sensors/power.py, energy.py, soc.py)
+
+  entity-disabled-by-default:
+    status: done
+    comment: Optimization duration sensor set to entity_registry_enabled_default=False as it's technical diagnostic data
+
+  entity-translations:
+    status: done
+    comment: Translations implemented in translations/en.json with translation_key property
+
+  exception-translations:
+    status: review
+    comment: Need to verify all user-facing errors use translation keys
+
+  icon-translations:
+    status: review
+    comment: Need to verify if dynamic icon translations needed beyond standard icons
+
+  repair-issues:
+    status: done
+    comment: repairs.py module created with issue management for missing sensors, optimization failures, and invalid configs. Integrated into coordinator error paths with translation strings in translations/en.json
+
+  docs-examples:
+    status: done
+    comment: Comprehensive automation examples in docs/user-guide/automations.md with battery control, notifications, optimization responses
+
+  docs-use-cases:
+    status: done
+    comment: Use cases documented in README.md lines 195-213
+
+  docs-supported-devices:
+    status: exempt
+    comment: HAEO is a virtual integration working with any HA sensor data, no device compatibility list needed
+
+  docs-supported-functions:
+    status: review
+    comment: Need to verify docs/reference/sensors.md is complete
+
+  docs-known-limitations:
+    status: done
+    comment: Comprehensive limitations documented in docs/reference/limitations.md covering solver limits, optimization constraints, forecasting, battery modeling
+
+  docs-troubleshooting:
+    status: done
+    comment: Troubleshooting guide exists in docs/user-guide/troubleshooting.md
+
+  docs-data-update:
+    status: done
+    comment: Update mechanism documented in docs/user-guide/data-updates.md explaining event-based triggers, coordinator behavior, optimization frequency
+
+# PLATINUM TIER REQUIREMENTS
+platinum:
+  strict-typing:
+    status: done
+    comment: mypy strict mode enabled with zero errors, comprehensive type hints throughout
+
+  async-dependency:
+    status: done
+    comment: Pulp optimization runs in executor via async_add_executor_job (coordinator.py line 279), preventing event loop blocking
+
+  inject-websession:
+    status: exempt
+    comment: HAEO is a local calculation integration that performs mathematical optimization without any network I/O
+
+# SUMMARY
+summary:
+  total_rules: 67
+  done: 46
+  todo: 1
+  review: 3
+  exempt: 7
+  not_applicable: 2
+
+  completion_percentage: 69
+
+  blockers_for_platinum:
+    - test-coverage: Increase from 93% to >95% (Silver S2 requirement - need ~40 more statements)
+    - log-when-unavailable: Verify coordinator logs unavailability only once (Silver S3)
+    - icon-translations: Determine if dynamic icon translations needed (Gold G13)
+
+notes: |
+  HAEO is a local calculation integration that models energy optimization.
+  Several discovery and authentication requirements are exempt as the integration
+  works with local data without external connections.
+
+  Recent Gold Tier Achievements:
+  - repairs.py module: Missing sensors, optimization failures, invalid configs
+  - async_remove_config_entry_device: Stale device cleanup
+  - entity_disabled_by_default: Optimization duration sensor
+  - Comprehensive documentation: automations.md, limitations.md, data-updates.md, removal.md
+
+  Primary focus areas for Platinum:
+  1. Increase test coverage from 93% to >95% (add ~40 more statements covered)
+  2. Verify unavailability logging pattern
+  3. Review icon translation needs

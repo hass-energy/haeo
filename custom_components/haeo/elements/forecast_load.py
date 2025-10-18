@@ -1,6 +1,6 @@
 """Forecast load element configuration for HAEO integration."""
 
-from typing import Any, Literal, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 from custom_components.haeo.schema.fields import (
     NameFieldData,
@@ -8,6 +8,10 @@ from custom_components.haeo.schema.fields import (
     PowerForecastsFieldData,
     PowerForecastsFieldSchema,
 )
+
+ELEMENT_TYPE: Final = "forecast_load"
+
+CONF_FORECAST: Final = "forecast"
 
 
 class ForecastLoadConfigSchema(TypedDict):
@@ -29,7 +33,7 @@ class ForecastLoadConfigData(TypedDict):
 FORECAST_LOAD_CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
-def model_description(config: ForecastLoadConfigData) -> str:  # noqa: ARG001
+def model_description(config: ForecastLoadConfigData) -> str:
     """Generate model description string for forecast load element.
 
     Args:
@@ -39,4 +43,4 @@ def model_description(config: ForecastLoadConfigData) -> str:  # noqa: ARG001
         Formatted model description string.
 
     """
-    return "Forecast Load"
+    return f"Forecast load: {config['name']}"

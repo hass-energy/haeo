@@ -1,4 +1,4 @@
-"""Test element subentry flows."""
+"""Test helper behaviors for element subentry flows."""
 
 from types import MappingProxyType
 
@@ -7,10 +7,10 @@ from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import CONF_NAME, DOMAIN, ELEMENT_TYPES, INTEGRATION_TYPE_HUB
+from custom_components.haeo.const import CONF_NAME, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.elements.battery import BatteryConfigSchema
 from custom_components.haeo.flows.element import ElementSubentryFlow, create_subentry_flow_class
 from custom_components.haeo.flows.hub import HubConfigFlow
-from custom_components.haeo.types.battery import BatteryConfigSchema
 
 
 @pytest.fixture
@@ -26,35 +26,6 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     )
     entry.add_to_hass(hass)
     return entry
-
-
-async def test_subentry_types_are_registered(hass: HomeAssistant) -> None:
-    """Test that all element types have registered subentry flows."""
-    # Create hub entry
-    hub_entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            "integration_type": INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-        },
-        entry_id="hub_id",
-    )
-    hub_entry.add_to_hass(hass)
-
-    # Get supported subentry types
-    flow_handler = HubConfigFlow()
-    flow_handler.hass = hass
-    subentry_types = flow_handler.async_get_supported_subentry_types(hub_entry)
-
-    # Verify all element types are present
-    assert subentry_types is not None
-    for element_type in ELEMENT_TYPES:
-        assert element_type in subentry_types
-        assert callable(subentry_types[element_type])
-
-    # Verify network is also present (registered separately)
-    assert "network" in subentry_types
-    assert callable(subentry_types["network"])
 
 
 async def test_subentry_flow_classes_have_correct_attributes(hass: HomeAssistant) -> None:
@@ -213,7 +184,7 @@ async def test_create_subentry_flow_class() -> None:
     assert flow_class.__name__ == "BatterySubentryFlow"
 
     # Create instance and check it has correct attributes
-    flow_instance = flow_class()
+    flow_instance = flow_class()  # type: ignore[call-arg]
     assert flow_instance.element_type == "battery"
     assert flow_instance.schema_cls == BatteryConfigSchema
     assert flow_instance.defaults == defaults

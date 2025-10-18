@@ -6,8 +6,8 @@ from typing import Any
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.elements import ElementConfigSchema, assert_config_entry_exists, assert_subentry_has_name
 from custom_components.haeo.schema import schema_for_type
-from custom_components.haeo.types import ElementConfigSchema
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -146,10 +146,11 @@ class ElementSubentryFlow[T: type[ElementConfigSchema]](ConfigSubentryFlow):
         participants: dict[str, dict[str, Any]] = {}
         _LOGGER.debug("Getting participants from hub subentries for hub=%s", hub_entry_id)
 
-        hub_entry = self.hass.config_entries.async_get_entry(hub_entry_id)
-        if not hub_entry:
-            _LOGGER.warning("Hub entry %s not found", hub_entry_id)
-            return participants
+        # Use type-safe helper - hub_entry must exist since we control the IDs
+        hub_entry = assert_config_entry_exists(
+            self.hass.config_entries.async_get_entry(hub_entry_id),
+            hub_entry_id,
+        )
 
         _LOGGER.debug("Hub has %d subentries", len(hub_entry.subentries))
 
@@ -169,22 +170,24 @@ class ElementSubentryFlow[T: type[ElementConfigSchema]](ConfigSubentryFlow):
                 _LOGGER.debug("Skipping connection subentry: %s", subentry.data.get("name_value"))
                 continue
 
-            name = subentry.data.get("name_value")
-            if name:
-                # Convert subentry data to participant config format
-                participant_config = {
-                    CONF_ELEMENT_TYPE: subentry.subentry_type,
-                    **subentry.data,
-                }
-                participants[name] = participant_config
-                _LOGGER.debug(
-                    "Added participant: %s (type=%s, id=%s)",
-                    name,
-                    subentry.subentry_type,
-                    subentry.subentry_id,
-                )
-            else:
-                _LOGGER.warning("Subentry %s has no name_value", subentry.subentry_id)
+            # Use type-safe helper - name_value must exist for all element subentries
+            name = assert_subentry_has_name(
+                subentry.data.get("name_value"),
+                subentry.subentry_id,
+            )
+
+            # Convert subentry data to participant config format
+            participant_config = {
+                CONF_ELEMENT_TYPE: subentry.subentry_type,
+                **subentry.data,
+            }
+            participants[name] = participant_config
+            _LOGGER.debug(
+                "Added participant: %s (type=%s, id=%s)",
+                name,
+                subentry.subentry_type,
+                subentry.subentry_id,
+            )
 
         _LOGGER.debug("Found %d participants: %s", len(participants), list(participants.keys()))
         return participants

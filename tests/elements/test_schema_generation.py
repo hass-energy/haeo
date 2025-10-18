@@ -2,8 +2,8 @@
 
 import pytest
 
+from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.schema import schema_for_type
-from custom_components.haeo.types import ELEMENT_TYPES
 
 
 @pytest.fixture
@@ -21,7 +21,7 @@ def test_schema_for_type(
     """Test schema for type."""
 
     # Always pass participants - in real code this will be provided
-    schema = schema_for_type(config_class, **schema_params)
+    schema = schema_for_type(config_class, defaults=None, **schema_params)
 
     assert schema is not None
     # Just check that the schema has some fields

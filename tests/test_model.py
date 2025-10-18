@@ -6,7 +6,7 @@ from unittest.mock import Mock
 from pulp import value
 import pytest
 
-from custom_components.haeo.const import (
+from custom_components.haeo.elements import (
     ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_CONSTANT_LOAD,

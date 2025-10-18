@@ -9,7 +9,7 @@ Elements contribute decision variables, constraints, and costs to the optimizati
 
 **Model Classes**: `custom_components/haeo/model/*.py` - Create your element class inheriting from `Element`
 
-**Configuration Schema**: `types/entity_config.py` - Add `TypedDict` for your element's configuration
+**Configuration Schema**: `custom_components/haeo/elements/<element>.py` - Define `TypedDict` schemas and defaults for your element
 
 **Network Builder**: `coordinator.py` `_create_entity()` - Add case to instantiate your element from config
 

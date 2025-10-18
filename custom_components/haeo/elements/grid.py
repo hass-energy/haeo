@@ -1,6 +1,6 @@
 """Grid element configuration for HAEO integration."""
 
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.schema.fields import (
     NameFieldData,
@@ -10,6 +10,15 @@ from custom_components.haeo.schema.fields import (
     PricesSensorsAndForecastsFieldData,
     PricesSensorsAndForecastsFieldSchema,
 )
+
+ELEMENT_TYPE: Final = "grid"
+
+CONF_IMPORT_PRICE: Final = "import_price"
+CONF_EXPORT_PRICE: Final = "export_price"
+CONF_IMPORT_LIMIT: Final = "import_limit"
+CONF_EXPORT_LIMIT: Final = "export_limit"
+CONF_IMPORT_PRICE_FORECAST: Final = "import_price_forecast"
+CONF_EXPORT_PRICE_FORECAST: Final = "export_price_forecast"
 
 
 class GridConfigSchema(TypedDict):
@@ -46,8 +55,9 @@ def model_description(config: GridConfigData) -> str:
     import_kw = config.get("import_limit")
     export_kw = config.get("export_limit")
 
+    # Use type guard to check if at least one limit is set
     if import_kw is not None or export_kw is not None:
-        parts = []
+        parts: list[str] = []
         if import_kw is not None:
             parts.append(f"Import {import_kw:.1f}kW")
         if export_kw is not None:

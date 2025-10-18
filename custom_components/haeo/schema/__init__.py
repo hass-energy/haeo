@@ -1,19 +1,37 @@
 """Schema utilities for flattening and reconstructing HAEO type configurations."""
 
-from typing import Annotated, Any, TypeVar, Union, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, get_args, get_origin, get_type_hints
 from typing import get_origin as typing_get_origin
 
 import voluptuous as vol
 
 from custom_components.haeo.data.loader import ConstantLoader, Loader
-from custom_components.haeo.types import ELEMENT_TYPES, ElementConfigData, ElementConfigSchema
 
 from .fields import FieldMeta
+
+if TYPE_CHECKING:
+    from custom_components.haeo.elements import (
+        ElementConfigData,
+        ElementConfigSchema,
+        ElementRegistryEntry,
+        ElementType,
+    )
 
 T = TypeVar("T")
 
 
-def get_loader_instance(field_name: str, config_class: type) -> "Loader":
+def _get_registry_entry(element_type: ElementType) -> ElementRegistryEntry:
+    """Look up the registry entry for an element type."""
+
+    from custom_components.haeo.elements import ELEMENT_TYPES  # noqa: PLC0415
+
+    if element_type not in ELEMENT_TYPES:
+        msg = f"Invalid element type {element_type} - config flow validation failed"
+        raise RuntimeError(msg)
+    return ELEMENT_TYPES[element_type]
+
+
+def get_loader_instance(field_name: str, config_class: type) -> Loader:
     """Extract the loader instance from a field's FieldMeta annotation.
 
     This inspects the type annotations of a Data mode TypedDict to find the
@@ -49,7 +67,7 @@ def get_loader_instance(field_name: str, config_class: type) -> "Loader":
 
 
 def available(
-    config: "ElementConfigSchema",
+    config: ElementConfigSchema,
     **kwargs: Any,
 ) -> bool:
     """Check if all fields in a config are available for loading.
@@ -63,10 +81,9 @@ def available(
 
     """
     # Look up data class from element type
-    element_types = ELEMENT_TYPES.get(config["element_type"])
-    if not element_types:
-        return False
-    _, data_config_class, _ = element_types
+    # Element type must be valid since it was validated during config flow
+    element_type = config["element_type"]
+    data_config_class = _get_registry_entry(element_type).data
 
     hints = get_type_hints(data_config_class, include_extras=True)
 
@@ -88,9 +105,9 @@ def available(
 
 
 async def load(
-    config: "ElementConfigSchema",
+    config: ElementConfigSchema,
     **kwargs: Any,
-) -> "ElementConfigData":
+) -> ElementConfigData:
     """Load all fields in a config, converting from Schema to Data mode.
 
     Args:
@@ -102,11 +119,9 @@ async def load(
 
     """
     # Look up data class from element type
-    element_types = ELEMENT_TYPES.get(config["element_type"])
-    if not element_types:
-        msg = f"Unknown element type: {config['element_type']}"
-        raise ValueError(msg)
-    _, data_config_class, _ = element_types
+    # Element type must be valid since it was validated during config flow
+    element_type = config["element_type"]
+    data_config_class = _get_registry_entry(element_type).data
 
     hints = get_type_hints(data_config_class, include_extras=True)
     loaded: dict[str, Any] = {}

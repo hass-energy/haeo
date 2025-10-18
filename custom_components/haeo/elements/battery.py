@@ -1,6 +1,6 @@
 """Battery element configuration for HAEO integration."""
 
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.schema.fields import (
     BatterySOCFieldData,
@@ -18,6 +18,18 @@ from custom_components.haeo.schema.fields import (
     PriceFieldData,
     PriceFieldSchema,
 )
+
+ELEMENT_TYPE: Final = "battery"
+
+CONF_CAPACITY: Final = "capacity"
+CONF_INITIAL_CHARGE_PERCENTAGE: Final = "initial_charge_percentage"
+CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
+CONF_MAX_CHARGE_PERCENTAGE: Final = "max_charge_percentage"
+CONF_EFFICIENCY: Final = "efficiency"
+CONF_MAX_CHARGE_POWER: Final = "max_charge_power"
+CONF_MAX_DISCHARGE_POWER: Final = "max_discharge_power"
+CONF_CHARGE_COST: Final = "charge_cost"
+CONF_DISCHARGE_COST: Final = "discharge_cost"
 
 
 class BatteryConfigSchema(TypedDict):

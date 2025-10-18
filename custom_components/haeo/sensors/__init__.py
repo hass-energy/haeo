@@ -9,30 +9,33 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from custom_components.haeo.const import (
-    ATTR_ENERGY,
-    ATTR_POWER,
-    CONF_ELEMENT_TYPE,
-    CONF_PARTICIPANTS,
-    DOMAIN,
-    SENSOR_TYPE_ENERGY,
-    SENSOR_TYPE_POWER,
-    SENSOR_TYPE_SOC,
-)
+from custom_components.haeo.const import ATTR_ENERGY, ATTR_POWER, CONF_ELEMENT_TYPE, CONF_PARTICIPANTS, DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.elements import ElementConfigData, assert_subentry_has_name, get_model_description
 from custom_components.haeo.schema import load
-from custom_components.haeo.sensors.energy import HaeoEnergySensor
+from custom_components.haeo.sensors.energy import SENSOR_TYPE_ENERGY, HaeoEnergySensor
 from custom_components.haeo.sensors.optimization import (
+    SENSOR_TYPE_OPTIMIZATION_COST,
+    SENSOR_TYPE_OPTIMIZATION_DURATION,
+    SENSOR_TYPE_OPTIMIZATION_STATUS,
     HaeoOptimizationCostSensor,
     HaeoOptimizationDurationSensor,
     HaeoOptimizationStatusSensor,
 )
-from custom_components.haeo.sensors.power import HaeoPowerSensor
-from custom_components.haeo.sensors.soc import HaeoSOCSensor
+from custom_components.haeo.sensors.power import SENSOR_TYPE_AVAILABLE_POWER, SENSOR_TYPE_POWER, HaeoPowerSensor
+from custom_components.haeo.sensors.soc import SENSOR_TYPE_SOC, HaeoSOCSensor
 from custom_components.haeo.sensors.types import DataSource
-from custom_components.haeo.types import ElementConfigData, get_model_description
 
 _LOGGER = logging.getLogger(__name__)
+
+SENSOR_TYPES: tuple[str, ...] = (
+    SENSOR_TYPE_OPTIMIZATION_COST,
+    SENSOR_TYPE_OPTIMIZATION_STATUS,
+    SENSOR_TYPE_OPTIMIZATION_DURATION,
+    SENSOR_TYPE_POWER,
+    SENSOR_TYPE_ENERGY,
+    SENSOR_TYPE_SOC,
+)
 
 
 async def _get_model_description(element_config: dict[str, Any], hass: HomeAssistant) -> str:
@@ -80,10 +83,8 @@ async def async_register_devices(
 
     # Register each subentry's device with explicit subentry association
     for subentry in config_entry.subentries.values():
-        element_name = subentry.data.get("name_value")
-        if not element_name:
-            _LOGGER.warning("Subentry %s has no name_value, skipping device registration", subentry.subentry_id)
-            continue
+        # Use type-safe helper - name_value must exist for all element subentries
+        element_name = assert_subentry_has_name(subentry.data.get("name_value"), subentry.subentry_id)
 
         element_type = subentry.subentry_type
 
@@ -277,7 +278,7 @@ def _get_element_sensor_configs(
                     etype,
                     dev_id,
                     data_source=DataSource.FORECAST,
-                    translation_key="available_power",
+                    translation_key=SENSOR_TYPE_AVAILABLE_POWER,
                     name_suffix="Available Power",
                 )
             }

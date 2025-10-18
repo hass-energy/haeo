@@ -10,21 +10,15 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import async_reload_entry, async_setup_entry, async_unload_entry
-from custom_components.haeo.const import (
-    CONF_CAPACITY,
-    CONF_ELEMENT_TYPE,
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, DOMAIN
+from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID
+from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
+from custom_components.haeo.elements.connection import CONF_MAX_POWER, CONF_SOURCE, CONF_TARGET
+from custom_components.haeo.elements.grid import (
     CONF_EXPORT_LIMIT,
     CONF_EXPORT_PRICE,
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_MAX_POWER,
-    CONF_SOURCE,
-    CONF_TARGET,
-    DOMAIN,
-    ELEMENT_TYPE_BATTERY,
-    ELEMENT_TYPE_CONNECTION,
-    ELEMENT_TYPE_GRID,
 )
 
 
