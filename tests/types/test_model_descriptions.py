@@ -9,10 +9,10 @@ def test_battery_get_model_description() -> None:
     """Test battery model description generation."""
     config = {
         "element_type": "battery",
-        "name_value": "Test Battery",
-        "capacity_value": 10000.0,
-        "charge_rate_value": 5000.0,
-        "discharge_rate_value": 5000.0,
+        "name": "Test Battery",
+        "capacity": 10000.0,
+        "max_charge_power": 5000.0,
+        "max_discharge_power": 5000.0,
     }
 
     description = get_model_description(config)
@@ -70,8 +70,8 @@ def test_constant_load_get_model_description() -> None:
     """Test constant load model description generation."""
     config = {
         "element_type": "constant_load",
-        "name_value": "Test Load",
-        "power_value": 2000.0,
+        "name": "Test Load",
+        "power": 2000.0,
     }
 
     description = get_model_description(config)

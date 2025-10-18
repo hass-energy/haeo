@@ -1,10 +1,13 @@
 """Test element subentry flows."""
 
+from types import MappingProxyType
+
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPES, INTEGRATION_TYPE_HUB
+from custom_components.haeo.const import CONF_NAME, DOMAIN, ELEMENT_TYPES, INTEGRATION_TYPE_HUB
 from custom_components.haeo.flows.element import ElementSubentryFlow, create_subentry_flow_class
 from custom_components.haeo.flows.hub import HubConfigFlow
 from custom_components.haeo.types.battery import BatteryConfigSchema
@@ -101,30 +104,32 @@ async def test_get_subentries(hass: HomeAssistant) -> None:
     )
     hub_entry.add_to_hass(hass)
 
-    # Create some subentries
-    battery1 = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            CONF_ELEMENT_TYPE: "battery",
-            "parent_entry_id": hub_entry.entry_id,
-            "name_value": "Battery 1",
-            "capacity_value": 10000.0,
-        },
-        entry_id="battery1_id",
+    # Create subentries using ConfigSubentry
+    battery1 = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "name_value": "Battery 1",
+                "capacity_value": 10000.0,
+            }
+        ),
+        subentry_type="battery",
+        title="Battery 1",
+        unique_id=None,
     )
-    battery1.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(hub_entry, battery1)
 
-    battery2 = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            CONF_ELEMENT_TYPE: "battery",
-            "parent_entry_id": hub_entry.entry_id,
-            "name_value": "Battery 2",
-            "capacity_value": 20000.0,
-        },
-        entry_id="battery2_id",
+    battery2 = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "name_value": "Battery 2",
+                "capacity_value": 20000.0,
+            }
+        ),
+        subentry_type="battery",
+        title="Battery 2",
+        unique_id=None,
     )
-    battery2.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(hub_entry, battery2)
 
     # Create flow instance and test _get_participant_entries
     flow = ElementSubentryFlow("battery", BatteryConfigSchema, {})
@@ -153,36 +158,45 @@ async def test_get_subentries_with_exclusion(hass: HomeAssistant) -> None:
     )
     hub_entry.add_to_hass(hass)
 
-    # Create subentries
-    battery1 = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            CONF_ELEMENT_TYPE: "battery",
-            "parent_entry_id": hub_entry.entry_id,
-            "name_value": "Battery 1",
-            "capacity_value": 10000.0,
-        },
-        entry_id="battery1_id",
+    # Create subentries using ConfigSubentry
+    battery1 = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "name_value": "Battery 1",
+                "capacity_value": 10000.0,
+            }
+        ),
+        subentry_type="battery",
+        title="Battery 1",
+        unique_id=None,
     )
-    battery1.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(hub_entry, battery1)
 
-    battery2 = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            CONF_ELEMENT_TYPE: "battery",
-            "parent_entry_id": hub_entry.entry_id,
-            "name_value": "Battery 2",
-            "capacity_value": 20000.0,
-        },
-        entry_id="battery2_id",
+    battery2 = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "name_value": "Battery 2",
+                "capacity_value": 20000.0,
+            }
+        ),
+        subentry_type="battery",
+        title="Battery 2",
+        unique_id=None,
     )
-    battery2.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(hub_entry, battery2)
 
     # Create flow instance and test with exclusion
     flow = ElementSubentryFlow("battery", BatteryConfigSchema, {})
     flow.hass = hass
 
-    participants = flow._get_participant_entries(hub_entry.entry_id, exclude_subentry_id="battery1_id")
+    # Get subentry ID for battery1 to exclude it
+    battery1_id = None
+    for subentry_id, subentry in hub_entry.subentries.items():
+        if subentry.data.get("name_value") == "Battery 1":
+            battery1_id = subentry_id
+            break
+
+    participants = flow._get_participant_entries(hub_entry.entry_id, exclude_subentry_id=battery1_id)
 
     # Should only have battery2
     assert len(participants) == 1

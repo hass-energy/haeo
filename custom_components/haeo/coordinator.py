@@ -213,7 +213,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         timestamps = []
 
         for i in range(self.network.n_periods):
-            period_time = start_time + timedelta(seconds=self.network.period * i)
+            period_time = start_time + timedelta(hours=self.network.period * i)
             timestamps.append(period_time.isoformat())
 
         return timestamps

@@ -1,15 +1,18 @@
 """Main plotting functions for HAEO optimization visualization."""
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 import logging
 import traceback
 from typing import Any
 
 from homeassistant.core import HomeAssistant
+import matplotlib as mpl
 from matplotlib import dates, patches
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
+
+# Use non-GUI backend for tests (required for running matplotlib in executor threads)
+mpl.use("Agg")
 
 from .colors import ColorMapper, get_element_color
 from .consumption_layer import plot_consumption_layer
@@ -47,53 +50,39 @@ def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, Any]:
     }
 
     # Get all HAEO power and SOC sensors
-    try:
-        # Use async method since we're likely in the event loop
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # We're in the event loop, use a different approach
-            # Get all sensor entities and filter them
-            all_sensors = list(hass.states.entity_ids("sensor"))
-            power_sensors = [
-                entity_id for entity_id in all_sensors if entity_id.startswith("sensor.haeo_") and "_power" in entity_id
-            ]
-            soc_sensors = [
-                entity_id
-                for entity_id in all_sensors
-                if entity_id.startswith("sensor.haeo_") and "state_of_charge" in entity_id
-            ]
-        else:
-            power_sensors = [
-                entity_id
-                for entity_id in hass.states.entity_ids()
-                if entity_id.startswith("sensor.haeo_") and "_power" in entity_id
-            ]
-            soc_sensors = [
-                entity_id
-                for entity_id in hass.states.entity_ids()
-                if entity_id.startswith("sensor.haeo_") and "state_of_charge" in entity_id
-            ]
-    except RuntimeError:
-        # Fallback: get all entities and filter
-        all_entities = list(hass.states.async_entity_ids())
-        power_sensors = [
-            entity_id for entity_id in all_entities if entity_id.startswith("sensor.haeo_") and "_power" in entity_id
-        ]
-        soc_sensors = [
-            entity_id
-            for entity_id in all_entities
-            if entity_id.startswith("sensor.haeo_") and "state_of_charge" in entity_id
-        ]
+    all_sensors = list(hass.states.async_all("sensor"))
+    power_sensors = [
+        state.entity_id
+        for state in all_sensors
+        if state.entity_id.startswith("sensor.") and "haeo" in state.entity_id and "_power" in state.entity_id
+    ]
+    soc_sensors = [
+        state.entity_id
+        for state in all_sensors
+        if (
+            state.entity_id.startswith("sensor.") and "haeo" in state.entity_id and "state_of_charge" in state.entity_id
+        )
+    ]
 
     haeo_sensors = power_sensors
     if not haeo_sensors:
         return forecast_data
 
-    # Extract time index from first sensor with timestamped forecast data
+    # Extract time index from first sensor with forecast data
     timestamps = None
     for sensor_name in haeo_sensors:
         sensor = hass.states.get(sensor_name)
-        if sensor and "timestamped_forecast" in sensor.attributes:
+        if not sensor:
+            continue
+
+        if "forecast" in sensor.attributes:
+            forecast_attr = sensor.attributes["forecast"]
+            if isinstance(forecast_attr, dict) and forecast_attr:
+                # Extract timestamps from forecast dict keys
+                timestamps = list(forecast_attr.keys())
+                forecast_data["time_index"] = timestamps
+                break
+        elif "timestamped_forecast" in sensor.attributes:
             timestamped = sensor.attributes["timestamped_forecast"]
             if isinstance(timestamped, list) and timestamped:
                 # Extract timestamps from timestamped forecast
@@ -131,19 +120,29 @@ def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, Any]:
 
         # Extract forecast values
         sensor_values = []
-        if "forecast" in sensor.attributes and isinstance(sensor.attributes["forecast"], list):
-            forecast_list = sensor.attributes["forecast"]
-            sensor_values = [float(v) if v is not None else 0.0 for v in forecast_list]
+        if "forecast" in sensor.attributes:
+            forecast_data_attr = sensor.attributes["forecast"]
+            if isinstance(forecast_data_attr, dict):
+                # Forecast is a dict mapping timestamps to values
+                sensor_values = list(forecast_data_attr.values())
+            elif isinstance(forecast_data_attr, list):
+                # Forecast is a list of values
+                sensor_values = [float(v) if v is not None else 0.0 for v in forecast_data_attr]
         elif "timestamped_forecast" in sensor.attributes:
             timestamped = sensor.attributes["timestamped_forecast"]
             sensor_values = [float(item.get("value", 0.0)) for item in timestamped]
-        else:
+
+        if not sensor_values:
             # No forecast data available
             continue
 
         # Clean up sensor name for display
-        # First replace underscores with spaces, then remove the suffix
-        clean_name = sensor_name.replace("sensor.haeo_", "").replace("_", " ").title()
+        # Remove sensor prefix and _haeo_ pattern, then clean up
+        clean_name = sensor_name.replace("sensor.", "")
+        # Remove element_type prefix and _haeo_ infix
+        if f"{element_type}_haeo_" in clean_name:
+            clean_name = clean_name.replace(f"{element_type}_haeo_", "")
+        clean_name = clean_name.replace("_", " ").title()
 
         # Handle based on element type and data source
         if data_source == "optimized":
@@ -195,13 +194,19 @@ def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, Any]:
 
         # Extract SOC values
         soc_values = []
-        if "forecast" in sensor.attributes and isinstance(sensor.attributes["forecast"], list):
-            forecast_list = sensor.attributes["forecast"]
-            soc_values = [float(v) if v is not None else 0.0 for v in forecast_list]
+        if "forecast" in sensor.attributes:
+            forecast_attr = sensor.attributes["forecast"]
+            if isinstance(forecast_attr, dict):
+                # Forecast is a dict mapping timestamps to values
+                soc_values = list(forecast_attr.values())
+            elif isinstance(forecast_attr, list):
+                # Forecast is a list of values
+                soc_values = [float(v) if v is not None else 0.0 for v in forecast_attr]
         elif "timestamped_forecast" in sensor.attributes:
             timestamped = sensor.attributes["timestamped_forecast"]
             soc_values = [float(item.get("value", 0.0)) for item in timestamped]
-        else:
+
+        if not soc_values:
             # No forecast data available
             continue
 

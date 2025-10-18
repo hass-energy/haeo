@@ -58,6 +58,12 @@ class HaeoSensorBase(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity)
         # This ensures proper subentry association without relying on device_info matching
         device_reg = dr.async_get(coordinator.hass)
         self.device_entry = device_reg.async_get(device_id)
+        self._device_id = device_id
+
+    @property
+    def device_id(self) -> str | None:
+        """Return the device ID this entity is linked to."""
+        return self._device_id if self.device_entry else None
 
     @property
     def available(self) -> bool:

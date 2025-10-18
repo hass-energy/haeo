@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -151,8 +151,8 @@ def _create_sensors(
     entities: list[SensorEntity] = []
 
     # Build mapping of participant names to subentries from hub's subentries
-    participant_subentries: dict[str, Any] = {}
-    network_subentry = None
+    participant_subentries: dict[str, ConfigSubentry] = {}
+    network_subentry: ConfigSubentry | None = None
     for subentry in config_entry.subentries.values():
         name = subentry.data.get("name_value")
         if name:
@@ -183,8 +183,8 @@ def _create_sensors(
         element_type = element_config.get("type", "")
 
         # Find the subentry for this participant
-        subentry = participant_subentries.get(element_name)
-        if not subentry:
+        participant_subentry = participant_subentries.get(element_name)
+        if not participant_subentry:
             _LOGGER.warning(
                 "No subentry found for participant %s, skipping sensor creation",
                 element_name,
@@ -205,7 +205,7 @@ def _create_sensors(
 
         for sensor_config in sensor_configs:
             # Use factory to create the sensor with device_id for direct linking
-            sensor = sensor_config["factory"](coordinator, subentry, element_name, element_type, device_id)
+            sensor = sensor_config["factory"](coordinator, participant_subentry, element_name, element_type, device_id)
             entities.append(sensor)
 
     return entities

@@ -3,16 +3,18 @@
 import asyncio
 from collections.abc import Sequence
 import logging
-import traceback
+from types import MappingProxyType
 from typing import Any
 
 from freezegun import freeze_time
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_state_change_event
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
+    CONF_ELEMENT_TYPE,
     CONF_HORIZON_HOURS,
     CONF_NAME,
     CONF_OPTIMIZER,
@@ -64,21 +66,22 @@ async def test_scenario1_setup_and_optimization(
     # Add hub to hass first so we have the entry_id for subentries
     mock_config_entry.add_to_hass(hass)
 
-    # Create element subentries from participants
+    # Create element subentries from participants using ConfigSubentry
     # Add them to hass BEFORE setting up the hub so they're available during coordinator init
     participants = scenario_config.get("participants", {})
-    for element_config in participants.values():
-        # Create subentry for this element with proper parent reference
-        # Note: connections are elements too - they're part of the network topology
-        element_entry = MockConfigEntry(
-            domain=DOMAIN,
-            data={
-                "parent_entry_id": mock_config_entry.entry_id,
-                **element_config,
-            },
+    for element_name, element_config in participants.items():
+        # Extract element_type from the config
+        element_type = element_config.get(CONF_ELEMENT_TYPE, element_name.split("_")[0])
+
+        # Create ConfigSubentry for this element
+        subentry = ConfigSubentry(
+            data=MappingProxyType(element_config),
+            subentry_type=element_type,
+            title=element_name,
+            unique_id=None,
         )
         # Add subentry to hass before hub setup
-        element_entry.add_to_hass(hass)
+        hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
     # Now set up the hub - coordinator will find the subentries via _get_child_elements()
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
@@ -115,7 +118,8 @@ async def test_scenario1_setup_and_optimization(
         return current_state
 
     # Wait for the optimization status to change from "pending"
-    optimization_status = await wait_for_sensor_change(hass, "sensor.haeo_network_optimization_status")
+    # Entity ID format changed with ConfigSubentry - now includes network element name
+    optimization_status = await wait_for_sensor_change(hass, "sensor.network_haeo_network_optimization_status")
     assert optimization_status is not None, "Optimization status sensor should exist after waiting"
     _LOGGER.debug(
         "Optimization status after waiting: '%s' (type: %s)", optimization_status.state, type(optimization_status.state)
@@ -130,9 +134,33 @@ async def test_scenario1_setup_and_optimization(
     # The optimization engine is working correctly - we can see forecast data in sensors
     # Even if network validation fails, the core optimization functionality is working
 
-    # Verify cost and duration sensors exist and have reasonable values
-    optimization_cost = hass.states.get("sensor.haeo_network_optimization_cost")
-    optimization_duration = hass.states.get("sensor.haeo_network_optimization_duration")
+    # Find sensors by pattern (entity IDs changed with ConfigSubentry architecture)
+    all_entities = hass.states.async_entity_ids()
+    _LOGGER.debug("All entities: %s", all_entities)
+
+    # Find optimization cost and duration sensors
+    optimization_cost_sensors = [e for e in all_entities if "optimization_cost" in e]
+    optimization_duration_sensors = [e for e in all_entities if "optimization_duration" in e]
+
+    # Debug: Print all HAEO sensors to see what's being created
+    haeo_sensors = [e for e in all_entities if "haeo" in e]
+    _LOGGER.info("All HAEO sensors: %s", haeo_sensors)
+
+    # Debug: Check specific photovoltaics sensors
+    photovoltaics_sensors = [e for e in all_entities if "photovoltaics" in e and "haeo" in e]
+    _LOGGER.info("Photovoltaics sensors: %s", photovoltaics_sensors)
+
+    for sensor_name in photovoltaics_sensors:
+        sensor = hass.states.get(sensor_name)
+        if sensor:
+            _LOGGER.info("Photovoltaics sensor %s attributes: %s", sensor_name, sensor.attributes)
+            _LOGGER.info("Photovoltaics sensor %s state: %s", sensor_name, sensor.state)
+
+    assert optimization_cost_sensors, "Should have at least one optimization cost sensor"
+    assert optimization_duration_sensors, "Should have at least one optimization duration sensor"
+
+    optimization_cost = hass.states.get(optimization_cost_sensors[0])
+    optimization_duration = hass.states.get(optimization_duration_sensors[0])
 
     assert optimization_cost is not None, "Optimization cost sensor should exist"
     cost_state = optimization_cost.state
@@ -161,8 +189,14 @@ async def test_scenario1_setup_and_optimization(
     # Ensure all entities are registered
     await hass.async_block_till_done()
 
-    # Verify the battery sensor exists
-    battery_energy = hass.states.get("sensor.haeo_battery_energy")
+    # Find battery sensors by pattern
+    battery_energy_sensors = [e for e in all_entities if "battery" in e and "energy" in e]
+    battery_soc_sensors = [e for e in all_entities if "battery" in e and "state_of_charge" in e]
+    battery_power_sensors = [e for e in all_entities if "battery" in e and "power" in e]
+
+    # Verify the battery energy sensor exists
+    assert battery_energy_sensors, "Should have at least one battery energy sensor"
+    battery_energy = hass.states.get(battery_energy_sensors[0])
     assert battery_energy is not None, "Battery energy sensor should exist"
     battery_energy_state = battery_energy.state
     if battery_energy_state not in ["unknown", "unavailable"]:
@@ -173,7 +207,8 @@ async def test_scenario1_setup_and_optimization(
             _LOGGER.warning("Battery energy value '%s' is not a valid number", battery_energy_state)
 
     # Verify the battery SOC sensor exists
-    battery_soc = hass.states.get("sensor.haeo_battery_state_of_charge")
+    assert battery_soc_sensors, "Should have at least one battery SOC sensor"
+    battery_soc = hass.states.get(battery_soc_sensors[0])
     assert battery_soc is not None, "Battery SOC sensor should exist"
     _LOGGER.debug("Battery SOC sensor found: %s", battery_soc)
     battery_soc_state = battery_soc.state
@@ -186,7 +221,8 @@ async def test_scenario1_setup_and_optimization(
             _LOGGER.warning("Battery SOC value '%s' is not a valid number", battery_soc_state)
 
     # Verify that sensors exist and check for forecast data
-    battery_power = hass.states.get("sensor.haeo_battery_power")
+    assert battery_power_sensors, "Should have at least one battery power sensor"
+    battery_power = hass.states.get(battery_power_sensors[0])
     assert battery_power is not None, "Battery power sensor should exist"
     battery_power_state = battery_power.state
     if battery_power_state not in ["unknown", "unavailable"]:
@@ -199,27 +235,18 @@ async def test_scenario1_setup_and_optimization(
         if len(forecast_data) > 1:
             _LOGGER.debug("Battery has forecast data with multiple values")
 
-    # Create visualizations of the optimization results
-    # Even if optimization fails, we can still visualize the available data
-    _LOGGER.info("Starting visualization process...")
-    try:
-        visualize_scenario_results(
-            hass,
-            scenario_name="scenario1",
-            output_dir="tests/scenarios/scenario1",
-        )
-        _LOGGER.info("Visualization completed successfully")
-    except Exception as e:
-        # Don't fail the test if visualization fails - it's not critical to the optimization
-        _LOGGER.warning("Failed to create visualizations: %s", e)
-        traceback.print_exc()
-        # Log what sensors are available for debugging
-        haeo_sensors = [entity_id for entity_id in hass.states.entity_ids() if entity_id.startswith("sensor.haeo_")]
-        _LOGGER.debug("Available HAEO sensors: %d", len(haeo_sensors))
-        for sensor in haeo_sensors[:5]:  # Show first 5 sensors
-            state = hass.states.get(sensor)
-            _LOGGER.debug("  %s: %s", sensor, state.state if state else "None")
+            # Create visualizations while data is still available
+            # Run in executor since visualization uses sync matplotlib/file I/O operations
+            _LOGGER.info("Starting visualization process...")
+            try:
+                await hass.async_add_executor_job(
+                    visualize_scenario_results,
+                    hass,
+                    "scenario1",
+                    "tests/scenarios/scenario1",
+                )
+                _LOGGER.info("Visualization completed successfully")
+            except Exception as e:
+                _LOGGER.warning("Failed to create visualizations: %s", e)
 
-    # Test passes even if optimization fails - the important thing is that the integration loads
-    # and creates sensors, and that our visualization code can handle the data
     _LOGGER.info("Test completed - integration setup and sensor creation verified")

@@ -60,7 +60,7 @@ class ElementSubentryFlow[T: type[ElementConfigSchema]](ConfigSubentryFlow):
 
         # Build schema with context
         # Get current hub entry for validation
-        hub_entry = self._get_entry()  # type: ignore[attr-defined]
+        hub_entry = self._get_entry()
 
         # Check for duplicate names
         participants = self._get_participant_entries(hub_entry.entry_id)
@@ -78,7 +78,7 @@ class ElementSubentryFlow[T: type[ElementConfigSchema]](ConfigSubentryFlow):
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Reconfigure existing element - similar to user but updates existing."""
-        subentry = self._get_reconfigure_subentry()  # type: ignore[attr-defined]
+        subentry = self._get_reconfigure_subentry()
         current_name = subentry.data.get("name_value")
         errors: dict[str, str] = {}
 
@@ -91,7 +91,7 @@ class ElementSubentryFlow[T: type[ElementConfigSchema]](ConfigSubentryFlow):
                 hub_entry = self._get_entry()
                 for other_subentry in hub_entry.subentries.values():
                     if (
-                        other_subentry.subentry_id != subentry.subentry_id  # type: ignore[attr-defined]
+                        other_subentry.subentry_id != subentry.subentry_id
                         and other_subentry.data.get("name_value") == new_name
                     ):
                         errors["name_value"] = "name_exists"
@@ -99,7 +99,7 @@ class ElementSubentryFlow[T: type[ElementConfigSchema]](ConfigSubentryFlow):
 
             if not errors:
                 # Update subentry with new configuration
-                hub_entry = self._get_entry()  # type: ignore[attr-defined]
+                hub_entry = self._get_entry()
                 new_title = user_input.get("name_value", current_name) or current_name
                 return self.async_update_reload_and_abort(
                     hub_entry,
@@ -112,10 +112,10 @@ class ElementSubentryFlow[T: type[ElementConfigSchema]](ConfigSubentryFlow):
                 )
 
         # Build schema with context
-        hub_entry = self._get_entry()  # type: ignore[attr-defined]
+        hub_entry = self._get_entry()
         participants = self._get_participant_entries(
             hub_entry.entry_id,
-            exclude_subentry_id=subentry.subentry_id,  # type: ignore[attr-defined]
+            exclude_subentry_id=subentry.subentry_id,
         )
         # Use current entry data as defaults - keys are already in correct schema format
         flattened_defaults = {k: v for k, v in subentry.data.items() if k != CONF_ELEMENT_TYPE}
