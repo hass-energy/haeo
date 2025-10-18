@@ -108,7 +108,7 @@ When adding new element types:
 
 1. Add to `ELEMENT_TYPES` in `elements/__init__.py`
 2. Add test data in `tests/flows/test_data/`
-3. Parameterized tests automatically include the new type via `SUPPORTED_ELEMENT_TYPES`
+3. Parameterized tests automatically include the new type by iterating over `tuple(ELEMENT_TYPES)`
 
 Parameterized tests marked with `@pytest.mark.parametrize` run once per element type.
 

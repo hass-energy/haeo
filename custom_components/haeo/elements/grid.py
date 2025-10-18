@@ -47,13 +47,13 @@ class GridConfigData(TypedDict):
     export_limit: NotRequired[PowerFieldData]
 
 
-GRID_CONFIG_DEFAULTS: dict[str, Any] = {}
+CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
 def model_description(config: GridConfigData) -> str:
     """Generate device model string from grid configuration."""
-    import_kw = config.get("import_limit")
-    export_kw = config.get("export_limit")
+    import_kw = config.get(CONF_IMPORT_LIMIT)
+    export_kw = config.get(CONF_EXPORT_LIMIT)
 
     # Use type guard to check if at least one limit is set
     if import_kw is not None or export_kw is not None:

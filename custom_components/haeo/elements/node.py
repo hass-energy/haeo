@@ -21,17 +21,17 @@ class NodeConfigData(TypedDict):
     name: NameFieldData
 
 
-NODE_CONFIG_DEFAULTS: dict[str, Any] = {}
+CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
-def model_description(config: NodeConfigData) -> str:
+def model_description(_config: NodeConfigData) -> str:
     """Generate model description string for node element.
 
     Args:
-        config: Node configuration data.
+        _config: Node configuration data.
 
     Returns:
         Formatted model description string.
 
     """
-    return f"Node: {config['name']}"
+    return "Node"

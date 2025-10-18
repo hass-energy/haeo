@@ -64,19 +64,19 @@ class BatteryConfigData(TypedDict):
     discharge_cost: NotRequired[PriceFieldData]
 
 
-BATTERY_CONFIG_DEFAULTS: dict[str, Any] = {
-    "min_charge_percentage": 10.0,
-    "max_charge_percentage": 90.0,
-    "efficiency": 99.0,
+CONFIG_DEFAULTS: dict[str, Any] = {
+    CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+    CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+    CONF_EFFICIENCY: 99.0,
 }
 
 
 def model_description(config: BatteryConfigData) -> str:
     """Generate device model string from battery configuration."""
-    capacity_kwh = config["capacity"] / 1000  # Convert Wh to kWh
+    capacity_kwh = config[CONF_CAPACITY]
 
-    charge_kw = config.get("max_charge_power")
-    discharge_kw = config.get("max_discharge_power")
+    charge_kw = config.get(CONF_MAX_CHARGE_POWER)
+    discharge_kw = config.get(CONF_MAX_DISCHARGE_POWER)
 
     if charge_kw is not None and discharge_kw is not None:
         return f"Battery {capacity_kwh:.1f}kWh, {charge_kw:.1f}kW charge / {discharge_kw:.1f}kW discharge"

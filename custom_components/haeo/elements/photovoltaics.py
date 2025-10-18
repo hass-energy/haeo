@@ -45,19 +45,19 @@ class PhotovoltaicsConfigData(TypedDict):
     curtailment: NotRequired[BooleanFieldData]
 
 
-PHOTOVOLTAICS_CONFIG_DEFAULTS: dict[str, Any] = {
-    "curtailment": False,
+CONFIG_DEFAULTS: dict[str, Any] = {
+    CONF_CURTAILMENT: False,
 }
 
 
-def model_description(config: PhotovoltaicsConfigData) -> str:
+def model_description(_config: PhotovoltaicsConfigData) -> str:
     """Generate model description string for photovoltaics element.
 
     Args:
-        config: Photovoltaics configuration data.
+        _config: Photovoltaics configuration data.
 
     Returns:
         Formatted model description string.
 
     """
-    return f"Photovoltaics: {config['name']}"
+    return "Solar"

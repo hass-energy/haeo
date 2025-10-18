@@ -5,27 +5,7 @@ from typing import Any, Literal, NamedTuple, Required, TypedDict
 
 from homeassistant.config_entries import ConfigEntry
 
-from .battery import BATTERY_CONFIG_DEFAULTS, BatteryConfigData, BatteryConfigSchema
-from .battery import ELEMENT_TYPE as ELEMENT_TYPE_BATTERY
-from .battery import model_description as battery_model_description
-from .connection import CONNECTION_CONFIG_DEFAULTS, ConnectionConfigData, ConnectionConfigSchema
-from .connection import ELEMENT_TYPE as ELEMENT_TYPE_CONNECTION
-from .connection import model_description as connection_model_description
-from .constant_load import CONSTANT_LOAD_CONFIG_DEFAULTS, ConstantLoadConfigData, ConstantLoadConfigSchema
-from .constant_load import ELEMENT_TYPE as ELEMENT_TYPE_CONSTANT_LOAD
-from .constant_load import model_description as constant_load_model_description
-from .forecast_load import ELEMENT_TYPE as ELEMENT_TYPE_FORECAST_LOAD
-from .forecast_load import FORECAST_LOAD_CONFIG_DEFAULTS, ForecastLoadConfigData, ForecastLoadConfigSchema
-from .forecast_load import model_description as forecast_load_model_description
-from .grid import ELEMENT_TYPE as ELEMENT_TYPE_GRID
-from .grid import GRID_CONFIG_DEFAULTS, GridConfigData, GridConfigSchema
-from .grid import model_description as grid_model_description
-from .node import ELEMENT_TYPE as ELEMENT_TYPE_NODE
-from .node import NODE_CONFIG_DEFAULTS, NodeConfigData, NodeConfigSchema
-from .node import model_description as node_model_description
-from .photovoltaics import ELEMENT_TYPE as ELEMENT_TYPE_PHOTOVOLTAICS
-from .photovoltaics import PHOTOVOLTAICS_CONFIG_DEFAULTS, PhotovoltaicsConfigData, PhotovoltaicsConfigSchema
-from .photovoltaics import model_description as photovoltaics_model_description
+from . import battery, connection, constant_load, forecast_load, grid, node, photovoltaics
 
 type ElementType = Literal[
     "battery",
@@ -36,6 +16,15 @@ type ElementType = Literal[
     "forecast_load",
     "node",
 ]
+
+
+ELEMENT_TYPE_BATTERY = battery.ELEMENT_TYPE
+ELEMENT_TYPE_CONNECTION = connection.ELEMENT_TYPE
+ELEMENT_TYPE_PHOTOVOLTAICS = photovoltaics.ELEMENT_TYPE
+ELEMENT_TYPE_GRID = grid.ELEMENT_TYPE
+ELEMENT_TYPE_CONSTANT_LOAD = constant_load.ELEMENT_TYPE
+ELEMENT_TYPE_FORECAST_LOAD = forecast_load.ELEMENT_TYPE
+ELEMENT_TYPE_NODE = node.ELEMENT_TYPE
 
 
 class SubentryDataDict(TypedDict, total=False):
@@ -64,23 +53,23 @@ def assert_subentry_has_name(name: str | None, subentry_id: str) -> str:
 
 
 ElementConfigSchema = (
-    BatteryConfigSchema
-    | GridConfigSchema
-    | ConstantLoadConfigSchema
-    | ForecastLoadConfigSchema
-    | PhotovoltaicsConfigSchema
-    | NodeConfigSchema
-    | ConnectionConfigSchema
+    battery.BatteryConfigSchema
+    | grid.GridConfigSchema
+    | constant_load.ConstantLoadConfigSchema
+    | forecast_load.ForecastLoadConfigSchema
+    | photovoltaics.PhotovoltaicsConfigSchema
+    | node.NodeConfigSchema
+    | connection.ConnectionConfigSchema
 )
 
 ElementConfigData = (
-    BatteryConfigData
-    | GridConfigData
-    | ConstantLoadConfigData
-    | ForecastLoadConfigData
-    | PhotovoltaicsConfigData
-    | NodeConfigData
-    | ConnectionConfigData
+    battery.BatteryConfigData
+    | grid.GridConfigData
+    | constant_load.ConstantLoadConfigData
+    | forecast_load.ForecastLoadConfigData
+    | photovoltaics.PhotovoltaicsConfigData
+    | node.NodeConfigData
+    | connection.ConnectionConfigData
 )
 
 
@@ -95,59 +84,56 @@ class ElementRegistryEntry(NamedTuple):
 
 
 ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
-    ELEMENT_TYPE_BATTERY: ElementRegistryEntry(
-        schema=BatteryConfigSchema,
-        data=BatteryConfigData,
-        defaults=BATTERY_CONFIG_DEFAULTS,
-        translation_key=ELEMENT_TYPE_BATTERY,
-        describe=battery_model_description,
+    battery.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=battery.BatteryConfigSchema,
+        data=battery.BatteryConfigData,
+        defaults=battery.CONFIG_DEFAULTS,
+        translation_key=battery.ELEMENT_TYPE,
+        describe=battery.model_description,
     ),
-    ELEMENT_TYPE_CONNECTION: ElementRegistryEntry(
-        schema=ConnectionConfigSchema,
-        data=ConnectionConfigData,
-        defaults=CONNECTION_CONFIG_DEFAULTS,
-        translation_key=ELEMENT_TYPE_CONNECTION,
-        describe=connection_model_description,
+    connection.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=connection.ConnectionConfigSchema,
+        data=connection.ConnectionConfigData,
+        defaults=connection.CONFIG_DEFAULTS,
+        translation_key=connection.ELEMENT_TYPE,
+        describe=connection.model_description,
     ),
-    ELEMENT_TYPE_PHOTOVOLTAICS: ElementRegistryEntry(
-        schema=PhotovoltaicsConfigSchema,
-        data=PhotovoltaicsConfigData,
-        defaults=PHOTOVOLTAICS_CONFIG_DEFAULTS,
-        translation_key=ELEMENT_TYPE_PHOTOVOLTAICS,
-        describe=photovoltaics_model_description,
+    photovoltaics.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=photovoltaics.PhotovoltaicsConfigSchema,
+        data=photovoltaics.PhotovoltaicsConfigData,
+        defaults=photovoltaics.CONFIG_DEFAULTS,
+        translation_key=photovoltaics.ELEMENT_TYPE,
+        describe=photovoltaics.model_description,
     ),
-    ELEMENT_TYPE_GRID: ElementRegistryEntry(
-        schema=GridConfigSchema,
-        data=GridConfigData,
-        defaults=GRID_CONFIG_DEFAULTS,
-        translation_key=ELEMENT_TYPE_GRID,
-        describe=grid_model_description,
+    grid.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=grid.GridConfigSchema,
+        data=grid.GridConfigData,
+        defaults=grid.CONFIG_DEFAULTS,
+        translation_key=grid.ELEMENT_TYPE,
+        describe=grid.model_description,
     ),
-    ELEMENT_TYPE_CONSTANT_LOAD: ElementRegistryEntry(
-        schema=ConstantLoadConfigSchema,
-        data=ConstantLoadConfigData,
-        defaults=CONSTANT_LOAD_CONFIG_DEFAULTS,
-        translation_key=ELEMENT_TYPE_CONSTANT_LOAD,
-        describe=constant_load_model_description,
+    constant_load.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=constant_load.ConstantLoadConfigSchema,
+        data=constant_load.ConstantLoadConfigData,
+        defaults=constant_load.CONFIG_DEFAULTS,
+        translation_key=constant_load.ELEMENT_TYPE,
+        describe=constant_load.model_description,
     ),
-    ELEMENT_TYPE_FORECAST_LOAD: ElementRegistryEntry(
-        schema=ForecastLoadConfigSchema,
-        data=ForecastLoadConfigData,
-        defaults=FORECAST_LOAD_CONFIG_DEFAULTS,
-        translation_key=ELEMENT_TYPE_FORECAST_LOAD,
-        describe=forecast_load_model_description,
+    forecast_load.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=forecast_load.ForecastLoadConfigSchema,
+        data=forecast_load.ForecastLoadConfigData,
+        defaults=forecast_load.CONFIG_DEFAULTS,
+        translation_key=forecast_load.ELEMENT_TYPE,
+        describe=forecast_load.model_description,
     ),
-    ELEMENT_TYPE_NODE: ElementRegistryEntry(
-        schema=NodeConfigSchema,
-        data=NodeConfigData,
-        defaults=NODE_CONFIG_DEFAULTS,
-        translation_key=ELEMENT_TYPE_NODE,
-        describe=node_model_description,
+    node.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=node.NodeConfigSchema,
+        data=node.NodeConfigData,
+        defaults=node.CONFIG_DEFAULTS,
+        translation_key=node.ELEMENT_TYPE,
+        describe=node.model_description,
     ),
 }
-
-
-SUPPORTED_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(ELEMENT_TYPES)
 
 
 def get_model_description(config: ElementConfigData) -> str:
@@ -173,7 +159,6 @@ __all__ = [
     "ELEMENT_TYPE_GRID",
     "ELEMENT_TYPE_NODE",
     "ELEMENT_TYPE_PHOTOVOLTAICS",
-    "SUPPORTED_ELEMENT_TYPES",
     "ElementConfigData",
     "ElementConfigSchema",
     "ElementRegistryEntry",

@@ -20,9 +20,10 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-def _get_registry_entry(element_type: ElementType) -> ElementRegistryEntry:
+def _get_registry_entry(element_type: "ElementType") -> "ElementRegistryEntry":
     """Look up the registry entry for an element type."""
 
+    # Import here to avoid circular import
     from custom_components.haeo.elements import ELEMENT_TYPES  # noqa: PLC0415
 
     if element_type not in ELEMENT_TYPES:
@@ -67,7 +68,7 @@ def get_loader_instance(field_name: str, config_class: type) -> Loader:
 
 
 def available(
-    config: ElementConfigSchema,
+    config: "ElementConfigSchema",
     **kwargs: Any,
 ) -> bool:
     """Check if all fields in a config are available for loading.
@@ -105,9 +106,9 @@ def available(
 
 
 async def load(
-    config: ElementConfigSchema,
+    config: "ElementConfigSchema",
     **kwargs: Any,
-) -> ElementConfigData:
+) -> "ElementConfigData":
     """Load all fields in a config, converting from Schema to Data mode.
 
     Args:

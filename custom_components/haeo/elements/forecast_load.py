@@ -30,17 +30,17 @@ class ForecastLoadConfigData(TypedDict):
     forecast: PowerForecastsFieldData
 
 
-FORECAST_LOAD_CONFIG_DEFAULTS: dict[str, Any] = {}
+CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
-def model_description(config: ForecastLoadConfigData) -> str:
+def model_description(_config: ForecastLoadConfigData) -> str:
     """Generate model description string for forecast load element.
 
     Args:
-        config: Forecast load configuration data.
+        _config: Forecast load configuration data.
 
     Returns:
         Formatted model description string.
 
     """
-    return f"Forecast load: {config['name']}"
+    return "Forecast Load"
