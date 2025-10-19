@@ -130,4 +130,4 @@ Avoid for:
 - [Load Modeling](../../modeling/loads.md) - Mathematical model
 - [Connections](connections.md) - Connecting loads to the network
 
-[:octicons-arrow-right-24: Continue to Forecast Load Configuration](forecast-load.md)
+[:material-arrow-right: Continue to Forecast Load Configuration](forecast-load.md)

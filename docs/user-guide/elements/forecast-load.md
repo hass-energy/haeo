@@ -304,4 +304,4 @@ Total load at each timestep = sum of all load elements.
 - [Load Modeling](../../modeling/loads.md) - Mathematical model
 - [Connections](connections.md) - Connecting loads to the network
 
-[:octicons-arrow-right-24: Continue to Node Configuration](node.md)
+[:material-arrow-right: Continue to Node Configuration](node.md)

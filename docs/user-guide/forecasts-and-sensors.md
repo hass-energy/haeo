@@ -303,4 +303,4 @@ Poor forecasts lead to suboptimal scheduling.
 - [Load Configuration](elements/constant-load.md) - Using load forecasts
 - [Troubleshooting](troubleshooting.md#forecasts-are-not-long-enough) - Forecast issues
 
-[:octicons-arrow-right-24: Continue to Element Configuration](elements/index.md)
+[:material-arrow-right: Continue to Element Configuration](elements/index.md)

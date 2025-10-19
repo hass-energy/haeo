@@ -17,36 +17,21 @@ This guide covers everything you need to know as an end user:
 
 ## Prerequisites
 
-Before installing HAEO, ensure you have:
+Before installing HAEO, confirm:
 
-- **Home Assistant** 2025.4.4 or newer
-- **HACS** installed (for HACS installation method)
-- **Sensors** for:
-    - Battery state of charge (if using batteries)
-    - Electricity prices (current or forecast)
-    - Solar forecast (if using solar)
-    - Load forecast (if optimizing loads)
+- Your Home Assistant core version is 2025.4.4 or newer
+- You can add integrations through the UI or [HACS](https://hacs.xyz/) if you prefer managed updates
+- The data you plan to optimize (prices, forecasts, sensor readings) is already available in Home Assistant or will be added with other integrations
 
-!!! tip "Forecast Sensors"
-
-    Many integrations provide forecast data that HAEO can use:
-
-    - **Electricity prices**: Amber Electric, Nordpool, Tibber
-    - **Solar forecast**: [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast), Solcast
-    - **Load forecast**: Custom sensors based on your usage patterns
-
-## Quick Start Path
+## Quick start path
 
 The typical workflow for setting up HAEO is:
 
 1. Install HAEO via HACS or manually
 2. Create a network through the UI
-3. Add a battery (if you have one)
-4. Add a grid connection
-5. Add solar panels or loads
-6. Define connections between components
-7. View optimization results in sensors
-8. Create automations based on the optimal schedule
+3. Add the elements that reflect your devices
+4. Define connections between elements
+5. View optimization results in sensors and build automations around them
 
 ## Project Philosophy
 
@@ -81,7 +66,7 @@ HAEO provides optimization results as sensors with forecast attributes, letting 
 
 We recommend installing via HACS for automatic updates, but manual installation is also supported.
 
-[:octicons-arrow-right-24: Continue to Installation](installation.md)
+[:material-arrow-right: Continue to Installation](installation.md)
 
 ## Example Systems
 
@@ -103,3 +88,29 @@ If you run into issues:
 !!! warning "Important"
 
     Always include your Home Assistant version, HAEO version, and relevant configuration (with sensitive data removed) when asking for help.
+
+## Next Steps
+
+Continue with these guides to get HAEO running smoothly in your environment.
+
+<div class="grid cards" markdown>
+
+- :material-download:{ .lg .middle } __Install HAEO__
+
+    Start the integration in Home Assistant via HACS or manual setup.
+
+    [:material-arrow-right: Installation guide](installation.md)
+
+- :material-cog-outline:{ .lg .middle } __Configure your first network__
+
+    Add elements and connections so HAEO can optimize your system.
+
+    [:material-arrow-right: Configuration guide](configuration.md)
+
+- :material-wrench:{ .lg .middle } __Troubleshooting guidance__
+
+    Fix common setup issues and keep the optimizer running smoothly.
+
+    [:material-arrow-right: Troubleshooting tips](troubleshooting.md)
+
+</div>

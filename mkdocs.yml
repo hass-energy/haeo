@@ -144,9 +144,12 @@ nav:
           - Node: user-guide/elements/node.md
           - Connections: user-guide/elements/connections.md
       - Understanding Results: user-guide/optimization.md
+      - Data Updates: user-guide/data-updates.md
+      - Automation Examples: user-guide/automations.md
       - Examples:
           - Sigenergy System: user-guide/examples/sigenergy-system.md
       - Troubleshooting: user-guide/troubleshooting.md
+      - Removal: user-guide/removal.md
 
   - Mathematical Modeling:
       - modeling/index.md
@@ -159,6 +162,7 @@ nav:
 
   - Developer Guide:
       - developer-guide/index.md
+      - Documentation Guidelines: developer-guide/documentation-guidelines.md
       - Architecture: developer-guide/architecture.md
       - Setup: developer-guide/setup.md
       - Units & Stability: developer-guide/units.md
@@ -174,4 +178,5 @@ nav:
       - Element Types: reference/elements.md
       - Sensor Types: reference/sensors.md
       - Configuration Schema: reference/configuration-schema.md
+      - Known Limitations: reference/limitations.md
       - LP Solvers: reference/solvers.md

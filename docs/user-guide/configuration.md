@@ -11,8 +11,6 @@ HAEO configuration happens entirely through Home Assistant's UI. You'll:
 2. Add **Element Entries** (batteries, grids, solar, loads)
 3. Add **Connection Entries** (defining how energy flows between elements)
 
-Each element and connection is a separate configuration entry linked to the hub.
-The hub coordinates optimization across all linked entries.
 
 ## Creating Your First Hub
 
@@ -47,48 +45,20 @@ A unique name for your energy hub (e.g., "Home Energy System").
 The optimization time horizon in hours (1-168).
 This determines how far into the future HAEO optimizes.
 
-**Recommendations:**
-
-- **Start with 48 hours** for most home systems
-- Match your shortest forecast horizon (prices, solar, or load)
-- Longer horizons provide better decisions but take more time to compute
-
-**Trade-offs:**
-
-- **Shorter (12-24h)**: Faster optimization, less lookahead for strategic decisions
-- **Longer (72-168h)**: Better long-term planning, slower computation
-
-!!! info "Matching Forecast Availability"
-
-    - 24-hour price forecasts → use at least 24 hours
-    - 48-hour solar forecasts → use 48 hours or more
-    - Balance forecast coverage with computational performance
+Choose a horizon that matches the length of your forecasts so the optimizer can see the same window of data.
+Set at least 48 hours whenever forecasts support it because that lets batteries plan a full charge and discharge cycle with awareness of the next day's demand.
+Drop to 36 hours only when your available forecasts are shorter and accept that the optimizer will take smaller planning steps.
+Extending beyond 48 hours only helps if your battery capacity can sustain useful energy decisions over that period, so small batteries that empty daily will not benefit from very long horizons.
+Shorter horizons solve faster but provide less lookahead, while longer horizons add planning at the cost of additional solve time.
 
 #### Period Minutes
 
 The time resolution for optimization in minutes (1-60).
 Each period is one time step in the optimization.
 
-**Recommendations:**
-
-- **Start with 5 minutes** for most systems
-- Match your price or forecast resolution when possible
-- Use larger periods if optimization is too slow
-
-**Trade-offs:**
-
-- **Smaller (1-5min)**: Higher resolution control, more accurate modeling
-- **Larger (15-60min)**: Faster computation, coarser control granularity
-
-!!! warning "Computational Impact"
-
-    Smaller periods create more variables to optimize:
-
-    - 5-minute periods × 48 hours = 576 time steps
-    - 15-minute periods × 48 hours = 192 time steps
-    - 60-minute periods × 48 hours = 48 time steps
-
-    More time steps increase optimization time significantly.
+Set the period to match the resolution of your most important sensor or price input whenever possible.
+Shorter periods give finer control but increase solve time, while longer periods reduce detail and solve faster.
+If optimizations feel slow, increase the period before reducing the horizon.
 
 #### Optimizer
 
@@ -114,30 +84,23 @@ Click **Submit** to create your hub. HAEO will create the hub device and initial
 
 ## Adding Elements
 
-After creating your hub, you need to add elements representing your energy devices.
-Elements are managed as **subentries** under the hub integration.
+After creating your hub, add elements to represent your devices.
+Use the hub page in **Settings → Devices & Services** to create each element from the same interface.
 
 ### Adding an Element
 
 1. Navigate to **Settings** → **Devices & Services**
 2. Find your **HAEO** hub integration
 3. Click on the hub to open its details page
-4. Click the **Add Entry** button in the subentries section
-5. Select the element type you want to add from the list
-6. Configure the element parameters
+4. Click **Add Entry**
+5. Choose the element type you want to add
+6. Fill in the configuration fields shown in the form
 7. Click **Submit** to create the element
 
-!!! tip "Subentry Management"
+!!! note "Network entry"
 
-    Elements appear as subentries under your hub in the devices & services UI.
-    You can add, edit, or remove elements independently without affecting the hub configuration.
-    Changes to elements automatically trigger a re-optimization.
-
-!!! note "Network Element"
-
-    A special "Network" element is automatically created when you set up your hub.
-    This represents the optimization network itself and provides network-level sensors (cost, status, duration).
-    You don't need to manually add this element.
+    A network entry appears automatically when you set up your hub.
+    It provides optimization sensors for the overall system and does not require manual configuration.
 
 ### Available Elements
 
@@ -189,12 +152,12 @@ A connection represents a power flow path between two elements:
 
 ### Adding Connections
 
-Connections are added as subentries under your hub, just like elements:
+Connections are added from the same hub page as elements:
 
 1. Navigate to **Settings** → **Devices & Services**
 2. Find your **HAEO** hub integration
 3. Click on the hub to open its details page
-4. Click the **Add Entry** button in the subentries section
+4. Click **Add Entry**
 5. Select **Connection** from the element type list
 6. Select the source and target elements (from your existing elements)
 7. Configure optional power limits and efficiency
@@ -275,9 +238,9 @@ To remove an element:
 
 1. Navigate to **Settings** → **Devices & Services**
 2. Find your **HAEO** hub integration
-3. Click on the hub to see the subentries list
-4. Find the element subentry you want to remove
-5. Click the three-dot menu on that subentry
+3. Click on the hub to see the list of configured items
+4. Find the element you want to remove
+5. Click the three-dot menu next to it
 6. Select **Delete**
 7. Confirm removal
 
@@ -292,9 +255,9 @@ To edit an existing connection:
 
 1. Navigate to **Settings** → **Devices & Services**
 2. Find your **HAEO** hub integration
-3. Click on the hub to see the subentries list
-4. Find the connection subentry you want to edit
-5. Click on the subentry to open its details
+3. Click on the hub to see the list of configured items
+4. Select the connection you want to edit
+5. Click **Reconfigure**
 6. Click **Reconfigure**
 7. Update the configuration (power limits, efficiency, etc.)
 8. Click **Submit**
@@ -305,9 +268,9 @@ To remove a connection:
 
 1. Navigate to **Settings** → **Devices & Services**
 2. Find your **HAEO** hub integration
-3. Click on the hub to see the subentries list
-4. Find the connection subentry you want to remove
-5. Click the three-dot menu on that subentry
+3. Click on the hub to see the list of configured items
+4. Find the connection you want to remove
+5. Click the three-dot menu next to it
 6. Select **Delete**
 7. Confirm removal
 
@@ -327,6 +290,7 @@ To change optimization settings for the hub:
 5. Click **Submit**
 
 Changes to hub settings trigger immediate re-optimization with the new parameters.
+Review the [horizon guidance](#horizon-hours) before adjusting that value.
 
 ## Validation
 
@@ -387,7 +351,7 @@ Keep notes about why you chose specific limits (capacity, power rates) for futur
 
 Watch optimization duration in the sensor. If it takes too long:
 
-- Reduce horizon hours
+- Reduce horizon hours only after consulting the [horizon guidance](#horizon-hours)
 - Increase period minutes
 - Simplify your network
 
@@ -395,28 +359,26 @@ See [performance considerations](optimization.md#performance-considerations) for
 
 ## Next Steps
 
-Now that you understand the basics, dive into configuring specific element types:
+Use these resources to expand your configuration and understand the results.
 
 <div class="grid cards" markdown>
 
-- [Battery Configuration](elements/battery.md)
+- :material-cog-transfer-outline:{ .lg .middle } __Configure individual elements__
 
-    Configure battery storage with capacity, SOC, and efficiency settings.
+    Set up batteries, grids, photovoltaics, and loads with detailed guidance.
 
-- [Grid Configuration](elements/grid.md)
+    [:material-arrow-right: Element guides](elements/index.md)
 
-    Set up grid import/export with pricing and power limits.
+- :material-view-dashboard-outline:{ .lg .middle } __Understand optimization outputs__
 
-- [Solar Configuration](elements/photovoltaics.md)
+    Interpret HAEO sensor data and forecast attributes.
 
-    Configure photovoltaics with forecast integration.
+    [:material-arrow-right: Optimization overview](optimization.md)
 
-- [Load Configuration](elements/constant-load.md)
+- :material-play-circle-outline:{ .lg .middle } __Review a complete example__
 
-    Set up constant or forecast-based loads.
+    Follow a full walkthrough that combines all configuration steps.
+
+    [:material-arrow-right: Sigenergy example](examples/sigenergy-system.md)
 
 </div>
-
-Or see a complete example system:
-
-[:octicons-arrow-right-24: Sigenergy System Example](examples/sigenergy-system.md)

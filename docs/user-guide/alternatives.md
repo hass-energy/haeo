@@ -253,4 +253,4 @@ Choose based on your:
 
 For most users wanting a flexible, actively maintained solution with native Home Assistant integration, **HAEO is the recommended choice**.
 
-[:octicons-arrow-right-24: Get Started with HAEO](installation.md)
+[:material-arrow-right: Get Started with HAEO](installation.md)

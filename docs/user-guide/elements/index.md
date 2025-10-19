@@ -46,14 +46,11 @@ Define how power flows between elements (technically connections are configurati
 
 ## How Elements Work Together
 
-Elements are connected to form your energy network. The optimizer determines optimal power flow through each connection based on:
+Elements work together once you connect them to match your real-world wiring.
+HAEO balances available energy, expected consumption, and any limits you set so the total system stays within bounds.
+In a typical home system, solar may feed a common node, the grid can import or export, and a battery shifts energy between time periods.
 
-- Energy availability (solar generation, battery SOC)
-- Costs (import/export prices, artificial costs for incentives)
-- Constraints (power limits, battery capacity, connection limits)
-- Forecast data (prices, generation, consumption)
-
-For example, in a typical home system:
+Example layout:
 
 ```
 Solar → Net ← Grid
@@ -63,13 +60,8 @@ Solar → Net ← Grid
        Load
 ```
 
-The optimizer decides when to:
-
-- Store solar in the battery vs export to grid
-- Discharge battery vs import from grid
-- Charge battery from grid during low-price periods
-
-See the [modeling documentation](../../modeling/index.md) for mathematical details.
+This layout lets HAEO decide when to store solar, rely on the grid, or draw from a battery while keeping every connection within the limits you configured.
+See the [modeling documentation](../../modeling/index.md) for the underlying mathematics.
 
 ## Configuration Approach
 
@@ -86,28 +78,40 @@ Explore detailed configuration for each element type:
 
 <div class="grid cards" markdown>
 
-- [Battery Configuration](battery.md)
+- :material-battery:{ .lg .middle } __Battery configuration__
 
     Energy storage with SOC tracking and efficiency modeling.
 
-- [Grid Configuration](grid.md)
+    [:material-arrow-right: Battery guide](battery.md)
+
+- :material-power-plug:{ .lg .middle } __Grid configuration__
 
     Import/export with dynamic or fixed pricing.
 
-- [Photovoltaics Configuration](photovoltaics.md)
+    [:material-arrow-right: Grid guide](grid.md)
+
+- :material-weather-sunny:{ .lg .middle } __Photovoltaics configuration__
 
     Solar generation with curtailment options.
 
-- [Constant Load Configuration](constant-load.md)
+    [:material-arrow-right: Photovoltaics guide](photovoltaics.md)
+
+- :material-gauge:{ .lg .middle } __Constant load configuration__
 
     Fixed power consumption.
 
-- [Forecast Load Configuration](forecast-load.md)
+    [:material-arrow-right: Constant load guide](constant-load.md)
+
+- :material-chart-timeline:{ .lg .middle } __Forecast load configuration__
 
     Variable consumption with forecasts.
 
-- [Node Configuration](node.md)
+    [:material-arrow-right: Forecast load guide](forecast-load.md)
+
+- :material-source-branch:{ .lg .middle } __Node configuration__
 
     Virtual power balance nodes.
+
+    [:material-arrow-right: Node guide](node.md)
 
 </div>

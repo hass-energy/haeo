@@ -53,32 +53,6 @@ Length = number of periods in horizon.
 - **unknown**: Not yet run or failed
 - **unavailable**: Integration disabled or restarting
 
-## Dashboard Usage
-
-```yaml
-type: entities
-entities:
-  - sensor.home_battery_power
-  - sensor.main_grid_power
-  - sensor.rooftop_solar_power
-  - sensor.house_load_power
-```
-
-## Automation Example
-
-```yaml
-automation:
-  - alias: "Battery Discharge Alert"
-    trigger:
-      platform: numeric_state
-      entity_id: sensor.home_battery_power
-      above: 4
-    action:
-      service: notify.mobile_app
-      data:
-        message: "Battery discharging at {{ states('sensor.home_battery_power') }} kW"
-```
-
 ## Related Documentation
 
 - [Element Reference](elements.md)

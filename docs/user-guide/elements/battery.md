@@ -28,82 +28,6 @@ A battery in HAEO represents:
 | **Charge Cost**               | Number (\$/kWh) | No       | 0       | Additional charging cost (see below)                       |
 | **Discharge Cost**            | Number (\$/kWh) | No       | 0       | Additional discharging cost (see below)                    |
 
-### Name
-
-Use descriptive, user-friendly names without special characters:
-
-- ✅ "Main Battery", "Garage Battery", "Backup Battery"
-- ❌ "Main_Battery", "battery1", "bat"
-
-HAEO automatically converts names to valid entity IDs.
-
-### Capacity
-
-Total energy storage capacity in kWh. Check your battery's datasheet for this value.
-
-### Initial Charge Percentage
-
-Sensor entity ID that reports current battery SOC as a percentage (0-100).
-
-**Requirements**:
-
-- Updates regularly (at least every 5 minutes)
-- Reports percentage (not decimal: 50% not 0.5)
-- Accurate readings from battery management system
-
-**Example**: `sensor.battery_state_of_charge`
-
-See [forecasts and sensors](../forecasts-and-sensors.md) for creating template sensors if needed.
-
-### Min/Max Charge Percentage
-
-Operating range for battery SOC:
-
-- **Min (default 10%)**: Prevents deep discharge that can damage batteries
-- **Max (default 90%)**: Prevents overcharging, extends battery lifespan
-
-**Typical ranges**:
-
-- Balanced: 10-90% (80% usable capacity)
-- Conservative: 20-80% (60% usable, longer life)
-- Maximum: 0-100% (full capacity, faster degradation)
-
-### Efficiency
-
-!!! warning "Important: One-Way Efficiency"
-
-    HAEO uses **one-way efficiency**, not round-trip efficiency.
-
-    **Example**: If your battery has 97% round-trip efficiency:
-
-    - One-way efficiency = √0.97 ≈ **98.5%**
-    - Configure as: `Efficiency: 98.5`
-
-HAEO models efficiency as symmetric losses on both charging and discharging.
-The one-way efficiency is applied to each operation:
-
-- **Charging**: Only 98.5% of input energy is stored
-- **Discharging**: Only 98.5% of stored energy is output
-- **Round-trip**: 0.985 × 0.985 = 0.97 (97%)
-
-If you only know round-trip efficiency, calculate: `one_way = sqrt(round_trip)`
-
-**Typical battery efficiencies** (round-trip):
-
-- Lithium-ion (NMC, LFP): 95-98%
-- Lead-acid: 80-85%
-- Flow batteries: 65-85%
-
-### Max Charge/Discharge Power
-
-Maximum power rates in kW for charging and discharging.
-
-These limits typically come from:
-
-- Battery inverter rating
-- Battery cell chemistry limits
-- Electrical installation capacity
-
 If not specified, power is unconstrained (limited only by other system constraints).
 
 !!! info "Asymmetric Limits"
@@ -111,56 +35,48 @@ If not specified, power is unconstrained (limited only by other system constrain
     Some systems have different charge and discharge power limits.
     Configure them independently for accurate optimization.
 
+### Name
+
+Choose a descriptive, friendly name.
+Home Assistant uses it for sensor names, so avoid symbols or abbreviations you would not want to see in the UI.
+
+### Capacity
+
+Enter the usable capacity in kWh from your battery or inverter documentation.
+The optimizer uses this value when calculating state of charge.
+
+### Initial charge percentage
+
+Select the Home Assistant sensor that reports the battery's current SOC.
+HAEO expects values between 0 and 100.
+
+### Min and max charge percentage
+
+Set the allowable SOC range to protect your battery.
+Leaving the defaults is a good starting point unless your manufacturer recommends otherwise.
+
+### Efficiency
+
+Enter the one-way efficiency as a percentage.
+If you only know the round-trip efficiency, take the square root to convert it.
+For example, a 97% round-trip battery becomes roughly 98.5% one-way.
+Most lithium systems sit in the high 90s, while older chemistries are lower.
+
+### Max charge and discharge power
+
+Add limits if your inverter or wiring restricts how quickly the battery can charge or discharge.
+Leave the fields blank when no practical limit applies.
+
 ### Charge Cost
 
-**Additional cost per kWh for charging**, beyond electricity prices.
-
-**Default**: 0 (no additional cost)
-
-**Uses**:
-
-1. **Encourage early charging**: Set a **negative** value to incentivize charging early in the forecast window
-
-    - Example: `-0.01` gives a \$0.01/kWh "bonus" for charging
-    - This is because the cost **diminishes over the forecast horizon**
-
-2. **Battery degradation**: Set a small positive value to model wear costs
-
-    - Example: `0.01` adds \$0.01/kWh degradation cost
-
-!!! tip "Temporal Diminishing"
-
-    The charge cost diminishes linearly over the forecast horizon.
-    Early charging gets more negative (bigger bonus) or less positive (smaller penalty).
-    This encourages proactive battery management.
-
-**Most users** should leave this at 0 or set slightly negative to encourage charging.
+Adds an extra cost (or incentive) per kWh when charging.
+Leave it at zero for most systems.
+Set a small negative value if you want the battery to favour early charging, or a small positive value if you want to discourage unnecessary cycling.
 
 ### Discharge Cost
 
-**Additional cost per kWh for discharging**, beyond opportunity cost.
-
-**Default**: 0 (no additional cost)
-
-**Uses**:
-
-1. **Prevent fluttering**: Set a small positive value to avoid excessive cycling
-
-    - Example: `0.001` (0.1 cents/kWh)
-    - Prevents battery from charging/discharging for tiny price differences
-    - Reduces wear from unnecessary cycling
-
-2. **Battery degradation**: Model wear from discharge cycles
-
-    - Example: `0.01` for more aggressive degradation cost
-
-!!! info "Fluttering Prevention"
-
-    Without discharge cost, tiny price changes (e.g., 0.1 cent/kWh) can cause the optimizer to cycle the battery repeatedly.
-    A small discharge cost prevents this behavior.
-    It still allows beneficial charging/discharging.
-
-**Most users** should set this to a small positive value like `0.001` to prevent fluttering.
+Adds an extra cost per kWh when discharging.
+Use a small positive value if the battery switches direction too often, or leave it at zero if you are happy with the schedule.
 
 ## Configuration Example
 
@@ -172,11 +88,11 @@ Capacity: 15 kWh
 Initial Charge Percentage: sensor.battery_soc
 Min Charge Percentage: 20%
 Max Charge Percentage: 90%
-Efficiency: 98.5% # 97% round-trip
+Efficiency: 98.5%
 Max Charge Power: 6 kW
 Max Discharge Power: 6 kW
-Charge Cost: -0.005 $/kWh # Small bonus to encourage early charging
-Discharge Cost: 0.001 $/kWh # Prevent fluttering
+Charge Cost: -0.005 $/kWh
+Discharge Cost: 0.001 $/kWh
 ```
 
 ## Sensors Created
@@ -208,7 +124,7 @@ If your battery remains idle:
 If forecast SOC values seem wrong:
 
 1. **Verify capacity**: Ensure capacity matches your actual battery
-2. **Check efficiency**: Confirm it's one-way efficiency (√round-trip)
+2. **Check efficiency**: Confirm it's one-way efficiency (sqrt of the round-trip value)
 3. **Review power limits**: Ensure they match your inverter rating
 
 ### SOC Sensor Issues
@@ -245,10 +161,26 @@ This allows HAEO to:
 
 ## Next Steps
 
-After configuring your battery:
+Build on your battery configuration with these guides.
 
-1. [Add a grid connection](grid.md) for import/export pricing
-2. [Define connections](connections.md) between battery and grid
-3. [View optimization results](../optimization.md) to see battery schedule
+<div class="grid cards" markdown>
 
-[:octicons-arrow-right-24: Continue to Grid Configuration](grid.md)
+- :material-power-plug:{ .lg .middle } __Add a grid connection__
+
+    Link your battery to grid pricing so HAEO can optimize imports and exports.
+
+    [:material-arrow-right: Grid guide](grid.md)
+
+- :material-source-branch:{ .lg .middle } __Define connections__
+
+    Create power flow links between your battery and the rest of the network.
+
+    [:material-arrow-right: Connection setup](connections.md)
+
+- :material-chart-line:{ .lg .middle } __View optimization results__
+
+    Verify the battery schedule and state of charge produced by HAEO.
+
+    [:material-arrow-right: Optimization overview](../optimization.md)
+
+</div>

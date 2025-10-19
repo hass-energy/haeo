@@ -237,7 +237,7 @@ Enable automation traces to see execution history:
 - [Home Assistant Automation Documentation](https://www.home-assistant.io/docs/automation/)
 - [Template Documentation](https://www.home-assistant.io/docs/configuration/templating/)
 - [HAEO Sensor Reference](../reference/sensors.md)
-- [Optimization Status Values](../reference/optimization.md)
+- [Optimization Status Values](../reference/sensors.md#sensor-states)
 
 ## Need help?
 

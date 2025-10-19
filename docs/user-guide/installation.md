@@ -38,7 +38,9 @@ After installation, restart Home Assistant:
 
 1. Navigate to **Settings** → **System**
 2. Click **Restart**
-3. Wait for Home Assistant to fully restart (usually 1-2 minutes)
+3. Wait for Home Assistant to complete the restart before proceeding
+
+If you need a refresher on the restart process, see the [Home Assistant restart documentation](https://www.home-assistant.io/docs/configuration/troubleshooting/#restarting-home-assistant).
 
 ## Method 2: Manual Installation
 
@@ -84,43 +86,10 @@ After restarting, verify HAEO is installed correctly:
 
 If HAEO appears in the list, the installation was successful!
 
-## Next Steps
+## Advanced: Additional solvers
 
-Now that HAEO is installed, you're ready to configure your first energy network:
-
-[:octicons-arrow-right-24: Continue to Configuration](configuration.md)
-
-## Advanced: Additional Solvers
-
-While HiGHS (included with PuLP) is sufficient for most use cases, you can install additional solvers.
-They may provide better performance on large problems:
-
-!!! note "Optional Solvers"
-
-    These are **optional** and only recommended for advanced users with large networks or long time horizons.
-
-### CBC Solver
-
-```bash
-# Install CBC solver
-pip install pulp[cbc]
-```
-
-### GLPK Solver
-
-```bash
-# Install GLPK solver
-pip install pulp[glpk]
-```
-
-### SCIP Solver
-
-```bash
-# Install SCIP solver
-pip install pulp[scip]
-```
-
-See the [LP Solvers reference](../reference/solvers.md) for detailed solver information.
+HiGHS (included with PuLP) is sufficient for most installations.
+If you are working with large networks and want to experiment with alternatives, review the [LP solvers reference](../reference/solvers.md) for compatibility notes and installation steps.
 
 ## Updating HAEO
 
@@ -169,3 +138,29 @@ Manual removal:
 
 1. Delete the `custom_components/haeo` directory
 2. Restart Home Assistant
+
+## Next Steps
+
+Move on to these topics once the integration is installed.
+
+<div class="grid cards" markdown>
+
+- :material-cog-outline:{ .lg .middle } __Configure your first network__
+
+    Create your hub, add elements, and establish energy flow connections.
+
+    [:material-arrow-right: Configuration guide](configuration.md)
+
+- :material-chart-line:{ .lg .middle } __Check optimization outputs__
+
+    Learn how to read HAEO sensors and verify results after setup.
+
+    [:material-arrow-right: Optimization overview](optimization.md)
+
+- :material-bug-outline:{ .lg .middle } __Troubleshoot installation issues__
+
+    Resolve common installation and startup problems quickly.
+
+    [:material-arrow-right: Troubleshooting tips](troubleshooting.md)
+
+</div>

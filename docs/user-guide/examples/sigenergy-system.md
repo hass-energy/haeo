@@ -42,7 +42,7 @@ Configure the network through Settings → Devices & Services → Add Integratio
 
 ```yaml
 Name: Sigenergy System
-Horizon Hours: 24
+Horizon Hours: 48
 Period Minutes: 5
 ```
 
@@ -188,7 +188,7 @@ This connection models the hybrid inverter with its 30 kW power limit.
 After configuration:
 
 1. **Check network device page** - Verify all elements are listed
-2. **Wait for first optimization** - May take 10-30 seconds
+2. **Wait for first optimization** - Allow the initial run to complete before validating sensors
 3. **Check status sensor** - Should show `optimal`
 4. **Review forecast attributes** - Each element sensor includes forecast data
 

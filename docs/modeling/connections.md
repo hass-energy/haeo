@@ -58,11 +58,11 @@ Connection power participates in node balance:
 
 ## Configuration Impact
 
-| Parameter                    | Impact                                   |
-| ---------------------------- | ---------------------------------------- |
-| $P_{\max}$ only              | Unidirectional with limit                |
-| $P_{\min} < 0, P_{\max} > 0$ | Bidirectional (e.g., ±8 kW inverter)     |
-| No limits                    | Unlimited (e.g., direct grid connection) |
+| Parameter                    | Impact                                     |
+| ---------------------------- | ------------------------------------------ |
+| $P_{\max}$ only              | Unidirectional with limit                  |
+| $P_{\min} < 0, P_{\max} > 0$ | Bidirectional (for example, inverter link) |
+| No limits                    | Unlimited (for example, direct grid tie)   |
 
 **Inverter modeling**: Connection with ±max_power between DC and AC nodes.
 

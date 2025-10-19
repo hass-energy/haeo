@@ -39,9 +39,8 @@ Current optimization state:
 **Entity ID**: `sensor.{network_name}_optimization_duration`
 
 Time taken to solve the optimization in seconds.
-
-- **Typical**: 0.5-5 seconds for most home systems
-- **Too slow**: Consider reducing horizon or increasing period
+If this value climbs higher than you expect, adjust the horizon or period length, simplify the network, or try another solver.
+Review the [horizon guidance](configuration.md#horizon-hours) before changing that value.
 
 ## Element Sensors
 
@@ -70,9 +69,9 @@ All sensors include forecast attributes with future values:
 attributes:
   forecast:
     - datetime: "2025-10-11T12:00:00+00:00"
-      value: 5.2
+      value: 1.23
     - datetime: "2025-10-11T12:05:00+00:00"
-      value: 5.1
+      value: 1.17
     # ... more timestamped values
 ```
 
@@ -96,14 +95,11 @@ automation:
 
 ## Performance Considerations
 
-### Optimization Duration
+### Optimization duration
 
-If optimization takes too long:
-
-1. **Reduce horizon**: Use fewer hours
-2. **Increase period**: Use larger time steps
-3. **Simplify network**: Remove unnecessary elements
-4. **Try different solver**: HiGHS is usually fastest
+Monitor the optimization duration sensor to keep solve times comfortable.
+Reduce the horizon, increase the period length, simplify the network, or try a different solver if it starts trending upward.
+Follow the [horizon guidance](configuration.md#horizon-hours) whenever you adjust the planning window.
 
 ### Update Frequency
 
@@ -114,23 +110,36 @@ HAEO re-optimizes periodically. Balance:
 
 ## Interpreting Cost
 
-The optimization cost represents the total forecasted cost over the horizon, not just the immediate cost.
-
-**Example**:
-
-- Horizon: 48 hours
-- Cost: \$25.50
-- Average: \$0.53/hour
-
-This helps you:
-
-- Compare different configurations
-- Understand system economics
-- Validate optimization is working
+The optimization cost represents the total forecasted cost over the full horizon, not just the immediate step.
+Track changes in this value when you adjust configuration parameters to confirm the optimiser is producing the expected behaviour.
 
 ## Related Documentation
 
 - [Troubleshooting](troubleshooting.md)
 - [Mathematical Modeling](../modeling/index.md)
 
-[:octicons-arrow-right-24: Continue to Examples](examples/sigenergy-system.md)
+## Next Steps
+
+Explore these guides to act on the optimization outputs.
+
+<div class="grid cards" markdown>
+
+- :material-play-circle-outline:{ .lg .middle } __Review a complete example__
+
+  See how the optimization outputs drive real-world decisions.
+
+  [:material-arrow-right: Sigenergy example](examples/sigenergy-system.md)
+
+- :material-robot-outline:{ .lg .middle } __Build automations from the results__
+
+  Turn recommended power schedules into actionable automations.
+
+  [:material-arrow-right: Automation patterns](automations.md)
+
+- :material-sync:{ .lg .middle } __Monitor data updates__
+
+  Understand how new sensor data triggers optimizations.
+
+  [:material-arrow-right: Data update guide](data-updates.md)
+
+</div>

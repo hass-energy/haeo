@@ -29,14 +29,10 @@ Where:
 **Linearity requirement**: All relationships must be linear.
 No quadratic terms ($x^2$), products ($xy$), or nonlinear functions ($\sin(x)$, etc.).
 
-### Why Linear Programming?
+### Why linear programming?
 
-LP is ideal for energy optimization:
-
-1. **Fast solving**: Modern solvers handle thousands of variables in seconds
-2. **Global optimum**: Always finds the best solution when one exists
-3. **Natural fit**: Power flows, energy balances, and costs are inherently linear
-4. **Scalability**: Handles large time horizons efficiently
+LP fits home energy systems because power balances, costs, and most device constraints are linear.
+It delivers a global optimum when a feasible solution exists and scales well as you extend the horizon or add elements.
 
 !!! info "HAEO Uses LP, Not MILP"
 
@@ -62,15 +58,6 @@ Where:
 
 - $t$: Time step index (0 to $T-1$)
 - $T$: Number of time steps in optimization horizon
-
-### Problem Scale
-
-Typical residential system (48-hour horizon, 5-minute periods):
-
-- **Time steps**: 576
-- **Decision variables**: ~4000 (power flows, energy states)
-- **Constraints**: ~5000 (power balance, limits, dynamics)
-- **Solve time**: 0.5-2 seconds (HiGHS solver)
 
 ### Feasibility and Optimality
 

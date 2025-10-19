@@ -116,4 +116,4 @@ See [Connections](connections.md) for configuring the inverter connection.
 - [Mathematical Modeling](../../modeling/index.md)
 - [Connections Guide](connections.md)
 
-[:octicons-arrow-right-24: Continue to Connections Guide](connections.md)
+[:material-arrow-right: Continue to Connections Guide](connections.md)

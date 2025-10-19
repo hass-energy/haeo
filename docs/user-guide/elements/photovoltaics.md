@@ -107,4 +107,4 @@ Better daily coverage vs single orientation.
 - [Battery Configuration](battery.md)
 - [Forecasts Guide](../forecasts-and-sensors.md)
 
-[:octicons-arrow-right-24: Continue to Load Configuration](constant-load.md)
+[:material-arrow-right: Continue to Load Configuration](constant-load.md)

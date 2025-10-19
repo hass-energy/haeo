@@ -50,15 +50,8 @@ Forecast accuracy directly impacts optimization quality.
 
 ## Combined Usage
 
-Typical systems use both:
-
-- **Constant load**: Baseline (0.5-2 kW)
-- **Forecast load**: Variable consumption (time-dependent)
-
-- Total forecasts (all forecast-derived) must add up to load entity total
-- When mixing constant and forecast-derived, constant sets baseline
-
-Total load at node = sum of all connected loads.
+Typical systems use both load types: constant entries capture the baseline demand and forecast entries model time-varying usage.
+Total load at the balancing node equals the sum of all connected loads.
 
 ## Configuration Impact
 

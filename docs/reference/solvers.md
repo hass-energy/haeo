@@ -63,12 +63,9 @@ See solver documentation for setup.
 
 ## Performance Notes
 
-For typical home energy systems (1-5 entities, 48h horizon, 5min periods):
+- **HiGHS**: Handles small and medium networks quickly and consistently.
+- **CBC**: Suitable when you need an open solver with predictable run times.
+- **GLPK**: Works for smaller studies but may require longer runs on detailed scenarios.
+- **Commercial solvers**: Provide additional tuning options that help when modelling large or highly constrained networks.
 
-- **HiGHS**: 0.5-2 seconds
-- **CBC**: 1-3 seconds
-- **GLPK**: 2-5 seconds
-
-Commercial solvers offer marginal improvements for such small problems.
-
-For larger systems (10+ entities, 168h horizon), commercial solvers may be beneficial.
+Start with HiGHS unless your scenario demands specific commercial solver features.

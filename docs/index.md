@@ -10,100 +10,55 @@ It helps you minimize energy costs by intelligently managing battery storage, so
 
 - :material-download:{ .lg .middle } __Installation__
 
-    ---
-
     Get started with HAEO installation via HACS or manual setup.
 
-    [:octicons-arrow-right-24: Installation Guide](user-guide/installation.md)
+    [:material-arrow-right: Installation Guide](user-guide/installation.md)
 
 - :material-cog:{ .lg .middle } __Configuration__
 
-    ---
-
     Learn how to configure your energy system elements and connections.
 
-    [:octicons-arrow-right-24: Configuration Guide](user-guide/configuration.md)
+    [:material-arrow-right: Configuration Guide](user-guide/configuration.md)
 
 - :material-function:{ .lg .middle } __Mathematical Modeling__
 
-    ---
-
     Understand how HAEO models your energy system using linear programming.
 
-    [:octicons-arrow-right-24: Modeling Documentation](modeling/index.md)
+    [:material-arrow-right: Modeling Documentation](modeling/index.md)
 
 - :material-code-braces:{ .lg .middle } __Developer Guide__
 
-    ---
-
     Contribute to HAEO development or build custom extensions.
 
-    [:octicons-arrow-right-24: Developer Documentation](developer-guide/index.md)
+    [:material-arrow-right: Developer Documentation](developer-guide/index.md)
 
 </div>
 
 ## What is HAEO?
 
-HAEO stands for **Home Assistant Energy Optimization**. It's a sophisticated integration that:
-
-- **Optimizes energy flow** across all your devices in real-time
-- **Minimizes costs** by considering electricity prices and forecasts
-- **Manages battery** charging and discharging intelligently
-- **Integrates solar** generation with optional curtailment
-- **Handles complex systems** with multiple batteries, grids, and loads
-
-## How It Works
-
-```mermaid
-flowchart LR
-    A[Home Assistant<br/>Sensors] --> B[Data Collection]
-    B --> C[Network Model]
-    C --> D[Linear Programming<br/>Solver]
-    D --> E[Optimal Schedule]
-    E --> F[HA Sensors]
-    F --> G[Automations &<br/>Dashboards]
-```
-
-1. **Collects data** from your Home Assistant sensors (prices, battery SOC, solar forecasts)
-2. **Builds a model** representing your energy network with all constraints
-3. **Solves optimization** using linear programming to find the lowest-cost solution
-4. **Publishes results** as Home Assistant sensors for use in automations
-
-See the [mathematical modeling documentation](modeling/index.md) for detailed information.
+HAEO continuously evaluates forecasts, device limits, and prices to produce an optimal plan for your configured elements.
+It works alongside other Home Assistant integrations that provide sensor data, and exposes its results as sensors you can reference in automations or dashboards.
 
 ## Key Features
 
-### Real-time Optimization
+### Optimization that follows your data
 
-HAEO continuously monitors your energy system and recalculates the optimal strategy as conditions change.
-With configurable update intervals and time horizons, you can balance computational load with optimization quality.
+HAEO watches the sensors you configure and re-optimizes whenever inputs change.
+You choose the horizon and resolution through the UI to balance responsiveness with complexity.
+See the [configuration guide](user-guide/configuration.md#horizon-hours) for advice on selecting a horizon window.
 
-### Multiple Device Support
+### Built for the Home Assistant ecosystem
 
-- **Batteries**: Configurable capacity, charge rates, efficiency, and SOC limits
-- **Grids**: Import/export with pricing (fixed or forecast-based)
-- **Photovoltaics**: Solar generation with optional curtailment capability
-- **Loads**: Both constant and forecast-based consumption
-- **Nodes**: Virtual balance points for grouping and balancing power flows
+Configuration uses the standard [Home Assistant integration flow](https://www.home-assistant.io/integrations/#configuring-integrations) and all results appear as sensors, so there is no separate management interface.
 
-### Price-based Strategy
+### Works with diverse energy setups
 
-HAEO uses electricity prices (current and forecast) to determine:
+Whether you have storage, on-site generation, flexible loads, or only the grid, HAEO treats each component as an element in the same optimization network.
 
-- When to charge batteries (during cheap periods)
-- When to discharge batteries (during expensive periods)
-- Whether to export solar or store it
-- How to balance multiple energy sources
+### Extensible modeling
 
-### Flexible Constraints
+The modeling documentation explains how HAEO formulates the linear program, and the developer guide shows how to extend it when new element types are needed.
 
-Every device can have constraints:
-
-- Power limits (min/max charge/discharge rates)
-- Energy limits (battery capacity, SOC ranges)
-- Connection constraints (directional flow limits)
-
-The solver respects all constraints while finding the optimal solution.
 
 ## Documentation Structure
 
@@ -121,10 +76,10 @@ Perfect for **end users** who want to install and configure HAEO:
 
 For those interested in **how the optimization works**:
 
-- [Mathematical Modeling Overview](modeling/index.md) - Complete linear programming formulation
-- [Battery Model](modeling/battery.md) - Energy storage with SOC dynamics
-- [Grid Model](modeling/grid.md) - Import/export with pricing
-- [Component Models](modeling/battery.md) - All element mathematical models
+- [Mathematical Modeling Overview](modeling/index.md) - Linear programming formulation and network structure
+- [Battery Model](modeling/battery.md) - Storage dynamics and constraints
+- [Grid Model](modeling/grid.md) - Import and export cost modeling
+- [Component Models](modeling/battery.md) - Element-by-element formulations
 
 ### :material-code-braces: Developer Guide
 
@@ -159,18 +114,18 @@ Quick **reference tables and schemas**:
 
     Start with the installation guide to get HAEO up and running.
 
-    [:octicons-arrow-right-24: Install HAEO](user-guide/installation.md)
+    [:material-arrow-right: Install HAEO](user-guide/installation.md)
 
 - :material-book-open-variant:{ .lg .middle } __Want to understand the math?__
 
     Explore the mathematical modeling documentation.
 
-    [:octicons-arrow-right-24: Mathematical Models](modeling/index.md)
+    [:material-arrow-right: Mathematical Models](modeling/index.md)
 
 - :material-code-tags:{ .lg .middle } __Want to contribute?__
 
     Check out the developer guide and contribution workflow.
 
-    [:octicons-arrow-right-24: Developer Guide](developer-guide/index.md)
+    [:material-arrow-right: Developer Guide](developer-guide/index.md)
 
 </div>

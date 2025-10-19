@@ -106,4 +106,4 @@ The connection limits represent the inverter's power rating.
 - [Connection Modeling](../../modeling/connections.md)
 - [Node Modeling](../../modeling/node.md)
 
-[:octicons-arrow-right-24: Continue to Understanding Results](../optimization.md)
+[:material-arrow-right: Continue to Understanding Results](../optimization.md)

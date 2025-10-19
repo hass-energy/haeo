@@ -129,53 +129,6 @@ $$
 P_{\text{battery}}(t) = P_{\text{discharge}}(t) - P_{\text{charge}}(t)
 $$
 
-## Example: Overnight Charging Strategy
-
-Consider a battery with:
-
-- Capacity: 10 kWh
-- SOC range: 20-90%
-- Max charge/discharge: 5 kW
-- Efficiency: 95%
-- Time-of-use pricing
-
-```mermaid
-gantt
-    title Optimal Battery Operation
-    dateFormat HH:mm
-    axisFormat %H:%M
-
-    section Grid Price
-    Off-Peak $0.12/kWh: 00:00, 07:00
-    Peak $0.35/kWh: 07:00, 22:00
-    Off-Peak $0.12/kWh: 22:00, 24:00
-
-    section Battery SOC
-    20% (Start): milestone, 00:00, 0h
-    Charging to 90%: 00:00, 03:00
-    90% (Hold): 03:00, 17:00
-    Discharging to 20%: 17:00, 22:00
-    20% (End): milestone, 22:00, 0h
-```
-
-### Optimization Logic
-
-1. **00:00-03:00**: Charge from 20% to 90% during off-peak prices
-
-    - Energy needed: $0.70 \times 10 = 7$ kWh
-    - Grid import: $7 / 0.95 = 7.37$ kWh (accounting for losses)
-    - Cost: $7.37 \times 0.12 = \$0.88$
-
-2. **03:00-17:00**: Hold at 90%, wait for peak prices
-
-3. **17:00-22:00**: Discharge from 90% to 20% during peak prices
-
-    - Energy released: $7$ kWh
-    - Export/offset: $7 \times 0.95 = 6.65$ kWh
-    - Savings: $6.65 \times 0.35 = \$2.33$
-
-4. **Net benefit**: $\$2.33 - \$0.88 = \$1.45$ per day
-
 ## Numerical Considerations
 
 ### Units
@@ -214,62 +167,11 @@ This approach:
 - Maintains exact round-trip efficiency
 - Allows LP formulation (linear constraints)
 
-## Configuration Impact
+## Configuration impact
 
-### Capacity
-
-Larger capacity allows:
-
-- More energy storage
-- Greater peak shaving capability
-- Longer duration operation
-
-But requires:
-
-- More time to charge/discharge fully
-- Higher initial cost
-
-### SOC Range
-
-**Wider range (e.g., 10-100%)**:
-
-- ✅ More usable capacity
-- ❌ Faster battery degradation
-
-**Narrower range (e.g., 20-90%)**:
-
-- ✅ Longer battery life
-- ❌ Less usable capacity
-
-### Power Limits
-
-**Higher limits**:
-
-- ✅ Faster charge/discharge
-- ✅ Better peak shaving
-- ❌ May require larger inverter
-
-**Lower limits**:
-
-- ✅ Gentler on battery
-- ❌ Slower response to price changes
-
-### Efficiency
-
-Higher efficiency:
-
-- ✅ Less energy lost to heat
-- ✅ More economical cycling
-- ✅ Better overall system performance
-
-Typical battery efficiencies:
-
-| Chemistry         | Round-trip Efficiency |
-| ----------------- | --------------------- |
-| Lithium-ion (NMC) | 95-98%                |
-| Lithium-ion (LFP) | 92-96%                |
-| Lead-acid         | 80-85%                |
-| Flow battery      | 65-85%                |
+Increasing capacity or widening the SOC range gives the optimizer more flexibility at the expense of longer charge and discharge windows and potentially faster battery wear.
+Tighter power limits slow how quickly the schedule can respond, while higher limits require the supporting hardware to cope with the additional load.
+Improving efficiency directly reduces losses because the model applies the factor on every charge and discharge cycle.
 
 ## Related Documentation
 
@@ -277,4 +179,4 @@ Typical battery efficiencies:
 - [Modeling Overview](index.md) - Overall optimization formulation
 - [Units Documentation](../developer-guide/units.md) - Why we use kW/kWh
 
-[:octicons-arrow-right-24: Continue to Grid Modeling](grid.md)
+[:material-arrow-right: Continue to Grid Modeling](grid.md)

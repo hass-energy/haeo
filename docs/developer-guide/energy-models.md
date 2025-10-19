@@ -2,86 +2,47 @@
 
 Guide for adding new element types to HAEO's optimization engine.
 
-## Integration Points
+## Workflow overview
 
-HAEO uses linear programming (PuLP) to optimize energy networks.
-Elements contribute decision variables, constraints, and costs to the optimization problem.
+1. Design the mathematical behaviour for your element: required variables, constraints, and cost contributions.
+2. Implement the model class in `custom_components/haeo/model/` by deriving from the shared `Element` base.
+3. Define the configuration schema and defaults in `custom_components/haeo/elements/` so the UI can collect the necessary inputs.
+4. Register the element with the network builder so the coordinator can instantiate it from configuration.
+5. Extend the element config flow and add tests that cover both the mathematical formulation and the user-facing configuration.
 
-**Model Classes**: `custom_components/haeo/model/*.py` - Create your element class inheriting from `Element`
+## Modeling guidelines
 
-**Configuration Schema**: `custom_components/haeo/elements/<element>.py` - Define `TypedDict` schemas and defaults for your element
+### Stay linear
 
-**Network Builder**: `coordinator.py` `_create_entity()` - Add case to instantiate your element from config
+The solver uses pure linear programming, so every constraint and cost must be linear in the decision variables.
+Approximate nonlinear behaviour with piecewise constants or external preprocessing when necessary.
+The default solvers also support mixed-integer linear programming, but treat binary or integer variables as a last resort because they increase solve time dramatically.
+Before you add discrete decisions, look for linear encodings such as mutually dependent constraints, large penalty weights, or auxiliary slack variables that approximate the choice without integer branching.
+If MILP is truly required, keep the integer variable count minimal and document the trade-offs so reviewers understand the performance impact.
 
-**Config Flow**: `flows/options.py` - Add step functions for UI configuration
+### Keep units consistent
 
-**Tests**: `tests/test_model.py` and `tests/scenarios/` - Verify element behavior
+All internal calculations use kW for power, kWh for energy, and hours for time steps.
+Use the shared unit conversion helpers if you introduce new inputs to keep numerical magnitudes aligned.
 
-## Element Base Class
+### Use variable bounds wisely
 
-Inherit from `Element` which provides:
+When defining new decision variables, apply sensible lower and upper bounds at creation time.
+This reduces the number of explicit constraints you need and improves solver performance.
 
-- `power_consumption` / `power_production` sequences - Use `LpVariable` for controllable power, floats for fixed
-- `energy` sequence - Optional state tracking (batteries need this)
-- `price_consumption` / `price_production` - Optional pricing data for cost optimization
-- `period` (hours) and `n_periods` - Time structure for optimization horizon
-- `constraints()` method - Override to add linear constraints
-- `cost()` method - Override to add costs beyond basic pricing
+## Connections and nodes
 
-Variable naming: Include element name and time index (`f"{name}_power_{t}"`) for uniqueness.
+Connections remain responsible for enforcing flow limits and tying elements together through node balance constraints.
+When introducing a new element, ensure it connects through existing nodes or provide a clear reason to add a specialised node variant.
 
-## HAEO Constraints
+## Cost modelling
 
-### Units
+Only add costs that reflect real trade-offs.
+If the element interacts with external tariffs or degradation models, expose the relevant coefficients through configuration and ensure the objective contribution uses the shared period length for scaling.
 
-All optimization uses kW (power), kWh (energy), hours (time).
-Data loading in `coordinator.py` converts Home Assistant's W/Wh automatically.
+## Related documentation
 
-### Linear Programming Only
-
-PuLP requires linear constraints.
-No variable multiplication or exponents.
-Use constant efficiency instead of curves, linearize nonlinear physics.
-
-### Variable Bounds vs Constraints
-
-Set bounds during `LpVariable()` creation when possible - more efficient than separate constraints.
-
-## Connections
-
-Connections enforce Kirchhoff's Current Law between elements.
-Created in `coordinator.py`, not as separate model classes.
-Node elements enforce the constraints.
-
-Properties: source, target, power flow variables, optional capacity limit, optional efficiency (transmission losses).
-
-## Common Patterns
-
-### Constraints
-
-Override `constraints()` to return list of linear constraints:
-
-- **State bounds**: Energy storage limits (battery SOC 0-100%)
-- **Ramp rates**: Limit power change between consecutive periods
-- **Mutual exclusivity**: Binary variables for mode selection (expensive, avoid if possible)
-- **Minimum runtime**: Binary variables ensuring minimum on/off duration (expensive)
-
-### Costs
-
-Override `cost()` to add to optimization objective:
-
-- **Energy pricing**: `sum(power[t] * price[t] * period)` for each time period
-- **Degradation**: Add throughput costs (battery cycles)
-- **Demand charges**: Add peak demand variable + constraints
-- **Opportunity costs**: Lost revenue from curtailment/flexibility
-
-## Related Documentation
-
-- [Architecture](architecture.md) - System overview
-- [Data Loading](data-loading.md) - How forecast data flows into models
-- [Coordinator](coordinator.md) - Network building and optimization
-- [Battery Model](../modeling/battery.md) - Complete battery implementation
-- [Grid Model](../modeling/grid.md) - Import/export with pricing
-- [Load Model](../modeling/loads.md) - Fixed and flexible loads
-- [Node Model](../modeling/node.md) - Kirchhoff's law enforcement
-- [Testing](testing.md) - Model testing patterns
+- [Architecture](architecture.md) – High-level system structure
+- [Data loading](data-loading.md) – Forecast and sensor ingestion
+- [Battery model](../modeling/battery.md) – Example of a storage formulation
+- [Testing](testing.md) – Expectations for unit and integration tests

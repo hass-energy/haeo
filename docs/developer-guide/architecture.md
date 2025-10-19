@@ -25,83 +25,24 @@ graph TD
 
 ### Config Flow (`config_flow.py`, `flows/`)
 
-User-facing configuration via HA UI.
-HAEO uses Home Assistant's **ConfigSubentry architecture** where elements are managed as subentries of the main hub entry.
-
-**Entry Types**:
-
-- **Hub Entry**: Main coordination entry containing optimization settings
-- **ConfigSubentries**: Elements (network, battery, grid, etc.) managed as subentries via `ConfigSubentryFlow`
-
-This architecture provides:
-
-- Independent configuration of each element through HA's native subentry UI
-- Automatic parent-child relationship management by Home Assistant
-- Easy addition/removal of elements via the UI
-- Proper device registry association with subentry IDs
-- No manual `parent_entry_id` tracking needed
-
-See: [Config Entries documentation](https://developers.home-assistant.io/docs/config_entries_index)
-
-### Config Entry
-
-**Hub Entry Storage**:
-
-- `data`: Stores only `integration_type: "hub"` marker
-- `options`: Stores optimization settings (horizon_hours, period_minutes, optimizer)
-- `subentries`: Dictionary of ConfigSubentry objects (managed by Home Assistant)
-
-**Element ConfigSubentry Storage**:
-
-- `data`: Stores element configuration (name_value, capacity, sensors, defaults, etc.)
-- `subentry_type`: Element type identifier (battery, grid, photovoltaics, etc.)
-- `subentry_id`: Unique identifier for this subentry
-- `title`: Display name for the element
-
-Parent-child relationship is maintained by Home Assistant through the hub entry's `subentries` property.
-No `parent_entry_id` is stored in subentry data.
-
-HA loads this data on startup to recreate the integration state.
+User-facing configuration via the Home Assistant UI.
+The hub flow creates the main entry and exposes additional flows so users can add and manage elements without leaving the standard interface.
+See the [config entry documentation](https://developers.home-assistant.io/docs/config_entries_index) for the underlying Home Assistant patterns.
 
 ### Coordinator (`coordinator.py`)
 
 Central manager scheduling optimization cycles (default 5 min), loading data, building network, running solver, distributing results.
 Each hub entry creates one coordinator instance.
 
-See: [Data Update Coordinator documentation](https://developers.home-assistant.io/docs/integration_fetching_data)
+See the [data update coordinator documentation](https://developers.home-assistant.io/docs/integration_fetching_data) for the base pattern.
+HAEO's coordinator gathers sensor values, assembles the optimization network, runs the solver in an executor, and pushes the results back to the entities.
+It listens for element additions or removals and triggers a refresh whenever the underlying data changes.
 
-**Update cycle**:
+### Data loaders (`data/`)
 
-1. Access subentries via `config_entry.subentries` property
-2. Check sensor availability (wait if not ready)
-3. Load sensor states and forecasts via data loaders
-4. Build network model from subentry configs using `load_network()`
-5. Run LP optimization in executor thread
-6. Extract and store results
-7. Sensors auto-update via coordinator pattern
-
-**HAEO-specific features**:
-
-- Accesses subentries directly through the hub entry's `subentries` dictionary
-- State change listeners trigger optimization when configured sensors change
-- Waits for all configured sensors before first optimization
-- Handles dynamic addition/removal of element subentries automatically
-
-### Data Loaders (`data/`)
-
-The `data` module provides a sophisticated loading system with two modes:
-
-- **Schema mode**: For config flow validation (Voluptuous schemas)
-- **Data mode**: For runtime data loading from Home Assistant
-
-**Loader types** (`data/loader/`):
-
-- `ConstantLoader`: Static numeric values
-- `SensorLoader`: Live sensor states
-- `ForecastLoader`: Forecast data from sensors
-- `ForecastAndSensorLoader`: Combines live + forecast data
-
-**Forecast parsing** (`data/loader/forecast_parsers/`): Auto-detects and parses various forecast formats (attribute-based, event-based).
+Data loaders translate configuration into time series the model can consume.
+They validate values during the config flow and fetch real sensor data at runtime, including support for common forecast formats.
+Keep new loaders focused on a single responsibility and reuse the shared parser utilities where possible.
 
 ### Network Builder
 
@@ -136,28 +77,9 @@ Solves linear programming minimization problem, returns optimal cost and decisio
 
 ### Sensors (`sensors/`)
 
-Modular sensor platform exposing optimization results to Home Assistant.
-
-See: [Sensor entity documentation](https://developers.home-assistant.io/docs/core/entity/sensor)
-
-**Optimization sensors** (`sensors/optimization.py`):
-- Cost, status, duration
-
-**Element sensors**:
-- Power (`sensors/power.py`): Current power flow
-- Energy (`sensors/energy.py`): Cumulative energy
-- SOC (`sensors/soc.py`): Battery state of charge
-- Cost (`sensors/cost.py`): Element-specific costs
-
-**Forecast format**: All sensors include `forecast` attribute as `{timestamp: value}` dictionary.
-
-**Device Registration**: Two-phase device creation ensures proper subentry association:
-
-1. **Pre-register devices** (`async_register_devices()`): Creates devices with `config_subentry_id` parameter before entities
-2. **Link entities to devices**: Sensors fetch `DeviceEntry` from registry and set `self.device_entry` attribute
-3. Home Assistant platform recognizes the device_entry and links entities without auto-creating duplicate devices
-
-This prevents devices from appearing in "Devices that don't belong to a sub-entry" and ensures single device per element.
+Sensor entities expose optimization outputs through standard Home Assistant constructs.
+Separate modules handle network-level metrics and per-element values, and every sensor carries a forecast attribute so downstream automations can look ahead.
+Refer to the [sensor entity documentation](https://developers.home-assistant.io/docs/core/entity/sensor) when adding new measurements.
 
 ### Model Architecture (`model/`)
 
@@ -177,64 +99,16 @@ Separate subsystem implementing the optimization model:
 
 ## Code Organization
 
-```
-custom_components/haeo/
-├── __init__.py              # Integration entry point
-├── config_flow.py           # Config flow coordinator
-├── coordinator.py           # Data update coordinator
-├── sensor.py                # Sensor platform setup
-├── const.py                 # Constants and defaults
-├── manifest.json            # Integration metadata
-├── py.typed                 # Type checking marker
-├── flows/                   # Config flow implementations
-│   ├── __init__.py
-│   ├── hub.py              # Hub config flow
-│   ├── options.py          # Options flow handler
-│   └── elements/           # Per-element config flows
-├── data/                    # Data loading system
-│   ├── __init__.py         # load_network() entry point
-│   └── loader/             # Loader implementations
-│       ├── __init__.py
-│       ├── constant_loader.py
-│       ├── sensor_loader.py
-│       ├── forecast_loader.py
-│       ├── forecast_and_sensor_loader.py
-│       └── forecast_parsers/
-├── model/                   # Optimization model
-│   ├── __init__.py
-│   ├── element.py          # Base element class
-│   ├── battery.py
-│   ├── grid.py
-│   ├── photovoltaics.py
-│   ├── constant_load.py
-│   ├── forecast_load.py
-│   ├── net.py              # Node entity
-│   ├── connection.py
-│   └── network.py          # Network container
-├── schema/                  # Schema/validation system
-│   ├── __init__.py
-│   └── fields.py           # Field metadata and loaders
-├── sensors/                 # Sensor implementations
-│   ├── __init__.py
-│   ├── base.py             # Base sensor class
-│   ├── optimization.py     # Network-level sensors
-│   ├── power.py
-│   ├── energy.py
-│   ├── soc.py
-│   ├── cost.py
-│   └── types.py
-├── elements/                # Element metadata, schemas, and defaults
-│   ├── __init__.py
-│   ├── battery.py
-│   ├── grid.py
-│   ├── photovoltaics.py
-│   ├── constant_load.py
-│   ├── forecast_load.py
-│   ├── node.py
-│   └── connection.py
-└── translations/            # i18n strings
-    └── en.json
-```
+The integration lives under `custom_components/haeo/` and follows Home Assistant layout conventions.
+Rather than documenting every file, focus on how the major areas collaborate:
+
+- **Entry points**: `__init__.py`, `config_flow.py`, and `coordinator.py` bootstrap the integration, collect user input, and run optimizations on schedule.
+- **Flows (`flows/`)**: Houses hub, element, and options flows; each submodule owns the UI schema for a related group of entries.
+- **Data layer (`data/`)**: Loader modules turn Home Assistant sensors and forecasts into normalized time series for the optimizer.
+- **Model (`model/`)**: Pure Python optimization layer composed of elements, connections, and network orchestration.
+- **Metadata (`elements/` and `schema/`)**: Describe configuration defaults, validation, and runtime metadata for every element type.
+- **Presentation (`sensors/`)**: Builds coordinator entities and sensor platforms that publish optimization results back to Home Assistant.
+- **Translations (`translations/`)**: Provides user-facing strings for config flows and entity names.
 
 ## Extension Points
 

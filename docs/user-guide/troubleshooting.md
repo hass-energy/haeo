@@ -21,6 +21,7 @@ Optimization fails or warnings about insufficient forecast data.
 Ensure your forecast sensors provide data for the entire optimization horizon.
 
 **Example**: If horizon is 48 hours, forecasts must cover at least 48 hours.
+Refer to the [horizon guidance](configuration.md#horizon-hours) before changing that value.
 
 #### Verify Forecast Sensors
 
@@ -37,6 +38,7 @@ If you can't get longer forecasts, reduce the horizon:
 1. Open HAEO configuration
 2. Reduce **Horizon Hours** to match your forecast length
 3. Save and wait for optimization
+Shorter horizons limit planning depth, so follow the [horizon guidance](configuration.md#horizon-hours) when you make this change.
 
 #### Use Multiple Forecast Sensors
 
@@ -141,12 +143,10 @@ Optimization duration exceeds acceptable limits.
 
 If optimization takes too long:
 
-1. **Reduce horizon**: Use fewer hours (48 → 24)
+1. **Trim horizon cautiously**: Consider smaller horizons only after other steps and follow the [horizon guidance](configuration.md#horizon-hours) when you do.
 2. **Increase period**: Use larger time steps (5min → 15min)
 3. **Simplify network**: Remove unnecessary elements
 4. **Change solver**: Try CBC or GLPK
-
-Target: < 5 seconds for real-time use
 
 ## Battery Not Charging/Discharging
 
@@ -201,3 +201,29 @@ Include:
 - HAEO version
 - Configuration (sanitized)
 - Relevant logs
+
+## Next Steps
+
+Try these resources if you still need assistance after working through the troubleshooting steps.
+
+<div class="grid cards" markdown>
+
+- :material-sync:{ .lg .middle } __Review data update behaviour__
+
+    Check how HAEO refreshes data and identify update bottlenecks.
+
+    [:material-arrow-right: Data update guide](data-updates.md)
+
+- :material-robot-outline:{ .lg .middle } __Check automation patterns__
+
+    Ensure follow-up automations react correctly to optimizer outputs.
+
+    [:material-arrow-right: Automation patterns](automations.md)
+
+- :material-forum:{ .lg .middle } __Ask the community for help__
+
+    Share logs and scenarios to get tailored assistance.
+
+    [:material-arrow-right: GitHub discussions](https://github.com/ha-energy-optimiser/haeo/discussions)
+
+</div>

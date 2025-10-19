@@ -243,11 +243,32 @@ See the [troubleshooting guide](../troubleshooting.md) for more solutions.
 
 ## Next Steps
 
-After configuring your grid:
+Extend your grid setup with these follow-up guides.
 
-1. [Add a battery](battery.md) to store cheap electricity
-2. [Add solar](photovoltaics.md) to generate free electricity
-3. [Define connections](connections.md) between components
-4. [View results](../optimization.md) to see optimal power flows
+<div class="grid cards" markdown>
 
-[:octicons-arrow-right-24: Continue to Photovoltaics Configuration](photovoltaics.md)
+- :material-battery:{ .lg .middle } __Add a battery__
+
+  Store inexpensive energy for later use while respecting device constraints.
+
+  [:material-arrow-right: Battery guide](battery.md)
+
+- :material-weather-sunny:{ .lg .middle } __Add solar generation__
+
+  Bring photovoltaic production into the network for self-consumption or export.
+
+  [:material-arrow-right: Photovoltaics guide](photovoltaics.md)
+
+- :material-source-branch:{ .lg .middle } __Define connections__
+
+  Configure energy flow paths between the grid and other elements.
+
+  [:material-arrow-right: Connection setup](connections.md)
+
+- :material-chart-line:{ .lg .middle } __View optimization results__
+
+  Confirm the power flows HAEO produces with your updated configuration.
+
+  [:material-arrow-right: Optimization overview](../optimization.md)
+
+</div>
