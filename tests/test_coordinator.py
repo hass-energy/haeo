@@ -1,22 +1,27 @@
 """Test the HAEO coordinator."""
 
-from datetime import UTC, datetime
+import asyncio
+from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
+from typing import Any
 from unittest.mock import Mock, patch
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import CONF_NAME, CONF_SOURCE, CONF_TARGET
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.haeo.const import (
     ATTR_ENERGY,
     ATTR_POWER,
+    CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
     CONF_HORIZON_HOURS,
     CONF_PARTICIPANTS,
     CONF_PERIOD_MINUTES,
+    CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_SUCCESS,
@@ -44,6 +49,8 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
             CONF_NAME: "Power Network",
             CONF_HORIZON_HOURS: 1,  # 1 hour for testing
             CONF_PERIOD_MINUTES: 30,  # 30 minutes for testing
+            CONF_UPDATE_INTERVAL_MINUTES: 5,
+            CONF_DEBOUNCE_SECONDS: 1,
         },
         entry_id="hub_entry_id",
     )
@@ -133,6 +140,25 @@ async def test_coordinator_initialization(
     assert "test_grid" in coordinator.config[CONF_PARTICIPANTS]
     assert coordinator.network is None
     assert coordinator.optimization_result is None
+    assert coordinator.update_interval == timedelta(minutes=5)
+
+
+async def test_update_interval_respects_config(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: ConfigSubentry,
+    mock_grid_subentry: ConfigSubentry,
+) -> None:
+    """Ensure coordinator uses configured update interval."""
+    hass.config_entries.async_update_entry(
+        mock_hub_entry,
+        data={**dict(mock_hub_entry.data), CONF_UPDATE_INTERVAL_MINUTES: 12},
+    )
+    await hass.async_block_till_done()
+    assert mock_hub_entry.data[CONF_UPDATE_INTERVAL_MINUTES] == 12
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    assert coordinator.update_interval == timedelta(minutes=12)
 
 
 @patch("custom_components.haeo.model.network.Network.optimize")
@@ -515,8 +541,94 @@ async def test_sensor_state_change_triggers_optimization(
         hass.states.async_set("sensor.battery_soc", "60", {"device_class": "battery", "unit_of_measurement": "%"})
         await hass.async_block_till_done()
 
-        # Verify that refresh was triggered by state change
-        assert refresh_count > 0
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=1))
+        await hass.async_block_till_done()
+
+        async def _wait_for_refresh() -> None:
+            while refresh_count == 0:
+                await hass.async_block_till_done()
+                await asyncio.sleep(0)
+
+        await asyncio.wait_for(_wait_for_refresh(), timeout=1)
+        assert refresh_count == 1
+
+
+async def test_debounced_updates_queue_pending_refresh(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: ConfigSubentry,
+    mock_grid_subentry: ConfigSubentry,
+) -> None:
+    """Ensure state changes during updates queue a follow-up refresh."""
+
+    hass.states.async_set("sensor.battery_soc", "50", {"device_class": "battery", "unit_of_measurement": "%"})
+    forecast_data = [
+        {"start_time": "2025-10-05T00:00:00", "per_kwh": 0.1},
+        {"start_time": "2025-10-05T00:30:00", "per_kwh": 0.1},
+    ]
+    hass.states.async_set(
+        "sensor.import_price",
+        "0.10",
+        {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
+    )
+    hass.states.async_set(
+        "sensor.export_price",
+        "0.05",
+        {"device_class": "monetary", "unit_of_measurement": "$/kWh", "forecasts": forecast_data},
+    )
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    call_count = 0
+    first_call_started = asyncio.Event()
+    continue_event = asyncio.Event()
+
+    async def fake_update() -> dict[str, Any]:
+        nonlocal call_count
+        coordinator._update_in_progress = True
+        call_count += 1
+        first_call_started.set()
+        await continue_event.wait()
+        coordinator._update_in_progress = False
+        if coordinator._pending_refresh:
+            coordinator._pending_refresh = False
+            coordinator._schedule_debounced_refresh(immediate=True)
+        return {
+            "cost": 1.0,
+            "timestamp": dt_util.utcnow(),
+            "duration": 0.1,
+        }
+
+    def fake_schedule_debounce(*, immediate: bool = False) -> None:
+        if immediate:
+            coordinator._handle_debounced_refresh(dt_util.utcnow())
+
+    with (
+        patch.object(coordinator, "_async_update_data", side_effect=fake_update),
+        patch.object(coordinator, "_schedule_debounced_refresh", side_effect=fake_schedule_debounce),
+    ):
+        refresh_task = hass.async_create_task(coordinator.async_refresh())
+
+        await asyncio.wait_for(first_call_started.wait(), timeout=1)
+        assert call_count == 1
+
+        coordinator._handle_debounced_refresh(dt_util.utcnow())
+        assert coordinator._pending_refresh
+
+        continue_event.set()
+
+        await refresh_task
+        await hass.async_block_till_done()
+        await asyncio.sleep(0)
+
+        async def _wait_for_second_call() -> None:
+            while call_count < 2:
+                await hass.async_block_till_done()
+                await asyncio.sleep(0)
+
+        await asyncio.wait_for(_wait_for_second_call(), timeout=1)
+
+        assert call_count == 2
 
 
 async def test_coordinator_cleanup(

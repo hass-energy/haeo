@@ -10,6 +10,8 @@
           "name": "Network Name",
           "horizon_hours": "Optimization Horizon (hours)",
           "period_minutes": "Time Period (minutes)",
+          "update_interval_minutes": "Update Interval (minutes)",
+          "debounce_seconds": "Debounce Window (seconds)",
           "optimizer": "Optimization Solver"
         }
       }
@@ -29,6 +31,8 @@
         "data": {
           "horizon_hours": "Optimization Horizon (hours)",
           "period_minutes": "Time Period (minutes)",
+          "update_interval_minutes": "Update Interval (minutes)",
+          "debounce_seconds": "Debounce Window (seconds)",
           "optimizer": "Optimization Solver"
         }
       }

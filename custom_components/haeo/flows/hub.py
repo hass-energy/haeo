@@ -8,9 +8,11 @@ from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
 
 from custom_components.haeo.const import (
+    CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_HOURS,
     CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
+    CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
@@ -55,6 +57,8 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_HORIZON_HOURS: user_input[CONF_HORIZON_HOURS],
                         CONF_PERIOD_MINUTES: user_input[CONF_PERIOD_MINUTES],
                         CONF_OPTIMIZER: user_input.get(CONF_OPTIMIZER, "highs"),
+                        CONF_UPDATE_INTERVAL_MINUTES: user_input[CONF_UPDATE_INTERVAL_MINUTES],
+                        CONF_DEBOUNCE_SECONDS: user_input[CONF_DEBOUNCE_SECONDS],
                     },
                 )
 

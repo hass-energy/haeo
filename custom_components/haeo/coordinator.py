@@ -8,20 +8,24 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 from pulp import value
 
 from .const import (
     ATTR_POWER,
+    CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
     CONF_HORIZON_HOURS,
     CONF_OPTIMIZER,
     CONF_PARTICIPANTS,
     CONF_PERIOD_MINUTES,
+    CONF_UPDATE_INTERVAL_MINUTES,
+    DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_OPTIMIZER,
     DEFAULT_UPDATE_INTERVAL,
+    DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
@@ -152,6 +156,22 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.optimization_status = OPTIMIZATION_STATUS_PENDING
         self._last_optimization_duration: float | None = None
         self._state_change_unsub: Callable[[], None] | None = None
+        self._debounce_cancel: Callable[[], None] | None = None
+        self._pending_refresh = False
+        self._update_in_progress = False
+
+        configured_debounce = self.config.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS)
+        if configured_debounce is None:
+            configured_debounce = DEFAULT_DEBOUNCE_SECONDS
+        self._debounce_seconds = float(configured_debounce)
+
+        configured_interval_minutes = self.config.get(
+            CONF_UPDATE_INTERVAL_MINUTES,
+            DEFAULT_UPDATE_INTERVAL_MINUTES,
+        )
+        if configured_interval_minutes is None:
+            configured_interval_minutes = DEFAULT_UPDATE_INTERVAL_MINUTES
+        self._update_interval_minutes = int(configured_interval_minutes)
 
         super().__init__(
             hass,
@@ -160,6 +180,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=DEFAULT_UPDATE_INTERVAL),
             config_entry=entry,
         )
+
+        self.update_interval = timedelta(minutes=self._update_interval_minutes)
 
         # Set up state change listeners for all entity IDs in configuration
         self._setup_state_change_listeners()
@@ -175,8 +197,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             def _state_change_listener(_event: Event[EventStateChangedData]) -> None:
                 """Handle state changes for tracked entities."""
                 _LOGGER.debug("Entity state changed, triggering optimization update")
-                # Schedule an immediate refresh
-                self.hass.async_create_task(self.async_refresh())
+                self._schedule_debounced_refresh()
 
             # Track state changes for all relevant entities
             self._state_change_unsub = async_track_state_change_event(
@@ -185,8 +206,36 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _state_change_listener,
             )
 
+    def _schedule_debounced_refresh(self, *, immediate: bool = False) -> None:
+        """Schedule an optimization refresh respecting the configured debounce."""
+        if self._debounce_cancel is not None:
+            self._debounce_cancel()
+            self._debounce_cancel = None
+
+        delay = 0.0 if immediate else max(0.0, self._debounce_seconds)
+        self._debounce_cancel = async_call_later(self.hass, delay, self._handle_debounced_refresh)
+
+    @callback
+    def _handle_debounced_refresh(self, _now: datetime) -> None:
+        """Execute a debounced refresh unless an update is already in progress."""
+        self._debounce_cancel = None
+
+        if self._update_in_progress:
+            self._pending_refresh = True
+            return
+
+        def _refresh() -> None:
+            """Run refresh within the event loop thread."""
+            self.hass.async_create_task(self.async_refresh())
+
+        self.hass.loop.call_soon_threadsafe(_refresh)
+
     def cleanup(self) -> None:
         """Clean up coordinator resources."""
+        if self._debounce_cancel is not None:
+            _LOGGER.debug("Cancelling pending debounced refresh")
+            self._debounce_cancel()
+            self._debounce_cancel = None
         if self._state_change_unsub is not None:
             _LOGGER.debug("Unsubscribing from state change listeners")
             self._state_change_unsub()
@@ -225,34 +274,31 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data from Home Assistant entities and run optimization."""
-        # Start timing the entire optimization process
         start_time = time.time()
-
-        # Check if all sensors are available before proceeding
-        sensors_available, unavailable_sensors = self.check_sensors_available()
-        if not sensors_available:
-            max_display = 5
-            sensor_list = ", ".join(unavailable_sensors[:max_display])
-            if len(unavailable_sensors) > max_display:
-                sensor_list += "..."
-            _LOGGER.info(
-                "Waiting for %d sensor(s) to become available: %s",
-                len(unavailable_sensors),
-                sensor_list,
-            )
-            self.optimization_status = OPTIMIZATION_STATUS_PENDING
-            end_time = time.time()
-            self._last_optimization_duration = end_time - start_time
-            return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self._last_optimization_duration}
+        self._update_in_progress = True
 
         try:
-            # Calculate time parameters from configuration
+            sensors_available, unavailable_sensors = self.check_sensors_available()
+            if not sensors_available:
+                max_display = 5
+                sensor_list = ", ".join(unavailable_sensors[:max_display])
+                if len(unavailable_sensors) > max_display:
+                    sensor_list += "..."
+                _LOGGER.info(
+                    "Waiting for %d sensor(s) to become available: %s",
+                    len(unavailable_sensors),
+                    sensor_list,
+                )
+                self.optimization_status = OPTIMIZATION_STATUS_PENDING
+                end_time = time.time()
+                self._last_optimization_duration = end_time - start_time
+                return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self._last_optimization_duration}
+
             period_seconds, n_periods = _calculate_time_parameters(
                 self.config[CONF_HORIZON_HOURS],
                 self.config[CONF_PERIOD_MINUTES],
             )
 
-            # Build network (raises ValueError when data missing)
             try:
                 self.network = await load_network(
                     self.hass,
@@ -265,10 +311,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.optimization_status = OPTIMIZATION_STATUS_FAILED
                 _LOGGER.warning("Required sensor / forecast data not available: %s", err)
 
-                # Create repair issue for missing sensor data
                 error_msg = str(err)
                 if "sensor" in error_msg.lower():
-                    # Extract element name from error message if possible
                     element_name = "unknown"
                     for key in self.config.get(CONF_PARTICIPANTS, {}):
                         if key in error_msg:
@@ -280,13 +324,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._last_optimization_duration = end_time - start_time
                 return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self.last_optimization_duration}
 
-            # Run optimization in executor job to avoid blocking the event loop
-            # Network must be initialized at this point (load_network succeeded above)
             if self.network is None:
                 msg = "Network was not properly initialized"
                 raise RuntimeError(msg)
 
-            optimizer_key = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER)
+            optimizer_key = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER) or DEFAULT_OPTIMIZER
             optimizer_name = OPTIMIZER_NAME_MAP.get(optimizer_key, optimizer_key)
             _LOGGER.debug(
                 "Running optimization for network with %d elements using %s solver",
@@ -295,7 +337,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             cost = await self.hass.async_add_executor_job(self.network.optimize, optimizer_name)
 
-            # End timing after successful optimization
             end_time = time.time()
             self._last_optimization_duration = end_time - start_time
 
@@ -306,7 +347,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             }
             self.optimization_status = OPTIMIZATION_STATUS_SUCCESS
 
-            # Dismiss any existing optimization failure repair issues
             dismiss_optimization_failure_issue(self.hass, self.entry.entry_id)
 
             _LOGGER.debug(
@@ -316,24 +356,25 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
         except Exception as err:
-            # End timing even when optimization fails
             end_time = time.time()
             self._last_optimization_duration = end_time - start_time
-
-            # If any exception occurs, mark the optimisation as failed and return a placeholder result
             self.optimization_status = OPTIMIZATION_STATUS_FAILED
 
-            # Create repair issue for persistent optimization failures
             create_optimization_persistent_failure_issue(
                 self.hass,
                 self.entry.entry_id,
                 str(err),
             )
 
-            # Use error() with conditional exc_info instead of exception() to avoid always showing traceback
             _LOGGER.error("Optimization failed: %s", err, exc_info=_LOGGER.isEnabledFor(logging.DEBUG))  # noqa: TRY400
             self.optimization_result = None
             return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self.last_optimization_duration}
+
+        finally:
+            self._update_in_progress = False
+            if self._pending_refresh:
+                self._pending_refresh = False
+                self._schedule_debounced_refresh(immediate=True)
 
         return self.optimization_result
 
@@ -354,21 +395,21 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return result
 
         # Get power values (net power, can be positive or negative)
-        if hasattr(element, "power") and element.power is not None:
+        if hasattr(element, "power") and element.power is not None:  # type: ignore[attr-defined]
             # Connections have a single power attribute (net flow)
-            element_data[ATTR_POWER] = extract_values(element.power)
-        elif (hasattr(element, "power_consumption") and element.power_consumption is not None) or (
-            hasattr(element, "power_production") and element.power_production is not None
+            element_data[ATTR_POWER] = extract_values(element.power)  # type: ignore[arg-type]
+        elif (hasattr(element, "power_consumption") and element.power_consumption is not None) or (  # type: ignore[attr-defined]
+            hasattr(element, "power_production") and element.power_production is not None  # type: ignore[attr-defined]
         ):
             # Elements can have consumption, production, or both
             consumption = (
-                extract_values(element.power_consumption)
-                if hasattr(element, "power_consumption") and element.power_consumption is not None
+                extract_values(element.power_consumption)  # type: ignore[arg-type]
+                if hasattr(element, "power_consumption") and element.power_consumption is not None  # type: ignore[attr-defined]
                 else None
             )
             production = (
-                extract_values(element.power_production)
-                if hasattr(element, "power_production") and element.power_production is not None
+                extract_values(element.power_production)  # type: ignore[arg-type]
+                if hasattr(element, "power_production") and element.power_production is not None  # type: ignore[attr-defined]
                 else None
             )
 

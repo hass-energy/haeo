@@ -15,13 +15,17 @@ import voluptuous as vol
 
 from custom_components.haeo.const import (
     AVAILABLE_OPTIMIZERS,
+    CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_HOURS,
     CONF_NAME,
     CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
+    CONF_UPDATE_INTERVAL_MINUTES,
+    DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_HORIZON_HOURS,
     DEFAULT_OPTIMIZER,
     DEFAULT_PERIOD_MINUTES,
+    DEFAULT_UPDATE_INTERVAL_MINUTES,
     OPTIMIZER_NAME_MAP,
 )
 
@@ -92,6 +96,28 @@ def get_network_config_schema(
             ): vol.All(
                 NumberSelector(
                     NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.SLIDER),
+                ),
+                vol.Coerce(int),
+            ),
+            vol.Required(
+                CONF_UPDATE_INTERVAL_MINUTES,
+                default=config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES)
+                if config_entry
+                else DEFAULT_UPDATE_INTERVAL_MINUTES,
+            ): vol.All(
+                NumberSelector(
+                    NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.SLIDER),
+                ),
+                vol.Coerce(int),
+            ),
+            vol.Required(
+                CONF_DEBOUNCE_SECONDS,
+                default=config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS)
+                if config_entry
+                else DEFAULT_DEBOUNCE_SECONDS,
+            ): vol.All(
+                NumberSelector(
+                    NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.SLIDER),
                 ),
                 vol.Coerce(int),
             ),

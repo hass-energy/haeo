@@ -5,7 +5,13 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_HORIZON_HOURS, CONF_OPTIMIZER, CONF_PERIOD_MINUTES
+from .const import (
+    CONF_DEBOUNCE_SECONDS,
+    CONF_HORIZON_HOURS,
+    CONF_OPTIMIZER,
+    CONF_PERIOD_MINUTES,
+    CONF_UPDATE_INTERVAL_MINUTES,
+)
 from .coordinator import HaeoDataUpdateCoordinator
 
 
@@ -24,6 +30,8 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
             "horizon_hours": config_entry.data.get(CONF_HORIZON_HOURS),
             "period_minutes": config_entry.data.get(CONF_PERIOD_MINUTES),
             "optimizer": config_entry.data.get(CONF_OPTIMIZER),
+            "update_interval_minutes": config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES),
+            "debounce_seconds": config_entry.data.get(CONF_DEBOUNCE_SECONDS),
         },
         "elements": {},
     }

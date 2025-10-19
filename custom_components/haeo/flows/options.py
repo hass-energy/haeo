@@ -6,7 +6,13 @@ from typing import Any
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 
-from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_OPTIMIZER, CONF_PERIOD_MINUTES
+from custom_components.haeo.const import (
+    CONF_DEBOUNCE_SECONDS,
+    CONF_HORIZON_HOURS,
+    CONF_OPTIMIZER,
+    CONF_PERIOD_MINUTES,
+    CONF_UPDATE_INTERVAL_MINUTES,
+)
 
 from . import get_network_config_schema
 
@@ -23,6 +29,8 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             new_data[CONF_HORIZON_HOURS] = user_input[CONF_HORIZON_HOURS]
             new_data[CONF_PERIOD_MINUTES] = user_input[CONF_PERIOD_MINUTES]
             new_data[CONF_OPTIMIZER] = user_input.get(CONF_OPTIMIZER, "highs")
+            new_data[CONF_UPDATE_INTERVAL_MINUTES] = user_input[CONF_UPDATE_INTERVAL_MINUTES]
+            new_data[CONF_DEBOUNCE_SECONDS] = user_input[CONF_DEBOUNCE_SECONDS]
             self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
             return self.async_create_entry(title="", data={})
 

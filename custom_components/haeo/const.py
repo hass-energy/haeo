@@ -41,6 +41,8 @@ CONF_NAME = "name"
 CONF_INTEGRATION_TYPE = "integration_type"
 CONF_ELEMENT_TYPE = "type"
 CONF_PARTICIPANTS = "participants"
+CONF_UPDATE_INTERVAL_MINUTES = "update_interval_minutes"
+CONF_DEBOUNCE_SECONDS = "debounce_seconds"
 CONF_PARENT_ENTRY_ID = "parent_entry_id"
 
 ELEMENT_TYPE_NETWORK = "network"
@@ -54,7 +56,9 @@ CONF_PERIOD_MINUTES = "period_minutes"
 CONF_OPTIMIZER = "optimizer"
 DEFAULT_HORIZON_HOURS = 48  # 48 hours default
 DEFAULT_PERIOD_MINUTES = 5  # 5 minutes default
+DEFAULT_UPDATE_INTERVAL_MINUTES = 5  # 5 minutes default
 DEFAULT_OPTIMIZER = "highs"  # Default HiGHS solver (using lowercase key)
+DEFAULT_DEBOUNCE_SECONDS = 2  # 2 seconds debounce window
 
 # Map translation-friendly optimizer keys (lowercase) to actual optimizer names
 OPTIMIZER_NAME_MAP = {name.lower(): name for name in AVAILABLE_OPTIMIZERS}
@@ -66,7 +70,7 @@ MAX_PERIOD_MINUTES = 60  # 1 hour maximum
 MAX_NAME_LENGTH = 255
 
 # Update intervals
-DEFAULT_UPDATE_INTERVAL = 300  # 5 minutes in seconds
+DEFAULT_UPDATE_INTERVAL = DEFAULT_UPDATE_INTERVAL_MINUTES * 60  # Convenience constant in seconds
 
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS = "success"
