@@ -1,5 +1,7 @@
 """Constants for the Home Assistant Energy Optimization integration."""
 
+from typing import Final
+
 from homeassistant.components.sensor.const import UNIT_CONVERTERS, SensorDeviceClass
 from homeassistant.const import UnitOfEnergy, UnitOfPower
 import pulp
@@ -13,7 +15,7 @@ def convert_to_base_unit(value: float, from_unit: str | None, device_class: Sens
     Storage → Kilowatt-hour (kWh)
     All other classes are returned unchanged.
     """
-    base_units = {
+    base_units: Final = {
         SensorDeviceClass.POWER: UnitOfPower.KILO_WATT,
         SensorDeviceClass.ENERGY: UnitOfEnergy.KILO_WATT_HOUR,
         SensorDeviceClass.ENERGY_STORAGE: UnitOfEnergy.KILO_WATT_HOUR,
@@ -31,61 +33,60 @@ def convert_to_base_unit(value: float, from_unit: str | None, device_class: Sens
 
 
 # Integration domain
-DOMAIN = "haeo"
+DOMAIN: Final = "haeo"
 
 # Integration types
-INTEGRATION_TYPE_HUB = "hub"
+INTEGRATION_TYPE_HUB: Final = "hub"
 
 # Configuration keys
-CONF_NAME = "name"
-CONF_INTEGRATION_TYPE = "integration_type"
-CONF_ELEMENT_TYPE = "type"
-CONF_PARTICIPANTS = "participants"
-CONF_UPDATE_INTERVAL_MINUTES = "update_interval_minutes"
-CONF_DEBOUNCE_SECONDS = "debounce_seconds"
-CONF_PARENT_ENTRY_ID = "parent_entry_id"
+CONF_NAME: Final = "name"
+CONF_INTEGRATION_TYPE: Final = "integration_type"
+CONF_ELEMENT_TYPE: Final = "element_type"
+CONF_UPDATE_INTERVAL_MINUTES: Final = "update_interval_minutes"
+CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
+CONF_PARENT_ENTRY_ID: Final = "parent_entry_id"
 
-ELEMENT_TYPE_NETWORK = "network"
+ELEMENT_TYPE_NETWORK: Final = "network"
 
 # Dynamically determine available optimizers
-AVAILABLE_OPTIMIZERS = pulp.listSolvers(onlyAvailable=True)
+AVAILABLE_OPTIMIZERS: Final = pulp.listSolvers(onlyAvailable=True)
 
 # Horizon and period configuration
-CONF_HORIZON_HOURS = "horizon_hours"
-CONF_PERIOD_MINUTES = "period_minutes"
-CONF_OPTIMIZER = "optimizer"
-DEFAULT_HORIZON_HOURS = 48  # 48 hours default
-DEFAULT_PERIOD_MINUTES = 5  # 5 minutes default
-DEFAULT_UPDATE_INTERVAL_MINUTES = 5  # 5 minutes default
-DEFAULT_OPTIMIZER = "highs"  # Default HiGHS solver (using lowercase key)
-DEFAULT_DEBOUNCE_SECONDS = 2  # 2 seconds debounce window
+CONF_HORIZON_HOURS: Final = "horizon_hours"
+CONF_PERIOD_MINUTES: Final = "period_minutes"
+CONF_OPTIMIZER: Final = "optimizer"
+DEFAULT_HORIZON_HOURS: Final = 48  # 48 hours default
+DEFAULT_PERIOD_MINUTES: Final = 5  # 5 minutes default
+DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default
+DEFAULT_OPTIMIZER: Final = "highs"  # Default HiGHS solver (using lowercase key)
+DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
 # Map translation-friendly optimizer keys (lowercase) to actual optimizer names
-OPTIMIZER_NAME_MAP = {name.lower(): name for name in AVAILABLE_OPTIMIZERS}
+OPTIMIZER_NAME_MAP: Final = {name.lower(): name for name in AVAILABLE_OPTIMIZERS}
 
 
 # Validation constants
-MAX_HORIZON_HOURS = 168  # 1 week maximum
-MAX_PERIOD_MINUTES = 60  # 1 hour maximum
-MAX_NAME_LENGTH = 255
+MAX_HORIZON_HOURS: Final = 168  # 1 week maximum
+MAX_PERIOD_MINUTES: Final = 60  # 1 hour maximum
+MAX_NAME_LENGTH: Final = 255
 
 # Update intervals
-DEFAULT_UPDATE_INTERVAL = DEFAULT_UPDATE_INTERVAL_MINUTES * 60  # Convenience constant in seconds
+DEFAULT_UPDATE_INTERVAL: Final = DEFAULT_UPDATE_INTERVAL_MINUTES * 60  # Convenience constant in seconds
 
 # Optimization statuses
-OPTIMIZATION_STATUS_SUCCESS = "success"
-OPTIMIZATION_STATUS_FAILED = "failed"
-OPTIMIZATION_STATUS_PENDING = "pending"
+OPTIMIZATION_STATUS_SUCCESS: Final = "success"
+OPTIMIZATION_STATUS_FAILED: Final = "failed"
+OPTIMIZATION_STATUS_PENDING: Final = "pending"
 
 
 # Field property types
-FIELD_TYPE_SENSOR = "sensor"
-FIELD_TYPE_FORECAST = "forecast"
-FIELD_TYPE_LIVE_FORECAST = "live_forecast"
-FIELD_TYPE_CONSTANT = "constant"
+FIELD_TYPE_SENSOR: Final = "sensor"
+FIELD_TYPE_FORECAST: Final = "forecast"
+FIELD_TYPE_LIVE_FORECAST: Final = "live_forecast"
+FIELD_TYPE_CONSTANT: Final = "constant"
 
 
 # Entity attribute keys
-ATTR_ENERGY = "energy"
-ATTR_POWER = "power"
-ATTR_FORECAST = "forecast"
+ATTR_ENERGY: Final = "energy"
+ATTR_POWER: Final = "power"
+ATTR_FORECAST: Final = "forecast"

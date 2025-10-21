@@ -1,10 +1,11 @@
 """Data update coordinator for the Home Assistant Energy Optimization integration."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timedelta
 import logging
 import time
-from typing import Any
+from types import MappingProxyType
+from typing import Any, cast
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
@@ -13,13 +14,12 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 from pulp import value
 
+from . import data as data_module
 from .const import (
     ATTR_POWER,
     CONF_DEBOUNCE_SECONDS,
-    CONF_ELEMENT_TYPE,
     CONF_HORIZON_HOURS,
     CONF_OPTIMIZER,
-    CONF_PARTICIPANTS,
     CONF_PERIOD_MINUTES,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
@@ -32,7 +32,7 @@ from .const import (
     OPTIMIZATION_STATUS_SUCCESS,
     OPTIMIZER_NAME_MAP,
 )
-from .data import load_network
+from .elements import ElementConfigSchema, ValidatedElementSubentry, collect_element_subentries
 from .model import Network
 from .repairs import (
     create_missing_sensor_issue,
@@ -42,46 +42,7 @@ from .repairs import (
 
 _LOGGER = logging.getLogger(__name__)
 
-
-def _get_child_elements(hass: HomeAssistant, hub_entry_id: str) -> dict[str, dict[str, Any]]:
-    """Get all element configs from hub's subentries.
-
-    Args:
-        hass: Home Assistant instance
-        hub_entry_id: The parent hub entry ID
-
-    Returns:
-        Dictionary mapping element names to their configurations
-        Note: Excludes the Network subentry (which is for optimization sensors only)
-
-    """
-    hub_entry = hass.config_entries.async_get_entry(hub_entry_id)
-    if not hub_entry:
-        return {}
-
-    elements = {}
-    for subentry in hub_entry.subentries.values():
-        # Skip the Network subentry - it's for optimization sensors, not a participant
-        if subentry.subentry_type == "network":
-            continue
-
-        name = subentry.data.get("name_value")
-
-        # Fail loudly if required fields are missing
-        if not name:
-            msg = f"Subentry {subentry.subentry_id} is missing required 'name_value' field"
-            raise ValueError(msg)
-
-        # Build element config from subentry data
-        # The subentry_type becomes CONF_ELEMENT_TYPE, and we include all other data
-        element_config = {
-            CONF_ELEMENT_TYPE: subentry.subentry_type,
-            **subentry.data,
-        }
-        # Remove name_value since it's used as the key
-        element_config.pop("name_value", None)
-        elements[name] = element_config
-    return elements
+VALUE_FN = cast("Callable[[Any], float | int]", value)
 
 
 def _calculate_time_parameters(horizon_hours: int, period_minutes: int) -> tuple[int, int]:
@@ -101,38 +62,28 @@ def _calculate_time_parameters(horizon_hours: int, period_minutes: int) -> tuple
     return period_seconds, n_periods
 
 
-def _extract_entity_ids(config: Any) -> set[str]:
-    """Extract all entity IDs from participant configuration.
+def _extract_entity_ids(participants: Mapping[str, ElementConfigSchema]) -> set[str]:
+    """Extract all entity IDs from element configurations."""
 
-    Args:
-        config: Configuration dictionary containing participants
-
-    Returns:
-        Set of entity IDs referenced in the configuration
-
-    """
     entity_ids: set[str] = set()
-    participants = dict(config.get(CONF_PARTICIPANTS, {}))
+
+    def _collect(value: Any) -> None:
+        if value is None:
+            return
+        if isinstance(value, str):
+            if value.startswith("sensor."):
+                entity_ids.add(value)
+            return
+        if isinstance(value, Mapping):
+            for subvalue in value.values():
+                _collect(subvalue)
+            return
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            for item in value:
+                _collect(item)
 
     for participant_config in participants.values():
-        for key, field_value in participant_config.items():
-            # Skip non-entity fields
-            if key in ("element_type", "name"):
-                continue
-
-            # Check if it's a dict with 'value' field (this is how entity IDs are stored)
-            if isinstance(field_value, dict) and "value" in field_value:
-                value_content = field_value["value"]
-                # Handle both single entity ID (str) and list of entity IDs
-                if isinstance(value_content, str) and value_content.startswith("sensor."):
-                    entity_ids.add(value_content)
-                elif isinstance(value_content, list):
-                    entity_ids.update(
-                        eid for eid in value_content if isinstance(eid, str) and eid.startswith("sensor.")
-                    )
-            # Handle direct string values (for backwards compatibility or simpler config)
-            elif isinstance(field_value, str) and field_value.startswith("sensor."):
-                entity_ids.add(field_value)
+        _collect(participant_config)
 
     return entity_ids
 
@@ -145,11 +96,16 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.hass = hass
         self.entry = entry
 
-        # Build config with participants from child subentries
-        self.config = {
-            **entry.data,
-            CONF_PARTICIPANTS: _get_child_elements(hass, entry.entry_id),
+        # Base configuration comes directly from the config entry data
+        self.config = dict(entry.data)
+
+        participant_entries = collect_element_subentries(entry)
+        self.participants: tuple[ValidatedElementSubentry, ...] = tuple(participant_entries)
+        participant_map: dict[str, ElementConfigSchema] = {
+            participant.name: participant.config for participant in participant_entries
         }
+        self._participant_configs = participant_map
+        self._participant_configs_proxy = MappingProxyType(participant_map)
 
         self.network: Network | None = None
         self.optimization_result: dict[str, Any] | None = None
@@ -186,9 +142,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Set up state change listeners for all entity IDs in configuration
         self._setup_state_change_listeners()
 
+    @property
+    def participant_configs(self) -> Mapping[str, ElementConfigSchema]:
+        """Return validated participant configurations keyed by name."""
+
+        return self._participant_configs_proxy
+
     def _setup_state_change_listeners(self) -> None:
         """Set up listeners for entity state changes to trigger optimization."""
-        entity_ids = _extract_entity_ids(self.config)
+        entity_ids = _extract_entity_ids(self.participant_configs)
 
         if entity_ids:
             _LOGGER.debug("Setting up state change listeners for %d entities", len(entity_ids))
@@ -248,7 +210,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             Tuple of (all_available, list_of_unavailable_entity_ids)
 
         """
-        entity_ids = _extract_entity_ids(self.config)
+        entity_ids = _extract_entity_ids(self.participant_configs)
         unavailable = []
 
         for entity_id in entity_ids:
@@ -289,7 +251,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     len(unavailable_sensors),
                     sensor_list,
                 )
-                self.optimization_status = OPTIMIZATION_STATUS_PENDING
+                self.optimization_status = OPTIMIZATION_STATUS_FAILED
                 end_time = time.time()
                 self._last_optimization_duration = end_time - start_time
                 return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self._last_optimization_duration}
@@ -300,12 +262,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
             try:
-                self.network = await load_network(
+                self.network = await data_module.load_network(
                     self.hass,
                     self.entry,
                     period_seconds=period_seconds,
                     n_periods=n_periods,
-                    config=self.config,
+                    participants=self.participant_configs,
                 )
             except ValueError as err:
                 self.optimization_status = OPTIMIZATION_STATUS_FAILED
@@ -314,7 +276,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 error_msg = str(err)
                 if "sensor" in error_msg.lower():
                     element_name = "unknown"
-                    for key in self.config.get(CONF_PARTICIPANTS, {}):
+                    for key in self.participant_configs:
                         if key in error_msg:
                             element_name = key
                             break
@@ -388,30 +350,24 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # Helper to extract values safely
         def extract_values(variables: Sequence[Any]) -> list[float]:
-            result = []
+            result: list[float] = []
             for var in variables:
-                val = value(var)  # type: ignore[no-untyped-call]
+                val = VALUE_FN(var)
                 result.append(float(val) if isinstance(val, (int, float)) else 0.0)
             return result
 
+        power: Sequence[Any] | None = getattr(element, "power", None)
+        power_consumption: Sequence[Any] | None = getattr(element, "power_consumption", None)
+        power_production: Sequence[Any] | None = getattr(element, "power_production", None)
+
         # Get power values (net power, can be positive or negative)
-        if hasattr(element, "power") and element.power is not None:  # type: ignore[attr-defined]
+        if power is not None:
             # Connections have a single power attribute (net flow)
-            element_data[ATTR_POWER] = extract_values(element.power)  # type: ignore[arg-type]
-        elif (hasattr(element, "power_consumption") and element.power_consumption is not None) or (  # type: ignore[attr-defined]
-            hasattr(element, "power_production") and element.power_production is not None  # type: ignore[attr-defined]
-        ):
+            element_data[ATTR_POWER] = extract_values(power)
+        elif power_consumption is not None or power_production is not None:
             # Elements can have consumption, production, or both
-            consumption = (
-                extract_values(element.power_consumption)  # type: ignore[arg-type]
-                if hasattr(element, "power_consumption") and element.power_consumption is not None  # type: ignore[attr-defined]
-                else None
-            )
-            production = (
-                extract_values(element.power_production)  # type: ignore[arg-type]
-                if hasattr(element, "power_production") and element.power_production is not None  # type: ignore[attr-defined]
-                else None
-            )
+            consumption = extract_values(power_consumption) if power_consumption is not None else None
+            production = extract_values(power_production) if power_production is not None else None
 
             # Calculate net power based on what's available
             if consumption is not None and production is not None:
@@ -424,8 +380,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 # Only consumption (e.g., loads)
                 element_data[ATTR_POWER] = [-c for c in consumption]  # Negative for consumption
 
-        if hasattr(element, "energy") and element.energy is not None:
-            element_data["energy"] = extract_values(element.energy)
+        energy: Sequence[Any] | None = getattr(element, "energy", None)
+        if energy is not None:
+            element_data["energy"] = extract_values(energy)
 
         return element_data if element_data else None
 

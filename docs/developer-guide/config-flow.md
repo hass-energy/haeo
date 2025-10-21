@@ -137,10 +137,10 @@ All element flows inherit from a common base class.
     "data": {
         "element_type": "battery",
         "parent_entry_id": "abc123...",  # Links to hub entry
-        "capacity_value": 13500,
-        "charge_power_value": 5000,
-        "discharge_power_value": 5000,
-        "efficiency_value": 0.95,
+        "capacity": 13500,
+        "charge_power": 5000,
+        "discharge_power": 5000,
+        "efficiency": 0.95,
         "initial_soc_sensor": "sensor.battery_soc"
     }
 }
@@ -413,8 +413,8 @@ async def test_battery_flow_success(hass: HomeAssistant) -> None:
         result["flow_id"],
         user_input={
             CONF_NAME: "Home Battery",
-            "capacity_value": 13500,
-            "charge_power_value": 5000,
+            "capacity": 13500,
+            "charge_power": 5000,
             "initial_soc_sensor": "sensor.battery_soc",
         },
     )
@@ -422,7 +422,7 @@ async def test_battery_flow_success(hass: HomeAssistant) -> None:
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "Home Battery"
     assert result["data"][CONF_PARENT_ENTRY_ID] == hub_entry.entry_id
-    assert result["data"]["capacity_value"] == 13500
+    assert result["data"]["capacity"] == 13500
 ```
 
 ### Options Flow Tests

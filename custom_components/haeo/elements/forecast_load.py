@@ -34,13 +34,5 @@ CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
 def model_description(_config: ForecastLoadConfigData) -> str:
-    """Generate model description string for forecast load element.
-
-    Args:
-        _config: Forecast load configuration data.
-
-    Returns:
-        Formatted model description string.
-
-    """
+    """Generate model description string for forecast load element."""
     return "Forecast Load"

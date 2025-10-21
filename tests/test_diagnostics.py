@@ -8,9 +8,17 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.const import (
+    CONF_ELEMENT_TYPE,
+    CONF_INTEGRATION_TYPE,
+    CONF_NAME,
+    DOMAIN,
+    INTEGRATION_TYPE_HUB,
+)
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics
+from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
+from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
 from custom_components.haeo.model.network import Network
 
 
@@ -20,8 +28,8 @@ async def test_diagnostics_empty_network(hass: HomeAssistant) -> None:
     config_entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "integration_type": INTEGRATION_TYPE_HUB,
-            "name": "Test Hub",
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
         },
         entry_id="test_hub",
     )
@@ -64,8 +72,8 @@ async def test_diagnostics_with_subentries(hass: HomeAssistant) -> None:
     config_entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "integration_type": INTEGRATION_TYPE_HUB,
-            "name": "Test Hub",
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
         },
         entry_id="test_hub",
     )
@@ -75,12 +83,13 @@ async def test_diagnostics_with_subentries(hass: HomeAssistant) -> None:
     battery = ConfigSubentry(
         data=MappingProxyType(
             {
-                "name_value": "Battery 1",
-                "capacity_value": 10000.0,
-                "charge_rate_value": 5000.0,
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery 1",
+                CONF_CAPACITY: 10000.0,
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_1_soc",
             }
         ),
-        subentry_type="battery",
+        subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery 1",
         unique_id=None,
     )
@@ -97,11 +106,11 @@ async def test_diagnostics_with_subentries(hass: HomeAssistant) -> None:
     assert len(diagnostics["subentries"]) >= 1
 
     # Find battery in subentries
-    battery_info = next((s for s in diagnostics["subentries"] if s["subentry_type"] == "battery"), None)
+    battery_info = next((s for s in diagnostics["subentries"] if s["subentry_type"] == ELEMENT_TYPE_BATTERY), None)
     assert battery_info is not None
-    assert battery_info["name"] == "Battery 1"
+    assert battery_info[CONF_NAME] == "Battery 1"
     assert "config" in battery_info
-    assert battery_info["config"]["capacity_value"] == 10000.0
+    assert battery_info["config"][CONF_CAPACITY] == 10000.0
 
 
 async def test_diagnostics_with_optimization_results(hass: HomeAssistant) -> None:
@@ -110,8 +119,8 @@ async def test_diagnostics_with_optimization_results(hass: HomeAssistant) -> Non
     config_entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "integration_type": INTEGRATION_TYPE_HUB,
-            "name": "Test Hub",
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
         },
         entry_id="test_hub",
     )
@@ -183,8 +192,8 @@ async def test_diagnostics_with_element_data_error(hass: HomeAssistant) -> None:
     config_entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "integration_type": INTEGRATION_TYPE_HUB,
-            "name": "Test Hub",
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
         },
         entry_id="test_hub",
     )
@@ -225,8 +234,8 @@ async def test_diagnostics_with_no_coordinator(hass: HomeAssistant) -> None:
     config_entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "integration_type": INTEGRATION_TYPE_HUB,
-            "name": "Test Hub",
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
         },
         entry_id="test_hub",
     )

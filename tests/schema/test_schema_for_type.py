@@ -28,7 +28,7 @@ from custom_components.haeo.schema.fields import (
 
 
 @pytest.fixture
-def schema_params() -> dict[str, list[str] | str | None]:
+def schema_params() -> dict[str, Any]:
     """Fixture providing schema parameters for tests."""
     return {
         "participants": ["battery_1", "grid_1"],
@@ -42,11 +42,11 @@ def schema_params() -> dict[str, list[str] | str | None]:
 class ConstantFieldTestConfig(TypedDict):
     """Test config for constant field types."""
 
-    power_value: PowerFieldSchema
-    energy_value: EnergyFieldSchema
-    price_value: PriceFieldSchema
-    percentage_value: PercentageFieldSchema
-    boolean_value: BooleanFieldSchema
+    power: PowerFieldSchema
+    energy: EnergyFieldSchema
+    price: PriceFieldSchema
+    percentage: PercentageFieldSchema
+    boolean: BooleanFieldSchema
     element_name: ElementNameFieldSchema
     name: NameFieldSchema
     battery_soc: BatterySOCFieldSchema
@@ -87,11 +87,11 @@ def test_constant_field_extraction() -> None:
     annotated_fields = _get_annotated_fields(ConstantFieldTestConfig)
 
     expected_fields = {
-        "power_value",
-        "energy_value",
-        "price_value",
-        "percentage_value",
-        "boolean_value",
+        "power",
+        "energy",
+        "price",
+        "percentage",
+        "boolean",
         "element_name",
         "name",
         "battery_soc",
@@ -183,14 +183,14 @@ def test_constant_field_schema_creation(schema_params: dict[str, Any]) -> None:
     # Should have all the flattened field keys for constant fields
     schema_dict = schema.schema
     expected_keys = {
-        "power_value_value",
-        "energy_value_value",
-        "price_value_value",
-        "percentage_value_value",
-        "boolean_value_value",
-        "element_name_value",
-        "name_value",
-        "battery_soc_value",
+        "power",
+        "energy",
+        "price",
+        "percentage",
+        "boolean",
+        "element_name",
+        "name",
+        "battery_soc",
     }
 
     assert set(schema_dict.keys()) == expected_keys
@@ -204,7 +204,7 @@ def test_sensor_field_schema_creation(schema_params: dict[str, Any]) -> None:
 
     # Should have all the flattened field keys for sensor fields
     schema_dict = schema.schema
-    expected_keys = {"power_sensor_value", "battery_soc_sensor_value", "price_sensor_value"}
+    expected_keys = {"power_sensor", "battery_soc_sensor", "price_sensor"}
 
     assert set(schema_dict.keys()) == expected_keys
 
@@ -217,7 +217,7 @@ def test_forecast_field_schema_creation(schema_params: dict[str, Any]) -> None:
 
     # Should have all the flattened field keys for forecast fields
     schema_dict = schema.schema
-    expected_keys = {"power_forecast_value", "price_forecast_value"}
+    expected_keys = {"power_forecast", "price_forecast"}
 
     assert set(schema_dict.keys()) == expected_keys
 
@@ -230,7 +230,7 @@ def test_complex_field_schema_creation(schema_params: dict[str, Any]) -> None:
 
     # Should have all the flattened field keys for complex fields
     schema_dict = schema.schema
-    expected_keys = {"price_live_and_forecast_live", "price_live_and_forecast_forecast", "optional_sensor_value"}
+    expected_keys = {"price_live_and_forecast:live", "price_live_and_forecast:forecast", "optional_sensor"}
 
     assert set(schema_dict.keys()) == expected_keys
 
@@ -240,14 +240,14 @@ def test_constant_field_schema_validation(schema_params: dict[str, Any]) -> None
     schema = schema_for_type(ConstantFieldTestConfig, **schema_params)
 
     valid_data = {
-        "power_value_value": 100.0,
-        "energy_value_value": 500.0,
-        "price_value_value": 0.15,
-        "percentage_value_value": 80.0,
-        "boolean_value_value": True,
-        "element_name_value": "battery_1",
-        "name_value": "My Battery",
-        "battery_soc_value": 90.0,
+        "power": 100.0,
+        "energy": 500.0,
+        "price": 0.15,
+        "percentage": 80.0,
+        "boolean": True,
+        "element_name": "battery_1",
+        "name": "My Battery",
+        "battery_soc": 90.0,
     }
 
     # Should validate without errors
@@ -269,9 +269,9 @@ async def test_sensor_field_schema_validation_with_invalid_sensor(hass: Any, sch
     # Test with data that would be invalid if entity validation worked properly
     # In test environment, entity validation may not work as expected
     invalid_data = {
-        "power_sensor_value": ["sensor.nonexistent_power"],
-        "battery_soc_sensor_value": "sensor.test_battery_soc",
-        # price_sensor_value omitted since it's optional
+        "power_sensor": ["sensor.nonexistent_power"],
+        "battery_soc_sensor": "sensor.test_battery_soc",
+        # price_sensor omitted since it's optional
     }
 
     # In test environment, this may not raise an exception due to limited entity validation
@@ -285,9 +285,7 @@ async def test_sensor_field_schema_validation_with_invalid_sensor(hass: Any, sch
         pass
 
 
-async def test_forecast_field_schema_validation(
-    hass: HomeAssistant, schema_params: dict[str, list[str] | str | None]
-) -> None:
+async def test_forecast_field_schema_validation(hass: HomeAssistant, schema_params: dict[str, Any]) -> None:
     """Test schema validation for forecast field types."""
     # Set up forecast sensor entities for validation
     hass.states.async_set(
@@ -305,8 +303,8 @@ async def test_forecast_field_schema_validation(
 
     # Test with valid forecast sensors (omit optional field when empty)
     valid_data = {
-        "power_forecast_value": ["sensor.power_forecast_1", "sensor.power_forecast_2"],
-        # price_forecast_value omitted since it's optional and empty
+        "power_forecast": ["sensor.power_forecast_1", "sensor.power_forecast_2"],
+        # price_forecast omitted since it's optional and empty
     }
 
     # Should validate without errors
@@ -315,7 +313,7 @@ async def test_forecast_field_schema_validation(
 
 
 async def test_forecast_field_schema_validation_with_invalid_sensor(
-    hass: HomeAssistant, schema_params: dict[str, list[str] | str | None]
+    hass: HomeAssistant, schema_params: dict[str, Any]
 ) -> None:
     """Test schema validation for forecast field types with invalid sensor."""
     # Set up forecast sensor entities for validation
@@ -330,8 +328,8 @@ async def test_forecast_field_schema_validation_with_invalid_sensor(
     # Test with data that would be invalid if entity validation worked properly
     # In test environment, entity validation may not work as expected
     invalid_data = {
-        "power_forecast_value": ["sensor.power_forecast_1", "sensor.nonexistent_forecast"],
-        # price_forecast_value omitted since it's optional
+        "power_forecast": ["sensor.power_forecast_1", "sensor.nonexistent_forecast"],
+        # price_forecast omitted since it's optional
     }
 
     # In test environment, this may not raise an exception due to limited entity validation
@@ -345,39 +343,39 @@ async def test_forecast_field_schema_validation_with_invalid_sensor(
         pass
 
 
-def test_constant_field_data_conversion(schema_params: dict[str, list[str] | str | None]) -> None:
+def test_constant_field_data_conversion(schema_params: dict[str, Any]) -> None:
     """Test converting data back to constant field config."""
     data = {
-        "power_value_value": 100.0,
-        "energy_value_value": 500.0,
-        "price_value_value": 0.15,
-        "percentage_value_value": 80.0,
-        "boolean_value_value": True,
-        "element_name_value": "battery_1",
-        "name_value": "My Battery",
-        "battery_soc_value": 90.0,
+        "power": 100.0,
+        "energy": 500.0,
+        "price": 0.15,
+        "percentage": 80.0,
+        "boolean": True,
+        "element_name": "battery_1",
+        "name": "My Battery",
+        "battery_soc": 90.0,
     }
 
     config = data_to_config(ConstantFieldTestConfig, data, **schema_params)
 
     assert config == {
-        "power_value": 100.0,
-        "energy_value": 500.0,
-        "price_value": 0.15,
-        "percentage_value": 80.0,
-        "boolean_value": True,
+        "power": 100.0,
+        "energy": 500.0,
+        "price": 0.15,
+        "percentage": 80.0,
+        "boolean": True,
         "element_name": "battery_1",
         "name": "My Battery",
         "battery_soc": 90.0,
     }
 
 
-def test_sensor_field_data_conversion(schema_params: dict[str, list[str] | str | None]) -> None:
+def test_sensor_field_data_conversion(schema_params: dict[str, Any]) -> None:
     """Test converting data back to sensor field config."""
     data = {
-        "power_sensor_value": ["sensor.power_1"],
-        "battery_soc_sensor_value": "sensor.battery_soc",
-        "price_sensor_value": ["sensor.price_1"],
+        "power_sensor": ["sensor.power_1"],
+        "battery_soc_sensor": "sensor.battery_soc",
+        "price_sensor": ["sensor.price_1"],
     }
 
     config = data_to_config(SensorFieldTestConfig, data, **schema_params)
@@ -385,15 +383,15 @@ def test_sensor_field_data_conversion(schema_params: dict[str, list[str] | str |
     assert config == {
         "power_sensor": ["sensor.power_1"],
         "battery_soc_sensor": "sensor.battery_soc",
-        "price_sensor": ["sensor.price_1"],
+        "price_sensor": {"value": ["sensor.price_1"]},
     }
 
 
-def test_forecast_field_data_conversion(schema_params: dict[str, list[str] | str | None]) -> None:
+def test_forecast_field_data_conversion(schema_params: dict[str, Any]) -> None:
     """Test converting data back to forecast field config."""
     data = {
-        "power_forecast_value": ["sensor.forecast_1", "sensor.forecast_2"],
-        "price_forecast_value": ["sensor.price_forecast"],
+        "power_forecast": ["sensor.forecast_1", "sensor.forecast_2"],
+        "price_forecast": ["sensor.price_forecast"],
     }
 
     config = data_to_config(ForecastFieldTestConfig, data, **schema_params)
@@ -404,12 +402,12 @@ def test_forecast_field_data_conversion(schema_params: dict[str, list[str] | str
     }
 
 
-def test_complex_field_data_conversion(schema_params: dict[str, list[str] | str | None]) -> None:
+def test_complex_field_data_conversion(schema_params: dict[str, Any]) -> None:
     """Test converting data back to complex field config."""
     data = {
-        "price_live_and_forecast_live": ["sensor.price_live"],
-        "price_live_and_forecast_forecast": ["sensor.price_forecast"],
-        "optional_sensor_value": ["sensor.optional_power"],
+        "price_live_and_forecast:live": ["sensor.price_live"],
+        "price_live_and_forecast:forecast": ["sensor.price_forecast"],
+        "optional_sensor": ["sensor.optional_power"],
     }
 
     config = data_to_config(ComplexFieldTestConfig, data, **schema_params)
@@ -420,12 +418,12 @@ def test_complex_field_data_conversion(schema_params: dict[str, list[str] | str 
     }
 
 
-def test_data_conversion_with_missing_optional_field(schema_params: dict[str, list[str] | str | None]) -> None:
+def test_data_conversion_with_missing_optional_field(schema_params: dict[str, Any]) -> None:
     """Test data conversion handles missing optional fields."""
     data = {
-        "required_field_value": "test_name",
-        # field_with_default_value is missing - should use default
-        # optional_field_value is missing
+        "required_field": "test_name",
+        # field_with_default is missing - should use default
+        # optional_field is missing
     }
 
     config = data_to_config(DefaultTestConfig, data, **schema_params)
@@ -433,12 +431,12 @@ def test_data_conversion_with_missing_optional_field(schema_params: dict[str, li
     assert config == {"required_field": "test_name"}
 
 
-def test_data_conversion_with_defaults_config(schema_params: dict[str, list[str] | str | None]) -> None:
+def test_data_conversion_with_defaults_config(schema_params: dict[str, Any]) -> None:
     """Test data conversion with default value handling."""
     data = {
-        "required_field_value": "required_name",
-        "optional_field_value": 0.25,
-        # field_with_default_value missing - should use default
+        "required_field": "required_name",
+        "optional_field": 0.25,
+        # field_with_default missing - should use default
     }
 
     config = data_to_config(DefaultTestConfig, data, **schema_params)
@@ -449,21 +447,21 @@ def test_data_conversion_with_defaults_config(schema_params: dict[str, list[str]
     }
 
 
-def test_constant_field_full_workflow(schema_params: dict[str, list[str] | str | None]) -> None:
+def test_constant_field_full_workflow(schema_params: dict[str, Any]) -> None:
     """Test full workflow for constant field types."""
     # Create schema
     schema = schema_for_type(ConstantFieldTestConfig, **schema_params)
 
     # Validate data
     input_data = {
-        "power_value_value": 100.0,
-        "energy_value_value": 500.0,
-        "price_value_value": 0.15,
-        "percentage_value_value": 80.0,
-        "boolean_value_value": True,
-        "element_name_value": "battery_1",
-        "name_value": "My Battery",
-        "battery_soc_value": 90.0,
+        "power": 100.0,
+        "energy": 500.0,
+        "price": 0.15,
+        "percentage": 80.0,
+        "boolean": True,
+        "element_name": "battery_1",
+        "name": "My Battery",
+        "battery_soc": 90.0,
     }
 
     validated_data = schema(input_data)
@@ -472,20 +470,18 @@ def test_constant_field_full_workflow(schema_params: dict[str, list[str] | str |
     config = data_to_config(ConstantFieldTestConfig, validated_data, **schema_params)
 
     assert config == {
-        "power_value": 100.0,
-        "energy_value": 500.0,
-        "price_value": 0.15,
-        "percentage_value": 80.0,
-        "boolean_value": True,
+        "power": 100.0,
+        "energy": 500.0,
+        "price": 0.15,
+        "percentage": 80.0,
+        "boolean": True,
         "element_name": "battery_1",
         "name": "My Battery",
         "battery_soc": 90.0,
     }
 
 
-async def test_sensor_field_full_workflow(
-    hass: HomeAssistant, schema_params: dict[str, list[str] | str | None]
-) -> None:
+async def test_sensor_field_full_workflow(hass: HomeAssistant, schema_params: dict[str, Any]) -> None:
     """Test full workflow for sensor field types."""
     # Set up sensor entities for validation
     hass.states.async_set(
@@ -503,9 +499,9 @@ async def test_sensor_field_full_workflow(
 
     # Test with valid sensor entities (omit optional field when empty)
     input_data = {
-        "power_sensor_value": ["sensor.test_power"],
-        "battery_soc_sensor_value": "sensor.test_battery_soc",
-        # price_sensor_value omitted since it's optional and empty
+        "power_sensor": ["sensor.test_power"],
+        "battery_soc_sensor": "sensor.test_battery_soc",
+        # price_sensor omitted since it's optional and empty
     }
 
     # Should validate and convert successfully
@@ -518,9 +514,7 @@ async def test_sensor_field_full_workflow(
     }
 
 
-async def test_complex_field_full_workflow(
-    hass: HomeAssistant, schema_params: dict[str, list[str] | str | None]
-) -> None:
+async def test_complex_field_full_workflow(hass: HomeAssistant, schema_params: dict[str, Any]) -> None:
     """Test full workflow for complex field types."""
     # Set up sensor entities for validation
     hass.states.async_set(
@@ -538,9 +532,9 @@ async def test_complex_field_full_workflow(
 
     # Test with valid sensor entities (omit optional field when empty)
     input_data = {
-        "price_live_and_forecast_live": ["sensor.price_live"],
-        "price_live_and_forecast_forecast": ["sensor.price_forecast"],
-        # optional_sensor_value omitted since it's optional and empty
+        "price_live_and_forecast:live": ["sensor.price_live"],
+        "price_live_and_forecast:forecast": ["sensor.price_forecast"],
+        # optional_sensor omitted since it's optional and empty
     }
 
     # Should validate and convert successfully
@@ -552,13 +546,13 @@ async def test_complex_field_full_workflow(
     }
 
 
-def test_default_handling_full_workflow(schema_params: dict[str, list[str] | str | None]) -> None:
+def test_default_handling_full_workflow(schema_params: dict[str, Any]) -> None:
     """Test full workflow for default value handling."""
     # Test data conversion directly
     expected_validated_data = {
-        "required_field_value": "test_element",
-        "field_with_default_value": True,
-        "optional_field_value": None,
+        "required_field": "test_element",
+        "field_with_default": True,
+        "optional_field": None,
     }
 
     # Convert to config

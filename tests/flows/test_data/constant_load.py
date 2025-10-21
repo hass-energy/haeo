@@ -1,12 +1,15 @@
 """Test data and validation for constant load flow configuration."""
 
+from custom_components.haeo.const import CONF_NAME
+from custom_components.haeo.elements.constant_load import CONF_POWER
+
 # Test data for load constant flow
 VALID_DATA = [
     {
         "description": "Fixed load configuration",
         "config": {
-            "name_value": "Test Load",
-            "power_value": 1500,
+            CONF_NAME: "Test Load",
+            CONF_POWER: 1500,
         },
     },
 ]
@@ -14,12 +17,12 @@ VALID_DATA = [
 INVALID_DATA = [
     {
         "description": "Empty name should fail validation",
-        "config": {"name_value": "", "power_value": 1500},
+        "config": {CONF_NAME: "", CONF_POWER: 1500},
         "error": "cannot be empty",
     },
     {
         "description": "Negative power should fail validation",
-        "config": {"name_value": "Test Load", "power_value": -500},
+        "config": {CONF_NAME: "Test Load", CONF_POWER: -500},
         "error": "value must be positive",
     },
 ]

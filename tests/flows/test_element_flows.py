@@ -11,7 +11,17 @@ from homeassistant.data_entry_flow import FlowResultType
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.const import (
+    CONF_ELEMENT_TYPE,
+    CONF_HORIZON_HOURS,
+    CONF_INTEGRATION_TYPE,
+    CONF_NAME,
+    CONF_OPTIMIZER,
+    CONF_PERIOD_MINUTES,
+    DOMAIN,
+    ELEMENT_TYPE_NETWORK,
+    INTEGRATION_TYPE_HUB,
+)
 from custom_components.haeo.elements import ELEMENT_TYPES, ElementType, battery, connection, grid, node
 from custom_components.haeo.flows.element import ElementSubentryFlow, create_subentry_flow_class
 from tests.conftest import ElementTestData
@@ -43,10 +53,10 @@ def _add_participant_subentry(
     """Ensure a participant subentry exists for connection endpoints."""
 
     for subentry in hub_entry.subentries.values():
-        if subentry.data.get("name_value") == name:
+        if subentry.data.get(CONF_NAME) == name:
             return subentry
 
-    participant_data = MappingProxyType({CONF_ELEMENT_TYPE: element_type, "name_value": name})
+    participant_data = MappingProxyType({CONF_ELEMENT_TYPE: element_type, CONF_NAME: name})
     subentry = ConfigSubentry(
         data=participant_data,
         subentry_type=element_type,
@@ -66,7 +76,7 @@ def _prepare_flow_context(
     """Populate dependent participants required by connection flows."""
 
     if element_type == connection.ELEMENT_TYPE:
-        for key in ("source_value", "target_value"):
+        for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
             endpoint = config.get(key)
             if isinstance(endpoint, str) and endpoint:
                 inferred_type = grid.ELEMENT_TYPE if "grid" in endpoint.lower() else battery.ELEMENT_TYPE
@@ -80,7 +90,7 @@ def _make_subentry(element_type: ElementType, config: dict[str, Any]) -> ConfigS
     return ConfigSubentry(
         data=MappingProxyType(data),
         subentry_type=element_type,
-        title=data.get("name_value", element_type.title()),
+        title=data.get(CONF_NAME, element_type.title()),
         unique_id=None,
     )
 
@@ -92,11 +102,11 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "integration_type": INTEGRATION_TYPE_HUB,
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            "horizon_hours": 24,
-            "period_minutes": 30,
-            "optimizer": "CBC",
+            CONF_HORIZON_HOURS: 24,
+            CONF_PERIOD_MINUTES: 30,
+            CONF_OPTIMIZER: "CBC",
         },
         entry_id="test_hub_id",
     )
@@ -123,7 +133,7 @@ async def test_element_flow_user_step_success(
     flow.async_create_entry = Mock(
         return_value={
             "type": FlowResultType.CREATE_ENTRY,
-            "title": user_input.get("name_value", element_type),
+            "title": user_input.get(CONF_NAME, element_type),
             "data": {},
         }
     )  # type: ignore[method-assign]
@@ -138,7 +148,7 @@ async def test_element_flow_user_step_success(
 
     created_kwargs = flow.async_create_entry.call_args.kwargs
     assert created_kwargs["data"][CONF_ELEMENT_TYPE] == element_type
-    assert created_kwargs["data"]["name_value"] == user_input["name_value"]
+    assert created_kwargs["data"][CONF_NAME] == user_input[CONF_NAME]
 
 
 @pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
@@ -152,13 +162,13 @@ async def test_element_flow_user_step_missing_name(
 
     flow = _create_flow(hass, hub_entry, element_type)
     base_config = deepcopy(element_test_data[element_type].valid[0].config)
-    base_config["name_value"] = ""
+    base_config[CONF_NAME] = ""
 
     _prepare_flow_context(hass, hub_entry, element_type, base_config)
 
     result = await flow.async_step_user(user_input=base_config)
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {"name_value": "missing_name"}
+    assert result.get("errors") == {CONF_NAME: "missing_name"}
 
 
 @pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
@@ -181,7 +191,7 @@ async def test_element_flow_user_step_duplicate_name(
 
     result = await flow.async_step_user(user_input=existing_config)
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {"name_value": "name_exists"}
+    assert result.get("errors") == {CONF_NAME: "name_exists"}
 
 
 @pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
@@ -242,15 +252,15 @@ async def test_element_flow_reconfigure_rename(
     )
 
     renamed_input = deepcopy(existing_config)
-    original_name = renamed_input["name_value"]
-    renamed_input["name_value"] = f"{original_name} Updated"
+    original_name = renamed_input[CONF_NAME]
+    renamed_input[CONF_NAME] = f"{original_name} Updated"
 
     result = await flow.async_step_reconfigure(user_input=renamed_input)
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
 
     update_kwargs = flow.async_update_reload_and_abort.call_args.kwargs
-    assert update_kwargs["title"] == renamed_input["name_value"]
+    assert update_kwargs["title"] == renamed_input[CONF_NAME]
 
 
 @pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
@@ -273,11 +283,11 @@ async def test_element_flow_reconfigure_missing_name(
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)  # type: ignore[method-assign]
 
     invalid_input = deepcopy(existing_config)
-    invalid_input["name_value"] = ""
+    invalid_input[CONF_NAME] = ""
 
     result = await flow.async_step_reconfigure(user_input=invalid_input)
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {"name_value": "missing_name"}
+    assert result.get("errors") == {CONF_NAME: "missing_name"}
 
 
 @pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
@@ -296,7 +306,7 @@ async def test_element_flow_reconfigure_duplicate_name(
         else primary_config
     )
     secondary_config = deepcopy(secondary_source)
-    secondary_config["name_value"] = f"{primary_config['name_value']} Secondary"
+    secondary_config[CONF_NAME] = f"{primary_config[CONF_NAME]} Secondary"
 
     _prepare_flow_context(hass, hub_entry, element_type, primary_config)
     _prepare_flow_context(hass, hub_entry, element_type, secondary_config)
@@ -311,11 +321,11 @@ async def test_element_flow_reconfigure_duplicate_name(
     flow._get_reconfigure_subentry = Mock(return_value=secondary_subentry)  # type: ignore[method-assign]
 
     duplicate_input = deepcopy(secondary_config)
-    duplicate_input["name_value"] = primary_config["name_value"]
+    duplicate_input[CONF_NAME] = primary_config[CONF_NAME]
 
     result = await flow.async_step_reconfigure(user_input=duplicate_input)
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("errors") == {"name_value": "name_exists"}
+    assert result.get("errors") == {CONF_NAME: "name_exists"}
 
 
 async def test_get_participant_entries_filters_correctly(
@@ -324,12 +334,18 @@ async def test_get_participant_entries_filters_correctly(
 ) -> None:
     """Verify participant filtering excludes non-endpoint subentries."""
 
-    battery_subentry = _make_subentry(battery.ELEMENT_TYPE, {"name_value": "Battery 1", "capacity_value": 10.0})
+    battery_subentry = _make_subentry(
+        battery.ELEMENT_TYPE,
+        {
+            CONF_NAME: "Battery 1",
+            battery.CONF_CAPACITY: 10.0,
+        },
+    )
     hass.config_entries.async_add_subentry(hub_entry, battery_subentry)
 
     network_subentry = ConfigSubentry(
-        data=MappingProxyType({"name_value": "Network", CONF_ELEMENT_TYPE: "network"}),
-        subentry_type="network",
+        data=MappingProxyType({CONF_NAME: "Network", CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
+        subentry_type=ELEMENT_TYPE_NETWORK,
         title="Network",
         unique_id=None,
     )
@@ -338,14 +354,14 @@ async def test_get_participant_entries_filters_correctly(
     connection_subentry = _make_subentry(
         connection.ELEMENT_TYPE,
         {
-            "name_value": "Connection 1",
-            "source_value": "Battery 1",
-            "target_value": "Grid",
+            CONF_NAME: "Connection 1",
+            connection.CONF_SOURCE: "Battery 1",
+            connection.CONF_TARGET: "Grid",
         },
     )
     hass.config_entries.async_add_subentry(hub_entry, connection_subentry)
 
-    grid_subentry = _make_subentry(grid.ELEMENT_TYPE, {"name_value": "Grid"})
+    grid_subentry = _make_subentry(grid.ELEMENT_TYPE, {CONF_NAME: "Grid"})
     hass.config_entries.async_add_subentry(hub_entry, grid_subentry)
 
     flow = _create_flow(hass, hub_entry, battery.ELEMENT_TYPE)

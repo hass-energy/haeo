@@ -6,6 +6,7 @@ optimization.  All field handling is delegated to specialised Loader
 implementations found in sibling modules.
 """
 
+from collections.abc import Mapping
 from datetime import timedelta
 import logging
 from typing import Any
@@ -14,11 +15,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigSchema
+from custom_components.haeo.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.model import Network
 from custom_components.haeo.schema import available as config_available
-from custom_components.haeo.schema import data_to_config
 from custom_components.haeo.schema import load as config_load
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,7 +29,7 @@ async def load_network(
     *,
     period_seconds: int,
     n_periods: int,
-    config: dict[str, Any] | None = None,
+    participants: Mapping[str, ElementConfigSchema],
 ) -> Network | None:
     """Return a fully-populated `Network`.
 
@@ -39,39 +38,19 @@ async def load_network(
         entry: Config entry
         period_seconds: Optimization period in seconds
         n_periods: Number of periods
-        config: Optional config dict (if not provided, uses entry.data)
+        participants: Mapping of validated element names to configurations
 
     Raises:
         ValueError: when required sensor/forecast data is missing.
 
     """
-    # These are the times which will be used to load the data
-    cfg = config if config is not None else entry.data
-    participants: dict[str, dict[str, Any]] = cfg.get("participants", {})
     if not participants:
         _LOGGER.warning("No participants configured for hub")
         return None
 
-    # Convert raw participant dicts -> typed config objects (TypedDicts in Schema mode)
-    participant_configs: dict[str, ElementConfigSchema] = {}
-    for name, p_data in participants.items():
-        element_type = p_data[CONF_ELEMENT_TYPE]
-        # Element type must be valid since it was validated during config flow
-        # If it's not in ELEMENT_TYPES, that's a programming error (config flow failed to validate)
-        if element_type not in ELEMENT_TYPES:
-            msg = f"Invalid element type {element_type} - config flow validation failed"
-            raise RuntimeError(msg)
-        registry_entry = ELEMENT_TYPES[element_type]
-        participant_configs[name] = data_to_config(
-            registry_entry.schema,
-            p_data,
-            participants=participants,
-            current_element_name=name,
-        )
-
     # Check that all required sensor data is available before loading
     missing_sensors: list[str] = []
-    for name, element_config in participant_configs.items():
+    for name, element_config in participants.items():
         # Check availability for entire config
         if not config_available(
             element_config,
@@ -110,15 +89,16 @@ async def load_network(
 
     # Get the data for each participant and add to the network
     # This converts from Schema mode (with entity IDs) to Data mode (with loaded values)
-    for element_config in participant_configs.values():
+    for element_config in participants.values():
         # Load all fields using the high-level config_load function
-        loaded_params = await config_load(
+        loaded_params: ElementConfigData = await config_load(
             element_config,
             hass=hass,
             forecast_times=forecast_times,
         )
 
         # net.add expects ElementConfigData with loaded values
-        net.add(**loaded_params)
+        loaded_kwargs: dict[str, Any] = dict(loaded_params)
+        net.add(**loaded_kwargs)
 
     return net

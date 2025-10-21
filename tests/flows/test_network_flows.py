@@ -1,6 +1,7 @@
 """Comprehensive tests for network subentry flows."""
 
 from types import MappingProxyType
+from typing import Any, cast
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
@@ -9,7 +10,14 @@ from homeassistant.data_entry_flow import FlowResultType
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.const import (
+    CONF_ELEMENT_TYPE,
+    CONF_INTEGRATION_TYPE,
+    CONF_NAME,
+    DOMAIN,
+    ELEMENT_TYPE_NETWORK,
+    INTEGRATION_TYPE_HUB,
+)
 from custom_components.haeo.flows.network import NetworkSubentryFlow
 
 
@@ -19,7 +27,7 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "integration_type": INTEGRATION_TYPE_HUB,
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
         },
         entry_id="test_hub_id",
@@ -39,17 +47,15 @@ async def test_network_flow_user_step_success(hass: HomeAssistant, hub_entry: Mo
     flow.async_create_entry = Mock(return_value=create_entry_result)  # type: ignore[method-assign]
 
     # First call - show form
-    result = await flow.async_step_user(user_input=None)
+    result = cast("dict[str, Any]", await flow.async_step_user(user_input=None))
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
     assert "errors" in result
     assert not result["errors"]
 
     # Second call - submit data
-    user_input = {
-        "name_value": "Network",
-    }
-    result = await flow.async_step_user(user_input=user_input)
+    user_input = {CONF_NAME: "Network"}
+    result = cast("dict[str, Any]", await flow.async_step_user(user_input=user_input))
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "Network"
 
@@ -57,8 +63,8 @@ async def test_network_flow_user_step_success(hass: HomeAssistant, hub_entry: Mo
     flow.async_create_entry.assert_called_once()
     call_kwargs = flow.async_create_entry.call_args.kwargs
     assert call_kwargs["title"] == "Network"
-    assert call_kwargs["data"]["name_value"] == "Network"
-    assert call_kwargs["data"][CONF_ELEMENT_TYPE] == "network"
+    assert call_kwargs["data"][CONF_NAME] == "Network"
+    assert call_kwargs["data"][CONF_ELEMENT_TYPE] == ELEMENT_TYPE_NETWORK
 
 
 async def test_network_flow_user_step_missing_name(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -68,24 +74,18 @@ async def test_network_flow_user_step_missing_name(hass: HomeAssistant, hub_entr
     flow._get_entry = Mock(return_value=hub_entry)  # type: ignore[method-assign]
 
     # Submit with empty name
-    user_input = {
-        "name_value": "",
-    }
-    result = await flow.async_step_user(user_input=user_input)
+    user_input = {CONF_NAME: ""}
+    result = cast("dict[str, Any]", await flow.async_step_user(user_input=user_input))
     assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {"name_value": "missing_name"}
+    assert result["errors"] == {CONF_NAME: "missing_name"}
 
 
 async def test_network_flow_user_step_network_exists(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Test network creation when network already exists."""
     # Add existing network subentry
     existing_network = ConfigSubentry(
-        data=MappingProxyType(
-            {
-                "name_value": "Existing Network",
-            }
-        ),
-        subentry_type="network",
+        data=MappingProxyType({CONF_NAME: "Existing Network"}),
+        subentry_type=ELEMENT_TYPE_NETWORK,
         title="Existing Network",
         unique_id=None,
     )
@@ -96,23 +96,17 @@ async def test_network_flow_user_step_network_exists(hass: HomeAssistant, hub_en
     flow._get_entry = Mock(return_value=hub_entry)  # type: ignore[method-assign]
 
     # Try to create another network
-    user_input = {
-        "name_value": "New Network",
-    }
-    result = await flow.async_step_user(user_input=user_input)
+    user_input = {CONF_NAME: "New Network"}
+    result = cast("dict[str, Any]", await flow.async_step_user(user_input=user_input))
     assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {"name_value": "network_exists"}
+    assert result["errors"] == {CONF_NAME: "network_exists"}
 
 
 async def test_network_flow_reconfigure_success(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Test successful network reconfiguration."""
     # Add existing network
     existing_network = ConfigSubentry(
-        data=MappingProxyType(
-            {
-                "name_value": "Old Network",
-            }
-        ),
+        data=MappingProxyType({CONF_NAME: "Old Network"}),
         subentry_type="network",
         title="Old Network",
         unique_id=None,
@@ -129,15 +123,13 @@ async def test_network_flow_reconfigure_success(hass: HomeAssistant, hub_entry: 
     flow.async_update_reload_and_abort = Mock(return_value=abort_result)  # type: ignore[method-assign]
 
     # First call - show form with current values
-    result = await flow.async_step_reconfigure(user_input=None)
+    result = cast("dict[str, Any]", await flow.async_step_reconfigure(user_input=None))
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "reconfigure"
 
     # Second call - update name
-    user_input = {
-        "name_value": "New Network Name",
-    }
-    result = await flow.async_step_reconfigure(user_input=user_input)
+    user_input = {CONF_NAME: "New Network Name"}
+    result = cast("dict[str, Any]", await flow.async_step_reconfigure(user_input=user_input))
     assert result["type"] == FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
 
@@ -148,15 +140,15 @@ async def test_network_flow_reconfigure_success(hass: HomeAssistant, hub_entry: 
     assert call_args[0] == hub_entry
     assert call_args[1] == existing_network
     assert call_kwargs["title"] == "New Network Name"
-    assert call_kwargs["data"]["name_value"] == "New Network Name"
-    assert call_kwargs["data"][CONF_ELEMENT_TYPE] == "network"
+    assert call_kwargs["data"][CONF_NAME] == "New Network Name"
+    assert call_kwargs["data"][CONF_ELEMENT_TYPE] == ELEMENT_TYPE_NETWORK
 
 
 async def test_network_flow_reconfigure_missing_name(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Test network reconfiguration with missing name."""
     existing_network = ConfigSubentry(
-        data=MappingProxyType({"name_value": "Network"}),
-        subentry_type="network",
+        data=MappingProxyType({CONF_NAME: "Network"}),
+        subentry_type=ELEMENT_TYPE_NETWORK,
         title="Network",
         unique_id=None,
     )
@@ -168,12 +160,10 @@ async def test_network_flow_reconfigure_missing_name(hass: HomeAssistant, hub_en
     flow._get_reconfigure_subentry = Mock(return_value=existing_network)  # type: ignore[method-assign]
 
     # Submit with empty name
-    user_input = {
-        "name_value": "",
-    }
-    result = await flow.async_step_reconfigure(user_input=user_input)
+    user_input = {CONF_NAME: ""}
+    result = cast("dict[str, Any]", await flow.async_step_reconfigure(user_input=user_input))
     assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {"name_value": "missing_name"}
+    assert result["errors"] == {CONF_NAME: "missing_name"}
 
 
 async def test_network_flow_remove_subentry_prevented(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -183,6 +173,6 @@ async def test_network_flow_remove_subentry_prevented(hass: HomeAssistant, hub_e
     flow._get_entry = Mock(return_value=hub_entry)  # type: ignore[method-assign]
 
     # Try to remove network
-    result = await flow.async_step_remove_subentry(_user_input=None)
+    result = cast("dict[str, Any]", await flow.async_step_remove_subentry(_user_input=None))
     assert result["type"] == FlowResultType.ABORT
     assert result["reason"] == "cannot_remove_network"

@@ -7,7 +7,7 @@ from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers import selector
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,16 +27,16 @@ class NetworkSubentryFlow(ConfigSubentryFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            name = user_input.get("name_value")
+            name = user_input.get(CONF_NAME)
             if not name:
-                errors["name_value"] = "missing_name"
+                errors[CONF_NAME] = "missing_name"
             else:
                 hub_entry = self._get_entry()
 
                 # Check if network already exists
                 for subentry in hub_entry.subentries.values():
                     if subentry.subentry_type == "network":
-                        errors["name_value"] = "network_exists"
+                        errors[CONF_NAME] = "network_exists"
                         break
 
             if not errors:
@@ -44,14 +44,14 @@ class NetworkSubentryFlow(ConfigSubentryFlow):
                     title=name,
                     data={
                         CONF_ELEMENT_TYPE: "network",
-                        **user_input,
+                        CONF_NAME: name,
                     },
                 )
 
         # Simple schema with just name
         schema = vol.Schema(
             {
-                vol.Required("name_value", default="Network"): selector.TextSelector(
+                vol.Required(CONF_NAME, default="Network"): selector.TextSelector(
                     selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
                 ),
             }
@@ -62,13 +62,13 @@ class NetworkSubentryFlow(ConfigSubentryFlow):
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Reconfigure the network name."""
         subentry = self._get_reconfigure_subentry()
-        current_name = subentry.data.get("name_value")
+        current_name = subentry.data.get(CONF_NAME)
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            new_name = user_input.get("name_value")
+            new_name = user_input.get(CONF_NAME)
             if not new_name:
-                errors["name_value"] = "missing_name"
+                errors[CONF_NAME] = "missing_name"
 
             if not errors:
                 hub_entry = self._get_entry()
@@ -78,14 +78,14 @@ class NetworkSubentryFlow(ConfigSubentryFlow):
                     title=str(new_name),
                     data={
                         CONF_ELEMENT_TYPE: "network",
-                        **user_input,
+                        CONF_NAME: new_name,
                     },
                 )
 
         # Simple schema with just name
         schema = vol.Schema(
             {
-                vol.Required("name_value", default=current_name): selector.TextSelector(
+                vol.Required(CONF_NAME, default=current_name): selector.TextSelector(
                     selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
                 ),
             }

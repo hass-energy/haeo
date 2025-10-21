@@ -7,7 +7,7 @@ import voluptuous as vol
 
 from custom_components.haeo.data.loader import ConstantLoader, Loader
 
-from .fields import FieldMeta
+from .fields import FieldMeta, FieldValidator
 
 if TYPE_CHECKING:
     from custom_components.haeo.elements import (
@@ -206,69 +206,49 @@ def schema_for_type(cls: type, defaults: dict[str, Any] | None = None, **kwargs:
     annotated_fields = _get_annotated_fields(cls)
     defaults = defaults or {}
 
-    schema = {}
+    schema: dict[vol.Required | vol.Optional, FieldValidator] = {}
     for field, (meta, is_optional) in annotated_fields.items():
-        for k, s in meta.create_schema(**kwargs).items():
-            key = f"{field}_{k}"
-            # Get default value if provided
-            default_value = defaults.get(key)
-            schema_key = (vol.Optional if is_optional else vol.Required)(
-                key,
-                default=default_value if default_value is not None else vol.UNDEFINED,
-            )
-            schema[schema_key] = s
+        validator = meta.create_schema(**kwargs)
+
+        if isinstance(validator, dict):
+            for subkey, subvalidator in validator.items():
+                key = f"{field}:{subkey}"
+                default_value = defaults.get(key, vol.UNDEFINED)
+                schema_key = (vol.Optional if is_optional else vol.Required)(key, default=default_value)
+                schema[schema_key] = subvalidator
+        else:
+            key = field
+            default_value = defaults.get(key, vol.UNDEFINED)
+            schema_key = (vol.Optional if is_optional else vol.Required)(key, default=default_value)
+            schema[schema_key] = validator
 
     return vol.Schema(schema)
 
 
-def data_to_config[T](cls: type[T], data: dict[str, Any], **kwargs: Any) -> T:
-    """Convert flattened data to a TypedDict configuration.
-
-    Args:
-        cls: The TypedDict configuration class
-        data: The flattened data from config flow
-        **kwargs: Additional keyword arguments (e.g., participants list, current_element_name)
-
-    Returns:
-        A dictionary matching the TypedDict schema
-
-    """
+def unflatten(data: dict[str, Any]) -> dict[str, Any]:
+    """Convert flattened delimited dictionary to to structured dictionary."""
     output: dict[str, Any] = {}
 
-    # Add element_type from data if present
-    if "type" in data:
-        output["element_type"] = data["type"]
-    elif "element_type" in data:
-        output["element_type"] = data["element_type"]
-
-    # Add name from either data or kwargs (only if present and not None)
-    name = data.get("name") or data.get("name_value") or kwargs.get("current_element_name")
-    if name is not None:
-        output["name"] = name
-
-    for field, (meta, is_optional) in _get_annotated_fields(cls).items():
-        schema_keys = meta.create_schema(**kwargs).keys()
-        field_data = {k: data.get(f"{field}_{k}") for k in schema_keys}
-
-        # Check if field was provided
-        has_data = any(v is not None for v in field_data.values())
-
-        # For optional fields that weren't provided, skip them
-        if is_optional and not has_data:
-            continue
-
-        # For constant, sensor, and forecast fields, extract just the value
-        if meta.field_type[1] in ("constant", "sensor", "forecast"):
-            if "value" in field_data and field_data["value"] is not None:
-                output[field] = field_data["value"]
-        # For live_forecast fields, preserve the dictionary structure
-        elif meta.field_type[1] == "live_forecast":
-            live_data = field_data.get("live")
-            forecast_data = field_data.get("forecast")
-            if live_data is not None or forecast_data is not None:
-                output[field] = {"live": live_data or [], "forecast": forecast_data or []}
+    # Unflatten data treating ":" as delimiter
+    for k, v in data.items():
+        ks = k.split(":")
+        if len(ks) > 1:
+            output.setdefault(ks[0], {})[ks[1]] = v
         else:
-            # For other field types, use the field_data as-is
-            output[field] = field_data
+            output[k] = v
 
-    return output  # type: ignore[return-value]
+    return output
+
+
+def flatten(config: dict[str, Any]) -> dict[str, Any]:
+    """Convert structured dictionary to flattened delimited dictionary."""
+
+    output: dict[str, Any] = {}
+    for k, v in config.items():
+        if isinstance(v, dict):
+            for subk, subv in v.items():
+                output[f"{k}:{subk}"] = subv
+        else:
+            output[k] = v
+
+    return output

@@ -170,7 +170,7 @@ def subentry_factory(hass: HomeAssistant, mock_config_entry: MockConfigEntry) ->
             mock_config_entry.add_to_hass(hass)
             entry_added = True
         subentry = ConfigSubentry(
-            data=MappingProxyType({"name_value": element_name}),
+            data=MappingProxyType({"name": element_name}),
             subentry_type=element_type,
             title=element_name.replace("_", " ").title(),
             unique_id=None,

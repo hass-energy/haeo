@@ -1,18 +1,22 @@
 """Diagnostics support for HAEO integration."""
 
-from typing import Any
+from typing import Any, cast
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from custom_components.haeo.schema import unflatten
+
 from .const import (
     CONF_DEBOUNCE_SECONDS,
+    CONF_ELEMENT_TYPE,
     CONF_HORIZON_HOURS,
     CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     CONF_UPDATE_INTERVAL_MINUTES,
 )
 from .coordinator import HaeoDataUpdateCoordinator
+from .elements import ELEMENT_TYPES, ElementType
 
 
 async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, Any]:
@@ -27,11 +31,11 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
             "domain": config_entry.domain,
         },
         "hub_config": {
-            "horizon_hours": config_entry.data.get(CONF_HORIZON_HOURS),
-            "period_minutes": config_entry.data.get(CONF_PERIOD_MINUTES),
-            "optimizer": config_entry.data.get(CONF_OPTIMIZER),
-            "update_interval_minutes": config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES),
-            "debounce_seconds": config_entry.data.get(CONF_DEBOUNCE_SECONDS),
+            CONF_HORIZON_HOURS: config_entry.data.get(CONF_HORIZON_HOURS),
+            CONF_PERIOD_MINUTES: config_entry.data.get(CONF_PERIOD_MINUTES),
+            CONF_OPTIMIZER: config_entry.data.get(CONF_OPTIMIZER),
+            CONF_UPDATE_INTERVAL_MINUTES: config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES),
+            CONF_DEBOUNCE_SECONDS: config_entry.data.get(CONF_DEBOUNCE_SECONDS),
         },
         "elements": {},
     }
@@ -39,21 +43,28 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
     # Add subentry information
     subentries_info = []
     for subentry in config_entry.subentries.values():
-        subentry_data = {
+        raw_data = dict(subentry.data)
+        name = raw_data.get("name")
+
+        subentry_info = {
             "subentry_id": subentry.subentry_id,
             "subentry_type": subentry.subentry_type,
             "title": subentry.title,
-            "name": subentry.data.get("name_value"),
+            "name": name,
         }
 
-        # Add element-specific configuration (excluding sensitive data)
         if subentry.subentry_type != "network":
-            element_config = dict(subentry.data)
-            # Remove internal metadata
-            element_config.pop("name_value", None)
-            subentry_data["config"] = element_config
+            element_type = cast("ElementType", subentry.subentry_type)
+            registry_entry = ELEMENT_TYPES.get(element_type)
+            if registry_entry is not None:
+                raw_data.setdefault("name", name)
+                raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
+                structured_config = unflatten(raw_data)
+                subentry_info["config"] = structured_config
+            else:
+                subentry_info["config"] = raw_data
 
-        subentries_info.append(subentry_data)
+        subentries_info.append(subentry_info)
 
     diagnostics["subentries"] = subentries_info
 

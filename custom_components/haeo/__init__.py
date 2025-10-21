@@ -8,6 +8,8 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+
 from .coordinator import HaeoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,7 +41,7 @@ async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) 
 
     # Create a ConfigSubentry object and add it to the hub
     network_subentry = ConfigSubentry(
-        data=MappingProxyType({"name_value": "Network"}),
+        data=MappingProxyType({CONF_NAME: "Network", CONF_ELEMENT_TYPE: "network"}),
         subentry_type="network",
         title="Network",
         unique_id=None,
@@ -128,9 +130,7 @@ async def async_remove_config_entry_device(
 
     # Get all current element names from subentries
     current_element_names = {
-        subentry.data.get("name_value")
-        for subentry in config_entry.subentries.values()
-        if subentry.data.get("name_value")
+        name for subentry in config_entry.subentries.values() if isinstance((name := subentry.data.get(CONF_NAME)), str)
     }
 
     # Check if this device's identifier matches any current element

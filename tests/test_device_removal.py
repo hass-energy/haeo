@@ -40,7 +40,7 @@ async def test_keep_device_for_existing_element(
     """Test that devices for existing elements are kept."""
     # Add a subentry
     subentry = ConfigSubentry(
-        data=MappingProxyType({"name_value": "Battery"}),
+        data=MappingProxyType({"name": "Battery", "element_type": "battery"}),
         subentry_type="battery",
         title="Battery",
         unique_id=None,
@@ -125,9 +125,10 @@ async def test_multiple_elements_device_cleanup(
     # Add multiple subentries
     elements = ["Battery1", "Battery2", "Grid"]
     for element_name in elements:
+        element_type = "battery" if "Battery" in element_name else "grid"
         subentry = ConfigSubentry(
-            data=MappingProxyType({"name_value": element_name}),
-            subentry_type="battery" if "Battery" in element_name else "grid",
+            data=MappingProxyType({"name": element_name, "element_type": element_type}),
+            subentry_type=element_type,
             title=element_name,
             unique_id=None,
         )

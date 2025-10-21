@@ -25,13 +25,5 @@ CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
 def model_description(_config: NodeConfigData) -> str:
-    """Generate model description string for node element.
-
-    Args:
-        _config: Node configuration data.
-
-    Returns:
-        Formatted model description string.
-
-    """
+    """Generate model description string for node element."""
     return "Node"

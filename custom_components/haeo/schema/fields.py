@@ -1,7 +1,7 @@
-"""Field types for HAEO type system using Annotated types."""
+"""Field metadata definitions for HAEO schema system."""
 
-from abc import ABC
-from collections.abc import Sequence
+from abc import ABC, abstractmethod
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal
 
@@ -30,114 +30,135 @@ from custom_components.haeo.data.loader import (
     SensorLoader,
 )
 
+type FieldValidator = vol.All | BooleanSelector | EntitySelector | NumberSelector | SelectSelector
+type FieldValidatorResult = FieldValidator | dict[str, FieldValidator]
+
 
 @dataclass(frozen=True)
 class FieldMeta(ABC):
-    """Base class for unified field metadata.
-
-    This metadata serves both Schema and Data modes:
-    - Schema mode: Uses create_schema() for Voluptuous validation
-    - Data mode: Uses loader to convert entity IDs to actual values
-
-    Attributes:
-        field_type: Tuple of (device_class, property_type) for the field
-        loader: Loader instance (ConstantLoader, SensorLoader, etc.)
-
-    """
+    """Base metadata describing schema and data behaviour for a field."""
 
     field_type: tuple[str | SensorDeviceClass, str]
     loader: Loader
 
-    def create_schema(self, **_kwargs: Any) -> dict[str, Any]:
-        """Create the voluptuous schema for this field type (Schema mode)."""
-        return self._get_field_validators(**_kwargs)
+    def create_schema(self, **kwargs: Any) -> FieldValidatorResult:
+        """Return the voluptuous validators for this field."""
+        return self._get_field_validators(**kwargs)
 
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        """Get the field validators for this field type (must be implemented by subclasses)."""
-        msg = "Subclasses must implement _get_field_validators"
-        raise NotImplementedError(msg)
+    @abstractmethod
+    def _get_field_validators(self, **kwargs: Any) -> FieldValidatorResult:
+        """Return the validators (selector or callable) for this field."""
 
 
 @dataclass(frozen=True)
 class PowerFieldMeta(FieldMeta):
-    """Metadata for power value fields."""
+    """Metadata for constant power values."""
 
-    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["constant"]] = (SensorDeviceClass.POWER, "constant")
+    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["constant"]] = (
+        SensorDeviceClass.POWER,
+        "constant",
+    )
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
 
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {
-            "value": vol.All(
-                vol.Coerce(float),
-                vol.Range(min=0, min_included=True, msg="Value must be positive"),
-                NumberSelector(
-                    NumberSelectorConfig(
-                        mode=NumberSelectorMode.BOX,
-                        min=0,
-                        step=0.01,
-                        unit_of_measurement=UnitOfPower.KILO_WATT,
-                    ),
-                ),
-            )
-        }
+    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+        return vol.All(
+            vol.Coerce(float),
+            vol.Range(min=0, min_included=True, msg="Value must be positive"),
+            NumberSelector(
+                NumberSelectorConfig(
+                    mode=NumberSelectorMode.BOX,
+                    min=0,
+                    step=0.01,
+                    unit_of_measurement=UnitOfPower.KILO_WATT,
+                )
+            ),
+        )
 
 
 @dataclass(frozen=True)
 class PowerSensorsFieldMeta(FieldMeta):
-    """Metadata for power sensor fields."""
+    """Metadata for power sensor entity references."""
 
-    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["sensor"]] = (SensorDeviceClass.POWER, "sensor")
+    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["sensor"]] = (
+        SensorDeviceClass.POWER,
+        "sensor",
+    )
     loader: SensorLoader = field(default_factory=lambda: SensorLoader())
 
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {
-            "value": EntitySelector(
-                EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.POWER])
-            )
-        }
+    def _get_field_validators(self, **_kwargs: Any) -> EntitySelector:
+        return EntitySelector(
+            EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.POWER])
+        )
 
 
 @dataclass(frozen=True)
 class PowerForecastsFieldMeta(FieldMeta):
-    """Metadata for power forecast fields."""
+    """Metadata for power forecast entity references."""
 
-    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["forecast"]] = (SensorDeviceClass.POWER, "forecast")
+    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["forecast"]] = (
+        SensorDeviceClass.POWER,
+        "forecast",
+    )
     loader: ForecastLoader = field(default_factory=lambda: ForecastLoader())
 
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {
-            "value": EntitySelector(
-                EntitySelectorConfig(
-                    domain="sensor", multiple=True, device_class=[SensorDeviceClass.POWER, SensorDeviceClass.ENERGY]
-                )
+    def _get_field_validators(self, **_kwargs: Any) -> EntitySelector:
+        return EntitySelector(
+            EntitySelectorConfig(
+                domain="sensor",
+                multiple=True,
+                device_class=[SensorDeviceClass.POWER, SensorDeviceClass.ENERGY],
             )
-        }
+        )
 
 
 @dataclass(frozen=True)
 class EnergyFieldMeta(FieldMeta):
-    """Metadata for energy value fields."""
+    """Metadata for constant energy values."""
 
-    field_type: tuple[Literal[SensorDeviceClass.ENERGY], Literal["constant"]] = (SensorDeviceClass.ENERGY, "constant")
+    field_type: tuple[Literal[SensorDeviceClass.ENERGY], Literal["constant"]] = (
+        SensorDeviceClass.ENERGY,
+        "constant",
+    )
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
 
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {
-            "value": vol.All(
-                vol.Coerce(float),
-                vol.Range(min=0, min_included=True, msg="Value must be positive"),
-                NumberSelector(
-                    NumberSelectorConfig(
-                        mode=NumberSelectorMode.BOX, min=0, step=0.01, unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR
-                    )
-                ),
+    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+        return vol.All(
+            vol.Coerce(float),
+            vol.Range(min=0, min_included=True, msg="Value must be positive"),
+            NumberSelector(
+                NumberSelectorConfig(
+                    mode=NumberSelectorMode.BOX,
+                    min=0,
+                    step=0.01,
+                    unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                )
+            ),
+        )
+
+
+@dataclass(frozen=True)
+class EnergySensorsFieldMeta(FieldMeta):
+    """Metadata for energy sensor entity references."""
+
+    field_type: tuple[Literal[SensorDeviceClass.ENERGY], Literal["sensor"]] = (
+        SensorDeviceClass.ENERGY,
+        "sensor",
+    )
+    loader: SensorLoader = field(default_factory=lambda: SensorLoader())
+
+    def _get_field_validators(self, **_kwargs: Any) -> EntitySelector:
+        return EntitySelector(
+            EntitySelectorConfig(
+                domain="sensor",
+                multiple=True,
+                device_class=[SensorDeviceClass.BATTERY, SensorDeviceClass.ENERGY_STORAGE],
             )
-        }
+        )
 
 
 @dataclass(frozen=True)
 class PriceFieldMeta(FieldMeta):
-    """Metadata for price value fields."""
+    """Metadata for constant price values."""
 
     field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["constant"]] = (
         SensorDeviceClass.MONETARY,
@@ -145,158 +166,38 @@ class PriceFieldMeta(FieldMeta):
     )
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
 
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {
-            "value": vol.All(
-                vol.Coerce(float),
-                NumberSelector(
-                    NumberSelectorConfig(
-                        mode=NumberSelectorMode.BOX,
-                        step=1,
-                        unit_of_measurement=f"{CURRENCY_DOLLAR}/{UnitOfEnergy.KILO_WATT_HOUR}",
-                    )
-                ),
-            )
-        }
-
-
-@dataclass(frozen=True)
-class PercentageFieldMeta(FieldMeta):
-    """Metadata for percentage value fields."""
-
-    field_type: tuple[Literal["%"], Literal["constant"]] = ("%", "constant")
-    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
-
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {"value": vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))}
-
-
-@dataclass(frozen=True)
-class BooleanFieldMeta(FieldMeta):
-    """Metadata for boolean value fields."""
-
-    field_type: tuple[Literal["boolean"], Literal["constant"]] = ("boolean", "constant")
-    loader: ConstantLoader[bool] = field(default_factory=lambda: ConstantLoader[bool]())
-
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {"value": BooleanSelector(BooleanSelectorConfig())}
-
-
-@dataclass(frozen=True)
-class ElementNameFieldMeta(FieldMeta):
-    """Metadata for element name reference fields."""
-
-    field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
-    loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str]())
-
-    def _get_field_validators(self, participants: list[str] | None = None, **_kwargs: Any) -> dict[str, Any]:
-        # Only show the participants as options in the selector
-        participants_list = participants or []
-        options: list[SelectOptionDict] = [
-            SelectOptionDict(value=participant, label=participant) for participant in participants_list
-        ]
-        return {
-            "value": vol.All(
-                str,
-                vol.Strip,
-                vol.Length(min=1, msg="Element name cannot be empty"),
-                SelectSelector(SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)),
-            )
-        }
-
-
-@dataclass(frozen=True)
-class NameFieldMeta(FieldMeta):
-    """Metadata for name value fields."""
-
-    field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
-    loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str]())
-
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {"value": vol.All(str, vol.Strip, vol.Length(min=1, msg="Name cannot be empty"))}
-
-
-@dataclass(frozen=True)
-class PowerFlowFieldMeta(FieldMeta):
-    """Metadata for power flow value fields."""
-
-    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["constant"]] = (SensorDeviceClass.POWER, "constant")
-    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
-
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {
-            "value": vol.All(
-                vol.Coerce(float),
-                NumberSelector(
-                    NumberSelectorConfig(
-                        mode=NumberSelectorMode.BOX, step=0.01, unit_of_measurement=UnitOfPower.KILO_WATT
-                    )
-                ),
-            )
-        }
-
-
-@dataclass(frozen=True)
-class BatterySOCFieldMeta(FieldMeta):
-    """Metadata for battery state of charge percentage fields."""
-
-    field_type: tuple[Literal[SensorDeviceClass.BATTERY], Literal["constant"]] = (SensorDeviceClass.BATTERY, "constant")
-    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
-
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {"value": vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))}
-
-
-@dataclass(frozen=True)
-class BatterySOCSensorFieldMeta(FieldMeta):
-    """Metadata for battery SOC sensor fields."""
-
-    field_type: tuple[Literal[SensorDeviceClass.BATTERY], Literal["sensor"]] = (SensorDeviceClass.BATTERY, "sensor")
-    loader: SensorLoader = field(default_factory=lambda: SensorLoader())
-
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {
-            "value": EntitySelector(EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.BATTERY]))
-        }
-
-
-@dataclass(frozen=True)
-class EnergySensorsFieldMeta(FieldMeta):
-    """Metadata for energy sensor fields."""
-
-    field_type: tuple[Literal[SensorDeviceClass.ENERGY], Literal["sensor"]] = (SensorDeviceClass.ENERGY, "sensor")
-    loader: SensorLoader = field(default_factory=lambda: SensorLoader())
-
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {
-            "value": EntitySelector(
-                EntitySelectorConfig(
-                    domain="sensor",
-                    multiple=True,
-                    device_class=[SensorDeviceClass.BATTERY, SensorDeviceClass.ENERGY_STORAGE],
+    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+        return vol.All(
+            vol.Coerce(float),
+            NumberSelector(
+                NumberSelectorConfig(
+                    mode=NumberSelectorMode.BOX,
+                    step=1,
+                    unit_of_measurement=f"{CURRENCY_DOLLAR}/{UnitOfEnergy.KILO_WATT_HOUR}",
                 )
-            )
-        }
+            ),
+        )
 
 
 @dataclass(frozen=True)
 class PriceSensorsFieldMeta(FieldMeta):
-    """Metadata for price sensor fields."""
+    """Metadata for live price sensor entity references."""
 
-    field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["sensor"]] = (SensorDeviceClass.MONETARY, "sensor")
+    field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["sensor"]] = (
+        SensorDeviceClass.MONETARY,
+        "sensor",
+    )
     loader: SensorLoader = field(default_factory=lambda: SensorLoader())
 
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {
-            "value": EntitySelector(
-                EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.MONETARY])
-            )
-        }
+    def _get_field_validators(self, **_kwargs: Any) -> EntitySelector:
+        return EntitySelector(
+            EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.MONETARY])
+        )
 
 
 @dataclass(frozen=True)
 class PriceForecastsFieldMeta(FieldMeta):
-    """Metadata for price forecast fields."""
+    """Metadata for price forecast entity references."""
 
     field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["forecast"]] = (
         SensorDeviceClass.MONETARY,
@@ -304,13 +205,13 @@ class PriceForecastsFieldMeta(FieldMeta):
     )
     loader: ForecastLoader = field(default_factory=lambda: ForecastLoader())
 
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
-        return {"value": EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True))}
+    def _get_field_validators(self, **_kwargs: Any) -> EntitySelector:
+        return EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True))
 
 
 @dataclass(frozen=True)
 class PricesSensorsAndForecastsFieldMeta(FieldMeta):
-    """Metadata for price live and forecast configuration fields."""
+    """Metadata for live and forecast price configuration."""
 
     field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["live_forecast"]] = (
         SensorDeviceClass.MONETARY,
@@ -318,14 +219,123 @@ class PricesSensorsAndForecastsFieldMeta(FieldMeta):
     )
     loader: ForecastAndSensorLoader = field(default_factory=lambda: ForecastAndSensorLoader())
 
-    def _get_field_validators(self, **_kwargs: Any) -> dict[str, Any]:
+    def _get_field_validators(self, **_kwargs: Any) -> Mapping[str, EntitySelector]:
         return {
             "live": EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True)),
             "forecast": EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True)),
         }
 
 
-# Schema mode type aliases (for configuration with sensor entity IDs)
+@dataclass(frozen=True)
+class PercentageFieldMeta(FieldMeta):
+    """Metadata for percentage values."""
+
+    field_type: tuple[Literal["%"], Literal["constant"]] = ("%", "constant")
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
+
+    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+        return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
+
+
+@dataclass(frozen=True)
+class BooleanFieldMeta(FieldMeta):
+    """Metadata for boolean values."""
+
+    field_type: tuple[Literal["boolean"], Literal["constant"]] = ("boolean", "constant")
+    loader: ConstantLoader[bool] = field(default_factory=lambda: ConstantLoader[bool]())
+
+    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+        return vol.All(vol.Coerce(bool), BooleanSelector(BooleanSelectorConfig()))
+
+
+@dataclass(frozen=True)
+class ElementNameFieldMeta(FieldMeta):
+    """Metadata for selecting existing element names."""
+
+    field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
+    loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str]())
+
+    def _get_field_validators(
+        self,
+        *,
+        participants: Sequence[str] | None = None,
+        current_element_name: str | None = None,
+        **_kwargs: Any,
+    ) -> vol.All:
+        participants_list = list(participants or [])
+        if current_element_name and current_element_name not in participants_list:
+            participants_list.append(current_element_name)
+
+        options: list[SelectOptionDict] = [
+            SelectOptionDict(value=participant, label=participant) for participant in participants_list
+        ]
+        return vol.All(
+            vol.Coerce(str),
+            vol.Strip,
+            vol.Length(min=1, msg="Element name cannot be empty"),
+            SelectSelector(SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)),
+        )
+
+
+@dataclass(frozen=True)
+class NameFieldMeta(FieldMeta):
+    """Metadata for free-form name values."""
+
+    field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
+    loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str]())
+
+    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+        return vol.All(vol.Coerce(str), vol.Strip, vol.Length(min=1, msg="Name cannot be empty"))
+
+
+@dataclass(frozen=True)
+class PowerFlowFieldMeta(FieldMeta):
+    """Metadata for power flow limits."""
+
+    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["constant"]] = (
+        SensorDeviceClass.POWER,
+        "constant",
+    )
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
+
+    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+        return vol.All(
+            vol.Coerce(float),
+            NumberSelector(
+                NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=0.01, unit_of_measurement=UnitOfPower.KILO_WATT)
+            ),
+        )
+
+
+@dataclass(frozen=True)
+class BatterySOCFieldMeta(FieldMeta):
+    """Metadata for battery state-of-charge percentages."""
+
+    field_type: tuple[Literal[SensorDeviceClass.BATTERY], Literal["constant"]] = (
+        SensorDeviceClass.BATTERY,
+        "constant",
+    )
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
+
+    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+        return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
+
+
+@dataclass(frozen=True)
+class BatterySOCSensorFieldMeta(FieldMeta):
+    """Metadata for battery state-of-charge sensors."""
+
+    field_type: tuple[Literal[SensorDeviceClass.BATTERY], Literal["sensor"]] = (
+        SensorDeviceClass.BATTERY,
+        "sensor",
+    )
+    loader: SensorLoader = field(default_factory=lambda: SensorLoader())
+
+    def _get_field_validators(self, **_kwargs: Any) -> EntitySelector:
+        return EntitySelector(EntitySelectorConfig(domain="sensor", device_class=[SensorDeviceClass.BATTERY]))
+
+
+# Schema mode type aliases (configuration with entity IDs)
 PowerFieldSchema = Annotated[float, PowerFieldMeta()]
 PowerSensorsFieldSchema = Annotated[Sequence[str], PowerSensorsFieldMeta()]
 PowerForecastsFieldSchema = Annotated[Sequence[str], PowerForecastsFieldMeta()]
@@ -345,7 +355,7 @@ PricesSensorsAndForecastsFieldSchema = Annotated[
     dict[Literal["live", "forecast"], Sequence[str]], PricesSensorsAndForecastsFieldMeta()
 ]
 
-# Data mode type aliases (for runtime with loaded sensor values)
+# Data mode type aliases (loaded runtime values)
 PowerFieldData = Annotated[float, PowerFieldMeta()]
 PowerSensorsFieldData = Annotated[float, PowerSensorsFieldMeta()]
 PowerForecastsFieldData = Annotated[list[float], PowerForecastsFieldMeta()]

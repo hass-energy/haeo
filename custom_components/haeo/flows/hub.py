@@ -10,10 +10,13 @@ from homeassistant.core import callback
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_HOURS,
+    CONF_INTEGRATION_TYPE,
     CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     CONF_UPDATE_INTERVAL_MINUTES,
+    DEFAULT_OPTIMIZER,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -52,11 +55,11 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(
                     title=hub_name,
                     data={
-                        "integration_type": INTEGRATION_TYPE_HUB,
+                        CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
                         CONF_NAME: hub_name,
                         CONF_HORIZON_HOURS: user_input[CONF_HORIZON_HOURS],
                         CONF_PERIOD_MINUTES: user_input[CONF_PERIOD_MINUTES],
-                        CONF_OPTIMIZER: user_input.get(CONF_OPTIMIZER, "highs"),
+                        CONF_OPTIMIZER: user_input.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER),
                         CONF_UPDATE_INTERVAL_MINUTES: user_input[CONF_UPDATE_INTERVAL_MINUTES],
                         CONF_DEBOUNCE_SECONDS: user_input[CONF_DEBOUNCE_SECONDS],
                     },
@@ -90,6 +93,6 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         }
 
         # Register network flow separately - it's special (auto-created, can't be deleted)
-        flows["network"] = NetworkSubentryFlow
+        flows[ELEMENT_TYPE_NETWORK] = NetworkSubentryFlow
 
         return flows

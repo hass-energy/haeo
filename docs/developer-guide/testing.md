@@ -61,9 +61,9 @@ hub_entry = assert_config_entry_exists(
 
 ```python
 # ❌ Old pattern with defensive logging
-element_name = subentry.data.get("name_value")
+element_name = subentry.data.get("name")
 if not element_name:
-    _LOGGER.warning("Subentry %s has no name_value", subentry.subentry_id)
+    _LOGGER.warning("Subentry %s has no name", subentry.subentry_id)
     continue
 
 # ✅ New pattern with type assertion

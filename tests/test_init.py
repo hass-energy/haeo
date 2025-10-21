@@ -10,7 +10,13 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import async_reload_entry, async_setup_entry, async_unload_entry
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, DOMAIN
+from custom_components.haeo.const import (
+    CONF_ELEMENT_TYPE,
+    CONF_INTEGRATION_TYPE,
+    CONF_NAME,
+    DOMAIN,
+    INTEGRATION_TYPE_HUB,
+)
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID
 from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
 from custom_components.haeo.elements.connection import CONF_MAX_POWER, CONF_SOURCE, CONF_TARGET
@@ -28,8 +34,8 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "integration_type": "hub",
-            "name": "Test Network",
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Network",
         },
         entry_id="hub_entry_id",
         title="Test HAEO Integration",
@@ -66,8 +72,14 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
                 CONF_IMPORT_LIMIT: 10000,
                 CONF_EXPORT_LIMIT: 5000,
-                CONF_IMPORT_PRICE: "sensor.import_price",
-                CONF_EXPORT_PRICE: "sensor.export_price",
+                CONF_IMPORT_PRICE: {
+                    "live": ["sensor.import_price"],
+                    "forecast": ["sensor.import_price"],
+                },
+                CONF_EXPORT_PRICE: {
+                    "live": ["sensor.export_price"],
+                    "forecast": ["sensor.export_price"],
+                },
             }
         ),
         subentry_type=ELEMENT_TYPE_GRID,

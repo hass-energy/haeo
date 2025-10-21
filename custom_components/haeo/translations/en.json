@@ -58,32 +58,32 @@
           "title": "Add Battery",
           "description": "Set up battery parameters for energy optimization",
           "data": {
-            "name_value": "Battery Name",
-            "capacity_value": "Capacity",
-            "initial_charge_percentage_value": "Current Charge Sensor",
-            "min_charge_percentage_value": "Minimum Charge Level",
-            "max_charge_percentage_value": "Maximum Charge Level",
-            "max_charge_power_value": "Maximum Charge Power",
-            "max_discharge_power_value": "Maximum Discharge Power",
-            "efficiency_value": "Round-trip Efficiency",
-            "charge_cost_value": "Charge Cost (Optional)",
-            "discharge_cost_value": "Discharge Cost (Optional)"
+            "name": "Battery Name",
+            "capacity": "Capacity",
+            "initial_charge_percentage": "Current Charge Sensor",
+            "min_charge_percentage": "Minimum Charge Level",
+            "max_charge_percentage": "Maximum Charge Level",
+            "max_charge_power": "Maximum Charge Power",
+            "max_discharge_power": "Maximum Discharge Power",
+            "efficiency": "Round-trip Efficiency",
+            "charge_cost": "Charge Cost (Optional)",
+            "discharge_cost": "Discharge Cost (Optional)"
           }
         },
         "reconfigure": {
           "title": "Edit Battery",
           "description": "Update battery configuration",
           "data": {
-            "name_value": "Battery Name",
-            "capacity_value": "Capacity",
-            "initial_charge_percentage_value": "Current Charge Sensor",
-            "min_charge_percentage_value": "Minimum Charge Level",
-            "max_charge_percentage_value": "Maximum Charge Level",
-            "max_charge_power_value": "Maximum Charge Power",
-            "max_discharge_power_value": "Maximum Discharge Power",
-            "efficiency_value": "Round-trip Efficiency",
-            "charge_cost_value": "Charge Cost (Optional)",
-            "discharge_cost_value": "Discharge Cost (Optional)"
+            "name": "Battery Name",
+            "capacity": "Capacity",
+            "initial_charge_percentage": "Current Charge Sensor",
+            "min_charge_percentage": "Minimum Charge Level",
+            "max_charge_percentage": "Maximum Charge Level",
+            "max_charge_power": "Maximum Charge Power",
+            "max_discharge_power": "Maximum Discharge Power",
+            "efficiency": "Round-trip Efficiency",
+            "charge_cost": "Charge Cost (Optional)",
+            "discharge_cost": "Discharge Cost (Optional)"
           }
         }
       },
@@ -99,26 +99,26 @@
           "title": "Add Grid Connection",
           "description": "Set up grid import/export parameters and pricing",
           "data": {
-            "name_value": "Grid Connection Name",
-            "import_limit_value": "Import Limit (Optional)",
-            "export_limit_value": "Export Limit (Optional)",
-            "import_price_live": "Live Import Price Sensor",
-            "import_price_forecast": "Import Price Forecast Sensors",
-            "export_price_live": "Live Export Price Sensor",
-            "export_price_forecast": "Export Price Forecast Sensors"
+            "name": "Grid Connection Name",
+            "import_limit": "Import Limit (Optional)",
+            "export_limit": "Export Limit (Optional)",
+            "import_price:live": "Live Import Price Sensor",
+            "import_price:forecast": "Import Price Forecast Sensors",
+            "export_price:live": "Live Export Price Sensor",
+            "export_price:forecast": "Export Price Forecast Sensors"
           }
         },
         "reconfigure": {
           "title": "Edit Grid Connection",
           "description": "Update grid connection configuration",
           "data": {
-            "name_value": "Grid Connection Name",
-            "import_limit_value": "Import Limit (Optional)",
-            "export_limit_value": "Export Limit (Optional)",
-            "import_price_live": "Live Import Price Sensor",
-            "import_price_forecast": "Import Price Forecast Sensors",
-            "export_price_live": "Live Export Price Sensor",
-            "export_price_forecast": "Export Price Forecast Sensors"
+            "name": "Grid Connection Name",
+            "import_limit": "Import Limit (Optional)",
+            "export_limit": "Export Limit (Optional)",
+            "import_price:live": "Live Import Price Sensor",
+            "import_price:forecast": "Import Price Forecast Sensors",
+            "export_price:live": "Live Export Price Sensor",
+            "export_price:forecast": "Export Price Forecast Sensors"
           }
         }
       },
@@ -134,16 +134,16 @@
           "title": "Add Constant Load",
           "description": "Set up a fixed power load",
           "data": {
-            "name_value": "Load Name",
-            "power_value": "Power"
+            "name": "Load Name",
+            "power": "Power"
           }
         },
         "reconfigure": {
           "title": "Edit Constant Load",
           "description": "Update constant load configuration",
           "data": {
-            "name_value": "Load Name",
-            "power_value": "Power"
+            "name": "Load Name",
+            "power": "Power"
           }
         }
       },
@@ -159,16 +159,16 @@
           "title": "Add Forecast Load",
           "description": "Set up load forecasting",
           "data": {
-            "name_value": "Load Name",
-            "forecast_value": "Forecast Sensors"
+            "name": "Load Name",
+            "forecast": "Forecast Sensors"
           }
         },
         "reconfigure": {
           "title": "Edit Forecast Load",
           "description": "Update forecast load configuration",
           "data": {
-            "name_value": "Load Name",
-            "forecast_value": "Forecast Sensors"
+            "name": "Load Name",
+            "forecast": "Forecast Sensors"
           }
         }
       },
@@ -184,20 +184,20 @@
           "title": "Add Photovoltaics",
           "description": "Set up photovoltaics forecasting and parameters",
           "data": {
-            "name_value": "Photovoltaics Name",
-            "forecast_value": "Forecast Sensors",
-            "price_production_value": "Production Price (Optional)",
-            "curtailment_value": "Allow Curtailment (Optional)"
+            "name": "Photovoltaics Name",
+            "forecast": "Forecast Sensors",
+            "price_production": "Production Price (Optional)",
+            "curtailment": "Allow Curtailment (Optional)"
           }
         },
         "reconfigure": {
           "title": "Edit Photovoltaics",
           "description": "Update photovoltaics configuration",
           "data": {
-            "name_value": "Photovoltaics Name",
-            "forecast_value": "Forecast Sensors",
-            "price_production_value": "Production Price (Optional)",
-            "curtailment_value": "Allow Curtailment (Optional)"
+            "name": "Photovoltaics Name",
+            "forecast": "Forecast Sensors",
+            "price_production": "Production Price (Optional)",
+            "curtailment": "Allow Curtailment (Optional)"
           }
         }
       },
@@ -213,14 +213,14 @@
           "title": "Add Node",
           "description": "Add a node for power balance calculations",
           "data": {
-            "name_value": "Node Name"
+            "name": "Node Name"
           }
         },
         "reconfigure": {
           "title": "Edit Node",
           "description": "Update node configuration",
           "data": {
-            "name_value": "Node Name"
+            "name": "Node Name"
           }
         }
       },
@@ -236,22 +236,22 @@
           "title": "Add Connection",
           "description": "Set up connection parameters between devices",
           "data": {
-            "name_value": "Connection Name",
-            "source_value": "Source Device",
-            "target_value": "Target Device",
-            "min_power_value": "Minimum Power (negative for bidirectional)",
-            "max_power_value": "Maximum Power"
+            "name": "Connection Name",
+            "source": "Source Device",
+            "target": "Target Device",
+            "min_power": "Minimum Power (negative for bidirectional)",
+            "max_power": "Maximum Power"
           }
         },
         "reconfigure": {
           "title": "Edit Connection",
           "description": "Update connection configuration",
           "data": {
-            "name_value": "Connection Name",
-            "source_value": "Source Device",
-            "target_value": "Target Device",
-            "min_power_value": "Minimum Power (negative for bidirectional)",
-            "max_power_value": "Maximum Power"
+            "name": "Connection Name",
+            "source": "Source Device",
+            "target": "Target Device",
+            "min_power": "Minimum Power (negative for bidirectional)",
+            "max_power": "Maximum Power"
           }
         }
       },
@@ -271,7 +271,7 @@
           "title": "Add Network",
           "description": "The optimization network is automatically created with each hub. Only one network is allowed per hub.",
           "data": {
-            "name_value": "Network Name"
+            "name": "Network Name"
           }
         }
       },

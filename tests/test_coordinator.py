@@ -7,7 +7,6 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.const import CONF_NAME, CONF_SOURCE, CONF_TARGET
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 import pytest
@@ -19,17 +18,20 @@ from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
     CONF_HORIZON_HOURS,
+    CONF_INTEGRATION_TYPE,
+    CONF_NAME,
     CONF_PARTICIPANTS,
     CONF_PERIOD_MINUTES,
     CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
+    INTEGRATION_TYPE_HUB,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_SUCCESS,
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator, _get_child_elements
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID
 from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
-from custom_components.haeo.elements.connection import CONF_MAX_POWER
+from custom_components.haeo.elements.connection import CONF_MAX_POWER, CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.grid import (
     CONF_EXPORT_LIMIT,
     CONF_EXPORT_PRICE,
@@ -45,7 +47,7 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            "integration_type": "hub",
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Power Network",
             CONF_HORIZON_HOURS: 1,  # 1 hour for testing
             CONF_PERIOD_MINUTES: 30,  # 30 minutes for testing
@@ -64,10 +66,10 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                "name_value": "test_battery",
+                CONF_NAME: "test_battery",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                f"{CONF_CAPACITY}_value": 10000,
-                f"{CONF_INITIAL_CHARGE_PERCENTAGE}_value": "sensor.battery_soc",
+                CONF_CAPACITY: 10000,
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -84,14 +86,18 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                "name_value": "test_grid",
+                CONF_NAME: "test_grid",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
-                f"{CONF_IMPORT_LIMIT}_value": 10000,
-                f"{CONF_EXPORT_LIMIT}_value": 5000,
-                f"{CONF_IMPORT_PRICE}_live": ["sensor.import_price"],
-                f"{CONF_IMPORT_PRICE}_forecast": ["sensor.import_price"],
-                f"{CONF_EXPORT_PRICE}_live": ["sensor.export_price"],
-                f"{CONF_EXPORT_PRICE}_forecast": ["sensor.export_price"],
+                CONF_IMPORT_LIMIT: 10000,
+                CONF_EXPORT_LIMIT: 5000,
+                CONF_IMPORT_PRICE: {
+                    "live": ["sensor.import_price"],
+                    "forecast": ["sensor.import_price"],
+                },
+                CONF_EXPORT_PRICE: {
+                    "live": ["sensor.export_price"],
+                    "forecast": ["sensor.export_price"],
+                },
             }
         ),
         subentry_type=ELEMENT_TYPE_GRID,
@@ -108,11 +114,11 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                "name_value": "test_connection",
+                CONF_NAME: "test_connection",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
-                f"{CONF_SOURCE}_value": "test_battery",
-                f"{CONF_TARGET}_value": "test_grid",
-                f"{CONF_MAX_POWER}_value": 5000,
+                CONF_SOURCE: "test_battery",
+                CONF_TARGET: "test_grid",
+                CONF_MAX_POWER: 5000,
             }
         ),
         subentry_type=ELEMENT_TYPE_CONNECTION,
@@ -420,10 +426,10 @@ async def test_calculate_time_parameters_with_integer_values(
     int_battery_subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                "name_value": "test_battery",
+                CONF_NAME: "test_battery",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                f"{CONF_CAPACITY}_value": 10000,
-                f"{CONF_INITIAL_CHARGE_PERCENTAGE}_value": "sensor.battery_soc",
+                CONF_CAPACITY: 10000,
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -435,14 +441,18 @@ async def test_calculate_time_parameters_with_integer_values(
     int_grid_subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                "name_value": "test_grid",
+                CONF_NAME: "test_grid",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
-                f"{CONF_IMPORT_LIMIT}_value": 10000,
-                f"{CONF_EXPORT_LIMIT}_value": 5000,
-                f"{CONF_IMPORT_PRICE}_live": ["sensor.import_price"],
-                f"{CONF_IMPORT_PRICE}_forecast": ["sensor.import_price"],
-                f"{CONF_EXPORT_PRICE}_live": ["sensor.export_price"],
-                f"{CONF_EXPORT_PRICE}_forecast": ["sensor.export_price"],
+                CONF_IMPORT_LIMIT: 10000,
+                CONF_EXPORT_LIMIT: 5000,
+                CONF_IMPORT_PRICE: {
+                    "live": ["sensor.import_price"],
+                    "forecast": ["sensor.import_price"],
+                },
+                CONF_EXPORT_PRICE: {
+                    "live": ["sensor.export_price"],
+                    "forecast": ["sensor.export_price"],
+                },
             }
         ),
         subentry_type=ELEMENT_TYPE_GRID,
@@ -690,14 +700,16 @@ async def test_missing_name_in_subentry(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
 ) -> None:
-    """Test handling of subentry missing required name field."""
+    """Test fallback handling when subentry is missing name field."""
 
-    # Create a subentry without name_value field
+    # Create a subentry without name field
     bad_subentry = ConfigSubentry(
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                # Missing name_value field
+                CONF_CAPACITY: 1000,
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.missing_name_soc",
+                # Missing name field
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -706,6 +718,8 @@ async def test_missing_name_in_subentry(
     )
     hass.config_entries.async_add_subentry(mock_hub_entry, bad_subentry)
 
-    # Should raise ValueError for missing name
-    with pytest.raises(ValueError, match="missing required 'name_value' field"):
-        _get_child_elements(hass, mock_hub_entry.entry_id)
+    elements = _get_child_elements(hass, mock_hub_entry.entry_id)
+
+    assert "Bad Battery" in elements
+    assert elements["Bad Battery"][CONF_NAME] == "Bad Battery"
+    assert elements["Bad Battery"][CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY

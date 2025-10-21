@@ -149,14 +149,17 @@ async def test_repair_issue_translation_keys(hass: HomeAssistant) -> None:
     create_missing_sensor_issue(hass, "battery", "sensor.power")
     issue_registry = async_get(hass)
     issue = issue_registry.async_get_issue(DOMAIN, "missing_sensor_battery_sensor_power")
+    assert issue is not None
     assert issue.translation_key == "missing_sensor"
 
     # Optimization failure issue
     create_optimization_persistent_failure_issue(hass, "entry123", "error")
     issue = issue_registry.async_get_issue(DOMAIN, "optimization_failure_entry123")
+    assert issue is not None
     assert issue.translation_key == "optimization_failure"
 
     # Invalid config issue
     create_invalid_config_issue(hass, "battery", "problem")
     issue = issue_registry.async_get_issue(DOMAIN, "invalid_config_battery")
+    assert issue is not None
     assert issue.translation_key == "invalid_config"

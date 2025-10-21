@@ -1,11 +1,18 @@
 """HAEO element registry with field-based metadata."""
 
-from collections.abc import Callable, Sequence
-from typing import Any, Literal, NamedTuple, Required, TypedDict
+from collections.abc import Callable, Mapping, Sequence
+import logging
+from typing import Any, Final, Literal, NamedTuple, TypeGuard
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+import voluptuous as vol
+
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.schema import flatten, schema_for_type
 
 from . import battery, connection, constant_load, forecast_load, grid, node, photovoltaics
+
+_LOGGER = logging.getLogger(__name__)
 
 type ElementType = Literal[
     "battery",
@@ -17,40 +24,13 @@ type ElementType = Literal[
     "node",
 ]
 
-
-ELEMENT_TYPE_BATTERY = battery.ELEMENT_TYPE
-ELEMENT_TYPE_CONNECTION = connection.ELEMENT_TYPE
-ELEMENT_TYPE_PHOTOVOLTAICS = photovoltaics.ELEMENT_TYPE
-ELEMENT_TYPE_GRID = grid.ELEMENT_TYPE
-ELEMENT_TYPE_CONSTANT_LOAD = constant_load.ELEMENT_TYPE
-ELEMENT_TYPE_FORECAST_LOAD = forecast_load.ELEMENT_TYPE
-ELEMENT_TYPE_NODE = node.ELEMENT_TYPE
-
-
-class SubentryDataDict(TypedDict, total=False):
-    """Typed dictionary for subentry data with required name field."""
-
-    name_value: Required[str]
-    type: str
-
-
-def assert_config_entry_exists(entry: ConfigEntry | None, entry_id: str) -> ConfigEntry:
-    """Assert that a config entry exists and return it."""
-
-    if entry is None:
-        msg = f"Config entry {entry_id} must exist"
-        raise RuntimeError(msg)
-    return entry
-
-
-def assert_subentry_has_name(name: str | None, subentry_id: str) -> str:
-    """Assert that a subentry has a name_value field."""
-
-    if name is None:
-        msg = f"Subentry {subentry_id} must have name_value"
-        raise RuntimeError(msg)
-    return name
-
+ELEMENT_TYPE_BATTERY: Final = battery.ELEMENT_TYPE
+ELEMENT_TYPE_CONNECTION: Final = connection.ELEMENT_TYPE
+ELEMENT_TYPE_PHOTOVOLTAICS: Final = photovoltaics.ELEMENT_TYPE
+ELEMENT_TYPE_GRID: Final = grid.ELEMENT_TYPE
+ELEMENT_TYPE_CONSTANT_LOAD: Final = constant_load.ELEMENT_TYPE
+ELEMENT_TYPE_FORECAST_LOAD: Final = forecast_load.ELEMENT_TYPE
+ELEMENT_TYPE_NODE: Final = node.ELEMENT_TYPE
 
 ElementConfigSchema = (
     battery.BatteryConfigSchema
@@ -136,14 +116,69 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
 }
 
 
+class ValidatedElementSubentry(NamedTuple):
+    """Validated element subentry with structured configuration."""
+
+    name: str
+    element_type: ElementType
+    subentry: ConfigSubentry
+    config: ElementConfigSchema
+
+
 def get_model_description(config: ElementConfigData) -> str:
     """Get model description for an element configuration."""
 
-    entry = ELEMENT_TYPES.get(config["element_type"])
+    element_type = config[CONF_ELEMENT_TYPE]
+    entry = ELEMENT_TYPES.get(element_type)
     if entry is None:
-        msg = f"Unknown element type: {config['element_type']}"
+        msg = f"Unknown element type: {element_type}"
         raise ValueError(msg)
     return entry.describe(config)
+
+
+def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
+    """Return True when value matches any ElementConfigSchema TypedDict."""
+
+    if not isinstance(value, Mapping) and not all(isinstance(v, str) for v in value):
+        return False
+
+    element_type = value.get(CONF_ELEMENT_TYPE)
+    if element_type not in ELEMENT_TYPES:
+        return False
+
+    entry = ELEMENT_TYPES[element_type]
+    flattened = flatten(dict(value))
+    schema = schema_for_type(entry.schema)
+
+    try:
+        schema(flattened)
+    except (vol.Invalid, vol.MultipleInvalid):
+        return False
+
+    return True
+
+
+def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
+    """Return validated element subentries excluding the network element."""
+
+    validated: list[ValidatedElementSubentry] = []
+
+    for subentry in entry.subentries.values():
+        # Skip the network element
+        if subentry.subentry_type == "network":
+            continue
+
+        if is_element_config_schema(subentry.data):
+            validated.append(
+                ValidatedElementSubentry(
+                    name=subentry.data[CONF_NAME],
+                    element_type=subentry.data[CONF_ELEMENT_TYPE],
+                    subentry=subentry,
+                    config=subentry.data,
+                )
+            )
+
+    return validated
 
 
 SensorValue = str | Sequence[str]
@@ -165,8 +200,8 @@ __all__ = [
     "ElementType",
     "ForecastTimes",
     "SensorValue",
-    "SubentryDataDict",
-    "assert_config_entry_exists",
-    "assert_subentry_has_name",
+    "ValidatedElementSubentry",
+    "collect_element_subentries",
     "get_model_description",
+    "is_element_config_schema",
 ]
