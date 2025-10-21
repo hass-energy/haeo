@@ -11,13 +11,7 @@ from custom_components.haeo.const import convert_to_base_unit
 class SensorLoader:
     """Loader for sensor values (returns float)."""
 
-    def available(
-        self,
-        *,
-        hass: HomeAssistant,
-        value: str | Sequence[str],
-        **_kwargs: Any,
-    ) -> bool:
+    def available(self, *, hass: HomeAssistant, value: str | Sequence[str], **_kwargs: Any) -> bool:
         """Return True if all sensors are available.
 
         Args:
@@ -37,13 +31,7 @@ class SensorLoader:
             for sid in sensor_list
         )
 
-    async def load(
-        self,
-        *,
-        hass: HomeAssistant,
-        value: str | Sequence[str],
-        **_kwargs: Any,
-    ) -> float:
+    async def load(self, *, hass: HomeAssistant, value: str | Sequence[str], **_kwargs: Any) -> float:
         """Load sensor values and return their sum or single value.
 
         Args:

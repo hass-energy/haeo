@@ -27,7 +27,7 @@ Follow these guidelines when writing code:
 **Use type assertions for architectural invariants:**
 
 ```python
-from custom_components.haeo.elements import assert_config_entry_exists, assert_subentry_has_name
+from custom_components.haeo.elements import assert_config_entry_exists
 
 # ✅ Good: Type assertion for controlled data
 hub_entry = assert_config_entry_exists(

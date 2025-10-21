@@ -14,13 +14,7 @@ from .forecast_parsers import detect_format, get_forecast_units, parse_forecast_
 class ForecastLoader:
     """Loader for forecast data (returns list[float])."""
 
-    def available(
-        self,
-        *,
-        hass: HomeAssistant,
-        value: Sequence[str],
-        **_kwargs: Any,
-    ) -> bool:
+    def available(self, *, hass: HomeAssistant, value: Sequence[str], **_kwargs: Any) -> bool:
         """Check if forecast sensors are available and contain valid forecast data.
 
         Args:
@@ -40,12 +34,7 @@ class ForecastLoader:
         )
 
     async def load(
-        self,
-        *,
-        hass: HomeAssistant,
-        value: Sequence[str],
-        forecast_times: Sequence[int],
-        **_kwargs: Any,
+        self, *, hass: HomeAssistant, value: Sequence[str], forecast_times: Sequence[int], **_kwargs: Any
     ) -> list[float]:
         """Load forecast data from sensors and aggregate into time buckets.
 

@@ -30,15 +30,7 @@ _FORMATS: dict[ForecastFormat, ForecastParser] = {
 
 
 def detect_format(state: State) -> ForecastFormat | None:
-    """Detect the forecast data format based on its structure.
-
-    Args:
-        state: The sensor state
-
-    Returns:
-        The detected forecast format
-
-    """
+    """Detect the forecast data format based on its structure."""
 
     valid_formats: list[ForecastFormat] = [domain for domain, parser in _FORMATS.items() if parser.detect(state)]
 
@@ -70,8 +62,7 @@ def parse_forecast_data(state: State) -> Sequence[tuple[int, float]] | None:
         return None
 
     # Since parser_type is a valid ForecastFormat, it must exist in _FORMATS
-    parser = _FORMATS[parser_type]
-    return parser.extract(state)
+    return _FORMATS[parser_type].extract(state)
 
 
 def get_forecast_units(state: State) -> tuple[str | None, str | None]:

@@ -33,7 +33,7 @@ def _create_flow(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
     element_type: ElementType,
-) -> ElementSubentryFlow[Any]:
+) -> ElementSubentryFlow:
     """Create a configured subentry flow instance for an element type."""
 
     registry_entry = ELEMENT_TYPES[element_type]
@@ -328,7 +328,7 @@ async def test_element_flow_reconfigure_duplicate_name(
     assert result.get("errors") == {CONF_NAME: "name_exists"}
 
 
-async def test_get_participant_entries_filters_correctly(
+async def test_get_other_element_entries_filters_correctly(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
@@ -366,7 +366,7 @@ async def test_get_participant_entries_filters_correctly(
 
     flow = _create_flow(hass, hub_entry, battery.ELEMENT_TYPE)
 
-    participants = flow._get_participant_entries(hub_entry.entry_id)
+    participants = flow._get_non_connection_element_names()
 
     assert set(participants) == {"Battery 1", "Grid"}
     assert "Network" not in participants

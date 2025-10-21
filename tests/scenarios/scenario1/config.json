@@ -77,7 +77,7 @@
     "constant_load": {
       "element_type": "constant_load",
       "name": "constant_load",
-      "power": 1000
+      "power": 1.0
     },
     "battery_to_dc_net": {
       "element_type": "connection",

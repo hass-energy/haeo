@@ -266,15 +266,19 @@ class ElementNameFieldMeta(FieldMeta):
         if current_element_name and current_element_name not in participants_list:
             participants_list.append(current_element_name)
 
-        options: list[SelectOptionDict] = [
-            SelectOptionDict(value=participant, label=participant) for participant in participants_list
-        ]
-        return vol.All(
+        validators: list[Any] = [
             vol.Coerce(str),
             vol.Strip,
             vol.Length(min=1, msg="Element name cannot be empty"),
-            SelectSelector(SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)),
-        )
+        ]
+
+        if participants_list:
+            options: list[SelectOptionDict] = [
+                SelectOptionDict(value=participant, label=participant) for participant in participants_list
+            ]
+            validators.append(SelectSelector(SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)))
+
+        return vol.All(*validators)
 
 
 @dataclass(frozen=True)

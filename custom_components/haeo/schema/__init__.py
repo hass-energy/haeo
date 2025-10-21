@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, get_args, get_origin, get_type_hints
 from typing import get_origin as typing_get_origin
 
+from homeassistant.core import HomeAssistant
 import voluptuous as vol
 
 from custom_components.haeo.data.loader import ConstantLoader, Loader
@@ -105,15 +106,13 @@ def available(
     return True
 
 
-async def load(
-    config: "ElementConfigSchema",
-    **kwargs: Any,
-) -> "ElementConfigData":
+async def load(config: "ElementConfigSchema", hass: HomeAssistant, forecast_times: list[int]) -> "ElementConfigData":
     """Load all fields in a config, converting from Schema to Data mode.
 
     Args:
         config: Schema mode config (with entity IDs)
-        **kwargs: Additional arguments passed to loader.load() (e.g., hass, forecast_times)
+        hass: Home Assistant instance
+        forecast_times: Time intervals for data aggregation
 
     Returns:
         Data mode config (with loaded values)
@@ -136,7 +135,7 @@ async def load(
 
         # Get loader and load the field
         loader_instance = get_loader_instance(field_name, data_config_class)
-        loaded[field_name] = await loader_instance.load(value=field_value, **kwargs)  # type: ignore[arg-type]
+        loaded[field_name] = await loader_instance.load(value=field_value, hass=hass, forecast_times=forecast_times)  # type: ignore[arg-type]
 
     return loaded  # type: ignore[return-value]
 

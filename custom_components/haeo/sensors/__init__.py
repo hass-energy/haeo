@@ -48,7 +48,7 @@ async def async_register_devices(hass: HomeAssistant, config_entry: ConfigEntry)
         if subentry.subentry_type == "network" and not is_element_config_schema(subentry.data):
             model_description = subentry.subentry_type
         elif is_element_config_schema(subentry.data):
-            model_description = get_model_description(await config_load(subentry.data))
+            model_description = get_model_description(await config_load(subentry.data, hass, []))
         else:
             _LOGGER.warning(
                 "Skipping device registration for subentry %s with invalid configuration",

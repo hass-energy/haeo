@@ -20,7 +20,6 @@ from custom_components.haeo.const import (
     CONF_HORIZON_HOURS,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
-    CONF_PARTICIPANTS,
     CONF_PERIOD_MINUTES,
     CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
@@ -28,8 +27,13 @@ from custom_components.haeo.const import (
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_SUCCESS,
 )
-from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator, _get_child_elements
-from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID
+from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.elements import (
+    ELEMENT_TYPE_BATTERY,
+    ELEMENT_TYPE_CONNECTION,
+    ELEMENT_TYPE_GRID,
+    collect_element_subentries,
+)
 from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
 from custom_components.haeo.elements.connection import CONF_MAX_POWER, CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.grid import (
@@ -140,10 +144,8 @@ async def test_coordinator_initialization(
 
     assert coordinator.hass == hass
     assert coordinator.entry == mock_hub_entry
-    # Config should have participants dict built from child entries
-    assert CONF_PARTICIPANTS in coordinator.config
-    assert "test_battery" in coordinator.config[CONF_PARTICIPANTS]
-    assert "test_grid" in coordinator.config[CONF_PARTICIPANTS]
+    # Participants should be discovered from child subentries
+    assert set(coordinator.participant_configs) == {"test_battery", "test_grid"}
     assert coordinator.network is None
     assert coordinator.optimization_result is None
     assert coordinator.update_interval == timedelta(minutes=5)
@@ -687,29 +689,28 @@ async def test_unavailable_sensors_handling(
     assert coordinator.optimization_status == OPTIMIZATION_STATUS_FAILED
 
 
-async def test_hub_entry_not_found(hass: HomeAssistant) -> None:
-    """Test handling when hub entry doesn't exist."""
-
-    # Try to get elements for non-existent entry
-    result = _get_child_elements(hass, "nonexistent_id")
-
-    assert result == {}
-
-
-async def test_missing_name_in_subentry(
+async def test_collect_element_subentries_without_participants(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
 ) -> None:
-    """Test fallback handling when subentry is missing name field."""
+    """collect_element_subentries returns empty list when no participants exist."""
 
-    # Create a subentry without name field
+    assert collect_element_subentries(mock_hub_entry) == []
+
+
+async def test_collect_element_subentries_skips_missing_name(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: ConfigSubentry,
+) -> None:
+    """Ensure subentries without a valid name are skipped."""
+
     bad_subentry = ConfigSubentry(
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 CONF_CAPACITY: 1000,
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.missing_name_soc",
-                # Missing name field
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -718,8 +719,8 @@ async def test_missing_name_in_subentry(
     )
     hass.config_entries.async_add_subentry(mock_hub_entry, bad_subentry)
 
-    elements = _get_child_elements(hass, mock_hub_entry.entry_id)
+    entries = collect_element_subentries(mock_hub_entry)
+    names = {entry.name for entry in entries}
 
-    assert "Bad Battery" in elements
-    assert elements["Bad Battery"][CONF_NAME] == "Bad Battery"
-    assert elements["Bad Battery"][CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
+    assert "Bad Battery" not in names
+    assert "test_battery" in names

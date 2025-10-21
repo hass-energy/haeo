@@ -147,7 +147,7 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
         return False
 
     entry = ELEMENT_TYPES[element_type]
-    flattened = flatten(dict(value))
+    flattened = flatten({k: v for k, v in value.items() if k != CONF_ELEMENT_TYPE})
     schema = schema_for_type(entry.schema)
 
     try:

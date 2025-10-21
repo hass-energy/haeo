@@ -1,13 +1,15 @@
 """Test the HAEO sensor platform."""
 
-from collections.abc import Callable
+from collections.abc import Mapping
+from copy import deepcopy
 from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any, cast
+from typing import Any, Protocol, cast
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry
 from homeassistant.helpers.translation import async_get_translations
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -16,7 +18,7 @@ from custom_components.haeo.const import (
     ATTR_ENERGY,
     ATTR_POWER,
     CONF_ELEMENT_TYPE,
-    CONF_PARTICIPANTS,
+    CONF_NAME,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     OPTIMIZATION_STATUS_FAILED,
@@ -34,6 +36,11 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPE_PHOTOVOLTAICS,
     ELEMENT_TYPES,
 )
+from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
+from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
+from custom_components.haeo.elements.constant_load import CONF_POWER
+from custom_components.haeo.elements.forecast_load import CONF_FORECAST
+from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE
 from custom_components.haeo.sensors import SENSOR_TYPES, async_setup_entry
 from custom_components.haeo.sensors.base import HaeoSensorBase
 from custom_components.haeo.sensors.optimization import (
@@ -44,7 +51,52 @@ from custom_components.haeo.sensors.optimization import (
 from custom_components.haeo.sensors.power import HaeoPowerSensor
 from tests.conftest import SensorTestData
 
-type SubentryFactory = Callable[[str, str], ConfigSubentry]
+
+class SubentryFactory(Protocol):
+    """Callable protocol for creating config subentries in tests."""
+
+    def __call__(
+        self,
+        element_name: str,
+        element_type: str,
+        extra: Mapping[str, Any] | None = None,
+    ) -> ConfigSubentry:
+        """Create a config subentry for the specified element."""
+
+        ...
+
+
+TEST_PARTICIPANT_CONFIGS: dict[str, dict[str, Any]] = {
+    "test_battery": {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+        CONF_CAPACITY: 10.0,
+        CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.test_battery_soc",
+    },
+    "test_grid": {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
+        CONF_IMPORT_PRICE: {
+            "live": ["sensor.test_grid_import_price"],
+            "forecast": ["sensor.test_grid_import_price_forecast"],
+        },
+        CONF_EXPORT_PRICE: {
+            "live": ["sensor.test_grid_export_price"],
+            "forecast": ["sensor.test_grid_export_price_forecast"],
+        },
+    },
+    "test_load_fixed": {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONSTANT_LOAD,
+        CONF_POWER: 5.0,
+    },
+    "test_load_forecast": {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_FORECAST_LOAD,
+        CONF_FORECAST: ["sensor.test_load_forecast"],
+    },
+    "test_connection": {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
+        CONF_SOURCE: "test_grid",
+        CONF_TARGET: "test_load_fixed",
+    },
+}
 
 ELEMENT_SENSOR_KEYS = ["power", "energy", "soc", "element_cost"]
 FORECAST_SENSOR_KEYS = ["power", "energy", "soc"]
@@ -111,15 +163,6 @@ def mock_coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) ->
         datetime(2024, 1, 1, 14, 0, 0, tzinfo=UTC),
         datetime(2024, 1, 1, 15, 0, 0, tzinfo=UTC),
     ]
-    coordinator.config = {
-        CONF_PARTICIPANTS: {
-            "test_battery": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY},
-            "test_grid": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID},
-            "test_load_fixed": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONSTANT_LOAD},
-            "test_load_forecast": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_FORECAST_LOAD},
-            "test_connection": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION},
-        },
-    }
     coordinator.network = None
     return coordinator
 
@@ -128,19 +171,13 @@ def mock_coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) ->
 def mock_config_entry() -> MockConfigEntry:
     """Create a mock config entry."""
 
+    participants = {name: deepcopy(config) for name, config in TEST_PARTICIPANT_CONFIGS.items()}
+
     return MockConfigEntry(
         title="Test HAEO",
         domain=DOMAIN,
         entry_id="test_entry",
-        data={
-            "participants": {
-                "test_battery": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY},
-                "test_grid": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID},
-                "test_load_fixed": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONSTANT_LOAD},
-                "test_load_forecast": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_FORECAST_LOAD},
-                "test_connection": {CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION},
-            },
-        },
+        data={"participants": participants},
     )
 
 
@@ -164,15 +201,26 @@ def subentry_factory(hass: HomeAssistant, mock_config_entry: MockConfigEntry) ->
 
     entry_added = False
 
-    def factory(element_name: str, element_type: str) -> ConfigSubentry:
+    def factory(
+        element_name: str,
+        element_type: str,
+        extra: Mapping[str, Any] | None = None,
+    ) -> ConfigSubentry:
         nonlocal entry_added
         if not entry_added:
             mock_config_entry.add_to_hass(hass)
             entry_added = True
+        subentry_data: dict[str, Any] = {CONF_NAME: element_name, CONF_ELEMENT_TYPE: element_type}
+        if extra:
+            for key, value in extra.items():
+                if key in {CONF_NAME, CONF_ELEMENT_TYPE}:
+                    continue
+                subentry_data[key] = value
+
         subentry = ConfigSubentry(
-            data=MappingProxyType({"name": element_name}),
+            data=MappingProxyType(subentry_data),
             subentry_type=element_type,
-            title=element_name.replace("_", " ").title(),
+            title=element_name,
             unique_id=None,
         )
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
@@ -193,8 +241,8 @@ async def test_async_setup_entry(
     mock_config_entry.runtime_data = mock_coordinator
 
     subentry_factory("network", ELEMENT_TYPE_NETWORK)
-    for name, participant in mock_coordinator.config[CONF_PARTICIPANTS].items():
-        subentry_factory(name, participant[CONF_ELEMENT_TYPE])
+    for name, participant in mock_config_entry.data["participants"].items():
+        subentry_factory(name, participant[CONF_ELEMENT_TYPE], participant)
 
     await async_setup_entry(hass, mock_config_entry, mock_add_entities)
 
@@ -206,6 +254,35 @@ async def test_async_setup_entry(
     assert HaeoOptimizationStatusSensor in sensor_types
     assert HaeoOptimizationDurationSensor in sensor_types
     assert any(isinstance(entity, HaeoPowerSensor) for entity in added_entities)
+
+
+async def test_device_names_match_subentry_names(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_coordinator: Mock,
+    mock_add_entities: AsyncMock,
+    subentry_factory: SubentryFactory,
+) -> None:
+    """Ensure device registry names mirror subentry configuration names."""
+
+    mock_config_entry.runtime_data = mock_coordinator
+
+    subentry_factory("network", ELEMENT_TYPE_NETWORK)
+    custom_name = "garage load"
+    load_entry = subentry_factory(
+        custom_name,
+        ELEMENT_TYPE_CONSTANT_LOAD,
+        TEST_PARTICIPANT_CONFIGS["test_load_fixed"],
+    )
+
+    await async_setup_entry(hass, mock_config_entry, mock_add_entities)
+
+    registry = device_registry.async_get(hass)
+    identifier = (DOMAIN, f"{mock_config_entry.entry_id}_{load_entry.title}")
+    device_entry = registry.async_get_device({identifier})
+
+    assert device_entry is not None
+    assert device_entry.name == load_entry.title
 
 
 async def test_async_setup_entry_no_coordinator(

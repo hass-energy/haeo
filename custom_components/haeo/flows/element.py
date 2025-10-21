@@ -6,7 +6,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.elements import ElementConfigSchema
+from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ElementConfigSchema, is_element_config_schema
 from custom_components.haeo.schema import flatten, schema_for_type, unflatten
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,14 +35,12 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         """Add new element - validates name uniqueness, creates subentry."""
         errors: dict[str, str] = {}
 
-        hub_entry = self._get_entry()
-
         if user_input is not None:
             name = user_input.get(CONF_NAME)
             if not name:
                 errors[CONF_NAME] = "missing_name"
             # Check duplicate names in sibling subentries
-            elif name in hub_entry.subentries.values():
+            elif name in self._get_used_names():
                 errors[CONF_NAME] = "name_exists"
 
             if not errors:
@@ -51,12 +49,11 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                     title=name, data=unflatten({CONF_ELEMENT_TYPE: self.element_type, **user_input})
                 )
 
-        # List of existing participant names
-        participants = [entry.data["name"] for entry in hub_entry.subentries.values() if "name" in entry.data]
+        # Show the form to the user
         schema = schema_for_type(
             self.schema_cls,
             defaults=flatten(self.defaults),
-            participants=participants,
+            participants=self._get_non_connection_element_names(),
             current_element_name=None,
         )
 
@@ -73,6 +70,8 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             new_name = user_input.get(CONF_NAME)
             if not new_name:
                 errors[CONF_NAME] = "missing_name"
+            elif new_name in self._get_used_names():
+                errors[CONF_NAME] = "name_exists"
 
             if not errors:
                 # Update subentry with new configuration
@@ -83,20 +82,47 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                     data=unflatten({**user_input, CONF_ELEMENT_TYPE: self.element_type}),
                 )
 
-        # Names of all other participants excluding this subentry
-        participants = [
-            entry.data["name"]
-            for entry in hub_entry.subentries.values()
-            if "name" in entry.data and entry.subentry_id != subentry.subentry_id
-        ]
+        # Get the schema
         schema = schema_for_type(
             self.schema_cls,
             defaults=flatten(self.defaults),
-            participants=participants,
+            participants=self._get_non_connection_element_names(),
             current_element_name=subentry.data.get(CONF_NAME),
         )
 
         return self.async_show_form(step_id="reconfigure", data_schema=schema, errors=errors)
+
+    def _get_used_names(self) -> set[str]:
+        """Return all configured element names excluding the current subentry when present."""
+        return {
+            subentry.title
+            for subentry in self._get_entry().subentries.values()
+            if subentry.subentry_id != self._get_current_subentry_id()
+        }
+
+    def _get_non_connection_element_names(self) -> list[str]:
+        """Return participant names available for connection endpoints excluding the current subentry."""
+        return [
+            k for k, v in self._get_other_element_entries().items() if v[CONF_ELEMENT_TYPE] != ELEMENT_TYPE_CONNECTION
+        ]
+
+    def _get_other_element_entries(self) -> dict[str, ElementConfigSchema]:
+        """Return other subentries which are Element participants."""
+        hub = self._get_entry()
+        current = self._get_current_subentry_id()
+
+        return {
+            subentry.title: subentry.data
+            for subentry in hub.subentries.values()
+            if subentry.subentry_id != current and is_element_config_schema(subentry.data)
+        }
+
+    def _get_current_subentry_id(self) -> str | None:
+        """Return the active subentry ID when reconfiguring, otherwise None."""
+        try:
+            return self._get_reconfigure_subentry().subentry_id
+        except Exception:
+            return None
 
 
 def create_subentry_flow_class(

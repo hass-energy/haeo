@@ -12,18 +12,14 @@ from .sensor_loader import SensorLoader
 class ForecastAndSensorLoader:
     """Loader for combined forecast + sensor data (returns list[float])."""
 
+    Keys = Literal["live", "forecast"]
+
     def __init__(self) -> None:
         """Initialize with sensor and forecast loader instances."""
         self._sensor_loader = SensorLoader()
         self._forecast_loader = ForecastLoader()
 
-    def available(
-        self,
-        *,
-        hass: HomeAssistant,
-        value: dict[Literal["live", "forecast"], Sequence[str]],
-        **kwargs: Any,
-    ) -> bool:
+    def available(self, *, hass: HomeAssistant, value: dict[Keys, Sequence[str]], **kwargs: Any) -> bool:
         """Check if both live sensors and forecast sensors are available.
 
         Args:
@@ -48,13 +44,7 @@ class ForecastAndSensorLoader:
 
         return sensors_available and forecasts_available
 
-    async def load(
-        self,
-        *,
-        hass: HomeAssistant,
-        value: dict[Literal["live", "forecast"], Sequence[str]],
-        **kwargs: Any,
-    ) -> list[float]:
+    async def load(self, *, hass: HomeAssistant, value: dict[Keys, Sequence[str]], **kwargs: Any) -> list[float]:
         """Load forecast and sensor data for optimization.
 
         Args:
