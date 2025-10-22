@@ -51,7 +51,8 @@ def get_loader_instance(field_name: str, config_class: type) -> Loader:
     hints = get_type_hints(config_class, include_extras=True)
 
     if field_name not in hints:
-        return ConstantLoader[Any]()  # Default fallback
+        msg = f"Field {field_name} not found in config class {config_class.__name__}"
+        raise RuntimeError(msg)
 
     field_type = hints[field_name]
 
@@ -66,7 +67,7 @@ def get_loader_instance(field_name: str, config_class: type) -> Loader:
                 return meta.loader
 
     # Fallback
-    return ConstantLoader[Any]()
+    return ConstantLoader[Any](object)
 
 
 def available(
