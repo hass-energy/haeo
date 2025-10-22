@@ -179,7 +179,7 @@ async def test_get_subentries_with_exclusion(hass: HomeAssistant) -> None:
     # Create flow instance and test with exclusion
     flow = ElementSubentryFlow(battery.ELEMENT_TYPE, BatteryConfigSchema, {})
     flow.hass = hass
-    flow.handler = (hub_entry.entry_id, battery.ELEMENT_TYPE)  # type: ignore[assignment]
+    flow.handler = (hub_entry.entry_id, battery.ELEMENT_TYPE)
 
     # Get subentry ID for battery1 to exclude it
     battery1_id = None

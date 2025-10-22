@@ -104,6 +104,15 @@ explicit_package_bases = true
 module = "pulp.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# In our tests, we often overwrite methods on classes to mock out behavior.
+# This is a common pattern in Python, but mypy doesn't like it. This override
+# silences those errors, but only for the tests module.
+# See discussion here:
+# https://github.com/python/mypy/issues/2427
+disable_error_code = "method-assign"
+module = "tests.*"
+
 [tool.pytest.ini_options]
 timeout = 5
 testpaths = ["tests"]

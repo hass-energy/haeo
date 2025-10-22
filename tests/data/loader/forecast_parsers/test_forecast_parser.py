@@ -1,6 +1,7 @@
 """Tests for forecast parser functionality."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from homeassistant.core import HomeAssistant, State
 import pytest
@@ -8,7 +9,7 @@ import pytest
 from custom_components.haeo.data.loader.forecast_parsers import detect_format, parse_forecast_data
 
 
-def _create_sensor_state(hass: HomeAssistant, entity_id: str, state_value: str, attributes: dict) -> State:
+def _create_sensor_state(hass: HomeAssistant, entity_id: str, state_value: str, attributes: dict[str, Any]) -> State:
     """Create a sensor state and return it.
 
     Args:

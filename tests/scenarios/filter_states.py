@@ -48,14 +48,14 @@ def fetch_home_assistant_states(url: str, token: str) -> list[dict[str, Any]]:
             msg = "Home Assistant API returned unexpected payload"
             raise TypeError(msg)
 
-        result: list[dict[str, Any]] = []
+        state_list: list[dict[str, Any]] = []
         for item in raw:
             if not isinstance(item, dict):
                 msg = "Encountered non-object state entry"
                 raise TypeError(msg)
-            result.append(cast("dict[str, Any]", item))
+            state_list.append(cast("dict[str, Any]", item))
 
-        return result
+        return state_list
 
     except urllib_error.HTTPError as e:
         if e.code == 401:

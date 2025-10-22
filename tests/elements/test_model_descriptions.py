@@ -5,7 +5,7 @@ from typing import cast
 import pytest
 
 from custom_components.haeo.elements import (
-    ElementConfigData,
+    ElementConfigSchema,
     battery,
     connection,
     constant_load,
@@ -19,11 +19,11 @@ from custom_components.haeo.elements import (
 
 def test_battery_get_model_description() -> None:
     """Test battery model description generation."""
-    config: battery.BatteryConfigData = {
+    config: battery.BatteryConfigSchema = {
         "element_type": battery.ELEMENT_TYPE,
         "name": "Test Battery",
         "capacity": 10.0,
-        "initial_charge_percentage": 50.0,
+        "initial_charge_percentage": "sensor.battery_soc",
         "max_charge_power": 5.0,
         "max_discharge_power": 5.0,
     }
@@ -36,11 +36,17 @@ def test_battery_get_model_description() -> None:
 
 def test_grid_get_model_description() -> None:
     """Test grid model description generation."""
-    config: grid.GridConfigData = {
+    config: grid.GridConfigSchema = {
         "element_type": grid.ELEMENT_TYPE,
         "name": "Test Grid",
-        "import_price": [0.30, 0.35],
-        "export_price": [0.10, 0.12],
+        "import_price": {
+            "live": ["sensor.import_price"],
+            "forecast": [],
+        },
+        "export_price": {
+            "live": ["sensor.export_price"],
+            "forecast": [],
+        },
         "import_limit": 7.0,
         "export_limit": 3.5,
     }
@@ -52,7 +58,7 @@ def test_grid_get_model_description() -> None:
 
 def test_connection_get_model_description() -> None:
     """Test connection model description generation."""
-    config: connection.ConnectionConfigData = {
+    config: connection.ConnectionConfigSchema = {
         "element_type": connection.ELEMENT_TYPE,
         "name": "Test Connection",
         "source": "source",
@@ -68,10 +74,10 @@ def test_connection_get_model_description() -> None:
 
 def test_photovoltaics_get_model_description() -> None:
     """Test photovoltaics model description generation."""
-    config: photovoltaics.PhotovoltaicsConfigData = {
+    config: photovoltaics.PhotovoltaicsConfigSchema = {
         "element_type": photovoltaics.ELEMENT_TYPE,
         "name": "Test PV",
-        "forecast": [3.2, 1.5, 0.0],
+        "forecast": ["sensor.solar_forecast"],
         "price_production": 0.12,
     }
 
@@ -82,7 +88,7 @@ def test_photovoltaics_get_model_description() -> None:
 
 def test_constant_load_get_model_description() -> None:
     """Test constant load model description generation."""
-    config: constant_load.ConstantLoadConfigData = {
+    config: constant_load.ConstantLoadConfigSchema = {
         "element_type": constant_load.ELEMENT_TYPE,
         "name": "Test Load",
         "power": 2.5,
@@ -95,10 +101,10 @@ def test_constant_load_get_model_description() -> None:
 
 def test_forecast_load_get_model_description() -> None:
     """Test forecast load model description generation."""
-    config: forecast_load.ForecastLoadConfigData = {
+    config: forecast_load.ForecastLoadConfigSchema = {
         "element_type": forecast_load.ELEMENT_TYPE,
         "name": "Test Forecast Load",
-        "forecast": [1.0, 2.0, 3.0],
+        "forecast": ["sensor.load_forecast"],
     }
 
     description = get_model_description(config)
@@ -108,7 +114,7 @@ def test_forecast_load_get_model_description() -> None:
 
 def test_node_get_model_description() -> None:
     """Test node model description generation."""
-    config: node.NodeConfigData = {
+    config: node.NodeConfigSchema = {
         "element_type": node.ELEMENT_TYPE,
         "name": "Test Node",
     }
@@ -126,4 +132,4 @@ def test_unknown_element_type_raises_error() -> None:
     }
 
     with pytest.raises(ValueError, match="Unknown element type"):
-        get_model_description(cast("ElementConfigData", config))
+        get_model_description(cast("ElementConfigSchema", config))

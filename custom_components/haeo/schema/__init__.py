@@ -1,6 +1,7 @@
 """Schema utilities for flattening and reconstructing HAEO type configurations."""
 
-from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, get_args, get_origin, get_type_hints
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, cast, get_args, get_origin, get_type_hints
 from typing import get_origin as typing_get_origin
 
 from homeassistant.core import HomeAssistant
@@ -100,7 +101,7 @@ def available(
 
         # Get loader and check availability
         loader_instance = get_loader_instance(field_name, data_config_class)
-        if not loader_instance.available(value=field_value, **kwargs):  # type: ignore[arg-type]
+        if not loader_instance.available(value=field_value, **kwargs):
             return False
 
     return True
@@ -135,9 +136,9 @@ async def load(config: "ElementConfigSchema", hass: HomeAssistant, forecast_time
 
         # Get loader and load the field
         loader_instance = get_loader_instance(field_name, data_config_class)
-        loaded[field_name] = await loader_instance.load(value=field_value, hass=hass, forecast_times=forecast_times)  # type: ignore[arg-type]
+        loaded[field_name] = await loader_instance.load(value=field_value, hass=hass, forecast_times=forecast_times)
 
-    return loaded  # type: ignore[return-value]
+    return cast("ElementConfigData", loaded)
 
 
 def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool]]:
@@ -209,7 +210,7 @@ def schema_for_type(cls: type, defaults: dict[str, Any] | None = None, **kwargs:
     for field, (meta, is_optional) in annotated_fields.items():
         validator = meta.create_schema(**kwargs)
 
-        if isinstance(validator, dict):
+        if isinstance(validator, Mapping):
             for subkey, subvalidator in validator.items():
                 key = f"{field}:{subkey}"
                 default_value = defaults.get(key, vol.UNDEFINED)

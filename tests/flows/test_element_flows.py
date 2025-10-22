@@ -38,7 +38,7 @@ def _create_flow(
 
     registry_entry = ELEMENT_TYPES[element_type]
     flow_class = create_subentry_flow_class(element_type, registry_entry.schema, registry_entry.defaults)
-    flow: ElementSubentryFlow[Any] = flow_class()  # type: ignore[call-arg]
+    flow = flow_class()  # type: ignore[call-arg]
     flow.hass = hass
     flow.handler = (hub_entry.entry_id, element_type)
     return flow
@@ -70,7 +70,7 @@ def _add_participant_subentry(
 def _prepare_flow_context(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    element_type: str,
+    element_type: ElementType,
     config: dict[str, Any],
 ) -> None:
     """Populate dependent participants required by connection flows."""
@@ -79,7 +79,7 @@ def _prepare_flow_context(
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
             endpoint = config.get(key)
             if isinstance(endpoint, str) and endpoint:
-                inferred_type = grid.ELEMENT_TYPE if "grid" in endpoint.lower() else battery.ELEMENT_TYPE
+                inferred_type: ElementType = grid.ELEMENT_TYPE if "grid" in endpoint.lower() else battery.ELEMENT_TYPE
                 _add_participant_subentry(hass, hub_entry, endpoint, inferred_type)
 
 

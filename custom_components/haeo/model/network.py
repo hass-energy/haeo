@@ -1,6 +1,6 @@
 """Network class for electrical system modeling and optimization."""
 
-from collections.abc import MutableSequence, Sequence
+from collections.abc import Callable, MutableSequence, Sequence
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass, field
 import io
@@ -35,10 +35,10 @@ class Network:
     name: str
     period: float  # Period in hours
     n_periods: int
-    elements: dict[str, Element] = field(default_factory=dict)
+    elements: dict[str, Element | Connection] = field(default_factory=dict)
     sensor_data_available: bool = True
 
-    def add(self, element_type: str, name: str, **kwargs: object) -> Element:
+    def add(self, element_type: str, name: str, **kwargs: object) -> Element | Connection:
         """Add an element to the network by type.
 
         Args:
@@ -50,8 +50,7 @@ class Network:
             The created element
 
         """
-        # Set n_periods if not provided and required by element type
-        self.elements[name] = {
+        factories: dict[str, Callable[..., Element | Connection]] = {
             "battery": Battery,
             "photovoltaics": Photovoltaics,
             "constant_load": ConstantLoad,
@@ -59,8 +58,12 @@ class Network:
             "grid": Grid,
             "node": Node,
             "connection": Connection,
-        }[element_type.lower()](name=name, period=self.period, n_periods=self.n_periods, **kwargs)
-        return self.elements[name]
+        }
+
+        factory = factories[element_type.lower()]
+        element = factory(name=name, period=self.period, n_periods=self.n_periods, **kwargs)
+        self.elements[name] = element
+        return element
 
     def constraints(self) -> Sequence[LpConstraint]:
         """Return constraints for the network."""

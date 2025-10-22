@@ -1,9 +1,10 @@
 """Test the model components."""
 
-from typing import Any
+from numbers import Real
+from typing import Any, cast
 from unittest.mock import Mock
 
-from pulp import value
+from pulp import LpVariable, value
 import pytest
 
 from custom_components.haeo.elements import (
@@ -51,6 +52,16 @@ INVALID_CAPACITY = -1000
 INVALID_PERCENTAGE = 150
 
 
+def safe_value(var: LpVariable | float | None) -> float:
+    """Return a numeric value for PuLP variables or raw numbers."""
+
+    if var is None:
+        return 0.0
+    if isinstance(var, Real):
+        return float(var)
+    return float(value(var))  # type: ignore[no-untyped-call]
+
+
 def test_battery_initialization() -> None:
     """Test battery initialization."""
     battery = Battery(
@@ -71,6 +82,9 @@ def test_battery_initialization() -> None:
     assert battery.n_periods == DEFAULT_PERIODS
     assert battery.capacity == DEFAULT_BATTERY_CAPACITY
     assert battery.efficiency == DEFAULT_EFFICIENCY
+    assert battery.power_consumption is not None
+    assert battery.power_production is not None
+    assert battery.energy is not None
     assert len(battery.power_consumption) == DEFAULT_PERIODS
     assert len(battery.power_production) == DEFAULT_PERIODS
     assert len(battery.energy) == DEFAULT_PERIODS
@@ -103,7 +117,9 @@ def test_battery_initialization_defaults() -> None:
 
     assert battery.capacity == DEFAULT_BATTERY_CAPACITY  # Only capacity is stored as an attribute
     assert battery.efficiency == DEFAULT_EFFICIENCY_MINIMAL  # Default efficiency
-    assert len(battery.power_consumption) == DEFAULT_PERIODS  # Power variables are created
+    assert battery.power_consumption is not None
+    assert battery.power_production is not None
+    assert len(battery.power_consumption) == DEFAULT_PERIODS
     assert len(battery.power_production) == DEFAULT_PERIODS
 
 
@@ -151,6 +167,8 @@ def test_grid_initialization() -> None:
     assert grid.name == "test_grid"
     assert grid.period == SECONDS_PER_HOUR
     assert grid.n_periods == GRID_PERIODS
+    assert grid.power_consumption is not None
+    assert grid.power_production is not None
     assert len(grid.power_consumption) == GRID_PERIODS
     assert len(grid.power_production) == GRID_PERIODS
     assert grid.price_consumption == export_price
@@ -189,7 +207,8 @@ def test_grid_negative_import_limit() -> None:
     )
     # Check that the grid was created successfully and has the expected structure
     assert grid.name == "test_grid"
-    assert len(grid.power_consumption) == GRID_PERIODS  # Should have power variables
+    assert grid.power_consumption is not None
+    assert len(grid.power_consumption) == GRID_PERIODS
 
 
 def test_grid_negative_export_limit() -> None:
@@ -206,6 +225,7 @@ def test_grid_negative_export_limit() -> None:
     )
     # Check that the grid was created successfully and has the expected structure
     assert grid.name == "test_grid"
+    assert grid.power_production is not None
     assert len(grid.power_production) == GRID_PERIODS  # Should have power variables
 
 
@@ -277,7 +297,8 @@ def test_load_constant_negative_power() -> None:
     )
     # Check that the load was created and has power consumption variables
     assert load.name == "test_load"
-    assert len(load.power_consumption) == LOAD_PERIODS  # Should have power variables
+    assert load.power_consumption is not None
+    assert len(load.power_consumption) == LOAD_PERIODS
 
 
 def test_generator_initialization_with_curtailment() -> None:
@@ -295,6 +316,7 @@ def test_generator_initialization_with_curtailment() -> None:
     assert generator.name == "test_generator"
     assert generator.period == SECONDS_PER_HOUR
     assert generator.n_periods == GENERATOR_PERIODS
+    assert generator.power_production is not None
     assert len(generator.power_production) == GENERATOR_PERIODS
     assert generator.power_consumption is None
 
@@ -312,7 +334,9 @@ def test_generator_initialization_without_curtailment() -> None:
     )
 
     assert generator.name == "test_generator"
-    assert generator.power_production == forecast
+    assert generator.power_production is not None
+    assert len(generator.power_production) == GENERATOR_PERIODS
+    assert list(generator.power_production) == forecast
 
 
 def test_generator_invalid_forecast_length() -> None:
@@ -337,7 +361,7 @@ def test_generator_initialization_defaults() -> None:
     )
 
     # Generator with curtailment=True (default) creates power_production variables
-    assert generator.power_production is not None  # Curtailment is True by default
+    assert generator.power_production is not None
     assert len(generator.power_production) == GENERATOR_PERIODS
 
 
@@ -528,25 +552,28 @@ def test_connect_entities() -> None:
     )
 
     # Connect them
-    connection = network.add(
-        ELEMENT_TYPE_CONNECTION,
-        "battery1_to_grid1",
-        source="battery1",
-        target="grid1",
-        min_power=0,
-        max_power=5000,
+    connection = cast(
+        "Connection",
+        network.add(
+            ELEMENT_TYPE_CONNECTION,
+            "battery1_to_grid1",
+            source="battery1",
+            target="grid1",
+            min_power=0,
+            max_power=5000,
+        ),
     )
 
     assert connection is not None
     assert connection.name == "battery1_to_grid1"
     assert connection.source == "battery1"
     assert connection.target == "grid1"
+    assert connection.power is not None
     assert len(connection.power) == CONNECTION_PERIODS
     # Check that the connection element was added
     connection_name = "battery1_to_grid1"
     assert connection_name in network.elements
     assert isinstance(network.elements[connection_name], Connection)
-    assert len(connection.power) == CONNECTION_PERIODS
 
 
 def test_connect_nonexistent_entities() -> None:
@@ -598,19 +625,23 @@ def test_connection_with_negative_power_bounds() -> None:
     )
 
     # Create bidirectional connection
-    connection = network.add(
-        ELEMENT_TYPE_CONNECTION,
-        "battery_grid_bidirectional",
-        source="battery1",
-        target="grid1",
-        min_power=-REVERSE_POWER_LIMIT,  # Allow reverse flow up to 2000W
-        max_power=MAX_POWER_LIMIT,  # Allow forward flow up to 3000W
+    connection = cast(
+        "Connection",
+        network.add(
+            ELEMENT_TYPE_CONNECTION,
+            "battery_grid_bidirectional",
+            source="battery1",
+            target="grid1",
+            min_power=-REVERSE_POWER_LIMIT,  # Allow reverse flow up to 2000W
+            max_power=MAX_POWER_LIMIT,  # Allow forward flow up to 3000W
+        ),
     )
 
     assert connection is not None
     assert connection.name == "battery_grid_bidirectional"
     assert connection.source == "battery1"
     assert connection.target == "grid1"
+    assert connection.power is not None
     assert len(connection.power) == CONNECTION_PERIODS
 
     # Verify power variables have correct bounds
@@ -658,12 +689,12 @@ def test_connection_power_balance_with_negative_flow() -> None:
     assert isinstance(cost, (int, float))
 
     # Access optimization results
-    battery = network.elements["battery1"]
+    battery = cast("Battery", network.elements["battery1"])
 
     # Check that power variables exist and have values
+    assert battery.power_consumption is not None
     for power_var in battery.power_consumption:
-        val = value(power_var)
-        assert isinstance(val, (int, float))
+        assert isinstance(safe_value(power_var), (int, float))
 
 
 def test_connection_with_none_bounds() -> None:
@@ -686,16 +717,20 @@ def test_connection_with_none_bounds() -> None:
     )
 
     # Create connection with None bounds (unlimited power)
-    connection = network.add(
-        ELEMENT_TYPE_CONNECTION,
-        "unlimited_connection",
-        source="battery1",
-        target="grid1",
-        min_power=None,  # Should remain None for infinite lower bound
-        max_power=None,  # Should remain None for infinite upper bound
+    connection = cast(
+        "Connection",
+        network.add(
+            ELEMENT_TYPE_CONNECTION,
+            "unlimited_connection",
+            source="battery1",
+            target="grid1",
+            min_power=None,  # Should remain None for infinite lower bound
+            max_power=None,  # Should remain None for infinite upper bound
+        ),
     )
 
     assert connection is not None
+    assert connection.power is not None
     assert len(connection.power) == CONNECTION_PERIODS
 
     # Verify power variables have None bounds (infinite)
@@ -977,28 +1012,10 @@ def test_solar_curtailment_negative_pricing() -> None:
     assert isinstance(cost, (int, float))
 
     # Access optimization results directly from elements
-    solar = network.elements["solar"]
+    solar = cast("Photovoltaics", network.elements["solar"])
 
-    # Helper function to safely extract numeric values from PuLP variables
-    def extract_value(var: Any) -> float:
-        """Extract numeric value from PuLP variable."""
-        if var is None:
-            return 0.0
-        val = value(var)
-        if val is None:
-            return 0.0
-        if isinstance(val, (int, float)):
-            return float(val)
-        # Handle LpVariable case
-        if hasattr(val, "value"):
-            return float(val.value()) if val.value() is not None else 0.0
-        return 0.0
-
-    # Get solar production values
-    solar_production = []
-
-    if solar.power_production is not None:
-        solar_production = [extract_value(p) for p in solar.power_production]
+    assert solar.power_production is not None
+    solar_production = [safe_value(power) for power in solar.power_production]
 
     # During negative pricing periods (indices 2-3), solar should be curtailed
     normal_periods = [0, 1, 4, 5]  # Positive export pricing
