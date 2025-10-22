@@ -58,8 +58,8 @@ jobs:
       - name: Type Check
         if: ${{ !cancelled() }}
         run: |
-          uvx ty check --output-format github \
-            | reviewdog -f=ty -name="ty type check" -reporter=github-pr-review -filter-mode=nofilter -fail-level=none
+          uvx mypy . \
+            | reviewdog -f=mypy -name="mypy type check" -reporter=github-pr-review -filter-mode=nofilter -fail-level=none
 
   test:
     name: "Run Tests"
