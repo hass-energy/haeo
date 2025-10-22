@@ -31,7 +31,7 @@ from custom_components.haeo.data.loader import (
 )
 
 type FieldValidator = vol.All | BooleanSelector | EntitySelector | NumberSelector | SelectSelector
-type FieldValidatorResult = FieldValidator | dict[str, FieldValidator]
+type FieldValidatorResult = FieldValidator | Mapping[str, FieldValidator]
 
 
 @dataclass(frozen=True)

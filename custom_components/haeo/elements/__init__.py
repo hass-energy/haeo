@@ -125,7 +125,7 @@ class ValidatedElementSubentry(NamedTuple):
     config: ElementConfigSchema
 
 
-def get_model_description(config: ElementConfigData) -> str:
+def get_model_description(config: ElementConfigSchema) -> str:
     """Get model description for an element configuration."""
 
     element_type = config[CONF_ELEMENT_TYPE]

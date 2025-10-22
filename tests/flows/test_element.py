@@ -2,6 +2,7 @@
 
 from types import MappingProxyType
 from typing import cast
+from unittest.mock import MagicMock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -114,11 +115,12 @@ async def test_get_subentries(hass: HomeAssistant) -> None:
     )
     hass.config_entries.async_add_subentry(hub_entry, battery2)
 
-    # Create flow instance and test _get_participant_entries
+    # Create flow instance and test _get_other_element_entries
     flow = ElementSubentryFlow(battery.ELEMENT_TYPE, BatteryConfigSchema, {})
     flow.hass = hass
+    flow.handler = (hub_entry.entry_id, battery.ELEMENT_TYPE)
 
-    participants = flow._get_participant_entries(hub_entry.entry_id)
+    participants = flow._get_other_element_entries()
 
     # Should have both batteries
     assert len(participants) == 2
@@ -177,6 +179,7 @@ async def test_get_subentries_with_exclusion(hass: HomeAssistant) -> None:
     # Create flow instance and test with exclusion
     flow = ElementSubentryFlow(battery.ELEMENT_TYPE, BatteryConfigSchema, {})
     flow.hass = hass
+    flow.handler = (hub_entry.entry_id, battery.ELEMENT_TYPE)  # type: ignore[assignment]
 
     # Get subentry ID for battery1 to exclude it
     battery1_id = None
@@ -185,7 +188,11 @@ async def test_get_subentries_with_exclusion(hass: HomeAssistant) -> None:
             battery1_id = subentry_id
             break
 
-    participants = flow._get_participant_entries(hub_entry.entry_id, exclude_subentry_id=battery1_id)
+    assert battery1_id is not None
+
+    flow._get_reconfigure_subentry = MagicMock(return_value=hub_entry.subentries[battery1_id])
+
+    participants = flow._get_other_element_entries()
 
     # Should only have battery2
     assert len(participants) == 1

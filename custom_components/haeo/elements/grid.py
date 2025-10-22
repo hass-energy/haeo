@@ -50,7 +50,7 @@ class GridConfigData(TypedDict):
 CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
-def model_description(config: GridConfigData) -> str:
+def model_description(config: GridConfigSchema) -> str:
     """Generate device model string from grid configuration."""
     import_kw = config.get(CONF_IMPORT_LIMIT)
     export_kw = config.get(CONF_EXPORT_LIMIT)

@@ -2,11 +2,12 @@
 
 from collections.abc import Mapping
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
 from typing import Any, Protocol, cast
 from unittest.mock import AsyncMock, Mock
 
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
@@ -17,8 +18,16 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import (
     ATTR_ENERGY,
     ATTR_POWER,
+    CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
+    CONF_HORIZON_HOURS,
     CONF_NAME,
+    CONF_OPTIMIZER,
+    CONF_PERIOD_MINUTES,
+    CONF_UPDATE_INTERVAL_MINUTES,
+    DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_OPTIMIZER,
+    DEFAULT_PERIOD_MINUTES,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     OPTIMIZATION_STATUS_FAILED,
@@ -177,7 +186,15 @@ def mock_config_entry() -> MockConfigEntry:
         title="Test HAEO",
         domain=DOMAIN,
         entry_id="test_entry",
-        data={"participants": participants},
+        data={
+            CONF_NAME: "Test HAEO",
+            CONF_HORIZON_HOURS: 24,
+            CONF_PERIOD_MINUTES: DEFAULT_PERIOD_MINUTES,
+            CONF_OPTIMIZER: DEFAULT_OPTIMIZER,
+            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_PERIOD_MINUTES,
+            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
+            "participants": participants,
+        },
     )
 
 
@@ -229,14 +246,71 @@ def subentry_factory(hass: HomeAssistant, mock_config_entry: MockConfigEntry) ->
     return factory
 
 
+@pytest.fixture
+async def configured_sensor_states(hass: HomeAssistant) -> None:
+    """Populate Home Assistant with sensors required by loader tests."""
+
+    base_time = datetime.now(UTC).replace(microsecond=0)
+
+    hass.states.async_set("sensor.test_battery_soc", "75", {"unit_of_measurement": "%"})
+
+    hass.states.async_set(
+        "sensor.test_grid_import_price",
+        "0.25",
+        {"device_class": SensorDeviceClass.MONETARY, "unit_of_measurement": "$/kWh"},
+    )
+    hass.states.async_set(
+        "sensor.test_grid_export_price",
+        "0.15",
+        {"device_class": SensorDeviceClass.MONETARY, "unit_of_measurement": "$/kWh"},
+    )
+
+    def _build_forecast_entries(start_value: float) -> list[dict[str, float | str]]:
+        return [
+            {
+                "start_time": (base_time + timedelta(minutes=15 * idx)).isoformat(),
+                "per_kwh": round(start_value + idx * 0.01, 4),
+            }
+            for idx in range(4)
+        ]
+
+    hass.states.async_set(
+        "sensor.test_grid_import_price_forecast",
+        "0.25",
+        {
+            "device_class": SensorDeviceClass.MONETARY,
+            "forecasts": _build_forecast_entries(0.25),
+        },
+    )
+    hass.states.async_set(
+        "sensor.test_grid_export_price_forecast",
+        "0.15",
+        {
+            "device_class": SensorDeviceClass.MONETARY,
+            "forecasts": _build_forecast_entries(0.15),
+        },
+    )
+
+    hass.states.async_set(
+        "sensor.test_load_forecast",
+        "0",
+        {"watts": {(base_time + timedelta(minutes=15 * idx)).isoformat(): 1500 + idx * 50 for idx in range(4)}},
+    )
+
+    await hass.async_block_till_done()
+
+
 async def test_async_setup_entry(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_coordinator: Mock,
     mock_add_entities: AsyncMock,
     subentry_factory: SubentryFactory,
+    configured_sensor_states: None,
 ) -> None:
     """Test setting up sensors from a config entry."""
+
+    _ = configured_sensor_states
 
     mock_config_entry.runtime_data = mock_coordinator
 
@@ -262,8 +336,11 @@ async def test_device_names_match_subentry_names(
     mock_coordinator: Mock,
     mock_add_entities: AsyncMock,
     subentry_factory: SubentryFactory,
+    configured_sensor_states: None,
 ) -> None:
     """Ensure device registry names mirror subentry configuration names."""
+
+    _ = configured_sensor_states
 
     mock_config_entry.runtime_data = mock_coordinator
 
@@ -882,13 +959,4 @@ async def test_sensor_name_translations(hass: HomeAssistant, sensor_type: str) -
 
     translations = await async_get_translations(hass, "en", "entity", integrations=[DOMAIN])
     translation_key = f"component.{DOMAIN}.entity.sensor.{sensor_type}.name"
-    assert translation_key in translations
-
-
-@pytest.mark.parametrize("element_type", ELEMENT_TYPES)
-async def test_device_name_translations(hass: HomeAssistant, element_type: str) -> None:
-    """Test that device translations can be loaded."""
-
-    translations = await async_get_translations(hass, "en", "device", integrations=[DOMAIN])
-    translation_key = f"component.{DOMAIN}.device.{element_type}.name"
     assert translation_key in translations

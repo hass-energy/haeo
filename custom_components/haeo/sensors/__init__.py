@@ -11,7 +11,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo.const import ATTR_ENERGY, ATTR_POWER, DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.data import config_load
 from custom_components.haeo.elements import get_model_description, is_element_config_schema
 from custom_components.haeo.sensors.energy import SENSOR_TYPE_ENERGY, HaeoEnergySensor
 from custom_components.haeo.sensors.optimization import (
@@ -48,7 +47,7 @@ async def async_register_devices(hass: HomeAssistant, config_entry: ConfigEntry)
         if subentry.subentry_type == "network" and not is_element_config_schema(subentry.data):
             model_description = subentry.subentry_type
         elif is_element_config_schema(subentry.data):
-            model_description = get_model_description(await config_load(subentry.data, hass, []))
+            model_description = get_model_description(subentry.data)
         else:
             _LOGGER.warning(
                 "Skipping device registration for subentry %s with invalid configuration",
@@ -63,7 +62,6 @@ async def async_register_devices(hass: HomeAssistant, config_entry: ConfigEntry)
             name=subentry.title,
             manufacturer="HAEO",
             model=model_description,
-            translation_key=subentry.subentry_type,
         ).id
 
     return device_ids

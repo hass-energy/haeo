@@ -42,9 +42,9 @@ async def test_network_flow_user_step_success(hass: HomeAssistant, hub_entry: Mo
     flow.hass = hass
 
     # Mock the parent entry and create_entry
-    flow._get_entry = Mock(return_value=hub_entry)  # type: ignore[method-assign]
+    flow._get_entry = Mock(return_value=hub_entry)
     create_entry_result = {"type": FlowResultType.CREATE_ENTRY, "title": "Network", "data": {}}
-    flow.async_create_entry = Mock(return_value=create_entry_result)  # type: ignore[method-assign]
+    flow.async_create_entry = Mock(return_value=create_entry_result)
 
     # First call - show form
     result = cast("dict[str, Any]", await flow.async_step_user(user_input=None))
@@ -71,7 +71,7 @@ async def test_network_flow_user_step_missing_name(hass: HomeAssistant, hub_entr
     """Test network creation with missing name."""
     flow = NetworkSubentryFlow()
     flow.hass = hass
-    flow._get_entry = Mock(return_value=hub_entry)  # type: ignore[method-assign]
+    flow._get_entry = Mock(return_value=hub_entry)
 
     # Submit with empty name
     user_input = {CONF_NAME: ""}
@@ -93,7 +93,7 @@ async def test_network_flow_user_step_network_exists(hass: HomeAssistant, hub_en
 
     flow = NetworkSubentryFlow()
     flow.hass = hass
-    flow._get_entry = Mock(return_value=hub_entry)  # type: ignore[method-assign]
+    flow._get_entry = Mock(return_value=hub_entry)
 
     # Try to create another network
     user_input = {CONF_NAME: "New Network"}
@@ -115,12 +115,12 @@ async def test_network_flow_reconfigure_success(hass: HomeAssistant, hub_entry: 
 
     flow = NetworkSubentryFlow()
     flow.hass = hass
-    flow._get_entry = Mock(return_value=hub_entry)  # type: ignore[method-assign]
-    flow._get_reconfigure_subentry = Mock(return_value=existing_network)  # type: ignore[method-assign]
+    flow._get_entry = Mock(return_value=hub_entry)
+    flow._get_reconfigure_subentry = Mock(return_value=existing_network)
 
     # Mock async_update_reload_and_abort
     abort_result = {"type": FlowResultType.ABORT, "reason": "reconfigure_successful"}
-    flow.async_update_reload_and_abort = Mock(return_value=abort_result)  # type: ignore[method-assign]
+    flow.async_update_reload_and_abort = Mock(return_value=abort_result)
 
     # First call - show form with current values
     result = cast("dict[str, Any]", await flow.async_step_reconfigure(user_input=None))
@@ -156,8 +156,8 @@ async def test_network_flow_reconfigure_missing_name(hass: HomeAssistant, hub_en
 
     flow = NetworkSubentryFlow()
     flow.hass = hass
-    flow._get_entry = Mock(return_value=hub_entry)  # type: ignore[method-assign]
-    flow._get_reconfigure_subentry = Mock(return_value=existing_network)  # type: ignore[method-assign]
+    flow._get_entry = Mock(return_value=hub_entry)
+    flow._get_reconfigure_subentry = Mock(return_value=existing_network)
 
     # Submit with empty name
     user_input = {CONF_NAME: ""}
@@ -170,7 +170,7 @@ async def test_network_flow_remove_subentry_prevented(hass: HomeAssistant, hub_e
     """Test that network removal is prevented."""
     flow = NetworkSubentryFlow()
     flow.hass = hass
-    flow._get_entry = Mock(return_value=hub_entry)  # type: ignore[method-assign]
+    flow._get_entry = Mock(return_value=hub_entry)
 
     # Try to remove network
     result = cast("dict[str, Any]", await flow.async_step_remove_subentry(_user_input=None))

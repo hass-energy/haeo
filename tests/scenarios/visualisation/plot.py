@@ -360,7 +360,7 @@ def create_stacked_visualization(
         ax.grid(alpha=0.3, linestyle=":", linewidth=0.5)
         ax.tick_params(axis="x", rotation=45, labelsize=9)
         ax.tick_params(axis="y", labelsize=9)
-        ax.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))  # type: ignore[no-untyped-call]
+        ax.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
 
         # Adjust layout with more room for rotated x-labels
         plt.subplots_adjust(top=0.95, bottom=0.10, left=0.08, right=0.95)

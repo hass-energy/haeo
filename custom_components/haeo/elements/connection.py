@@ -48,7 +48,7 @@ class ConnectionConfigData(TypedDict):
 CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
-def model_description(config: ConnectionConfigData) -> str:
+def model_description(config: ConnectionConfigSchema) -> str:
     """Generate device model string from connection configuration."""
     min_kw = config.get(CONF_MIN_POWER)
     max_kw = config.get(CONF_MAX_POWER)

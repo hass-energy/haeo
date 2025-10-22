@@ -71,7 +71,7 @@ CONFIG_DEFAULTS: dict[str, Any] = {
 }
 
 
-def model_description(config: BatteryConfigData) -> str:
+def model_description(config: BatteryConfigSchema) -> str:
     """Generate device model string from battery configuration."""
     capacity_kwh = config[CONF_CAPACITY]
 

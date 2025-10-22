@@ -50,6 +50,6 @@ CONFIG_DEFAULTS: dict[str, Any] = {
 }
 
 
-def model_description(_config: PhotovoltaicsConfigData) -> str:
+def model_description(_config: PhotovoltaicsConfigSchema) -> str:
     """Generate model description string for photovoltaics element."""
     return "Solar"

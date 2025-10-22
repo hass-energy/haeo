@@ -40,7 +40,7 @@ def _create_flow(
     flow_class = create_subentry_flow_class(element_type, registry_entry.schema, registry_entry.defaults)
     flow: ElementSubentryFlow[Any] = flow_class()  # type: ignore[call-arg]
     flow.hass = hass
-    flow._get_entry = Mock(return_value=hub_entry)  # type: ignore[method-assign]
+    flow.handler = (hub_entry.entry_id, element_type)
     return flow
 
 
@@ -211,8 +211,8 @@ async def test_element_flow_reconfigure_success(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
-    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)  # type: ignore[method-assign]
-    flow.async_update_reload_and_abort = Mock(  # type: ignore[method-assign]
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+    flow.async_update_reload_and_abort = Mock(
         return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"}
     )
 
@@ -280,7 +280,7 @@ async def test_element_flow_reconfigure_missing_name(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
-    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)  # type: ignore[method-assign]
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     invalid_input = deepcopy(existing_config)
     invalid_input[CONF_NAME] = ""
@@ -318,7 +318,7 @@ async def test_element_flow_reconfigure_duplicate_name(
     hass.config_entries.async_add_subentry(hub_entry, secondary_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
-    flow._get_reconfigure_subentry = Mock(return_value=secondary_subentry)  # type: ignore[method-assign]
+    flow._get_reconfigure_subentry = Mock(return_value=secondary_subentry)
 
     duplicate_input = deepcopy(secondary_config)
     duplicate_input[CONF_NAME] = primary_config[CONF_NAME]
@@ -339,6 +339,7 @@ async def test_get_other_element_entries_filters_correctly(
         {
             CONF_NAME: "Battery 1",
             battery.CONF_CAPACITY: 10.0,
+            battery.CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_1_soc",
         },
     )
     hass.config_entries.async_add_subentry(hub_entry, battery_subentry)
@@ -361,7 +362,20 @@ async def test_get_other_element_entries_filters_correctly(
     )
     hass.config_entries.async_add_subentry(hub_entry, connection_subentry)
 
-    grid_subentry = _make_subentry(grid.ELEMENT_TYPE, {CONF_NAME: "Grid"})
+    grid_subentry = _make_subentry(
+        grid.ELEMENT_TYPE,
+        {
+            CONF_NAME: "Grid",
+            grid.CONF_IMPORT_PRICE: {
+                "live": ["sensor.grid_import_price"],
+                "forecast": ["sensor.grid_import_price_forecast"],
+            },
+            grid.CONF_EXPORT_PRICE: {
+                "live": ["sensor.grid_export_price"],
+                "forecast": ["sensor.grid_export_price_forecast"],
+            },
+        },
+    )
     hass.config_entries.async_add_subentry(hub_entry, grid_subentry)
 
     flow = _create_flow(hass, hub_entry, battery.ELEMENT_TYPE)
