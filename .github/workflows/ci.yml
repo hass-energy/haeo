@@ -80,7 +80,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run Tests
-        run: uv run pytest --cov=custom_components/haeo --cov-report=xml
+        run: uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=xml
 
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() }}
@@ -88,3 +88,25 @@ jobs:
         with:
           # token is not needed for public repo by default
           fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  hassfest: # https://developers.home-assistant.io/blog/2020/04/16/hassfest
+    name: Hassfest validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Run hassfest validation
+        uses: home-assistant/actions/hassfest@342664e951e2fd5f00bc990fc968342388252475 # master
+
+  hacs: # https://github.com/hacs/action
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run HACS validation
+        uses: hacs/action@d556e736723344f83838d08488c983a15381059a # 22.5.0
+        with:
+          category: integration
+          # Remove this 'ignore' key when you have added brand images for your integration to https://github.com/home-assistant/brands
+          ignore: brands
