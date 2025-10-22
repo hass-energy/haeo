@@ -13,9 +13,10 @@ import json
 from pathlib import Path
 import re
 import sys
-from typing import Any
+from typing import Any, cast
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 from urllib.parse import urljoin
-import urllib.request
 
 
 def get_home_assistant_token() -> str:
@@ -35,15 +36,28 @@ def fetch_home_assistant_states(url: str, token: str) -> list[dict[str, Any]]:
         states_url = urljoin(url.rstrip("/") + "/", "api/states")
 
         # Create request with authorization header
-        req = urllib.request.Request(states_url)  # noqa: S310
+        req = urllib_request.Request(states_url)  # noqa: S310
         req.add_header("Authorization", f"Bearer {token}")
         req.add_header("Content-Type", "application/json")
 
         # Make the request
-        with urllib.request.urlopen(req) as response:  # noqa: S310
-            return json.loads(response.read().decode("utf-8"))
+        with urllib_request.urlopen(req) as response:  # noqa: S310
+            raw = json.loads(response.read().decode("utf-8"))
 
-    except urllib.error.HTTPError as e:
+        if not isinstance(raw, list):
+            msg = "Home Assistant API returned unexpected payload"
+            raise TypeError(msg)
+
+        result: list[dict[str, Any]] = []
+        for item in raw:
+            if not isinstance(item, dict):
+                msg = "Encountered non-object state entry"
+                raise TypeError(msg)
+            result.append(cast("dict[str, Any]", item))
+
+        return result
+
+    except urllib_error.HTTPError as e:
         if e.code == 401:
             print("Error: Invalid token or authentication failed")
         elif e.code == 404:
@@ -51,7 +65,7 @@ def fetch_home_assistant_states(url: str, token: str) -> list[dict[str, Any]]:
         else:
             print(f"Error: HTTP {e.code} - {e.reason}")
         sys.exit(1)
-    except urllib.error.URLError as e:
+    except urllib_error.URLError as e:
         print(f"Error: Could not connect to Home Assistant at {url}")
         print(f"Details: {e.reason}")
         sys.exit(1)

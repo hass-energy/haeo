@@ -43,7 +43,6 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_NODE,
     ELEMENT_TYPE_PHOTOVOLTAICS,
-    ELEMENT_TYPES,
 )
 from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET

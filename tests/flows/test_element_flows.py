@@ -136,7 +136,7 @@ async def test_element_flow_user_step_success(
             "title": user_input.get(CONF_NAME, element_type),
             "data": {},
         }
-    )  # type: ignore[method-assign]
+    )
 
     result = await flow.async_step_user(user_input=None)
     assert result.get("type") == FlowResultType.FORM
@@ -246,8 +246,8 @@ async def test_element_flow_reconfigure_rename(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
-    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)  # type: ignore[method-assign]
-    flow.async_update_reload_and_abort = Mock(  # type: ignore[method-assign]
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+    flow.async_update_reload_and_abort = Mock(
         return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"}
     )
 

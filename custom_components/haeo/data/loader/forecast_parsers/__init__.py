@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 import logging
 
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
 from . import aemo_nem, amberelectric, open_meteo_solar_forecast, solcast_solar
@@ -65,7 +66,7 @@ def parse_forecast_data(state: State) -> Sequence[tuple[int, float]] | None:
     return _FORMATS[parser_type].extract(state)
 
 
-def get_forecast_units(state: State) -> tuple[str | None, str | None]:
+def get_forecast_units(state: State) -> tuple[str, SensorDeviceClass]:
     """Get the unit and device class for forecast data.
 
     Args:
@@ -78,10 +79,9 @@ def get_forecast_units(state: State) -> tuple[str | None, str | None]:
     parser_type = detect_format(state)
 
     if parser_type is None:
-        return None, None
+        msg = "Cannot get forecast units for unknown format"
+        raise ValueError(msg)
 
     # Since parser_type is a valid ForecastFormat, it must exist in _FORMATS
     parser = _FORMATS[parser_type]
-    unit = getattr(parser, "UNIT", None)
-    device_class = getattr(parser, "DEVICE_CLASS", None)
-    return unit, device_class
+    return parser.UNIT, parser.DEVICE_CLASS
