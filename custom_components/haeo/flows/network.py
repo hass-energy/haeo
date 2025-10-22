@@ -8,6 +8,12 @@ from homeassistant.helpers import selector
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
+from custom_components.haeo.validation import (
+    collect_participant_configs,
+    format_component_summary,
+    validate_network_topology,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,6 +46,7 @@ class NetworkSubentryFlow(ConfigSubentryFlow):
                         break
 
             if not errors:
+                self._validate_connectivity()
                 return self.async_create_entry(
                     title=name,
                     data={
@@ -72,6 +79,7 @@ class NetworkSubentryFlow(ConfigSubentryFlow):
 
             if not errors:
                 hub_entry = self._get_entry()
+                self._validate_connectivity()
                 return self.async_update_reload_and_abort(
                     hub_entry,
                     subentry,
@@ -96,3 +104,23 @@ class NetworkSubentryFlow(ConfigSubentryFlow):
     async def async_step_remove_subentry(self, _user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Prevent removal of the network subentry."""
         return self.async_abort(reason="cannot_remove_network")
+
+    def _validate_connectivity(self) -> None:
+        """Validate current topology and manage repair issues."""
+
+        hub_entry = self._get_entry()
+        participant_configs = collect_participant_configs(hub_entry)
+        result = validate_network_topology(participant_configs)
+
+        if result.is_connected:
+            dismiss_disconnected_network_issue(self.hass, hub_entry.entry_id)
+            return
+
+        create_disconnected_network_issue(self.hass, hub_entry.entry_id, result.component_sets)
+        summary = format_component_summary(result.components, separator=" | ")
+        _LOGGER.warning(
+            "Network %s has %d disconnected component(s): %s",
+            hub_entry.entry_id,
+            result.num_components,
+            summary or "no components",
+        )

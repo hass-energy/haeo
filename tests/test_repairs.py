@@ -5,9 +5,11 @@ from homeassistant.helpers.issue_registry import IssueSeverity, async_get
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.repairs import (
+    create_disconnected_network_issue,
     create_invalid_config_issue,
     create_missing_sensor_issue,
     create_optimization_persistent_failure_issue,
+    dismiss_disconnected_network_issue,
     dismiss_missing_sensor_issue,
     dismiss_optimization_failure_issue,
 )
@@ -163,3 +165,45 @@ async def test_repair_issue_translation_keys(hass: HomeAssistant) -> None:
     issue = issue_registry.async_get_issue(DOMAIN, "invalid_config_battery")
     assert issue is not None
     assert issue.translation_key == "invalid_config"
+
+
+async def test_create_disconnected_network_issue(hass: HomeAssistant) -> None:
+    """Test creating disconnected network repair issue."""
+
+    components = [{"Battery"}, {"Grid", "Load"}]
+    entry_id = "entry123"
+
+    create_disconnected_network_issue(hass, entry_id, components)
+
+    issue_registry = async_get(hass)
+    issue_id = f"disconnected_network_{entry_id}"
+    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
+
+    assert issue is not None
+    assert issue.severity == IssueSeverity.WARNING
+    assert issue.is_fixable
+    assert issue.is_persistent
+    assert issue.translation_key == "disconnected_network"
+    assert issue.translation_placeholders is not None
+    assert issue.translation_placeholders.get("num_components") == "2"
+    summary = issue.translation_placeholders.get("component_summary")
+    assert summary is not None
+    assert "1) Battery" in summary
+    assert "2) Grid, Load" in summary
+
+
+async def test_dismiss_disconnected_network_issue(hass: HomeAssistant) -> None:
+    """Test dismissing disconnected network repair issue."""
+
+    components = [{"Battery"}, {"Grid"}]
+    entry_id = "entry123"
+
+    create_disconnected_network_issue(hass, entry_id, components)
+
+    issue_registry = async_get(hass)
+    issue_id = f"disconnected_network_{entry_id}"
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is not None
+
+    dismiss_disconnected_network_issue(hass, entry_id)
+
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None

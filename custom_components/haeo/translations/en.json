@@ -328,6 +328,10 @@
     "invalid_config": {
       "title": "Invalid configuration for {element_name}",
       "description": "Element '{element_name}' has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the '{element_name}' element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
+    },
+    "disconnected_network": {
+      "title": "Network has disconnected components",
+      "description": "Your HAEO network has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the network is fully connected"
     }
   }
 }

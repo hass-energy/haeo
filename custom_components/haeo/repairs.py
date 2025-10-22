@@ -1,11 +1,13 @@
 """Repair helper for HAEO integration."""
 
+from collections.abc import Sequence
 import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue, async_delete_issue
 
 from .const import DOMAIN
+from .validation import format_component_summary
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -162,3 +164,50 @@ def create_invalid_config_issue(
         element_name,
         config_problem,
     )
+
+
+def create_disconnected_network_issue(
+    hass: HomeAssistant,
+    entry_id: str,
+    components: Sequence[set[str]],
+) -> None:
+    """Create a repair issue for disconnected network components."""
+
+    issue_id = f"disconnected_network_{entry_id}"
+    normalized_components = [tuple(sorted(component)) for component in components]
+    issue_summary = format_component_summary(normalized_components)
+
+    async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=True,
+        is_persistent=True,
+        severity=IssueSeverity.WARNING,
+        translation_key="disconnected_network",
+        translation_placeholders={
+            "num_components": str(len(components)),
+            "component_summary": issue_summary,
+        },
+    )
+
+    _LOGGER.info(
+        "Created repair issue for disconnected network on entry %s: %s",
+        entry_id,
+        format_component_summary(normalized_components, separator=" | ") or "no components",
+    )
+
+
+def dismiss_disconnected_network_issue(
+    hass: HomeAssistant,
+    entry_id: str,
+) -> None:
+    """Dismiss the disconnected network repair issue when connectivity is restored."""
+
+    issue_id = f"disconnected_network_{entry_id}"
+
+    try:
+        async_delete_issue(hass, DOMAIN, issue_id)
+        _LOGGER.debug("Dismissed disconnected network repair issue for entry %s", entry_id)
+    except KeyError:
+        pass

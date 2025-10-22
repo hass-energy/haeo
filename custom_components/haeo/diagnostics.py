@@ -17,6 +17,7 @@ from .const import (
 )
 from .coordinator import HaeoDataUpdateCoordinator
 from .elements import ELEMENT_TYPES, ElementType
+from .validation import collect_participant_configs, validate_network_topology
 
 
 async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, Any]:
@@ -102,11 +103,19 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
                             }
                         )
 
-            diagnostics["network"] = {
+            network_info = {
                 "num_elements": len(coordinator.network.elements),
                 "element_names": list(coordinator.network.elements.keys()),
                 "connections": connection_pairs,
             }
+
+            connectivity_result = validate_network_topology(collect_participant_configs(config_entry))
+            connected_components = [list(component) for component in connectivity_result.components]
+            network_info["connectivity_check"] = connectivity_result.is_connected
+            network_info["connected_components"] = connected_components
+            network_info["num_components"] = len(connected_components)
+
+            diagnostics["network"] = network_info
 
             # Add element-level optimization results
             if coordinator.optimization_result:
