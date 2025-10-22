@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout the repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
 
       # Install job dependencies
       - name: Install uv
@@ -33,7 +35,7 @@ jobs:
       - name: Format
         if: ${{ !cancelled() }}
         run: |
-          uvx ruff format --diff \
+          uv run ruff format --diff \
             | reviewdog -f=diff -name="ruff format" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
       - name: Prettier
@@ -45,20 +47,20 @@ jobs:
       - name: Markdown Format
         if: ${{ !cancelled() }}
         run: |
-          uvx mdformat .
+          uv run mdformat .
           git diff \
             | reviewdog -f=diff -name="mdformat" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
       - name: Lint
         if: ${{ !cancelled() }}
         run: |
-          uvx ruff check --output-format rdjson \
+          uv run ruff check --output-format rdjson \
             | reviewdog -f=rdjson -name="ruff lint" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
       - name: Type Check
         if: ${{ !cancelled() }}
         run: |
-          uvx mypy . \
+          uv run mypy . \
             | reviewdog -f=mypy -name="mypy type check" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
   test:
@@ -67,6 +69,8 @@ jobs:
     steps:
       - name: Checkout the repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
 
       # Install job dependencies
       - name: Install uv
@@ -76,7 +80,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run Tests
-        run: uvx pytest --cov=custom_components/haeo --cov-report=xml
+        run: uv run pytest --cov=custom_components/haeo --cov-report=xml
 
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() }}
