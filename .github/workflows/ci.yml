@@ -53,13 +53,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           uvx ruff check --output-format rdjson \
-            | reviewdog -f=rdjson -name="ruff lint" -reporter=github-pr-review -filter-mode=nofilter -fail-level=none
+            | reviewdog -f=rdjson -name="ruff lint" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
       - name: Type Check
         if: ${{ !cancelled() }}
         run: |
           uvx mypy . \
-            | reviewdog -f=mypy -name="mypy type check" -reporter=github-pr-review -filter-mode=nofilter -fail-level=none
+            | reviewdog -f=mypy -name="mypy type check" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
   test:
     name: "Run Tests"
@@ -74,9 +74,12 @@ jobs:
 
       - name: Install the project
         run: uv sync --locked --all-extras --dev
+
       - name: Run Tests
         run: uvx pytest --cov=custom_components/haeo --cov-report=xml
+
       - name: Upload coverage to Codecov
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v5
         with:
           # token is not needed for public repo by default
