@@ -61,6 +61,6 @@ async def test_sensor_loader_multiple(hass: HomeAssistant) -> None:
 @pytest.mark.asyncio
 async def test_constant_loader(hass: HomeAssistant) -> None:
     """Test constant loader functions directly."""
-    constant_loader = ConstantLoader[int]()
+    constant_loader = ConstantLoader[int](int)
     assert constant_loader.available(hass=hass, value=100, forecast_times=[]) is True  # Constants are always available
     assert await constant_loader.load(hass=hass, value=100, forecast_times=[]) == 100

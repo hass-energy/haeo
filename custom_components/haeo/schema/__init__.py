@@ -131,7 +131,7 @@ async def load(config: "ElementConfigSchema", hass: HomeAssistant, forecast_time
         field_value = config.get(field_name)
 
         # Pass through metadata fields and None values
-        if field_value is None and field_name not in ("element_type", "name"):
+        if field_value is None:
             continue  # Skip optional fields
 
         # Get loader and load the field

@@ -58,7 +58,7 @@ class PowerFieldMeta(FieldMeta):
         SensorDeviceClass.POWER,
         "constant",
     )
-    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(
@@ -119,7 +119,7 @@ class EnergyFieldMeta(FieldMeta):
         SensorDeviceClass.ENERGY,
         "constant",
     )
-    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(
@@ -164,7 +164,7 @@ class PriceFieldMeta(FieldMeta):
         SensorDeviceClass.MONETARY,
         "constant",
     )
-    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(
@@ -231,7 +231,7 @@ class PercentageFieldMeta(FieldMeta):
     """Metadata for percentage values."""
 
     field_type: tuple[Literal["%"], Literal["constant"]] = ("%", "constant")
-    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
@@ -242,7 +242,7 @@ class BooleanFieldMeta(FieldMeta):
     """Metadata for boolean values."""
 
     field_type: tuple[Literal["boolean"], Literal["constant"]] = ("boolean", "constant")
-    loader: ConstantLoader[bool] = field(default_factory=lambda: ConstantLoader[bool]())
+    loader: ConstantLoader[bool] = field(default_factory=lambda: ConstantLoader[bool](bool))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(vol.Coerce(bool), BooleanSelector(BooleanSelectorConfig()))
@@ -253,7 +253,7 @@ class ElementNameFieldMeta(FieldMeta):
     """Metadata for selecting existing element names."""
 
     field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
-    loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str]())
+    loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str](str))
 
     def _get_field_validators(
         self,
@@ -286,7 +286,7 @@ class NameFieldMeta(FieldMeta):
     """Metadata for free-form name values."""
 
     field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
-    loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str]())
+    loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str](str))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(vol.Coerce(str), vol.Strip, vol.Length(min=1, msg="Name cannot be empty"))
@@ -300,7 +300,7 @@ class PowerFlowFieldMeta(FieldMeta):
         SensorDeviceClass.POWER,
         "constant",
     )
-    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(
@@ -319,7 +319,7 @@ class BatterySOCFieldMeta(FieldMeta):
         SensorDeviceClass.BATTERY,
         "constant",
     )
-    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float]())
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
