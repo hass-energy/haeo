@@ -80,7 +80,13 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run Tests
-        run: uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=xml
+        run: uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() }}
