@@ -1,5 +1,4 @@
 {
-  "title": "HAEO",
   "config": {
     "flow_title": "HAEO Network Setup",
     "step": {
@@ -320,7 +319,7 @@
   "issues": {
     "missing_sensor": {
       "title": "Missing sensor data for {element_name}",
-      "description": "The HAEO integration cannot find sensor data for element '{element_name}'. The sensor entity '{sensor_entity_id}' may not exist or may be unavailable.\n\nTo fix this issue:\n1. Check that the sensor entity exists in Home Assistant\n2. Verify the sensor is available and reporting data\n3. If the sensor was removed, reconfigure the element to use a different sensor\n4. If the sensor is temporarily unavailable, this issue will automatically dismiss when the sensor becomes available again"
+      "description": "The HAEO integration cannot find sensor data for element {element_name}. The sensor entity {sensor_entity_id} may not exist or may be unavailable.\n\nTo fix this issue:\n1. Check that the sensor entity exists in Home Assistant\n2. Verify the sensor is available and reporting data\n3. If the sensor was removed, reconfigure the element to use a different sensor\n4. If the sensor is temporarily unavailable, this issue will automatically dismiss when the sensor becomes available again"
     },
     "optimization_failure": {
       "title": "Optimization failed",
