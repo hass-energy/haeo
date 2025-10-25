@@ -1,9 +1,11 @@
 """Connection class for electrical system modeling."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from pulp import LpConstraint, LpVariable
+
+from . import OUTPUT_NAME_POWER_FLOW, OUTPUT_TYPE_POWER, OutputData, OutputName, extract_values
 
 
 @dataclass
@@ -53,3 +55,10 @@ class Connection:
     def cost(self) -> float:
         """Return the cost of the connection with cycling penalties."""
         return 0
+
+    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+        """Return output specifications for the connection."""
+
+        return {
+            OUTPUT_NAME_POWER_FLOW: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power))
+        }

@@ -1,10 +1,8 @@
 """Validation helpers for HAEO network topology."""
 
-from __future__ import annotations
-
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import cast
+from typing import TypeGuard
 
 from homeassistant.config_entries import ConfigEntry
 
@@ -39,9 +37,15 @@ def collect_participant_configs(entry: ConfigEntry) -> dict[str, ElementConfigSc
     participants: dict[str, ElementConfigSchema] = {}
 
     for subentry in collect_element_subentries(entry):
-        participants[subentry.name] = cast("ElementConfigSchema", dict(subentry.config))
+        participants[subentry.name] = subentry.config.copy()
 
     return participants
+
+
+def _is_connection_config(config: ElementConfigSchema) -> TypeGuard[ConnectionConfigSchema]:
+    """Return true when the config represents a connection element."""
+
+    return config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_CONNECTION
 
 
 def _build_adjacency(participants: Mapping[str, ElementConfigSchema]) -> dict[str, set[str]]:
@@ -52,16 +56,15 @@ def _build_adjacency(participants: Mapping[str, ElementConfigSchema]) -> dict[st
     for config in participants.values():
         if config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_CONNECTION:
             continue
-        name = cast("str", config[CONF_NAME])
+        name = config[CONF_NAME]
         adjacency.setdefault(name, set())
 
     for config in participants.values():
-        if config[CONF_ELEMENT_TYPE] != ELEMENT_TYPE_CONNECTION:
+        if not _is_connection_config(config):
             continue
 
-        connection_config = cast("ConnectionConfigSchema", config)
-        source = cast("str", connection_config[CONF_SOURCE])
-        target = cast("str", connection_config[CONF_TARGET])
+        source = config[CONF_SOURCE]
+        target = config[CONF_TARGET]
 
         adjacency.setdefault(source, set()).add(target)
         adjacency.setdefault(target, set()).add(source)

@@ -44,7 +44,6 @@ CONF_INTEGRATION_TYPE: Final = "integration_type"
 CONF_ELEMENT_TYPE: Final = "element_type"
 CONF_UPDATE_INTERVAL_MINUTES: Final = "update_interval_minutes"
 CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
-CONF_PARENT_ENTRY_ID: Final = "parent_entry_id"
 
 ELEMENT_TYPE_NETWORK: Final = "network"
 
@@ -64,12 +63,6 @@ DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 # Map translation-friendly optimizer keys (lowercase) to actual optimizer names
 OPTIMIZER_NAME_MAP: Final = {name.lower(): name for name in AVAILABLE_OPTIMIZERS}
 
-
-# Validation constants
-MAX_HORIZON_HOURS: Final = 168  # 1 week maximum
-MAX_PERIOD_MINUTES: Final = 60  # 1 hour maximum
-MAX_NAME_LENGTH: Final = 255
-
 # Update intervals
 DEFAULT_UPDATE_INTERVAL: Final = DEFAULT_UPDATE_INTERVAL_MINUTES * 60  # Convenience constant in seconds
 
@@ -79,14 +72,7 @@ OPTIMIZATION_STATUS_FAILED: Final = "failed"
 OPTIMIZATION_STATUS_PENDING: Final = "pending"
 
 
-# Field property types
-FIELD_TYPE_SENSOR: Final = "sensor"
-FIELD_TYPE_FORECAST: Final = "forecast"
-FIELD_TYPE_LIVE_FORECAST: Final = "live_forecast"
-FIELD_TYPE_CONSTANT: Final = "constant"
-
-
-# Entity attribute keys
-ATTR_ENERGY: Final = "energy"
-ATTR_POWER: Final = "power"
-ATTR_FORECAST: Final = "forecast"
+# Optimization sensor output names
+SENSOR_OUTPUT_OPTIMIZATION_COST: Final = "optimization_cost"
+SENSOR_OUTPUT_OPTIMIZATION_STATUS: Final = "optimization_status"
+SENSOR_OUTPUT_OPTIMIZATION_DURATION: Final = "optimization_duration"

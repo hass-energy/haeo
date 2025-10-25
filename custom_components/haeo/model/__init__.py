@@ -1,4 +1,90 @@
 """HAEO energy modeling components."""
 
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Any, Final, Literal, cast
+
+from pulp import LpVariable
+from pulp import value as pulp_value
+
 from .element import Element as Element
 from .network import Network as Network
+
+OUTPUT_NAME_POWER_FLOW: Final = "power_flow"
+OUTPUT_NAME_POWER_AVAILABLE: Final = "power_available"
+OUTPUT_NAME_POWER_CONSUMED: Final = "power_consumed"
+OUTPUT_NAME_POWER_PRODUCED: Final = "power_produced"
+OUTPUT_NAME_POWER_IMPORTED: Final = "power_imported"
+OUTPUT_NAME_POWER_EXPORTED: Final = "power_exported"
+
+OUTPUT_NAME_PRICE_CONSUMPTION: Final = "price_consumption"
+OUTPUT_NAME_PRICE_PRODUCTION: Final = "price_production"
+OUTPUT_NAME_PRICE_IMPORT: Final = "price_import"
+OUTPUT_NAME_PRICE_EXPORT: Final = "price_export"
+
+OUTPUT_NAME_ENERGY_STORED: Final = "energy_stored"
+OUTPUT_NAME_BATTERY_STATE_OF_CHARGE: Final = "battery_state_of_charge"
+OUTPUT_NAME_OPTIMIZATION_COST: Final = "optimization_cost"
+OUTPUT_NAME_OPTIMIZATION_STATUS: Final = "optimization_status"
+OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "optimization_duration"
+
+type OutputName = Literal[
+    "power_flow",
+    "power_available",
+    "power_consumed",
+    "power_produced",
+    "power_imported",
+    "power_exported",
+    "price_consumption",
+    "price_production",
+    "price_import",
+    "price_export",
+    "energy_stored",
+    "battery_state_of_charge",
+    "optimization_cost",
+    "optimization_status",
+    "optimization_duration",
+]
+
+
+OUTPUT_TYPE_POWER: Final = "power"
+OUTPUT_TYPE_ENERGY: Final = "energy"
+OUTPUT_TYPE_BATTERY_SOC: Final = "state_of_charge"
+OUTPUT_TYPE_PRICE: Final = "price"
+OUTPUT_TYPE_COST: Final = "cost"
+OUTPUT_TYPE_STATUS: Final = "status"
+OUTPUT_TYPE_DURATION: Final = "duration"
+
+type OutputType = Literal[
+    "power",
+    "energy",
+    "state_of_charge",
+    "price",
+    "cost",
+    "status",
+    "duration",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class OutputData:
+    """Specification for an output exposed by a model element."""
+
+    type: OutputType
+    unit: str | None
+    values: Sequence[Any]
+
+
+def extract_values(sequence: Sequence[LpVariable | float] | None) -> tuple[float, ...]:
+    """Convert a sequence of PuLP variables or floats to a tuple of floats."""
+
+    if sequence is None:
+        return ()
+
+    resolved: list[float] = []
+    for item in sequence:
+        if isinstance(item, LpVariable):
+            resolved.append(cast("float", pulp_value(item)))
+        else:
+            resolved.append(float(item))
+    return tuple(resolved)

@@ -1,10 +1,11 @@
 """Photovoltaics entity for electrical system modeling."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 from pulp import LpVariable
 
+from . import OUTPUT_NAME_POWER_AVAILABLE, OUTPUT_TYPE_POWER, OutputData, OutputName
 from .element import Element
 
 
@@ -39,6 +40,9 @@ class Photovoltaics(Element):
             msg = f"forecast length ({len(forecast)}) must match n_periods ({n_periods})"
             raise ValueError(msg)
 
+        # Store the forecast to return as available power
+        self.forecast = forecast
+
         ones = np.ones(n_periods)
 
         # If we can curtail then we can set the power limits from 0 to the forecast
@@ -55,6 +59,17 @@ class Photovoltaics(Element):
             # ones * price will either be a noop if price is a sequence or will create a sequence if price is a scalar
             price_production=(ones * price_production).tolist() if price_production is not None else None,
             price_consumption=(ones * price_consumption).tolist() if price_consumption is not None else None,
-            # Store the forecast for sensors to access
-            forecast=list(forecast),
         )
+
+    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+        """Return photovoltaics output specifications."""
+
+        return {
+            **super().get_outputs(),
+            # Add the available power sensor output
+            OUTPUT_NAME_POWER_AVAILABLE: OutputData(
+                type=OUTPUT_TYPE_POWER,
+                unit="kW",
+                values=tuple(self.forecast),
+            ),
+        }

@@ -1,10 +1,22 @@
 """Grid entity for electrical system modeling with separate import/export pricing."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 from pulp import LpVariable
 
+from . import (
+    OUTPUT_NAME_POWER_CONSUMED,
+    OUTPUT_NAME_POWER_EXPORTED,
+    OUTPUT_NAME_POWER_IMPORTED,
+    OUTPUT_NAME_POWER_PRODUCED,
+    OUTPUT_NAME_PRICE_CONSUMPTION,
+    OUTPUT_NAME_PRICE_EXPORT,
+    OUTPUT_NAME_PRICE_IMPORT,
+    OUTPUT_NAME_PRICE_PRODUCTION,
+    OutputData,
+    OutputName,
+)
 from .element import Element
 
 
@@ -57,3 +69,16 @@ class Grid(Element):
             if import_price is None
             else (np.ones(n_periods) * import_price).tolist(),  # Cost when importing (we pay grid)
         )
+
+    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+        """Return the outputs for the grid with import/export naming."""
+
+        mapping = {
+            OUTPUT_NAME_POWER_CONSUMED: OUTPUT_NAME_POWER_EXPORTED,
+            OUTPUT_NAME_POWER_PRODUCED: OUTPUT_NAME_POWER_IMPORTED,
+            OUTPUT_NAME_PRICE_CONSUMPTION: OUTPUT_NAME_PRICE_EXPORT,
+            OUTPUT_NAME_PRICE_PRODUCTION: OUTPUT_NAME_PRICE_IMPORT,
+        }
+
+        # Remap the output names accordingly
+        return {mapping.get(key, key): value for key, value in super().get_outputs().items()}

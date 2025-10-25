@@ -1,10 +1,24 @@
 """Generic electrical entity for energy system modeling."""
 
-from collections.abc import MutableSequence, Sequence
+from collections.abc import Mapping, MutableSequence, Sequence
 from dataclasses import dataclass
 from typing import cast
 
 from pulp import LpConstraint, LpVariable, lpSum
+
+from . import (
+    OUTPUT_NAME_ENERGY_STORED,
+    OUTPUT_NAME_POWER_CONSUMED,
+    OUTPUT_NAME_POWER_PRODUCED,
+    OUTPUT_NAME_PRICE_CONSUMPTION,
+    OUTPUT_NAME_PRICE_PRODUCTION,
+    OUTPUT_TYPE_ENERGY,
+    OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_PRICE,
+    OutputData,
+    OutputName,
+    extract_values,
+)
 
 
 @dataclass
@@ -30,12 +44,12 @@ class Element:
     power_production: Sequence[LpVariable | float] | None = None  # Positive when producing
 
     # Separate prices for consumption and production (in $/kWh)
-    price_consumption: Sequence[float] | None = None  # Cost when consuming
-    price_production: Sequence[float] | None = None  # Revenue when producing
+    price_consumption: Sequence[LpVariable | float] | None = None  # Cost when consuming
+    price_production: Sequence[LpVariable | float] | None = None  # Revenue when producing
 
+    # Energy storage
     energy: Sequence[LpVariable | float] | None = None  # Energy in kWh
     efficiency: float = 1.0
-    forecast: Sequence[float] | None = None  # Forecast in kW
 
     def constraints(self) -> Sequence[LpConstraint]:
         """Return constraints for the entity."""
@@ -74,4 +88,34 @@ class Element:
                 for price, power in zip(self.price_production, self.power_production, strict=False)
             )
 
-        return cost
+        return cast("float", cost)
+
+    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+        """Return output specifications for the element."""
+
+        outputs: dict[OutputName, OutputData] = {}
+        if self.power_consumption is not None:
+            outputs[OUTPUT_NAME_POWER_CONSUMED] = OutputData(
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_consumption)
+            )
+
+        if self.power_production is not None:
+            outputs[OUTPUT_NAME_POWER_PRODUCED] = OutputData(
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_production)
+            )
+
+        if self.energy is not None:
+            outputs[OUTPUT_NAME_ENERGY_STORED] = OutputData(
+                type=OUTPUT_TYPE_ENERGY, unit="kWh", values=extract_values(self.energy)
+            )
+
+        if self.price_consumption is not None:
+            outputs[OUTPUT_NAME_PRICE_CONSUMPTION] = OutputData(
+                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.price_consumption)
+            )
+        if self.price_production is not None:
+            outputs[OUTPUT_NAME_PRICE_PRODUCTION] = OutputData(
+                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.price_production)
+            )
+
+        return outputs

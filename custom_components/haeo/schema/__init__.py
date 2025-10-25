@@ -192,7 +192,7 @@ def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool]]:
     return annotated
 
 
-def schema_for_type(cls: type, defaults: dict[str, Any] | None = None, **kwargs: Any) -> vol.Schema:
+def schema_for_type(cls: type, **kwargs: Any) -> vol.Schema:
     """Create a schema for a TypedDict type.
 
     Args:
@@ -205,7 +205,6 @@ def schema_for_type(cls: type, defaults: dict[str, Any] | None = None, **kwargs:
 
     """
     annotated_fields = _get_annotated_fields(cls)
-    defaults = defaults or {}
 
     schema: dict[vol.Required | vol.Optional, FieldValidator] = {}
     for field, (meta, is_optional) in annotated_fields.items():
@@ -214,19 +213,17 @@ def schema_for_type(cls: type, defaults: dict[str, Any] | None = None, **kwargs:
         if isinstance(validator, Mapping):
             for subkey, subvalidator in validator.items():
                 key = f"{field}:{subkey}"
-                default_value = defaults.get(key, vol.UNDEFINED)
-                schema_key = (vol.Optional if is_optional else vol.Required)(key, default=default_value)
+                schema_key = (vol.Optional if is_optional else vol.Required)(key)
                 schema[schema_key] = subvalidator
         else:
             key = field
-            default_value = defaults.get(key, vol.UNDEFINED)
-            schema_key = (vol.Optional if is_optional else vol.Required)(key, default=default_value)
+            schema_key = (vol.Optional if is_optional else vol.Required)(key)
             schema[schema_key] = validator
 
     return vol.Schema(schema)
 
 
-def unflatten(data: dict[str, Any]) -> dict[str, Any]:
+def unflatten(data: Mapping[str, Any]) -> dict[str, Any]:
     """Convert flattened delimited dictionary to to structured dictionary."""
     output: dict[str, Any] = {}
 
@@ -241,7 +238,7 @@ def unflatten(data: dict[str, Any]) -> dict[str, Any]:
     return output
 
 
-def flatten(config: dict[str, Any]) -> dict[str, Any]:
+def flatten(config: Mapping[str, Any]) -> dict[str, Any]:
     """Convert structured dictionary to flattened delimited dictionary."""
 
     output: dict[str, Any] = {}

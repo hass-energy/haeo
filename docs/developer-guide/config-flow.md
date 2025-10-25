@@ -421,7 +421,6 @@ async def test_battery_flow_success(hass: HomeAssistant) -> None:
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "Home Battery"
-    assert result["data"][CONF_PARENT_ENTRY_ID] == hub_entry.entry_id
     assert result["data"]["capacity"] == 13500
 ```
 

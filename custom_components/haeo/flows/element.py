@@ -35,7 +35,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         """
         self.element_type: str = element_type
         self.schema_cls: type[ElementConfigSchema] = schema_cls
-        self.defaults: dict[str, Any] = defaults
+        self.defaults: dict[str, Any] = flatten(defaults)
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Add new element - validates name uniqueness, creates subentry."""
@@ -64,11 +64,9 @@ class ElementSubentryFlow(ConfigSubentryFlow):
 
         # Show the form to the user
         schema = schema_for_type(
-            self.schema_cls,
-            defaults=flatten(self.defaults),
-            participants=self._get_non_connection_element_names(),
-            current_element_name=None,
+            self.schema_cls, participants=self._get_non_connection_element_names(), current_element_name=None
         )
+        schema = self.add_suggested_values_to_schema(schema, self.defaults)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
@@ -109,10 +107,10 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         # Get the schema
         schema = schema_for_type(
             self.schema_cls,
-            defaults=flatten(self.defaults),
             participants=self._get_non_connection_element_names(),
             current_element_name=subentry.data.get(CONF_NAME),
         )
+        schema = self.add_suggested_values_to_schema(schema, flatten(subentry.data))
 
         return self.async_show_form(step_id="reconfigure", data_schema=schema, errors=errors)
 
@@ -142,7 +140,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         if removed_name is not None:
             participant_configs.pop(removed_name, None)
 
-        result = await super().async_step_remove_subentry(user_input)  # type: ignore[attr-defined]
+        result = await super().async_step_remove_subentry(user_input)
         self._apply_connectivity_validation(participant_configs)
         return result
 

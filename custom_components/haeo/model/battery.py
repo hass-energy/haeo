@@ -1,8 +1,11 @@
 """Battery entity for electrical system modeling."""
 
+from collections.abc import Mapping
+
 import numpy as np
 from pulp import LpVariable
 
+from . import OutputData, OutputName, OutputType
 from .element import Element
 
 
@@ -75,3 +78,16 @@ class Battery(Element):
             price_production=(np.ones(n_periods) * discharge_cost).tolist() if discharge_cost is not None else None,
             price_consumption=np.linspace(0, charge_cost, n_periods).tolist() if charge_cost is not None else None,
         )
+
+    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+        """Return battery output specifications."""
+
+        # Add the SOC sensor output
+        return {
+            **super().get_outputs(),
+            OutputName.BATTERY_STATE_OF_CHARGE: OutputData(
+                type=OutputType.BATTERY_SOC,
+                unit="%",
+                values=tuple((np.array(self._extract_values(self.energy)) / self.capacity * 100.0).tolist()),
+            ),
+        }
