@@ -1,17 +1,20 @@
 """Loader for `sensor` field types."""
 
 from collections.abc import Sequence
-from typing import Any, TypeGuard
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import convert_to_base_unit
 
+if TYPE_CHECKING:
+    from . import SensorValue
+
 
 class SensorLoader:
     """Loader for sensor values (returns float)."""
 
-    def available(self, *, hass: HomeAssistant, value: Any, **_kwargs: Any) -> bool:
+    def available(self, *, hass: HomeAssistant, value: "SensorValue | str", **_kwargs: Any) -> bool:
         """Return True if all sensors are available.
 
         Args:
@@ -23,10 +26,6 @@ class SensorLoader:
             True if all sensors are available and have valid states
 
         """
-        if not self.is_valid_value(value):
-            msg = "Value must be a sensor ID (str) or sequence of sensor IDs"
-            raise TypeError(msg)
-
         # Handle both single sensor ID (str) and list of sensor IDs (Sequence[str])
         sensor_list = [value] if isinstance(value, str) else list(value)
 
@@ -35,7 +34,7 @@ class SensorLoader:
             for sid in sensor_list
         )
 
-    async def load(self, *, hass: HomeAssistant, value: Any, **_kwargs: Any) -> float:
+    async def load(self, *, hass: HomeAssistant, value: "SensorValue | str", **_kwargs: Any) -> float:
         """Load sensor values and return their sum or single value.
 
         Args:
@@ -47,10 +46,6 @@ class SensorLoader:
             Sum of all sensor values as a float (or single value if only one sensor)
 
         """
-        if not self.is_valid_value(value):
-            msg = "Value must be a sensor ID (str) or sequence of sensor IDs"
-            raise TypeError(msg)
-
         # Handle both single sensor ID (str) and list of sensor IDs (Sequence[str])
         sensor_list: Sequence[str] = [value] if isinstance(value, str) else value
 

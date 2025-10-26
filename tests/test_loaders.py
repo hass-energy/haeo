@@ -64,3 +64,101 @@ async def test_constant_loader(hass: HomeAssistant) -> None:
     constant_loader = ConstantLoader[int](int)
     assert constant_loader.available(hass=hass, value=100, forecast_times=[]) is True  # Constants are always available
     assert await constant_loader.load(hass=hass, value=100, forecast_times=[]) == 100
+
+
+async def test_sensor_loader_missing_sensor(hass: HomeAssistant) -> None:
+    """Test SensorLoader raises error when sensor not found."""
+    sensor_loader = SensorLoader()
+    # Check availability first
+    assert sensor_loader.available(hass=hass, value=["sensor.missing"], forecast_times=[]) is False
+
+    # Try to load missing sensor - should raise ValueError
+    with pytest.raises(ValueError, match=r"Sensor sensor\.missing not found"):
+        await sensor_loader.load(hass=hass, value=["sensor.missing"], forecast_times=[])
+
+
+async def test_sensor_loader_invalid_state(hass: HomeAssistant) -> None:
+    """Test SensorLoader handles invalid state values."""
+    sensor_loader = SensorLoader()
+    hass.states.async_set("sensor.invalid", "not_a_number")
+
+    # Should not be available
+    assert sensor_loader.available(hass=hass, value=["sensor.invalid"], forecast_times=[]) is True
+
+    # Try to load - should raise ValueError
+    with pytest.raises(ValueError, match="Cannot parse sensor value"):
+        await sensor_loader.load(hass=hass, value=["sensor.invalid"], forecast_times=[])
+
+
+async def test_sensor_loader_unavailable_state(hass: HomeAssistant) -> None:
+    """Test SensorLoader handles unavailable sensor states."""
+    sensor_loader = SensorLoader()
+    hass.states.async_set("sensor.unavailable", "unavailable")
+
+    # Should not be available
+    assert sensor_loader.available(hass=hass, value=["sensor.unavailable"], forecast_times=[]) is False
+
+
+async def test_sensor_loader_unknown_state(hass: HomeAssistant) -> None:
+    """Test SensorLoader handles unknown sensor states."""
+    sensor_loader = SensorLoader()
+    hass.states.async_set("sensor.unknown", "unknown")
+
+    # Should not be available
+    assert sensor_loader.available(hass=hass, value=["sensor.unknown"], forecast_times=[]) is False
+
+
+async def test_sensor_loader_invalid_type(hass: HomeAssistant) -> None:
+    """Test SensorLoader raises TypeError for invalid input types."""
+    sensor_loader = SensorLoader()
+
+    # Test with invalid type in available check
+    with pytest.raises(TypeError, match="Value must be a sensor ID"):
+        sensor_loader.available(hass=hass, value=123, forecast_times=[])
+
+    # Test with invalid type in load
+    with pytest.raises(TypeError, match="Value must be a sensor ID"):
+        await sensor_loader.load(hass=hass, value=123, forecast_times=[])
+
+
+async def test_constant_loader_invalid_type() -> None:
+    """Test ConstantLoader validates type correctly."""
+    # Create loader expecting int
+    int_loader = ConstantLoader[int](int)
+
+    # Test with invalid type - should raise TypeError
+    with pytest.raises(TypeError, match="Value must be of type"):
+        int_loader.available(value="not_a_number")
+
+    # Test with valid type
+    assert int_loader.available(value=42) is True
+    result = await int_loader.load(value=42)
+    assert result == 42
+
+
+async def test_constant_loader_float_conversion() -> None:
+    """Test ConstantLoader handles float conversions."""
+    float_loader = ConstantLoader[float](float)
+
+    # Test with integer (should convert to float)
+    assert float_loader.available(value=42) is True
+    result = await float_loader.load(value=42)
+    assert result == 42.0
+    assert isinstance(result, float)
+
+    # Test with actual float
+    assert float_loader.available(value=3.14) is True
+    result = await float_loader.load(value=3.14)
+    assert result == 3.14
+
+
+async def test_constant_loader_type_validation() -> None:
+    """Test ConstantLoader is_valid_value method."""
+    int_loader = ConstantLoader[int](int)
+
+    # Test valid value
+    assert int_loader.is_valid_value(42) is True
+
+    # Test invalid value
+    assert int_loader.is_valid_value("not_an_int") is False
+    assert int_loader.is_valid_value(3.14) is False
