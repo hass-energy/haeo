@@ -1,20 +1,17 @@
 """Loader for `sensor` field types."""
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, TypeGuard
+from typing import Any, TypeGuard
 
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import convert_to_base_unit
 
-if TYPE_CHECKING:
-    from . import SensorValue
-
 
 class SensorLoader:
     """Loader for sensor values (returns float)."""
 
-    def available(self, *, hass: HomeAssistant, value: "SensorValue | str", **_kwargs: Any) -> bool:
+    def available(self, *, hass: HomeAssistant, value: Sequence[str] | str, **_kwargs: Any) -> bool:
         """Return True if all sensors are available.
 
         Args:
@@ -34,7 +31,7 @@ class SensorLoader:
             for sid in sensor_list
         )
 
-    async def load(self, *, hass: HomeAssistant, value: "SensorValue | str", **_kwargs: Any) -> float:
+    async def load(self, *, hass: HomeAssistant, value: Sequence[str] | str, **_kwargs: Any) -> float:
         """Load sensor values and return their sum or single value.
 
         Args:

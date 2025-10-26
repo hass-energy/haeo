@@ -1,14 +1,19 @@
 """Loader for mixed live+forecast price/power fields."""
 
-from typing import TYPE_CHECKING, Any, TypeGuard
+from collections.abc import Sequence
+from typing import Any, TypedDict, TypeGuard
 
 from homeassistant.core import HomeAssistant
 
 from .forecast_loader import ForecastLoader
 from .sensor_loader import SensorLoader
 
-if TYPE_CHECKING:
-    from . import ForecastAndSensorValue
+
+class ForecastAndSensorValue(TypedDict):
+    """Combined forecast and sensor value structure."""
+
+    live: Sequence[str]
+    forecast: Sequence[str]
 
 
 class ForecastAndSensorLoader:
@@ -19,7 +24,7 @@ class ForecastAndSensorLoader:
         self._sensor_loader = SensorLoader()
         self._forecast_loader = ForecastLoader()
 
-    def available(self, *, hass: HomeAssistant, value: "ForecastAndSensorValue", **kwargs: Any) -> bool:
+    def available(self, *, hass: HomeAssistant, value: ForecastAndSensorValue, **kwargs: Any) -> bool:
         """Check if both live sensors and forecast sensors are available.
 
         Args:
@@ -36,7 +41,7 @@ class ForecastAndSensorLoader:
 
         return sensors_available and forecasts_available
 
-    async def load(self, *, hass: HomeAssistant, value: "ForecastAndSensorValue", **kwargs: Any) -> list[float]:
+    async def load(self, *, hass: HomeAssistant, value: ForecastAndSensorValue, **kwargs: Any) -> list[float]:
         """Load forecast and sensor data for optimization.
 
         Args:
@@ -56,12 +61,17 @@ class ForecastAndSensorLoader:
 
         return forecast
 
-    def is_valid_value(self, value: object) -> TypeGuard["ForecastAndSensorValue"]:
-        """Check if value is a valid mapping with required keys."""
-        return (
-            isinstance(value, dict)
-            and "live" in value
-            and "forecast" in value
-            and self._sensor_loader.is_valid_value(value["live"])
-            and self._forecast_loader.is_valid_value(value["forecast"])
+    def is_valid_value(self, value: object) -> TypeGuard[ForecastAndSensorValue]:
+        """Check if value is a valid mapping with required keys and correctly typed values.
+
+        ForecastAndSensorValue requires both 'live' and 'forecast' to be Sequence[str],
+        not just any value accepted by the loaders (e.g., SensorLoader also accepts str).
+        """
+        if not isinstance(value, dict):
+            return False
+        if "live" not in value or "forecast" not in value:
+            return False
+        # Validate that both values are Sequence[str] as per TypedDict definition
+        return self._forecast_loader.is_valid_value(value["live"]) and self._forecast_loader.is_valid_value(
+            value["forecast"]
         )

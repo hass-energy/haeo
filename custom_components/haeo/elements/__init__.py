@@ -139,7 +139,7 @@ def get_model_description(config: ElementConfigSchema) -> str:
 def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
     """Return True when value matches any ElementConfigSchema TypedDict."""
 
-    if not isinstance(value, Mapping) and not all(isinstance(v, str) for v in value):
+    if not isinstance(value, Mapping):
         return False
 
     element_type = value.get(CONF_ELEMENT_TYPE)

@@ -109,7 +109,7 @@ class Network:
 
     def cost(self) -> float:
         """Return the cost expression for the network."""
-        result = lpSum([e.cost() for e in self.elements.values() if isinstance(e, Element)])
+        result = lpSum([e.cost() for e in self.elements.values() if e.cost() != 0])
         # lpSum returns either a LpAffineExpression or a number (0 if empty list)
         # The LpAffineExpression is duck-typed as float in PuLP's optimization context
         return cast("float", result)
@@ -154,23 +154,12 @@ class Network:
             with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
                 # Solve the problem
                 status = prob.solve(solver)  # type: ignore[no-untyped-call]
-        except Exception as e:
-            # Log captured output if available
-            if stdout_capture.getvalue():
-                _LOGGER.debug("Optimization stdout: %s", stdout_capture.getvalue())
-            if stderr_capture.getvalue():
-                _LOGGER.debug("Optimization stderr: %s", stderr_capture.getvalue())
-            msg = f"Optimization failed: {e}"
-            raise ValueError(msg) from e
         finally:
             # Always log the captured output for debugging
-            stdout_content = stdout_capture.getvalue()
-            stderr_content = stderr_capture.getvalue()
-
-            if stdout_content.strip():
-                _LOGGER.debug("Optimization stdout: %s", stdout_content)
-            if stderr_content.strip():
-                _LOGGER.debug("Optimization stderr: %s", stderr_content)
+            if stdout_capture.getvalue().strip():
+                _LOGGER.debug("Optimization stdout: %s", stdout_capture.getvalue())
+            if stderr_capture.getvalue().strip():
+                _LOGGER.debug("Optimization stderr: %s", stderr_capture.getvalue())
 
         if status == 1:  # Optimal solution found
             objective_value = value(prob.objective) if prob.objective is not None else 0.0  # type: ignore[no-untyped-call]

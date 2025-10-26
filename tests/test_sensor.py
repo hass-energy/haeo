@@ -115,6 +115,52 @@ async def test_async_setup_entry_skips_without_data(
     async_add_entities.assert_not_called()
 
 
+async def test_async_setup_entry_skips_without_coordinator(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """No sensors are created when coordinator is not available."""
+
+    config_entry.runtime_data = None
+
+    async_add_entities = Mock()
+
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    async_add_entities.assert_not_called()
+
+
+async def test_async_setup_entry_skips_empty_element_outputs(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    coordinator: Mock,
+) -> None:
+    """Elements with empty output dicts are skipped."""
+
+    coordinator.data = {
+        "battery": {},  # Empty outputs
+        "network": {
+            OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
+                type=OUTPUT_TYPE_COST,
+                unit="$",
+                state=0.5,
+                forecast=None,
+            )
+        },  # Has outputs
+    }
+    config_entry.runtime_data = coordinator
+
+    async_add_entities = Mock()
+
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    # Only network sensor should be created
+    async_add_entities.assert_called_once()
+    sensors = async_add_entities.call_args.args[0]
+    assert len(sensors) == 1
+    assert sensors[0].unique_id == f"{config_entry.entry_id}_network_{OUTPUT_NAME_OPTIMIZATION_COST}"
+
+
 def test_sensor_native_value_returns_first_value(coordinator: Mock) -> None:
     """The first value in the output series becomes the sensor reading."""
 
@@ -128,6 +174,7 @@ def test_sensor_native_value_returns_first_value(coordinator: Mock) -> None:
         output_data=output_data,
         unique_id="unique-id",
     )
+    sensor.async_write_ha_state = Mock()
 
     sensor._handle_coordinator_update()
 
@@ -147,6 +194,7 @@ def test_sensor_native_value_handles_missing_data(coordinator: Mock) -> None:
         output_data=output_data,
         unique_id="unique-id",
     )
+    sensor.async_write_ha_state = Mock()
 
     sensor._handle_coordinator_update()
 
@@ -172,6 +220,7 @@ def test_extra_state_attributes_include_forecast(coordinator: Mock) -> None:
         output_data=output_data,
         unique_id="cost-id",
     )
+    sensor.async_write_ha_state = Mock()
 
     sensor._handle_coordinator_update()
 
@@ -192,6 +241,7 @@ def test_extra_state_attributes_empty_when_no_data(coordinator: Mock) -> None:
         output_data=output_data,
         unique_id="power-id",
     )
+    sensor.async_write_ha_state = Mock()
 
     sensor._handle_coordinator_update()
 
@@ -233,6 +283,7 @@ def test_sensor_handles_forecast_timestamps(coordinator: Mock) -> None:
         output_data=output_data,
         unique_id="timestamp-id",
     )
+    sensor.async_write_ha_state = Mock()
 
     sensor._handle_coordinator_update()
 

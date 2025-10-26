@@ -6,14 +6,17 @@ from unittest.mock import AsyncMock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import (
     _ensure_network_subentry,
     async_reload_entry,
+    async_remove_config_entry_device,
     async_setup_entry,
     async_unload_entry,
+    async_update_listener,
 )
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
@@ -200,3 +203,45 @@ async def test_reload_entry_failure_handling(hass: HomeAssistant, mock_hub_entry
     # Verify a new coordinator was created or entry was unloaded
     # The important part is that reload doesn't crash
     assert True
+
+
+async def test_async_update_listener(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
+    """Test async_update_listener triggers reload."""
+    # Mock the reload function
+    reload_called = False
+
+    async def mock_reload(entry_id: str) -> bool:
+        nonlocal reload_called
+        reload_called = True
+        return True
+
+    hass.config_entries.async_reload = mock_reload
+
+    # Call update listener
+    await async_update_listener(hass, mock_hub_entry)
+
+    # Verify reload was called
+    assert reload_called
+
+
+async def test_async_remove_config_entry_device(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
+    """Test device removal when config entry is removed."""
+    device_registry = dr.async_get(hass)
+
+    # Create a device for an element
+    device = device_registry.async_get_or_create(
+        config_entry_id=mock_hub_entry.entry_id,
+        identifiers={(DOMAIN, f"{mock_hub_entry.entry_id}_test_battery")},
+        name="Test Battery",
+    )
+
+    # Device exists, so removal should be allowed
+    result = await async_remove_config_entry_device(hass, mock_hub_entry, device)
+    assert result is True
+
+    # Now remove the device from registry
+    device_registry.async_remove_device(device.id)
+
+    # Try to remove again - device already gone, should return False
+    result = await async_remove_config_entry_device(hass, mock_hub_entry, device)
+    assert result is False

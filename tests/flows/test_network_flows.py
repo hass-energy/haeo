@@ -7,6 +7,7 @@ from unittest.mock import Mock
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import issue_registry as ir
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -19,6 +20,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.flows.network import NetworkSubentryFlow
+from custom_components.haeo.repairs import create_disconnected_network_issue
 
 
 @pytest.fixture
@@ -176,3 +178,20 @@ async def test_network_flow_remove_subentry_prevented(hass: HomeAssistant, hub_e
     result = cast("dict[str, Any]", await flow.async_step_remove_subentry(_user_input=None))
     assert result["type"] == FlowResultType.ABORT
     assert result["reason"] == "cannot_remove_network"
+
+
+async def test_network_validates_topology_on_init(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Test that network validation detects disconnected components."""
+
+    # Create disconnected topology: two separate components
+    component_sets: list[set[str]] = [{"Battery 1"}, {"Battery 2"}]
+
+    # Create the disconnection issue
+    create_disconnected_network_issue(hass, hub_entry.entry_id, component_sets)
+
+    # Verify disconnection issue was created
+    issue_registry = ir.async_get(hass)
+    issue_id = f"disconnected_network_{hub_entry.entry_id}"
+    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == "disconnected_network"

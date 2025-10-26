@@ -34,6 +34,10 @@ async def test_forecast_loader_no_forecast_data(hass: HomeAssistant) -> None:
     # Should not be available (no forecast data)
     assert loader.available(hass=hass, value=["sensor.no_forecast"], forecast_times=[]) is False
 
+    # Try to load - should raise ValueError about missing forecast data
+    with pytest.raises(ValueError, match=r"No forecast data available for sensor"):
+        await loader.load(hass=hass, value=["sensor.no_forecast"], forecast_times=[0, 3600])
+
 
 async def test_forecast_loader_invalid_type(hass: HomeAssistant) -> None:
     """Test ForecastLoader handles invalid input types."""

@@ -114,3 +114,16 @@ def test_validate_network_topology_empty() -> None:
     assert result.is_connected is True
     assert result.components == ()
     assert result.num_components == 0
+
+
+def test_validate_network_topology_with_cycle() -> None:
+    """Cycles in the graph are handled correctly."""
+
+    participants = _make_participants(
+        ["a", "b", "c"], [("conn_ab", "a", "b"), ("conn_bc", "b", "c"), ("conn_ca", "c", "a")]
+    )
+    result = validate_network_topology(participants)
+
+    assert result.is_connected is True
+    assert result.components == (("a", "b", "c"),)
+    assert result.num_components == 1

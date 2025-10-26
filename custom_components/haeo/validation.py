@@ -87,8 +87,6 @@ def validate_network_topology(participants: Mapping[str, ElementConfigSchema]) -
         return NetworkConnectivityResult(is_connected=True, components=())
 
     adjacency = _build_adjacency(participants)
-    if not adjacency:
-        return NetworkConnectivityResult(is_connected=True, components=())
 
     components: list[set[str]] = []
     visited: set[str] = set()
@@ -102,8 +100,6 @@ def validate_network_topology(participants: Mapping[str, ElementConfigSchema]) -
 
         while stack:
             current = stack.pop()
-            if current in visited:
-                continue
             visited.add(current)
             component.add(current)
             neighbours = adjacency[current]
@@ -118,9 +114,6 @@ def validate_network_topology(participants: Mapping[str, ElementConfigSchema]) -
 
 def format_component_summary(components: Sequence[Sequence[str]], *, separator: str = "\n") -> str:
     """Create human-readable summary of disconnected components."""
-
-    if not components:
-        return ""
 
     lines: list[str] = []
     for index, component in enumerate(components, start=1):

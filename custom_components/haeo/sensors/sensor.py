@@ -66,9 +66,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
         self._attr_native_value = native_value
         self._attr_extra_state_attributes = attributes
-
-        if self.hass is not None:
-            super()._handle_coordinator_update()
+        super()._handle_coordinator_update()
 
     @property
     def available(self) -> bool:

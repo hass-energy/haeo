@@ -19,6 +19,7 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.battery import Battery
 from custom_components.haeo.model.connection import Connection
+from custom_components.haeo.model.const import extract_values
 from custom_components.haeo.model.constant_load import ConstantLoad
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.forecast_load import ForecastLoad
@@ -1248,3 +1249,10 @@ def test_element_constraints(element_data: dict[str, Any]) -> None:
     # Most elements should have at least some constraints
     if element_type != ELEMENT_TYPE_NODE:  # Net constraints depend on connections
         assert len(constraints) >= 0
+
+
+def test_extract_values_with_none() -> None:
+    """Test extract_values with None input."""
+    result = extract_values(None)
+
+    assert result == ()

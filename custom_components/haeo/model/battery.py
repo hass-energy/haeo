@@ -19,7 +19,7 @@ class Battery(Element):
         n_periods: int,
         *,
         capacity: float,
-        initial_charge_percentage: float | None = None,
+        initial_charge_percentage: float,
         min_charge_percentage: float = 10,
         max_charge_percentage: float = 90,
         max_charge_power: float | None = None,
@@ -46,10 +46,6 @@ class Battery(Element):
 
         """
         self.capacity = capacity  # Store capacity in kWh
-
-        # Use provided initial charge percentage or default to minimum charge percentage
-        if initial_charge_percentage is None:
-            initial_charge_percentage = min_charge_percentage
 
         super().__init__(
             name=name,

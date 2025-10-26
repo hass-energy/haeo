@@ -207,3 +207,28 @@ async def test_dismiss_disconnected_network_issue(hass: HomeAssistant) -> None:
     dismiss_disconnected_network_issue(hass, entry_id)
 
     assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_dismiss_nonexistent_disconnected_network_issue(hass: HomeAssistant) -> None:
+    """Test dismissing a disconnected network issue that doesn't exist."""
+    entry_id = "test_entry_id"
+
+    # Should not raise an error when dismissing non-existent issue
+    dismiss_disconnected_network_issue(hass, entry_id)
+
+
+async def test_dismiss_nonexistent_missing_sensor_issue(hass: HomeAssistant) -> None:
+    """Test dismissing a missing sensor issue that doesn't exist."""
+    element_name = "test_battery"
+    sensor_entity_id = "sensor.nonexistent"
+
+    # Should not raise an error when dismissing non-existent issue
+    dismiss_missing_sensor_issue(hass, element_name, sensor_entity_id)
+
+
+async def test_dismiss_nonexistent_optimization_failure_issue(hass: HomeAssistant) -> None:
+    """Test dismissing an optimization failure issue that doesn't exist."""
+    entry_id = "test_entry_id"
+
+    # Should not raise an error when dismissing non-existent issue
+    dismiss_optimization_failure_issue(hass, entry_id)

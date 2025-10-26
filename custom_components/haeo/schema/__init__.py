@@ -28,9 +28,6 @@ def _get_registry_entry(element_type: "ElementType") -> "ElementRegistryEntry":
     # Import here to avoid circular import
     from custom_components.haeo.elements import ELEMENT_TYPES  # noqa: PLC0415
 
-    if element_type not in ELEMENT_TYPES:
-        msg = f"Invalid element type {element_type} - config flow validation failed"
-        raise RuntimeError(msg)
     return ELEMENT_TYPES[element_type]
 
 
@@ -49,11 +46,6 @@ def get_loader_instance(field_name: str, config_class: type) -> Loader:
 
     """
     hints = get_type_hints(config_class, include_extras=True)
-
-    if field_name not in hints:
-        msg = f"Field {field_name} not found in config class {config_class.__name__}"
-        raise RuntimeError(msg)
-
     field_type = hints[field_name]
 
     # Handle NotRequired wrapper

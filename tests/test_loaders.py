@@ -66,6 +66,33 @@ async def test_constant_loader(hass: HomeAssistant) -> None:
     assert await constant_loader.load(hass=hass, value=100, forecast_times=[]) == 100
 
 
+async def test_constant_loader_wrong_type_available(hass: HomeAssistant) -> None:
+    """Test ConstantLoader.available() raises TypeError for wrong type."""
+    constant_loader = ConstantLoader[float](float)
+    # Passing a string when expecting float should raise TypeError
+    with pytest.raises(TypeError, match="Value must be of type"):
+        constant_loader.available(hass=hass, value="not_a_number", forecast_times=[])
+
+
+async def test_constant_loader_wrong_type_load(hass: HomeAssistant) -> None:
+    """Test ConstantLoader.load() raises TypeError for wrong type."""
+    constant_loader = ConstantLoader[int](int)
+    # Passing a string when expecting int should raise TypeError
+    with pytest.raises(TypeError, match="Value must be of type"):
+        await constant_loader.load(hass=hass, value="not_an_int", forecast_times=[])
+
+
+async def test_constant_loader_type_guard(hass: HomeAssistant) -> None:
+    """Test ConstantLoader.is_valid_value() TypeGuard."""
+    float_loader = ConstantLoader[float](float)
+    # Valid float inputs
+    assert float_loader.is_valid_value(5.0) is True
+    assert float_loader.is_valid_value(5) is True  # int is Real
+    # Invalid inputs
+    assert float_loader.is_valid_value("5.0") is False
+    assert float_loader.is_valid_value(None) is False
+
+
 async def test_sensor_loader_missing_sensor(hass: HomeAssistant) -> None:
     """Test SensorLoader raises error when sensor not found."""
     sensor_loader = SensorLoader()
@@ -109,16 +136,17 @@ async def test_sensor_loader_unknown_state(hass: HomeAssistant) -> None:
 
 
 async def test_sensor_loader_invalid_type(hass: HomeAssistant) -> None:
-    """Test SensorLoader raises TypeError for invalid input types."""
+    """Test SensorLoader TypeGuard validates input types."""
     sensor_loader = SensorLoader()
 
-    # Test with invalid type in available check
-    with pytest.raises(TypeError, match="Value must be a sensor ID"):
-        sensor_loader.available(hass=hass, value=123, forecast_times=[])
+    # TypeGuard should return False for invalid types
+    assert sensor_loader.is_valid_value(123) is False
+    assert sensor_loader.is_valid_value({"key": "value"}) is False
+    assert sensor_loader.is_valid_value(None) is False
 
-    # Test with invalid type in load
-    with pytest.raises(TypeError, match="Value must be a sensor ID"):
-        await sensor_loader.load(hass=hass, value=123, forecast_times=[])
+    # TypeGuard should return True for valid types
+    assert sensor_loader.is_valid_value("sensor.test") is True
+    assert sensor_loader.is_valid_value(["sensor.test1", "sensor.test2"]) is True
 
 
 async def test_constant_loader_invalid_type() -> None:

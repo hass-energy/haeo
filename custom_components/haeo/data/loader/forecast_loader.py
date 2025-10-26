@@ -1,7 +1,7 @@
 """Loader for forecast-only fields."""
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, TypeGuard
+from typing import Any, TypeGuard
 
 from homeassistant.core import HomeAssistant
 import numpy as np
@@ -10,14 +10,11 @@ from custom_components.haeo.const import convert_to_base_unit
 
 from .forecast_parsers import detect_format, get_forecast_units, parse_forecast_data
 
-if TYPE_CHECKING:
-    from . import ForecastValue
-
 
 class ForecastLoader:
     """Loader for forecast data (returns list[float])."""
 
-    def available(self, *, hass: HomeAssistant, value: "ForecastValue", **_kwargs: Any) -> bool:
+    def available(self, *, hass: HomeAssistant, value: Sequence[str], **_kwargs: Any) -> bool:
         """Check if forecast sensors are available and contain valid forecast data.
 
         Args:
@@ -37,7 +34,7 @@ class ForecastLoader:
         )
 
     async def load(
-        self, *, hass: HomeAssistant, value: "ForecastValue", forecast_times: Sequence[int], **_kwargs: Any
+        self, *, hass: HomeAssistant, value: Sequence[str], forecast_times: Sequence[int], **_kwargs: Any
     ) -> list[float]:
         """Load forecast data from sensors and aggregate into time buckets.
 
@@ -81,6 +78,10 @@ class ForecastLoader:
 
         return output.tolist()
 
-    def is_valid_value(self, value: Any) -> TypeGuard["ForecastValue"]:
-        """Check if the value is a valid sequence (list, tuple, etc.)."""
-        return isinstance(value, Sequence) and all(isinstance(item, str) for item in value)
+    def is_valid_value(self, value: Any) -> TypeGuard[Sequence[str]]:
+        """Check if the value is a valid sequence of strings."""
+
+        # Note: str is a Sequence in Python, but we need a sequence OF strings, not a string.
+        return (
+            isinstance(value, Sequence) and not isinstance(value, str) and all(isinstance(item, str) for item in value)
+        )

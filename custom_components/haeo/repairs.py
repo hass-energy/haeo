@@ -14,9 +14,6 @@ _LOGGER = logging.getLogger(__name__)
 def _summarize_components(components: Sequence[Collection[str]]) -> str:
     """Create a human-readable summary of disconnected components."""
 
-    if not components:
-        return "No components provided"
-
     lines = []
     for index, component in enumerate(components, start=1):
         members = ", ".join(sorted(component)) if component else "(no entities)"
@@ -63,13 +60,8 @@ def dismiss_disconnected_network_issue(
     """Dismiss a repair issue for disconnected network components."""
 
     issue_id = f"disconnected_network_{entry_id}"
-
-    try:
-        async_delete_issue(hass, DOMAIN, issue_id)
-        _LOGGER.debug("Dismissed disconnected network issue for entry %s", entry_id)
-    except KeyError:
-        # If the issue is already gone we can safely ignore
-        pass
+    async_delete_issue(hass, DOMAIN, issue_id)
+    _LOGGER.debug("Dismissed disconnected network issue for entry %s", entry_id)
 
 
 def create_missing_sensor_issue(
@@ -122,17 +114,12 @@ def dismiss_missing_sensor_issue(
 
     """
     issue_id = f"missing_sensor_{element_name}_{sensor_entity_id.replace('.', '_')}"
-
-    try:
-        async_delete_issue(hass, DOMAIN, issue_id)
-        _LOGGER.debug(
-            "Dismissed repair issue for sensor: %s on element %s",
-            sensor_entity_id,
-            element_name,
-        )
-    except KeyError:
-        # Issue doesn't exist, which is fine
-        pass
+    async_delete_issue(hass, DOMAIN, issue_id)
+    _LOGGER.debug(
+        "Dismissed repair issue for sensor: %s on element %s",
+        sensor_entity_id,
+        element_name,
+    )
 
 
 def create_optimization_persistent_failure_issue(
@@ -181,13 +168,8 @@ def dismiss_optimization_failure_issue(
 
     """
     issue_id = f"optimization_failure_{entry_id}"
-
-    try:
-        async_delete_issue(hass, DOMAIN, issue_id)
-        _LOGGER.debug("Dismissed optimization failure repair issue")
-    except KeyError:
-        # Issue doesn't exist, which is fine
-        pass
+    async_delete_issue(hass, DOMAIN, issue_id)
+    _LOGGER.debug("Dismissed optimization failure repair issue")
 
 
 def create_invalid_config_issue(

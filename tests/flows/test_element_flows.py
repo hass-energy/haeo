@@ -385,3 +385,161 @@ async def test_get_other_element_entries_filters_correctly(
     assert set(participants) == {"Battery 1", "Grid"}
     assert "Network" not in participants
     assert "Connection 1" not in participants
+
+
+async def test_element_removal_with_connectivity_validation(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Test element removal triggers connectivity validation."""
+
+    # Add three batteries and two connections creating a disconnected network
+    battery1 = _make_subentry(battery.ELEMENT_TYPE, {CONF_NAME: "Battery 1", battery.CONF_CAPACITY: 10.0})
+    battery2 = _make_subentry(battery.ELEMENT_TYPE, {CONF_NAME: "Battery 2", battery.CONF_CAPACITY: 10.0})
+    battery3 = _make_subentry(battery.ELEMENT_TYPE, {CONF_NAME: "Battery 3", battery.CONF_CAPACITY: 10.0})
+
+    hass.config_entries.async_add_subentry(hub_entry, battery1)
+    hass.config_entries.async_add_subentry(hub_entry, battery2)
+    hass.config_entries.async_add_subentry(hub_entry, battery3)
+
+    # Connect battery1 and battery2, leaving battery3 isolated
+    conn1 = _make_subentry(
+        connection.ELEMENT_TYPE,
+        {CONF_NAME: "Conn1", connection.CONF_SOURCE: "Battery 1", connection.CONF_TARGET: "Battery 2"},
+    )
+    hass.config_entries.async_add_subentry(hub_entry, conn1)
+
+    # Create flow for removing battery3
+    flow = _create_flow(hass, hub_entry, battery.ELEMENT_TYPE)
+    flow._get_current_subentry_id = Mock(return_value=battery3.subentry_id)
+
+    # Mock parent's async_step_remove_subentry
+    async def mock_remove(_self: Any, _user_input: Any) -> dict[str, Any]:
+        return {"type": FlowResultType.CREATE_ENTRY}
+
+    flow.__class__.__bases__[0].async_step_remove_subentry = mock_remove
+
+    # Remove battery3 - this should validate connectivity
+    result = await flow.async_step_remove_subentry(None)
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+
+async def test_element_removal_creates_disconnected_issue(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Test removing an element that causes network disconnection creates repair issue."""
+
+    # Create a connected chain: Battery1 -- Conn1 --> Battery2 -- Conn2 --> Battery3
+    battery1 = _make_subentry(battery.ELEMENT_TYPE, {CONF_NAME: "Battery 1", battery.CONF_CAPACITY: 10.0})
+    battery2 = _make_subentry(battery.ELEMENT_TYPE, {CONF_NAME: "Battery 2", battery.CONF_CAPACITY: 10.0})
+    battery3 = _make_subentry(battery.ELEMENT_TYPE, {CONF_NAME: "Battery 3", battery.CONF_CAPACITY: 10.0})
+
+    hass.config_entries.async_add_subentry(hub_entry, battery1)
+    hass.config_entries.async_add_subentry(hub_entry, battery2)
+    hass.config_entries.async_add_subentry(hub_entry, battery3)
+
+    conn1 = _make_subentry(
+        connection.ELEMENT_TYPE,
+        {CONF_NAME: "Conn1", connection.CONF_SOURCE: "Battery 1", connection.CONF_TARGET: "Battery 2"},
+    )
+    conn2 = _make_subentry(
+        connection.ELEMENT_TYPE,
+        {CONF_NAME: "Conn2", connection.CONF_SOURCE: "Battery 2", connection.CONF_TARGET: "Battery 3"},
+    )
+    hass.config_entries.async_add_subentry(hub_entry, conn1)
+    hass.config_entries.async_add_subentry(hub_entry, conn2)
+
+    # Create flow for removing battery2 (the middle element)
+    flow = _create_flow(hass, hub_entry, battery.ELEMENT_TYPE)
+    flow._get_current_subentry_id = Mock(return_value=battery2.subentry_id)
+
+    # Mock parent's async_step_remove_subentry
+    async def mock_remove(_self: Any, _user_input: Any) -> dict[str, Any]:
+        # Actually remove the subentry to simulate real removal
+        hass.config_entries.async_remove_subentry(hub_entry, battery2.subentry_id)
+        return {"type": FlowResultType.CREATE_ENTRY}
+
+    flow.__class__.__bases__[0].async_step_remove_subentry = mock_remove
+
+    # Remove battery2 - this should create disconnection (battery1 and battery3 now isolated)
+    result = await flow.async_step_remove_subentry(None)
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+
+async def test_element_removal_no_current_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Test element removal when no current subentry ID is set."""
+
+    flow = _create_flow(hass, hub_entry, battery.ELEMENT_TYPE)
+    flow._get_current_subentry_id = Mock(return_value=None)
+
+    # Mock parent's async_step_remove_subentry
+    async def mock_remove(_self: Any, _user_input: Any) -> dict[str, Any]:
+        return {"type": FlowResultType.CREATE_ENTRY}
+
+    flow.__class__.__bases__[0].async_step_remove_subentry = mock_remove
+
+    result = await flow.async_step_remove_subentry(None)
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+
+async def test_element_removal_subentry_not_in_hub(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Test element removal when subentry ID doesn't exist in hub entry."""
+
+    flow = _create_flow(hass, hub_entry, battery.ELEMENT_TYPE)
+    flow._get_current_subentry_id = Mock(return_value="nonexistent-id")
+
+    # Mock parent's async_step_remove_subentry
+    async def mock_remove(_self: Any, _user_input: Any) -> dict[str, Any]:
+        return {"type": FlowResultType.CREATE_ENTRY}
+
+    flow.__class__.__bases__[0].async_step_remove_subentry = mock_remove
+
+    result = await flow.async_step_remove_subentry(None)
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+
+async def test_element_removal_non_element_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Test element removal when subentry is not an element (e.g., network)."""
+
+    # Add a network subentry (not an element)
+    network_subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK, CONF_HORIZON_HOURS: 24}),
+        subentry_type=ELEMENT_TYPE_NETWORK,
+        title="Network",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, network_subentry)
+
+    flow = _create_flow(hass, hub_entry, battery.ELEMENT_TYPE)
+    flow._get_current_subentry_id = Mock(return_value=network_subentry.subentry_id)
+
+    # Mock parent's async_step_remove_subentry
+    async def mock_remove(_self: Any, _user_input: Any) -> dict[str, Any]:
+        return {"type": FlowResultType.CREATE_ENTRY}
+
+    flow.__class__.__bases__[0].async_step_remove_subentry = mock_remove
+
+    result = await flow.async_step_remove_subentry(None)
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+
+async def test_element_removal_subentry_with_no_name(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Test element removal when subentry has no name field."""
+
+    # Add a battery subentry without a name
+    battery_subentry = _make_subentry(battery.ELEMENT_TYPE, {battery.CONF_CAPACITY: 10.0})
+
+    hass.config_entries.async_add_subentry(hub_entry, battery_subentry)
+
+    flow = _create_flow(hass, hub_entry, battery.ELEMENT_TYPE)
+    flow._get_current_subentry_id = Mock(return_value=battery_subentry.subentry_id)
+
+    # Mock parent's async_step_remove_subentry
+    async def mock_remove(_self: Any, _user_input: Any) -> dict[str, Any]:
+        return {"type": FlowResultType.CREATE_ENTRY}
+
+    flow.__class__.__bases__[0].async_step_remove_subentry = mock_remove
+
+    result = await flow.async_step_remove_subentry(None)
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY

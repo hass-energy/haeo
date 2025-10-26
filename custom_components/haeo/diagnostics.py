@@ -1,6 +1,6 @@
 """Diagnostics support for HAEO integration."""
 
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -16,7 +16,6 @@ from .const import (
     CONF_UPDATE_INTERVAL_MINUTES,
 )
 from .coordinator import HaeoDataUpdateCoordinator
-from .elements import ELEMENT_TYPES, ElementType
 from .validation import collect_participant_configs, validate_network_topology
 
 
@@ -54,15 +53,10 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
         }
 
         if subentry.subentry_type != "network":
-            element_type = cast("ElementType", subentry.subentry_type)
-            registry_entry = ELEMENT_TYPES.get(element_type)
-            if registry_entry is not None:
-                raw_data.setdefault("name", name)
-                raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
-                structured_config = unflatten(raw_data)
-                subentry_info["config"] = structured_config
-            else:
-                subentry_info["config"] = raw_data
+            raw_data.setdefault("name", name)
+            raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
+            structured_config = unflatten(raw_data)
+            subentry_info["config"] = structured_config
 
         subentries_info.append(subentry_info)
 
