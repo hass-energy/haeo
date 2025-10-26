@@ -1,4 +1,6 @@
-"""Test HAEO diagnostics."""
+"""Tests for HAEO diagnostics utilities."""
+
+from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
@@ -10,249 +12,153 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
+    CONF_HORIZON_HOURS,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
+    CONF_OPTIMIZER,
+    CONF_PERIOD_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
 from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
 from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
-from custom_components.haeo.model.network import Network
+from custom_components.haeo.model.const import OUTPUT_NAME_POWER_CONSUMED, OUTPUT_TYPE_POWER
 
 
-async def test_diagnostics_empty_network(hass: HomeAssistant) -> None:
-    """Test diagnostics with empty network."""
-    # Create hub entry
-    config_entry = MockConfigEntry(
+async def test_diagnostics_without_coordinator(hass: HomeAssistant) -> None:
+    """Diagnostics return basic configuration when runtime data is absent."""
+
+    entry = MockConfigEntry(
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
+            CONF_HORIZON_HOURS: 24,
+            CONF_PERIOD_MINUTES: 15,
+            CONF_OPTIMIZER: "highs",
         },
-        entry_id="test_hub",
+        entry_id="test_entry",
     )
-    config_entry.add_to_hass(hass)
+    entry.add_to_hass(hass)
+    entry.runtime_data = None
 
-    # Setup integration
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    # Get diagnostics
-    diagnostics = await async_get_config_entry_diagnostics(hass, config_entry)
-
-    # Verify structure
-    assert "config_entry" in diagnostics
+    assert diagnostics["config_entry"]["entry_id"] == "test_entry"
     assert "hub_config" in diagnostics
     assert "subentries" in diagnostics
-    assert "coordinator" in diagnostics
-
-    # Verify config entry data
-    assert diagnostics["config_entry"]["entry_id"] == "test_hub"
-    assert diagnostics["config_entry"]["version"] == 1
-    assert diagnostics["config_entry"]["domain"] == DOMAIN
-
-    # Verify hub config is present
-    assert "horizon_hours" in diagnostics["hub_config"]
-    assert "period_minutes" in diagnostics["hub_config"]
-    assert "optimizer" in diagnostics["hub_config"]
-
-    # Verify subentries (network should be auto-created)
-    assert isinstance(diagnostics["subentries"], list)
-
-    # Verify coordinator state
-    assert diagnostics["coordinator"]["last_update_success"] is not None
-    assert diagnostics["coordinator"]["update_interval"] is not None
+    assert "coordinator" not in diagnostics
 
 
-async def test_diagnostics_with_subentries(hass: HomeAssistant) -> None:
-    """Test diagnostics with multiple subentries."""
-    # Create hub entry
-    config_entry = MockConfigEntry(
+async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
+    """Diagnostics include coordinator metadata and output summaries."""
+
+    entry = MockConfigEntry(
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
+            CONF_HORIZON_HOURS: 24,
+            CONF_PERIOD_MINUTES: 15,
+            CONF_OPTIMIZER: "highs",
         },
-        entry_id="test_hub",
+        entry_id="hub_entry",
     )
-    config_entry.add_to_hass(hass)
+    entry.add_to_hass(hass)
 
-    # Add battery subentry
-    battery = ConfigSubentry(
+    battery_subentry = ConfigSubentry(
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_NAME: "Battery 1",
-                CONF_CAPACITY: 10000.0,
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_1_soc",
+                CONF_NAME: "Battery One",
+                CONF_CAPACITY: 5000.0,
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
-        title="Battery 1",
+        title="Battery One",
         unique_id=None,
     )
-    hass.config_entries.async_add_subentry(config_entry, battery)
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
 
-    # Setup integration
-    await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
-
-    # Get diagnostics
-    diagnostics = await async_get_config_entry_diagnostics(hass, config_entry)
-
-    # Verify subentries are captured
-    assert len(diagnostics["subentries"]) >= 1
-
-    # Find battery in subentries
-    battery_info = next((s for s in diagnostics["subentries"] if s["subentry_type"] == ELEMENT_TYPE_BATTERY), None)
-    assert battery_info is not None
-    assert battery_info[CONF_NAME] == "Battery 1"
-    assert "config" in battery_info
-    assert battery_info["config"][CONF_CAPACITY] == 10000.0
-
-
-async def test_diagnostics_with_optimization_results(hass: HomeAssistant) -> None:
-    """Test diagnostics with optimization results."""
-    # Create hub entry
-    config_entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-        },
-        entry_id="test_hub",
-    )
-    config_entry.add_to_hass(hass)
-
-    # Create mock coordinator with optimization results
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
-    coordinator.optimization_status = "success"
     coordinator.last_update_success = True
     coordinator.update_interval = timedelta(minutes=5)
-    coordinator.last_optimization_time = datetime.now(UTC)
-    coordinator.last_optimization_duration = 1.5
-    coordinator.last_optimization_cost = 123.45
+    coordinator.optimization_status = "success"
+    coordinator.last_optimization_cost = 27.5
+    coordinator.last_optimization_duration = 1.25
+    coordinator.last_optimization_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    forecast_map = {
+        datetime(2024, 1, 1, 12, 0, tzinfo=UTC).isoformat(): 3.0,
+        datetime(2024, 1, 1, 12, 15, tzinfo=UTC).isoformat(): 2.5,
+        datetime(2024, 1, 1, 12, 30, tzinfo=UTC).isoformat(): 2.0,
+    }
+    coordinator.data = {
+        "battery_one": {
+            OUTPUT_NAME_POWER_CONSUMED: CoordinatorOutput(
+                type=OUTPUT_TYPE_POWER,
+                unit="kW",
+                state=3.0,
+                forecast=forecast_map,
+            )
+        }
+    }
 
-    # Create mock network with elements
-    network = Mock(spec=Network)
+    # Provide a lightweight network structure for diagnostics
+    network = Mock()
     network.elements = {
-        "battery_1": Mock(),
-        "grid_1": Mock(),
-        "connection_battery_1_grid_1": Mock(source="battery_1", target="grid_1"),
+        "battery_one": Mock(name="battery_one"),
+        "connection_grid": Mock(name="connection_grid", source="battery_one", target="grid"),
     }
     coordinator.network = network
 
-    # Mock optimization result
-    coordinator.optimization_result = Mock()
-    coordinator.get_element_data = Mock(
-        return_value={
-            "power": [100, 200, 300],
-            "energy": [1000, 2000, 3000],
-            "soc": [50, 60, 70],
-        }
-    )
+    entry.runtime_data = coordinator
 
-    # Set runtime data
-    config_entry.runtime_data = coordinator
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    # Get diagnostics
-    diagnostics = await async_get_config_entry_diagnostics(hass, config_entry)
+    assert diagnostics["coordinator"]["optimization_status"] == "success"
+    assert diagnostics["last_optimization"]["cost"] == 27.5
 
-    # Verify optimization results
-    assert "last_optimization" in diagnostics
-    assert diagnostics["last_optimization"]["status"] == "success"
-    assert diagnostics["last_optimization"]["duration_seconds"] == 1.5
-    assert diagnostics["last_optimization"]["cost"] == 123.45
+    outputs = diagnostics["outputs"]["battery_one"][OUTPUT_NAME_POWER_CONSUMED]
+    assert outputs["type"] == OUTPUT_TYPE_POWER
+    assert outputs["unit"] == "kW"
+    assert outputs["value_count"] == 3
+    assert outputs["first_value"] == 3.0
+    assert outputs["has_forecast"] is True
 
-    # Verify network structure
-    assert "network" in diagnostics
-    assert diagnostics["network"]["num_elements"] == 3
-    assert "battery_1" in diagnostics["network"]["element_names"]
-    assert "grid_1" in diagnostics["network"]["element_names"]
-
-    # Verify connections
-    assert len(diagnostics["network"]["connections"]) == 1
-    assert diagnostics["network"]["connections"][0]["from"] == "battery_1"
-    assert diagnostics["network"]["connections"][0]["to"] == "grid_1"
-
-    # Verify element results
-    assert "optimization_results" in diagnostics
-    assert "battery_1" in diagnostics["optimization_results"]
-    assert diagnostics["optimization_results"]["battery_1"]["has_power_data"] is True
-    assert diagnostics["optimization_results"]["battery_1"]["has_energy_data"] is True
-    assert diagnostics["optimization_results"]["battery_1"]["has_soc_data"] is True
-    assert diagnostics["optimization_results"]["battery_1"]["num_periods"] == 3
+    assert diagnostics["network"]["num_elements"] == 2
+    assert diagnostics["network"]["connections"] == [{"from": "battery_one", "to": "grid"}]
 
 
-async def test_diagnostics_with_element_data_error(hass: HomeAssistant) -> None:
-    """Test diagnostics when element data retrieval fails."""
-    # Create hub entry
-    config_entry = MockConfigEntry(
+async def test_diagnostics_handles_missing_outputs(hass: HomeAssistant) -> None:
+    """When coordinator has no data, diagnostics omit the outputs section."""
+
+    entry = MockConfigEntry(
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
         },
-        entry_id="test_hub",
+        entry_id="hub_entry",
     )
-    config_entry.add_to_hass(hass)
+    entry.add_to_hass(hass)
 
-    # Create mock coordinator with optimization results but failing get_element_data
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
-    coordinator.optimization_status = "success"
-    coordinator.last_update_success = True
-    coordinator.update_interval = timedelta(minutes=5)
+    coordinator.last_update_success = False
+    coordinator.update_interval = None
+    coordinator.optimization_status = "pending"
+    coordinator.last_optimization_cost = None
+    coordinator.last_optimization_duration = None
     coordinator.last_optimization_time = None
+    coordinator.data = {}
+    coordinator.network = None
 
-    # Create mock network
-    network = Mock(spec=Network)
-    network.elements = {"battery_1": Mock()}
-    coordinator.network = network
+    entry.runtime_data = coordinator
 
-    # Mock optimization result with failing get_element_data
-    coordinator.optimization_result = Mock()
-    coordinator.get_element_data = Mock(side_effect=Exception("Test error"))
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    # Set runtime data
-    config_entry.runtime_data = coordinator
-
-    # Get diagnostics
-    diagnostics = await async_get_config_entry_diagnostics(hass, config_entry)
-
-    # Verify error is handled gracefully
-    assert "optimization_results" in diagnostics
-    assert "battery_1" in diagnostics["optimization_results"]
-    assert "error" in diagnostics["optimization_results"]["battery_1"]
-    assert diagnostics["optimization_results"]["battery_1"]["error"] == "Failed to retrieve data"
-
-
-async def test_diagnostics_with_no_coordinator(hass: HomeAssistant) -> None:
-    """Test diagnostics with no coordinator (runtime_data is None)."""
-    # Create hub entry
-    config_entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-        },
-        entry_id="test_hub",
-    )
-    config_entry.add_to_hass(hass)
-
-    # Set runtime_data to None explicitly
-    config_entry.runtime_data = None
-
-    # Get diagnostics
-    diagnostics = await async_get_config_entry_diagnostics(hass, config_entry)
-
-    # Verify basic structure still present
-    assert "config_entry" in diagnostics
-    assert "hub_config" in diagnostics
-    assert "subentries" in diagnostics
-
-    # Coordinator sections should not be present
-    assert "coordinator" not in diagnostics
-    assert "last_optimization" not in diagnostics
+    assert diagnostics["coordinator"]["optimization_status"] == "pending"
+    assert "outputs" not in diagnostics
     assert "network" not in diagnostics

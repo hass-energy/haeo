@@ -6,7 +6,7 @@ from typing import cast
 
 from pulp import LpConstraint, LpVariable, lpSum
 
-from . import (
+from .const import (
     OUTPUT_NAME_ENERGY_STORED,
     OUTPUT_NAME_POWER_CONSUMED,
     OUTPUT_NAME_POWER_PRODUCED,

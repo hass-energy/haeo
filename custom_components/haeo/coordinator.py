@@ -1,22 +1,22 @@
 """Data update coordinator for the Home Assistant Energy Optimization integration."""
 
 from collections.abc import Callable, Mapping, Sequence
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 import logging
 import time
-from types import MappingProxyType
-from typing import Any, cast
+from typing import Any, get_type_hints
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
-from homeassistant.helpers.event import async_call_later, async_track_state_change_event
+from homeassistant.const import UnitOfTime
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.debounce import Debouncer
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
-from pulp import value
 
 from . import data as data_module
 from .const import (
-    ATTR_POWER,
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_HOURS,
     CONF_OPTIMIZER,
@@ -24,71 +24,126 @@ from .const import (
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_OPTIMIZER,
-    DEFAULT_UPDATE_INTERVAL,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
-    OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
     OPTIMIZER_NAME_MAP,
 )
-from .elements import ElementConfigSchema, ValidatedElementSubentry, collect_element_subentries
-from .model import Network
-from .repairs import (
-    create_missing_sensor_issue,
-    create_optimization_persistent_failure_issue,
-    dismiss_optimization_failure_issue,
+from .elements import ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
+from .model import (
+    OUTPUT_NAME_OPTIMIZATION_COST,
+    OUTPUT_NAME_OPTIMIZATION_DURATION,
+    OUTPUT_NAME_OPTIMIZATION_STATUS,
+    OUTPUT_TYPE_COST,
+    OUTPUT_TYPE_DURATION,
+    OUTPUT_TYPE_STATUS,
+    Network,
+    OutputData,
+    OutputName,
+    OutputType,
 )
+from .repairs import dismiss_optimization_failure_issue
+from .schema import get_loader_instance
 
 _LOGGER = logging.getLogger(__name__)
 
-VALUE_FN = cast("Callable[[Any], float | int]", value)
+
+def _collect_entity_ids(value: Any) -> set[str]:
+    """Recursively collect entity IDs from nested configuration values."""
+
+    if isinstance(value, str):
+        return {value}
+
+    if isinstance(value, Mapping):
+        mapping_ids: set[str] = set()
+        for nested in value.values():
+            mapping_ids.update(_collect_entity_ids(nested))
+        return mapping_ids
+
+    if isinstance(value, Sequence):
+        sequence_ids: set[str] = set()
+        for nested in value:
+            sequence_ids.update(_collect_entity_ids(nested))
+        return sequence_ids
+
+    return set()
 
 
-def _calculate_time_parameters(horizon_hours: int, period_minutes: int) -> tuple[int, int]:
-    """Calculate period in seconds and number of periods from horizon and period configuration.
-
-    Args:
-        horizon_hours: Optimization horizon in hours
-        period_minutes: Optimization period in minutes
-
-    Returns:
-        Tuple of (period_seconds, n_periods)
-
-    """
-    period_seconds = period_minutes * 60  # Convert minutes to seconds
-    horizon_seconds = horizon_hours * 3600  # Convert hours to seconds
-    n_periods = horizon_seconds // period_seconds
-    return period_seconds, n_periods
-
-
-def _extract_entity_ids(participants: Mapping[str, ElementConfigSchema]) -> set[str]:
-    """Extract all entity IDs from element configurations."""
-
+def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
+    """Extract entity IDs from a configuration using schema loaders."""
     entity_ids: set[str] = set()
 
-    def _collect(value: Any) -> None:
-        if value is None:
-            return
-        if isinstance(value, str):
-            if value.startswith("sensor."):
-                entity_ids.add(value)
-            return
-        if isinstance(value, Mapping):
-            for subvalue in value.values():
-                _collect(subvalue)
-            return
-        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
-            for item in value:
-                _collect(item)
+    element_type = config["element_type"]
+    data_config_class = ELEMENT_TYPES[element_type].data
+    hints = get_type_hints(data_config_class, include_extras=True)
 
-    for participant_config in participants.values():
-        _collect(participant_config)
+    for field_name in hints:
+        # Skip metadata fields
+        if field_name in ("element_type", "name"):
+            continue
+
+        field_value = config.get(field_name)
+        if field_value is None:
+            continue
+
+        # Get loader and check if it handles entities
+        loader_instance = get_loader_instance(field_name, data_config_class)
+
+        # Check if this loader deals with entity IDs (sensor, forecast loaders)
+        if hasattr(loader_instance, "is_valid_value") and loader_instance.is_valid_value(field_value):
+            # Add entity IDs from this field
+            entity_ids.update(_collect_entity_ids(field_value))
 
     return entity_ids
 
 
-class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+@dataclass(frozen=True, slots=True)
+class CoordinatorOutput:
+    """Processed output ready for Home Assistant entities."""
+
+    type: OutputType
+    unit: str | None
+    state: Any | None
+    forecast: dict[str, Any] | None
+
+
+def _build_coordinator_output(
+    output_data: OutputData,
+    *,
+    forecast_times: tuple[int, ...] | None,
+) -> CoordinatorOutput:
+    """Convert model output values into coordinator state and forecast."""
+
+    values = tuple(output_data.values)
+    state: Any | None = values[0] if values else None
+    forecast: dict[str, Any] | None = None
+
+    if (
+        forecast_times
+        and len(values) == len(forecast_times)
+        and len(values) > 1
+    ):
+        try:
+            forecast = {
+                datetime.fromtimestamp(timestamp, tz=UTC).isoformat(): value
+                for timestamp, value in zip(forecast_times, values, strict=True)
+            }
+        except ValueError:  # pragma: no cover - mismatch should be rare
+            forecast = None
+
+    return CoordinatorOutput(
+        type=output_data.type,
+        unit=output_data.unit,
+        state=state,
+        forecast=forecast,
+    )
+
+
+type CoordinatorData = dict[str, dict[OutputName, CoordinatorOutput]]
+
+
+class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     """Data update coordinator for HAEO integration."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -99,310 +154,168 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Base configuration comes directly from the config entry data
         self.config = dict(entry.data)
 
-        participant_entries = collect_element_subentries(entry)
-        self.participants: tuple[ValidatedElementSubentry, ...] = tuple(participant_entries)
-        participant_map: dict[str, ElementConfigSchema] = {
-            participant.name: participant.config for participant in participant_entries
-        }
-        self._participant_configs = participant_map
-        self._participant_configs_proxy = MappingProxyType(participant_map)
-
+        # Runtime attributes exposed to other integration modules
         self.network: Network | None = None
+        self.optimization_status: str = OPTIMIZATION_STATUS_PENDING
         self.optimization_result: dict[str, Any] | None = None
-        self.optimization_status = OPTIMIZATION_STATUS_PENDING
-        self._last_optimization_duration: float | None = None
+        self.last_optimization_cost: float | None = None
+        self.last_optimization_duration: float | None = None
+        self.last_optimization_time: datetime | None = None
+        self._forecast_timestamps: tuple[int, ...] | None = None
+
+        self._participant_configs: dict[str, ElementConfigSchema] = {
+            participant.name: participant.config for participant in collect_element_subentries(entry)
+        }
+
         self._state_change_unsub: Callable[[], None] | None = None
-        self._debounce_cancel: Callable[[], None] | None = None
-        self._pending_refresh = False
-        self._update_in_progress = False
 
-        configured_debounce = self.config.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS)
-        if configured_debounce is None:
-            configured_debounce = DEFAULT_DEBOUNCE_SECONDS
-        self._debounce_seconds = float(configured_debounce)
-
-        configured_interval_minutes = self.config.get(
-            CONF_UPDATE_INTERVAL_MINUTES,
-            DEFAULT_UPDATE_INTERVAL_MINUTES,
-        )
-        if configured_interval_minutes is None:
-            configured_interval_minutes = DEFAULT_UPDATE_INTERVAL_MINUTES
-        self._update_interval_minutes = int(configured_interval_minutes)
+        debounce_seconds = float(self.config.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
+        update_interval_minutes = self.config.get(CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES)
 
         super().__init__(
             hass,
             _LOGGER,
             name=f"{DOMAIN}_{entry.entry_id}",
-            update_interval=timedelta(seconds=DEFAULT_UPDATE_INTERVAL),
+            update_interval=timedelta(minutes=update_interval_minutes),
             config_entry=entry,
+            request_refresh_debouncer=Debouncer(hass, _LOGGER, cooldown=debounce_seconds, immediate=True),
+            always_update=False,
         )
 
-        self.update_interval = timedelta(minutes=self._update_interval_minutes)
+        # Extract entity IDs from all participant configurations
+        all_entity_ids: set[str] = set()
+        for config in self._participant_configs.values():
+            all_entity_ids.update(_extract_entity_ids_from_config(config))
 
         # Set up state change listeners for all entity IDs in configuration
-        self._setup_state_change_listeners()
-
-    @property
-    def participant_configs(self) -> Mapping[str, ElementConfigSchema]:
-        """Return validated participant configurations keyed by name."""
-
-        return self._participant_configs_proxy
-
-    def _setup_state_change_listeners(self) -> None:
-        """Set up listeners for entity state changes to trigger optimization."""
-        entity_ids = _extract_entity_ids(self.participant_configs)
-
-        if entity_ids:
-            _LOGGER.debug("Setting up state change listeners for %d entities", len(entity_ids))
-
-            @callback
-            def _state_change_listener(_event: Event[EventStateChangedData]) -> None:
-                """Handle state changes for tracked entities."""
-                _LOGGER.debug("Entity state changed, triggering optimization update")
-                self._schedule_debounced_refresh()
-
-            # Track state changes for all relevant entities
+        if all_entity_ids:
             self._state_change_unsub = async_track_state_change_event(
                 self.hass,
-                list(entity_ids),
-                _state_change_listener,
+                list(all_entity_ids),
+                lambda _e: self.async_request_refresh(),
             )
 
-    def _schedule_debounced_refresh(self, *, immediate: bool = False) -> None:
-        """Schedule an optimization refresh respecting the configured debounce."""
-        if self._debounce_cancel is not None:
-            self._debounce_cancel()
-            self._debounce_cancel = None
-
-        delay = 0.0 if immediate else max(0.0, self._debounce_seconds)
-        self._debounce_cancel = async_call_later(self.hass, delay, self._handle_debounced_refresh)
-
-    @callback
-    def _handle_debounced_refresh(self, _now: datetime) -> None:
-        """Execute a debounced refresh unless an update is already in progress."""
-        self._debounce_cancel = None
-
-        if self._update_in_progress:
-            self._pending_refresh = True
-            return
-
-        def _refresh() -> None:
-            """Run refresh within the event loop thread."""
-            self.hass.async_create_task(self.async_refresh())
-
-        self.hass.loop.call_soon_threadsafe(_refresh)
-
     def cleanup(self) -> None:
-        """Clean up coordinator resources."""
-        if self._debounce_cancel is not None:
-            _LOGGER.debug("Cancelling pending debounced refresh")
-            self._debounce_cancel()
-            self._debounce_cancel = None
+        """Clean up coordinator resources when unloading."""
+
         if self._state_change_unsub is not None:
-            _LOGGER.debug("Unsubscribing from state change listeners")
             self._state_change_unsub()
             self._state_change_unsub = None
 
-    def check_sensors_available(self) -> tuple[bool, list[str]]:
-        """Check if all configured sensors are available.
+    @staticmethod
+    def _generate_forecast_timestamps(*, period_seconds: int, n_periods: int) -> tuple[int, ...]:
+        """Return rounded forecast timestamps for the optimization horizon."""
 
-        Returns:
-            Tuple of (all_available, list_of_unavailable_entity_ids)
+        epoch_seconds = dt_util.utcnow().timestamp()
+        rounded_epoch = int(epoch_seconds // period_seconds * period_seconds)
+        origin_time = dt_util.utc_from_timestamp(rounded_epoch)
 
-        """
-        entity_ids = _extract_entity_ids(self.participant_configs)
-        unavailable = []
+        return tuple(
+            int((origin_time + timedelta(seconds=period_seconds * index)).timestamp())
+            for index in range(n_periods)
+        )
 
-        for entity_id in entity_ids:
-            state = self.hass.states.get(entity_id)
-            if state is None or state.state in ("unavailable", "unknown"):
-                unavailable.append(entity_id)
+    @property
+    def forecast_timestamps(self) -> tuple[int, ...] | None:
+        """Return forecast timestamps for the last optimization run."""
 
-        return len(unavailable) == 0, unavailable
+        return self._forecast_timestamps
 
-    def get_future_timestamps(self) -> list[str]:
-        """Get list of ISO timestamps for each optimization period."""
-        if not self.optimization_result or not self.network:
-            return []
-
-        start_time = self.optimization_result["timestamp"]
-        timestamps = []
-
-        for i in range(self.network.n_periods):
-            period_time = start_time + timedelta(hours=self.network.period * i)
-            timestamps.append(period_time.isoformat())
-
-        return timestamps
-
-    async def _async_update_data(self) -> dict[str, Any]:
+    async def _async_update_data(self) -> CoordinatorData:
         """Update data from Home Assistant entities and run optimization."""
         start_time = time.time()
-        self._update_in_progress = True
 
-        try:
-            sensors_available, unavailable_sensors = self.check_sensors_available()
-            if not sensors_available:
-                max_display = 5
-                sensor_list = ", ".join(unavailable_sensors[:max_display])
-                if len(unavailable_sensors) > max_display:
-                    sensor_list += "..."
-                _LOGGER.info(
-                    "Waiting for %d sensor(s) to become available: %s",
-                    len(unavailable_sensors),
-                    sensor_list,
-                )
-                self.optimization_status = OPTIMIZATION_STATUS_FAILED
-                end_time = time.time()
-                self._last_optimization_duration = end_time - start_time
-                return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self._last_optimization_duration}
+        # Convert the time parameters from seconds and hours to seconds and a number of periods
+        period_seconds = self.config[CONF_PERIOD_MINUTES] * 60  # Convert minutes to seconds
+        horizon_seconds = self.config[CONF_HORIZON_HOURS] * 3600  # Convert hours to seconds
+        n_periods = horizon_seconds // period_seconds
+        forecast_timestamps = self._generate_forecast_timestamps(
+            period_seconds=period_seconds,
+            n_periods=n_periods,
+        )
 
-            period_seconds, n_periods = _calculate_time_parameters(
-                self.config[CONF_HORIZON_HOURS],
-                self.config[CONF_PERIOD_MINUTES],
-            )
+        # Try to load the data into a network object
+        network = await data_module.load_network(
+            self.hass,
+            self.entry,
+            period_seconds=period_seconds,
+            n_periods=n_periods,
+            participants=self._participant_configs,
+            forecast_times=forecast_timestamps,
+        )
 
-            try:
-                self.network = await data_module.load_network(
-                    self.hass,
-                    self.entry,
-                    period_seconds=period_seconds,
-                    n_periods=n_periods,
-                    participants=self.participant_configs,
-                )
-            except ValueError as err:
-                self.optimization_status = OPTIMIZATION_STATUS_FAILED
-                _LOGGER.warning("Required sensor / forecast data not available: %s", err)
+        # Perform the optimization
+        optimizer_key = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER) or DEFAULT_OPTIMIZER
+        optimizer_name = OPTIMIZER_NAME_MAP.get(optimizer_key, optimizer_key)
+        cost = await self.hass.async_add_executor_job(network.optimize, optimizer_name)
 
-                error_msg = str(err)
-                if "sensor" in error_msg.lower():
-                    element_name = "unknown"
-                    for key in self.participant_configs:
-                        if key in error_msg:
-                            element_name = key
-                            break
-                    create_missing_sensor_issue(self.hass, element_name, error_msg)
+        end_time = time.time()
+        optimization_duration = end_time - start_time
 
-                end_time = time.time()
-                self._last_optimization_duration = end_time - start_time
-                return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self.last_optimization_duration}
+        _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
+        dismiss_optimization_failure_issue(self.hass, self.entry.entry_id)
 
-            if self.network is None:
-                msg = "Network was not properly initialized"
-                raise RuntimeError(msg)
+        # Persist runtime state for diagnostics and system health
+        self.network = network
+        self.optimization_status = OPTIMIZATION_STATUS_SUCCESS
+        self.last_optimization_cost = cost
+        self.last_optimization_duration = optimization_duration
+        self.last_optimization_time = datetime.now(UTC)
+        self._forecast_timestamps = forecast_timestamps
 
-            optimizer_key = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER) or DEFAULT_OPTIMIZER
-            optimizer_name = OPTIMIZER_NAME_MAP.get(optimizer_key, optimizer_key)
-            _LOGGER.debug(
-                "Running optimization for network with %d elements using %s solver",
-                len(self.network.elements),
-                optimizer_name,
-            )
-            cost = await self.hass.async_add_executor_job(self.network.optimize, optimizer_name)
+        network_output_data: dict[OutputName, OutputData] = {
+            OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
+                OUTPUT_TYPE_COST, unit=self.hass.config.currency, values=(cost,)
+            ),
+            OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
+                OUTPUT_TYPE_STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
+            ),
+            OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
+                OUTPUT_TYPE_DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
+            ),
+        }
 
-            end_time = time.time()
-            self._last_optimization_duration = end_time - start_time
-
-            self.optimization_result = {
-                "cost": cost,
-                "timestamp": dt_util.utcnow(),
-                "duration": self.last_optimization_duration,
+        # Return network outputs first, then element outputs
+        result: CoordinatorData = {
+            "network": {
+                name: _build_coordinator_output(output, forecast_times=None)
+                for name, output in network_output_data.items()
             }
-            self.optimization_status = OPTIMIZATION_STATUS_SUCCESS
+        }
 
-            dismiss_optimization_failure_issue(self.hass, self.entry.entry_id)
+        # Add element outputs from each network element keyed by element name
+        for element_name, element in network.elements.items():
+            element_outputs = element.get_outputs()
+            if not element_outputs:
+                continue
 
-            _LOGGER.debug(
-                "Optimization completed successfully with cost: %s in %.3f seconds",
-                cost,
-                self.last_optimization_duration,
-            )
+            processed_outputs: dict[OutputName, CoordinatorOutput] = {
+                output_name: _build_coordinator_output(
+                    output_data,
+                    forecast_times=forecast_timestamps,
+                )
+                for output_name, output_data in element_outputs.items()
+            }
 
-        except Exception as err:
-            end_time = time.time()
-            self._last_optimization_duration = end_time - start_time
-            self.optimization_status = OPTIMIZATION_STATUS_FAILED
+            if processed_outputs:
+                result[element_name] = processed_outputs
 
-            create_optimization_persistent_failure_issue(
-                self.hass,
-                self.entry.entry_id,
-                str(err),
-            )
+        self.optimization_result = {
+            "timestamp": self.last_optimization_time,
+            "cost": self.last_optimization_cost,
+            "duration": self.last_optimization_duration,
+            "outputs": {
+                element_name: {
+                    name: {
+                        "type": output.type,
+                        "unit": output.unit,
+                        "state": output.state,
+                        "forecast": output.forecast,
+                    }
+                    for name, output in outputs.items()
+                }
+                for element_name, outputs in result.items()
+            },
+        }
 
-            _LOGGER.error("Optimization failed: %s", err, exc_info=_LOGGER.isEnabledFor(logging.DEBUG))  # noqa: TRY400
-            self.optimization_result = None
-            return {"cost": None, "timestamp": dt_util.utcnow(), "duration": self.last_optimization_duration}
-
-        finally:
-            self._update_in_progress = False
-            if self._pending_refresh:
-                self._pending_refresh = False
-                self._schedule_debounced_refresh(immediate=True)
-
-        return self.optimization_result
-
-    def get_element_data(self, element_name: str) -> dict[str, Any] | None:
-        """Get data for a specific element directly from the network."""
-        if not self.network or element_name not in self.network.elements:
-            return None
-
-        element = self.network.elements[element_name]
-        element_data: dict[str, Any] = {}
-
-        # Helper to extract values safely
-        def extract_values(variables: Sequence[Any]) -> list[float]:
-            result: list[float] = []
-            for var in variables:
-                val = VALUE_FN(var)
-                result.append(float(val) if isinstance(val, (int, float)) else 0.0)
-            return result
-
-        power: Sequence[Any] | None = getattr(element, "power", None)
-        power_consumption: Sequence[Any] | None = getattr(element, "power_consumption", None)
-        power_production: Sequence[Any] | None = getattr(element, "power_production", None)
-
-        # Get power values (net power, can be positive or negative)
-        if power is not None:
-            # Connections have a single power attribute (net flow)
-            element_data[ATTR_POWER] = extract_values(power)
-        elif power_consumption is not None or power_production is not None:
-            # Elements can have consumption, production, or both
-            consumption = extract_values(power_consumption) if power_consumption is not None else None
-            production = extract_values(power_production) if power_production is not None else None
-
-            # Calculate net power based on what's available
-            if consumption is not None and production is not None:
-                # Both consumption and production (e.g., batteries, grid)
-                element_data[ATTR_POWER] = [p - c for p, c in zip(production, consumption, strict=False)]
-            elif production is not None:
-                # Only production (e.g., photovoltaics, solar)
-                element_data[ATTR_POWER] = production
-            elif consumption is not None:
-                # Only consumption (e.g., loads)
-                element_data[ATTR_POWER] = [-c for c in consumption]  # Negative for consumption
-
-        energy: Sequence[Any] | None = getattr(element, "energy", None)
-        if energy is not None:
-            element_data["energy"] = extract_values(energy)
-
-        return element_data if element_data else None
-
-    @property
-    def last_optimization_cost(self) -> float | None:
-        """Get the last optimization cost."""
-        if self.optimization_result:
-            cost = self.optimization_result["cost"]
-            return float(cost) if cost is not None else None
-        return None
-
-    @property
-    def last_optimization_time(self) -> datetime | None:
-        """Get the last optimization timestamp."""
-        if self.optimization_result:
-            timestamp = self.optimization_result["timestamp"]
-            return timestamp if isinstance(timestamp, datetime) else None
-        return None
-
-    @property
-    def last_optimization_duration(self) -> float | None:
-        """Get the last optimization duration in seconds."""
-        return self._last_optimization_duration
+        return result

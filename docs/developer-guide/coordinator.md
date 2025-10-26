@@ -144,26 +144,26 @@ cost = await self.hass.async_add_executor_job(
 ### Step 4: Extract Results
 
 ```python
-def get_element_data(self, element_name: str) -> dict[str, list[float]] | None:
-    """Extract element data from optimization results."""
-    if not self.network or element_name not in self.network.elements:
-        return None
+from custom_components.haeo.model import OutputData
 
-    element = self.network.elements[element_name]
-    element_data: dict[str, list[float]] = {}
 
-    # Extract power data
-    if hasattr(element, "power") and element.power is not None:
-        element_data[ATTR_POWER] = extract_values(element.power)
+def _collect_outputs(self, cost: float, duration: float) -> dict[str, OutputData]:
+    """Convert model outputs to Home Assistant friendly structures."""
 
-    # Extract energy data
-    if hasattr(element, "energy") and element.energy is not None:
-        element_data[ATTR_ENERGY] = extract_values(element.energy)
+    outputs: dict[str, OutputData] = {
+        OUTPUT_NAME_OPTIMIZATION_COST: OutputData(OUTPUT_TYPE_COST, self.hass.config.currency, (cost,)),
+        OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(OUTPUT_TYPE_STATUS, None, (OPTIMIZATION_STATUS_SUCCESS,)),
+        OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(OUTPUT_TYPE_DURATION, UnitOfTime.SECONDS, (duration,)),
+    }
 
-    return element_data
+    for element in self.network.elements.values():
+        for output_name, output_data in element.get_outputs().items():
+            outputs[str(output_name)] = output_data
+
+    return outputs
 ```
 
-Results are stored in coordinator and accessed by sensors via `coordinator.data` and helper methods.
+Results are stored in the coordinator and exposed to sensors through `coordinator.data`.
 
 ## Error Handling
 

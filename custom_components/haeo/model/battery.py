@@ -5,7 +5,7 @@ from collections.abc import Mapping
 import numpy as np
 from pulp import LpVariable
 
-from . import OutputData, OutputName, OutputType
+from .const import OUTPUT_NAME_BATTERY_STATE_OF_CHARGE, OUTPUT_TYPE_SOC, OutputData, OutputName, extract_values
 from .element import Element
 
 
@@ -85,9 +85,9 @@ class Battery(Element):
         # Add the SOC sensor output
         return {
             **super().get_outputs(),
-            OutputName.BATTERY_STATE_OF_CHARGE: OutputData(
-                type=OutputType.BATTERY_SOC,
+            OUTPUT_NAME_BATTERY_STATE_OF_CHARGE: OutputData(
+                type=OUTPUT_TYPE_SOC,
                 unit="%",
-                values=tuple((np.array(self._extract_values(self.energy)) / self.capacity * 100.0).tolist()),
+                values=tuple((np.array(extract_values(self.energy)) / self.capacity * 100.0).tolist()),
             ),
         }

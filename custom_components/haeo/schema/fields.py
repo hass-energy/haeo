@@ -3,7 +3,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from numbers import Real
 from typing import Annotated, Any, Literal
 
 from homeassistant.components.sensor.const import SensorDeviceClass
@@ -59,7 +58,7 @@ class PowerFieldMeta(FieldMeta):
         SensorDeviceClass.POWER,
         "constant",
     )
-    loader: ConstantLoader[Real] = field(default_factory=lambda: ConstantLoader[Real](Real))
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(
@@ -120,7 +119,7 @@ class EnergyFieldMeta(FieldMeta):
         SensorDeviceClass.ENERGY,
         "constant",
     )
-    loader: ConstantLoader[Real] = field(default_factory=lambda: ConstantLoader[Real](Real))
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(
@@ -165,7 +164,7 @@ class PriceFieldMeta(FieldMeta):
         SensorDeviceClass.MONETARY,
         "constant",
     )
-    loader: ConstantLoader[Real] = field(default_factory=lambda: ConstantLoader[Real](Real))
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(
@@ -232,7 +231,7 @@ class PercentageFieldMeta(FieldMeta):
     """Metadata for percentage values."""
 
     field_type: tuple[Literal["%"], Literal["constant"]] = ("%", "constant")
-    loader: ConstantLoader[Real] = field(default_factory=lambda: ConstantLoader[Real](Real))
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
@@ -301,7 +300,7 @@ class PowerFlowFieldMeta(FieldMeta):
         SensorDeviceClass.POWER,
         "constant",
     )
-    loader: ConstantLoader[Real] = field(default_factory=lambda: ConstantLoader[Real](Real))
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(
@@ -320,7 +319,7 @@ class BatterySOCFieldMeta(FieldMeta):
         SensorDeviceClass.BATTERY,
         "constant",
     )
-    loader: ConstantLoader[Real] = field(default_factory=lambda: ConstantLoader[Real](Real))
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
     def _get_field_validators(self, **_kwargs: Any) -> vol.All:
         return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))

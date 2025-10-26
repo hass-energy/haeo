@@ -80,15 +80,16 @@ class Network:
         # Add power balance constraints for each element based on the connections
         # We need to identify connection elements and handle their power flows
         for element in self.elements.values():
+            if not isinstance(element, Element):
+                continue
             for t in range(self.n_periods):
                 balance_terms = []
 
                 # Add element's own consumption and production
-                if isinstance(element, Element):
-                    if element.power_consumption is not None:
-                        balance_terms.append(-element.power_consumption[t])
-                    if element.power_production is not None:
-                        balance_terms.append(element.power_production[t])
+                if element.power_consumption is not None:
+                    balance_terms.append(-element.power_consumption[t])
+                if element.power_production is not None:
+                    balance_terms.append(element.power_production[t])
 
                 # Add connection flows - check if this element is connected via connection elements
                 for conn_element in self.elements.values():
@@ -108,7 +109,7 @@ class Network:
 
     def cost(self) -> float:
         """Return the cost expression for the network."""
-        result = lpSum([e.cost() for e in self.elements.values() if e.cost() != 0])
+        result = lpSum([e.cost() for e in self.elements.values() if isinstance(e, Element)])
         # lpSum returns either a LpAffineExpression or a number (0 if empty list)
         # The LpAffineExpression is duck-typed as float in PuLP's optimization context
         return cast("float", result)

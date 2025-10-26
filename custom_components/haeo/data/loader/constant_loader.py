@@ -1,6 +1,7 @@
 """Loader for constant (scalar) configuration values."""
 
-from typing import Any, TypeGuard
+from numbers import Real
+from typing import Any, TypeGuard, cast
 
 
 class ConstantLoader[T]:
@@ -17,7 +18,7 @@ class ConstantLoader[T]:
 
     def available(self, value: Any, **_kwargs: Any) -> bool:
         """Return True if the constant field is available."""
-        if not self.is_valid_value(value):
+        if self._convert(value) is None:
             msg = f"Value must be of type {self._type}"
             raise TypeError(msg)
 
@@ -25,12 +26,26 @@ class ConstantLoader[T]:
 
     async def load(self, *, value: Any, **_kwargs: Any) -> T:
         """Load the constant field value."""
-        if not self.is_valid_value(value):
+        converted = self._convert(value)
+        if converted is None:
             msg = f"Value must be of type {self._type}"
             raise TypeError(msg)
 
-        return value
+        return converted
 
     def is_valid_value(self, value: Any) -> TypeGuard[T]:
         """Check if the value is of the expected constant type."""
-        return isinstance(value, self._type)
+        return self._convert(value) is not None
+
+    def _convert(self, value: Any) -> T | None:
+        """Return the converted value when it matches the expected type."""
+
+        if self._type is float:
+            if isinstance(value, Real):
+                return cast("T", float(value))
+            return None
+
+        if isinstance(value, self._type):
+            return value
+
+        return None

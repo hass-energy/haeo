@@ -157,7 +157,7 @@ gold:
 
   entity-device-class:
     status: done
-    comment: Sensors use appropriate device classes - SensorDeviceClass.POWER, ENERGY, BATTERY for respective sensor types (sensors/power.py, energy.py, soc.py)
+    comment: Sensors use appropriate device classes - SensorDeviceClass.POWER, ENERGY_STORAGE, BATTERY via the unified sensors/sensor.py implementation
 
   entity-disabled-by-default:
     status: done

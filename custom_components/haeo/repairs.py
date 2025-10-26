@@ -1,15 +1,75 @@
 """Repair helper for HAEO integration."""
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue, async_delete_issue
 
 from .const import DOMAIN
-from .validation import format_component_summary
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _summarize_components(components: Sequence[Collection[str]]) -> str:
+    """Create a human-readable summary of disconnected components."""
+
+    if not components:
+        return "No components provided"
+
+    lines = []
+    for index, component in enumerate(components, start=1):
+        members = ", ".join(sorted(component)) if component else "(no entities)"
+        lines.append(f"{index}) {members}")
+    return "\n".join(lines)
+
+
+def create_disconnected_network_issue(
+    hass: HomeAssistant,
+    entry_id: str,
+    components: Sequence[Collection[str]],
+) -> None:
+    """Create a repair issue for disconnected network components."""
+
+    num_components = len(components)
+    component_summary = _summarize_components(components)
+    issue_id = f"disconnected_network_{entry_id}"
+
+    async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=True,
+        is_persistent=True,
+        severity=IssueSeverity.WARNING,
+        translation_key="disconnected_network",
+        translation_placeholders={
+            "num_components": str(num_components),
+            "component_summary": component_summary,
+        },
+    )
+
+    _LOGGER.warning(
+        "Created repair issue for disconnected network on entry %s (%s components)",
+        entry_id,
+        num_components,
+    )
+
+
+def dismiss_disconnected_network_issue(
+    hass: HomeAssistant,
+    entry_id: str,
+) -> None:
+    """Dismiss a repair issue for disconnected network components."""
+
+    issue_id = f"disconnected_network_{entry_id}"
+
+    try:
+        async_delete_issue(hass, DOMAIN, issue_id)
+        _LOGGER.debug("Dismissed disconnected network issue for entry %s", entry_id)
+    except KeyError:
+        # If the issue is already gone we can safely ignore
+        pass
 
 
 def create_missing_sensor_issue(
@@ -164,50 +224,3 @@ def create_invalid_config_issue(
         element_name,
         config_problem,
     )
-
-
-def create_disconnected_network_issue(
-    hass: HomeAssistant,
-    entry_id: str,
-    components: Sequence[set[str]],
-) -> None:
-    """Create a repair issue for disconnected network components."""
-
-    issue_id = f"disconnected_network_{entry_id}"
-    normalized_components = [tuple(sorted(component)) for component in components]
-    issue_summary = format_component_summary(normalized_components)
-
-    async_create_issue(
-        hass,
-        DOMAIN,
-        issue_id,
-        is_fixable=True,
-        is_persistent=True,
-        severity=IssueSeverity.WARNING,
-        translation_key="disconnected_network",
-        translation_placeholders={
-            "num_components": str(len(components)),
-            "component_summary": issue_summary,
-        },
-    )
-
-    _LOGGER.info(
-        "Created repair issue for disconnected network on entry %s: %s",
-        entry_id,
-        format_component_summary(normalized_components, separator=" | ") or "no components",
-    )
-
-
-def dismiss_disconnected_network_issue(
-    hass: HomeAssistant,
-    entry_id: str,
-) -> None:
-    """Dismiss the disconnected network repair issue when connectivity is restored."""
-
-    issue_id = f"disconnected_network_{entry_id}"
-
-    try:
-        async_delete_issue(hass, DOMAIN, issue_id)
-        _LOGGER.debug("Dismissed disconnected network repair issue for entry %s", entry_id)
-    except KeyError:
-        pass

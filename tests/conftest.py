@@ -4,24 +4,11 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from importlib import import_module
 from logging import config as logging_config_module
-from typing import Any, Literal
+from typing import Any
 
 import pytest
 
-from custom_components.haeo.const import ATTR_ENERGY, ATTR_POWER, ELEMENT_TYPE_NETWORK
-from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPES
-from custom_components.haeo.sensors.cost import HaeoCostSensor
-from custom_components.haeo.sensors.energy import SENSOR_TYPE_ENERGY, HaeoEnergySensor
-from custom_components.haeo.sensors.optimization import (
-    SENSOR_TYPE_OPTIMIZATION_COST,
-    SENSOR_TYPE_OPTIMIZATION_DURATION,
-    SENSOR_TYPE_OPTIMIZATION_STATUS,
-    HaeoOptimizationCostSensor,
-    HaeoOptimizationDurationSensor,
-    HaeoOptimizationStatusSensor,
-)
-from custom_components.haeo.sensors.power import SENSOR_TYPE_POWER, HaeoPowerSensor
-from custom_components.haeo.sensors.soc import SENSOR_TYPE_SOC, HaeoSOCSensor
+from custom_components.haeo.elements import ELEMENT_TYPES
 
 # Enable custom component for testing
 pytest_plugins = ["pytest_homeassistant_custom_component"]
@@ -42,22 +29,6 @@ class ElementTestData:
 
     valid: tuple[FlowTestCase, ...]
     invalid: tuple[FlowTestCase, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class SensorTestData:
-    """Metadata describing how to construct and validate a sensor instance."""
-
-    cls: type[Any]
-    category: Literal["element", "optimization"]
-    translation_key: str
-    name_suffix: str
-    unique_suffix: str
-    element_name: str
-    element_type: str
-    expect_native_value: bool = True
-    requires_capacity: bool = False
-    attribute_key: str | None = None
 
 
 def _load_flow_cases(cases: Iterable[dict[str, Any]], *, include_error: bool) -> tuple[FlowTestCase, ...]:
@@ -91,85 +62,6 @@ def element_test_data() -> dict[str, ElementTestData]:
         )
 
     return data
-
-
-@pytest.fixture(scope="session")
-def sensor_test_data() -> dict[str, SensorTestData]:
-    """Provide structured sensor test metadata keyed by sensor translation key."""
-
-    element_name = "test_battery"
-    network_name = "network"
-
-    return {
-        SENSOR_TYPE_POWER: SensorTestData(
-            cls=HaeoPowerSensor,
-            category="element",
-            translation_key=SENSOR_TYPE_POWER,
-            name_suffix="Power",
-            unique_suffix=f"{element_name}_{SENSOR_TYPE_POWER}",
-            element_name=element_name,
-            element_type=ELEMENT_TYPE_BATTERY,
-            attribute_key=ATTR_POWER,
-        ),
-        SENSOR_TYPE_ENERGY: SensorTestData(
-            cls=HaeoEnergySensor,
-            category="element",
-            translation_key=SENSOR_TYPE_ENERGY,
-            name_suffix="Energy",
-            unique_suffix=f"{element_name}_{SENSOR_TYPE_ENERGY}",
-            element_name=element_name,
-            element_type=ELEMENT_TYPE_BATTERY,
-            attribute_key=ATTR_ENERGY,
-        ),
-        SENSOR_TYPE_SOC: SensorTestData(
-            cls=HaeoSOCSensor,
-            category="element",
-            translation_key=SENSOR_TYPE_SOC,
-            name_suffix="State of Charge",
-            unique_suffix=f"{element_name}_state_of_charge",
-            element_name=element_name,
-            element_type=ELEMENT_TYPE_BATTERY,
-            attribute_key=ATTR_ENERGY,
-            requires_capacity=True,
-        ),
-        "element_cost": SensorTestData(
-            cls=HaeoCostSensor,
-            category="element",
-            translation_key="cost",
-            name_suffix="Cost",
-            unique_suffix=f"{element_name}_cost",
-            element_name=element_name,
-            element_type=ELEMENT_TYPE_BATTERY,
-            expect_native_value=False,
-        ),
-        SENSOR_TYPE_OPTIMIZATION_COST: SensorTestData(
-            cls=HaeoOptimizationCostSensor,
-            category="optimization",
-            translation_key=SENSOR_TYPE_OPTIMIZATION_COST,
-            name_suffix="Optimization Cost",
-            unique_suffix=f"{network_name}_cost",
-            element_name=network_name,
-            element_type=ELEMENT_TYPE_NETWORK,
-        ),
-        SENSOR_TYPE_OPTIMIZATION_STATUS: SensorTestData(
-            cls=HaeoOptimizationStatusSensor,
-            category="optimization",
-            translation_key=SENSOR_TYPE_OPTIMIZATION_STATUS,
-            name_suffix="Optimization Status",
-            unique_suffix="optimization_status",
-            element_name=network_name,
-            element_type=ELEMENT_TYPE_NETWORK,
-        ),
-        SENSOR_TYPE_OPTIMIZATION_DURATION: SensorTestData(
-            cls=HaeoOptimizationDurationSensor,
-            category="optimization",
-            translation_key=SENSOR_TYPE_OPTIMIZATION_DURATION,
-            name_suffix="Optimization Duration",
-            unique_suffix="optimization_duration",
-            element_name=network_name,
-            element_type=ELEMENT_TYPE_NETWORK,
-        ),
-    }
 
 
 @pytest.fixture(autouse=True, scope="session")

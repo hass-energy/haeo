@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 from pulp import LpVariable
 
-from . import (
+from .const import (
     OUTPUT_NAME_POWER_CONSUMED,
     OUTPUT_NAME_POWER_EXPORTED,
     OUTPUT_NAME_POWER_IMPORTED,
@@ -73,7 +73,7 @@ class Grid(Element):
     def get_outputs(self) -> Mapping[OutputName, OutputData]:
         """Return the outputs for the grid with import/export naming."""
 
-        mapping = {
+        mapping: dict[OutputName, OutputName] = {
             OUTPUT_NAME_POWER_CONSUMED: OUTPUT_NAME_POWER_EXPORTED,
             OUTPUT_NAME_POWER_PRODUCED: OUTPUT_NAME_POWER_IMPORTED,
             OUTPUT_NAME_PRICE_CONSUMPTION: OUTPUT_NAME_PRICE_EXPORT,

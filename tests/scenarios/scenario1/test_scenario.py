@@ -9,6 +9,7 @@ from typing import Any
 from freezegun import freeze_time
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -22,6 +23,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
+from custom_components.haeo.model import OUTPUT_NAME_OPTIMIZATION_STATUS
 from tests.scenarios.visualization import visualize_scenario_results
 
 _LOGGER = logging.getLogger(__name__)
@@ -118,8 +120,18 @@ async def test_scenario1_setup_and_optimization(
         return current_state
 
     # Wait for the optimization status to change from "pending"
-    # Entity ID format changed with ConfigSubentry - now includes network element name
-    optimization_status = await wait_for_sensor_change(hass, "sensor.network_haeo_network_optimization_status")
+    entity_registry = er.async_get(hass)
+    status_entity_entry = next(
+        (
+            entry
+            for entry in er.async_entries_for_config_entry(entity_registry, mock_config_entry.entry_id)
+            if entry.unique_id.endswith(f"_{OUTPUT_NAME_OPTIMIZATION_STATUS}")
+        ),
+        None,
+    )
+    assert status_entity_entry is not None, "Optimization status entity should be registered"
+
+    optimization_status = await wait_for_sensor_change(hass, status_entity_entry.entity_id)
     assert optimization_status is not None, "Optimization status sensor should exist after waiting"
     _LOGGER.debug(
         "Optimization status after waiting: '%s' (type: %s)", optimization_status.state, type(optimization_status.state)

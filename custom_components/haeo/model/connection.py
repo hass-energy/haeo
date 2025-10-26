@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from pulp import LpConstraint, LpVariable
 
-from . import OUTPUT_NAME_POWER_FLOW, OUTPUT_TYPE_POWER, OutputData, OutputName, extract_values
+from .const import OUTPUT_NAME_POWER_FLOW, OUTPUT_TYPE_POWER, OutputData, OutputName, extract_values
 
 
 @dataclass

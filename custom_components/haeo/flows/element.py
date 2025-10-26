@@ -140,9 +140,10 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         if removed_name is not None:
             participant_configs.pop(removed_name, None)
 
-        result = await super().async_step_remove_subentry(user_input)
+        super_flow = cast("Any", super())
+        result = await super_flow.async_step_remove_subentry(user_input)
         self._apply_connectivity_validation(participant_configs)
-        return result
+        return cast("SubentryFlowResult", result)
 
     def _apply_connectivity_validation(self, participant_configs: dict[str, ElementConfigSchema]) -> None:
         """Evaluate connectivity and manage repair issues."""

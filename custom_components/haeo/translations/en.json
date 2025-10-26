@@ -311,6 +311,7 @@
       "optimization_cost": { "name": "Optimization Cost" },
       "optimization_status": { "name": "Optimization Status" },
       "optimization_duration": { "name": "Optimization Duration" },
+      "available_power": { "name": "Available Power" },
       "power": { "name": "Power" },
       "energy": { "name": "Energy" },
       "soc": { "name": "State of Charge" }

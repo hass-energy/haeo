@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 from pulp import LpVariable
 
-from . import OUTPUT_NAME_POWER_AVAILABLE, OUTPUT_TYPE_POWER, OutputData, OutputName
+from .const import OUTPUT_NAME_POWER_AVAILABLE, OUTPUT_TYPE_POWER, OutputData, OutputName
 from .element import Element
 
 

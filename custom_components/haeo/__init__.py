@@ -71,11 +71,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Register update listener for config changes and subentry additions/removals
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
-    # Set up platforms - Home Assistant will handle waiting for them
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
     # Trigger initial optimization on startup
     await coordinator.async_config_entry_first_refresh()
+
+    # Set up platforms - Home Assistant will handle waiting for them
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     _LOGGER.info("HAEO integration setup complete")
     return True

@@ -125,6 +125,11 @@ markers = [
     "asyncio: marks tests as requiring asyncio (deselect with '-m \"not asyncio\"')",
 ]
 
+[tool.coverage.run]
+omit = [
+    "tests/*", # Exclude everything in tests/
+]
+
 [tool.mdformat]
 wrap = "no"        # Don't wrap prose (preserve manual line breaks)
 number = true      # Renumber ordered lists

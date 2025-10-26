@@ -30,6 +30,28 @@ Use the shared unit conversion helpers if you introduce new inputs to keep numer
 When defining new decision variables, apply sensible lower and upper bounds at creation time.
 This reduces the number of explicit constraints you need and improves solver performance.
 
+### Expose element outputs
+
+Each element must implement `get_outputs()` so the Home Assistant integration can discover the sensor data automatically.
+Return a tuple of `ElementOutput` dataclasses where `values` is the full time series as floats.
+Use `pulp.value()` to convert decision variables into numeric values and provide copies of any underlying lists so callers cannot mutate internal state.
+The base `Element` implementation already reports net power in kilowatts.
+Override the method when you need to expose extra information such as stored energy, state of charge, or forecast capacity.
+
+```python
+def get_outputs(self) -> tuple[ElementOutput, ...]:
+    outputs = list(super().get_outputs())
+    energy_values = self._extract_values(self.energy)
+    if energy_values:
+        outputs.append(ElementOutput(name="energy", unit="kWh", values=energy_values))
+    return tuple(outputs)
+```
+
+Battery models should return `power`, `energy`, and `soc`.
+Photovoltaic models should add an `available_power` output based on forecast limits.
+Loads should expose their consumption as `power` only.
+Keeping the output contract consistent means new model components immediately surface in Home Assistant without changes to the sensor platform.
+
 ## Connections and nodes
 
 Connections remain responsible for enforcing flow limits and tying elements together through node balance constraints.

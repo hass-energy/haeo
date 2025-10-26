@@ -38,7 +38,6 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
             CONF_UPDATE_INTERVAL_MINUTES: config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES),
             CONF_DEBOUNCE_SECONDS: config_entry.data.get(CONF_DEBOUNCE_SECONDS),
         },
-        "elements": {},
     }
 
     # Add subentry information
@@ -86,22 +85,33 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
                 "cost": coordinator.last_optimization_cost,
             }
 
-        # Add network structure information
+        # Summarize available outputs from the coordinator data
+        if coordinator.data:
+            outputs_summary: dict[str, Any] = {}
+            for element_name, outputs in coordinator.data.items():
+                element_summary: dict[str, Any] = {}
+                for output_name, output in outputs.items():
+                    forecast_points = len(output.forecast) if output.forecast else 0
+                    element_summary[output_name] = {
+                        "type": output.type,
+                        "unit": output.unit,
+                        "state": output.state,
+                        "value_count": forecast_points or (1 if output.state is not None else 0),
+                        "first_value": output.state if output.state is not None else None,
+                        "has_forecast": bool(output.forecast),
+                    }
+                outputs_summary[element_name] = element_summary
+            diagnostics["outputs"] = outputs_summary
+
+        # Add network structure information when available
         if coordinator.network:
-            # Get connection elements
             connection_pairs = []
             for element_name, element in coordinator.network.elements.items():
                 if element_name.startswith("connection_"):
-                    # Extract from/to from connection elements using getattr for type safety
                     source = getattr(element, "source", None)
                     target = getattr(element, "target", None)
                     if source and target:
-                        connection_pairs.append(
-                            {
-                                "from": source,
-                                "to": target,
-                            }
-                        )
+                        connection_pairs.append({"from": source, "to": target})
 
             network_info = {
                 "num_elements": len(coordinator.network.elements),
@@ -116,28 +126,5 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
             network_info["num_components"] = len(connected_components)
 
             diagnostics["network"] = network_info
-
-            # Add element-level optimization results
-            if coordinator.optimization_result:
-                element_results: dict[str, dict[str, Any]] = {}
-                for element_name in coordinator.network.elements:
-                    # Skip connection elements in results
-                    if element_name.startswith("connection_"):
-                        continue
-
-                    try:
-                        element_data = coordinator.get_element_data(element_name)
-                        if element_data:
-                            # Only include summary stats, not full time series
-                            element_results[element_name] = {
-                                "has_power_data": "power" in element_data,
-                                "has_energy_data": "energy" in element_data,
-                                "has_soc_data": "soc" in element_data,
-                                "num_periods": (len(element_data.get("power", [])) if "power" in element_data else 0),
-                            }
-                    except Exception:
-                        element_results[element_name] = {"error": "Failed to retrieve data"}
-
-                diagnostics["optimization_results"] = element_results
 
     return diagnostics

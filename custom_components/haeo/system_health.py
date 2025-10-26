@@ -5,8 +5,7 @@ from typing import Any
 from homeassistant.components import system_health
 from homeassistant.core import HomeAssistant, callback
 
-from .const import DOMAIN, OPTIMIZATION_STATUS_FAILED, OPTIMIZATION_STATUS_PENDING, OPTIMIZATION_STATUS_SUCCESS
-from .model.connection import Connection
+from .const import CONF_HORIZON_HOURS, CONF_OPTIMIZER, CONF_PERIOD_MINUTES, DOMAIN
 
 
 @callback
@@ -41,69 +40,32 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
             health_info[f"{prefix}status"] = "coordinator_not_initialized"
             continue
 
-        # Network status
-        if coordinator.network is None:
-            health_info[f"{prefix}network"] = "not_built"
-            health_info[f"{prefix}optimization_status"] = coordinator.optimization_status
-            continue
+        # Coordinator status
+        health_info[f"{prefix}status"] = "ok" if coordinator.last_update_success else "update_failed"
 
-        # Validate network and report status
-        try:
-            coordinator.network.validate()
-            health_info[f"{prefix}network"] = "valid"
-        except ValueError as err:
-            health_info[f"{prefix}network"] = f"invalid: {err}"
+        # Optimization status reflected from coordinator metadata
+        health_info[f"{prefix}optimization_status"] = getattr(coordinator, "optimization_status", "unknown")
 
-        # Network metrics
-        network = coordinator.network
-        total_elements = len(network.elements)
-        connections = sum(1 for element in network.elements.values() if isinstance(element, Connection))
-        non_connection_elements = total_elements - connections
+        if coordinator.last_optimization_cost is not None:
+            health_info[f"{prefix}last_optimization_cost"] = f"{coordinator.last_optimization_cost:.2f}"
+        if coordinator.last_optimization_duration is not None:
+            health_info[f"{prefix}last_optimization_duration"] = round(coordinator.last_optimization_duration, 3)
+        if coordinator.last_optimization_time is not None:
+            health_info[f"{prefix}last_optimization_time"] = coordinator.last_optimization_time.isoformat()
 
-        health_info[f"{prefix}elements"] = non_connection_elements
-        health_info[f"{prefix}connections"] = connections
+        outputs_count = sum(len(outputs) for outputs in coordinator.data.values()) if coordinator.data else 0
+        health_info[f"{prefix}outputs"] = outputs_count
 
-        # Optimization status
-        status = coordinator.optimization_status
-        if status == OPTIMIZATION_STATUS_SUCCESS:
-            health_info[f"{prefix}optimization_status"] = "success"
-        elif status == OPTIMIZATION_STATUS_PENDING:
-            health_info[f"{prefix}optimization_status"] = "pending"
-        elif status == OPTIMIZATION_STATUS_FAILED:
-            health_info[f"{prefix}optimization_status"] = "failed"
-        else:
-            health_info[f"{prefix}optimization_status"] = f"unknown: {status}"
+        optimizer = coordinator.config.get(CONF_OPTIMIZER)
+        if optimizer:
+            health_info[f"{prefix}optimizer"] = optimizer
 
-        # Optimization result details
-        if coordinator.optimization_result:
-            result = coordinator.optimization_result
-            cost = result.get("cost")
-            health_info[f"{prefix}last_optimization_cost"] = f"{cost:.2f}" if cost is not None else "none"
+        horizon_hours = coordinator.config.get(CONF_HORIZON_HOURS)
+        if horizon_hours is not None:
+            health_info[f"{prefix}horizon_hours"] = horizon_hours
 
-            duration = result.get("duration")
-            health_info[f"{prefix}last_optimization_duration"] = f"{duration:.3f}s" if duration is not None else "none"
-
-            timestamp = result.get("timestamp")
-            health_info[f"{prefix}last_optimization_time"] = timestamp.isoformat() if timestamp else "none"
-
-        # Optimizer configuration
-        optimizer = coordinator.config.get("optimizer", "unknown")
-        health_info[f"{prefix}optimizer"] = optimizer
-
-        # Timing configuration
-        horizon_hours = coordinator.config.get("horizon_hours", "unknown")
-        period_minutes = coordinator.config.get("period_minutes", "unknown")
-        health_info[f"{prefix}horizon_hours"] = horizon_hours
-        health_info[f"{prefix}period_minutes"] = period_minutes
-
-        # Entity availability check
-        sensors_available, unavailable_sensors = coordinator.check_sensors_available()
-        if sensors_available:
-            health_info[f"{prefix}sensors"] = "all_available"
-        else:
-            health_info[f"{prefix}sensors"] = f"{len(unavailable_sensors)}_unavailable"
-            # List first few unavailable sensors
-            if unavailable_sensors:
-                health_info[f"{prefix}unavailable_sensors"] = ", ".join(unavailable_sensors[:5])
+        period_minutes = coordinator.config.get(CONF_PERIOD_MINUTES)
+        if period_minutes is not None:
+            health_info[f"{prefix}period_minutes"] = period_minutes
 
     return health_info
