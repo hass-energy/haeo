@@ -119,11 +119,7 @@ def _build_coordinator_output(
     state: Any | None = values[0] if values else None
     forecast: dict[str, Any] | None = None
 
-    if (
-        forecast_times
-        and len(values) == len(forecast_times)
-        and len(values) > 1
-    ):
+    if forecast_times and len(values) == len(forecast_times) and len(values) > 1:
         try:
             forecast = {
                 datetime.fromtimestamp(timestamp, tz=UTC).isoformat(): value
@@ -211,8 +207,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         origin_time = dt_util.utc_from_timestamp(rounded_epoch)
 
         return tuple(
-            int((origin_time + timedelta(seconds=period_seconds * index)).timestamp())
-            for index in range(n_periods)
+            int((origin_time + timedelta(seconds=period_seconds * index)).timestamp()) for index in range(n_periods)
         )
 
     @property
@@ -264,9 +259,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._forecast_timestamps = forecast_timestamps
 
         network_output_data: dict[OutputName, OutputData] = {
-            OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
-                OUTPUT_TYPE_COST, unit=self.hass.config.currency, values=(cost,)
-            ),
+            OUTPUT_NAME_OPTIMIZATION_COST: OutputData(OUTPUT_TYPE_COST, unit=self.hass.config.currency, values=(cost,)),
             OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
                 OUTPUT_TYPE_STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
             ),
