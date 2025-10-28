@@ -347,7 +347,7 @@
     },
     "invalid_config": {
       "title": "Invalid configuration for {element_name}",
-      "description": "Element '{element_name}' has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the '{element_name}' element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
+      "description": "Element {element_name} has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the {element_name} element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
     },
     "disconnected_network": {
       "title": "Network has disconnected components",
