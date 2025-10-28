@@ -7,14 +7,14 @@ from custom_components.haeo.schema.fields import (
     BatterySOCFieldSchema,
     BatterySOCSensorFieldData,
     BatterySOCSensorFieldSchema,
-    EnergyFieldData,
-    EnergyFieldSchema,
+    EnergySensorFieldData,
+    EnergySensorFieldSchema,
     NameFieldData,
     NameFieldSchema,
     PercentageFieldData,
     PercentageFieldSchema,
-    PowerFieldData,
-    PowerFieldSchema,
+    PowerSensorFieldData,
+    PowerSensorFieldSchema,
     PriceFieldData,
     PriceFieldSchema,
 )
@@ -37,13 +37,13 @@ class BatteryConfigSchema(TypedDict):
 
     element_type: Literal["battery"]
     name: NameFieldSchema
-    capacity: EnergyFieldSchema
+    capacity: EnergySensorFieldSchema
     initial_charge_percentage: BatterySOCSensorFieldSchema
-    min_charge_percentage: NotRequired[BatterySOCFieldSchema]
-    max_charge_percentage: NotRequired[BatterySOCFieldSchema]
-    efficiency: NotRequired[PercentageFieldSchema]
-    max_charge_power: NotRequired[PowerFieldSchema]
-    max_discharge_power: NotRequired[PowerFieldSchema]
+    min_charge_percentage: BatterySOCFieldSchema
+    max_charge_percentage: BatterySOCFieldSchema
+    efficiency: PercentageFieldSchema
+    max_charge_power: NotRequired[PowerSensorFieldSchema]
+    max_discharge_power: NotRequired[PowerSensorFieldSchema]
     charge_cost: NotRequired[PriceFieldSchema]
     discharge_cost: NotRequired[PriceFieldSchema]
 
@@ -53,13 +53,13 @@ class BatteryConfigData(TypedDict):
 
     element_type: Literal["battery"]
     name: NameFieldData
-    capacity: EnergyFieldData
+    capacity: EnergySensorFieldData
     initial_charge_percentage: BatterySOCSensorFieldData
-    min_charge_percentage: NotRequired[BatterySOCFieldData]
-    max_charge_percentage: NotRequired[BatterySOCFieldData]
-    efficiency: NotRequired[PercentageFieldData]
-    max_charge_power: NotRequired[PowerFieldData]
-    max_discharge_power: NotRequired[PowerFieldData]
+    min_charge_percentage: BatterySOCFieldData
+    max_charge_percentage: BatterySOCFieldData
+    efficiency: PercentageFieldData
+    max_charge_power: NotRequired[PowerSensorFieldData]
+    max_discharge_power: NotRequired[PowerSensorFieldData]
     charge_cost: NotRequired[PriceFieldData]
     discharge_cost: NotRequired[PriceFieldData]
 

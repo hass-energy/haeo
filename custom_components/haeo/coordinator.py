@@ -188,8 +188,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._state_change_unsub = async_track_state_change_event(
                 self.hass,
                 list(all_entity_ids),
-                lambda _e: self.async_request_refresh(),
+                self._state_change_handler,
             )
+
+    async def _state_change_handler(self, _event: Any) -> None:
+        """Handle state change events for monitored entities."""
+        await self.async_request_refresh()
 
     def cleanup(self) -> None:
         """Clean up coordinator resources when unloading."""

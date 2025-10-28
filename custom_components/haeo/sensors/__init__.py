@@ -5,9 +5,10 @@ from typing import Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.util import slugify
 
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.sensors.sensor import HaeoSensor
 
@@ -23,7 +24,7 @@ SENSOR_TYPE_OPTIMIZATION_DURATION: Final = "optimization_duration"
 
 
 async def async_setup_entry(
-    _hass: HomeAssistant,
+    hass: HomeAssistant,
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
@@ -37,22 +38,31 @@ async def async_setup_entry(
     # Create a sensor for each output in the coordinator data grouped by element
     entities: list[HaeoSensor] = []
 
+    # Get the device registry
+    dr = device_registry.async_get(hass)
+
     if coordinator.data:
-        for element_name, outputs in coordinator.data.items():
-            if not outputs:
-                continue
+        for subentry in config_entry.subentries.values():
+            outputs = coordinator.data.get(subentry.title, {})
 
-            element_key = slugify(element_name) if element_name != "network" else "network"
+            # Get or create the device for this element
+            device_entry = dr.async_get_or_create(
+                identifiers={(DOMAIN, f"{config_entry.entry_id}_{subentry.subentry_id}")},
+                config_entry_id=config_entry.entry_id,
+                config_subentry_id=subentry.subentry_id,
+                translation_key=subentry.subentry_type,
+                translation_placeholders=subentry.data,
+            )
+
             for output_name, output_data in outputs.items():
-                unique_id = f"{config_entry.entry_id}_{element_key}_{output_name}"
-
                 entities.append(
                     HaeoSensor(
                         coordinator,
-                        element_name=element_name,
+                        device_entry=device_entry,
+                        element_name=subentry.title,
                         output_name=output_name,
                         output_data=output_data,
-                        unique_id=unique_id,
+                        unique_id=f"{config_entry.entry_id}_{subentry.subentry_id}_{output_name}",
                     )
                 )
 

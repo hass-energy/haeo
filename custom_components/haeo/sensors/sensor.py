@@ -6,6 +6,7 @@ from typing import Any, cast
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
+from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -21,6 +22,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
     def __init__(
         self,
         coordinator: HaeoDataUpdateCoordinator,
+        device_entry: DeviceEntry,
         *,
         element_name: str,
         output_name: OutputName,
@@ -29,6 +31,8 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
+
+        self.device_entry = device_entry
 
         self._element_name: str = element_name
         self._output_name: OutputName = output_name
@@ -45,7 +49,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
             and output_name == OUTPUT_NAME_OPTIMIZATION_STATUS
             and coordinator.optimization_status
         ):
-            self._attr_native_value = cast("StateType", coordinator.optimization_status)
+            self._attr_native_value = coordinator.optimization_status
 
     @callback
     def _handle_coordinator_update(self) -> None:

@@ -84,10 +84,11 @@ class PowerSensorsFieldMeta(FieldMeta):
         "sensor",
     )
     loader: SensorLoader = field(default_factory=lambda: SensorLoader())
+    multiple: bool = True
 
     def _get_field_validators(self, **_kwargs: Any) -> EntitySelector:
         return EntitySelector(
-            EntitySelectorConfig(domain="sensor", multiple=True, device_class=[SensorDeviceClass.POWER])
+            EntitySelectorConfig(domain="sensor", multiple=self.multiple, device_class=[SensorDeviceClass.POWER])
         )
 
 
@@ -145,13 +146,14 @@ class EnergySensorsFieldMeta(FieldMeta):
         "sensor",
     )
     loader: SensorLoader = field(default_factory=lambda: SensorLoader())
+    multiple: bool = True
 
     def _get_field_validators(self, **_kwargs: Any) -> EntitySelector:
         return EntitySelector(
             EntitySelectorConfig(
                 domain="sensor",
-                multiple=True,
-                device_class=[SensorDeviceClass.BATTERY, SensorDeviceClass.ENERGY_STORAGE],
+                multiple=self.multiple,
+                device_class=[SensorDeviceClass.BATTERY, SensorDeviceClass.ENERGY, SensorDeviceClass.ENERGY_STORAGE],
             )
         )
 
@@ -341,11 +343,13 @@ class BatterySOCSensorFieldMeta(FieldMeta):
 
 # Schema mode type aliases (configuration with entity IDs)
 PowerFieldSchema = Annotated[float, PowerFieldMeta()]
-PowerSensorsFieldSchema = Annotated[Sequence[str], PowerSensorsFieldMeta()]
+PowerSensorFieldSchema = Annotated[Sequence[str], PowerSensorsFieldMeta(multiple=False)]
+PowerSensorsFieldSchema = Annotated[Sequence[str], PowerSensorsFieldMeta(multiple=True)]
 PowerForecastsFieldSchema = Annotated[Sequence[str], PowerForecastsFieldMeta()]
 PowerFlowFieldSchema = Annotated[float, PowerFlowFieldMeta()]
 EnergyFieldSchema = Annotated[float, EnergyFieldMeta()]
-EnergySensorsFieldSchema = Annotated[Sequence[str], EnergySensorsFieldMeta()]
+EnergySensorFieldSchema = Annotated[str, EnergySensorsFieldMeta(multiple=False)]
+EnergySensorsFieldSchema = Annotated[Sequence[str], EnergySensorsFieldMeta(multiple=True)]
 PercentageFieldSchema = Annotated[float, PercentageFieldMeta()]
 BooleanFieldSchema = Annotated[bool, BooleanFieldMeta()]
 ElementNameFieldSchema = Annotated[str, ElementNameFieldMeta()]
@@ -361,11 +365,13 @@ PricesSensorsAndForecastsFieldSchema = Annotated[
 
 # Data mode type aliases (loaded runtime values)
 PowerFieldData = Annotated[float, PowerFieldMeta()]
-PowerSensorsFieldData = Annotated[float, PowerSensorsFieldMeta()]
+PowerSensorFieldData = Annotated[float, PowerSensorsFieldMeta(multiple=False)]
+PowerSensorsFieldData = Annotated[float, PowerSensorsFieldMeta(multiple=True)]
 PowerForecastsFieldData = Annotated[list[float], PowerForecastsFieldMeta()]
 PowerFlowFieldData = Annotated[float, PowerFlowFieldMeta()]
 EnergyFieldData = Annotated[float, EnergyFieldMeta()]
-EnergySensorsFieldData = Annotated[float, EnergySensorsFieldMeta()]
+EnergySensorFieldData = Annotated[float, EnergySensorsFieldMeta(multiple=False)]
+EnergySensorsFieldData = Annotated[float, EnergySensorsFieldMeta(multiple=True)]
 PercentageFieldData = Annotated[float, PercentageFieldMeta()]
 BooleanFieldData = Annotated[bool, BooleanFieldMeta()]
 ElementNameFieldData = Annotated[str, ElementNameFieldMeta()]
