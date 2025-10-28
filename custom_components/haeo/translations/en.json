@@ -1,6 +1,7 @@
 {
   "config": {
     "flow_title": "HAEO Network Setup",
+    "entry_type": "HAEO Optimisation",
     "step": {
       "user": {
         "title": "HAEO Network Setup",
@@ -21,6 +22,16 @@
     "abort": {
       "already_configured": "Network already configured"
     }
+  },
+  "device": {
+    "node": { "name": "{name}" },
+    "battery": { "name": "{name}" },
+    "grid": { "name": "{name}" },
+    "constant_load": { "name": "{name}" },
+    "forecast_load": { "name": "{name}" },
+    "photovoltaics": { "name": "{name}" },
+    "connection": { "name": "{name}" },
+    "network": { "name": "{name}" }
   },
   "options": {
     "step": {
@@ -51,7 +62,8 @@
   },
   "config_subentries": {
     "battery": {
-      "title": "Battery",
+      "flow_title": "Battery",
+      "entry_type": "Battery",
       "step": {
         "user": {
           "title": "Add Battery",
@@ -92,7 +104,8 @@
       }
     },
     "grid": {
-      "title": "Grid Connection",
+      "flow_title": "Grid Connection",
+      "entry_type": "Grid Connection",
       "step": {
         "user": {
           "title": "Add Grid Connection",
@@ -127,7 +140,8 @@
       }
     },
     "constant_load": {
-      "title": "Constant Load",
+      "flow_title": "Constant Load",
+      "entry_type": "Constant Load",
       "step": {
         "user": {
           "title": "Add Constant Load",
@@ -152,7 +166,8 @@
       }
     },
     "forecast_load": {
-      "title": "Forecast Load",
+      "flow_title": "Forecast Load",
+      "entry_type": "Forecast Load",
       "step": {
         "user": {
           "title": "Add Forecast Load",
@@ -177,7 +192,8 @@
       }
     },
     "photovoltaics": {
-      "title": "Photovoltaics",
+      "flow_title": "Photovoltaics",
+      "entry_type": "Photovoltaics",
       "step": {
         "user": {
           "title": "Add Photovoltaics",
@@ -206,7 +222,8 @@
       }
     },
     "node": {
-      "title": "Node",
+      "flow_title": "Node",
+      "entry_type": "Node",
       "step": {
         "user": {
           "title": "Add Node",
@@ -229,7 +246,8 @@
       }
     },
     "connection": {
-      "title": "Connection",
+      "flow_title": "Connection",
+      "entry_type": "Connection",
       "step": {
         "user": {
           "title": "Add Connection",
@@ -264,7 +282,8 @@
       }
     },
     "network": {
-      "title": "Network",
+      "flow_title": "Network",
+      "entry_type": "Network",
       "step": {
         "user": {
           "title": "Add Network",
