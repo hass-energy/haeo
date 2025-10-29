@@ -80,20 +80,20 @@ Use a small positive value if the battery switches direction too often, or leave
 
 ## Configuration Example
 
-Here's a typical battery configuration:
+A typical battery configuration:
 
-```yaml
-Name: Main Battery
-Capacity: 15 kWh
-Initial Charge Percentage: sensor.battery_soc
-Min Charge Percentage: 20%
-Max Charge Percentage: 90%
-Efficiency: 98.5%
-Max Charge Power: 6 kW
-Max Discharge Power: 6 kW
-Charge Cost: -0.005 $/kWh
-Discharge Cost: 0.001 $/kWh
-```
+| Field                         | Example Value             |
+| ----------------------------- | ------------------------- |
+| **Name**                      | Main Battery              |
+| **Capacity**                  | 15 kWh                    |
+| **Initial Charge Percentage** | sensor.battery_soc        |
+| **Min Charge Percentage**     | 20%                       |
+| **Max Charge Percentage**     | 90%                       |
+| **Efficiency**                | 98.5%                     |
+| **Max Charge Power**          | 6 kW                      |
+| **Max Discharge Power**       | 6 kW                      |
+| **Charge Cost**               | -0.005 $/kWh              |
+| **Discharge Cost**            | 0.001 $/kWh               |
 
 ## Sensors Created
 

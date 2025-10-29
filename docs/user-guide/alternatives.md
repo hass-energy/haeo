@@ -153,7 +153,7 @@ EMHASS (Energy Management for Home Assistant) is a Docker add-on for Home Assist
 | Feature            | HAEO                    | WattWise           | EMHASS           |
 | ------------------ | ----------------------- | ------------------ | ---------------- |
 | Algorithm          | Linear Programming      | Linear Programming | Mixed Integer LP |
-| Solvers            | HiGHS, CBC, GLPK, etc.  | Solver-dependent   | Solver-dependent |
+| Solver             | HiGHS                   | Solver-dependent   | Solver-dependent |
 | Time Horizon       | Configurable            | Fixed              | Configurable     |
 | Time Resolution    | Configurable (1-60 min) | Fixed              | Configurable     |
 | Discrete Decisions | ❌ Continuous only      | ❌ Continuous only | ✅ Yes           |

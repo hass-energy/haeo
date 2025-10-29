@@ -4,7 +4,10 @@ The coordinator manages optimization cycles, sensor monitoring, and data distrib
 
 ## Purpose
 
-Central orchestrator implementing Home Assistant's DataUpdateCoordinator pattern that:
+HAEO's coordinator implements Home Assistant's [DataUpdateCoordinator pattern](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities) to orchestrate optimization cycles.
+The implementation is in `custom_components/haeo/coordinator.py`.
+
+The coordinator performs these core responsibilities:
 
 - Schedules regular optimization cycles (default: 5 minutes)
 - Monitors sensor state changes for immediate re-optimization
@@ -13,17 +16,18 @@ Central orchestrator implementing Home Assistant's DataUpdateCoordinator pattern
 - Builds network model from configuration
 - Runs LP solver in executor thread (non-blocking)
 - Distributes results to sensors
-- Handles errors gracefully with appropriate status reporting
+- Handles errors gracefully with [UpdateFailed](https://developers.home-assistant.io/docs/integration_fetching_data/) exceptions
 
-**Key subentry handling**:
+**Subentry discovery**:
 
-- Coordinator created only for hub entries (identified by `integration_type: "hub"`)
-- `_get_child_elements()` discovers subentries by querying config entry registry
-- Subentries identified by matching `parent_entry_id` with hub's `entry_id`
-- Discovery happens on each update - supports dynamic element addition/removal
-- State change listeners monitor sensors from all child elements
+The coordinator is created only for hub entries (identified by `integration_type: "hub"`).
+It discovers element subentries by querying the config entry registry for entries where `parent_entry_id` matches the hub's `entry_id`.
+This discovery happens on each update cycle, supporting dynamic element addition and removal without integration reload.
+State change listeners monitor sensors from all discovered child elements.
 
 ## Update Cycle
+
+The coordinator follows this sequence for each optimization cycle:
 
 ```mermaid
 sequenceDiagram
@@ -54,262 +58,101 @@ sequenceDiagram
     end
 ```
 
-## Startup Behavior
+### Update phases
 
-On first refresh after Home Assistant startup:
+**1. Sensor availability check**
 
-1. **Sensor availability check**: Coordinator validates all configured entity IDs
-2. **Wait if unavailable**: Returns `OPTIMIZATION_STATUS_PENDING` and logs informative message
-3. **State change monitoring**: Automatically retries when sensors become available
-4. **Proceed when ready**: Once all sensors report valid states, optimization proceeds
+On first refresh after Home Assistant startup, the coordinator validates all configured entity IDs.
+If sensors are unavailable, it returns `OPTIMIZATION_STATUS_PENDING` and logs an informative message.
+State change monitoring automatically retries when sensors become available.
 
-```python
-def _check_sensors_available(self) -> tuple[bool, list[str]]:
-    """Check if all configured sensors are available."""
-    entity_ids = _extract_entity_ids(self.config)
-    unavailable = []
+**2. Data loading**
 
-    for entity_id in entity_ids:
-        state = self.hass.states.get(entity_id)
-        if state is None or state.state in ("unavailable", "unknown"):
-            unavailable.append(entity_id)
+The coordinator calls `load_network()` (defined in `custom_components/haeo/data/__init__.py`) to build a populated network model.
+This function uses field metadata to determine required loaders, loads sensor states and forecasts, aligns all data to the time grid, and raises `ValueError` if required data is missing.
+See [data loading](data-loading.md) for details on how loaders work.
 
-    return len(unavailable) == 0, unavailable
-```
+**3. Optimization**
 
-This prevents failed optimizations during Home Assistant startup when sensors are still initializing.
+The network optimization runs in an executor thread via `hass.async_add_executor_job()` to avoid blocking the event loop.
+The coordinator extracts the solver name from configuration and passes it to `network.optimize()`.
+This blocking operation is tracked for diagnostics timing.
 
-### Step 1: Load Data
+**4. Result extraction**
 
-Data loading is handled by `load_network()` from the `data` module:
-
-```python
-from custom_components.haeo.data import load_network
-
-# Calculate time parameters
-period_seconds = self.config[CONF_PERIOD_MINUTES] * 60
-horizon_seconds = self.config[CONF_HORIZON_HOURS] * 3600
-n_periods = horizon_seconds // period_seconds
-
-# Load network with data
-self.network = await load_network(
-    self.hass,
-    self.entry,
-    period_seconds=period_seconds,
-    n_periods=n_periods,
-)
-```
-
-`load_network()` internally:
-
-- Uses field metadata to determine required loaders
-- Loads sensor states via `SensorLoader`
-- Loads forecasts via `ForecastLoader`
-- Aligns all data to time grid
-- Raises `ValueError` if required data missing
-
-### Step 2: Build Network
-
-Network building is handled by `load_network()` which:
-
-1. Converts participant configs to typed schema objects
-2. Validates all required data is available via `config_available()`
-3. Calculates forecast times aligned to period boundaries
-4. Creates `Network` instance with period in hours (model layer uses hours)
-5. Instantiates entity objects via network builder
-6. Creates connections between elements
-
-The coordinator receives a fully populated `Network` object ready for optimization.
-
-### Step 3: Optimize
-
-Optimization runs in executor thread to avoid blocking event loop:
-
-```python
-# Extract solver from config
-optimizer_key = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER)
-optimizer_name = OPTIMIZER_NAME_MAP.get(optimizer_key, optimizer_key)
-
-# Run optimization (blocking operation)
-cost = await self.hass.async_add_executor_job(
-    self.network.optimize,
-    optimizer_name
-)
-```
-
-**Timing**: Coordinator tracks optimization duration for diagnostics.
-
-**Thread safety**: Network object is not accessed by other coroutines during optimization.
-
-### Step 4: Extract Results
-
-```python
-from custom_components.haeo.model import OutputData
-
-
-def _collect_outputs(self, cost: float, duration: float) -> dict[str, OutputData]:
-    """Convert model outputs to Home Assistant friendly structures."""
-
-    outputs: dict[str, OutputData] = {
-        OUTPUT_NAME_OPTIMIZATION_COST: OutputData(OUTPUT_TYPE_COST, self.hass.config.currency, (cost,)),
-        OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(OUTPUT_TYPE_STATUS, None, (OPTIMIZATION_STATUS_SUCCESS,)),
-        OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(OUTPUT_TYPE_DURATION, UnitOfTime.SECONDS, (duration,)),
-    }
-
-    for element in self.network.elements.values():
-        for output_name, output_data in element.get_outputs().items():
-            outputs[str(output_name)] = output_data
-
-    return outputs
-```
-
-Results are stored in the coordinator and exposed to sensors through `coordinator.data`.
+The coordinator converts model outputs to Home Assistant-friendly structures using `_collect_outputs()`.
+Results include optimization cost, status, duration, and entity-specific outputs (power, energy, SOC, etc.).
+These are stored in `coordinator.data` and exposed to sensor entities through the coordinator pattern.
 
 ## Error Handling
 
-The coordinator implements comprehensive error handling for different failure scenarios:
+The coordinator implements comprehensive error handling using Home Assistant's [UpdateFailed](https://developers.home-assistant.io/docs/integration_fetching_data/) exception pattern:
 
-### Sensor Unavailability
+### Error scenarios
 
-When configured sensors are not yet available (startup scenario):
+**Sensor unavailability (startup)**
 
-```python
-# _check_sensors_available returns status
-if not self._check_sensors_available():
-    _LOGGER.info(
-        "Waiting for sensors to become available before running optimization",
-    )
-    return DataUpdateStatus.PENDING
-```
+When configured sensors are not yet available, the coordinator returns `PENDING` status without logging an error (this is expected during startup).
+Sensors show "Unavailable" state in the UI, and the coordinator retries on the next update interval.
 
-**Behavior**:
-- Coordinator returns `PENDING` status
-- No error logged (this is expected during startup)
-- Sensors show "Unavailable" state in UI
-- Coordinator retries on next update interval
+**Data loading errors**
 
-### Data Loading Errors
+When sensor data is available but loading fails (invalid format, missing forecast, type conversion failures), the coordinator raises `UpdateFailed` with a descriptive message.
 
-When sensor data is available but loading fails:
+**Optimization errors**
 
-```python
-try:
-    self.network = load_network(
-        self.config_entry.data,
-        self.config,
-        self.hass,
-    )
-except ValueError as err:
-    raise UpdateFailed(f"Failed to load network data: {err}") from err
-```
+When network optimization fails (infeasible constraints, solver not installed, numerical instabilities), the coordinator raises `UpdateFailed` with the solver error.
 
-**Common causes**:
-- Sensor returning invalid/unexpected data format
-- Missing forecast data when required
-- Type conversion failures
+### Error propagation
 
-### Optimization Errors
-
-When network optimization fails:
-
-```python
-try:
-    cost = await self.hass.async_add_executor_job(
-        self.network.optimize,
-        optimizer_name,
-    )
-except pulp.PulpSolverError as err:
-    raise UpdateFailed(f"Optimization failed: {err}") from err
-```
-
-**Common causes**:
-- Infeasible constraints (no solution exists)
-- Solver not installed or misconfigured
-- Numerical instabilities in LP formulation
-
-### Error Propagation
-
-All coordinator errors raise `UpdateFailed` which:
+All coordinator errors raise `UpdateFailed`, which:
 - Sets `coordinator.last_update_success = False`
-- Logs error message
-- Makes entities unavailable
-- Schedules retry on next interval
+- Logs the error message
+- Makes dependent entities unavailable
+- Schedules a retry on the next interval
 
-### State Change Error Handling
-
-State change triggers use same error handling but with different context:
-
-```python
-@callback
-def _handle_state_change(self, event: Event) -> None:
-    """Handle state changes from configured sensors."""
-    self.hass.async_create_task(self.async_request_refresh())
-```
-
-Errors during state-triggered updates are caught by coordinator framework and don't crash integration.
+State change triggers use the same error handling through the coordinator framework and don't crash the integration.
 
 ## State Change Listeners
 
-The coordinator monitors configured sensors and triggers immediate re-optimization when their state changes:
+The coordinator monitors configured sensors and triggers immediate re-optimization when their state changes.
 
-### Listener Setup
+### Implementation approach
 
-```python
-def _setup_state_change_listeners(self) -> None:
-    """Set up listeners for configured sensor state changes."""
-    # Collect all sensor entity IDs from child element subentries
-    sensor_ids: set[str] = set()
-    for child_entry in self._get_child_elements():
-        # Extract sensor IDs from element configuration
-        for field_name, field_value in child_entry.data.items():
-            if field_name.endswith("_sensor") and isinstance(field_value, str):
-                sensor_ids.add(field_value)
+During setup, the coordinator:
 
-    # Subscribe to state changes
-    for entity_id in sensor_ids:
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass,
-                entity_id,
-                self._handle_state_change,
-            )
-        )
-```
+1. Collects all sensor entity IDs from child element subentries (looking for fields ending in `_sensor`)
+2. Subscribes to state change events for each sensor using `async_track_state_change_event()`
+3. Registers cleanup callbacks with `async_on_remove()` to unsubscribe on coordinator teardown
 
-### State Change Handler
+When a state changes:
 
-```python
-@callback
-def _handle_state_change(self, event: Event) -> None:
-    """Handle state changes from configured sensors."""
-    # Trigger coordinator refresh asynchronously
-    self.hass.async_create_task(self.async_request_refresh())
-```
+1. The `_handle_state_change()` callback is invoked (marked with `@callback` for event loop safety)
+2. It calls `async_request_refresh()` asynchronously
+3. The coordinator debounces overlapping updates automatically
+4. The full update cycle runs with the latest sensor data
 
-**Behavior**:
+The state change listener implementation is in `custom_components/haeo/coordinator.py`.
 
-- State change → immediate `async_request_refresh()` call
-- Debounced by coordinator (ignores if update already in progress)
-- Goes through full update cycle (availability check → data load → optimize)
-- Results in fresh optimization based on latest sensor data
-- Dynamically updates when elements are added/removed
+### Performance considerations
 
-**Use cases**:
-- Energy price changes (grid pricing sensors)
-- Forecast updates (solar production, load predictions)
-- Battery state changes (SOC updates)
-- Manual sensor updates via automation
-
-### Performance Considerations
-
-- **Debouncing**: Coordinator automatically prevents overlapping updates
-- **Event loop friendly**: All operations use `@callback` or async
+- **Debouncing**: Coordinator prevents overlapping updates automatically
+- **Event loop friendly**: All operations use `@callback` or async patterns
 - **No polling overhead**: Only updates when data changes
-- **Configurable sensors**: Only monitors sensors actually used in config
+- **Dynamic discovery**: Sensor list updates when elements are added/removed
 
 ## Testing
 
-Coordinator testing uses Home Assistant test fixtures and mocks:
+Coordinator testing uses Home Assistant's [test fixtures](https://developers.home-assistant.io/docs/development_testing/#test-fixtures) and mocks.
+Comprehensive test coverage is in `tests/test_coordinator.py`, including:
+
+- Successful coordinator updates
+- Sensor unavailability handling
+- Data loading error scenarios
+- Optimization failure cases
+- State change trigger behavior
+
+Example test pattern:
 
 ```python
 @pytest.fixture
@@ -318,34 +161,9 @@ async def coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
-
-    # Return coordinator from runtime_data
     return mock_config_entry.runtime_data.coordinator
-
-
-async def test_coordinator_update(coordinator: HaeoDataUpdateCoordinator) -> None:
-    """Test successful coordinator update."""
-    await coordinator.async_refresh()
-
-    assert coordinator.last_update_success
-    assert coordinator.network is not None
-    assert coordinator.network.status == NetworkStatus.OPTIMAL
-
-
-async def test_sensor_unavailable_on_startup(
-    hass: HomeAssistant,
-    coordinator: HaeoDataUpdateCoordinator,
-) -> None:
-    """Test coordinator handles unavailable sensors gracefully."""
-    # Sensors not yet available
-    await coordinator.async_refresh()
-
-    # Should return PENDING status
-    assert coordinator.status == DataUpdateStatus.PENDING
-    assert coordinator.network is None
 ```
 
-See `tests/test_coordinator.py` for comprehensive test coverage.
 
 ## Related Documentation
 
@@ -354,3 +172,4 @@ See `tests/test_coordinator.py` for comprehensive test coverage.
 - [Energy Models](energy-models.md) - Network entities and constraints
 - [Sensor Reference](../reference/sensors.md) - Exposed sensor entities
 - [Testing Guide](testing.md) - Testing patterns and fixtures
+- [Home Assistant DataUpdateCoordinator](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities) - Upstream pattern documentation

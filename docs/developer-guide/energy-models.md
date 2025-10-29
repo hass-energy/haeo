@@ -35,27 +35,32 @@ This reduces the number of explicit constraints you need and improves solver per
 Each element must implement `get_outputs()` so the Home Assistant integration can discover the sensor data automatically.
 Return a tuple of `ElementOutput` dataclasses where `values` is the full time series as floats.
 Use `pulp.value()` to convert decision variables into numeric values and provide copies of any underlying lists so callers cannot mutate internal state.
+
 The base `Element` implementation already reports net power in kilowatts.
 Override the method when you need to expose extra information such as stored energy, state of charge, or forecast capacity.
 
-```python
-def get_outputs(self) -> tuple[ElementOutput, ...]:
-    outputs = list(super().get_outputs())
-    energy_values = self._extract_values(self.energy)
-    if energy_values:
-        outputs.append(ElementOutput(name="energy", unit="kWh", values=energy_values))
-    return tuple(outputs)
-```
+**Expected outputs by element type:**
 
-Battery models should return `power`, `energy`, and `soc`.
-Photovoltaic models should add an `available_power` output based on forecast limits.
-Loads should expose their consumption as `power` only.
+- **Battery models**: `power`, `energy`, and `soc`
+- **Photovoltaic models**: `power` and `available_power` (based on forecast limits)
+- **Load models**: `power` only
+- **Grid models**: `power` and `cost`
+
 Keeping the output contract consistent means new model components immediately surface in Home Assistant without changes to the sensor platform.
+See existing implementations in `custom_components/haeo/model/` for examples:
+
+- `battery.py` - Energy storage with SOC tracking
+- `photovoltaics.py` - Solar generation with forecast limits
+- `grid.py` - Grid import/export with pricing
+- `constant_load.py` - Fixed power consumption
+- `forecast_load.py` - Time-varying consumption
 
 ## Connections and nodes
 
 Connections remain responsible for enforcing flow limits and tying elements together through node balance constraints.
 When introducing a new element, ensure it connects through existing nodes or provide a clear reason to add a specialised node variant.
+
+The current implementations are in `custom_components/haeo/model/connection.py` and `custom_components/haeo/model/node.py`.
 
 ## Cost modelling
 

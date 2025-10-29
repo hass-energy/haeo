@@ -2,6 +2,10 @@
 
 HAEO uses pytest with 95% minimum coverage target.
 
+For more information on testing Home Assistant integrations, see:
+- [Testing integrations documentation](https://developers.home-assistant.io/docs/development_testing/)
+- [pytest fixtures reference](https://developers.home-assistant.io/docs/development_testing/#test-fixtures)
+
 ## Test Organization
 
 - `tests/conftest.py` - Shared fixtures (Home Assistant instance, mock config entries, common scenarios)

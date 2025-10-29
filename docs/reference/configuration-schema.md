@@ -9,7 +9,6 @@ Complete configuration schema for all HAEO entities.
 | Name           | string          | Yes      | -       | Unique network identifier |
 | Horizon Hours  | integer (1-168) | Yes      | 48      | Optimization time horizon |
 | Period Minutes | integer (1-60)  | Yes      | 5       | Time step size            |
-| Optimizer      | string          | Yes      | HiGHS   | LP solver to use          |
 
 ## Battery Configuration
 

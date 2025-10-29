@@ -7,6 +7,10 @@ Guide to HAEO's data loading architecture and field type system.
 HAEO's data loading system bridges Home Assistant sensor entities with the optimization model.
 The system supports two operational modes and multiple field types to handle diverse data sources.
 
+For more information on Home Assistant sensors and state management, see:
+- [Entity state documentation](https://developers.home-assistant.io/docs/core/entity/)
+- [Sensor platform guide](https://developers.home-assistant.io/docs/core/entity/sensor/)
+
 ## Architecture
 
 ```mermaid

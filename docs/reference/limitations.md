@@ -48,7 +48,7 @@ Historical data improves forecasting accuracy, so new installations may produce 
 
 ## Platform expectations
 
-HAEO targets Home Assistant 2024.1 or later on Python 3.13+ with a linear programming solver such as CBC or HiGHS available.
+HAEO targets Home Assistant 2024.1 or later on Python 3.13+.
 Resource constrained systems can run HAEO, but large networks or long horizons may tax CPU and memory resources.
 Monitor system metrics and tune horizons or model complexity if you notice sustained pressure on the host.
 

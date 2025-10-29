@@ -13,12 +13,12 @@ graph TD
     Coord --> Loaders[Data Loaders]
     Coord --> Builder[Network Builder]
     Builder --> Model[Network Model]
-    Model --> Solver[LP Solver]
-    Solver --> Results[Results]
+    Model --> Optimizer[HiGHS Optimizer]
+    Optimizer --> Results[Results]
     Results --> Sensors[Sensors]
 
     style Coord fill:#FFE4B5
-    style Solver fill:#90EE90
+    style Optimizer fill:#90EE90
 ```
 
 ## Core Components
@@ -27,15 +27,19 @@ graph TD
 
 User-facing configuration via the Home Assistant UI.
 The hub flow creates the main entry and exposes additional flows so users can add and manage elements without leaving the standard interface.
-See the [config entry documentation](https://developers.home-assistant.io/docs/config_entries_index) for the underlying Home Assistant patterns.
+
+See the Home Assistant documentation for the underlying patterns:
+- [Config Entries](https://developers.home-assistant.io/docs/config_entries_index/)
+- [Config Flow Handler](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/)
+- [Data Entry Flow](https://developers.home-assistant.io/docs/data_entry_flow_index/)
 
 ### Coordinator (`coordinator.py`)
 
-Central manager scheduling optimization cycles (default 5 min), loading data, building network, running solver, distributing results.
+Central manager scheduling optimization cycles (default 5 min), loading data, building network, running optimization, distributing results.
 Each hub entry creates one coordinator instance.
 
-See the [data update coordinator documentation](https://developers.home-assistant.io/docs/integration_fetching_data) for the base pattern.
-HAEO's coordinator gathers sensor values, assembles the optimization network, runs the solver in an executor, and pushes the results back to the entities.
+See the [DataUpdateCoordinator documentation](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities) for the base pattern.
+HAEO's coordinator gathers sensor values, assembles the optimization network, runs the optimizer in an executor, and pushes the results back to the entities.
 It listens for element additions or removals and triggers a refresh whenever the underlying data changes.
 
 ### Data loaders (`data/`)
@@ -66,20 +70,21 @@ LP representation using PuLP:
 - **Connection**: Power flow path with optional min/max limits
 - **Network**: Container with `optimize()`, `cost()`, and `constraints()` methods
 
-### LP Solver
+### Optimization
 
-Multiple solvers supported via PuLP:
-
-- **HiGHS** (default): Fast, open-source, no external dependencies
-- **CBC, GLPK, COIN-OR, SCIP, CyLP**: Alternative solvers
-
-Solves linear programming minimization problem, returns optimal cost and decision variable values.
+Uses the HiGHS linear programming solver via PuLP to solve the energy optimization problem.
+Minimizes cost while respecting all constraints, returning optimal cost and decision variable values.
 
 ### Sensors (`sensors/`)
 
 Sensor entities expose optimization outputs through standard Home Assistant constructs.
 Separate modules handle network-level metrics and per-element values, and every sensor carries a forecast attribute so downstream automations can look ahead.
-Refer to the [sensor entity documentation](https://developers.home-assistant.io/docs/core/entity/sensor) when adding new measurements.
+
+See the Home Assistant documentation:
+- [Entity creation](https://developers.home-assistant.io/docs/core/entity/)
+- [Sensor entity](https://developers.home-assistant.io/docs/core/entity/sensor/)
+- [Platform development](https://developers.home-assistant.io/docs/creating_platform_index/)
+- [Device Registry](https://developers.home-assistant.io/docs/device_registry_index/)
 
 ### Model Architecture (`model/`)
 
@@ -88,7 +93,7 @@ Separate subsystem implementing the optimization model:
 **Design principles**:
 - Pure Python linear programming using PuLP
 - Elements generate their own variables and constraints
-- Network assembles elements and runs solver
+- Network assembles elements and runs optimization
 - No Home Assistant dependencies in model layer
 
 **Key components**:
@@ -138,14 +143,6 @@ Rather than documenting every file, focus on how the major areas collaborate:
    - Model tests in `tests/test_model.py`
    - Config flow tests in `tests/flows/`
    - Integration tests
-
-### Custom Solvers
-
-Add solver support in `model/network.py`:
-
-- Map solver names in `const.py`
-- Add solver validation
-- Update `optimize()` to handle new solver options
 
 ### Custom Field Types
 

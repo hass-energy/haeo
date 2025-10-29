@@ -146,7 +146,6 @@ If optimization takes too long:
 1. **Trim horizon cautiously**: Consider smaller horizons only after other steps and follow the [horizon guidance](configuration.md#horizon-hours) when you do.
 2. **Increase period**: Use larger time steps (5min → 15min)
 3. **Simplify network**: Remove unnecessary elements
-4. **Change solver**: Try CBC or GLPK
 
 ## Battery Not Charging/Discharging
 

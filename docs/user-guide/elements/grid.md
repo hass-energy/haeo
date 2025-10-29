@@ -130,58 +130,25 @@ Use this to model:
 
 ## Configuration Examples
 
-### Dynamic Pricing
+### Dynamic pricing with forecast sensors
 
-Using forecast sensors from an integration:
+| Field           | Value                                                      |
+| --------------- | ---------------------------------------------------------- |
+| **Name**        | Main Grid                                                  |
+| **Import Price** | sensor.amber_general_price, sensor.amber_forecast_price    |
+| **Export Price** | sensor.amber_feed_in_price, sensor.amber_feed_in_forecast |
+| **Import Limit** | 15 kW                                                      |
+| **Export Limit** | 10 kW                                                      |
 
-```yaml
-Name: Main Grid
-Import Price:
-  - sensor.amber_general_price
-  - sensor.amber_forecast_price
-Export Price:
-  - sensor.amber_feed_in_price
-  - sensor.amber_feed_in_forecast
-Import Limit: 15 kW
-Export Limit: 10 kW
-```
+### Fixed pricing with template sensors
 
-### Time-of-Use Tariff
+| Field           | Value                       |
+| --------------- | --------------------------- |
+| **Name**        | Grid Connection             |
+| **Import Price** | sensor.constant_import_price |
+| **Export Price** | sensor.constant_export_price |
 
-Using a template sensor for fixed time-of-use pricing:
-
-```yaml
-Name: Grid Connection
-Import Price: sensor.tou_import_price
-Export Price: sensor.tou_export_price
-Import Limit: 20 kW
-Export Limit: 5 kW
-```
-
-See [Forecasts & Sensors](../forecasts-and-sensors.md#time-of-use-tariff) for creating time-of-use template sensors.
-
-### Fixed Pricing
-
-Using a template sensor for constant prices:
-
-```yaml
-Name: Main Grid
-Import Price: sensor.constant_import_price
-Export Price: sensor.constant_export_price
-```
-
-See [Forecasts & Sensors](../forecasts-and-sensors.md#constant-price-as-forecast) for creating constant-price template sensors.
-
-### Export-Only Grid
-
-For systems that can't import:
-
-```yaml
-Name: Export Grid
-Import Price: sensor.very_high_import_price # Set to prohibitively high price
-Export Price: sensor.feed_in_price
-Import Limit: 0.001 kW # Minimal import allowed
-```
+See [Forecasts & Sensors](../forecasts-and-sensors.md) for creating constant-price and time-of-use template sensors.
 
 ## How HAEO Uses Grid Configuration
 

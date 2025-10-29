@@ -219,6 +219,18 @@ uv lock --upgrade                      # Update lock file
 
 ### Documentation Standards
 
+HAEO follows documentation best practices to maintain consistency, reduce duplication, and improve maintainability.
+See [`docs/developer-guide/documentation-guidelines.md`](../docs/developer-guide/documentation-guidelines.md) for comprehensive guidelines.
+
+**Key principles:**
+
+- **DRY (Don't Repeat Yourself)**: Link to source code instead of duplicating implementation details
+- **Guide, don't duplicate**: Developer docs explain concepts and locations, not line-by-line code
+- **Link to Home Assistant**: Reference [Home Assistant docs](https://developers.home-assistant.io/) for standard concepts (ConfigFlow, DataUpdateCoordinator, Entity, etc.)
+- **Semantic line breaks**: One sentence per line following [SemBr specification](https://sembr.org/)
+
+**Code documentation:**
+
 - **File Headers**: Short and concise
     ```python
     """Integration for Peblar EV chargers."""
@@ -228,25 +240,28 @@ uv lock --upgrade                      # Update lock file
     async def async_setup_entry(hass: HomeAssistant, entry: PeblarConfigEntry) -> bool:
         """Set up Peblar from a config entry."""
     ```
-- **Markdown Formatting**: Use semantic line breaks (one sentence per line)
-    - Follow the [Semantic Line Breaks specification (SemBr)](https://sembr.org/)
-    - This improves git diffs and makes reviewing changes easier
-    - Break lines at semantic boundaries only:
-        - **Required**: After sentences (., !, ?)
-        - **Recommended**: After independent clauses (,, ;, :, —)
-        - **Optional**: After dependent clauses for clarity
-    - **Never break lines based on column count**
-    - If a line exceeds ~120 characters, consider it a sign that the prose may need simplification
-    - Example:
-        ```markdown
-        All human beings are born free and equal in dignity and rights.
-        They are endowed with reason and conscience and should act towards one another in a spirit of brotherhood.
-        ```
-- **Comment Style**:
-    - Use clear, descriptive comments
-    - Explain the "why" not just the "what"
-    - Keep code block lines under 80 characters when possible
-    - Use progressive disclosure (simple explanation first, complex details later)
+
+**Markdown documentation:**
+
+- Use semantic line breaks (one sentence per line)
+- Break lines at semantic boundaries:
+    - **Required**: After sentences (., !, ?)
+    - **Recommended**: After independent clauses (,, ;, :, —)
+    - **Optional**: After dependent clauses for clarity
+- **Never break lines based on column count**
+- If a line exceeds ~120 characters, consider simplifying the prose
+- Example:
+    ```markdown
+    All human beings are born free and equal in dignity and rights.
+    They are endowed with reason and conscience and should act towards one another in a spirit of brotherhood.
+    ```
+
+**Comment style:**
+
+- Use clear, descriptive comments
+- Explain the "why" not just the "what"
+- Keep code block lines under 80 characters when possible
+- Use progressive disclosure (simple explanation first, complex details later)
 
 ## Async Programming
 

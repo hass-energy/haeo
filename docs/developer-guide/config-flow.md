@@ -6,12 +6,14 @@ Guide to HAEO's ConfigSubentry-based configuration flow implementation.
 
 HAEO uses Home Assistant's **ConfigSubentry architecture** where each element is managed as a subentry:
 
-1. **Hub flow** (`flows/hub.py`): Creates main hub entry with optimization settings
-2. **Element flows** (`flows/element.py`): Creates element ConfigSubentries using `ConfigSubentryFlow`
+1. **Hub flow** (in `custom_components/haeo/flows/hub.py`): Creates main hub entry with optimization settings
+2. **Element flows** (in `custom_components/haeo/flows/element.py`): Creates element ConfigSubentries using `ConfigSubentryFlow`
 3. **Network subentry**: Automatically created representing the optimization network itself
 
-This architecture follows Home Assistant's native subentry pattern.
+This architecture follows Home Assistant's native [subentry pattern](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/).
 Elements appear as subentries under the main hub in the UI with proper parent-child management.
+
+For general information on config flows, see the [Home Assistant Config Flow documentation](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/) and [Data Entry Flow](https://developers.home-assistant.io/docs/data_entry_flow_index/).
 
 ### Architecture Benefits
 
@@ -46,10 +48,13 @@ graph TD
 
 ## Hub Flow
 
-### Hub Entry Structure
+The hub flow creates the main integration entry that acts as a parent for element subentries and hosts the optimization coordinator.
+
+### Hub entry structure
+
+Hub entries are identified by the presence of `integration_type: "hub"` in their data:
 
 ```python
-# Hub entry in config registry
 {
     "entry_id": "abc123...",
     "domain": "haeo",
@@ -59,77 +64,31 @@ graph TD
     },
     "options": {
         "horizon_hours": 48,
-        "period_minutes": 5,
-        "optimizer": "highs"
+        "period_minutes": 5
     }
 }
 ```
 
-### Step 1: User Input
+Optimization settings are stored in `options` (user-editable), while the hub marker is stored in `data` (immutable).
+The hub flow implementation is in `custom_components/haeo/flows/hub.py`.
 
-Collects basic optimization parameters:
+### Key implementation points
 
-```python
-class HubConfigFlow(ConfigFlow):
-    """Handle hub entry creation."""
-
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Handle hub creation."""
-        if user_input is None:
-            return self.async_show_form(
-                step_id="user",
-                data_schema=vol.Schema(
-                    {
-                        vol.Required(CONF_NAME, default="HAEO"): str,
-                        vol.Required(CONF_HORIZON_HOURS, default=48): vol.All(
-                            vol.Coerce(int), vol.Range(min=1, max=168)
-                        ),
-                        vol.Required(CONF_PERIOD_MINUTES, default=5): vol.All(
-                            vol.Coerce(int), vol.Range(min=1, max=60)
-                        ),
-                        vol.Optional(CONF_OPTIMIZER, default="highs"): vol.In(
-                            ["highs", "cbc", "glpk"]
-                        ),
-                    }
-                ),
-            )
-
-        # Prevent duplicate names
-        existing_entries = self._async_current_entries()
-        for entry in existing_entries:
-            if entry.data.get("integration_type") == "hub" and entry.title == user_input[CONF_NAME]:
-                return self.async_abort(reason="already_configured")
-
-        # Create hub entry
-        return self.async_create_entry(
-            title=user_input[CONF_NAME],
-            data={"integration_type": INTEGRATION_TYPE_HUB},  # Marker only
-            options={
-                CONF_HORIZON_HOURS: user_input[CONF_HORIZON_HOURS],
-                CONF_PERIOD_MINUTES: user_input[CONF_PERIOD_MINUTES],
-                CONF_OPTIMIZER: user_input[CONF_OPTIMIZER],
-            },
-        )
-```
-
-**Key points**:
-
-- Stores `integration_type: "hub"` marker in `data` to identify hub entries
-- Stores all optimization settings in `options` (user-editable via options flow)
-- No element data stored - elements are separate subentries
-- Hub acts as parent for coordinator and subentry discovery
+- Hub flow uses standard config flow pattern with user step
+- Prevents duplicate hub names by checking existing entries
+- Stores optimization settings in `options` for later editing via options flow
+- Hub marker in `data` allows coordinator to identify hub entries
 
 ## Element Flows
 
 Element subentries are created through separate config flows, one per element type.
-All element flows inherit from a common base class.
+All element flows inherit from a common base class that handles parent hub selection and entry creation.
 
-### Element Entry Structure
+### Element entry structure
+
+Element entries link to their parent hub via `parent_entry_id`:
 
 ```python
-# Battery subentry example
 {
     "entry_id": "def456...",
     "domain": "haeo",
@@ -139,195 +98,89 @@ All element flows inherit from a common base class.
         "parent_entry_id": "abc123...",  # Links to hub entry
         "capacity": 13500,
         "charge_power": 5000,
-        "discharge_power": 5000,
-        "efficiency": 0.95,
-        "initial_soc_sensor": "sensor.battery_soc"
+        # ... element-specific configuration
     }
 }
 ```
 
-### Base Element Flow
+### Base element flow pattern
 
-All element flows extend `ElementConfigFlow`:
+All element flows extend `ElementConfigFlow` which provides:
 
-```python
-class ElementConfigFlow(ConfigFlow):
-    """Base class for element subentry flows."""
+- Parent hub selection (auto-selects if only one hub exists)
+- Entry creation with proper parent linkage
+- Duplicate prevention
+- Standard error handling
 
-    def __init__(self) -> None:
-        """Initialize element flow."""
-        self.element_type: str = ""  # Set by subclass
-        self.defaults: dict[str, Any] = {}  # Default values
-        self.schema_fields: dict[str, Any] = {}  # Schema definition
+The element flow base class is in `custom_components/haeo/flows/element.py`.
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Handle element creation."""
-        if user_input is None:
-            # First step: select parent hub
-            return await self._async_step_select_hub()
+### Element-specific implementations
 
-        # Second step: configure element
-        return await self._async_step_configure_element(user_input)
+Each element type has its own flow class in `custom_components/haeo/flows/`:
 
-    async def _async_step_select_hub(self) -> ConfigFlowResult:
-        """Let user select which hub this element belongs to."""
-        # Find all hub entries
-        hub_entries = [
-            entry
-            for entry in self._async_current_entries()
-            if entry.data.get("integration_type") == INTEGRATION_TYPE_HUB
-        ]
+- `BatteryConfigFlow` - Battery element configuration
+- `GridConfigFlow` - Grid connection configuration
+- `PhotovoltaicsConfigFlow` - PV system configuration
+- `ConstantLoadConfigFlow` - Constant load configuration
+- `ForecastLoadConfigFlow` - Forecast-based load configuration
+- `NodeConfigFlow` - Network node configuration
 
-        if not hub_entries:
-            return self.async_abort(reason="no_hub")
-
-        if len(hub_entries) == 1:
-            # Auto-select single hub
-            self.parent_entry_id = hub_entries[0].entry_id
-            return await self._async_step_configure_element(None)
-
-        # Multiple hubs - let user choose
-        return self.async_show_form(
-            step_id="select_hub",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("parent_entry_id"): vol.In(
-                        {entry.entry_id: entry.title for entry in hub_entries}
-                    )
-                }
-            ),
-        )
-```
-
-### Element-Specific Implementation
-
-Each element type has its own flow class:
-
-```python
-class BatteryConfigFlow(ElementConfigFlow):
-    """Handle battery subentry creation."""
-
-    def __init__(self) -> None:
-        """Initialize battery flow."""
-        super().__init__()
-        self.element_type = "battery"
-        self.defaults = {
-            "capacity": 13500,  # Wh
-            "charge_power": 5000,  # W
-            "discharge_power": 5000,  # W
-            "efficiency": 0.95,
-        }
-        self.schema_fields = {
-            "capacity": "Capacity (Wh)",
-            "charge_power": "Charge Power (W)",
-            "discharge_power": "Discharge Power (W)",
-            "efficiency": "Round-trip Efficiency",
-            "initial_soc_sensor": "Initial SOC Sensor",
-        }
-```
-
-**Key points**:
-
-- Element flow prompts for parent hub selection
-- Auto-selects if only one hub exists
-- Stores `parent_entry_id` to link subentry to hub
-- Element configuration stored in subentry's `data`
-- Each element type has specific schema fields and defaults
-
-## Options Flow
+Each flow defines element-specific schema fields, defaults, and validation logic.## Options Flow
 
 The options flow allows users to edit hub optimization settings after initial setup.
-Elements and connections are managed as separate config entries, not through the options flow.
+Elements are managed as separate config entries (added/edited/removed through the main integration flow), not through the options flow.
 
-### Implementation
+The options flow implementation is in `custom_components/haeo/flows/hub.py`.
 
-```python
-class HubOptionsFlow(OptionsFlow):
-    """Handle hub options flow for editing optimization settings."""
+### Key points
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Manage hub optimization settings."""
-        if user_input is not None:
-            # Update hub options
-            return self.async_create_entry(title="", data=user_input)
-
-        # Show current settings for editing
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_HORIZON_HOURS,
-                        default=self.config_entry.options.get(CONF_HORIZON_HOURS, 48),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=168)),
-                    vol.Required(
-                        CONF_PERIOD_MINUTES,
-                        default=self.config_entry.options.get(CONF_PERIOD_MINUTES, 5),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
-                    vol.Optional(
-                        CONF_OPTIMIZER,
-                        default=self.config_entry.options.get(CONF_OPTIMIZER, "highs"),
-                    ): vol.In(["highs", "cbc", "glpk"]),
-                }
-            ),
-        )
-```
-
-**Key points**:
-
-- Options flow only edits hub-level optimization settings
-- Element and connection configuration happens via separate config flows
+- Options flow only edits hub-level optimization settings (horizon, period, solver)
+- Element configuration happens via separate config entries
 - Settings stored in `config_entry.options` (not `data`)
-- Changes trigger coordinator reload to apply new optimization parameters
+- Changes trigger coordinator reload to apply new parameters
 
 ## Element Management
 
 Elements are not managed through the hub's options flow.
 Instead, users add/edit/remove elements as independent config entries through the main "Add Integration" flow.
 
-### Adding Elements
+### User workflow
 
-Users add elements by:
+**Adding elements:**
+1. Navigate to **Settings** → **Devices & Services**
+2. Click **Add Integration**
+3. Search for "HAEO"
+4. Select element type (battery, grid, etc.)
+5. Choose parent hub
+6. Configure element parameters
 
-1. Navigating to **Settings** → **Devices & Services**
-2. Clicking **Add Integration**
-3. Searching for "HAEO"
-4. Selecting element type (battery, grid, etc.)
-5. Choosing parent hub
-6. Configuring element parameters
-
-### Editing Elements
-
-To edit an element:
-
+**Editing elements:**
 1. Find the element entry in **Devices & Services**
 2. Click **Configure** on the element entry
 3. Modify parameters
 4. Submit changes
 
-Element entries can be independently reconfigured without affecting the hub or other elements.
-
-### Removing Elements
-
-To remove an element:
-
+**Removing elements:**
 1. Find the element entry in **Devices & Services**
 2. Click the three-dot menu
 3. Select **Delete**
 
-The hub coordinator automatically detects removed elements on the next update cycle.
+The hub coordinator automatically detects element changes on the next update cycle.
+See [user configuration guide](../user-guide/configuration.md) for end-user instructions.
 
 ## Testing Config Flow
 
-### Hub Flow Tests
+Config flow testing uses Home Assistant's [testing fixtures](https://developers.home-assistant.io/docs/development_testing/#test-fixtures) and follows standard patterns.
+
+Comprehensive test coverage is in `tests/test_config_flow.py`, including:
+
+- Hub flow success and duplicate prevention
+- Element flow with hub selection
+- Options flow for editing settings
+- Error handling scenarios
+- Validation logic
+
+Example test pattern:
 
 ```python
 async def test_hub_flow_success(hass: HomeAssistant) -> None:
@@ -336,130 +189,15 @@ async def test_hub_flow_success(hass: HomeAssistant) -> None:
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
 
-    assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "user"
-
-    # Submit hub configuration
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        user_input={
-            CONF_NAME: "Test Hub",
-            CONF_HORIZON_HOURS: 48,
-            CONF_PERIOD_MINUTES: 5,
-            CONF_OPTIMIZER: "highs",
-        },
+        user_input={CONF_NAME: "Test Hub", CONF_HORIZON_HOURS: 48},
     )
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Test Hub"
     assert result["data"] == {INTEGRATION_TYPE: INTEGRATION_TYPE_HUB}
-    assert result["options"][CONF_HORIZON_HOURS] == 48
-
-
-async def test_hub_flow_duplicate_name(hass: HomeAssistant) -> None:
-    """Test duplicate hub name prevention."""
-    # Create first hub
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="Existing Hub",
-        data={INTEGRATION_TYPE: INTEGRATION_TYPE_HUB},
-    )
-    entry.add_to_hass(hass)
-
-    # Attempt to create duplicate
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
-
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        user_input={CONF_NAME: "Existing Hub"},
-    )
-
-    assert result["type"] == FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
 ```
 
-### Element Flow Tests
-
-```python
-async def test_battery_flow_success(hass: HomeAssistant) -> None:
-    """Test successful battery element creation."""
-    # Create hub first
-    hub_entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="Test Hub",
-        data={INTEGRATION_TYPE: INTEGRATION_TYPE_HUB},
-    )
-    hub_entry.add_to_hass(hass)
-
-    # Start battery flow
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
-
-    # Select battery type
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        user_input={"element_type": "battery"},
-    )
-
-    # Hub auto-selected (only one exists)
-    assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "user"
-
-    # Configure battery
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        user_input={
-            CONF_NAME: "Home Battery",
-            "capacity": 13500,
-            "charge_power": 5000,
-            "initial_soc_sensor": "sensor.battery_soc",
-        },
-    )
-
-    assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Home Battery"
-    assert result["data"]["capacity"] == 13500
-```
-
-### Options Flow Tests
-
-```python
-async def test_options_flow_success(hass: HomeAssistant) -> None:
-    """Test editing hub optimization settings."""
-    hub_entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="Test Hub",
-        data={INTEGRATION_TYPE: INTEGRATION_TYPE_HUB},
-        options={
-            CONF_HORIZON_HOURS: 48,
-            CONF_PERIOD_MINUTES: 5,
-            CONF_OPTIMIZER: "highs",
-        },
-    )
-    hub_entry.add_to_hass(hass)
-
-    result = await hass.config_entries.options.async_init(hub_entry.entry_id)
-
-    assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "init"
-
-    # Change settings
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        user_input={
-            CONF_HORIZON_HOURS: 72,
-            CONF_PERIOD_MINUTES: 15,
-            CONF_OPTIMIZER: "cbc",
-        },
-    )
-
-    assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert hub_entry.options[CONF_HORIZON_HOURS] == 72
-    assert hub_entry.options[CONF_PERIOD_MINUTES] == 15
-```
 
 ## Related Documentation
 
@@ -467,3 +205,6 @@ async def test_options_flow_success(hass: HomeAssistant) -> None:
 - [Data Loading](data-loading.md) - Field types and data validation
 - [Energy Models](energy-models.md) - Element type implementations
 - [Testing](testing.md) - Testing patterns for config flows
+- [User Configuration Guide](../user-guide/configuration.md) - End-user configuration instructions
+- [Home Assistant Config Flow](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/) - Upstream pattern documentation
+- [Data Entry Flow](https://developers.home-assistant.io/docs/data_entry_flow_index/) - Flow framework reference
