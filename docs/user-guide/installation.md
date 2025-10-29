@@ -86,11 +86,6 @@ After restarting, verify HAEO is installed correctly:
 
 If HAEO appears in the list, the installation was successful!
 
-## Advanced: Additional solvers
-
-HiGHS (included with PuLP) is sufficient for most installations.
-If you are working with large networks and want to experiment with alternatives, review the [LP solvers reference](../reference/solvers.md) for compatibility notes and installation steps.
-
 ## Updating HAEO
 
 ### Via HACS

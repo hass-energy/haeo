@@ -196,9 +196,6 @@ HAEO uses **HiGHS** as the default LP solver:
 - **Python integration**: Via PuLP library
 - **Actively maintained**: Continuous improvements
 
-Alternative solvers (CBC, GLPK, Gurobi) are supported.
-See [solver reference](../reference/solvers.md) for details.
-
 ## Example: Grid-Battery-Load System
 
 Simple system with grid, battery, and load:
@@ -293,5 +290,4 @@ Each element type has detailed mathematical formulation:
 ## Related Documentation
 
 - **[User Guide](../user-guide/index.md)** - Configuring HAEO networks
-- **[Solver Reference](../reference/solvers.md)** - LP solver options
 - **[Units Guide](../developer-guide/units.md)** - Unit conventions

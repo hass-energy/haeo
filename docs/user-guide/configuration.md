@@ -60,19 +60,6 @@ Set the period to match the resolution of your most important sensor or price in
 Shorter periods give finer control but increase solve time, while longer periods reduce detail and solve faster.
 If optimizations feel slow, increase the period before reducing the horizon.
 
-#### Optimizer
-
-The linear programming solver to use:
-
-- **HiGHS** (Recommended): Fast, reliable, no external dependencies
-- **CBC**: COIN-OR solver, good for large problems
-- **GLPK**: GNU Linear Programming Kit
-- **PULP_CBC_CMD**: Alternative CBC interface
-- **CPLEX**: Commercial solver (requires separate installation and license)
-- **GUROBI**: Commercial solver (requires separate installation and license)
-
-See the [LP Solvers reference](../reference/solvers.md) for detailed comparisons.
-
 ### Step 3: Complete Hub Setup
 
 Click **Submit** to create your hub. HAEO will create the hub device and initial sensors.

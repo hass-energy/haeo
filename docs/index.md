@@ -98,7 +98,6 @@ Quick **reference tables and schemas**:
 - [Element Types](reference/elements.md) - Complete element reference
 - [Sensor Types](reference/sensors.md) - All sensor types and meanings
 - [Configuration Schema](reference/configuration-schema.md) - Full config options
-- [LP Solvers](reference/solvers.md) - Supported solvers and setup
 
 ## Getting Help
 
