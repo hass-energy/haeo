@@ -16,7 +16,6 @@ from custom_components.haeo.const import (
     CONF_HORIZON_HOURS,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
-    CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
@@ -106,7 +105,6 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
             CONF_NAME: "Test Hub",
             CONF_HORIZON_HOURS: 24,
             CONF_PERIOD_MINUTES: 30,
-            CONF_OPTIMIZER: "CBC",
         },
         entry_id="test_hub_id",
     )

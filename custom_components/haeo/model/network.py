@@ -120,7 +120,7 @@ class Network:
         After optimization, access optimized values directly from elements and connections.
 
         Args:
-            optimizer: The solver to use for optimization
+            optimizer: The solver to use for optimization (defaults to HiGHS)
 
         Returns:
             The total optimization cost

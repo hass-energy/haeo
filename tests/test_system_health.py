@@ -7,7 +7,7 @@ from homeassistant.components.system_health import SystemHealthRegistration
 from homeassistant.core import HomeAssistant
 import pytest
 
-from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_OPTIMIZER, CONF_PERIOD_MINUTES
+from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.system_health import async_register, async_system_health_info
 
@@ -51,7 +51,6 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     coordinator.last_optimization_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     coordinator.data = {"battery": {"soc": object()}}
     coordinator.config = {
-        CONF_OPTIMIZER: "highs",
         CONF_HORIZON_HOURS: 48,
         CONF_PERIOD_MINUTES: 10,
     }
@@ -70,7 +69,6 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     assert info["HAEO Hub_last_optimization_duration"] == pytest.approx(1.234)
     assert info["HAEO Hub_last_optimization_time"] == "2024-01-01T12:00:00+00:00"
     assert info["HAEO Hub_outputs"] == 1
-    assert info["HAEO Hub_optimizer"] == "highs"
     assert info["HAEO Hub_horizon_hours"] == 48
     assert info["HAEO Hub_period_minutes"] == 10
 

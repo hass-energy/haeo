@@ -303,16 +303,6 @@
     }
   },
   "selector": {
-    "optimizer": {
-      "options": {
-        "highs": "HiGHS",
-        "pulp_cbc_cmd": "CBC",
-        "glpk_cmd": "GLPK",
-        "coin_cmd": "COIN-OR",
-        "scip_py": "SCIP",
-        "cylp": "CyLP"
-      }
-    },
     "participant_type": {
       "options": {
         "battery": "Battery",

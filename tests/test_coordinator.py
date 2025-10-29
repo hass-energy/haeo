@@ -17,15 +17,12 @@ from custom_components.haeo.const import (
     CONF_HORIZON_HOURS,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
-    CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
-    DEFAULT_OPTIMIZER,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
-    OPTIMIZER_NAME_MAP,
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID
@@ -62,7 +59,6 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
             CONF_PERIOD_MINUTES: 30,
             CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
             CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
-            CONF_OPTIMIZER: DEFAULT_OPTIMIZER,
         },
         entry_id="hub_entry_id",
     )
@@ -207,8 +203,6 @@ async def test_async_update_data_returns_outputs(
     fake_network = MagicMock()
     fake_network.elements = {"test_battery": fake_element}
 
-    optimizer_name = OPTIMIZER_NAME_MAP.get(DEFAULT_OPTIMIZER, DEFAULT_OPTIMIZER)
-
     generated_at = datetime(2024, 1, 1, 0, 15, tzinfo=UTC)
     expected_forecast_times = (
         int(datetime(2024, 1, 1, 0, 0, tzinfo=UTC).timestamp()),
@@ -240,7 +234,7 @@ async def test_async_update_data_returns_outputs(
         forecast_times=expected_forecast_times,
     )
 
-    mock_executor.assert_awaited_once_with(fake_network.optimize, optimizer_name)
+    mock_executor.assert_awaited_once_with(fake_network.optimize)
 
     network_outputs = result["network"]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]

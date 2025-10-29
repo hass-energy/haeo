@@ -28,7 +28,6 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
             "name": "Test HAEO",
             "horizon_hours": 24,
             "period_minutes": 5,
-            "optimizer": "highs",
         },
         entry_id="test_entry",
     )

@@ -19,16 +19,13 @@ from . import data as data_module
 from .const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_HOURS,
-    CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
-    DEFAULT_OPTIMIZER,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
-    OPTIMIZER_NAME_MAP,
 )
 from .elements import ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
 from .model import (
@@ -244,9 +241,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         )
 
         # Perform the optimization
-        optimizer_key = self.config.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER) or DEFAULT_OPTIMIZER
-        optimizer_name = OPTIMIZER_NAME_MAP.get(optimizer_key, optimizer_key)
-        cost = await self.hass.async_add_executor_job(network.optimize, optimizer_name)
+        cost = await self.hass.async_add_executor_job(network.optimize)
 
         end_time = time.time()
         optimization_duration = end_time - start_time

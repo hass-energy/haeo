@@ -11,7 +11,6 @@ from .const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
     CONF_HORIZON_HOURS,
-    CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     CONF_UPDATE_INTERVAL_MINUTES,
 )
@@ -33,7 +32,6 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
         "hub_config": {
             CONF_HORIZON_HOURS: config_entry.data.get(CONF_HORIZON_HOURS),
             CONF_PERIOD_MINUTES: config_entry.data.get(CONF_PERIOD_MINUTES),
-            CONF_OPTIMIZER: config_entry.data.get(CONF_OPTIMIZER),
             CONF_UPDATE_INTERVAL_MINUTES: config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES),
             CONF_DEBOUNCE_SECONDS: config_entry.data.get(CONF_DEBOUNCE_SECONDS),
         },

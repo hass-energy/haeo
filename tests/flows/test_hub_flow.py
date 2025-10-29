@@ -8,10 +8,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import (
     CONF_HORIZON_HOURS,
     CONF_NAME,
-    CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     DEFAULT_HORIZON_HOURS,
-    DEFAULT_OPTIMIZER,
     DEFAULT_PERIOD_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
@@ -35,7 +33,6 @@ async def test_user_flow_success(hass: HomeAssistant) -> None:
             CONF_NAME: "Test Hub",
             CONF_HORIZON_HOURS: 48,
             CONF_PERIOD_MINUTES: 5,
-            CONF_OPTIMIZER: "highs",
         },
     )
 
@@ -45,7 +42,6 @@ async def test_user_flow_success(hass: HomeAssistant) -> None:
     assert result["data"]["integration_type"] == INTEGRATION_TYPE_HUB
     assert result["data"][CONF_HORIZON_HOURS] == 48
     assert result["data"][CONF_PERIOD_MINUTES] == 5
-    assert result["data"][CONF_OPTIMIZER] == "highs"
 
     # Verify entry was created
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -63,7 +59,6 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
             CONF_NAME: "Existing Hub",
             CONF_HORIZON_HOURS: DEFAULT_HORIZON_HOURS,
             CONF_PERIOD_MINUTES: DEFAULT_PERIOD_MINUTES,
-            CONF_OPTIMIZER: DEFAULT_OPTIMIZER,
         },
         title="Existing Hub",
     )
@@ -78,7 +73,6 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
             CONF_NAME: "Existing Hub",
             CONF_HORIZON_HOURS: 24,
             CONF_PERIOD_MINUTES: 10,
-            CONF_OPTIMIZER: "highs",
         },
     )
 
@@ -92,7 +86,6 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
             CONF_NAME: "New Hub",
             CONF_HORIZON_HOURS: 24,
             CONF_PERIOD_MINUTES: 10,
-            CONF_OPTIMIZER: "highs",
         },
     )
 
@@ -111,7 +104,6 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
             CONF_NAME: "Test Hub",
             CONF_HORIZON_HOURS: 48,
             CONF_PERIOD_MINUTES: 5,
-            CONF_OPTIMIZER: "highs",
         },
     )
 
@@ -126,7 +118,6 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
             CONF_NAME: "test hub",  # Same name, different case
             CONF_HORIZON_HOURS: 24,
             CONF_PERIOD_MINUTES: 10,
-            CONF_OPTIMIZER: "highs",
         },
     )
 
@@ -148,7 +139,6 @@ async def test_user_flow_default_values(hass: HomeAssistant) -> None:
     # Verify default values
     assert schema_keys[CONF_HORIZON_HOURS].default() == DEFAULT_HORIZON_HOURS
     assert schema_keys[CONF_PERIOD_MINUTES].default() == DEFAULT_PERIOD_MINUTES
-    assert schema_keys[CONF_OPTIMIZER].default() == DEFAULT_OPTIMIZER
 
 
 async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
@@ -161,7 +151,6 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
             CONF_NAME: "Test Hub",
             CONF_HORIZON_HOURS: DEFAULT_HORIZON_HOURS,
             CONF_PERIOD_MINUTES: DEFAULT_PERIOD_MINUTES,
-            CONF_OPTIMIZER: DEFAULT_OPTIMIZER,
         },
         entry_id="test_hub_id",
     )

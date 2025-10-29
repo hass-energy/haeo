@@ -5,7 +5,7 @@ from typing import Any
 from homeassistant.components import system_health
 from homeassistant.core import HomeAssistant, callback
 
-from .const import CONF_HORIZON_HOURS, CONF_OPTIMIZER, CONF_PERIOD_MINUTES, DOMAIN
+from .const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES, DOMAIN
 
 
 @callback
@@ -55,10 +55,6 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
 
         outputs_count = sum(len(outputs) for outputs in coordinator.data.values()) if coordinator.data else 0
         health_info[f"{prefix}outputs"] = outputs_count
-
-        optimizer = coordinator.config.get(CONF_OPTIMIZER)
-        if optimizer:
-            health_info[f"{prefix}optimizer"] = optimizer
 
         horizon_hours = coordinator.config.get(CONF_HORIZON_HOURS)
         if horizon_hours is not None:

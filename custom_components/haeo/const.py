@@ -4,7 +4,6 @@ from typing import Final
 
 from homeassistant.components.sensor.const import UNIT_CONVERTERS, SensorDeviceClass
 from homeassistant.const import UnitOfEnergy, UnitOfPower
-import pulp
 
 
 def convert_to_base_unit(value: float, from_unit: str | None, device_class: SensorDeviceClass | None) -> float:
@@ -47,21 +46,13 @@ CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
 
 ELEMENT_TYPE_NETWORK: Final = "network"
 
-# Dynamically determine available optimizers
-AVAILABLE_OPTIMIZERS: Final = pulp.listSolvers(onlyAvailable=True)
-
 # Horizon and period configuration
 CONF_HORIZON_HOURS: Final = "horizon_hours"
 CONF_PERIOD_MINUTES: Final = "period_minutes"
-CONF_OPTIMIZER: Final = "optimizer"
 DEFAULT_HORIZON_HOURS: Final = 48  # 48 hours default
 DEFAULT_PERIOD_MINUTES: Final = 5  # 5 minutes default
 DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default
-DEFAULT_OPTIMIZER: Final = "highs"  # Default HiGHS solver (using lowercase key)
 DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
-
-# Map translation-friendly optimizer keys (lowercase) to actual optimizer names
-OPTIMIZER_NAME_MAP: Final = {name.lower(): name for name in AVAILABLE_OPTIMIZERS}
 
 # Update intervals
 DEFAULT_UPDATE_INTERVAL: Final = DEFAULT_UPDATE_INTERVAL_MINUTES * 60  # Convenience constant in seconds

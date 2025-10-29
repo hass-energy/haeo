@@ -18,7 +18,6 @@ from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_HORIZON_HOURS,
     CONF_NAME,
-    CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
@@ -58,7 +57,6 @@ async def test_scenario1_setup_and_optimization(
         CONF_NAME: "Test Hub",
         CONF_HORIZON_HOURS: scenario_config.get(CONF_HORIZON_HOURS, 24),
         CONF_PERIOD_MINUTES: scenario_config.get(CONF_PERIOD_MINUTES, 5),
-        CONF_OPTIMIZER: scenario_config.get(CONF_OPTIMIZER, "highs"),
     }
 
     mock_config_entry = MockConfigEntry(

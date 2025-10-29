@@ -10,7 +10,6 @@ from custom_components.haeo.const import (
     CONF_HORIZON_HOURS,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
-    CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
@@ -28,7 +27,6 @@ async def test_options_flow_init(hass: HomeAssistant) -> None:
             CONF_NAME: "Test Hub",
             CONF_HORIZON_HOURS: 24,
             CONF_PERIOD_MINUTES: 5,
-            CONF_OPTIMIZER: "highs",
         },
     )
     entry.add_to_hass(hass)
@@ -42,7 +40,6 @@ async def test_options_flow_init(hass: HomeAssistant) -> None:
     schema_keys = {vol_key.schema: vol_key for vol_key in result["data_schema"].schema}
     assert schema_keys[CONF_HORIZON_HOURS].default() == 24
     assert schema_keys[CONF_PERIOD_MINUTES].default() == 5
-    assert schema_keys[CONF_OPTIMIZER].default() == "highs"
 
 
 async def test_options_flow_configure_network_success(hass: HomeAssistant) -> None:
@@ -54,7 +51,6 @@ async def test_options_flow_configure_network_success(hass: HomeAssistant) -> No
             CONF_NAME: "Test Hub",
             CONF_HORIZON_HOURS: 24,
             CONF_PERIOD_MINUTES: 5,
-            CONF_OPTIMIZER: "highs",
         },
     )
     entry.add_to_hass(hass)
@@ -69,7 +65,6 @@ async def test_options_flow_configure_network_success(hass: HomeAssistant) -> No
             user_input={
                 CONF_HORIZON_HOURS: 48,
                 CONF_PERIOD_MINUTES: 15,
-                CONF_OPTIMIZER: "pulp_cbc_cmd",
             },
         ),
     )
@@ -77,4 +72,3 @@ async def test_options_flow_configure_network_success(hass: HomeAssistant) -> No
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert entry.data[CONF_HORIZON_HOURS] == 48
     assert entry.data[CONF_PERIOD_MINUTES] == 15
-    assert entry.data[CONF_OPTIMIZER] == "pulp_cbc_cmd"

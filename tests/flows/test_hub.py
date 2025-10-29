@@ -4,7 +4,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.translation import async_get_translations
 
-from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_NAME, CONF_OPTIMIZER, CONF_PERIOD_MINUTES, DOMAIN
+from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_NAME, CONF_PERIOD_MINUTES, DOMAIN
 from custom_components.haeo.flows import get_network_config_schema
 from custom_components.haeo.flows.hub import HubConfigFlow
 
@@ -36,7 +36,6 @@ async def test_user_step_translations_loadable(hass: HomeAssistant) -> None:
     assert f"component.{DOMAIN}.config.step.user.data.name" in translations
     assert f"component.{DOMAIN}.config.step.user.data.horizon_hours" in translations
     assert f"component.{DOMAIN}.config.step.user.data.period_minutes" in translations
-    assert f"component.{DOMAIN}.config.step.user.data.optimizer" in translations
 
 
 async def test_user_step_form_has_translations(hass: HomeAssistant) -> None:
@@ -82,7 +81,6 @@ async def test_schema_coerces_floats_to_integers(hass: HomeAssistant) -> None:
         CONF_NAME: "Test Hub",
         CONF_HORIZON_HOURS: 24.0,  # Float input
         CONF_PERIOD_MINUTES: 5.0,  # Float input
-        CONF_OPTIMIZER: "highs",
     }
 
     # Validate and coerce the data

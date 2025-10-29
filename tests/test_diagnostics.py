@@ -15,7 +15,6 @@ from custom_components.haeo.const import (
     CONF_HORIZON_HOURS,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
-    CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
@@ -37,7 +36,6 @@ async def test_diagnostics_without_coordinator(hass: HomeAssistant) -> None:
             CONF_NAME: "Test Hub",
             CONF_HORIZON_HOURS: 24,
             CONF_PERIOD_MINUTES: 15,
-            CONF_OPTIMIZER: "highs",
         },
         entry_id="test_entry",
     )
@@ -62,7 +60,6 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
             CONF_NAME: "Test Hub",
             CONF_HORIZON_HOURS: 24,
             CONF_PERIOD_MINUTES: 15,
-            CONF_OPTIMIZER: "highs",
         },
         entry_id="hub_entry",
     )

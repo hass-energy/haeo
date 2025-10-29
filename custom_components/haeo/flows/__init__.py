@@ -3,36 +3,22 @@
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.selector import (
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-    SelectOptionDict,
-    SelectSelector,
-    SelectSelectorConfig,
-)
+from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
 import voluptuous as vol
 
 from custom_components.haeo.const import (
-    AVAILABLE_OPTIMIZERS,
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_HOURS,
     CONF_NAME,
-    CONF_OPTIMIZER,
     CONF_PERIOD_MINUTES,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_HORIZON_HOURS,
-    DEFAULT_OPTIMIZER,
     DEFAULT_PERIOD_MINUTES,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
-    OPTIMIZER_NAME_MAP,
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-# Map actual optimizer names to translation-friendly keys (reverse of OPTIMIZER_NAME_MAP)
-OPTIMIZER_KEY_MAP = {v: k for k, v in OPTIMIZER_NAME_MAP.items()}
 
 
 def get_network_config_schema(
@@ -47,22 +33,6 @@ def get_network_config_schema(
         Voluptuous schema for network configuration
 
     """
-    # Build optimizer options with translation-friendly keys
-    optimizer_options = [
-        SelectOptionDict(value=OPTIMIZER_KEY_MAP.get(opt, opt.lower()), label=opt)
-        for opt in AVAILABLE_OPTIMIZERS
-        if opt in OPTIMIZER_KEY_MAP or opt.lower() in OPTIMIZER_NAME_MAP
-    ]
-
-    # Get default optimizer (convert from actual name to key if needed)
-    default_optimizer = DEFAULT_OPTIMIZER
-    if config_entry:
-        stored_optimizer = config_entry.data.get(CONF_OPTIMIZER, DEFAULT_OPTIMIZER)
-        # Convert old actual names to keys if needed
-        default_optimizer = OPTIMIZER_KEY_MAP.get(stored_optimizer, stored_optimizer)
-    else:
-        default_optimizer = OPTIMIZER_KEY_MAP.get(DEFAULT_OPTIMIZER, DEFAULT_OPTIMIZER)
-
     return vol.Schema(
         {
             **(
@@ -120,15 +90,6 @@ def get_network_config_schema(
                     NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.SLIDER),
                 ),
                 vol.Coerce(int),
-            ),
-            vol.Required(
-                CONF_OPTIMIZER,
-                default=default_optimizer,
-            ): SelectSelector(
-                SelectSelectorConfig(
-                    options=optimizer_options,
-                    translation_key="optimizer",
-                ),
             ),
         }
     )
