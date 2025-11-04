@@ -11,6 +11,7 @@ __pycache__
 # misc
 .coverage
 coverage.xml
+coverage.json
 .ruff_cache
 .pytest_cache
 .mypy_cache

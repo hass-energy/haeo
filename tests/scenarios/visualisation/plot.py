@@ -1,11 +1,11 @@
 """Main plotting functions for HAEO optimization visualization."""
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 import itertools
 import logging
 from pathlib import Path
-from typing import Any, Literal, Required, TypedDict
+from typing import Any, Final, Literal, Required, TypedDict
 
 from homeassistant.core import HomeAssistant
 import matplotlib as mpl
@@ -26,6 +26,10 @@ from custom_components.haeo.model import (
     OUTPUT_NAME_POWER_EXPORTED,
     OUTPUT_NAME_POWER_IMPORTED,
     OUTPUT_NAME_POWER_PRODUCED,
+    OUTPUT_NAME_PRICE_CONSUMPTION,
+    OUTPUT_NAME_PRICE_EXPORT,
+    OUTPUT_NAME_PRICE_IMPORT,
+    OUTPUT_NAME_PRICE_PRODUCTION,
 )
 
 from .colors import ColorMapper
@@ -43,7 +47,21 @@ class ForecastData(TypedDict, total=False):
     production: Sequence[tuple[float, float]]
     consumption: Sequence[tuple[float, float]]
     available: Sequence[tuple[float, float]]
+    production_price: Sequence[tuple[float, float]]
+    consumption_price: Sequence[tuple[float, float]]
     soc: Sequence[tuple[float, float]]
+
+
+ForecastKey = Literal["production", "consumption", "available", "soc"]
+STACKED_FORECAST_TYPES: Final = ("production", "consumption", "available")
+ACTIVITY_EPSILON: Final = 1e-6
+
+OUTPUTS_POWER_PRODUCTION: Final = (OUTPUT_NAME_POWER_PRODUCED, OUTPUT_NAME_POWER_IMPORTED)
+OUTPUTS_POWER_CONSUMPTION: Final = (OUTPUT_NAME_POWER_CONSUMED, OUTPUT_NAME_POWER_EXPORTED)
+OUTPUTS_POWER_AVAILABLE: Final = (OUTPUT_NAME_POWER_AVAILABLE,)
+OUTPUTS_BATTERY_STATE_OF_CHARGE: Final = (OUTPUT_NAME_BATTERY_STATE_OF_CHARGE,)
+OUTPUTS_PRICE_CONSUMPTION: Final = (OUTPUT_NAME_PRICE_CONSUMPTION, OUTPUT_NAME_PRICE_EXPORT)
+OUTPUTS_PRICE_PRODUCTION: Final = (OUTPUT_NAME_PRICE_PRODUCTION, OUTPUT_NAME_PRICE_IMPORT)
 
 
 def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, ForecastData]:
@@ -63,29 +81,81 @@ def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, Forecas
     forecast_data: dict[str, ForecastData] = {}
     for sensor in haeo_sensors:
         device_name = sensor.attributes["element_name"]
+        element_type = sensor.attributes["element_type"]
+        output_name = sensor.attributes["output_name"]
         forecast: Sequence[tuple[float, float]] = sorted(
             (datetime.fromisoformat(dt).timestamp(), value) for dt, value in sensor.attributes["forecast"].items()
         )
 
-        v = forecast_data.setdefault(
-            device_name, {"color": color_mapper.get_color(device_name, sensor.attributes["element_type"])}
+        entry = forecast_data.setdefault(
+            device_name,
+            {
+                "color": color_mapper.get_color(device_name, element_type),
+                "element_type": element_type,
+            },
         )
-        if sensor.attributes.get("output_name") in (OUTPUT_NAME_POWER_PRODUCED, OUTPUT_NAME_POWER_IMPORTED):
-            v["production"] = forecast
-        elif sensor.attributes.get("output_name") in (OUTPUT_NAME_POWER_CONSUMED, OUTPUT_NAME_POWER_EXPORTED):
-            v["consumption"] = forecast
-        elif sensor.attributes.get("output_name") in (OUTPUT_NAME_POWER_AVAILABLE,):
-            v["available"] = forecast
-        elif sensor.attributes.get("output_name") == OUTPUT_NAME_BATTERY_STATE_OF_CHARGE:
-            v["soc"] = forecast
+        if output_name in OUTPUTS_POWER_PRODUCTION:
+            entry["production"] = forecast
+        elif output_name in OUTPUTS_POWER_CONSUMPTION:
+            entry["consumption"] = forecast
+        elif output_name in OUTPUTS_POWER_AVAILABLE:
+            entry["available"] = forecast
+        elif output_name in OUTPUTS_BATTERY_STATE_OF_CHARGE:
+            entry["soc"] = forecast
+        elif output_name in OUTPUTS_PRICE_PRODUCTION:
+            entry["production_price"] = forecast
+        elif output_name in OUTPUTS_PRICE_CONSUMPTION:
+            entry["consumption_price"] = forecast
 
-    # Filter out the sensors without any relevant forecast data
-    return {
-        k: v
-        for k, v in forecast_data.items()
-        if any(key in v for key in ("production", "consumption", "available", "soc"))
-    }
+    return forecast_data
 
+
+def _compute_activity_metrics(forecast_data: dict[str, ForecastData]) -> dict[str, tuple[float, int, int]]:
+    """Return coverage and transition metrics for stacked plotting order."""
+
+    all_timestamps: set[float] = set()
+    for data in forecast_data.values():
+        for series_key in STACKED_FORECAST_TYPES:
+            if series := data.get(series_key):
+                all_timestamps.update(timestamp for timestamp, _ in series)
+
+    if not all_timestamps:
+        return dict.fromkeys(forecast_data, (0.0, 0, 0))
+
+    ordered_timestamps = np.array(sorted(all_timestamps), dtype=float)
+    metrics: dict[str, tuple[float, int, int]] = {}
+
+    for name, data in forecast_data.items():
+        interpolated: list[np.ndarray] = []
+        for series_key in STACKED_FORECAST_TYPES:
+            series = data.get(series_key)
+            if not series:
+                continue
+
+            series_array = np.asarray(series, dtype=float)
+            if series_array.size == 0:
+                continue
+
+            interpolated.append(
+                np.abs(np.interp(ordered_timestamps, series_array[:, 0], series_array[:, 1], left=0.0, right=0.0))
+            )
+
+        if not interpolated:
+            metrics[name] = (0.0, len(ordered_timestamps), len(ordered_timestamps))
+            continue
+
+        combined = interpolated[0] if len(interpolated) == 1 else np.maximum.reduce(interpolated)
+        active_mask = combined > ACTIVITY_EPSILON
+
+        coverage = float(active_mask.mean())
+        transitions = int(np.count_nonzero(np.diff(active_mask.astype(int))))
+
+        active_indices = np.flatnonzero(active_mask)
+        first_active_index = int(active_indices[0]) if active_indices.size else len(ordered_timestamps)
+
+        metrics[name] = (coverage, transitions, first_active_index)
+
+    return metrics
 
 
 def plot_stacked_layer(
@@ -98,28 +168,13 @@ def plot_stacked_layer(
 ) -> None:
     """Plot a stacked layer of forecast data on the given axis."""
 
-    if not forecast_data:
-        return
-
     # Calculate a common time index from the union of all timestamps
     times = np.array(sorted({dt[0] for (_, data) in forecast_data for dt in data}))
-
-    if times.size == 0:
-        return
-
-    # Convert Unix timestamps to datetime objects for matplotlib
-    times_dt = [datetime.fromtimestamp(t, tz=UTC) for t in times]
 
     colors: list[str] = []
     data_arrays: list[np.ndarray] = []
     for color, data in forecast_data:
-        if not data:
-            continue
-
         d = np.asarray(data, dtype=float)
-        if d.size == 0:
-            continue
-
         colors.append(color)
         data_arrays.append(np.interp(times, d[:, 0], d[:, 1], left=0.0, right=0.0))
 
@@ -139,23 +194,36 @@ def plot_stacked_layer(
     for values, b, t, facecolor, edgecolor, hatch in zip(
         y, baseline, top, facecolors, edgecolors, hatches, strict=False
     ):
+        # Only display where there is activity, or the next value after there is
+        # activity to allow the step to drop to zero.
+        where = np.greater(values, ACTIVITY_EPSILON)
+        where[1:] |= where[:-1]
+
         ax.fill_between(
-            times_dt,
+            [datetime.fromtimestamp(t, tz=UTC) for t in times],
             b,
             t,
             facecolor=facecolor,
             edgecolor=edgecolor,
             hatch=hatch,
-            interpolate=True,
-            where=np.greater(values, 0.0),
+            step="post",
+            where=where,
             **format_args,
         )
 
 
+def plot_price_series(ax: Any, forecast_data: Sequence[tuple[str, str, Sequence[tuple[float, float]]]]) -> None:
+    """Plot price forecast outputs as line series on the provided axis."""
+
+    for label, color, data in forecast_data:
+        values = np.asarray(data, dtype=float)
+
+        times_dt = [datetime.fromtimestamp(t, tz=UTC) for t in values[:, 0]]
+        ax.plot(times_dt, values[:, 1], color=color, drawstyle="steps-post", label=label)
+
+
 def plot_soc(ax: Any, forecast_data: Sequence[tuple[str, Sequence[tuple[float, float]]]]) -> None:
     """Plot the state of charge (SOC) data on a secondary y-axis."""
-    if not forecast_data:
-        return
 
     ax_soc = ax.twinx()
     ax_soc.set_ylabel("State of Charge (%)", fontsize=11)
@@ -193,49 +261,96 @@ def get_from_sorted_data(
     return result
 
 
+def get_price_series(
+    sorted_data: Sequence[tuple[str, ForecastData]],
+) -> list[tuple[str, str, Sequence[tuple[float, float]]]]:
+    """Collect production and consumption price series for plotting."""
+
+    result: list[tuple[str, str, Sequence[tuple[float, float]]]] = []
+    for label, data in sorted_data:
+        if production_price := data.get("production_price"):
+            result.append((f"{label} production price", data["color"], production_price))
+        if consumption_price := data.get("consumption_price"):
+            result.append((f"{label} consumption price", data["color"], consumption_price))
+
+    return result
+
+
 def create_stacked_visualization(hass: HomeAssistant, output_path: str, title: str) -> None:
-    """Create visualization of HAEO optimization results with stacked plots."""
+    """Create visualization of HAEO optimization results with stacked plots and price traces."""
 
     # Extract forecast data
     forecast_data = extract_forecast_data_from_sensors(hass)
+    activity_metrics = _compute_activity_metrics(forecast_data)
 
-    # Order the data so that sensors with available come first to ensure that they are plotted at the bottom
-    # Then order them so that the sensors with the most "non zero" values come first then finally order by name
-    sorted_data = sorted(forecast_data.items(), key=lambda item: (item[1].get("available") is None, item[0]))
+    def _availability_priority(item: tuple[str, ForecastData]) -> int:
+        """Ensure elements with availability forecasts anchor the stack."""
+        return 0 if item[1].get("available") else 1
 
-    # Create figure
-    fig, ax = plt.subplots(1, 1, figsize=(16, 9))
+    # Prioritize series that cover the full horizon with few interruptions so they anchor the stack
+    sorted_data = sorted(
+        forecast_data.items(),
+        key=lambda item: (
+            _availability_priority(item),
+            -activity_metrics[item[0]][0],
+            activity_metrics[item[0]][1],
+            activity_metrics[item[0]][2],
+            item[0],
+        ),
+    )
 
-    # Set labels and formatting
-    ax.set_title(title, fontsize=14, pad=20)
-    ax.set_ylabel("Power (kW)", fontsize=11)
-    ax.set_xlabel("Time", fontsize=11)
-    ax.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))  # type: ignore[no-untyped-call]
+    fig, (ax_power, ax_price) = plt.subplots(
+        2,
+        1,
+        sharex=True,
+        figsize=(16, 10),
+        gridspec_kw={"height_ratios": [3, 1]},
+    )
 
-    ax.grid(alpha=0.3, linestyle=":", linewidth=0.5)
-    ax.tick_params(axis="x", rotation=45, labelsize=9)
-    ax.tick_params(axis="y", labelsize=9)
-    # Adjust layout with more room for rotated x-labels
-    fig.subplots_adjust(top=0.95, bottom=0.10, left=0.08, right=0.95)
+    # Set labels and formatting for the power subplot
+    ax_power.set_title(title, fontsize=14, pad=20)
+    ax_power.set_ylabel("Power (kW)", fontsize=11)
+    ax_power.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))  # type: ignore[no-untyped-call]
+    ax_power.grid(alpha=0.3, linestyle=":", linewidth=0.5)
+    ax_power.tick_params(axis="x", labelsize=9)
+    ax_power.tick_params(axis="y", labelsize=9)
 
-    plot_stacked_layer(ax, get_from_sorted_data(sorted_data, "available"), alpha=0.2, zorder=1)
-    plot_stacked_layer(ax, get_from_sorted_data(sorted_data, "production"), alpha=0.6, zorder=2)
+    plot_stacked_layer(ax_power, get_from_sorted_data(sorted_data, "available"), alpha=0.2, zorder=1)
+    plot_stacked_layer(ax_power, get_from_sorted_data(sorted_data, "production"), alpha=0.6, zorder=2)
     plot_stacked_layer(
-        ax, get_from_sorted_data(sorted_data, "consumption"), facecolors=["none"], hatch=["..."], zorder=3
+        ax_power,
+        get_from_sorted_data(sorted_data, "consumption"),
+        facecolors=["none"],
+        hatches=["..."],
+        zorder=3,
     )
 
-    ax.set_ylim(bottom=0)
+    ax_power.set_ylim(bottom=0)
 
-    # Plot the SOC information
-    plot_soc(fig, get_from_sorted_data(sorted_data, "soc"))
+    # Plot the SOC information on a secondary axis
+    plot_soc(ax_power, get_from_sorted_data(sorted_data, "soc"))
 
-    # Build legend from forecast_data (each element already has name and color)
-    ax.legend(
-        handles=[Patch(facecolor=data["color"], label=label) for label, data in forecast_data.items()],
-        loc="upper left",
-        fontsize=9,
-        framealpha=0.9,
-    )
+    ax_power.tick_params(axis="x", labelbottom=False)
+    ax_price.set_xlabel("Time", fontsize=11)
+    ax_price.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))  # type: ignore[no-untyped-call]
+    ax_price.tick_params(axis="x", rotation=45, labelsize=9)
+    price_series = get_price_series(sorted_data)
+    plot_price_series(ax_price, price_series)
+
+    # Build legend for energy series using the sorted order
+    legend_handles = [
+        Patch(facecolor=data["color"], label=label)
+        for label, data in sorted_data
+        if any(key in data for key in STACKED_FORECAST_TYPES)
+    ]
+    ax_power.legend(handles=legend_handles, loc="upper left", fontsize=9, framealpha=0.9)
+
+    ax_price.set_ylabel("Price", fontsize=11)
+    ax_price.grid(alpha=0.3, linestyle=":", linewidth=0.5)
+    ax_price.tick_params(axis="y", labelsize=9)
+    ax_price.legend(loc="upper left", fontsize=9, framealpha=0.9)
+
+    fig.subplots_adjust(top=0.93, bottom=0.10, left=0.08, right=0.95, hspace=0.15)
 
     # Save as SVG
     fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3)
