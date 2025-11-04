@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="256" height="256"
+     style="--haeo-bg:#fff;--haeo-fg:#0b57ff;--haeo-accent:#ffd400;">
+  <title>HAEO Solar Flow Logo — Variant B</title>
+  <style>
+    :root{--bg:var(--haeo-bg);--fg:var(--haeo-fg);--accent:var(--haeo-accent);}
+    @media (prefers-color-scheme: dark){
+      :root{--bg:#0a0f1a;--fg:#7fb1ff;--accent:#ffd86b;}
+    }
+    svg{background:var(--bg);}
+  </style>
+
+  <!-- Sun -->
+  <circle cx="30" cy="20" r="18" fill="var(--accent)" opacity="0.8"/>
+
+  <!-- House -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
+
+    <path fill="var(--bg)" d="M64 8 L8 48 v68 h112 V48 L64 8 z"/>
+
+    <!-- Solar Panel -->
+    <path stroke="var(--accent)" stroke-width="6" d="M16 36 L50 12"/>
+
+    <!-- Energy connections -->
+    <!-- Battery -->
+    <rect x="8" y="66" width="12" height="50" stroke="var(--accent)" fill="var(--accent)" stroke-width="5" rx="4" ry="4"/>
+
+    <!-- Roof and Walls -->
+    <path stroke="var(--fg)" d="M64 8 L8 48 v68 h112 V48 L64 8 z"/>
+
+    <!-- Energy hub -->
+    <circle cx="64" cy="72" r="32" fill="var(--bg)" stroke="var(--accent)" stroke-width="4"/>
+    <g transform="translate(29,32), scale(0.6)">
+    <polyline points="18,72 36,72 44,58 52,86 68,44 82,72 98,72" stroke="var(--accent)" stroke-width="6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+    </g>
+  </g>
+
+</svg>

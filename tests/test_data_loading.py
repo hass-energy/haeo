@@ -10,7 +10,13 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data import load_network
 from custom_components.haeo.elements import ElementConfigSchema
-from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
+from custom_components.haeo.elements.battery import (
+    CONF_CAPACITY,
+    CONF_EFFICIENCY,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MIN_CHARGE_PERCENTAGE,
+)
 
 
 async def test_load_network_with_missing_sensors(hass: HomeAssistant) -> None:
@@ -24,8 +30,11 @@ async def test_load_network_with_missing_sensors(hass: HomeAssistant) -> None:
             "battery": {
                 CONF_ELEMENT_TYPE: "battery",
                 CONF_NAME: "battery",
-                CONF_CAPACITY: 10000,
+                CONF_CAPACITY: "sensor.missing_battery_capacity",  # This sensor doesn't exist
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.missing_battery_soc",  # This sensor doesn't exist
+                CONF_MIN_CHARGE_PERCENTAGE: 20.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 80.0,
+                CONF_EFFICIENCY: 95.0,
             }
         },
     )
@@ -53,7 +62,8 @@ async def test_load_network_with_unavailable_sensor_state(hass: HomeAssistant) -
     """Test load_network raises UpdateFailed when sensor state is unavailable."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
 
-    # Create a sensor with unavailable state
+    # Create sensors with unavailable state
+    hass.states.async_set("sensor.unavailable_capacity", "unavailable")
     hass.states.async_set("sensor.unavailable_soc", "unavailable")
 
     participants = cast(
@@ -62,8 +72,11 @@ async def test_load_network_with_unavailable_sensor_state(hass: HomeAssistant) -
             "battery": {
                 CONF_ELEMENT_TYPE: "battery",
                 CONF_NAME: "battery",
-                CONF_CAPACITY: 10000,
+                CONF_CAPACITY: "sensor.unavailable_capacity",
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.unavailable_soc",
+                CONF_MIN_CHARGE_PERCENTAGE: 20.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 80.0,
+                CONF_EFFICIENCY: 95.0,
             }
         },
     )
@@ -85,4 +98,3 @@ async def test_load_network_with_unavailable_sensor_state(hass: HomeAssistant) -
     placeholders = exc_info.value.translation_placeholders
     assert placeholders is not None
     assert "battery" in placeholders["unavailable_sensors"]
-

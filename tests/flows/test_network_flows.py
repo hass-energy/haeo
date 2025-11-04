@@ -2,7 +2,7 @@
 
 from types import MappingProxyType
 from typing import Any, cast
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -24,6 +24,18 @@ from custom_components.haeo.repairs import create_disconnected_network_issue
 
 
 @pytest.fixture
+def connectivity_mock(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    """Patch connectivity evaluation used by the network flow."""
+
+    mock = MagicMock()
+    monkeypatch.setattr(
+        "custom_components.haeo.flows.network.evaluate_network_connectivity",
+        mock,
+    )
+    return mock
+
+
+@pytest.fixture
 def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     """Create a hub entry for testing network flows."""
     entry = MockConfigEntry(
@@ -38,7 +50,11 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     return entry
 
 
-async def test_network_flow_user_step_success(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+async def test_network_flow_user_step_success(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    connectivity_mock: MagicMock,
+) -> None:
     """Test successful network creation through user step."""
     flow = NetworkSubentryFlow()
     flow.hass = hass
@@ -61,6 +77,8 @@ async def test_network_flow_user_step_success(hass: HomeAssistant, hub_entry: Mo
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "Network"
 
+    connectivity_mock.assert_called_once_with(hass, hub_entry)
+
     # Verify async_create_entry was called with correct data
     flow.async_create_entry.assert_called_once()
     call_kwargs = flow.async_create_entry.call_args.kwargs
@@ -69,7 +87,11 @@ async def test_network_flow_user_step_success(hass: HomeAssistant, hub_entry: Mo
     assert call_kwargs["data"][CONF_ELEMENT_TYPE] == ELEMENT_TYPE_NETWORK
 
 
-async def test_network_flow_user_step_missing_name(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+async def test_network_flow_user_step_missing_name(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    connectivity_mock: MagicMock,
+) -> None:
     """Test network creation with missing name."""
     flow = NetworkSubentryFlow()
     flow.hass = hass
@@ -81,8 +103,14 @@ async def test_network_flow_user_step_missing_name(hass: HomeAssistant, hub_entr
     assert result["type"] == FlowResultType.FORM
     assert result["errors"] == {CONF_NAME: "missing_name"}
 
+    connectivity_mock.assert_not_called()
 
-async def test_network_flow_user_step_network_exists(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+
+async def test_network_flow_user_step_network_exists(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    connectivity_mock: MagicMock,
+) -> None:
     """Test network creation when network already exists."""
     # Add existing network subentry
     existing_network = ConfigSubentry(
@@ -103,8 +131,14 @@ async def test_network_flow_user_step_network_exists(hass: HomeAssistant, hub_en
     assert result["type"] == FlowResultType.FORM
     assert result["errors"] == {CONF_NAME: "network_exists"}
 
+    connectivity_mock.assert_not_called()
 
-async def test_network_flow_reconfigure_success(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+
+async def test_network_flow_reconfigure_success(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    connectivity_mock: MagicMock,
+) -> None:
     """Test successful network reconfiguration."""
     # Add existing network
     existing_network = ConfigSubentry(
@@ -145,8 +179,14 @@ async def test_network_flow_reconfigure_success(hass: HomeAssistant, hub_entry: 
     assert call_kwargs["data"][CONF_NAME] == "New Network Name"
     assert call_kwargs["data"][CONF_ELEMENT_TYPE] == ELEMENT_TYPE_NETWORK
 
+    connectivity_mock.assert_called_once_with(hass, hub_entry)
 
-async def test_network_flow_reconfigure_missing_name(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+
+async def test_network_flow_reconfigure_missing_name(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    connectivity_mock: MagicMock,
+) -> None:
     """Test network reconfiguration with missing name."""
     existing_network = ConfigSubentry(
         data=MappingProxyType({CONF_NAME: "Network"}),
@@ -166,18 +206,7 @@ async def test_network_flow_reconfigure_missing_name(hass: HomeAssistant, hub_en
     result = cast("dict[str, Any]", await flow.async_step_reconfigure(user_input=user_input))
     assert result["type"] == FlowResultType.FORM
     assert result["errors"] == {CONF_NAME: "missing_name"}
-
-
-async def test_network_flow_remove_subentry_prevented(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Test that network removal is prevented."""
-    flow = NetworkSubentryFlow()
-    flow.hass = hass
-    flow._get_entry = Mock(return_value=hub_entry)
-
-    # Try to remove network
-    result = cast("dict[str, Any]", await flow.async_step_remove_subentry(_user_input=None))
-    assert result["type"] == FlowResultType.ABORT
-    assert result["reason"] == "cannot_remove_network"
+    connectivity_mock.assert_not_called()
 
 
 async def test_network_validates_topology_on_init(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:

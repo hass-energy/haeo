@@ -6,8 +6,10 @@ from types import MappingProxyType
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.config_entries import ConfigSubentry
+from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.util import slugify
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -26,7 +28,13 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID
-from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
+from custom_components.haeo.elements.battery import (
+    CONF_CAPACITY,
+    CONF_EFFICIENCY,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MIN_CHARGE_PERCENTAGE,
+)
 from custom_components.haeo.elements.connection import CONF_MAX_POWER, CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.grid import (
     CONF_EXPORT_LIMIT,
@@ -69,13 +77,20 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
 @pytest.fixture
 def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> ConfigSubentry:
     """Create a mock battery subentry."""
+    # Set up required sensors
+    hass.states.async_set("sensor.battery_capacity", "10000", {"unit_of_measurement": UnitOfEnergy.WATT_HOUR})
+    hass.states.async_set("sensor.battery_soc", "50.0")
+
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
                 CONF_NAME: "test_battery",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_CAPACITY: 10000,
+                CONF_CAPACITY: "sensor.battery_capacity",
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_MIN_CHARGE_PERCENTAGE: 20.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 80.0,
+                CONF_EFFICIENCY: 95.0,
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -156,11 +171,12 @@ def test_coordinator_initialization_collects_participants_and_entity_ids(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     assert coordinator.hass is hass
-    assert coordinator.entry is mock_hub_entry
+    assert coordinator.config_entry is mock_hub_entry
     assert set(coordinator._participant_configs) == {"test_battery", "test_grid"}
 
     tracked_entities = set(patch_state_change_listener.call_args.args[1])
     assert tracked_entities == {
+        "sensor.battery_capacity",
         "sensor.battery_soc",
         "sensor.import_price",
         "sensor.export_price",
@@ -223,8 +239,6 @@ async def test_async_update_data_returns_outputs(
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         result = await coordinator._async_update_data()
 
-    assert coordinator.forecast_timestamps == expected_forecast_times
-
     mock_load.assert_awaited_once_with(
         hass,
         mock_hub_entry,
@@ -236,7 +250,7 @@ async def test_async_update_data_returns_outputs(
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
-    network_outputs = result["network"]
+    network_outputs = result[slugify(mock_hub_entry.title)]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OUTPUT_TYPE_COST
     assert cost_output.unit == hass.config.currency

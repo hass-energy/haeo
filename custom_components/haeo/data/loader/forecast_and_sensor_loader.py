@@ -24,7 +24,7 @@ class ForecastAndSensorLoader:
         self._sensor_loader = SensorLoader()
         self._forecast_loader = ForecastLoader()
 
-    def available(self, *, hass: HomeAssistant, value: ForecastAndSensorValue, **kwargs: Any) -> bool:
+    def available(self, *, hass: HomeAssistant, value: Any, **kwargs: Any) -> bool:
         """Check if both live sensors and forecast sensors are available.
 
         Args:
@@ -41,7 +41,7 @@ class ForecastAndSensorLoader:
 
         return sensors_available and forecasts_available
 
-    async def load(self, *, hass: HomeAssistant, value: ForecastAndSensorValue, **kwargs: Any) -> list[float]:
+    async def load(self, *, hass: HomeAssistant, value: Any, **kwargs: Any) -> list[float]:
         """Load forecast and sensor data for optimization.
 
         Args:
@@ -54,6 +54,10 @@ class ForecastAndSensorLoader:
             List of forecast values with the first value replaced by live sensor data
 
         """
+        if not self.is_valid_value(value):
+            msg = "Value must be a dict with 'live' and 'forecast' keys containing sensor ID lists"
+            raise TypeError(msg)
+
         live = await self._sensor_loader.load(hass=hass, value=value["live"], **kwargs)
         forecast = await self._forecast_loader.load(hass=hass, value=value["forecast"], **kwargs)
 
@@ -61,7 +65,7 @@ class ForecastAndSensorLoader:
 
         return forecast
 
-    def is_valid_value(self, value: object) -> TypeGuard[ForecastAndSensorValue]:
+    def is_valid_value(self, value: Any) -> TypeGuard[ForecastAndSensorValue]:
         """Check if value is a valid mapping with required keys and correctly typed values.
 
         ForecastAndSensorValue requires both 'live' and 'forecast' to be Sequence[str],

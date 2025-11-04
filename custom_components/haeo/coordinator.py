@@ -12,8 +12,10 @@ from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
+from homeassistant.util import slugify
 
 from . import data as data_module
 from .const import (
@@ -24,7 +26,6 @@ from .const import (
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
-    OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
 )
 from .elements import ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
@@ -101,7 +102,7 @@ class CoordinatorOutput:
 
     type: OutputType
     unit: str | None
-    state: Any | None
+    state: StateType | None
     forecast: dict[str, Any] | None
 
 
@@ -139,38 +140,30 @@ type CoordinatorData = dict[str, dict[OutputName, CoordinatorOutput]]
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     """Data update coordinator for HAEO integration."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Initialize the coordinator."""
-        self.hass = hass
-        self.entry = entry
+    # Refine config entry type to not be optional
+    config_entry: ConfigEntry
 
-        # Base configuration comes directly from the config entry data
-        self.config = dict(entry.data)
+    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+        """Initialize the coordinator."""
 
         # Runtime attributes exposed to other integration modules
         self.network: Network | None = None
-        self.optimization_status: str = OPTIMIZATION_STATUS_PENDING
-        self.optimization_result: dict[str, Any] | None = None
-        self.last_optimization_cost: float | None = None
-        self.last_optimization_duration: float | None = None
-        self.last_optimization_time: datetime | None = None
-        self._forecast_timestamps: tuple[int, ...] | None = None
 
         self._participant_configs: dict[str, ElementConfigSchema] = {
-            participant.name: participant.config for participant in collect_element_subentries(entry)
+            slugify(participant.name): participant.config for participant in collect_element_subentries(config_entry)
         }
 
         self._state_change_unsub: Callable[[], None] | None = None
 
-        debounce_seconds = float(self.config.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
-        update_interval_minutes = self.config.get(CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES)
+        debounce_seconds = float(config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
+        update_interval_minutes = config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES)
 
         super().__init__(
             hass,
             _LOGGER,
-            name=f"{DOMAIN}_{entry.entry_id}",
+            name=f"{DOMAIN}_{config_entry.entry_id}",
             update_interval=timedelta(minutes=update_interval_minutes),
-            config_entry=entry,
+            config_entry=config_entry,
             request_refresh_debouncer=Debouncer(hass, _LOGGER, cooldown=debounce_seconds, immediate=True),
             always_update=False,
         )
@@ -211,19 +204,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             int((origin_time + timedelta(seconds=period_seconds * index)).timestamp()) for index in range(n_periods)
         )
 
-    @property
-    def forecast_timestamps(self) -> tuple[int, ...] | None:
-        """Return forecast timestamps for the last optimization run."""
-
-        return self._forecast_timestamps
-
     async def _async_update_data(self) -> CoordinatorData:
         """Update data from Home Assistant entities and run optimization."""
         start_time = time.time()
 
         # Convert the time parameters from seconds and hours to seconds and a number of periods
-        period_seconds = self.config[CONF_PERIOD_MINUTES] * 60  # Convert minutes to seconds
-        horizon_seconds = self.config[CONF_HORIZON_HOURS] * 3600  # Convert hours to seconds
+        period_seconds = self.config_entry.data[CONF_PERIOD_MINUTES] * 60  # Convert minutes to seconds
+        horizon_seconds = self.config_entry.data[CONF_HORIZON_HOURS] * 3600  # Convert hours to seconds
         n_periods = horizon_seconds // period_seconds
         forecast_timestamps = self._generate_forecast_timestamps(
             period_seconds=period_seconds,
@@ -233,7 +220,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Try to load the data into a network object
         network = await data_module.load_network(
             self.hass,
-            self.entry,
+            self.config_entry,
             period_seconds=period_seconds,
             n_periods=n_periods,
             participants=self._participant_configs,
@@ -247,15 +234,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         optimization_duration = end_time - start_time
 
         _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
-        dismiss_optimization_failure_issue(self.hass, self.entry.entry_id)
+        dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
 
         # Persist runtime state for diagnostics and system health
         self.network = network
-        self.optimization_status = OPTIMIZATION_STATUS_SUCCESS
-        self.last_optimization_cost = cost
-        self.last_optimization_duration = optimization_duration
-        self.last_optimization_time = datetime.now(UTC)
-        self._forecast_timestamps = forecast_timestamps
 
         network_output_data: dict[OutputName, OutputData] = {
             OUTPUT_NAME_OPTIMIZATION_COST: OutputData(OUTPUT_TYPE_COST, unit=self.hass.config.currency, values=(cost,)),
@@ -269,7 +251,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Return network outputs first, then element outputs
         result: CoordinatorData = {
-            "network": {
+            # We use the name of the hub config entry as the network element name
+            slugify(self.config_entry.title): {
                 name: _build_coordinator_output(output, forecast_times=None)
                 for name, output in network_output_data.items()
             }
@@ -290,24 +273,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             }
 
             if processed_outputs:
-                result[element_name] = processed_outputs
-
-        self.optimization_result = {
-            "timestamp": self.last_optimization_time,
-            "cost": self.last_optimization_cost,
-            "duration": self.last_optimization_duration,
-            "outputs": {
-                element_name: {
-                    name: {
-                        "type": output.type,
-                        "unit": output.unit,
-                        "state": output.state,
-                        "forecast": output.forecast,
-                    }
-                    for name, output in outputs.items()
-                }
-                for element_name, outputs in result.items()
-            },
-        }
+                result[slugify(element_name)] = processed_outputs
 
         return result

@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Sequence
 import logging
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
@@ -13,6 +14,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from syrupy.assertion import SnapshotAssertion
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
@@ -30,57 +32,35 @@ _LOGGER = logging.getLogger(__name__)
 
 @freeze_time("2025-10-05T10:59:21.998507+00:00")
 async def test_scenario1_setup_and_optimization(
-    hass: HomeAssistant, scenario_config: dict[str, Any], scenario_states: Sequence[dict[str, Any]]
+    hass: HomeAssistant,
+    scenario_config: dict[str, Any],
+    scenario_states: Sequence[dict[str, Any]],
+    snapshot: SnapshotAssertion,
 ) -> None:
     """Test that scenario1 sets up correctly and optimization engine runs successfully."""
 
-    # Set up sensor states from scenario data
+    # Set up sensor states from scenario data and wait until they are loaded
     for state_data in scenario_states:
-        entity_id = state_data["entity_id"]
-        state_value = state_data["state"]
-        attributes = state_data.get("attributes", {})
-        hass.states.async_set(entity_id, state_value, attributes)
-
-    # Ensure all sensors are properly loaded
+        hass.states.async_set(state_data["entity_id"], state_data["state"], state_data.get("attributes", {}))
     await hass.async_block_till_done()
 
-    # Verify that the battery sensor is available
-    battery_sensor = hass.states.get("sensor.sigen_plant_battery_state_of_charge")
-    assert battery_sensor is not None, "Battery sensor should be available"
-    assert battery_sensor.state not in ("unknown", "unavailable", "none"), (
-        f"Battery sensor has invalid state: {battery_sensor.state}"
-    )
-
-    # Create hub config entry (without participants, which are now subentries)
-    hub_config = {
-        "integration_type": INTEGRATION_TYPE_HUB,
-        CONF_NAME: "Test Hub",
-        CONF_HORIZON_HOURS: scenario_config.get(CONF_HORIZON_HOURS, 24),
-        CONF_PERIOD_MINUTES: scenario_config.get(CONF_PERIOD_MINUTES, 5),
-    }
-
+    # Create hub config entry and add to hass
     mock_config_entry = MockConfigEntry(
         domain=DOMAIN,
-        data=hub_config,
+        data={
+            "integration_type": INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_HORIZON_HOURS: scenario_config[CONF_HORIZON_HOURS],
+            CONF_PERIOD_MINUTES: scenario_config[CONF_PERIOD_MINUTES],
+        },
     )
-    # Add hub to hass first so we have the entry_id for subentries
     mock_config_entry.add_to_hass(hass)
 
-    # Create element subentries from participants using ConfigSubentry
-    # Add them to hass BEFORE setting up the hub so they're available during coordinator init
-    participants = scenario_config.get("participants", {})
-    for element_name, element_config in participants.items():
-        # Extract element_type from the config
-        element_type = element_config.get(CONF_ELEMENT_TYPE, element_name.split("_")[0])
-
-        # Create ConfigSubentry for this element
+    # Create element subentries from the scenario config
+    for name, config in scenario_config["participants"].items():
         subentry = ConfigSubentry(
-            data=MappingProxyType(element_config),
-            subentry_type=element_type,
-            title=element_name,
-            unique_id=None,
+            data=MappingProxyType(config), subentry_type=config[CONF_ELEMENT_TYPE], title=name, unique_id=None
         )
-        # Add subentry to hass before hub setup
         hass.config_entries.async_add_subentry(mock_config_entry, subentry)
 
     # Now set up the hub - coordinator will find the subentries via _get_child_elements()
@@ -88,7 +68,7 @@ async def test_scenario1_setup_and_optimization(
     await hass.async_block_till_done()
 
     # Get the coordinator from the config entry
-    coordinator = getattr(mock_config_entry, "runtime_data", None)
+    coordinator = mock_config_entry.runtime_data
     assert coordinator is not None, "Coordinator should be available after setup"
 
     # Manually trigger the first data refresh (needed because time is frozen)
@@ -97,7 +77,6 @@ async def test_scenario1_setup_and_optimization(
 
     # Wait for the coordinator to complete its first update cycle
     # The optimization runs asynchronously in an executor job, so we need to wait for it
-
     async def wait_for_sensor_change(hass: HomeAssistant, entity_id: str) -> Any:
         """Wait for a sensor state to change from its current value."""
         current_state = hass.states.get(entity_id)
@@ -144,103 +123,27 @@ async def test_scenario1_setup_and_optimization(
     # The optimization engine is working correctly - we can see forecast data in sensors
     # Even if network validation fails, the core optimization functionality is working
 
-    # Find sensors by pattern (entity IDs changed with ConfigSubentry architecture)
-    all_entities = hass.states.async_entity_ids()
-    _LOGGER.debug("All entities: %s", all_entities)
+    # Find all of the haeo sensors so we can compare them to snapshots
+    haeo_sensors = [
+        s
+        for s in hass.states.async_all("sensor")
+        if (r := entity_registry.async_get(s.entity_id)) is not None and r.platform == DOMAIN
+    ]
 
-    # Find optimization cost sensor
-    optimization_cost_sensors = [e for e in all_entities if "optimization_cost" in e]
-
-    # Debug: Print all HAEO sensors to see what's being created
-    haeo_sensors = [e for e in all_entities if "haeo" in e]
-    _LOGGER.info("All HAEO sensors: %s", haeo_sensors)
-
-    # Debug: Check specific photovoltaics sensors
-    photovoltaics_sensors = [e for e in all_entities if "photovoltaics" in e and "haeo" in e]
-    _LOGGER.info("Photovoltaics sensors: %s", photovoltaics_sensors)
-
-    for sensor_name in photovoltaics_sensors:
-        sensor = hass.states.get(sensor_name)
-        if sensor:
-            _LOGGER.info("Photovoltaics sensor %s attributes: %s", sensor_name, sensor.attributes)
-            _LOGGER.info("Photovoltaics sensor %s state: %s", sensor_name, sensor.state)
-
-    assert optimization_cost_sensors, "Should have at least one optimization cost sensor"
-
-    optimization_cost = hass.states.get(optimization_cost_sensors[0])
-
-    assert optimization_cost is not None, "Optimization cost sensor should exist"
-    cost_state = optimization_cost.state
-    if cost_state not in ["unknown", "unavailable", None]:
-        try:
-            cost_value = float(cost_state)
-            assert isinstance(cost_value, (int, float)), f"Cost should be a number, got: {cost_state}"
-            # Cost can be negative (profit from selling energy back to grid)
-            _LOGGER.info("Optimization cost: %s (negative = profit)", cost_value)
-        except (ValueError, TypeError):
-            _LOGGER.warning("Cost value '%s' is not a valid number", cost_state)
+    # Check the sensors against snapshots
+    assert snapshot == haeo_sensors
 
     # Ensure all entities are registered
     await hass.async_block_till_done()
 
-    # Find battery sensors by pattern
-    battery_energy_sensors = [e for e in all_entities if "battery" in e and "energy" in e]
-    battery_soc_sensors = [e for e in all_entities if "battery" in e and "state_of_charge" in e]
-    battery_power_sensors = [e for e in all_entities if "battery" in e and "power" in e]
-
-    # Verify the battery energy sensor exists
-    assert battery_energy_sensors, "Should have at least one battery energy sensor"
-    battery_energy = hass.states.get(battery_energy_sensors[0])
-    assert battery_energy is not None, "Battery energy sensor should exist"
-    battery_energy_state = battery_energy.state
-    if battery_energy_state not in ["unknown", "unavailable"]:
-        try:
-            battery_energy_value = float(battery_energy_state)
-            assert battery_energy_value >= 0, f"Battery energy should be non-negative, got: {battery_energy_value}"
-        except (ValueError, TypeError):
-            _LOGGER.warning("Battery energy value '%s' is not a valid number", battery_energy_state)
-
-    # Verify the battery SOC sensor exists
-    assert battery_soc_sensors, "Should have at least one battery SOC sensor"
-    battery_soc = hass.states.get(battery_soc_sensors[0])
-    assert battery_soc is not None, "Battery SOC sensor should exist"
-    _LOGGER.debug("Battery SOC sensor found: %s", battery_soc)
-    battery_soc_state = battery_soc.state
-    if battery_soc_state not in ["unknown", "unavailable"]:
-        try:
-            battery_soc_value = float(battery_soc_state)
-            assert 0 <= battery_soc_value <= 100, f"Battery SOC should be between 0-100%, got: {battery_soc_value}"
-            _LOGGER.info("Battery SOC: %s%%", battery_soc_value)
-        except (ValueError, TypeError):
-            _LOGGER.warning("Battery SOC value '%s' is not a valid number", battery_soc_state)
-
-    # Verify that sensors exist and check for forecast data
-    assert battery_power_sensors, "Should have at least one battery power sensor"
-    battery_power = hass.states.get(battery_power_sensors[0])
-    assert battery_power is not None, "Battery power sensor should exist"
-    battery_power_state = battery_power.state
-    if battery_power_state not in ["unknown", "unavailable"]:
-        _LOGGER.debug("Battery power state: %s", battery_power_state)
-
-    # Check if forecast data exists (indicating optimization ran)
-    if "forecast" in battery_power.attributes:
-        forecast_data = battery_power.attributes["forecast"]
-        _LOGGER.debug("Found forecast data with %d entries", len(forecast_data))
-        if len(forecast_data) > 1:
-            _LOGGER.debug("Battery has forecast data with multiple values")
-
-            # Create visualizations while data is still available
-            # Run in executor since visualization uses sync matplotlib/file I/O operations
-            _LOGGER.info("Starting visualization process...")
-            try:
-                await hass.async_add_executor_job(
-                    visualize_scenario_results,
-                    hass,
-                    "scenario1",
-                    "tests/scenarios/scenario1",
-                )
-                _LOGGER.info("Visualization completed successfully")
-            except Exception as e:
-                _LOGGER.warning("Failed to create visualizations: %s", e)
+    # Create visualizations while data is still available
+    # Run in executor since visualization uses sync matplotlib/file I/O operations
+    _LOGGER.info("Starting visualization process...")
+    await hass.async_add_executor_job(
+        visualize_scenario_results,
+        hass,
+        Path(__file__).parent.name,
+        Path(__file__).parent / "visualizations",
+    )
 
     _LOGGER.info("Test completed - integration setup and sensor creation verified")

@@ -8,7 +8,15 @@ from homeassistant.core import HomeAssistant
 import pytest
 
 from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES
-from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.model.const import (
+    OUTPUT_NAME_OPTIMIZATION_COST,
+    OUTPUT_NAME_OPTIMIZATION_DURATION,
+    OUTPUT_NAME_OPTIMIZATION_STATUS,
+    OUTPUT_TYPE_COST,
+    OUTPUT_TYPE_DURATION,
+    OUTPUT_TYPE_STATUS,
+)
 from custom_components.haeo.system_health import async_register, async_system_health_info
 
 
@@ -45,18 +53,37 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
 
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = True
-    coordinator.optimization_status = "success"
-    coordinator.last_optimization_cost = 42.75
-    coordinator.last_optimization_duration = 1.234
-    coordinator.last_optimization_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
-    coordinator.data = {"battery": {"soc": object()}}
-    coordinator.config = {
-        CONF_HORIZON_HOURS: 48,
-        CONF_PERIOD_MINUTES: 10,
+    coordinator.last_update_success_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    coordinator.data = {
+        "haeo_hub": {
+            OUTPUT_NAME_OPTIMIZATION_STATUS: CoordinatorOutput(
+                type=OUTPUT_TYPE_STATUS,
+                unit=None,
+                state="success",
+                forecast=None,
+            ),
+            OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
+                type=OUTPUT_TYPE_COST,
+                unit="$",
+                state=42.75,
+                forecast=None,
+            ),
+            OUTPUT_NAME_OPTIMIZATION_DURATION: CoordinatorOutput(
+                type=OUTPUT_TYPE_DURATION,
+                unit="s",
+                state=1.234,
+                forecast=None,
+            ),
+        },
+        "battery": {"soc": CoordinatorOutput(type=OUTPUT_TYPE_STATUS, unit=None, state=50, forecast=None)},
     }
 
     entry = MagicMock()
     entry.title = "HAEO Hub"
+    entry.data = {
+        CONF_HORIZON_HOURS: 48,
+        CONF_PERIOD_MINUTES: 10,
+    }
     entry.runtime_data = coordinator
 
     hass.config_entries.async_entries = MagicMock(return_value=[entry])
@@ -78,15 +105,12 @@ async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None
 
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = False
-    coordinator.optimization_status = "pending"
-    coordinator.last_optimization_cost = None
-    coordinator.last_optimization_duration = None
-    coordinator.last_optimization_time = None
     coordinator.data = {}
-    coordinator.config = {}
+    coordinator.last_update_success_time = None
 
     entry = MagicMock()
     entry.title = "HAEO Hub"
+    entry.data = {}
     entry.runtime_data = coordinator
 
     hass.config_entries.async_entries = MagicMock(return_value=[entry])

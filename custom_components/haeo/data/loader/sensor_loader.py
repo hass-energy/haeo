@@ -11,7 +11,7 @@ from custom_components.haeo.const import convert_to_base_unit
 class SensorLoader:
     """Loader for sensor values (returns float)."""
 
-    def available(self, *, hass: HomeAssistant, value: Sequence[str] | str, **_kwargs: Any) -> bool:
+    def available(self, *, hass: HomeAssistant, value: Any, **_kwargs: Any) -> bool:
         """Return True if all sensors are available.
 
         Args:
@@ -24,14 +24,22 @@ class SensorLoader:
 
         """
         # Handle both single sensor ID (str) and list of sensor IDs (Sequence[str])
-        sensor_list = [value] if isinstance(value, str) else list(value)
+        # Guard against non-iterable values
+        if not self.is_valid_value(value):
+            return False
+        if isinstance(value, str):
+            sensor_list = [value]
+        elif isinstance(value, Sequence):
+            sensor_list = list(value)
+        else:
+            return False
 
         return all(
             (state := hass.states.get(sid)) is not None and state.state not in ("unknown", "unavailable", "none")
             for sid in sensor_list
         )
 
-    async def load(self, *, hass: HomeAssistant, value: Sequence[str] | str, **_kwargs: Any) -> float:
+    async def load(self, *, hass: HomeAssistant, value: Any, **_kwargs: Any) -> float:
         """Load sensor values and return their sum or single value.
 
         Args:
@@ -44,6 +52,10 @@ class SensorLoader:
 
         """
         # Handle both single sensor ID (str) and list of sensor IDs (Sequence[str])
+        if not self.is_valid_value(value):
+            msg = "Value must be a sensor entity ID (str) or a sequence of sensor entity IDs (Sequence[str])"
+            raise TypeError(msg)
+
         sensor_list: Sequence[str] = [value] if isinstance(value, str) else value
 
         total: float = 0.0

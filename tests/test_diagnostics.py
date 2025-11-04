@@ -23,7 +23,16 @@ from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdate
 from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
 from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
-from custom_components.haeo.model.const import OUTPUT_NAME_POWER_CONSUMED, OUTPUT_TYPE_POWER
+from custom_components.haeo.model.const import (
+    OUTPUT_NAME_OPTIMIZATION_COST,
+    OUTPUT_NAME_OPTIMIZATION_DURATION,
+    OUTPUT_NAME_OPTIMIZATION_STATUS,
+    OUTPUT_NAME_POWER_CONSUMED,
+    OUTPUT_TYPE_COST,
+    OUTPUT_TYPE_DURATION,
+    OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_STATUS,
+)
 
 
 async def test_diagnostics_without_coordinator(hass: HomeAssistant) -> None:
@@ -55,6 +64,7 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
 
     entry = MockConfigEntry(
         domain=DOMAIN,
+        title="Test Hub",
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
@@ -83,16 +93,33 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = True
     coordinator.update_interval = timedelta(minutes=5)
-    coordinator.optimization_status = "success"
-    coordinator.last_optimization_cost = 27.5
-    coordinator.last_optimization_duration = 1.25
-    coordinator.last_optimization_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    coordinator.last_update_success_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     forecast_map = {
         datetime(2024, 1, 1, 12, 0, tzinfo=UTC).isoformat(): 3.0,
         datetime(2024, 1, 1, 12, 15, tzinfo=UTC).isoformat(): 2.5,
         datetime(2024, 1, 1, 12, 30, tzinfo=UTC).isoformat(): 2.0,
     }
     coordinator.data = {
+        "test_hub": {
+            OUTPUT_NAME_OPTIMIZATION_STATUS: CoordinatorOutput(
+                type=OUTPUT_TYPE_STATUS,
+                unit=None,
+                state="success",
+                forecast=None,
+            ),
+            OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
+                type=OUTPUT_TYPE_COST,
+                unit="$",
+                state=27.5,
+                forecast=None,
+            ),
+            OUTPUT_NAME_OPTIMIZATION_DURATION: CoordinatorOutput(
+                type=OUTPUT_TYPE_DURATION,
+                unit="s",
+                state=1.25,
+                forecast=None,
+            ),
+        },
         "battery_one": {
             OUTPUT_NAME_POWER_CONSUMED: CoordinatorOutput(
                 type=OUTPUT_TYPE_POWER,
@@ -100,7 +127,7 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
                 state=3.0,
                 forecast=forecast_map,
             )
-        }
+        },
     }
 
     # Provide a lightweight network structure for diagnostics
@@ -134,6 +161,7 @@ async def test_diagnostics_handles_missing_outputs(hass: HomeAssistant) -> None:
 
     entry = MockConfigEntry(
         domain=DOMAIN,
+        title="Test Hub",
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
@@ -145,10 +173,7 @@ async def test_diagnostics_handles_missing_outputs(hass: HomeAssistant) -> None:
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = False
     coordinator.update_interval = None
-    coordinator.optimization_status = "pending"
-    coordinator.last_optimization_cost = None
-    coordinator.last_optimization_duration = None
-    coordinator.last_optimization_time = None
+    coordinator.last_update_success_time = None
     coordinator.data = {}
     coordinator.network = None
 

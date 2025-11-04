@@ -8,7 +8,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, ELEMENT_TYPE_NETWORK
 
 from .coordinator import HaeoDataUpdateCoordinator
 
@@ -32,7 +32,7 @@ async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) 
     """
     # Check if Network subentry already exists
     for subentry in hub_entry.subentries.values():
-        if subentry.subentry_type == "network":
+        if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
             _LOGGER.debug("Network subentry already exists for hub %s", hub_entry.entry_id)
             return
 
@@ -41,9 +41,9 @@ async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) 
 
     # Create a ConfigSubentry object and add it to the hub
     network_subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: "Network", CONF_ELEMENT_TYPE: "network"}),
-        subentry_type="network",
-        title="Network",
+        data=MappingProxyType({CONF_NAME: hub_entry.title, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
+        subentry_type=ELEMENT_TYPE_NETWORK,
+        title=hub_entry.title,
         unique_id=None,
     )
 
@@ -53,6 +53,10 @@ async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) 
 
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
     """Handle options update or subentry changes."""
+    from .network import evaluate_network_connectivity  # noqa: PLC0415
+
+    await _ensure_network_subentry(hass, entry)
+    evaluate_network_connectivity(hass, entry)
     _LOGGER.info("HAEO configuration changed, reloading integration")
     await hass.config_entries.async_reload(entry.entry_id)
 

@@ -5,6 +5,7 @@ from typing import cast
 from unittest.mock import MagicMock
 
 from homeassistant.config_entries import ConfigSubentry
+from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -84,14 +85,23 @@ async def test_get_subentries(hass: HomeAssistant) -> None:
     )
     hub_entry.add_to_hass(hass)
 
+    # Set up sensor states for battery SOC and capacity
+    hass.states.async_set("sensor.battery_1_soc", "50.0")
+    hass.states.async_set("sensor.battery_2_soc", "60.0")
+    hass.states.async_set("sensor.battery_1_capacity", "10000", {"unit_of_measurement": UnitOfEnergy.WATT_HOUR})
+    hass.states.async_set("sensor.battery_2_capacity", "20000", {"unit_of_measurement": UnitOfEnergy.WATT_HOUR})
+
     # Create subentries using ConfigSubentry
     battery1 = ConfigSubentry(
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
                 CONF_NAME: "Battery 1",
-                battery.CONF_CAPACITY: 10000.0,
+                battery.CONF_CAPACITY: "sensor.battery_1_capacity",
                 battery.CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_1_soc",
+                battery.CONF_MIN_CHARGE_PERCENTAGE: 20.0,
+                battery.CONF_MAX_CHARGE_PERCENTAGE: 80.0,
+                battery.CONF_EFFICIENCY: 95.0,
             }
         ),
         subentry_type=battery.ELEMENT_TYPE,
@@ -105,8 +115,11 @@ async def test_get_subentries(hass: HomeAssistant) -> None:
             {
                 CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
                 CONF_NAME: "Battery 2",
-                battery.CONF_CAPACITY: 20000.0,
+                battery.CONF_CAPACITY: "sensor.battery_2_capacity",
                 battery.CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_2_soc",
+                battery.CONF_MIN_CHARGE_PERCENTAGE: 20.0,
+                battery.CONF_MAX_CHARGE_PERCENTAGE: 80.0,
+                battery.CONF_EFFICIENCY: 95.0,
             }
         ),
         subentry_type=battery.ELEMENT_TYPE,
@@ -128,8 +141,8 @@ async def test_get_subentries(hass: HomeAssistant) -> None:
     assert "Battery 2" in participants
     battery1_config = cast("BatteryConfigSchema", participants["Battery 1"])
     battery2_config = cast("BatteryConfigSchema", participants["Battery 2"])
-    assert battery1_config[battery.CONF_CAPACITY] == 10000.0
-    assert battery2_config[battery.CONF_CAPACITY] == 20000.0
+    assert battery1_config[battery.CONF_CAPACITY] == "sensor.battery_1_capacity"
+    assert battery2_config[battery.CONF_CAPACITY] == "sensor.battery_2_capacity"
 
 
 async def test_get_subentries_with_exclusion(hass: HomeAssistant) -> None:
@@ -145,14 +158,23 @@ async def test_get_subentries_with_exclusion(hass: HomeAssistant) -> None:
     )
     hub_entry.add_to_hass(hass)
 
+    # Set up sensor states for battery SOC and capacity
+    hass.states.async_set("sensor.battery_1_soc", "50.0")
+    hass.states.async_set("sensor.battery_2_soc", "60.0")
+    hass.states.async_set("sensor.battery_1_capacity", "10000", {"unit_of_measurement": UnitOfEnergy.WATT_HOUR})
+    hass.states.async_set("sensor.battery_2_capacity", "20000", {"unit_of_measurement": UnitOfEnergy.WATT_HOUR})
+
     # Create subentries using ConfigSubentry
     battery1 = ConfigSubentry(
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
                 CONF_NAME: "Battery 1",
-                battery.CONF_CAPACITY: 10000.0,
+                battery.CONF_CAPACITY: "sensor.battery_1_capacity",
                 battery.CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_1_soc",
+                battery.CONF_MIN_CHARGE_PERCENTAGE: 20.0,
+                battery.CONF_MAX_CHARGE_PERCENTAGE: 80.0,
+                battery.CONF_EFFICIENCY: 95.0,
             }
         ),
         subentry_type=battery.ELEMENT_TYPE,
@@ -166,8 +188,11 @@ async def test_get_subentries_with_exclusion(hass: HomeAssistant) -> None:
             {
                 CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
                 CONF_NAME: "Battery 2",
-                battery.CONF_CAPACITY: 20000.0,
+                battery.CONF_CAPACITY: "sensor.battery_2_capacity",
                 battery.CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_2_soc",
+                battery.CONF_MIN_CHARGE_PERCENTAGE: 20.0,
+                battery.CONF_MAX_CHARGE_PERCENTAGE: 80.0,
+                battery.CONF_EFFICIENCY: 95.0,
             }
         ),
         subentry_type=battery.ELEMENT_TYPE,

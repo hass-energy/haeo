@@ -7,7 +7,7 @@ from typing import Any, Final, Literal, NamedTuple, TypeGuard
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.schema import flatten, schema_for_type
 
 from . import battery, connection, constant_load, forecast_load, grid, node, photovoltaics
@@ -161,24 +161,16 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
     """Return validated element subentries excluding the network element."""
 
-    validated: list[ValidatedElementSubentry] = []
-
-    for subentry in entry.subentries.values():
-        # Skip the network element
-        if subentry.subentry_type == "network":
-            continue
-
-        if is_element_config_schema(subentry.data):
-            validated.append(
-                ValidatedElementSubentry(
-                    name=subentry.data[CONF_NAME],
-                    element_type=subentry.data[CONF_ELEMENT_TYPE],
-                    subentry=subentry,
-                    config=subentry.data,
-                )
-            )
-
-    return validated
+    return [
+        ValidatedElementSubentry(
+            name=subentry.title,
+            element_type=subentry.data[CONF_ELEMENT_TYPE],
+            subentry=subentry,
+            config=subentry.data,
+        )
+        for subentry in entry.subentries.values()
+        if subentry.subentry_type in ELEMENT_TYPES and is_element_config_schema(subentry.data)
+    ]
 
 
 SensorValue = str | Sequence[str]

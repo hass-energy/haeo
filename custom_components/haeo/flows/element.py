@@ -1,21 +1,14 @@
 """Generic reusable subentry flow for HAEO elements."""
 
-import logging
 from typing import Any, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ElementConfigSchema, is_element_config_schema
-from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
+from custom_components.haeo.network import evaluate_network_connectivity
 from custom_components.haeo.schema import flatten, schema_for_type, unflatten
-from custom_components.haeo.validation import (
-    collect_participant_configs,
-    format_component_summary,
-    validate_network_topology,
-)
-
-_LOGGER = logging.getLogger(__name__)
+from custom_components.haeo.validation import collect_participant_configs
 
 
 class ElementSubentryFlow(ConfigSubentryFlow):
@@ -58,7 +51,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                 hub_entry = self._get_entry()
                 participant_configs = collect_participant_configs(hub_entry)
                 participant_configs[new_config[CONF_NAME]] = new_config
-                self._apply_connectivity_validation(participant_configs)
+                evaluate_network_connectivity(self.hass, hub_entry, participant_configs=participant_configs)
 
                 return self.async_create_entry(title=name, data=new_config)
 
@@ -95,7 +88,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                 if isinstance(current_name, str):
                     participant_configs.pop(current_name, None)
                 participant_configs[updated_config[CONF_NAME]] = updated_config
-                self._apply_connectivity_validation(participant_configs)
+                evaluate_network_connectivity(self.hass, hub_entry, participant_configs=participant_configs)
 
                 return self.async_update_reload_and_abort(
                     hub_entry,
@@ -121,50 +114,6 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             for subentry in self._get_entry().subentries.values()
             if subentry.subentry_id != self._get_current_subentry_id()
         }
-
-    async def async_step_remove_subentry(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle element removal and validate connectivity afterwards."""
-
-        hub_entry = self._get_entry()
-        participant_configs = collect_participant_configs(hub_entry)
-
-        removed_name: str | None = None
-        current_id = self._get_current_subentry_id()
-        if current_id and current_id in hub_entry.subentries:
-            subentry = hub_entry.subentries[current_id]
-            if is_element_config_schema(subentry.data):
-                candidate = subentry.data.get(CONF_NAME)
-                if isinstance(candidate, str):
-                    removed_name = candidate
-
-        if removed_name is not None:
-            participant_configs.pop(removed_name, None)
-
-        super_flow = cast("Any", super())
-        result = await super_flow.async_step_remove_subentry(user_input)
-        self._apply_connectivity_validation(participant_configs)
-        return cast("SubentryFlowResult", result)
-
-    def _apply_connectivity_validation(self, participant_configs: dict[str, ElementConfigSchema]) -> None:
-        """Evaluate connectivity and manage repair issues."""
-
-        result = validate_network_topology(participant_configs)
-        hub_entry = self._get_entry()
-
-        if result.is_connected:
-            dismiss_disconnected_network_issue(self.hass, hub_entry.entry_id)
-            return
-
-        components_for_issue = result.component_sets
-        create_disconnected_network_issue(self.hass, hub_entry.entry_id, components_for_issue)
-
-        summary = format_component_summary(result.components, separator=" | ")
-        _LOGGER.warning(
-            "Network %s has %d disconnected component(s): %s",
-            hub_entry.entry_id,
-            result.num_components,
-            summary or "no components",
-        )
 
     def _get_non_connection_element_names(self) -> list[str]:
         """Return participant names available for connection endpoints excluding the current subentry."""

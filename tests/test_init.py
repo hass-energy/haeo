@@ -4,7 +4,7 @@ from contextlib import suppress
 from types import MappingProxyType
 from unittest.mock import AsyncMock
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 import pytest
@@ -205,10 +205,16 @@ async def test_reload_entry_failure_handling(hass: HomeAssistant, mock_hub_entry
     assert True
 
 
-async def test_async_update_listener(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
+async def test_async_update_listener(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test async_update_listener triggers reload."""
     # Mock the reload function
     reload_called = False
+    connectivity_called = False
+    ensure_called = False
 
     async def mock_reload(entry_id: str) -> bool:
         nonlocal reload_called
@@ -217,11 +223,32 @@ async def test_async_update_listener(hass: HomeAssistant, mock_hub_entry: MockCo
 
     hass.config_entries.async_reload = mock_reload
 
+    async def mock_ensure(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
+        nonlocal ensure_called
+        assert hass_arg is hass
+        assert entry_arg is mock_hub_entry
+        ensure_called = True
+
+    monkeypatch.setattr("custom_components.haeo._ensure_network_subentry", mock_ensure)
+
+    def mock_evaluate(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
+        nonlocal connectivity_called
+        assert hass_arg is hass
+        assert entry_arg is mock_hub_entry
+        connectivity_called = True
+
+    monkeypatch.setattr(
+        "custom_components.haeo.network.evaluate_network_connectivity",
+        mock_evaluate,
+    )
+
     # Call update listener
     await async_update_listener(hass, mock_hub_entry)
 
     # Verify reload was called
     assert reload_called
+    assert connectivity_called
+    assert ensure_called
 
 
 async def test_async_remove_config_entry_device(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:

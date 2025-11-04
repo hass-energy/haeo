@@ -7,6 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import slugify
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
@@ -43,7 +44,7 @@ async def async_setup_entry(
 
     if coordinator.data:
         for subentry in config_entry.subentries.values():
-            outputs = coordinator.data.get(subentry.title, {})
+            outputs = coordinator.data.get(slugify(subentry.title), {})
 
             # Get or create the device for this element
             device_entry = dr.async_get_or_create(
@@ -59,7 +60,9 @@ async def async_setup_entry(
                     HaeoSensor(
                         coordinator,
                         device_entry=device_entry,
-                        element_name=subentry.title,
+                        element_key=slugify(subentry.title),
+                        element_title=subentry.title,
+                        element_type=subentry.subentry_type,
                         output_name=output_name,
                         output_data=output_data,
                         unique_id=f"{config_entry.entry_id}_{subentry.subentry_id}_{output_name}",

@@ -1,21 +1,13 @@
 """Network subentry flow for HAEO integration."""
 
-import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers import selector
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
-from custom_components.haeo.validation import (
-    collect_participant_configs,
-    format_component_summary,
-    validate_network_topology,
-)
-
-_LOGGER = logging.getLogger(__name__)
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.network import evaluate_network_connectivity
 
 
 class NetworkSubentryFlow(ConfigSubentryFlow):
@@ -41,16 +33,17 @@ class NetworkSubentryFlow(ConfigSubentryFlow):
 
                 # Check if network already exists
                 for subentry in hub_entry.subentries.values():
-                    if subentry.subentry_type == "network":
+                    if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
                         errors[CONF_NAME] = "network_exists"
                         break
 
             if not errors:
-                self._validate_connectivity()
+                hub_entry = self._get_entry()
+                evaluate_network_connectivity(self.hass, hub_entry)
                 return self.async_create_entry(
                     title=name,
                     data={
-                        CONF_ELEMENT_TYPE: "network",
+                        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK,
                         CONF_NAME: name,
                     },
                 )
@@ -79,13 +72,13 @@ class NetworkSubentryFlow(ConfigSubentryFlow):
 
             if not errors:
                 hub_entry = self._get_entry()
-                self._validate_connectivity()
+                evaluate_network_connectivity(self.hass, hub_entry)
                 return self.async_update_reload_and_abort(
                     hub_entry,
                     subentry,
                     title=str(new_name),
                     data={
-                        CONF_ELEMENT_TYPE: "network",
+                        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK,
                         CONF_NAME: new_name,
                     },
                 )
@@ -100,27 +93,3 @@ class NetworkSubentryFlow(ConfigSubentryFlow):
         )
 
         return self.async_show_form(step_id="reconfigure", data_schema=schema, errors=errors)
-
-    async def async_step_remove_subentry(self, _user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Prevent removal of the network subentry."""
-        return self.async_abort(reason="cannot_remove_network")
-
-    def _validate_connectivity(self) -> None:
-        """Validate current topology and manage repair issues."""
-
-        hub_entry = self._get_entry()
-        participant_configs = collect_participant_configs(hub_entry)
-        result = validate_network_topology(participant_configs)
-
-        if result.is_connected:
-            dismiss_disconnected_network_issue(self.hass, hub_entry.entry_id)
-            return
-
-        create_disconnected_network_issue(self.hass, hub_entry.entry_id, result.component_sets)
-        summary = format_component_summary(result.components, separator=" | ")
-        _LOGGER.warning(
-            "Network %s has %d disconnected component(s): %s",
-            hub_entry.entry_id,
-            result.num_components,
-            summary or "no components",
-        )
