@@ -83,7 +83,7 @@ INVALID: list[dict[str, Any]] = [
                 },
             ]
         },
-        "expected_format": "amberelectric",
+        "expected_format": None,
         "expected_count": 0,
         "description": "Amber forecast with invalid/missing fields",
     },
@@ -91,7 +91,7 @@ INVALID: list[dict[str, Any]] = [
         "entity_id": "sensor.amber_bad_timestamp",
         "state": "0.13",
         "attributes": {"forecasts": [{"start_time": "not a timestamp", "per_kwh": 0.1}]},
-        "expected_format": "amberelectric",
+        "expected_format": None,
         "expected_count": 0,
         "description": "Amber forecast with invalid timestamp",
     },

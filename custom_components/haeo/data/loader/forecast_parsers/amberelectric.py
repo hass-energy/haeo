@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from datetime import datetime
 import logging
-from typing import Literal
+from typing import Any, Literal
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
@@ -13,6 +13,17 @@ _LOGGER = logging.getLogger(__name__)
 
 Format = Literal["amberelectric"]
 DOMAIN: Format = "amberelectric"
+
+
+def _is_datetime_string(value: Any) -> bool:
+    """Check if a value is a datetime instance."""
+    if not isinstance(value, str):
+        return False
+    try:
+        as_utc(datetime.fromisoformat(value))
+        return True
+    except ValueError:
+        return False
 
 
 class Parser:
@@ -40,8 +51,13 @@ class Parser:
         if not (isinstance(forecasts, list) and len(forecasts) > 0):
             return False
 
-        # Check if any item has both start_time and per_kwh
-        return any(isinstance(item, dict) and "start_time" in item and "per_kwh" in item for item in forecasts)
+        return all(
+            isinstance(item, dict)
+            and {"start_time", "per_kwh"} <= item.keys()
+            and isinstance(item["per_kwh"], (int, float))
+            and _is_datetime_string(item["start_time"])
+            for item in forecasts
+        )
 
     @staticmethod
     def extract(state: State) -> Sequence[tuple[int, float]]:
