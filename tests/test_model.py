@@ -16,10 +16,25 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPE_NODE,
     ELEMENT_TYPE_PHOTOVOLTAICS,
 )
-from custom_components.haeo.model import Network
+from custom_components.haeo.model import Network, OutputData
 from custom_components.haeo.model.battery import Battery
 from custom_components.haeo.model.connection import Connection
-from custom_components.haeo.model.const import extract_values
+from custom_components.haeo.model.const import (
+    OUTPUT_NAME_POWER_FLOW,
+    OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE,
+    OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT,
+    OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MIN,
+    OUTPUT_TYPE_SHADOW_PRICE,
+    extract_values,
+)
 from custom_components.haeo.model.constant_load import ConstantLoad
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.forecast_load import ForecastLoad
@@ -101,7 +116,8 @@ def test_battery_constraints() -> None:
         initial_charge_percentage=50,
     )
 
-    constraints = battery.constraints()
+    battery.build()
+    constraints = battery.get_all_constraints()
     # Should have energy balance constraints for each time step after the first
     assert len(constraints) >= MIN_CONSTRAINTS  # n_periods - 1
 
@@ -401,10 +417,10 @@ def test_net_constraints() -> None:
         n_periods=3,
     )
 
-    constraints = net.constraints()
-    # Node constraints are generated when connected to other elements, so may be empty initially
-    # The exact number depends on implementation details
-    assert isinstance(constraints, list)
+    net.build()
+    constraints = net.get_all_constraints()
+    assert isinstance(constraints, tuple)
+    assert not constraints
 
 
 def test_network_initialization() -> None:
@@ -689,13 +705,165 @@ def test_connection_power_balance_with_negative_flow() -> None:
     # Should complete without errors
     assert isinstance(cost, (int, float))
 
-    # Access optimization results
     battery = cast("Battery", network.elements["battery1"])
 
-    # Check that power variables exist and have values
     assert battery.power_consumption is not None
     for power_var in battery.power_consumption:
         assert isinstance(safe_value(power_var), (int, float))
+
+
+def test_shadow_price_outputs() -> None:
+    """Ensure dual values are exposed for shadow price outputs."""
+
+    network = Network(
+        name="shadow_price_network",
+        period=1.0,
+        n_periods=3,
+    )
+
+    battery = cast(
+        "Battery",
+        network.add(
+            ELEMENT_TYPE_BATTERY,
+            "battery",
+            capacity=12.0,
+            initial_charge_percentage=50,
+            min_charge_percentage=20,
+            max_charge_percentage=90,
+            max_charge_power=4.0,
+            max_discharge_power=4.0,
+        ),
+    )
+    network.add(
+        ELEMENT_TYPE_GRID,
+        "grid",
+        import_limit=8.0,
+        export_limit=8.0,
+        import_price=[0.30, 0.25, 0.20],
+        export_price=[0.10, 0.10, 0.10],
+    )
+    network.add(ELEMENT_TYPE_CONSTANT_LOAD, "load", power=5.0)
+    solar = cast(
+        "Photovoltaics",
+        network.add(
+            ELEMENT_TYPE_PHOTOVOLTAICS,
+            "solar",
+            forecast=[2.0, 2.5, 3.0],
+            curtailment=True,
+        ),
+    )
+    node = cast("Node", network.add(ELEMENT_TYPE_NODE, "node"))
+
+    network.add(
+        ELEMENT_TYPE_CONNECTION,
+        "grid_to_node",
+        source="grid",
+        target="node",
+        min_power=0.0,
+        max_power=8.0,
+    )
+    network.add(
+        ELEMENT_TYPE_CONNECTION,
+        "node_to_load",
+        source="node",
+        target="load",
+        min_power=0.0,
+        max_power=8.0,
+    )
+    network.add(
+        ELEMENT_TYPE_CONNECTION,
+        "solar_to_node",
+        source="solar",
+        target="node",
+        min_power=0.0,
+        max_power=8.0,
+    )
+    network.add(
+        ELEMENT_TYPE_CONNECTION,
+        "battery_to_node",
+        source="battery",
+        target="node",
+        min_power=-4.0,
+        max_power=4.0,
+    )
+
+    cost = network.optimize()
+    assert isinstance(cost, float)
+
+    def _assert_shadow(output: OutputData, expected_length: int) -> None:
+        assert output.type == OUTPUT_TYPE_SHADOW_PRICE
+        assert len(output.values) == expected_length
+        assert all(isinstance(value, float) for value in output.values)
+
+    battery_outputs = battery.get_outputs()
+    assert OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE in battery_outputs
+    assert OUTPUT_NAME_SHADOW_PRICE_SOC_MIN in battery_outputs
+    assert OUTPUT_NAME_SHADOW_PRICE_SOC_MAX in battery_outputs
+    assert OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX in battery_outputs
+    assert OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX in battery_outputs
+    _assert_shadow(
+        battery_outputs[OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE],
+        len(battery.energy_balance_constraints),
+    )
+    _assert_shadow(
+        battery_outputs[OUTPUT_NAME_SHADOW_PRICE_SOC_MIN],
+        len(battery.soc_min_constraints),
+    )
+    _assert_shadow(
+        battery_outputs[OUTPUT_NAME_SHADOW_PRICE_SOC_MAX],
+        len(battery.soc_max_constraints),
+    )
+    _assert_shadow(
+        battery_outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX],
+        len(battery.power_consumption_max_constraints),
+    )
+    _assert_shadow(
+        battery_outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX],
+        len(battery.power_production_max_constraints),
+    )
+
+    grid = cast("Grid", network.elements["grid"])
+
+    grid_outputs = grid.get_outputs()
+    assert OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX in grid_outputs
+    assert OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX in grid_outputs
+    _assert_shadow(
+        grid_outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX],
+        len(grid.power_consumption_max_constraints),
+    )
+    _assert_shadow(
+        grid_outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX],
+        len(grid.power_production_max_constraints),
+    )
+
+    connection = cast("Connection", network.elements["battery_to_node"])
+
+    connection_outputs = connection.get_outputs()
+    assert OUTPUT_NAME_POWER_FLOW in connection_outputs
+    assert OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN in connection_outputs
+    assert OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX in connection_outputs
+    _assert_shadow(
+        connection_outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN],
+        len(connection.power_min_constraints),
+    )
+    _assert_shadow(
+        connection_outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX],
+        len(connection.power_max_constraints),
+    )
+
+    solar_outputs = solar.get_outputs()
+    assert OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT in solar_outputs
+    _assert_shadow(
+        solar_outputs[OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT],
+        len(solar.forecast_limit_constraints),
+    )
+
+    node_outputs = node.get_outputs()
+    assert OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE in node_outputs
+    _assert_shadow(
+        node_outputs[OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE],
+        len(node.power_balance_constraints),
+    )
 
 
 def test_connection_with_none_bounds() -> None:
@@ -931,12 +1099,12 @@ def test_network_constraint_generation_error() -> None:
     # Mock an element to raise an exception during constraint generation
     mock_element = Mock(spec=Element)
     mock_element.name = "failing_element"
-    mock_element.constraints.side_effect = RuntimeError("Constraint generation failed")
+    mock_element.build.side_effect = RuntimeError("Constraint generation failed")
     network.elements["failing_element"] = mock_element
 
     # Should wrap the error with context about which element failed
-    with pytest.raises(ValueError, match="Failed to generate constraints for element 'failing_element'"):
-        network.constraints()
+    with pytest.raises(ValueError, match="Failed to build constraints for element 'failing_element'"):
+        network.build()
 
 
 def test_network_invalid_solver() -> None:
@@ -1244,11 +1412,12 @@ def test_element_constraints(element_data: dict[str, Any]) -> None:
     else:
         pytest.fail(f"Unknown element type: {element_type}")
 
-    constraints = element.constraints()
-    assert isinstance(constraints, list)
-    # Most elements should have at least some constraints
-    if element_type != ELEMENT_TYPE_NODE:  # Net constraints depend on connections
-        assert len(constraints) >= 0
+    element.build()
+    constraints = element.get_all_constraints()
+    assert isinstance(constraints, tuple)
+
+    if element_type == ELEMENT_TYPE_BATTERY:
+        assert len(constraints) >= MIN_CONSTRAINTS
 
 
 def test_extract_values_with_none() -> None:

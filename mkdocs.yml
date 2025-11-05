@@ -161,6 +161,7 @@ nav:
       - Photovoltaics: modeling/photovoltaics.md
       - Connections: modeling/connections.md
       - Node: modeling/node.md
+      - Shadow Prices: modeling/shadow-prices.md
 
   - Developer Guide:
       - developer-guide/index.md

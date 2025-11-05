@@ -2,10 +2,20 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import cast
 
 from pulp import LpConstraint, LpVariable
 
-from .const import OUTPUT_NAME_POWER_FLOW, OUTPUT_TYPE_POWER, OutputData, OutputName, extract_values
+from .const import (
+    OUTPUT_NAME_POWER_FLOW,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN,
+    OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_SHADOW_PRICE,
+    OutputData,
+    OutputName,
+    extract_values,
+)
 
 
 @dataclass
@@ -47,10 +57,30 @@ class Connection:
         self.power = [
             LpVariable(name=f"{name}_power_{i}", lowBound=min_power, upBound=max_power) for i in range(n_periods)
         ]
+        self.power_min_constraints: dict[int, LpConstraint] = {}
+        self.power_max_constraints: dict[int, LpConstraint] = {}
 
-    def constraints(self) -> Sequence[LpConstraint]:
-        """Return constraints for the connection."""
-        return []
+    def build(self) -> None:
+        """Store explicit constraints for power bounds so duals are available."""
+
+        self.power_min_constraints.clear()
+        self.power_max_constraints.clear()
+
+        for index, power_var in enumerate(self.power):
+            if power_var.lowBound is not None:
+                constraint = cast("LpConstraint", power_var >= float(power_var.lowBound))
+                constraint.name = f"{self.name}_power_min_{index}"
+                self.power_min_constraints[index] = constraint
+
+            if power_var.upBound is not None:
+                constraint = cast("LpConstraint", power_var <= float(power_var.upBound))
+                constraint.name = f"{self.name}_power_max_{index}"
+                self.power_max_constraints[index] = constraint
+
+    def get_all_constraints(self) -> Sequence[LpConstraint]:
+        """Return stored connection constraints."""
+
+        return (*self.power_min_constraints.values(), *self.power_max_constraints.values())
 
     def cost(self) -> float:
         """Return the cost of the connection with cycling penalties."""
@@ -59,6 +89,31 @@ class Connection:
     def get_outputs(self) -> Mapping[OutputName, OutputData]:
         """Return output specifications for the connection."""
 
-        return {
+        outputs: dict[OutputName, OutputData] = {
             OUTPUT_NAME_POWER_FLOW: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power))
         }
+
+        if self.power_min_constraints:
+            outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kW",
+                values=self._shadow_prices(self.power_min_constraints),
+            )
+
+        if self.power_max_constraints:
+            outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kW",
+                values=self._shadow_prices(self.power_max_constraints),
+            )
+
+        return outputs
+
+    @staticmethod
+    def _shadow_prices(constraints: Mapping[int, LpConstraint]) -> tuple[float, ...]:
+        """Return dual values for the provided constraints."""
+
+        return tuple(
+            float(pi) if (pi := getattr(constraint, "pi", None)) is not None else 0.0
+            for constraint in constraints.values()
+        )

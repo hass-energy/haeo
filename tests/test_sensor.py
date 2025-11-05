@@ -1,7 +1,5 @@
 """Tests for the HAEO sensor platform."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from datetime import UTC, datetime
 from types import MappingProxyType

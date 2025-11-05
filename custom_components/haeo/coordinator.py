@@ -41,6 +41,7 @@ from .model import (
     OUTPUT_TYPE_ENERGY,
     OUTPUT_TYPE_POWER,
     OUTPUT_TYPE_PRICE,
+    OUTPUT_TYPE_SHADOW_PRICE,
     OUTPUT_TYPE_SOC,
     OUTPUT_TYPE_STATUS,
     Network,
@@ -123,6 +124,7 @@ DEVICE_CLASS_MAP: dict[OutputType, SensorDeviceClass] = {
     OUTPUT_TYPE_SOC: SensorDeviceClass.BATTERY,
     OUTPUT_TYPE_COST: SensorDeviceClass.MONETARY,
     OUTPUT_TYPE_PRICE: SensorDeviceClass.MONETARY,
+    OUTPUT_TYPE_SHADOW_PRICE: SensorDeviceClass.MONETARY,
     OUTPUT_TYPE_DURATION: SensorDeviceClass.DURATION,
     OUTPUT_TYPE_STATUS: SensorDeviceClass.ENUM,
 }
@@ -155,12 +157,19 @@ def _build_coordinator_output(
     values = tuple(output_data.values)
     state: Any | None = values[0] if values else None
     forecast: dict[str, Any] | None = None
+    aligned_times: tuple[int, ...] | None = None
 
-    if forecast_times and len(values) == len(forecast_times) and len(values) > 1:
+    if forecast_times and len(values) > 1:
+        if len(values) == len(forecast_times):
+            aligned_times = forecast_times
+        elif len(values) == len(forecast_times) - 1:
+            aligned_times = forecast_times[1:]
+
+    if aligned_times:
         try:
             forecast = {
                 datetime.fromtimestamp(timestamp, tz=UTC).isoformat(): value
-                for timestamp, value in zip(forecast_times, values, strict=True)
+                for timestamp, value in zip(aligned_times, values, strict=True)
             }
         except ValueError:
             forecast = None

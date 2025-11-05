@@ -68,7 +68,7 @@ LP representation using PuLP:
 - **ConstantLoad, ForecastLoad**: Consumption elements
 - **Node**: Virtual balance point enforcing Kirchhoff's law
 - **Connection**: Power flow path with optional min/max limits
-- **Network**: Container with `optimize()`, `cost()`, and `constraints()` methods
+- **Network**: Container with `build()`, `optimize()`, and `cost()` methods
 
 ### Optimization
 
@@ -122,7 +122,7 @@ Rather than documenting every file, focus on how the major areas collaborate:
 1. **Create model class** in `model/`:
    - Inherit from `Element`
    - Define power/energy variables
-   - Implement `cost()` and `constraints()` methods
+   - Implement `build()` and `get_all_constraints()` methods
 
 2. **Add element metadata** in `elements/`:
    - `*ConfigSchema`: For config flow validation

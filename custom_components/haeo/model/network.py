@@ -1,6 +1,6 @@
 """Network class for electrical system modeling and optimization."""
 
-from collections.abc import Callable, MutableSequence, Sequence
+from collections.abc import Callable
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass, field
 import io
@@ -37,6 +37,7 @@ class Network:
     n_periods: int
     elements: dict[str, Element | Connection] = field(default_factory=dict)
     sensor_data_available: bool = True
+    balance_constraints: dict[tuple[str, int], LpConstraint] = field(init=False, default_factory=dict)
 
     def add(self, element_type: str, name: str, **kwargs: object) -> Element | Connection:
         """Add an element to the network by type.
@@ -65,47 +66,51 @@ class Network:
         self.elements[name] = element
         return element
 
-    def constraints(self) -> Sequence[LpConstraint]:
-        """Return constraints for the network."""
-        constraints: MutableSequence[LpConstraint] = []
+    def build(self) -> None:
+        """Build and store constraints for the network and its elements."""
 
-        # Add element-specific constraints (including connection elements)
+        self.validate()
+        self.balance_constraints.clear()
+
         for element_name, element in self.elements.items():
             try:
-                constraints.extend(element.constraints())
-            except Exception as e:
-                msg = f"Failed to generate constraints for element '{element_name}'"
-                raise ValueError(msg) from e
+                element.build()
+            except Exception as exc:
+                msg = f"Failed to build constraints for element '{element_name}'"
+                raise ValueError(msg) from exc
 
-        # Add power balance constraints for each element based on the connections
-        # We need to identify connection elements and handle their power flows
+        for element in self.elements.values():
+            if isinstance(element, Element):
+                element.power_balance_constraints.clear()
+
         for element in self.elements.values():
             if not isinstance(element, Element):
                 continue
+
             for t in range(self.n_periods):
                 balance_terms = []
 
-                # Add element's own consumption and production
                 if element.power_consumption is not None:
                     balance_terms.append(-element.power_consumption[t])
                 if element.power_production is not None:
                     balance_terms.append(element.power_production[t])
 
-                # Add connection flows - check if this element is connected via connection elements
                 for conn_element in self.elements.values():
-                    if isinstance(conn_element, Connection):
-                        if conn_element.source == element.name:
-                            # Power leaving the element (negative for balance)
-                            balance_terms.append(-conn_element.power[t])
-                        elif conn_element.target == element.name:
-                            # Power entering the element (positive for balance)
-                            balance_terms.append(conn_element.power[t])
+                    if not isinstance(conn_element, Connection):
+                        continue
 
-                # Power balance: sum of all terms should be zero
-                if balance_terms:
-                    constraints.append(lpSum(balance_terms) == 0)
+                    if conn_element.source == element.name:
+                        balance_terms.append(-conn_element.power[t])
+                    elif conn_element.target == element.name:
+                        balance_terms.append(conn_element.power[t])
 
-        return constraints
+                if not balance_terms:
+                    continue
+
+                constraint = cast("LpConstraint", lpSum(balance_terms) == 0)
+                constraint.name = f"{element.name}_balance_{t}"
+                self.balance_constraints[(element.name, t)] = constraint
+                element.power_balance_constraints[t] = constraint
 
     def cost(self) -> float:
         """Return the cost expression for the network."""
@@ -126,8 +131,8 @@ class Network:
             The total optimization cost
 
         """
-        # Validate network before optimization
-        self.validate()
+        # Build all constraints before optimization
+        self.build()
 
         # Create the LP problem
         prob = LpProblem(f"{self.name}_optimization", LpMinimize)  # type: ignore[no-untyped-call]
@@ -135,8 +140,19 @@ class Network:
         # Add the objective function (minimize cost)
         prob += self.cost(), "Total_Cost"
 
-        # Add all constraints
-        for constraint in self.constraints():
+        # Add element constraints
+        for element_name, element in self.elements.items():
+            try:
+                constraints = element.get_all_constraints()
+            except Exception as exc:
+                msg = f"Failed to collect constraints for element '{element_name}'"
+                raise ValueError(msg) from exc
+
+            for constraint in constraints:
+                prob += constraint
+
+        # Add network balance constraints
+        for constraint in self.balance_constraints.values():
             prob += constraint
 
         # Get the specified solver

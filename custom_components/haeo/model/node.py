@@ -1,6 +1,9 @@
 """Node for electrical system modeling."""
 
-from custom_components.haeo.model.element import Element
+from collections.abc import Mapping
+
+from .const import OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE, OUTPUT_TYPE_SHADOW_PRICE, OutputData, OutputName
+from .element import Element
 
 
 class Node(Element):
@@ -16,3 +19,17 @@ class Node(Element):
 
         """
         super().__init__(name=name, period=period, n_periods=n_periods)
+
+    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+        """Return node outputs including power balance shadow prices."""
+
+        outputs = dict(super().get_outputs())
+
+        if self.power_balance_constraints:
+            outputs[OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kWh",
+                values=self._shadow_prices(self.power_balance_constraints),
+            )
+
+        return outputs

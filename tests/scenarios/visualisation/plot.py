@@ -30,6 +30,17 @@ from custom_components.haeo.model import (
     OUTPUT_NAME_PRICE_EXPORT,
     OUTPUT_NAME_PRICE_IMPORT,
     OUTPUT_NAME_PRICE_PRODUCTION,
+    OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE,
+    OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT,
+    OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MIN,
 )
 
 from .colors import ColorMapper
@@ -50,6 +61,7 @@ class ForecastData(TypedDict, total=False):
     production_price: Sequence[tuple[float, float]]
     consumption_price: Sequence[tuple[float, float]]
     soc: Sequence[tuple[float, float]]
+    shadow_prices: dict[str, Sequence[tuple[float, float]]]
 
 
 ForecastKey = Literal[
@@ -69,6 +81,47 @@ OUTPUTS_POWER_AVAILABLE: Final = (OUTPUT_NAME_POWER_AVAILABLE,)
 OUTPUTS_BATTERY_STATE_OF_CHARGE: Final = (OUTPUT_NAME_BATTERY_STATE_OF_CHARGE,)
 OUTPUTS_PRICE_CONSUMPTION: Final = (OUTPUT_NAME_PRICE_CONSUMPTION, OUTPUT_NAME_PRICE_EXPORT)
 OUTPUTS_PRICE_PRODUCTION: Final = (OUTPUT_NAME_PRICE_PRODUCTION, OUTPUT_NAME_PRICE_IMPORT)
+OUTPUTS_SHADOW_PRICE: Final = (
+    OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE,
+    OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT,
+    OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MIN,
+)
+
+SHADOW_PRICE_LABELS: Final[dict[str, str]] = {
+    OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE: "energy balance",
+    OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT: "forecast limit",
+    OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE: "node balance",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX: "consumption limit",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX: "export limit",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX: "flow max limit",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN: "flow min limit",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX: "import limit",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX: "production limit",
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MAX: "SOC max",
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MIN: "SOC min",
+}
+
+SHADOW_PRICE_LINESTYLES: Final[dict[str, str]] = {
+    OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE: "-",
+    OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT: "--",
+    OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE: "-.",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX: "-.",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX: "--",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX: "-",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN: "--",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX: "-",
+    OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX: ":",
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MAX: ":",
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MIN: "--",
+}
 
 
 def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, ForecastData]:
@@ -113,6 +166,9 @@ def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, Forecas
             entry["production_price"] = forecast
         elif output_name in OUTPUTS_PRICE_CONSUMPTION:
             entry["consumption_price"] = forecast
+        elif output_name in OUTPUTS_SHADOW_PRICE:
+            shadow_prices = entry.setdefault("shadow_prices", {})
+            shadow_prices[output_name] = forecast
 
     return forecast_data
 
@@ -260,6 +316,25 @@ def get_from_sorted_data(
     return result
 
 
+def collect_shadow_price_series(
+    sorted_data: Sequence[tuple[str, ForecastData]],
+) -> list[tuple[str, str, str, Sequence[tuple[float, float]]]]:
+    """Return labelled shadow price series for plotting."""
+
+    series: list[tuple[str, str, str, Sequence[tuple[float, float]]]] = []
+
+    for element_name, data in sorted_data:
+        for output_name, values in sorted(data.get("shadow_prices", {}).items()):
+            if not values:
+                continue
+
+            label_suffix = SHADOW_PRICE_LABELS.get(output_name, output_name.replace("_", " "))
+            label = f"{element_name} {label_suffix}"
+            series.append((label, data["color"], SHADOW_PRICE_LINESTYLES.get(output_name, "-"), values))
+
+    return series
+
+
 def create_stacked_visualization(hass: HomeAssistant, output_path: str, title: str) -> None:
     """Create visualization of HAEO optimization results with stacked plots and price traces."""
 
@@ -369,6 +444,56 @@ def create_stacked_visualization(hass: HomeAssistant, output_path: str, title: s
     plt.close(fig)
 
 
+def create_shadow_price_visualization(hass: HomeAssistant, output_path: str, title: str) -> bool:
+    """Create a dedicated visualization for shadow price series."""
+
+    forecast_data = extract_forecast_data_from_sensors(hass)
+    sorted_data = sorted(forecast_data.items(), key=lambda item: item[0])
+    series = collect_shadow_price_series(sorted_data)
+
+    if not series:
+        _LOGGER.info("No shadow price data available; skipping shadow price visualization")
+        return False
+
+    fig, ax = plt.subplots(1, 1, figsize=(16, 6))
+
+    ax.set_title(title, fontsize=14, pad=20)
+    ax.set_ylabel("Shadow price ($/kWh)", fontsize=11)
+    ax.set_xlabel("Time", fontsize=11)
+    ax.xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))  # type: ignore[no-untyped-call]
+    ax.grid(alpha=0.3, linestyle=":", linewidth=0.5)
+    ax.tick_params(axis="x", rotation=45, labelsize=9)
+    ax.tick_params(axis="y", labelsize=9)
+
+    for label, color, linestyle, data in series:
+        values = np.asarray(data, dtype=float)
+        times_dt = np.asarray([datetime.fromtimestamp(t, tz=UTC) for t in values[:, 0]], dtype=object)
+        ax.plot(
+            times_dt,
+            values[:, 1],
+            color=color,
+            linestyle=linestyle,
+            linewidth=1.8,
+            drawstyle="steps-post",
+            label=label,
+        )
+
+    ax.axhline(0.0, color="black", linestyle="--", linewidth=0.8, alpha=0.4)
+    ax.legend(loc="upper left", fontsize=9, framealpha=0.9)
+
+    fig.subplots_adjust(top=0.90, bottom=0.18, left=0.08, right=0.95)
+
+    fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3)
+    _LOGGER.info("Shadow price visualization saved to %s", output_path)
+
+    png_path = output_path.replace(".svg", ".png")
+    fig.savefig(png_path, format="png", bbox_inches="tight", dpi=150, pad_inches=0.3)
+    _LOGGER.info("Shadow price visualization saved to %s", png_path)
+
+    plt.close(fig)
+    return True
+
+
 def visualize_scenario_results(hass: HomeAssistant, scenario_name: str, output_dir: Path) -> None:
     """Create comprehensive visualizations for HAEO scenario test results.
 
@@ -390,3 +515,6 @@ def visualize_scenario_results(hass: HomeAssistant, scenario_name: str, output_d
     # Create stacked area/line plots (SVG format for vector graphics)
     main_plot_path = output_dir_path / f"{scenario_name}_optimization.svg"
     create_stacked_visualization(hass, str(main_plot_path), f"{scenario_name.title()} Optimization Results")
+
+    shadow_plot_path = output_dir_path / f"{scenario_name}_shadow_prices.svg"
+    create_shadow_price_visualization(hass, str(shadow_plot_path), f"{scenario_name.title()} Shadow Prices")
