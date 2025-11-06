@@ -7,8 +7,8 @@ from custom_components.haeo.schema.fields import (
     NameFieldSchema,
     PowerFieldData,
     PowerFieldSchema,
-    PricesSensorsAndForecastsFieldData,
-    PricesSensorsAndForecastsFieldSchema,
+    PriceSensorsFieldData,
+    PriceSensorsFieldSchema,
 )
 
 ELEMENT_TYPE: Final = "grid"
@@ -26,8 +26,8 @@ class GridConfigSchema(TypedDict):
 
     element_type: Literal["grid"]
     name: NameFieldSchema
-    import_price: PricesSensorsAndForecastsFieldSchema
-    export_price: PricesSensorsAndForecastsFieldSchema
+    import_price: PriceSensorsFieldSchema
+    export_price: PriceSensorsFieldSchema
 
     # Optional fields
     import_limit: NotRequired[PowerFieldSchema]
@@ -39,8 +39,8 @@ class GridConfigData(TypedDict):
 
     element_type: Literal["grid"]
     name: NameFieldData
-    import_price: PricesSensorsAndForecastsFieldData
-    export_price: PricesSensorsAndForecastsFieldData
+    import_price: PriceSensorsFieldData
+    export_price: PriceSensorsFieldData
 
     # Optional fields
     import_limit: NotRequired[PowerFieldData]

@@ -111,14 +111,8 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
                 CONF_IMPORT_LIMIT: 10000,
                 CONF_EXPORT_LIMIT: 5000,
-                CONF_IMPORT_PRICE: {
-                    "live": ["sensor.import_price"],
-                    "forecast": ["sensor.import_price"],
-                },
-                CONF_EXPORT_PRICE: {
-                    "live": ["sensor.export_price"],
-                    "forecast": ["sensor.export_price"],
-                },
+                CONF_IMPORT_PRICE: ["sensor.import_price"],
+                CONF_EXPORT_PRICE: ["sensor.export_price"],
             }
         ),
         subentry_type=ELEMENT_TYPE_GRID,

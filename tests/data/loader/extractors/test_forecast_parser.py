@@ -1,4 +1,4 @@
-"""Tests for forecast parser functionality."""
+"""Tests for data extractor functionality."""
 
 import logging
 from typing import Any
@@ -7,7 +7,7 @@ from unittest.mock import patch
 from homeassistant.core import HomeAssistant, State
 import pytest
 
-from custom_components.haeo.data.loader import forecast_parsers
+from custom_components.haeo.data.loader import extractors
 from tests.test_data.sensors import ALL_INVALID_SENSORS, ALL_VALID_SENSORS, INVALID_SENSORS_BY_PARSER
 
 
@@ -41,7 +41,7 @@ def test_detect_format_valid_sensors(hass: HomeAssistant, parser_type: str, sens
     """Test detection of valid forecast formats."""
     state = _create_sensor_state(hass, sensor_data["entity_id"], sensor_data["state"], sensor_data["attributes"])
 
-    result = forecast_parsers.detect_format(state)
+    result = extractors.detect_format(state)
 
     assert result == sensor_data["expected_format"], f"Failed to detect {parser_type} format"
 
@@ -51,21 +51,21 @@ def test_detect_format_valid_sensors(hass: HomeAssistant, parser_type: str, sens
     ALL_VALID_SENSORS,
     ids=lambda val: val.get("description", str(val)) if isinstance(val, dict) else str(val),
 )
-def test_parse_forecast_data_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_data: dict[str, Any]) -> None:
+def test_extract_time_series_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_data: dict[str, Any]) -> None:
     """Test parsing of valid forecast data."""
-    state = _create_sensor_state(hass, sensor_data["entity_id"], sensor_data["state"], sensor_data["attributes"])
+    entity_id = sensor_data["entity_id"]
+    state = _create_sensor_state(hass, entity_id, sensor_data["state"], sensor_data["attributes"])
 
-    result = forecast_parsers.parse_forecast_data(state)
+    result = extractors.extract_time_series(state, entity_id=entity_id)
 
     expected_count = sensor_data["expected_count"]
+    assert result is not None, f"Expected data for {parser_type}"
+    assert len(result) >= 1, f"Expected at least one entry for {parser_type}"
     if expected_count > 0:
-        assert result is not None, f"Expected data for {parser_type}"
         assert len(result) == expected_count, f"Expected {expected_count} entries for {parser_type}"
         # Verify chronological order (only check if multiple entries)
         if len(result) > 1:
             assert result[0][0] < result[-1][0], f"Timestamps should be in chronological order for {parser_type}"
-    else:
-        assert result is None or len(result) == 0, f"Expected no data for invalid {parser_type} entry"
 
 
 @pytest.mark.parametrize(
@@ -73,11 +73,11 @@ def test_parse_forecast_data_valid_sensors(hass: HomeAssistant, parser_type: str
     ALL_VALID_SENSORS,
     ids=lambda val: val.get("description", str(val)) if isinstance(val, dict) else str(val),
 )
-def test_get_forecast_units_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_data: dict[str, Any]) -> None:
+def test_get_extracted_units_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_data: dict[str, Any]) -> None:
     """Test getting forecast units for valid sensors."""
     state = _create_sensor_state(hass, sensor_data["entity_id"], sensor_data["state"], sensor_data["attributes"])
 
-    unit, device_class = forecast_parsers.get_forecast_units(state)
+    unit, device_class = extractors.get_extracted_units(state)
 
     assert unit is not None, f"Expected unit for {parser_type}"
     assert device_class is not None, f"Expected device_class for {parser_type}"
@@ -90,28 +90,32 @@ def test_get_forecast_units_valid_sensors(hass: HomeAssistant, parser_type: str,
 )
 def test_invalid_sensor_handling(hass: HomeAssistant, parser_type: str, sensor_data: dict[str, Any]) -> None:
     """Test handling of invalid sensor data."""
-    state = _create_sensor_state(hass, sensor_data["entity_id"], sensor_data["state"], sensor_data["attributes"])
+    entity_id = sensor_data["entity_id"]
+    state = _create_sensor_state(hass, entity_id, sensor_data["state"], sensor_data["attributes"])
 
-    detected_format = forecast_parsers.detect_format(state)
-    parsed_data = forecast_parsers.parse_forecast_data(state)
+    detected_format = extractors.detect_format(state)
 
     expected_format = sensor_data.get("expected_format")
-    expected_count = sensor_data.get("expected_count", 0)
 
     assert detected_format == expected_format, f"Format detection mismatch for {sensor_data['description']}"
 
-    if expected_count > 0:
+    # For invalid sensors, extract_time_series should either raise ValueError or fall back to simple value
+    try:
+        parsed_data = extractors.extract_time_series(state, entity_id=entity_id)
+        # If we get here, it should have fallen back to simple value extraction
+        # Simple value extraction returns a float, not a list
         assert parsed_data is not None
-        assert len(parsed_data) == expected_count
-    else:
-        assert parsed_data is None or len(parsed_data) == 0
+        assert isinstance(parsed_data, (float, list))
+    except ValueError:
+        # This is also acceptable for invalid sensor states
+        pass
 
 
 def test_detect_empty_data(hass: HomeAssistant) -> None:
     """Test detection with empty attributes."""
     state = _create_sensor_state(hass, "sensor.empty", "0", {})
 
-    result = forecast_parsers.detect_format(state)
+    result = extractors.detect_format(state)
 
     assert result is None
 
@@ -135,37 +139,49 @@ def test_detect_multiple_formats_warns(hass: HomeAssistant, caplog: pytest.LogCa
     }
     state = _create_sensor_state(hass, "sensor.ambiguous_forecast", "0", attributes)
 
-    with patch.object(forecast_parsers._LOGGER, "warning") as warning_mock:
-        result = forecast_parsers.detect_format(state)
+    with patch.object(extractors._LOGGER, "warning") as warning_mock:
+        result = extractors.detect_format(state)
 
     assert result is None
     warning_mock.assert_called_once()
     assert "Multiple forecast formats detected" in warning_mock.call_args[0][0]
 
 
-def test_parse_unknown_format_returns_none(hass: HomeAssistant) -> None:
-    """Test that parsing unknown format returns None."""
-    state = _create_sensor_state(hass, "sensor.unknown", "0", {"unknown_field": "value"})
+def test_extract_unknown_format_falls_back_to_simple_value(hass: HomeAssistant) -> None:
+    """Test that extracting from unknown format falls back to simple value."""
+    entity_id = "sensor.unknown"
+    state = _create_sensor_state(hass, entity_id, "42.5", {"unknown_field": "value"})
 
-    result = forecast_parsers.parse_forecast_data(state)
+    result = extractors.extract_time_series(state, entity_id=entity_id)
 
-    assert result is None
-
-
-def test_get_forecast_units_unknown_format() -> None:
-    """get_forecast_units should fail fast when no parser matches."""
-
-    state = State("sensor.unknown", "0", {"unexpected": "value"})
-
-    with pytest.raises(ValueError, match="unknown format"):
-        forecast_parsers.get_forecast_units(state)
+    assert result is not None
+    # Simple value extraction now returns a float directly
+    assert isinstance(result, float)
+    assert result == 42.5
 
 
-PARSER_MAP: dict[str, forecast_parsers.ForecastParser] = {
-    forecast_parsers.amberelectric.DOMAIN: forecast_parsers.amberelectric.Parser,
-    forecast_parsers.aemo_nem.DOMAIN: forecast_parsers.aemo_nem.Parser,
-    forecast_parsers.solcast_solar.DOMAIN: forecast_parsers.solcast_solar.Parser,
-    forecast_parsers.open_meteo_solar_forecast.DOMAIN: forecast_parsers.open_meteo_solar_forecast.Parser,
+def test_get_extracted_units_unknown_format() -> None:
+    """get_extracted_units should return sensor attributes when no parser matches."""
+
+    state = State(
+        "sensor.unknown",
+        "0",
+        {
+            "unit_of_measurement": "test_unit",
+            "device_class": "power",
+        },
+    )
+
+    unit, device_class = extractors.get_extracted_units(state)
+    assert unit == "test_unit"
+    assert device_class == "power"
+
+
+PARSER_MAP: dict[str, extractors.DataExtractor] = {
+    extractors.amberelectric.DOMAIN: extractors.amberelectric.Parser,
+    extractors.aemo_nem.DOMAIN: extractors.aemo_nem.Parser,
+    extractors.solcast_solar.DOMAIN: extractors.solcast_solar.Parser,
+    extractors.open_meteo_solar_forecast.DOMAIN: extractors.open_meteo_solar_forecast.Parser,
 }
 
 

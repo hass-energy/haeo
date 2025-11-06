@@ -7,8 +7,8 @@ from custom_components.haeo.schema.fields import (
     BooleanFieldSchema,
     NameFieldData,
     NameFieldSchema,
-    PowerForecastsFieldData,
-    PowerForecastsFieldSchema,
+    PowerSensorsFieldData,
+    PowerSensorsFieldSchema,
     PriceFieldData,
     PriceFieldSchema,
 )
@@ -26,7 +26,7 @@ class PhotovoltaicsConfigSchema(TypedDict):
 
     element_type: Literal["photovoltaics"]
     name: NameFieldSchema
-    forecast: PowerForecastsFieldSchema
+    forecast: PowerSensorsFieldSchema
 
     # Optional fields
     price_production: NotRequired[PriceFieldSchema]
@@ -38,7 +38,7 @@ class PhotovoltaicsConfigData(TypedDict):
 
     element_type: Literal["photovoltaics"]
     name: NameFieldData
-    forecast: PowerForecastsFieldData
+    forecast: PowerSensorsFieldData
 
     # Optional fields
     price_production: NotRequired[PriceFieldData]

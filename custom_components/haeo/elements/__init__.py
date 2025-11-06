@@ -8,7 +8,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.schema import flatten, schema_for_type
+from custom_components.haeo.schema import schema_for_type
 
 from . import battery, connection, constant_load, forecast_load, grid, node, photovoltaics
 
@@ -147,11 +147,10 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
         return False
 
     entry = ELEMENT_TYPES[element_type]
-    flattened = flatten({k: v for k, v in value.items() if k != CONF_ELEMENT_TYPE})
     schema = schema_for_type(entry.schema)
 
     try:
-        schema(flattened)
+        schema({k: v for k, v in value.items() if k != CONF_ELEMENT_TYPE})  # validate without the element_type field
     except (vol.Invalid, vol.MultipleInvalid):
         return False
 

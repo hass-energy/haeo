@@ -114,10 +114,8 @@
             "name": "Grid Connection Name",
             "import_limit": "Import Limit (Optional)",
             "export_limit": "Export Limit (Optional)",
-            "import_price:live": "Live Import Price Sensor",
-            "import_price:forecast": "Import Price Forecast Sensors",
-            "export_price:live": "Live Export Price Sensor",
-            "export_price:forecast": "Export Price Forecast Sensors"
+            "import_price": "Import Price Sensors",
+            "export_price": "Export Price Sensors"
           }
         },
         "reconfigure": {
@@ -127,10 +125,8 @@
             "name": "Grid Connection Name",
             "import_limit": "Import Limit (Optional)",
             "export_limit": "Export Limit (Optional)",
-            "import_price:live": "Live Import Price Sensor",
-            "import_price:forecast": "Import Price Forecast Sensors",
-            "export_price:live": "Live Export Price Sensor",
-            "export_price:forecast": "Export Price Forecast Sensors"
+            "import_price": "Import Price Sensors",
+            "export_price": "Export Price Sensors"
           }
         }
       },

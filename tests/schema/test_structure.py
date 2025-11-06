@@ -1,4 +1,4 @@
-"""Tests for schema utilities covering flattening and loader dispatch."""
+"""Tests for schema utilities covering loader dispatch."""
 
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -10,7 +10,7 @@ import pytest
 from custom_components.haeo.data.loader import ConstantLoader
 from custom_components.haeo.elements import ElementConfigSchema
 from custom_components.haeo.schema import available as schema_available
-from custom_components.haeo.schema import flatten, get_loader_instance, unflatten
+from custom_components.haeo.schema import get_loader_instance
 from custom_components.haeo.schema import load as schema_load
 from custom_components.haeo.schema.fields import FieldMeta
 
@@ -45,23 +45,6 @@ class TrackingFieldMeta(FieldMeta):
 
     def _get_field_validators(self, **_kwargs: Any) -> Any:
         return lambda value: value
-
-
-@pytest.mark.parametrize(
-    ("flat", "structured"),
-    [
-        ({"name": "grid"}, {"name": "grid"}),
-        (
-            {"price:live": ["sensor.import"], "price:forecast": ["sensor.forecast"]},
-            {"price": {"live": ["sensor.import"], "forecast": ["sensor.forecast"]}},
-        ),
-    ],
-)
-def test_flatten_round_trip(flat: dict[str, Any], structured: dict[str, Any]) -> None:
-    """Flattening and unflattening should be reversible for supported shapes."""
-
-    assert flatten(structured) == flat
-    assert unflatten(flat) == structured
 
 
 @pytest.mark.parametrize("available_result", [True, False])

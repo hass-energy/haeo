@@ -1,7 +1,5 @@
 """Simplified sensor implementation for HAEO outputs."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity

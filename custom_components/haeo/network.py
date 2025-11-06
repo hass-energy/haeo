@@ -1,7 +1,5 @@
 """Network connectivity helpers for the HAEO integration."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 import logging
 

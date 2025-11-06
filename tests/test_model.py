@@ -81,7 +81,7 @@ def test_battery_initialization() -> None:
     assert battery.name == "test_battery"
     assert battery.period == SECONDS_PER_HOUR
     assert battery.n_periods == DEFAULT_PERIODS
-    assert battery.capacity == DEFAULT_BATTERY_CAPACITY
+    assert battery.capacity == [DEFAULT_BATTERY_CAPACITY] * HOURS_PER_DAY
     assert battery.efficiency == DEFAULT_EFFICIENCY
     assert battery.power_consumption is not None
     assert battery.power_production is not None
@@ -96,7 +96,7 @@ def test_battery_constraints() -> None:
     battery = Battery(
         name="test_battery",
         period=SECONDS_PER_HOUR,
-        n_periods=3,
+        n_periods=GRID_PERIODS,
         capacity=10000,
         initial_charge_percentage=50,
     )
@@ -107,7 +107,7 @@ def test_battery_constraints() -> None:
 
 
 def test_battery_initialization_defaults() -> None:
-    """Test battery initialization with default values."""
+    """Test battery initialization with defaults."""
     battery = Battery(
         name="test_battery",
         period=SECONDS_PER_HOUR,
@@ -116,7 +116,7 @@ def test_battery_initialization_defaults() -> None:
         initial_charge_percentage=50,
     )
 
-    assert battery.capacity == DEFAULT_BATTERY_CAPACITY  # Only capacity is stored as an attribute
+    assert battery.capacity == [DEFAULT_BATTERY_CAPACITY] * DEFAULT_PERIODS  # Capacity is stored as a list
     assert battery.efficiency == DEFAULT_EFFICIENCY_MINIMAL  # Default efficiency
     assert battery.power_consumption is not None
     assert battery.power_production is not None
@@ -131,10 +131,10 @@ def test_battery_invalid_capacity() -> None:
         name="test_battery",
         period=SECONDS_PER_HOUR,
         n_periods=HOURS_PER_DAY,
-        capacity=INVALID_CAPACITY,  # Invalid negative capacity - but no validation in constructor
+        capacity=INVALID_CAPACITY,
         initial_charge_percentage=50,
     )
-    assert battery.capacity == INVALID_CAPACITY  # Just stores the value
+    assert battery.capacity == [INVALID_CAPACITY] * HOURS_PER_DAY  # Broadcasts to full list
 
 
 def test_battery_invalid_initial_charge() -> None:
@@ -145,9 +145,9 @@ def test_battery_invalid_initial_charge() -> None:
         period=SECONDS_PER_HOUR,
         n_periods=HOURS_PER_DAY,
         capacity=10000,
-        initial_charge_percentage=INVALID_PERCENTAGE,  # Invalid percentage > 100 - but no validation in constructor
+        initial_charge_percentage=INVALID_PERCENTAGE,
     )
-    assert battery.capacity == DEFAULT_BATTERY_CAPACITY  # Capacity is still stored correctly
+    assert battery.capacity == [DEFAULT_BATTERY_CAPACITY] * HOURS_PER_DAY  # Capacity is still stored correctly
 
 
 def test_grid_initialization() -> None:
@@ -862,8 +862,8 @@ def test_battery_solar_grid_storage_cycle() -> None:
         initial_charge_percentage=50,
         min_charge_percentage=20,
         max_charge_percentage=90,
-        max_charge_power=MAX_POWER_LIMIT,  # 3 kW charge rate
-        max_discharge_power=MAX_POWER_LIMIT,  # 3 kW discharge rate
+        max_charge_power=MAX_POWER_LIMIT,
+        max_discharge_power=MAX_POWER_LIMIT,
         efficiency=0.95,
     )
 

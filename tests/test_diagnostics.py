@@ -1,7 +1,5 @@
 """Tests for HAEO diagnostics utilities."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
 from unittest.mock import Mock
