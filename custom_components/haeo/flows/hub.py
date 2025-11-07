@@ -14,14 +14,12 @@ from custom_components.haeo.const import (
     CONF_PERIOD_MINUTES,
     CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
-    ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES
 
 from . import get_network_config_schema
 from .element import create_subentry_flow_class
-from .network import NetworkSubentryFlow
 from .options import HubOptionsFlow
 
 _LOGGER = logging.getLogger(__name__)
@@ -89,7 +87,6 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             for element_type, entry in ELEMENT_TYPES.items()
         }
 
-        # Register network flow separately - it's special (auto-created, can't be deleted)
-        flows[ELEMENT_TYPE_NETWORK] = NetworkSubentryFlow
+        # Note that the Network subentry is not included here as it can't be added/removed like other elements
 
         return flows

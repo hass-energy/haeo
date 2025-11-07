@@ -160,8 +160,7 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
     subentry_types = HubConfigFlow.async_get_supported_subentry_types(hub_entry)
 
     # Should include all element types plus network (which is registered separately)
-    expected_types = set(ELEMENT_TYPES) | {"network"}
-    assert set(subentry_types.keys()) == expected_types
+    assert set(subentry_types.keys()) == set(ELEMENT_TYPES)
 
     # Verify each type has a flow class
     for flow_class in subentry_types.values():
