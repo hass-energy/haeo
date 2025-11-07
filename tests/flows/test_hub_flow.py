@@ -3,6 +3,7 @@
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.translation import async_get_translations
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
@@ -15,6 +16,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.flows.element import ElementSubentryFlow
 from custom_components.haeo.flows.hub import HubConfigFlow
 
 
@@ -160,11 +162,65 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
     subentry_types = HubConfigFlow.async_get_supported_subentry_types(hub_entry)
 
     # Should include all element types plus network (which is registered separately)
-    expected_types = set(ELEMENT_TYPES) | {"network"}
-    assert set(subentry_types.keys()) == expected_types
+    assert set(subentry_types.keys()) == set(ELEMENT_TYPES)
 
     # Verify each type has a flow class
     for flow_class in subentry_types.values():
         assert flow_class is not None
         assert hasattr(flow_class, "async_step_user")
         assert hasattr(flow_class, "async_step_reconfigure")
+
+
+async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
+    """Ensure all element subentry flows expose complete translations."""
+
+    hub_entry = MockConfigEntry()
+    hub_entry.add_to_hass(hass)
+
+    translations = await async_get_translations(
+        hass,
+        "en",
+        "config_subentries",
+        integrations=[DOMAIN],
+        config_flow=True,
+    )
+
+    subentry_flows = HubConfigFlow.async_get_supported_subentry_types(hub_entry)
+
+    common_suffixes = (
+        "flow_title",
+        "entry_type",
+        "initiate_flow.user",
+        "initiate_flow.reconfigure",
+        "step.user.title",
+        "step.user.description",
+        "step.reconfigure.title",
+        "step.reconfigure.description",
+        "error.name_exists",
+        "error.missing_name",
+    )
+
+    for element_type, flow_class in subentry_flows.items():
+        base_key = f"component.{DOMAIN}.config_subentries.{element_type}"
+
+        for suffix in common_suffixes:
+            assert f"{base_key}.{suffix}" in translations, f"Missing translation key {base_key}.{suffix}"
+
+        flow = flow_class()
+        assert isinstance(flow, ElementSubentryFlow)
+
+        flow.hass = hass
+        flow.handler = (hub_entry.entry_id, element_type)
+
+        step_result = await flow.async_step_user(user_input=None)
+        assert step_result["type"] == FlowResultType.FORM
+
+        schema = step_result["data_schema"]
+        if schema is None:
+            continue
+
+        for field in schema.schema:
+            field_name = field.schema
+            assert f"{base_key}.step.user.data.{field_name}" in translations, (
+                f"Missing translation for {element_type} field '{field_name}'"
+            )

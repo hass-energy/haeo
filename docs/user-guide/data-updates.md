@@ -51,6 +51,7 @@ logger:
 ```
 
 **Logged information:**
+
 - Update trigger sources
 - Data collection timing
 - Optimization solve time
@@ -64,10 +65,10 @@ Use developer tools to inspect coordinator state:
 1. Navigate to Developer Tools → States
 2. Find coordinator sensors (e.g., `sensor.haeo_optimization_status`)
 3. Check attributes for:
-   - Last update time
-   - Update success status
-   - Error messages
-   - Data source states
+    - Last update time
+    - Update success status
+    - Error messages
+    - Data source states
 
 ### Monitor with automations
 
@@ -76,17 +77,17 @@ Create automations to alert on update issues:
 ```yaml
 # Alert on persistent update failures
 automation:
-  - alias: "HAEO update failure alert"
+  - alias: HAEO update failure alert
     trigger:
       - platform: state
         entity_id: sensor.haeo_optimization_status
-        to: "error"
+        to: error
         for:
           minutes: 15
     action:
       - service: notify.mobile_app
         data:
-          title: "HAEO optimization failing"
+          title: HAEO optimization failing
           message: >
             HAEO has failed to optimize for 15 minutes.
             Check configuration and logs.
@@ -101,7 +102,7 @@ HAEO sensors update automatically, so automations just work:
 ```yaml
 # Automation triggers on updated recommendations
 automation:
-  - alias: "Follow HAEO battery recommendations"
+  - alias: Follow HAEO battery recommendations
     trigger:
       - platform: state
         entity_id: sensor.haeo_battery_recommended_power
@@ -109,7 +110,10 @@ automation:
       # Only act on meaningful changes
       - condition: template
         value_template: >
-          {{ (trigger.to_state.state | float(0) - trigger.from_state.state | float(0)) | abs > 100 }}
+          {{
+            (trigger.to_state.state | float(0) - trigger.from_state.state | float(0))
+          | abs > 100
+          }}
     action:
       - service: number.set_value
         target:
@@ -130,15 +134,17 @@ automation:
 When using HAEO with other control systems:
 
 **Priority:**
+
 1. Safety systems (BMS, inverter protection) - always highest priority
 2. Manual overrides - user control when needed
 3. HAEO recommendations - normal automated operation
 4. Fallback behavior - when HAEO unavailable
 
 **Implementation:**
+
 ```yaml
 automation:
-  - alias: "Battery control with safety and overrides"
+  - alias: Battery control with safety and overrides
     trigger:
       - platform: state
         entity_id: sensor.haeo_battery_recommended_power
@@ -146,15 +152,18 @@ automation:
       # Check safety systems
       - condition: state
         entity_id: binary_sensor.battery_error
-        state: "off"
+        state: off
       # Check manual override not active
       - condition: state
         entity_id: input_boolean.manual_battery_control
-        state: "off"
+        state: off
       # Check HAEO data available
       - condition: template
         value_template: >
-          {{ states('sensor.haeo_battery_recommended_power') not in ['unavailable', 'unknown'] }}
+          {{
+            states('sensor.haeo_battery_recommended_power') not in ['unavailable',
+          'unknown']
+          }}
     action:
       - service: number.set_value
         target:
@@ -212,26 +221,26 @@ Focus on these areas to keep data updates reliable and useful.
 
 - :material-tune:{ .lg .middle } __Tune configuration settings__
 
-  Adjust horizon, period, and solver options to balance accuracy and speed.
+    Adjust horizon, period, and solver options to balance accuracy and speed.
 
-  [:material-arrow-right: Configuration options](configuration.md)
+    [:material-arrow-right: Configuration options](configuration.md)
 
 - :material-chart-line:{ .lg .middle } __Monitor optimization performance__
 
-  Track solve duration and update frequency to spot bottlenecks.
+    Track solve duration and update frequency to spot bottlenecks.
 
-  [:material-arrow-right: Performance tips](optimization.md#performance-considerations)
+    [:material-arrow-right: Performance tips](optimization.md#performance-considerations)
 
 - :material-robot-outline:{ .lg .middle } __Automate responses to new data__
 
-  Trigger actions when HAEO publishes fresh recommendations.
+    Trigger actions when HAEO publishes fresh recommendations.
 
-  [:material-arrow-right: Automation patterns](automations.md)
+    [:material-arrow-right: Automation patterns](automations.md)
 
 - :material-help-circle-outline:{ .lg .middle } __Resolve persistent issues__
 
-  Work through common problems when data updates fall behind.
+    Work through common problems when data updates fall behind.
 
-  [:material-arrow-right: Troubleshooting tips](troubleshooting.md)
+    [:material-arrow-right: Troubleshooting tips](troubleshooting.md)
 
 </div>

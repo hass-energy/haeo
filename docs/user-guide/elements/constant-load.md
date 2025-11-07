@@ -62,7 +62,9 @@ For most accurate optimization, use both constant and forecast loads:
 Name: Base Load
 Type: Constant Load
 Power: 1.0
+```
 
+```yaml
 # Variable consumption on top
 Name: Variable Load
 Type: Forecast Load
