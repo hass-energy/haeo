@@ -213,7 +213,9 @@ uv lock --upgrade                      # Update lock file
     {
       "domain": "my_integration",
       "name": "My Integration",
-      "codeowners": ["@me"]
+      "codeowners": [
+        "@me"
+      ]
     }
     ```
 
@@ -1253,6 +1255,6 @@ python -m script.hassfest --integration-path homeassistant/components/my_integra
 
 # Run integration tests with coverage
 pytest ./tests/components/my_integration \
-  --cov=homeassistant.components.my_integration \
-  --cov-report term-missing
+    --cov=homeassistant.components.my_integration \
+    --cov-report term-missing
 ```

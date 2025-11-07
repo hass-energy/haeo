@@ -19,11 +19,11 @@ Forecast sensors must provide a `forecast` attribute with timestamped values:
 ```yaml
 attributes:
   forecast:
-    - datetime: "2025-10-11T12:00:00+00:00"
+    - datetime: '2025-10-11T12:00:00+00:00'
       value: 5.2
-    - datetime: "2025-10-11T12:05:00+00:00"
+    - datetime: '2025-10-11T12:05:00+00:00'
       value: 5.1
-    - datetime: "2025-10-11T12:10:00"
+    - datetime: '2025-10-11T12:10:00'
       value: 4.9
     # ... more timestamped values
 ```
@@ -86,9 +86,9 @@ For fixed pricing schedules with varying time periods:
 ```yaml
 template:
   - sensor:
-      - name: "Time of Use Import Price"
+      - name: Time of Use Import Price
         unique_id: tou_import_price
-        unit_of_measurement: "$/kWh"
+        unit_of_measurement: $/kWh
         state: >
           {% set now_time = now() %}
           {% set hour = now_time.hour %}
@@ -153,10 +153,10 @@ For a constant price that doesn't vary over time:
 ```yaml
 template:
   - sensor:
-      - name: "Fixed Export Price"
+      - name: Fixed Export Price
         unique_id: fixed_export_price
-        unit_of_measurement: "$/kWh"
-        state: "0.08"
+        unit_of_measurement: $/kWh
+        state: '0.08'
         attributes:
           forecast: >
             {% set start = now() %}
@@ -177,9 +177,9 @@ Use past consumption data to forecast future load based on same-day-last-week st
 ```yaml
 template:
   - sensor:
-      - name: "House Load Forecast"
+      - name: House Load Forecast
         unique_id: house_load_forecast
-        unit_of_measurement: "kW"
+        unit_of_measurement: kW
         device_class: power
         state: "{{ states('sensor.home_power_consumption') | float(0) }}"
         attributes:

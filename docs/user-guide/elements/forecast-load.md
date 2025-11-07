@@ -45,9 +45,9 @@ Forecast sensors must provide timestamped future values in attributes:
 ```yaml
 attributes:
   forecast:
-    - datetime: "2025-10-13T12:00:00+00:00"
+    - datetime: '2025-10-13T12:00:00+00:00'
       value: 2.5  # kW
-    - datetime: "2025-10-13T12:05:00+00:00"
+    - datetime: '2025-10-13T12:05:00+00:00'
       value: 2.3
     # ... more timestamped values
 ```
@@ -63,9 +63,9 @@ Use past consumption to predict future load:
 ```yaml
 template:
   - sensor:
-      - name: "House Load Forecast"
+      - name: House Load Forecast
         unique_id: house_load_forecast
-        unit_of_measurement: "kW"
+        unit_of_measurement: kW
         device_class: power
         state: "{{ states('sensor.home_power_consumption') | float(0) }}"
         attributes:
@@ -105,9 +105,9 @@ Use typical hourly patterns:
 ```yaml
 template:
   - sensor:
-      - name: "Typical House Load"
+      - name: Typical House Load
         unique_id: typical_house_load
-        unit_of_measurement: "kW"
+        unit_of_measurement: kW
         state: >
           {% set hour = now().hour %}
           {% set patterns = {
@@ -148,9 +148,9 @@ For predictable loads like EV charging:
 ```yaml
 template:
   - sensor:
-      - name: "EV Charging Schedule"
+      - name: EV Charging Schedule
         unique_id: ev_charging_schedule
-        unit_of_measurement: "kW"
+        unit_of_measurement: kW
         state: >
           {% set hour = now().hour %}
           {{ 7.4 if hour >= 22 or hour < 6 else 0 }}
