@@ -38,19 +38,6 @@ jobs:
           uv run ruff format --diff \
             | reviewdog -f=diff -name="ruff format" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
-      - name: Prettier
-        if: ${{ !cancelled() }}
-        run: |
-          npx --yes prettier@3 --check . \
-            | reviewdog -f=prettier -name="prettier" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
-
-      - name: Markdown Format
-        if: ${{ !cancelled() }}
-        run: |
-          uv run mdformat .
-          git diff \
-            | reviewdog -f=diff -name="mdformat" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
-
       - name: Lint
         if: ${{ !cancelled() }}
         run: |
@@ -62,6 +49,22 @@ jobs:
         run: |
           uv run mypy . \
             | reviewdog -f=mypy -name="mypy type check" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
+
+      - name: Prettier
+        if: ${{ !cancelled() }}
+        run: |
+          git clean -d -f
+          npx --yes prettier@3 --write .
+          git diff \
+            | reviewdog -f=diff -name="prettier" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
+
+      - name: Markdown Format
+        if: ${{ !cancelled() }}
+        run: |
+          git clean -d -f
+          uv run mdformat .
+          git diff \
+            | reviewdog -f=diff -name="mdformat" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
   test:
     name: "Run Tests"
