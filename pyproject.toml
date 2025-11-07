@@ -11,7 +11,7 @@ dependencies = ["homeassistant>=2025.4.4", "numpy>=2.2.2", "pulp[highs]>=3.3.0"]
 dev = [
     "freezegun==1.5.2",
     "matplotlib>=3.10.7",
-    "mdformat-beautysh>=0.1.1",
+    "mdformat-beautysh>=1.0.0",
     "mdformat-config>=0.2.1",
     "mdformat-footnote>=0.1.1",
     "mdformat-frontmatter>=2.0.8",

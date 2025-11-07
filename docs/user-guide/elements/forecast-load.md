@@ -191,7 +191,9 @@ For best results, separate baseline and variable consumption:
 Name: Base Load
 Type: Constant Load
 Power: 1.0  # kW
+```
 
+```yaml
 # Variable portion
 Name: Variable Load
 Type: Forecast Load
@@ -283,12 +285,16 @@ Configure separate forecast loads for different sources:
 Name: House Load
 Type: Forecast Load
 Forecast: sensor.house_forecast
+```
 
+```yaml
 # EV charging
 Name: EV Charger
 Type: Forecast Load
 Forecast: sensor.ev_schedule
+```
 
+```yaml
 # HVAC
 Name: HVAC System
 Type: Forecast Load

@@ -377,16 +377,15 @@ wheels = [
 
 [[package]]
 name = "beautysh"
-version = "6.2.1"
+version = "6.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama" },
-    { name = "types-colorama" },
-    { name = "types-setuptools" },
+    { name = "editorconfig" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/20/96/0b7545646b036d7fa8c27fa6239ad6aeed4e83e22c1d3e408a036fb3d430/beautysh-6.2.1.tar.gz", hash = "sha256:423e0c87cccf2af21cae9a75e04e0a42bc6ce28469c001ee8730242e10a45acd", size = 9800, upload-time = "2021-10-12T08:37:18.8Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/72/6d47e5f15b16b650f6ac9da202bea6866bf327d4be133944a62cedf94d63/beautysh-6.4.1.tar.gz", hash = "sha256:5beeccdddf02cb11088e009d60e367a28aab1609fbe8da9e5a19a7c59fa28f56", size = 68290, upload-time = "2025-10-31T17:17:38.447Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/a7/542307bd25bf5af7b6a71fa32b89915023a8e18c87327a644b2ed3635d60/beautysh-6.2.1-py3-none-any.whl", hash = "sha256:8c7d9c4f2bd02c089194218238b7ecc78879506326b301eba1d5f49471a55bac", size = 9986, upload-time = "2021-10-12T08:37:17.696Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/8b/dc6524676a2e89f48a29b64a90cff6db8cfb98e5d36947c60d1be2183e61/beautysh-6.4.1-py3-none-any.whl", hash = "sha256:405fb0f1caa1029073bcc440e8815bcf243cef6a6bcd48af0d178cbe5bc4396e", size = 24880, upload-time = "2025-10-31T17:17:37.023Z" },
 ]
 
 [[package]]
@@ -739,6 +738,15 @@ wheels = [
 ]
 
 [[package]]
+name = "editorconfig"
+version = "0.17.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/88/3a/a61d9a1f319a186b05d14df17daea42fcddea63c213bcd61a929fb3a6796/editorconfig-0.17.1.tar.gz", hash = "sha256:23c08b00e8e08cc3adcddb825251c497478df1dada6aefeb01e626ad37303745", size = 14695, upload-time = "2025-06-09T08:21:37.097Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/fd/a40c621ff207f3ce8e484aa0fc8ba4eb6e3ecf52e15b42ba764b457a9550/editorconfig-0.17.1-py3-none-any.whl", hash = "sha256:1eda9c2c0db8c16dbd50111b710572a5e6de934e39772de1959d41f64fc17c82", size = 16360, upload-time = "2025-06-09T08:21:35.654Z" },
+]
+
+[[package]]
 name = "envs"
 version = "1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1016,7 +1024,7 @@ dev = [
     { name = "freezegun", specifier = "==1.5.2" },
     { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "mdformat", specifier = ">=0.7.22" },
-    { name = "mdformat-beautysh", specifier = ">=0.1.1" },
+    { name = "mdformat-beautysh", specifier = ">=1.0.0" },
     { name = "mdformat-config", specifier = ">=0.2.1" },
     { name = "mdformat-footnote", specifier = ">=0.1.1" },
     { name = "mdformat-frontmatter", specifier = ">=2.0.8" },
@@ -1406,15 +1414,15 @@ wheels = [
 
 [[package]]
 name = "mdformat-beautysh"
-version = "0.1.1"
+version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautysh" },
     { name = "mdformat" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/71/d2/e29d0f7a2f6b8112b5b96399b427dad20fcfc54a458b52614f8b4dca45cc/mdformat-beautysh-0.1.1.tar.gz", hash = "sha256:b63a0e3adfc29238917b5d163483952f9326f7737cbe3137d3c6c512daf70789", size = 3077, upload-time = "2020-09-24T00:55:24.048Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/e9/f2b37a54442a2e59278b486a6e1b83e6ea140e7ba6bce8392ca9e2b99c5e/mdformat_beautysh-1.0.0.tar.gz", hash = "sha256:10bb22859ffed2a433f2b9b30de4faf7fcdebb9f9d95bd39ecbd437c6a3c686e", size = 2533, upload-time = "2025-11-03T09:20:12.3Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dd/05/79f8253b4206e7bc00d7ba201c32b0c7668d03c142dacf37d981dfb225df/mdformat_beautysh-0.1.1-py3-none-any.whl", hash = "sha256:23e52dc93ce4cdee12033766a6146f656c72095f74bc80a2bdfde1974a50ee72", size = 3055, upload-time = "2020-09-24T00:55:25.698Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/ac/e12f4aef06c7db4b6c35cd513c91ce9461b8f61ae954ef6f8c710135d43e/mdformat_beautysh-1.0.0-py3-none-any.whl", hash = "sha256:9209b42e87dd94c44615669b613ea6cf704c6fd25b6ace5a9ce1e0452088faf2", size = 3161, upload-time = "2025-11-03T09:20:10.96Z" },
 ]
 
 [[package]]
@@ -2791,24 +2799,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737, upload-time = "2024-11-24T20:12:22.481Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d0/30/dc54f88dd4a2b5dc8a0279bdd7270e735851848b762aeb1c1184ed1f6b14/tqdm-4.67.1-py3-none-any.whl", hash = "sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2", size = 78540, upload-time = "2024-11-24T20:12:19.698Z" },
-]
-
-[[package]]
-name = "types-colorama"
-version = "0.4.15.20250801"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/99/37/af713e7d73ca44738c68814cbacf7a655aa40ddd2e8513d431ba78ace7b3/types_colorama-0.4.15.20250801.tar.gz", hash = "sha256:02565d13d68963d12237d3f330f5ecd622a3179f7b5b14ee7f16146270c357f5", size = 10437, upload-time = "2025-08-01T03:48:22.605Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/95/3a/44ccbbfef6235aeea84c74041dc6dfee6c17ff3ddba782a0250e41687ec7/types_colorama-0.4.15.20250801-py3-none-any.whl", hash = "sha256:b6e89bd3b250fdad13a8b6a465c933f4a5afe485ea2e2f104d739be50b13eea9", size = 10743, upload-time = "2025-08-01T03:48:21.774Z" },
-]
-
-[[package]]
-name = "types-setuptools"
-version = "57.4.18"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/13/5e/3d46cd143913bd51dde973cd23b1d412de9662b08a3b8c213f26b265e6f1/types-setuptools-57.4.18.tar.gz", hash = "sha256:8ee03d823fe7fda0bd35faeae33d35cb5c25b497263e6a58b34c4cfd05f40bcf", size = 16654, upload-time = "2022-06-26T12:32:07.528Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/45/b8368a8c2d1dc4fa47eb4db980966e23edecbda16fab7a38186b076bbd4d/types_setuptools-57.4.18-py3-none-any.whl", hash = "sha256:9660b8774b12cd61b448e2fd87a667c02e7ec13ce9f15171f1d49a4654c4df6a", size = 27357, upload-time = "2022-06-26T12:32:06.008Z" },
 ]
 
 [[package]]

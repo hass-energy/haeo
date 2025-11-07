@@ -92,7 +92,9 @@ Configure separate photovoltaics entities for different orientations/locations:
 # East-facing
 Name: East Panels
 Forecast: sensor.solar_forecast_east
+```
 
+```yaml
 # West-facing
 Name: West Panels
 Forecast: sensor.solar_forecast_west
