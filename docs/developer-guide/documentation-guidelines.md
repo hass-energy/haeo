@@ -33,6 +33,7 @@ Describe performance qualitatively: explain how users can monitor it and which l
 ### Consistent terminology
 
 Refer to HAEO components using shared labels:
+
 - **Hub** for the primary integration entry
 - **Element** for batteries, grids, photovoltaics, loads, and nodes
 - **Connection** for power flow links between elements
@@ -64,7 +65,7 @@ Elsewhere, favour neutral language such as "elements" or "devices".
 - Compare duplicate topics (for example, battery configuration vs battery modeling) to ensure they complement rather than repeat one another.
 - Ensure every user-facing page ends with a **Next steps** callout that links to the most relevant follow-up topics, and refresh those links whenever nearby content changes.
 - Match the **Next steps** layout in `docs/index.md`.
-  Use a Material grid, apply `{ .lg .middle }` to the icon, follow with a descriptive sentence, and finish with an arrow-link call to action.
+    Use a Material grid, apply `{ .lg .middle }` to the icon, follow with a descriptive sentence, and finish with an arrow-link call to action.
 - Summarise directory layouts at a high level; avoid listing every file because those inventories fall out of date quickly.
 - Make sure each page introduces a concept once and references it elsewhere instead of re-explaining it.
 - Check that tables share consistent column ordering and naming.

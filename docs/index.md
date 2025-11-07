@@ -63,7 +63,6 @@ Whether you have storage, on-site generation, flexible loads, or only the grid, 
 
 The modeling documentation explains how HAEO formulates the linear program, and the developer guide shows how to extend it when new element types are needed.
 
-
 ## Documentation Structure
 
 ### :material-account: User Guide

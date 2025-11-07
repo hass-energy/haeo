@@ -64,8 +64,8 @@ Hub entries are identified by the presence of `integration_type: "hub"` in their
     },
     "options": {
         "horizon_hours": 48,
-        "period_minutes": 5
-    }
+        "period_minutes": 5,
+    },
 }
 ```
 
@@ -99,7 +99,7 @@ Element entries link to their parent hub via `parent_entry_id`:
         "capacity": 13500,
         "charge_power": 5000,
         # ... element-specific configuration
-    }
+    },
 }
 ```
 
@@ -147,6 +147,7 @@ Instead, users add/edit/remove elements as independent config entries through th
 ### User workflow
 
 **Adding elements:**
+
 1. Navigate to **Settings** → **Devices & Services**
 2. Click **Add Integration**
 3. Search for "HAEO"
@@ -155,12 +156,14 @@ Instead, users add/edit/remove elements as independent config entries through th
 6. Configure element parameters
 
 **Editing elements:**
+
 1. Find the element entry in **Devices & Services**
 2. Click **Configure** on the element entry
 3. Modify parameters
 4. Submit changes
 
 **Removing elements:**
+
 1. Find the element entry in **Devices & Services**
 2. Click the three-dot menu
 3. Select **Delete**
@@ -185,9 +188,7 @@ Example test pattern:
 ```python
 async def test_hub_flow_success(hass: HomeAssistant) -> None:
     """Test successful hub creation."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -197,7 +198,6 @@ async def test_hub_flow_success(hass: HomeAssistant) -> None:
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["data"] == {INTEGRATION_TYPE: INTEGRATION_TYPE_HUB}
 ```
-
 
 ## Related Documentation
 

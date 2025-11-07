@@ -31,8 +31,3 @@ class ForecastLoadConfigData(TypedDict):
 
 
 CONFIG_DEFAULTS: dict[str, Any] = {}
-
-
-def model_description(_config: ForecastLoadConfigSchema) -> str:
-    """Generate model description string for forecast load element."""
-    return "Forecast Load"

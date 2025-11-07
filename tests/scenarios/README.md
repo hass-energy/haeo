@@ -9,8 +9,8 @@ Quick start guide for testing HAEO with real Home Assistant data.
 ```bash
 # Fetches states and filters in one command (prompts for token)
 ./tests/scenarios/filter_states.py http://homeassistant.local:8123 \
-     --output tests/scenarios/my_scenario/states.json \
-     sensor.battery sensor.solar sensor.grid
+    --output tests/scenarios/my_scenario/states.json \
+    sensor.battery sensor.solar sensor.grid
 ```
 
 ### Option 2: From existing file
@@ -18,8 +18,8 @@ Quick start guide for testing HAEO with real Home Assistant data.
 ```bash
 # Filter existing states.json file
 ./tests/scenarios/filter_states.py path/to/states.json \
-     --output tests/scenarios/my_scenario/states.json \
-     sensor.battery sensor.solar sensor.grid
+    --output tests/scenarios/my_scenario/states.json \
+    sensor.battery sensor.solar sensor.grid
 ```
 
 ## Test Structure
@@ -44,7 +44,7 @@ scenario_name/
 
 # Multiple patterns from file
 ./tests/scenarios/filter_states.py http://ha.local:8123 \
-     -o scenario/states.json sensor.battery_soc sensor.import_price sensor.house_load
+    -o scenario/states.json sensor.battery_soc sensor.import_price sensor.house_load
 ```
 
 ## Basic Configuration
@@ -75,11 +75,26 @@ scenario_name/
     }
   },
   "connections": [
-    ["solar", "battery"],
-    ["solar", "grid"],
-    ["battery", "grid"],
-    ["grid", "load"],
-    ["battery", "load"]
+    [
+      "solar",
+      "battery"
+    ],
+    [
+      "solar",
+      "grid"
+    ],
+    [
+      "battery",
+      "grid"
+    ],
+    [
+      "grid",
+      "load"
+    ],
+    [
+      "battery",
+      "load"
+    ]
   ]
 }
 ```

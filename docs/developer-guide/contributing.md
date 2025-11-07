@@ -61,14 +61,14 @@ if state is None:
 
 **When to use each approach:**
 
-| Situation | Approach | Why |
-|-----------|----------|-----|
-| Config entry we created | Type assertion | We control the ID, missing = programming error |
-| Config flow validated data | Type assertion | Validation guaranteed, missing = programming error |
-| Element type from registry | Type assertion | Registry defines valid types |
-| External API response | Defensive check + test | API can fail, legitimate runtime condition |
-| Home Assistant entity state | Defensive check + test | Entity might not exist, user-caused |
-| User input (initial) | Defensive check + test | User can provide invalid data |
+| Situation                   | Approach               | Why                                                |
+| --------------------------- | ---------------------- | -------------------------------------------------- |
+| Config entry we created     | Type assertion         | We control the ID, missing = programming error     |
+| Config flow validated data  | Type assertion         | Validation guaranteed, missing = programming error |
+| Element type from registry  | Type assertion         | Registry defines valid types                       |
+| External API response       | Defensive check + test | API can fail, legitimate runtime condition         |
+| Home Assistant entity state | Defensive check + test | Entity might not exist, user-caused                |
+| User input (initial)        | Defensive check + test | User can provide invalid data                      |
 
 See [Testing Guide](testing.md#type-safety-philosophy) for detailed examples.
 

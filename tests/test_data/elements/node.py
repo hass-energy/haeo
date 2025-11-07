@@ -9,7 +9,6 @@ VALID: list[dict[str, Any]] = [
             "element_type": "node",
             "name": "Junction Node",
         },
-        "expected_description": "Node",
         "description": "Simple junction node",
     },
     {
@@ -17,7 +16,6 @@ VALID: list[dict[str, Any]] = [
             "element_type": "node",
             "name": "Main Bus",
         },
-        "expected_description": "Node",
         "description": "Main electrical bus node",
     },
     {
@@ -25,7 +23,6 @@ VALID: list[dict[str, Any]] = [
             "element_type": "node",
             "name": "Inverter Input",
         },
-        "expected_description": "Node",
         "description": "Inverter input connection node",
     },
 ]

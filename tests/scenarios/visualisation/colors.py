@@ -108,29 +108,3 @@ class ColorMapper:
         # Cache and return the color
         self._element_colors[element_name] = color
         return color
-
-    def get_all_colors(self) -> dict[str, str]:
-        """Get all element name to color mappings.
-
-        Returns:
-            Dictionary mapping element names to their assigned colors
-
-        """
-        return self._element_colors.copy()
-
-
-def get_element_color(element_type: str) -> str:
-    """Get the primary color for a given element type.
-
-    This function returns the primary (first) color from the palette for the given type.
-    For new code, consider using ColorMapper for better color assignment.
-
-    Args:
-        element_type: The type of element (e.g., "photovoltaics", "battery", "load")
-
-    Returns:
-        Hex color code for the element type
-
-    """
-    palette = ELEMENT_COLOR_PALETTES.get(element_type, FALLBACK_PALETTE)
-    return palette[0]

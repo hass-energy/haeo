@@ -13,7 +13,6 @@ VALID: list[dict[str, Any]] = [
             "min_power": 2.0,
             "max_power": 4.0,
         },
-        "expected_description": "Connection 2.0kW to 4.0kW",
         "description": "Connection with both min and max power",
     },
     {
@@ -24,7 +23,6 @@ VALID: list[dict[str, Any]] = [
             "target": "inverter",
             "min_power": 2.0,
         },
-        "expected_description": "Connection (min 2.0kW)",
         "description": "Connection with only minimum power",
     },
     {
@@ -35,7 +33,6 @@ VALID: list[dict[str, Any]] = [
             "target": "house",
             "max_power": 10.0,
         },
-        "expected_description": "Connection (max 10.0kW)",
         "description": "Connection with only maximum power",
     },
     {
@@ -45,7 +42,6 @@ VALID: list[dict[str, Any]] = [
             "source": "node_a",
             "target": "node_b",
         },
-        "expected_description": "Connection",
         "description": "Connection with no power constraints",
     },
 ]

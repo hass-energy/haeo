@@ -29,13 +29,3 @@ INVALID_CONFIGS_BY_TYPE: dict[str, list[dict[str, Any]]] = {
     "forecast_load": forecast_load.INVALID,
     "node": node.INVALID,
 }
-
-# Flatten all valid configs into a single list for easy iteration
-ALL_VALID_CONFIGS: list[tuple[str, dict[str, Any]]] = [
-    (element_type, config) for element_type, configs in VALID_CONFIGS_BY_TYPE.items() for config in configs
-]
-
-# Flatten all invalid configs
-ALL_INVALID_CONFIGS: list[tuple[str, dict[str, Any]]] = [
-    (element_type, config) for element_type, configs in INVALID_CONFIGS_BY_TYPE.items() for config in configs
-]

@@ -29,6 +29,7 @@ User-facing configuration via the Home Assistant UI.
 The hub flow creates the main entry and exposes additional flows so users can add and manage elements without leaving the standard interface.
 
 See the Home Assistant documentation for the underlying patterns:
+
 - [Config Entries](https://developers.home-assistant.io/docs/config_entries_index/)
 - [Config Flow Handler](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/)
 - [Data Entry Flow](https://developers.home-assistant.io/docs/data_entry_flow_index/)
@@ -81,6 +82,7 @@ Sensor entities expose optimization outputs through standard Home Assistant cons
 Separate modules handle network-level metrics and per-element values, and every sensor carries a forecast attribute so downstream automations can look ahead.
 
 See the Home Assistant documentation:
+
 - [Entity creation](https://developers.home-assistant.io/docs/core/entity/)
 - [Sensor entity](https://developers.home-assistant.io/docs/core/entity/sensor/)
 - [Platform development](https://developers.home-assistant.io/docs/creating_platform_index/)
@@ -91,12 +93,14 @@ See the Home Assistant documentation:
 Separate subsystem implementing the optimization model:
 
 **Design principles**:
+
 - Pure Python linear programming using PuLP
 - Elements generate their own variables and constraints
 - Network assembles elements and runs optimization
 - No Home Assistant dependencies in model layer
 
 **Key components**:
+
 - `Element`: Base class with power/energy variable patterns
 - Entity classes: Battery, Grid, Photovoltaics, Loads, Node
 - `Connection`: Power flow with limits
@@ -120,29 +124,35 @@ Rather than documenting every file, focus on how the major areas collaborate:
 ### Adding Element Types
 
 1. **Create model class** in `model/`:
-   - Inherit from `Element`
-   - Define power/energy variables
-   - Implement `cost()` and `constraints()` methods
+
+    - Inherit from `Element`
+    - Define power/energy variables
+    - Implement `cost()` and `constraints()` methods
 
 2. **Add element metadata** in `elements/`:
-   - `*ConfigSchema`: For config flow validation
-   - `*ConfigData`: For runtime with loaded values
-   - Define field metadata using annotations
+
+    - `*ConfigSchema`: For config flow validation
+    - `*ConfigData`: For runtime with loaded values
+    - Define field metadata using annotations
 
 3. **Register element type** in `elements/__init__.py`:
-   - Add to `ELEMENT_TYPES` mapping
+
+    - Add to `ELEMENT_TYPES` mapping
 
 4. **Create config flow** in `flows/elements/`:
-   - Inherit from appropriate base
-   - Implement validation and schema generation
+
+    - Inherit from appropriate base
+    - Implement validation and schema generation
 
 5. **Update translations** in `translations/en.json`:
-   - Add device and selector entries
+
+    - Add device and selector entries
 
 6. **Write tests**:
-   - Model tests in `tests/test_model.py`
-   - Config flow tests in `tests/flows/`
-   - Integration tests
+
+    - Model tests in `tests/test_model.py`
+    - Config flow tests in `tests/flows/`
+    - Integration tests
 
 ### Custom Field Types
 

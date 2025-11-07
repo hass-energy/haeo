@@ -106,6 +106,7 @@ When network optimization fails (infeasible constraints, solver not installed, n
 ### Error propagation
 
 All coordinator errors raise `UpdateFailed`, which:
+
 - Sets `coordinator.last_update_success = False`
 - Logs the error message
 - Makes dependent entities unavailable
@@ -163,7 +164,6 @@ async def coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -
     await hass.async_block_till_done()
     return mock_config_entry.runtime_data.coordinator
 ```
-
 
 ## Related Documentation
 

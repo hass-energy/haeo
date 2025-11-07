@@ -20,12 +20,12 @@ When you remove HAEO, the following items are automatically deleted:
 
 - **Configuration entries**: The hub entry and all element subentries (batteries, grids, loads, generators)
 - **Entities**: All sensors including:
-  - Power sensors for each element
-  - Energy sensors for storage elements
-  - State of charge (SOC) sensors for batteries
-  - Optimization cost sensor
-  - Optimization status sensor
-  - Optimization duration sensor
+    - Power sensors for each element
+    - Energy sensors for storage elements
+    - State of charge (SOC) sensors for batteries
+    - Optimization cost sensor
+    - Optimization status sensor
+    - Optimization duration sensor
 - **Devices**: All device registry entries for the hub and elements
 - **Runtime data**: Current optimization state and results
 
@@ -60,12 +60,12 @@ If you want to remove historical sensor data from the database:
 1. Navigate to **Settings** → **System** → **Repairs**
 2. Look for any HAEO-related issues and resolve them
 3. To completely purge historical data, use the **Developer Tools** → **Services**:
-   ```yaml
-   service: recorder.purge_entities
-   data:
-     entity_id:
-       - sensor.haeo_*  # This will purge all HAEO sensors
-   ```
+    ```yaml
+    service: recorder.purge_entities
+    data:
+      entity_id:
+        - sensor.haeo_*  # This will purge all HAEO sensors
+    ```
 
 **Warning**: Purging historical data is permanent and cannot be undone.
 
@@ -115,9 +115,9 @@ If you continue to experience issues removing HAEO:
 
 1. Check the [HACS documentation](https://hacs.xyz/docs/basic/operations/#uninstall-remove) for the latest uninstall notes
 2. Review the [HAEO GitHub Issues](https://github.com/ha-energy-optimiser/haeo/issues)
-2. Create a new issue with:
-   - Home Assistant version
-   - HAEO version
-   - Description of the removal issue
-   - Relevant error logs
-   - Steps you've already tried
+3. Create a new issue with:
+    - Home Assistant version
+    - HAEO version
+    - Description of the removal issue
+    - Relevant error logs
+    - Steps you've already tried

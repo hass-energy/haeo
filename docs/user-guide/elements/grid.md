@@ -132,19 +132,19 @@ Use this to model:
 
 ### Dynamic pricing with forecast sensors
 
-| Field           | Value                                                      |
-| --------------- | ---------------------------------------------------------- |
-| **Name**        | Main Grid                                                  |
-| **Import Price** | sensor.amber_general_price, sensor.amber_forecast_price    |
+| Field            | Value                                                     |
+| ---------------- | --------------------------------------------------------- |
+| **Name**         | Main Grid                                                 |
+| **Import Price** | sensor.amber_general_price, sensor.amber_forecast_price   |
 | **Export Price** | sensor.amber_feed_in_price, sensor.amber_feed_in_forecast |
-| **Import Limit** | 15 kW                                                      |
-| **Export Limit** | 10 kW                                                      |
+| **Import Limit** | 15 kW                                                     |
+| **Export Limit** | 10 kW                                                     |
 
 ### Fixed pricing with template sensors
 
-| Field           | Value                       |
-| --------------- | --------------------------- |
-| **Name**        | Grid Connection             |
+| Field            | Value                        |
+| ---------------- | ---------------------------- |
+| **Name**         | Grid Connection              |
 | **Import Price** | sensor.constant_import_price |
 | **Export Price** | sensor.constant_export_price |
 
@@ -216,26 +216,26 @@ Extend your grid setup with these follow-up guides.
 
 - :material-battery:{ .lg .middle } __Add a battery__
 
-  Store inexpensive energy for later use while respecting device constraints.
+    Store inexpensive energy for later use while respecting device constraints.
 
-  [:material-arrow-right: Battery guide](battery.md)
+    [:material-arrow-right: Battery guide](battery.md)
 
 - :material-weather-sunny:{ .lg .middle } __Add solar generation__
 
-  Bring photovoltaic production into the network for self-consumption or export.
+    Bring photovoltaic production into the network for self-consumption or export.
 
-  [:material-arrow-right: Photovoltaics guide](photovoltaics.md)
+    [:material-arrow-right: Photovoltaics guide](photovoltaics.md)
 
 - :material-source-branch:{ .lg .middle } __Define connections__
 
-  Configure energy flow paths between the grid and other elements.
+    Configure energy flow paths between the grid and other elements.
 
-  [:material-arrow-right: Connection setup](connections.md)
+    [:material-arrow-right: Connection setup](connections.md)
 
 - :material-chart-line:{ .lg .middle } __View optimization results__
 
-  Confirm the power flows HAEO produces with your updated configuration.
+    Confirm the power flows HAEO produces with your updated configuration.
 
-  [:material-arrow-right: Optimization overview](../optimization.md)
+    [:material-arrow-right: Optimization overview](../optimization.md)
 
 </div>

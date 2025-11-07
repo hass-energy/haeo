@@ -39,9 +39,9 @@ All sensors include `forecast` attribute:
 ```yaml
 attributes:
   forecast:
-    - datetime: "2025-10-12T10:00:00+00:00"
+    - datetime: '2025-10-12T10:00:00+00:00'
       value: 5.2
-    - datetime: "2025-10-12T10:05:00+00:00"
+    - datetime: '2025-10-12T10:05:00+00:00'
       value: 5.1
 ```
 
