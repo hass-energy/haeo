@@ -64,6 +64,10 @@
     "battery": {
       "flow_title": "Battery",
       "entry_type": "Battery",
+      "initiate_flow": {
+        "user": "Battery",
+        "reconfigure": "Battery"
+      },
       "step": {
         "user": {
           "title": "Add Battery",
@@ -106,6 +110,10 @@
     "grid": {
       "flow_title": "Grid Connection",
       "entry_type": "Grid Connection",
+      "initiate_flow": {
+        "user": "Grid Connection",
+        "reconfigure": "Grid Connection"
+      },
       "step": {
         "user": {
           "title": "Add Grid Connection",
@@ -142,6 +150,10 @@
     "constant_load": {
       "flow_title": "Constant Load",
       "entry_type": "Constant Load",
+      "initiate_flow": {
+        "user": "Constant Load",
+        "reconfigure": "Constant Load"
+      },
       "step": {
         "user": {
           "title": "Add Constant Load",
@@ -168,6 +180,10 @@
     "forecast_load": {
       "flow_title": "Forecast Load",
       "entry_type": "Forecast Load",
+      "initiate_flow": {
+        "user": "Forecast Load",
+        "reconfigure": "Forecast Load"
+      },
       "step": {
         "user": {
           "title": "Add Forecast Load",
@@ -194,6 +210,10 @@
     "photovoltaics": {
       "flow_title": "Photovoltaics",
       "entry_type": "Photovoltaics",
+      "initiate_flow": {
+        "user": "Photovoltaics",
+        "reconfigure": "Photovoltaics"
+      },
       "step": {
         "user": {
           "title": "Add Photovoltaics",
@@ -224,6 +244,10 @@
     "node": {
       "flow_title": "Node",
       "entry_type": "Node",
+      "initiate_flow": {
+        "user": "Node",
+        "reconfigure": "Node"
+      },
       "step": {
         "user": {
           "title": "Add Node",
@@ -248,6 +272,10 @@
     "connection": {
       "flow_title": "Connection",
       "entry_type": "Connection",
+      "initiate_flow": {
+        "user": "Connection",
+        "reconfigure": "Connection"
+      },
       "step": {
         "user": {
           "title": "Add Connection",
@@ -284,22 +312,7 @@
     "network": {
       "flow_title": "Network",
       "entry_type": "Network",
-      "step": {
-        "user": {
-          "title": "Add Network",
-          "description": "The optimization network is automatically created with each hub. Only one network is allowed per hub.",
-          "data": {
-            "name": "Network Name"
-          }
-        }
-      },
-      "error": {
-        "network_exists": "A network already exists for this hub. Each hub can only have one network.",
-        "missing_name": "Name is required"
-      },
-      "abort": {
-        "cannot_remove_network": "The network cannot be deleted. It contains the optimization sensors and is required for the hub to function. To remove the entire HAEO system, delete the hub integration instead."
-      }
+      "step": {}
     }
   },
   "selector": {
