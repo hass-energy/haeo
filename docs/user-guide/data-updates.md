@@ -110,7 +110,10 @@ automation:
       # Only act on meaningful changes
       - condition: template
         value_template: >
-          {{ (trigger.to_state.state | float(0) - trigger.from_state.state | float(0)) | abs > 100 }}
+          {{
+            (trigger.to_state.state | float(0) - trigger.from_state.state | float(0))
+          | abs > 100
+          }}
     action:
       - service: number.set_value
         target:
@@ -157,7 +160,10 @@ automation:
       # Check HAEO data available
       - condition: template
         value_template: >
-          {{ states('sensor.haeo_battery_recommended_power') not in ['unavailable', 'unknown'] }}
+          {{
+            states('sensor.haeo_battery_recommended_power') not in ['unavailable',
+          'unknown']
+          }}
     action:
       - service: number.set_value
         target:

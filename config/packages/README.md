@@ -193,8 +193,11 @@ entity_name:
   command_line:
     - sensor:
         unique_id: sensor.entity_name
-        command: >
-          python3 config/transform_sensor.py config/packages/domain/entity_name.json transform_type [params]
+        command: |
+          python3 config/transform_sensor.py \
+           config/packages/domain/entity_name.json \
+           transform_type \
+           [params]
         value_template: '{{ value_json.state }}'
         json_attributes_path: $.attributes
         json_attributes:
@@ -250,7 +253,10 @@ To add a new test sensor:
       command_line:
         - sensor:
             unique_id: sensor.new_sensor
-            command: python3 config/transform_sensor.py config/packages/domain/new_sensor.json passthrough
+            command: |
+              python3 config/transform_sensor.py \
+              config/packages/domain/new_sensor.json \
+              passthrough
             value_template: '{{ value_json.state }}'
             json_attributes_path: $.attributes
             json_attributes:

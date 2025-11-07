@@ -78,7 +78,11 @@ automation:
         state: success
       - condition: template
         value_template: >
-          {{ (trigger.to_state.state | float(0)) | abs <= states('number.battery_max_safe_power') | float(5) }}
+          {{
+            (trigger.to_state.state | float(0))
+             | abs <= states('number.battery_max_safe_power')
+             | float(5)
+          }}
     action:
       - service: number.set_value
         target:
@@ -89,14 +93,17 @@ automation:
         data:
           name: HAEO battery dispatch
           message: >-
-            Applied {{ trigger.to_state.state | float(0) | round(2) }} kW recommendation to
+            Applied
+            {{ trigger.to_state.state | float(0) | round(2) }}
+            kW limit to
             {{ state_attr('number.battery_power_setpoint', 'friendly_name') }}.
       - service: notify.mobile_app_phone
         data:
           title: Battery output updated
           message: >-
-            Battery now set to {{ trigger.to_state.state | float(0) | round(2) }} kW
-            based on HAEO recommendation.
+            Battery now set to
+            {{ trigger.to_state.state | float(0) | round(2) }}
+            kW based on HAEO recommendation.
 ```
 
 ### What this automation does
@@ -131,7 +138,11 @@ automation:
         state: success
       - condition: template
         value_template: >
-          {{ trigger.to_state.state | float(0) < states('sensor.haeo_solar_power') | float(0) }}
+          {{
+            trigger.to_state.state
+            | float(0) < states('sensor.haeo_solar_power')
+            | float(0)
+          }}
     action:
       - choose:
           - conditions:
@@ -158,12 +169,18 @@ automation:
               entity_id: number.solar_inverter_limit_kw
             data:
               value: >-
-                {{ [trigger.to_state.state | float(0), states('number.solar_inverter_limit_max') | float(15)] | min }}
+                {{
+                  [
+                    trigger.to_state.state | float(0),
+                    states('number.solar_inverter_limit_max') | float(15)
+                  ] | min
+                }}
           - service: notify.mobile_app_phone
             data:
               title: Solar limit updated
               message: >-
-                Inverter capped at {{ trigger.to_state.state | float(0) | round(2) }} kW
+                Inverter capped at
+                {{ trigger.to_state.state | float(0) | round(2) }} kW
                 to follow HAEO recommendation.
 ```
 

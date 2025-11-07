@@ -109,7 +109,7 @@ template:
             {% set forecast_list = [] %}
             {% set start = now().replace(minute=0, second=0, microsecond=0) %}
 
-            {# Define price periods (start_hour, end_hour, is_weekday_only, price) #}
+            {# Define price periods (start, end, is_weekday_only, price) #}
             {% set periods = [
               (22, 24, false, 0.18),  {# Off-peak night #}
               (0, 7, false, 0.18),     {# Off-peak morning #}
@@ -199,17 +199,22 @@ template:
               {% set history_start = history_time - timedelta(minutes=30) %}
               {% set history_end = history_time + timedelta(minutes=30) %}
 
-              {% set avg_power = state_attr('sensor.home_power_consumption', 'statistics') %}
+              {%
+                set avg_power = state_attr('sensor.home_power_consumption', 'statistics')
+              %}
               {% if avg_power %}
                 {% set power_value = avg_power.mean | float(1.0) %}
               {% else %}
                 {# Fallback: query last week's value directly #}
-                {% set power_value = states.sensor.home_power_consumption.history(history_start, history_end)
+                {%
+                  set power_value =
+                    states.sensor.home_power_consumption.history(history_start, history_end)
                                       | map(attribute='state')
                                       | map('float', 0)
                                       | list
                                       | average
-                                      | default(1.0) %}
+                                      | default(1.0)
+                %}
               {% endif %}
 
               {% set entry = {
