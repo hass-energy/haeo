@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from homeassistant.components.sensor.const import SensorDeviceClass
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 import pytest
 
 from custom_components.haeo.data.loader.time_series_loader import TimeSeriesLoader
@@ -70,7 +70,7 @@ async def test_time_series_loader_loads_mixed_live_and_forecast(hass: HomeAssist
     ts_values = [int((start + timedelta(hours=offset)).timestamp()) for offset in range(4)]
 
     # Mock extract_time_series to return different types of series
-    def mock_extract(state, *, entity_id: str) -> list[tuple[int, float]]:
+    def mock_extract(state: State, *, entity_id: str) -> list[tuple[int, float]]:
         if entity_id == "sensor.live_price":
             # Simple value returns as timestamp 0
             return [(0, 0.2)]
