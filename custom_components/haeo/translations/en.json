@@ -311,7 +311,8 @@
     },
     "network": {
       "flow_title": "Network",
-      "entry_type": "Network"
+      "entry_type": "Network",
+      "step": {}
     }
   },
   "selector": {
