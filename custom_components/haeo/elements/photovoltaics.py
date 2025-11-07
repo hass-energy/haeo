@@ -48,8 +48,3 @@ class PhotovoltaicsConfigData(TypedDict):
 CONFIG_DEFAULTS: dict[str, Any] = {
     CONF_CURTAILMENT: False,
 }
-
-
-def model_description(_config: PhotovoltaicsConfigSchema) -> str:
-    """Generate model description string for photovoltaics element."""
-    return "Solar"

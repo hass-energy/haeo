@@ -10,7 +10,6 @@ VALID: list[dict[str, Any]] = [
             "name": "Rooftop Solar",
             "forecast": ["sensor.solcast_forecast"],
         },
-        "expected_description": "Solar",
         "description": "Solar with forecast",
     },
     {
@@ -20,7 +19,6 @@ VALID: list[dict[str, Any]] = [
             "forecast": ["sensor.solcast_forecast"],
             "price_production": 0.12,
         },
-        "expected_description": "Solar",
         "description": "Solar with forecast and price_production",
     },
     {
@@ -30,7 +28,6 @@ VALID: list[dict[str, Any]] = [
             "forecast": ["sensor.solcast_forecast"],
             "curtailment": True,
         },
-        "expected_description": "Solar",
         "description": "Solar with curtailment enabled",
     },
 ]
