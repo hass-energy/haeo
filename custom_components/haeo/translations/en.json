@@ -65,8 +65,8 @@
       "flow_title": "Battery",
       "entry_type": "Battery",
       "initiate_flow": {
-        "user": "Add Battery",
-        "reconfigure": "Reconfigure Battery"
+        "user": "Battery",
+        "reconfigure": "Battery"
       },
       "step": {
         "user": {
@@ -111,8 +111,8 @@
       "flow_title": "Grid Connection",
       "entry_type": "Grid Connection",
       "initiate_flow": {
-        "user": "Add Grid Connection",
-        "reconfigure": "Reconfigure Grid Connection"
+        "user": "Grid Connection",
+        "reconfigure": "Grid Connection"
       },
       "step": {
         "user": {
@@ -151,8 +151,8 @@
       "flow_title": "Constant Load",
       "entry_type": "Constant Load",
       "initiate_flow": {
-        "user": "Add Constant Load",
-        "reconfigure": "Reconfigure Constant Load"
+        "user": "Constant Load",
+        "reconfigure": "Constant Load"
       },
       "step": {
         "user": {
@@ -181,8 +181,8 @@
       "flow_title": "Forecast Load",
       "entry_type": "Forecast Load",
       "initiate_flow": {
-        "user": "Add Forecast Load",
-        "reconfigure": "Reconfigure Forecast Load"
+        "user": "Forecast Load",
+        "reconfigure": "Forecast Load"
       },
       "step": {
         "user": {
@@ -211,8 +211,8 @@
       "flow_title": "Photovoltaics",
       "entry_type": "Photovoltaics",
       "initiate_flow": {
-        "user": "Add Photovoltaics",
-        "reconfigure": "Reconfigure Photovoltaics"
+        "user": "Photovoltaics",
+        "reconfigure": "Photovoltaics"
       },
       "step": {
         "user": {
@@ -245,8 +245,8 @@
       "flow_title": "Node",
       "entry_type": "Node",
       "initiate_flow": {
-        "user": "Add Node",
-        "reconfigure": "Reconfigure Node"
+        "user": "Node",
+        "reconfigure": "Node"
       },
       "step": {
         "user": {
@@ -273,8 +273,8 @@
       "flow_title": "Connection",
       "entry_type": "Connection",
       "initiate_flow": {
-        "user": "Add Connection",
-        "reconfigure": "Reconfigure Connection"
+        "user": "Connection",
+        "reconfigure": "Connection"
       },
       "step": {
         "user": {
