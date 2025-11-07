@@ -31,9 +31,6 @@ from .const import (
 from .element import Element as Element
 from .network import Network as Network
 
-# Output type literal
-OUTPUT_TYPE_BATTERY_SOC = OUTPUT_TYPE_SOC
-
 __all__ = [
     "OUTPUT_NAME_BATTERY_STATE_OF_CHARGE",
     "OUTPUT_NAME_ENERGY_STORED",
@@ -50,7 +47,6 @@ __all__ = [
     "OUTPUT_NAME_PRICE_EXPORT",
     "OUTPUT_NAME_PRICE_IMPORT",
     "OUTPUT_NAME_PRICE_PRODUCTION",
-    "OUTPUT_TYPE_BATTERY_SOC",
     "OUTPUT_TYPE_COST",
     "OUTPUT_TYPE_DURATION",
     "OUTPUT_TYPE_ENERGY",

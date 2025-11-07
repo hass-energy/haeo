@@ -1,7 +1,6 @@
 """Sensor platform for Home Assistant Energy Optimization integration."""
 
 import logging
-from typing import Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -14,14 +13,6 @@ from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.sensors.sensor import HaeoSensor
 
 _LOGGER = logging.getLogger(__name__)
-
-# Sensor type constants for backward compatibility with tests
-SENSOR_TYPE_ENERGY: Final = "energy"
-SENSOR_TYPE_POWER: Final = "power"
-SENSOR_TYPE_SOC: Final = "soc"
-SENSOR_TYPE_OPTIMIZATION_COST: Final = "optimization_cost"
-SENSOR_TYPE_OPTIMIZATION_STATUS: Final = "optimization_status"
-SENSOR_TYPE_OPTIMIZATION_DURATION: Final = "optimization_duration"
 
 
 async def async_setup_entry(

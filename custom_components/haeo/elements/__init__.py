@@ -1,6 +1,6 @@
 """HAEO element registry with field-based metadata."""
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping
 import logging
 from typing import Any, Final, Literal, NamedTuple, TypeGuard
 
@@ -154,10 +154,6 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     ]
 
 
-SensorValue = str | Sequence[str]
-ForecastTimes = Sequence[int]
-
-
 __all__ = [
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
@@ -171,8 +167,6 @@ __all__ = [
     "ElementConfigSchema",
     "ElementRegistryEntry",
     "ElementType",
-    "ForecastTimes",
-    "SensorValue",
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "is_element_config_schema",

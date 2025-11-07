@@ -150,7 +150,6 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
         data=FlowTestElementConfigData,
         defaults={},
         translation_key=cast("ElementType", TEST_ELEMENT_TYPE),
-        describe=lambda config: f"Synthetic element {config[CONF_NAME]}",
     )
     monkeypatch.setitem(ELEMENT_TYPES, cast("ElementType", TEST_ELEMENT_TYPE), entry)
     return FlowTestElementFactory()
