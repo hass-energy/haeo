@@ -36,7 +36,6 @@ class Network:
     period: float  # Period in hours
     n_periods: int
     elements: dict[str, Element | Connection] = field(default_factory=dict)
-    sensor_data_available: bool = True
 
     def add(self, element_type: str, name: str, **kwargs: object) -> Element | Connection:
         """Add an element to the network by type.

@@ -54,16 +54,7 @@ DEFAULT_PERIOD_MINUTES: Final = 5  # 5 minutes default
 DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default
 DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
-# Update intervals
-DEFAULT_UPDATE_INTERVAL: Final = DEFAULT_UPDATE_INTERVAL_MINUTES * 60  # Convenience constant in seconds
-
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"
 OPTIMIZATION_STATUS_FAILED: Final = "failed"
 OPTIMIZATION_STATUS_PENDING: Final = "pending"
-
-
-# Optimization sensor output names
-SENSOR_OUTPUT_OPTIMIZATION_COST: Final = "optimization_cost"
-SENSOR_OUTPUT_OPTIMIZATION_STATUS: Final = "optimization_status"
-SENSOR_OUTPUT_OPTIMIZATION_DURATION: Final = "optimization_duration"

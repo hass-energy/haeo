@@ -10,7 +10,6 @@ VALID: list[dict[str, Any]] = [
             "name": "House Load",
             "forecast": ["sensor.load_forecast"],
         },
-        "expected_description": "Forecast Load",
         "description": "Forecast load with forecast sensor",
     },
     {
@@ -19,7 +18,6 @@ VALID: list[dict[str, Any]] = [
             "name": "Multi Source Load",
             "forecast": ["sensor.circuit_1", "sensor.circuit_2", "sensor.circuit_3"],
         },
-        "expected_description": "Forecast Load",
         "description": "Forecast load with multiple forecast sensors",
     },
 ]

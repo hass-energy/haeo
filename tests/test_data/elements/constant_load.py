@@ -10,7 +10,6 @@ VALID: list[dict[str, Any]] = [
             "name": "Base Load",
             "power": 1.5,
         },
-        "expected_description": "Constant Load 1.5kW",
         "description": "Constant load with fixed power",
     },
     {
@@ -19,7 +18,6 @@ VALID: list[dict[str, Any]] = [
             "name": "Small Appliance",
             "power": 0.5,
         },
-        "expected_description": "Constant Load 0.5kW",
         "description": "Small constant load",
     },
     {
@@ -28,7 +26,6 @@ VALID: list[dict[str, Any]] = [
             "name": "Large Load",
             "power": 10.0,
         },
-        "expected_description": "Constant Load 10.0kW",
         "description": "Large constant load",
     },
     {
@@ -37,7 +34,6 @@ VALID: list[dict[str, Any]] = [
             "name": "Very Small Load",
             "power": 0.001,
         },
-        "expected_description": "Constant Load 0.0kW",
         "description": "Very small constant load",
     },
 ]
