@@ -8,6 +8,7 @@ HAEO's data loading system bridges Home Assistant sensor entities with the optim
 The system supports two operational modes and multiple field types to handle diverse data sources.
 
 For more information on Home Assistant sensors and state management, see:
+
 - [Entity state documentation](https://developers.home-assistant.io/docs/core/entity/)
 - [Sensor platform guide](https://developers.home-assistant.io/docs/core/entity/sensor/)
 
@@ -56,6 +57,7 @@ if battery_schema.config_available():
 ```
 
 **Characteristics**:
+
 - No sensor state access required
 - Used in config flow validation
 - Validates field configuration structure
@@ -81,6 +83,7 @@ import_prices = battery_data.price_import  # Forecast data
 ```
 
 **Characteristics**:
+
 - Reads current sensor states
 - Parses forecast attributes
 - Validates data types and ranges
@@ -103,6 +106,7 @@ Static numeric value from configuration:
 ```
 
 **Loader behavior**:
+
 ```python
 capacity = field_config["value"]  # Returns float directly
 ```
@@ -114,12 +118,13 @@ Current state from Home Assistant sensor:
 ```python
 {
     "soc": {
-        "sensor": "sensor.battery_state_of_charge"
-    }
+        "sensor": "sensor.battery_state_of_charge",
+    },
 }
 ```
 
 **Loader behavior**:
+
 ```python
 entity_id = field_config["sensor"]
 state = hass.states.get(entity_id)
@@ -135,12 +140,13 @@ Time-series data from sensor attributes:
     "price_import": {
         "sensor": "sensor.electricity_price",
         "attribute": "forecast",
-        "forecast": True
-    }
+        "forecast": True,
+    },
 }
 ```
 
 **Loader behavior**:
+
 ```python
 entity_id = field_config["sensor"]
 attribute = field_config["attribute"]
@@ -162,12 +168,13 @@ Static value from sensor attribute:
 {
     "capacity": {
         "sensor": "sensor.battery_info",
-        "attribute": "total_capacity"
-    }
+        "attribute": "total_capacity",
+    },
 }
 ```
 
 **Loader behavior**:
+
 ```python
 entity_id = field_config["sensor"]
 attribute = field_config["attribute"]
@@ -192,6 +199,7 @@ Simple timestamp-to-value mapping:
 ```
 
 **Parsing**:
+
 ```python
 def parse_dict_forecast(
     forecast: dict[str, float],
@@ -223,6 +231,7 @@ Common format from many integrations:
 ```
 
 **Parsing**:
+
 ```python
 def parse_list_forecast(
     forecast: list[dict],
@@ -253,10 +262,8 @@ def calculate_forecast_times(
     n_periods: int,
 ) -> list[datetime]:
     """Calculate forecast timestamps at period boundaries."""
-    return [
-        start_time + (i * period)
-        for i in range(n_periods)
-    ]
+    return [start_time + (i * period) for i in range(n_periods)]
+
 
 # Example: 30-minute periods starting at 10:00
 forecast_times = calculate_forecast_times(
@@ -464,10 +471,7 @@ def load_forecast(
     values = parse_forecast(...)
 
     if len(values) != len(forecast_times):
-        raise ValueError(
-            f"Forecast length mismatch: expected {len(forecast_times)}, "
-            f"got {len(values)}"
-        )
+        raise ValueError(f"Forecast length mismatch: expected {len(forecast_times)}, got {len(values)}")
 
     return values
 ```
@@ -485,6 +489,7 @@ except ValueError as err:
 ```
 
 Common error scenarios:
+
 - Sensor not available
 - Invalid sensor state format
 - Missing forecast attribute

@@ -38,7 +38,7 @@ If you can't get longer forecasts, reduce the horizon:
 1. Open HAEO configuration
 2. Reduce **Horizon Hours** to match your forecast length
 3. Save and wait for optimization
-Shorter horizons limit planning depth, so follow the [horizon guidance](configuration.md#horizon-hours) when you make this change.
+    Shorter horizons limit planning depth, so follow the [horizon guidance](configuration.md#horizon-hours) when you make this change.
 
 #### Use Multiple Forecast Sensors
 

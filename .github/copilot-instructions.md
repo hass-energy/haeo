@@ -213,7 +213,9 @@ uv lock --upgrade                      # Update lock file
     {
       "domain": "my_integration",
       "name": "My Integration",
-      "codeowners": ["@me"]
+      "codeowners": [
+        "@me"
+      ]
     }
     ```
 
@@ -1027,12 +1029,12 @@ coordinator = hass.data[DOMAIN][entry.entry_id]  # ❌ Don't access hass.data
 
 # User-configurable polling intervals
 # In config flow
-vol.Optional("scan_interval", default=60): cv.positive_int  # ❌ Not allowed
+schema[vol.Optional("scan_interval", default=60)] = cv.positive_int  # ❌ Not allowed
 # In coordinator
 update_interval = timedelta(minutes=entry.data.get("scan_interval", 1))  # ❌ Not allowed
 
 # User-configurable config entry names (non-helper integrations)
-vol.Optional("name", default="My Device"): cv.string  # ❌ Not allowed in regular integrations
+schema[vol.Optional("name", default="My Device")] = cv.string  # ❌ Not allowed in regular integrations
 
 # Too much code in try block
 try:
@@ -1253,6 +1255,6 @@ python -m script.hassfest --integration-path homeassistant/components/my_integra
 
 # Run integration tests with coverage
 pytest ./tests/components/my_integration \
-  --cov=homeassistant.components.my_integration \
-  --cov-report term-missing
+    --cov=homeassistant.components.my_integration \
+    --cov-report term-missing
 ```

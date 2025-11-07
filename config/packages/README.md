@@ -21,10 +21,11 @@ Each sensor uses Home Assistant's `command_line` integration to execute a Python
 sensor_name:
   command_line:
     - sensor:
-        unique_id: "sensor.entity_id"
-        command: "python3 config/transform_sensor.py path/to/sensor.json transform_type [params]"
-        value_template: "{{ value_json.state }}"
-        json_attributes_path: "$.attributes"
+        unique_id: sensor.entity_id
+        command: >
+          python3 config/transform_sensor.py path/to/sensor.json transform_type [params]
+        value_template: '{{ value_json.state }}'
+        json_attributes_path: $.attributes
         json_attributes:
           - friendly_name
           - unit_of_measurement
@@ -34,6 +35,7 @@ sensor_name:
 ```
 
 **Key Points**:
+
 - YAML configuration is minimal - only non-derivable fields (unique_id, command, value_template, json_attributes list, scan_interval)
 - All sensor metadata comes from JSON attributes (friendly_name, unit_of_measurement, device_class, state_class, icon)
 - Transform script reads JSON file, applies transformation, outputs: `{"state": "value", "attributes": {...}}`
@@ -44,25 +46,29 @@ sensor_name:
 `config/transform_sensor.py` supports three transform types:
 
 1. **day_offset N**: Shifts all timestamps by N days (used for solar forecasts)
-   ```bash
-   python3 config/transform_sensor.py sensor.json day_offset 0  # today (no shift)
-   python3 config/transform_sensor.py sensor.json day_offset 1  # tomorrow (+1 day)
-   python3 config/transform_sensor.py sensor.json day_offset 7  # 7 days ahead
-   ```
+
+    ```bash
+    python3 config/transform_sensor.py sensor.json day_offset 0  # today (no shift)
+    python3 config/transform_sensor.py sensor.json day_offset 1  # tomorrow (+1 day)
+    python3 config/transform_sensor.py sensor.json day_offset 7  # 7 days ahead
+    ```
 
 2. **wrap_forecasts**: Reorders forecast entries to start from current time-of-day, shifts dates forward
-   ```bash
-   python3 config/transform_sensor.py sensor.json wrap_forecasts
-   ```
-   - Finds forecast entry closest to current time-of-day
-   - Reorders: entries from that point forward, then earlier entries
-   - Shifts dates forward from today while preserving time-of-day
-   - Creates rolling 24-hour window starting "now"
+
+    ```bash
+    python3 config/transform_sensor.py sensor.json wrap_forecasts
+    ```
+
+    - Finds forecast entry closest to current time-of-day
+    - Reorders: entries from that point forward, then earlier entries
+    - Shifts dates forward from today while preserving time-of-day
+    - Creates rolling 24-hour window starting "now"
 
 3. **passthrough**: Returns data unchanged (used for static sensors)
-   ```bash
-   python3 config/transform_sensor.py sensor.json passthrough
-   ```
+
+    ```bash
+    python3 config/transform_sensor.py sensor.json passthrough
+    ```
 
 ## Directory Structure
 
@@ -92,11 +98,13 @@ packages/
 - **Directions**: `east`, `west`, `north`, `south`
 
 **Transform type**: `day_offset N` where N varies by period:
+
 - `today` → day_offset 0 (no shift)
 - `tomorrow` → day_offset 1
 - `d2` → day_offset 2, `d3` → day_offset 3, etc.
 
 **Attributes**:
+
 - `watts`: Dictionary of ISO 8601 timestamp→watt mappings (timestamps shifted by N days)
 - `wh_period`: Dictionary of ISO 8601 timestamp→wh mappings (timestamps shifted by N days)
 - `unit_of_measurement`: "kWh"
@@ -106,31 +114,35 @@ packages/
 ### Amber Electric (4 sensors)
 
 **Entities**:
+
 - `sensor.home_feed_in_forecast` - Feed-in tariff forecast
 - `sensor.home_feed_in_price` - Current feed-in tariff price
 - `sensor.home_general_forecast` - General usage forecast
 - `sensor.home_general_price` - Current general usage price
 
 **Transform type**:
+
 - **Forecast sensors** (`*_forecast`): `wrap_forecasts`
-  - Reorders `forecasts` attribute to start from current time-of-day
-  - Finds forecast entry closest to now (by time-of-day)
-  - Reorders: entries from that point → end, then beginning → that point
-  - Shifts dates forward from today while preserving time-of-day
-  - Creates rolling 24-hour window starting "now"
+    - Reorders `forecasts` attribute to start from current time-of-day
+    - Finds forecast entry closest to now (by time-of-day)
+    - Reorders: entries from that point → end, then beginning → that point
+    - Shifts dates forward from today while preserving time-of-day
+    - Creates rolling 24-hour window starting "now"
 - **Price sensors** (`*_price`): `passthrough`
-  - No transformation, returns all attributes unchanged
+    - No transformation, returns all attributes unchanged
 
 **Attributes**:
+
 - `forecasts`: List of forecast objects with `start_time`, `end_time`, `per_kwh`, `spot_per_kwh`, etc. (forecast sensors only)
 - `channel_type`: "general" or "feedIn"
-- `unit_of_measurement`: "$/kWh"
+- `unit_of_measurement`: "\$/kWh"
 - `attribution`: Amber Electric attribution text
 - `friendly_name`: Human-readable name
 
 ### SiGen (7 sensors)
 
 **Entities**:
+
 - `sensor.sigen_plant_battery_state_of_charge` - Battery SOC (%)
 - `sensor.sigen_plant_consumed_power` - Power consumption (W)
 - `sensor.sigen_plant_ess_rated_charging_power` - Max charge rate (W)
@@ -142,6 +154,7 @@ packages/
 **Transform type**: `passthrough` - static state sensors, no transformation needed
 
 **Attributes**:
+
 - `state_class`: "measurement"
 - `unit_of_measurement`: "W", "%", or "Wh" depending on sensor
 - `device_class`: "power", "battery", or "energy" depending on sensor
@@ -151,6 +164,7 @@ packages/
 ## File Organization
 
 Each sensor has two files:
+
 - `{entity_name}.json` - Sensor state and attributes extracted from `states.json`
 - `{entity_name}.yaml` - Minimal Home Assistant `command_line` sensor configuration
 
@@ -178,10 +192,14 @@ Each sensor has two files:
 entity_name:
   command_line:
     - sensor:
-        unique_id: "sensor.entity_name"
-        command: "python3 config/transform_sensor.py config/packages/domain/entity_name.json transform_type [params]"
-        value_template: "{{ value_json.state }}"
-        json_attributes_path: "$.attributes"
+        unique_id: sensor.entity_name
+        command: |
+          python3 config/transform_sensor.py \
+           config/packages/domain/entity_name.json \
+           transform_type \
+           [params]
+        value_template: '{{ value_json.state }}'
+        json_attributes_path: $.attributes
         json_attributes:
           - friendly_name
           - unit_of_measurement
@@ -199,10 +217,10 @@ To use these sensors in Home Assistant:
 
 1. Copy the `packages/` directory to your Home Assistant config directory
 2. Ensure packages are enabled in `configuration.yaml`:
-   ```yaml
-   homeassistant:
-     packages: !include_dir_named packages
-   ```
+    ```yaml
+    homeassistant:
+      packages: !include_dir_named packages
+    ```
 3. Restart Home Assistant
 
 ## Adding New Sensors
@@ -210,50 +228,57 @@ To use these sensors in Home Assistant:
 To add a new test sensor:
 
 1. **Create JSON file** with sensor state and attributes:
-   ```bash
-   # Extract from states.json or create manually
-   cat > config/packages/domain/new_sensor.json << 'EOF'
-   {
-     "entity_id": "sensor.new_sensor",
-     "state": "123.45",
-     "attributes": {
-       "friendly_name": "New Sensor Name",
-       "unit_of_measurement": "W",
-       "device_class": "power",
-       "state_class": "measurement"
-     }
-   }
-   EOF
-   ```
+
+    ```bash
+    # Extract from states.json or create manually
+    cat > config/packages/domain/new_sensor.json << 'EOF'
+    {
+      "entity_id": "sensor.new_sensor",
+      "state": "123.45",
+      "attributes": {
+        "friendly_name": "New Sensor Name",
+        "unit_of_measurement": "W",
+        "device_class": "power",
+        "state_class": "measurement"
+      }
+    }
+    EOF
+    ```
 
 2. **Create YAML configuration**:
-   ```yaml
-   # config/packages/domain/new_sensor.yaml
-   new_sensor:
-     command_line:
-       - sensor:
-           unique_id: "sensor.new_sensor"
-           command: "python3 config/transform_sensor.py config/packages/domain/new_sensor.json passthrough"
-           value_template: "{{ value_json.state }}"
-           json_attributes_path: "$.attributes"
-           json_attributes:
-             - friendly_name
-             - unit_of_measurement
-             - device_class
-             - state_class
-           scan_interval: 3600
-   ```
+
+    ```yaml
+    # config/packages/domain/new_sensor.yaml
+    new_sensor:
+      command_line:
+        - sensor:
+            unique_id: sensor.new_sensor
+            command: |
+              python3 config/transform_sensor.py \
+              config/packages/domain/new_sensor.json \
+              passthrough
+            value_template: '{{ value_json.state }}'
+            json_attributes_path: $.attributes
+            json_attributes:
+              - friendly_name
+              - unit_of_measurement
+              - device_class
+              - state_class
+            scan_interval: 3600
+    ```
 
 3. **Choose transform type**:
-   - `passthrough` - No transformation (most common)
-   - `day_offset N` - Shift timestamps by N days (for forecast data)
-   - `wrap_forecasts` - Reorder forecasts starting from current time-of-day
+
+    - `passthrough` - No transformation (most common)
+    - `day_offset N` - Shift timestamps by N days (for forecast data)
+    - `wrap_forecasts` - Reorder forecasts starting from current time-of-day
 
 4. **Update json_attributes list**: Must match all keys in JSON `attributes` object
 
 ## Generation
 
 These files were generated using `fix_all_packages.py`:
+
 - Reads JSON files from each domain directory
 - Generates corresponding YAML configurations with appropriate transforms
 - Solar sensors: Uses `day_offset` transform with period-based offsets
@@ -261,19 +286,21 @@ These files were generated using `fix_all_packages.py`:
 - Amber price & SiGen sensors: Uses `passthrough` transform
 
 JSON files were extracted from `states.json` using jq:
+
 ```bash
 # Example: Extract solar forecast sensors
 jq -c '.[] | select(.entity_id | startswith("sensor.energy_production_"))' states.json | \
-  while read -r line; do
+    while read -r line; do
     entity_id=$(echo "$line" | jq -r '.entity_id')
     entity_name="${entity_id#sensor.}"
     echo "$line" | jq '.' > "config/packages/open_meteo_solar_forecast/${entity_name}.json"
-  done
+done
 ```
 
 ## Testing
 
 These sensors provide realistic test data for HAEO development:
+
 - Solar forecasts update daily with shifted dates
 - Price forecasts continuously reorder based on current time
 - Battery/power sensors provide static baseline values
