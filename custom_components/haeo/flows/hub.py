@@ -87,6 +87,6 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             for element_type, entry in ELEMENT_TYPES.items()
         }
 
-        # Note that the Network subentry is not included here as it can't be added/removed like other elements
+        # Note that the Network element type is not included here as it can't be added/removed like other elements
 
         return flows

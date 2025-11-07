@@ -16,6 +16,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.flows.element import ElementSubentryFlow
 from custom_components.haeo.flows.hub import HubConfigFlow
 
 
@@ -206,6 +207,8 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
             assert f"{base_key}.{suffix}" in translations, f"Missing translation key {base_key}.{suffix}"
 
         flow = flow_class()
+        assert isinstance(flow, ElementSubentryFlow)
+
         flow.hass = hass
         flow.handler = (hub_entry.entry_id, element_type)
 
