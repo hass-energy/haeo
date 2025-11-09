@@ -5,7 +5,9 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant
 
-from .fusion import combine_sensor_payloads, fuse_to_horizon
+from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
+
+from .fusion import fuse_to_horizon
 from .sensor_loader import load_sensors, normalize_entity_ids
 
 
@@ -73,5 +75,4 @@ class TimeSeriesLoader:
 
         present_value, forecast_series = combine_sensor_payloads(payloads)
 
-        current_time = int(forecast_times[0]) if forecast_times else None
-        return fuse_to_horizon(present_value, forecast_series, forecast_times, current_time=current_time)
+        return fuse_to_horizon(present_value, forecast_series, forecast_times)

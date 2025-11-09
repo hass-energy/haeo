@@ -1,92 +1,58 @@
-"""Combine and fuse sensor payloads into merged time series."""
+"""Fuse combined forecast data into horizon-aligned values."""
 
-from collections.abc import Mapping, Sequence
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 
+from custom_components.haeo.data.util.forecast_cycle import normalize_forecast_cycle
+
 type ForecastSeries = list[tuple[int, float]]
-type SensorPayload = float | ForecastSeries
-
-_SECONDS_PER_DAY = 24 * 60 * 60
-
-
-def combine_sensor_payloads(payloads: Mapping[str, SensorPayload]) -> tuple[float, ForecastSeries]:
-    """Combine sensor payloads by separating present values and forecast series.
-
-    Simple float values are summed as present values.
-    Forecast series are interpolated and summed at all unique timestamps.
-
-    Returns:
-        Tuple of (present_value, forecast_series) where present_value is the sum of
-        all simple values and forecast_series contains the combined forecast data.
-
-    """
-    present_value = 0.0
-    forecast_series: list[ForecastSeries] = []
-
-    for payload in payloads.values():
-        if isinstance(payload, float):
-            present_value += payload
-        elif isinstance(payload, list):
-            forecast_series.append(payload)
-
-    if not forecast_series:
-        return (present_value, [])
-
-    all_timestamps = np.array(sorted({ts for series in forecast_series for ts, _ in series}), dtype=np.int64)
-
-    total_values = np.zeros(all_timestamps.size, dtype=np.float64)
-    for series in forecast_series:
-        timestamps = np.array([ts for ts, _ in series], dtype=np.int64)
-        values = np.array([val for _, val in series], dtype=np.float64)
-
-        interpolated = np.interp(all_timestamps, timestamps, values, left=0.0, right=0.0)
-        total_values += interpolated
-
-    return (present_value, list(zip(all_timestamps.tolist(), total_values.tolist(), strict=True)))
 
 
 def fuse_to_horizon(
     present_value: float,
     forecast_series: ForecastSeries,
     horizon_times: Sequence[int],
-    *,
-    current_time: int | None = None,
 ) -> list[float]:
-    """Fuse combined sensor data into a horizon-aligned time series.
+    """Fuse a combined forecast into interval values aligned with the requested horizon.
 
-    Combines present values with forecast data, filters old data,
-    and resamples to the horizon with daily repetition for coverage gaps.
+    Fills the horizon by:
+    1. Using forecast data directly where available
+    2. Cycling through 24-hour blocks when beyond the forecast range
     """
-    forecast = forecast_series
 
-    if current_time is not None:
-        forecast = [(ts, val) for ts, val in forecast if ts >= current_time]
+    if not forecast_series:
+        return [float(present_value) for _ in range(max(len(horizon_times) - 1, 0))]
 
-    if present_value and forecast:
-        forecast = [(current_time or horizon_times[0], present_value), *forecast]
-    elif present_value:
-        return [present_value] * len(horizon_times)
-    elif not forecast:
-        return [0.0] * len(horizon_times)
+    horizon_start = horizon_times[0]
+    horizon_end = horizon_times[-1]
 
-    timestamps = np.array([ts for ts, _ in forecast], dtype=np.int64)
-    values = np.array([val for _, val in forecast], dtype=np.float64)
+    block, cover_seconds = normalize_forecast_cycle(forecast_series, horizon_start)
 
-    if timestamps.size == 1:
-        return [float(values[0])] * len(horizon_times)
+    # Repeat cover_seconds as needed to cover the horizon
+    repeat_count = max(1, int(np.ceil((horizon_end - horizon_start) / cover_seconds)))
+    extended_block = [
+        (timestamp + i * cover_seconds, value) for i in range(repeat_count) for (timestamp, value) in block
+    ]
+    block_array = np.array(extended_block, dtype=[("timestamp", np.int64), ("value", np.float64)])
 
-    min_ts, max_ts = int(timestamps[0]), int(timestamps[-1])
-    coverage = max_ts - min_ts
-    cycle_seconds = (coverage // _SECONDS_PER_DAY) * _SECONDS_PER_DAY if coverage >= _SECONDS_PER_DAY else coverage
+    # Insert the present_value at horizon_start, overwriting any existing value
+    insert_idx = np.searchsorted(block_array["timestamp"], horizon_start, side="left")
+    block_array = np.insert(block_array, insert_idx, (horizon_start, present_value))
 
-    result: list[float] = []
-    for target_ts in horizon_times:
-        sample_ts = int(target_ts)
-        if sample_ts > max_ts and cycle_seconds > 0:
-            sample_ts = min_ts + (sample_ts - min_ts) % cycle_seconds
-        sample_ts = max(min_ts, min(sample_ts, max_ts))
+    # Now downsample to the horizon times by summing the values in between using a trapezoidal rule
+    # Cumulative integral of the piecewise linear signal
+    # This uses trapezoidal integration
+    cum = np.concatenate(
+        [[0], np.cumsum(np.diff(block_array["timestamp"]) * (block_array["value"][:-1] + block_array["value"][1:]) / 2)]
+    )
 
-        result.append(float(np.interp(sample_ts, timestamps, values)))
+    # Interpolate cumulative area to new timestamps
+    cum_target = np.interp(horizon_times, block_array["timestamp"], cum)
 
-    return result
+    # Differences to get "average value over intervals"
+    v_target = np.diff(cum_target) / np.diff(horizon_times)
+
+    return [float(value) for value in v_target]
