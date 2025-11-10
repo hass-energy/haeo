@@ -60,6 +60,7 @@ def test_extract_time_series_valid_sensors(hass: HomeAssistant, parser_type: str
 
     expected_count = sensor_data["expected_count"]
     assert result is not None, f"Expected data for {parser_type}"
+    assert isinstance(result, list), "Valid forecasts should return a list of time series entries"
     assert len(result) >= 1, f"Expected at least one entry for {parser_type}"
     if expected_count > 0:
         assert len(result) == expected_count, f"Expected {expected_count} entries for {parser_type}"
@@ -175,6 +176,21 @@ def test_get_extracted_units_unknown_format() -> None:
     unit, device_class = extractors.get_extracted_units(state)
     assert unit == "test_unit"
     assert device_class == "power"
+
+
+def test_extract_time_series_raises_for_non_numeric_state(hass: HomeAssistant) -> None:
+    """Simple value extraction should raise when the sensor state is not numeric."""
+
+    entity_id = "sensor.invalid_numeric"
+    state = _create_sensor_state(
+        hass,
+        entity_id,
+        "not-a-number",
+        {"unit_of_measurement": "kWh"},
+    )
+
+    with pytest.raises(ValueError, match="Cannot parse sensor value"):
+        extractors.extract_time_series(state, entity_id=entity_id)
 
 
 PARSER_MAP: dict[str, extractors.DataExtractor] = {

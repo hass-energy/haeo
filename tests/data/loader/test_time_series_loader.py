@@ -92,8 +92,8 @@ async def test_time_series_loader_loads_mixed_live_and_forecast(hass: HomeAssist
             forecast_times=ts_values,
         )
 
-    # The result should interpolate and combine both series
-    assert len(result) == 4
+    # Each horizon timestamp receives an interpolated value.
+    assert len(result) == len(ts_values)
     assert all(isinstance(v, float) for v in result)
 
 

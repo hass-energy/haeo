@@ -6,8 +6,8 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
+from custom_components.haeo.data.util.forecast_fuser import fuse_to_horizon
 
-from .fusion import fuse_to_horizon
 from .sensor_loader import load_sensors, normalize_entity_ids
 
 
@@ -51,7 +51,7 @@ class TimeSeriesLoader:
         forecast_times: Sequence[int],
         **_kwargs: Any,
     ) -> list[float]:
-        """Load sensor values and forecasts, returning a time series aligned to ``forecast_times``."""
+        """Load sensor values and forecasts, returning interpolated values for ``forecast_times``."""
 
         entity_ids = _collect_sensor_ids(value)
 
