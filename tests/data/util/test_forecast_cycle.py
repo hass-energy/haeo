@@ -20,6 +20,7 @@ class ForecastCycleTestCase:
     now: int
     forecast: list[tuple[int, float]]
     expected: list[tuple[int, float]]
+    expected_cycle_length: int
 
 
 def _block(*, time_range: tuple[int, int], start_value: float) -> list[tuple[int, float]]:
@@ -33,6 +34,7 @@ test_cases = [
         now=0,
         forecast=_block(time_range=(0, 24), start_value=0.0),
         expected=_block(time_range=(0, 24), start_value=0.0),
+        expected_cycle_length=24,
     ),
     ForecastCycleTestCase(
         description="24 hour forecast starting mid way through",
@@ -43,6 +45,7 @@ test_cases = [
             *_block(time_range=(6 + 0, 6 + 18), start_value=6.0),
             *_block(time_range=(6 + 18, 6 + 24), start_value=0.0),
         ],
+        expected_cycle_length=24,
     ),
     ForecastCycleTestCase(
         description="48 hour forecast starting from now",
@@ -50,6 +53,7 @@ test_cases = [
         now=0,
         forecast=_block(time_range=(0, 48), start_value=0.0),
         expected=_block(time_range=(0, 48), start_value=0.0),
+        expected_cycle_length=48,
     ),
     ForecastCycleTestCase(
         description="48 hour forecast starting mid way through",
@@ -60,6 +64,7 @@ test_cases = [
             *_block(time_range=(18 + 0, 18 + 30), start_value=18.0),
             *_block(time_range=(18 + 30, 18 + 48), start_value=0.0),
         ],
+        expected_cycle_length=48,
     ),
     ForecastCycleTestCase(
         description="Single value forecast starting at now",
@@ -67,6 +72,7 @@ test_cases = [
         now=12,
         forecast=[(12, 1337)],
         expected=[(12, 1337)],
+        expected_cycle_length=24,
     ),
     ForecastCycleTestCase(
         description="Single value forecast starting at a different time",
@@ -74,6 +80,7 @@ test_cases = [
         now=24,
         forecast=[(12, 1337)],
         expected=[(36, 1337)],
+        expected_cycle_length=24,
     ),
     ForecastCycleTestCase(
         description="12 hour forecast starting from now",
@@ -81,6 +88,7 @@ test_cases = [
         now=0,
         forecast=_block(time_range=(0, 12), start_value=0.0),
         expected=_block(time_range=(0, 12), start_value=0.0),
+        expected_cycle_length=24,
     ),
     ForecastCycleTestCase(
         description="12 hour forecast starting mid way through",
@@ -91,6 +99,7 @@ test_cases = [
             *_block(time_range=(6 + 0, 6 + 6), start_value=6.0),
             *_block(time_range=(6 + 18, 6 + 24), start_value=0.0),
         ],
+        expected_cycle_length=24,
     ),
     ForecastCycleTestCase(
         description="36 hour forecast starting from now",
@@ -101,6 +110,7 @@ test_cases = [
             *_block(time_range=(0, 36), start_value=0.0),
             *_block(time_range=(36, 48), start_value=12.0),
         ],
+        expected_cycle_length=48,
     ),
     ForecastCycleTestCase(
         description="36 hour forecast starting mid way through",
@@ -108,10 +118,11 @@ test_cases = [
         now=18,
         forecast=_block(time_range=(0, 36), start_value=0.0),
         expected=[
-            *_block(time_range=(18 + 0, 18 + 18), start_value=18.0),
-            *_block(time_range=(18 + 18, 18 + 42), start_value=12.0),
-            *_block(time_range=(18 + 42, 18 + 48), start_value=12.0),
+            *_block(time_range=(18 + 0, 18 + 18), start_value=18.0),  # To the end of the original forecast
+            *_block(time_range=(18 + 18, 18 + 30), start_value=12.0),  # Cycle to complete the 48 original hours
+            *_block(time_range=(18 + 30, 18 + 48), start_value=0.0),  # Start from the beginning
         ],
+        expected_cycle_length=48,
     ),
     ForecastCycleTestCase(
         description="37 hour forecast starting from now",
@@ -122,6 +133,7 @@ test_cases = [
             *_block(time_range=(0, 37), start_value=0.0),
             *_block(time_range=(37, 48), start_value=13.0),
         ],
+        expected_cycle_length=48,
     ),
     ForecastCycleTestCase(
         description="37 hour forecast starting mid way through",
@@ -130,9 +142,10 @@ test_cases = [
         forecast=_block(time_range=(0, 37), start_value=0.0),
         expected=[
             *_block(time_range=(18 + 0, 18 + 19), start_value=18.0),
-            *_block(time_range=(18 + 19, 18 + 43), start_value=13.0),
-            *_block(time_range=(18 + 43, 18 + 48), start_value=13.0),
+            *_block(time_range=(18 + 19, 18 + 30), start_value=13.0),
+            *_block(time_range=(18 + 30, 18 + 48), start_value=0.0),
         ],
+        expected_cycle_length=48,
     ),
     ForecastCycleTestCase(
         description="85 hour forecast starting mid way through",
@@ -143,21 +156,33 @@ test_cases = [
         forecast=_block(time_range=(0, 87), start_value=0.0),
         expected=[
             *_block(time_range=(54 + 0, 54 + 33), start_value=54.0),
-            *_block(time_range=(54 + 33, 54 + 96), start_value=15.0),
+            *_block(time_range=(54 + 33, 54 + 42), start_value=15.0),
+            *_block(time_range=(54 + 42, 54 + 96), start_value=0.0),
         ],
+        expected_cycle_length=96,
     ),
 ]
 
+offset_hours_cases = [0, 1, 24, 39]
+offset_cycles_cases = [0, 5, -5]
 
+
+@pytest.mark.parametrize("offset_cycles", offset_cycles_cases, ids=lambda case: f"offset_cycles={case}")
+@pytest.mark.parametrize("offset_hours", offset_hours_cases, ids=lambda oh: f"offset_hours={oh}")
 @pytest.mark.parametrize("case", test_cases, ids=lambda case: case.description)
-def test_normalize_forecast_cycle(case: ForecastCycleTestCase) -> None:
-    """Ensure the normalised forecast reproduces the expected 48 hour horizon."""
+def test_normalize_forecast_cycle(offset_hours: int, offset_cycles: int, case: ForecastCycleTestCase) -> None:
+    """Ensure the normalised forecast reproduces the expected horizon."""
 
-    cycle = normalize_forecast_cycle(
-        [(hour * SECONDS_PER_HOUR, float(value)) for hour, value in case.forecast],
-        case.now * SECONDS_PER_HOUR,
-    )
+    cycle_offset = offset_cycles * case.expected_cycle_length
 
-    expected = [(hour * SECONDS_PER_HOUR, float(value)) for hour, value in case.expected]
+    # For offset cycles, we shift the current time forward/backwards by full cycle lengths
+    current_time = SECONDS_PER_HOUR * (case.now + offset_hours + cycle_offset)
+    forecast = [((hour + offset_hours) * SECONDS_PER_HOUR, value) for hour, value in case.forecast]
+
+    cycle, cycle_length = normalize_forecast_cycle(forecast, current_time)
+
+    expected = [((hour + offset_hours + cycle_offset) * SECONDS_PER_HOUR, value) for hour, value in case.expected]
+    expected_cycle_length = case.expected_cycle_length * SECONDS_PER_HOUR
 
     assert cycle == expected
+    assert cycle_length == expected_cycle_length
