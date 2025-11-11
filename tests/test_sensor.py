@@ -52,7 +52,7 @@ def _make_output(
     type_: OutputType,
     unit: str | None,
     state: float | str | None,
-    forecast: dict[str, float] | None,
+    forecast: dict[datetime, float] | None,
     entity_category: EntityCategory | None,
     device_class: SensorDeviceClass | None,
     state_class: SensorStateClass | None,
@@ -147,7 +147,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
                 type_=OUTPUT_TYPE_POWER,
                 unit="kW",
                 state=1.5,
-                forecast={datetime.now(tz=UTC).isoformat(): 1.5},
+                forecast={datetime.now(tz=UTC): 1.5},
                 entity_category=None,
                 device_class=SensorDeviceClass.POWER,
                 state_class=SensorStateClass.MEASUREMENT,
@@ -239,7 +239,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
     )
     sensor.async_write_ha_state = Mock()
 
-    forecast_time = datetime(2024, 1, 1, tzinfo=UTC).isoformat()
+    forecast_time = datetime(2024, 1, 1, tzinfo=UTC)
     updated_output = _make_output(
         type_=OUTPUT_TYPE_POWER,
         unit="W",
