@@ -10,6 +10,28 @@ Complete configuration schema for all HAEO entities.
 | Horizon Hours  | integer (1-168) | Yes      | 48      | Optimization time horizon |
 | Period Minutes | integer (1-60)  | Yes      | 5       | Time step size            |
 
+## Sensor Field Behavior
+
+Fields annotated with **sensor(s)** accept one or more Home Assistant sensor entity IDs.
+
+### Data Extraction
+
+The `TimeSeriesLoader` processes sensor references:
+
+1. Reads each sensor's current value (present value)
+2. Detects and parses any forecast data in sensor attributes
+3. Combines multiple sensors by summing present values and merging forecasts
+4. Interpolates and fuses data to produce values aligned with the optimization horizon
+
+### Single vs Multiple Sensors
+
+- **Single sensor**: `sensor.electricity_price` - One entity ID
+- **Multiple sensors**: `["sensor.price_today", "sensor.price_tomorrow"]` - List of entity IDs
+
+Multiple sensors are combined additively (values sum at each timestamp).
+
+For details on sensor behavior, see the [Forecasts and Sensors guide](../user-guide/forecasts-and-sensors.md).
+
 ## Battery Configuration
 
 | Field                     | Type           | Required | Default | Description               |
@@ -27,13 +49,16 @@ Complete configuration schema for all HAEO entities.
 
 ## Grid Configuration
 
-| Field        | Type               | Required | Default | Description           |
-| ------------ | ------------------ | -------- | ------- | --------------------- |
-| Name         | string             | Yes      | -       | Unique identifier     |
-| Import Price | float or sensor(s) | Yes      | -       | Import price (\$/kWh) |
-| Export Price | float or sensor(s) | Yes      | -       | Export price (\$/kWh) |
-| Import Limit | float (kW)         | No       | -       | Max import power      |
-| Export Limit | float (kW)         | No       | -       | Max export power      |
+| Field        | Type       | Required | Default | Description           |
+| ------------ | ---------- | -------- | ------- | --------------------- |
+| Name         | string     | Yes      | -       | Unique identifier     |
+| Import Price | sensor(s)  | Yes      | -       | Import price (\$/kWh) |
+| Export Price | sensor(s)  | Yes      | -       | Export price (\$/kWh) |
+| Import Limit | float (kW) | No       | -       | Max import power      |
+| Export Limit | float (kW) | No       | -       | Max export power      |
+
+Import and Export Price fields accept one or more sensor entity IDs.
+Multiple price sensors are combined additively.
 
 ## Photovoltaics Configuration
 
@@ -43,6 +68,9 @@ Complete configuration schema for all HAEO entities.
 | Forecast         | sensor(s)      | Yes      | -       | Solar forecast sensors |
 | Production Price | float (\$/kWh) | No       | 0       | Value of generation    |
 | Curtailment      | boolean        | No       | false   | Allow curtailment      |
+
+The Forecast field accepts one or more sensor entity IDs.
+Multiple solar forecast sensors are combined additively.
 
 ## Load Configuration
 
@@ -59,6 +87,9 @@ Complete configuration schema for all HAEO entities.
 | -------- | --------- | -------- | ------- | --------------------- |
 | Name     | string    | Yes      | -       | Unique identifier     |
 | Forecast | sensor(s) | Yes      | -       | Load forecast sensors |
+
+The Forecast field accepts one or more sensor entity IDs.
+See the [Forecasts and Sensors guide](../user-guide/forecasts-and-sensors.md) for details on how multiple sensors are combined.
 
 ## Connection Configuration
 

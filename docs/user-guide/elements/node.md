@@ -116,4 +116,32 @@ See [Connections](connections.md) for configuring the inverter connection.
 - [Mathematical Modeling](../../modeling/index.md)
 - [Connections Guide](connections.md)
 
-[:material-arrow-right: Continue to Connections Guide](connections.md)
+## Next Steps
+
+<div class="grid cards" markdown>
+
+- :material-connection:{ .lg .middle } **Configure connections**
+
+    ---
+
+    Learn how to connect nodes to other elements in your network.
+
+    [:material-arrow-right: Connections guide](connections.md)
+
+- :material-flash:{ .lg .middle } **Model hybrid inverters**
+
+    ---
+
+    Use DC and AC nodes to represent hybrid inverter systems.
+
+    [:material-arrow-right: Connections guide](connections.md#hybrid-inverters)
+
+- :material-chart-line:{ .lg .middle } **Understand optimization**
+
+    ---
+
+    See how power flows through nodes during optimization.
+
+    [:material-arrow-right: Optimization results](../optimization.md)
+
+</div>

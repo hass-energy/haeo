@@ -39,8 +39,8 @@ All sensors include a `forecast` attribute that maps ISO 8601 timestamps to futu
 ```yaml
 attributes:
   forecast:
-    "2025-10-12T10:00:00+00:00": 5.2
-    "2025-10-12T10:05:00+00:00": 5.1
+    '2025-10-12T10:00:00+00:00': 5.2
+    '2025-10-12T10:05:00+00:00': 5.1
 ```
 
 The dictionary contains one entry per optimisation period in the horizon.

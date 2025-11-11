@@ -106,4 +106,32 @@ The connection limits represent the inverter's power rating.
 - [Connection Modeling](../../modeling/connections.md)
 - [Node Modeling](../../modeling/node.md)
 
-[:material-arrow-right: Continue to Understanding Results](../optimization.md)
+## Next Steps
+
+<div class="grid cards" markdown>
+
+- :material-home-lightning-bolt:{ .lg .middle } **Complete your network**
+
+    ---
+
+    Review all configured elements and ensure proper connections.
+
+    [:material-arrow-right: Elements overview](index.md)
+
+- :material-chart-line:{ .lg .middle } **Understand optimization**
+
+    ---
+
+    See how HAEO optimizes power flow through your network.
+
+    [:material-arrow-right: Optimization results](../optimization.md)
+
+- :material-bug:{ .lg .middle } **Troubleshoot issues**
+
+    ---
+
+    Resolve connection errors and graph connectivity problems.
+
+    [:material-arrow-right: Troubleshooting guide](../troubleshooting.md)
+
+</div>

@@ -132,4 +132,32 @@ Avoid for:
 - [Load Modeling](../../modeling/loads.md) - Mathematical model
 - [Connections](connections.md) - Connecting loads to the network
 
-[:material-arrow-right: Continue to Forecast Load Configuration](forecast-load.md)
+## Next Steps
+
+<div class="grid cards" markdown>
+
+- :material-connection:{ .lg .middle } **Connect to network**
+
+    ---
+
+    Learn how to connect your constant load to power sources using connections.
+
+    [:material-arrow-right: Connections guide](connections.md)
+
+- :material-chart-line:{ .lg .middle } **Add variable consumption**
+
+    ---
+
+    Combine with forecast load to model both baseline and variable usage.
+
+    [:material-arrow-right: Forecast load configuration](forecast-load.md)
+
+- :material-home-lightning-bolt:{ .lg .middle } **Optimize power flow**
+
+    ---
+
+    Configure grid and battery elements to supply your loads efficiently.
+
+    [:material-arrow-right: Grid configuration](grid.md)
+
+</div>
