@@ -22,6 +22,42 @@ For more information on testing Home Assistant integrations, see:
 
 **Scenario tests**: Complete battery + solar + grid systems with realistic data
 
+## Scenario Testing
+
+Scenario tests verify complete system integration with realistic Home Assistant data.
+All scenarios are automatically discovered and tested by `tests/scenarios/test_scenarios.py`.
+
+### Structure
+
+Each scenario folder contains:
+
+- `config.json` - HAEO configuration with elements and connections
+- `states.json` - Filtered Home Assistant entity states
+
+New scenarios are automatically discovered by the test runner (any `scenario*/` folder).
+
+### Running Scenario Tests
+
+```bash
+# Run all scenarios (scenarios are skipped by default)
+uv run pytest tests/scenarios/test_scenarios.py -m scenario
+
+# Run specific scenario
+uv run pytest tests/scenarios/test_scenarios.py::test_scenarios[scenario1] -m scenario
+
+# Update snapshots after changes
+uv run pytest tests/scenarios/test_scenarios.py -m scenario --snapshot-update
+```
+
+### Test Behavior
+
+- Automatically extracts freeze time from most recent `last_updated` timestamp in states.json
+- Parameterized test runs once per scenario with unique test ID
+- Snapshots stored in `tests/scenarios/snapshots/test_scenarios.ambr`
+- Visualizations generated in each scenario's `visualizations/` directory
+
+For detailed scenario setup instructions, see `tests/scenarios/README.md`.
+
 ## Model Element Testing
 
 Model element tests are organized in `tests/model/` with structured test data:

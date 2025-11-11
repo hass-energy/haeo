@@ -29,9 +29,11 @@ Each scenario needs:
 ```
 scenario_name/
 ├── states.json     # Filtered HA states (from filter_states.py)
-├── config.json     # HAEO configuration
-└── test_scenario.py # Test validation
+└── config.json     # HAEO configuration
 ```
+
+All scenarios are automatically discovered and tested by `tests/scenarios/test_scenarios.py`.
+Snapshots are stored in `tests/scenarios/snapshots/test_scenarios.ambr`.
 
 ## Usage Examples
 
@@ -102,11 +104,14 @@ scenario_name/
 ## Running Tests
 
 ```bash
-# Run all scenarios
-uv run pytest tests/scenarios/
+# Run all scenarios (use -m scenario to enable scenario tests)
+uv run pytest tests/scenarios/test_scenarios.py -m scenario
 
-# Run specific scenario
-uv run pytest tests/scenarios/my_scenario/test_scenario.py -v
+# Run specific scenario by test ID
+uv run pytest tests/scenarios/test_scenarios.py::test_scenarios[scenario1] -m scenario -v
+
+# Update snapshots after changes
+uv run pytest tests/scenarios/test_scenarios.py -m scenario --snapshot-update
 ```
 
 ## Common Issues
