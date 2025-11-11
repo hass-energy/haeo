@@ -89,7 +89,6 @@ class SensorFieldMeta(FieldMeta):
             EntitySelectorConfig(
                 domain=["sensor", "input_number"],
                 multiple=self.multiple,
-                device_class=list(self.device_classes),
             )
         )
 
@@ -250,7 +249,7 @@ ENERGY_SENSORS: Final = [
 # Some "Power" forecast sensors like solar seem to be put on sensors that have Energy class rather than Power
 POWER_SENSORS: Final = [SensorDeviceClass.POWER, SensorDeviceClass.ENERGY]
 BATTERY_SENSORS: Final = [SensorDeviceClass.BATTERY]
-PRICE_SENSORS: Final = [SensorDeviceClass.MONETARY]
+PRICE_SENSORS: Final = []
 
 # Schema mode type aliases (configuration with entity IDs)
 PowerFieldSchema = Annotated[float, PowerFieldMeta()]
