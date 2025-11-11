@@ -10,7 +10,10 @@ on:
   merge_group:
     types: [checks_requested]
 
-permissions: {}
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
 
 jobs:
   linting-and-formatting:
