@@ -36,8 +36,8 @@ This installs all development dependencies including:
 # All tests
 uv run pytest
 
-# Specific test file
-uv run pytest tests/test_model.py
+# Model element tests
+uv run pytest tests/model/
 
 # With coverage
 uv run pytest --cov=custom_components.haeo

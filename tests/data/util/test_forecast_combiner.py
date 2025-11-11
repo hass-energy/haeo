@@ -1,7 +1,5 @@
 """Tests for forecast payload combination utilities."""
 
-from __future__ import annotations
-
 import pytest
 
 from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads

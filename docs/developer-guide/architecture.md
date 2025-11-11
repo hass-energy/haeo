@@ -150,7 +150,8 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
 6. **Write tests**:
 
-    - Model tests in `tests/test_model.py`
+    - Model element tests in `tests/model/test_elements.py`
+    - Test data in `tests/model/test_data/`
     - Config flow tests in `tests/flows/`
     - Integration tests
 
