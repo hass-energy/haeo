@@ -71,13 +71,13 @@ After creating your hub, add elements to represent your devices through the Home
 
 ### Available element types
 
-| Element Type      | Description                      | Use Case                      |
-| ----------------- | ----------------------------------- | ----------------------------- |
-| **Battery**       | Energy storage with SOC tracking    | Home batteries, EV as storage |
-| **Grid**          | Bi-directional grid connection      | Main grid, separate meters    |
-| **Photovoltaics** | Solar generation                    | Rooftop solar, ground-mount   |
+| Element Type      | Description                              | Use Case                      |
+| ----------------- | ---------------------------------------- | ----------------------------- |
+| **Battery**       | Energy storage with SOC tracking         | Home batteries, EV as storage |
+| **Grid**          | Bi-directional grid connection           | Main grid, separate meters    |
+| **Photovoltaics** | Solar generation                         | Rooftop solar, ground-mount   |
 | **Load**          | Power consumption (constant or variable) | All consumption patterns      |
-| **Net**           | Virtual power balance node          | Grouping connection points    |
+| **Net**           | Virtual power balance node               | Grouping connection points    |
 
 See the [elements overview](elements/index.md) for detailed configuration guides for each type.
 

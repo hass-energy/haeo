@@ -74,10 +74,10 @@ Multiple solar forecast sensors are combined additively.
 
 ## Load Configuration
 
-| Field    | Type      | Required | Default | Description                   |
-| -------- | --------- | -------- | ------- | ----------------------------- |
-| Name     | string    | Yes      | -       | Unique identifier             |
-| Forecast | sensor(s) | Yes      | -       | Power consumption sensor(s)   |
+| Field    | Type      | Required | Default | Description                 |
+| -------- | --------- | -------- | ------- | --------------------------- |
+| Name     | string    | Yes      | -       | Unique identifier           |
+| Forecast | sensor(s) | Yes      | -       | Power consumption sensor(s) |
 
 The Forecast field accepts one or more sensor entity IDs providing power consumption data.
 For constant loads, use an `input_number` helper.

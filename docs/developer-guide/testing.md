@@ -53,10 +53,18 @@ VALID_CASES = [
     {
         "description": "Battery with full configuration",
         "factory": create,
-        "data": {"name": "battery", "n_periods": 2, ...},
+        "data": {
+            "name": "battery",
+            "n_periods": 2,
+            # etc
+        },
         "expected_outputs": {
-            "power_consumed": {"type": "power", "unit": "kW", "values": (1.0, 2.0)},
-            ...
+            "power_consumed": {
+                "type": "power",
+                "unit": "kW",
+                "values": (1.0, 2.0),
+                # etc
+            },
         },
     }
 ]

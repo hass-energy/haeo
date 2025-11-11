@@ -61,18 +61,20 @@ For fixed baseline consumption that doesn't vary over time, use an `input_number
 ### Creating a Constant Load
 
 1. **Create Input Number Helper**:
-   - Go to Settings → Devices & Services → Helpers
-   - Add a new "Number" helper
-   - Set name: "Base Load Power"
-   - Set unit: kW
-   - Set desired constant value (e.g., 1.0)
+
+    - Go to Settings → Devices & Services → Helpers
+    - Add a new "Number" helper
+    - Set name: "Base Load Power"
+    - Set unit: kW
+    - Set desired constant value (e.g., 1.0)
 
 2. **Configure Load Element**:
-   ```yaml
-   Name: Base Load
-   Type: Load
-   Forecast: input_number.base_load_power
-   ```
+
+    ```yaml
+    Name: Base Load
+    Type: Load
+    Forecast: input_number.base_load_power
+    ```
 
 This configuration represents constant consumption (e.g., 1 kW = 24 kWh per day).
 
@@ -109,6 +111,7 @@ Forecast: sensor.house_load_forecast
 ```
 
 The forecast sensor should provide:
+
 - Current consumption value
 - Forecast data for future periods
 - Unit of measurement: kW
@@ -116,16 +119,19 @@ The forecast sensor should provide:
 ### Common Forecast Sources
 
 **Direct Measurement**:
+
 - Home energy monitors
 - Smart meters with forecast capability
 - Utility consumption APIs
 
 **Calculated Forecasts**:
+
 - Template sensors combining multiple sources
 - Machine learning predictions
 - Historical pattern averaging
 
 **Scheduled Devices**:
+
 - EV charger schedules
 - Pool pump timers
 - HVAC duty cycles
