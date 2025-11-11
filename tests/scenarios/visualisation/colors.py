@@ -14,19 +14,19 @@ _PHOTOVOLTAICS_PALETTE = [
 ]
 
 _BATTERY_PALETTE = [
-    "#1f77b4",  # Blue (primary)
-    "#aec7e8",  # Light blue
-    "#4a90d9",  # Medium blue
-    "#0d5a9e",  # Dark blue
-    "#c5d9f1",  # Pale blue
-]
-
-_GRID_PALETTE = [
     "#2ca02c",  # Green (primary)
     "#98df8a",  # Light green
     "#5cb85c",  # Medium green
     "#1e7b1e",  # Dark green
     "#c7e9c0",  # Pale green
+]
+
+_GRID_PALETTE = [
+    "#1f77b4",  # Blue (primary)
+    "#aec7e8",  # Light blue
+    "#4a90d9",  # Medium blue
+    "#0d5a9e",  # Dark blue
+    "#c5d9f1",  # Pale blue
 ]
 
 _LOAD_PALETTE = [
