@@ -2,7 +2,7 @@
 
 from contextlib import suppress
 from types import MappingProxyType
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -140,6 +140,42 @@ async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     assert result is True
     # Coordinator should be cleaned up
     assert mock_hub_entry.runtime_data is None
+
+
+async def test_async_setup_entry_initializes_coordinator(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Setup should create a coordinator, perform initial refresh, and forward platforms."""
+
+    class DummyCoordinator:
+        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+            self.hass = hass_param
+            self.config_entry = entry_param
+            self.async_config_entry_first_refresh = AsyncMock()
+            self.cleanup = Mock()
+
+    created: list[DummyCoordinator] = []
+
+    def create_coordinator(hass_param: HomeAssistant, entry_param: ConfigEntry) -> DummyCoordinator:
+        coordinator = DummyCoordinator(hass_param, entry_param)
+        created.append(coordinator)
+        return coordinator
+
+    monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", create_coordinator)
+
+    forward_mock = AsyncMock()
+    monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", forward_mock)
+
+    result = await async_setup_entry(hass, mock_hub_entry)
+
+    assert result is True
+    assert created, "Coordinator should be instantiated"
+    coordinator = created[0]
+    assert mock_hub_entry.runtime_data is coordinator
+    coordinator.async_config_entry_first_refresh.assert_awaited_once()
+    forward_mock.assert_awaited_once()
 
 
 async def test_reload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:

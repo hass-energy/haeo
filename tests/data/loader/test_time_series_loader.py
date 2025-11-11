@@ -1,4 +1,18 @@
-"""Integration tests for the time series loader."""
+"""Integration tests for the time series loader with real Home Assistant state.
+
+These tests verify the loader works correctly with actual Home Assistant state objects
+and sensor data extraction. They focus on:
+- Sensor availability checking
+- Entity ID validation
+- Error handling for missing/invalid sensors
+- Integration with the full pipeline
+
+Lower-level logic is tested in:
+- tests/test_data/test_time_series_loader.py (entity ID handling, mocked sensors)
+- tests/data/util/test_forecast_fuser.py (fusion logic)
+- tests/data/util/test_forecast_cycle.py (cycling logic)
+- tests/data/util/test_forecast_combiner.py (combining logic)
+"""
 
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch

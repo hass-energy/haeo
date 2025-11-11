@@ -69,6 +69,12 @@ class NoMetadataConfig(TypedDict):
     value: Annotated[int, "noop"]
 
 
+class UnionFieldConfig(TypedDict):
+    """Config used to verify Annotated metadata precedence in unions."""
+
+    value: PriceFieldSchema | ElementNameFieldSchema
+
+
 def test_constant_field_extraction() -> None:
     """Test extracting constant field types."""
     annotated_fields = _get_annotated_fields(ConstantFieldTestConfig)
@@ -167,6 +173,16 @@ def test_get_loader_instance_fallback_returns_constant_loader() -> None:
 
     loader = get_loader_instance("value", NoMetadataConfig)
     assert isinstance(loader, ConstantLoader)
+
+
+def test_union_field_uses_first_annotated_metadata() -> None:
+    """Union types should use the first Annotated metadata entry."""
+
+    annotated_fields = _get_annotated_fields(UnionFieldConfig)
+
+    field_meta, is_optional = annotated_fields["value"]
+    assert field_meta.field_type[0] == SensorDeviceClass.MONETARY
+    assert not is_optional
 
 
 def test_constant_field_schema_validation(schema_params: dict[str, Any]) -> None:

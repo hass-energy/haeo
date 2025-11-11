@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, Any, TypedDict, cast
+from typing import Annotated, Any, NotRequired, TypedDict, cast
 
 from homeassistant.core import HomeAssistant
 import pytest
@@ -100,3 +100,33 @@ def test_get_loader_instance_fallback() -> None:
 
     loader = get_loader_instance("value", PlainConfig)
     assert isinstance(loader, ConstantLoader)
+
+
+async def test_optional_none_values_are_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Optional fields provided as None should not trigger loader access."""
+
+    required_loader = TrackingLoader(available_result=True, loaded_value=11)
+    optional_loader = TrackingLoader(available_result=True, loaded_value=99)
+
+    class ConfigData(TypedDict):
+        value: Annotated[int, TrackingFieldMeta(field_type=("number", "constant"), loader=required_loader)]
+        optional: NotRequired[
+            Annotated[int | None, TrackingFieldMeta(field_type=("number", "constant"), loader=optional_loader)]
+        ]
+
+    entry = SimpleNamespace(data=ConfigData)
+    monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)
+
+    config = cast(
+        "ElementConfigSchema",
+        {"element_type": "stub", "value": "sensor.example", "optional": None},
+    )
+    hass = cast("HomeAssistant", object())
+
+    assert schema_available(config, hass=hass) is True
+    assert optional_loader.available_calls == []
+
+    loaded = cast("ConfigData", await schema_load(config, hass=hass, forecast_times=[]))
+    assert "optional" not in loaded
+    assert required_loader.load_calls == [{"value": "sensor.example", "hass": hass, "forecast_times": []}]
+    assert optional_loader.load_calls == []

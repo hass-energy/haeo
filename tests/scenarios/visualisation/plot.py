@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import itertools
 import logging
 from pathlib import Path
-from typing import Any, Final, Literal, Required, TypedDict
+from typing import Any, Final, Literal, Required, TypedDict, cast
 
 from homeassistant.core import HomeAssistant
 import matplotlib as mpl
@@ -139,7 +139,8 @@ def _compute_activity_metrics(forecast_data: dict[str, ForecastData]) -> dict[st
             if series is None:
                 continue
 
-            series_array = np.asarray(series, dtype=float)
+            series_tuples = cast("Sequence[tuple[float, float]]", series)
+            series_array = np.asarray(series_tuples, dtype=float)
             if series_array.size == 0:
                 continue
 
