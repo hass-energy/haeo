@@ -32,6 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 @freeze_time("2025-10-05T10:59:21.998507+00:00")
 @pytest.mark.scenario
+@pytest.mark.timeout(30)
 async def test_scenario1_setup_and_optimization(
     hass: HomeAssistant,
     scenario_config: dict[str, Any],

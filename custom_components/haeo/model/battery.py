@@ -118,15 +118,15 @@ class Battery(Element):
 
         super().build()
 
-        min_energy = self.capacity * (self.min_charge_percentage / 100.0)
-        max_energy = self.capacity * (self.max_charge_percentage / 100.0)
-
         if self.energy is None:
             return
 
         for index, energy_var in enumerate(self.energy):
             if not isinstance(energy_var, LpVariable):
                 continue
+
+            min_energy = self.capacity[index] * (self.min_charge_percentage / 100.0)
+            max_energy = self.capacity[index] * (self.max_charge_percentage / 100.0)
 
             constraint_min = cast("LpConstraint", energy_var >= min_energy)
             constraint_min.name = f"{self.name}_soc_min_{index}"
