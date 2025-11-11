@@ -10,6 +10,7 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -284,9 +285,11 @@ async def test_async_update_data_returns_outputs(
     assert battery_output.type == OUTPUT_TYPE_POWER
     assert battery_output.unit == "kW"
     assert battery_output.state == 1.0
+    # Forecast timestamps should be in local timezone
+    local_tz = dt_util.get_default_time_zone()
     assert battery_output.forecast == {
-        datetime.fromtimestamp(expected_forecast_times[0], tz=UTC).isoformat(): 1.0,
-        datetime.fromtimestamp(expected_forecast_times[1], tz=UTC).isoformat(): 2.0,
+        datetime.fromtimestamp(expected_forecast_times[0], tz=local_tz).isoformat(): 1.0,
+        datetime.fromtimestamp(expected_forecast_times[1], tz=local_tz).isoformat(): 2.0,
     }
 
     mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
