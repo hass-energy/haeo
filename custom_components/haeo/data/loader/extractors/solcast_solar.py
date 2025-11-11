@@ -25,11 +25,15 @@ def _parse_entry(item: Any) -> tuple[int, float] | None:
     period_start_str = item.get("period_start")
     pv_estimate = item.get("pv_estimate")
 
-    if not isinstance(period_start_str, str) or pv_estimate is None:
+    if not isinstance(period_start_str, (datetime, str)) or pv_estimate is None:
         return None
 
     try:
-        dt = as_utc(datetime.fromisoformat(period_start_str))
+        dt = (
+            as_utc(datetime.fromisoformat(period_start_str))
+            if isinstance(period_start_str, str)
+            else as_utc(period_start_str)
+        )
         timestamp_seconds = int(dt.timestamp())
         value = float(pv_estimate)
     except (ValueError, TypeError):
