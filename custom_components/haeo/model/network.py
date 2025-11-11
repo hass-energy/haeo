@@ -11,10 +11,9 @@ from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, getSolver, lpSum
 
 from .battery import Battery
 from .connection import Connection
-from .constant_load import ConstantLoad
 from .element import Element
-from .forecast_load import ForecastLoad
 from .grid import Grid
+from .load import Load
 from .node import Node
 from .photovoltaics import Photovoltaics
 
@@ -52,8 +51,7 @@ class Network:
         factories: dict[str, Callable[..., Element | Connection]] = {
             "battery": Battery,
             "photovoltaics": Photovoltaics,
-            "constant_load": ConstantLoad,
-            "forecast_load": ForecastLoad,
+            "load": Load,
             "grid": Grid,
             "node": Node,
             "connection": Connection,

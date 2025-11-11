@@ -53,8 +53,6 @@ ELEMENT_COLOR_PALETTES: dict[str, list[str]] = {
     "battery": _BATTERY_PALETTE,
     "grid": _GRID_PALETTE,
     "load": _LOAD_PALETTE,
-    "constant_load": _LOAD_PALETTE,  # Shares palette with load
-    "forecast_load": _LOAD_PALETTE,  # Shares palette with load
 }
 
 # Fallback color palette for unknown element types
@@ -66,8 +64,6 @@ class ColorMapper:
 
     This class maintains state about which elements have been assigned colors,
     ensuring that multiple elements of the same type get distinct but related colors.
-    Elements that share the same color palette (e.g., load, constant_load, forecast_load)
-    will share the same color counter.
     """
 
     def __init__(self) -> None:

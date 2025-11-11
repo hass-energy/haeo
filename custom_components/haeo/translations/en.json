@@ -27,8 +27,7 @@
     "node": { "name": "{name}" },
     "battery": { "name": "{name}" },
     "grid": { "name": "{name}" },
-    "constant_load": { "name": "{name}" },
-    "forecast_load": { "name": "{name}" },
+    "load": { "name": "{name}" },
     "photovoltaics": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "network": { "name": "{name}" }
@@ -143,55 +142,25 @@
         "missing_name": "Name is required"
       }
     },
-    "constant_load": {
-      "flow_title": "Constant Load",
-      "entry_type": "Constant Load",
+    "load": {
+      "flow_title": "Load",
+      "entry_type": "Load",
       "initiate_flow": {
-        "user": "Constant Load",
-        "reconfigure": "Constant Load"
+        "user": "Load",
+        "reconfigure": "Load"
       },
       "step": {
         "user": {
-          "title": "Add Constant Load",
-          "description": "Set up a fixed power load",
-          "data": {
-            "name": "Load Name",
-            "power": "Power"
-          }
-        },
-        "reconfigure": {
-          "title": "Edit Constant Load",
-          "description": "Update constant load configuration",
-          "data": {
-            "name": "Load Name",
-            "power": "Power"
-          }
-        }
-      },
-      "error": {
-        "name_exists": "A device with this name already exists",
-        "missing_name": "Name is required"
-      }
-    },
-    "forecast_load": {
-      "flow_title": "Forecast Load",
-      "entry_type": "Forecast Load",
-      "initiate_flow": {
-        "user": "Forecast Load",
-        "reconfigure": "Forecast Load"
-      },
-      "step": {
-        "user": {
-          "title": "Add Forecast Load",
-          "description": "Set up load forecasting",
+          "title": "Add Load",
+          "description": "Set up a load with forecast or constant power",
           "data": {
             "name": "Load Name",
             "forecast": "Forecast Sensors"
           }
         },
         "reconfigure": {
-          "title": "Edit Forecast Load",
-          "description": "Update forecast load configuration",
+          "title": "Edit Load",
+          "description": "Update load configuration",
           "data": {
             "name": "Load Name",
             "forecast": "Forecast Sensors"
@@ -309,19 +278,6 @@
       "flow_title": "Network",
       "entry_type": "Network",
       "step": {}
-    }
-  },
-  "selector": {
-    "participant_type": {
-      "options": {
-        "battery": "Battery",
-        "grid": "Grid Connection",
-        "constant_load": "Constant Load",
-        "forecast_load": "Forecast Load",
-        "photovoltaics": "Photovoltaics",
-        "node": "Node",
-        "connection": "Connection"
-      }
     }
   },
   "entity": {

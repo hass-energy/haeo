@@ -87,7 +87,7 @@ class SensorFieldMeta(FieldMeta):
     def _get_field_validators(self, **_kwargs: Any) -> EntitySelector:
         return EntitySelector(
             EntitySelectorConfig(
-                domain="sensor",
+                domain=["sensor", "input_number"],
                 multiple=self.multiple,
                 device_class=list(self.device_classes),
             )

@@ -69,9 +69,9 @@
       "export_limit": 30
     },
     "Constant Load": {
-      "element_type": "constant_load",
+      "element_type": "load",
       "name": "Constant Load",
-      "power": 1.0
+      "forecast": ["input_number.constant_load_power"]
     },
     "DC Net->Battery": {
       "element_type": "connection",

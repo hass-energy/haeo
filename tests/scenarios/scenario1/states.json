@@ -6131,5 +6131,21 @@
       "parent_id": null,
       "user_id": null
     }
+  },
+  {
+    "entity_id": "input_number.constant_load_power",
+    "state": "1.0",
+    "attributes": {
+      "unit_of_measurement": "kW",
+      "friendly_name": "Constant Load Power"
+    },
+    "last_changed": "2025-10-05T10:56:22.751147+00:00",
+    "last_reported": "2025-10-05T10:58:23.642691+00:00",
+    "last_updated": "2025-10-05T10:56:22.751147+00:00",
+    "context": {
+      "id": "01K5ZE9ZFG9F0R89MX9ETND7MN",
+      "parent_id": null,
+      "user_id": null
+    }
   }
 ]

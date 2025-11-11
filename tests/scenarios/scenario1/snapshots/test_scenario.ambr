@@ -3696,7 +3696,7 @@
       'attributes': ReadOnlyDict({
         'device_class': 'power',
         'element_name': 'Constant Load',
-        'element_type': 'constant_load',
+        'element_type': 'load',
         'forecast': dict({
           '2025-10-05T10:55:00+00:00': 1.0,
           '2025-10-05T11:00:00+00:00': 1.0,

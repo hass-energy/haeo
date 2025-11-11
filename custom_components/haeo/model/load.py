@@ -1,15 +1,15 @@
-"""Forecast-based load entity for electrical system modeling."""
+"""Load entity for electrical system modeling."""
 
 from collections.abc import Sequence
 
 from .element import Element
 
 
-class ForecastLoad(Element):
-    """Forecast-based load entity for electrical system modeling."""
+class Load(Element):
+    """Load entity for electrical system modeling."""
 
     def __init__(self, name: str, period: float, n_periods: int, forecast: Sequence[float]) -> None:
-        """Initialize a forecast-based load.
+        """Initialize a load.
 
         Args:
             name: Name of the load

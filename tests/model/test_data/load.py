@@ -1,21 +1,21 @@
-"""Test data and factories for ForecastLoad element."""
+"""Test data and factories for Load element."""
 
 from typing import Any
 
-from custom_components.haeo.model.forecast_load import ForecastLoad
+from custom_components.haeo.model.load import Load
 
 
-def create(data: dict[str, Any]) -> ForecastLoad:
-    """Create a test ForecastLoad instance."""
-    return ForecastLoad(**data)
+def create(data: dict[str, Any]) -> Load:
+    """Create a test Load instance."""
+    return Load(**data)
 
 
 VALID_CASES = [
     {
-        "description": "Forecast load with varying consumption",
+        "description": "Load with varying consumption",
         "factory": create,
         "data": {
-            "name": "forecast_load",
+            "name": "load",
             "period": 1.0,
             "n_periods": 3,
             "forecast": [1.0, 1.5, 2.0],
@@ -28,10 +28,10 @@ VALID_CASES = [
 
 INVALID_CASES = [
     {
-        "description": "Forecast load with forecast length mismatch",
-        "element_class": ForecastLoad,
+        "description": "Load with forecast length mismatch",
+        "element_class": Load,
         "data": {
-            "name": "forecast_load",
+            "name": "load",
             "period": 1.0,
             "n_periods": 3,
             "forecast": [1.0, 1.5],  # Only 2 instead of 3
