@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 import logging
 import time
 from typing import Any, get_type_hints
@@ -163,8 +163,10 @@ def _build_coordinator_output(
 
     if forecast_times and len(values) == len(forecast_times) and len(values) > 1:
         try:
+            # Convert timestamps to localized datetime strings using HA's configured timezone
+            local_tz = dt_util.get_default_time_zone()
             forecast = {
-                datetime.fromtimestamp(timestamp, tz=UTC).isoformat(): value
+                datetime.fromtimestamp(timestamp, tz=local_tz).isoformat(): value
                 for timestamp, value in zip(forecast_times, values, strict=True)
             }
         except ValueError:
