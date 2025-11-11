@@ -163,7 +163,7 @@ def _build_coordinator_output(
 
     if forecast_times and len(values) == len(forecast_times) and len(values) > 1:
         try:
-            # Convert timestamps to localized datetime strings using HA's configured timezone
+            # Convert timestamps to localized datetime objects using HA's configured timezone
             local_tz = dt_util.get_default_time_zone()
             forecast = {
                 datetime.fromtimestamp(timestamp, tz=local_tz): value
