@@ -1,14 +1,14 @@
 """Open-Meteo solar forecast parser."""
 
 from collections.abc import Sequence
-from datetime import datetime
 import logging
 from typing import Any, Literal
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import UnitOfPower
 from homeassistant.core import State
-from homeassistant.util.dt import as_utc
+
+from .datetime_utils import parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,15 +16,11 @@ Format = Literal["open_meteo_solar_forecast"]
 DOMAIN: Format = "open_meteo_solar_forecast"
 
 
-def _parse_entry(time_str: Any, power_value: Any) -> tuple[int, float] | None:
+def _parse_entry(time_value: Any, power_value: Any) -> tuple[int, float] | None:
     """Validate and convert a forecast entry."""
 
-    if not isinstance(time_str, str):
-        return None
-
     try:
-        dt = as_utc(datetime.fromisoformat(time_str))
-        timestamp_seconds = int(dt.timestamp())
+        timestamp_seconds = parse_datetime_to_timestamp(time_value)
         value = float(power_value)
     except (ValueError, TypeError):
         return None
