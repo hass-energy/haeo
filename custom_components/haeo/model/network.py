@@ -36,7 +36,6 @@ class Network:
     period: float  # Period in hours
     n_periods: int
     elements: dict[str, Element | Connection] = field(default_factory=dict)
-    sensor_data_available: bool = True
     balance_constraints: dict[tuple[str, int], LpConstraint] = field(init=False, default_factory=dict)
 
     def add(self, element_type: str, name: str, **kwargs: object) -> Element | Connection:

@@ -26,8 +26,3 @@ class ConstantLoadConfigData(TypedDict):
 
 
 CONFIG_DEFAULTS: dict[str, Any] = {}
-
-
-def model_description(config: ConstantLoadConfigSchema) -> str:
-    """Generate device model string from constant load configuration."""
-    return f"Constant Load {config[CONF_POWER]:.1f}kW"

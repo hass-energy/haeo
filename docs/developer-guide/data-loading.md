@@ -1,528 +1,322 @@
 # Data Loading System
 
-Guide to HAEO's data loading architecture and field type system.
+Technical guide to HAEO's unified time series loading architecture.
 
 ## Overview
 
-HAEO's data loading system bridges Home Assistant sensor entities with the optimization model.
-The system supports two operational modes and multiple field types to handle diverse data sources.
+The data loading system transforms Home Assistant sensor data into time series aligned with optimization horizons.
+It addresses three core challenges:
 
-For more information on Home Assistant sensors and state management, see:
+1. **Heterogeneous data sources**: Sensors provide different formats (simple values vs forecasts from various integrations)
+2. **Temporal alignment**: Forecast timestamps rarely match optimization periods
+3. **Partial coverage**: Forecasts often don't span the entire optimization horizon
+
+The system uses a three-stage pipeline: extraction → combination → fusion.
+
+See Home Assistant documentation for background on entities and sensors:
+
 - [Entity state documentation](https://developers.home-assistant.io/docs/core/entity/)
 - [Sensor platform guide](https://developers.home-assistant.io/docs/core/entity/sensor/)
 
 ## Architecture
 
-```mermaid
-graph LR
-    A[Config Entry] --> B[Schema Objects]
-    B --> C[Data Loaders]
-    C --> D[HA Sensors]
-    D --> E[Field Values]
-    E --> F[Network Model]
-```
-
-1. **Config Entry**: User configuration with entity IDs
-2. **Schema Objects**: Typed configuration structures
-3. **Data Loaders**: Extract and transform sensor data
-4. **HA Sensors**: Home Assistant entity states
-5. **Field Values**: Validated, typed values
-6. **Network Model**: Optimization variables and constraints
-
-## Schema vs Data Modes
-
-The system operates in two modes depending on data availability:
-
-### Schema Mode
-
-Used during configuration and validation when sensor data is not required:
-
-```python
-from custom_components.haeo.schema.battery import Battery as BatterySchema
-
-# Create schema object from config
-battery_schema = BatterySchema(
-    name={"value": "Home Battery"},
-    capacity={"value": 13.5},  # kWh
-    charge_power={"value": 5.0},  # kW
-    discharge_power={"value": 5.0},  # kW
-    # No sensor data needed
-)
-
-# Check if field config is complete
-if battery_schema.config_available():
-    # Ready to build network
-    pass
-```
-
-**Characteristics**:
-- No sensor state access required
-- Used in config flow validation
-- Validates field configuration structure
-- Fast and synchronous
-
-### Data Mode
-
-Used during optimization when actual sensor values are needed:
-
-```python
-from custom_components.haeo.data.battery import Battery as BatteryData
-
-# Load data from sensors
-battery_data = BatteryData.load(
-    battery_schema,
-    hass,
-    forecast_times,
-)
-
-# Access sensor values
-initial_soc = battery_data.soc  # Loaded from sensor
-import_prices = battery_data.price_import  # Forecast data
-```
-
-**Characteristics**:
-- Reads current sensor states
-- Parses forecast attributes
-- Validates data types and ranges
-- Returns typed values ready for model
-
-## Field Types
-
-Fields define how configuration values are obtained and validated.
-
-### Value Field
-
-Static numeric value from configuration:
-
-```python
-{
-    "capacity": {
-        "value": 13.5  # kWh
-    }
-}
-```
-
-**Loader behavior**:
-```python
-capacity = field_config["value"]  # Returns float directly
-```
-
-### Sensor Field
-
-Current state from Home Assistant sensor:
-
-```python
-{
-    "soc": {
-        "sensor": "sensor.battery_state_of_charge"
-    }
-}
-```
-
-**Loader behavior**:
-```python
-entity_id = field_config["sensor"]
-state = hass.states.get(entity_id)
-soc = float(state.state)  # Parse state to float
-```
-
-### Forecast Field
-
-Time-series data from sensor attributes:
-
-```python
-{
-    "price_import": {
-        "sensor": "sensor.electricity_price",
-        "attribute": "forecast",
-        "forecast": True
-    }
-}
-```
-
-**Loader behavior**:
-```python
-entity_id = field_config["sensor"]
-attribute = field_config["attribute"]
-state = hass.states.get(entity_id)
-raw_forecast = state.attributes[attribute]
-
-# Parse forecast format (list of dicts or dict)
-if isinstance(raw_forecast, dict):
-    forecast = parse_dict_forecast(raw_forecast, forecast_times)
-elif isinstance(raw_forecast, list):
-    forecast = parse_list_forecast(raw_forecast, forecast_times)
-```
-
-### Sensor Attribute Field
-
-Static value from sensor attribute:
-
-```python
-{
-    "capacity": {
-        "sensor": "sensor.battery_info",
-        "attribute": "total_capacity"
-    }
-}
-```
-
-**Loader behavior**:
-```python
-entity_id = field_config["sensor"]
-attribute = field_config["attribute"]
-state = hass.states.get(entity_id)
-capacity = float(state.attributes[attribute])
-```
-
-## Forecast Parsing
-
-HAEO supports multiple forecast formats to integrate with various Home Assistant integrations.
-
-### Dictionary Format
-
-Simple timestamp-to-value mapping:
-
-```python
-{
-    "2024-01-15T10:00:00+00:00": 0.25,
-    "2024-01-15T10:30:00+00:00": 0.28,
-    "2024-01-15T11:00:00+00:00": 0.30,
-}
-```
-
-**Parsing**:
-```python
-def parse_dict_forecast(
-    forecast: dict[str, float],
-    forecast_times: list[datetime],
-) -> list[float]:
-    """Extract values at forecast_times from dict."""
-    values = []
-    for time in forecast_times:
-        # Convert to ISO format string for lookup
-        key = time.isoformat()
-        if key in forecast:
-            values.append(forecast[key])
-        else:
-            # Interpolate or use nearest
-            values.append(interpolate_value(forecast, time))
-    return values
-```
-
-### List of Dicts Format
-
-Common format from many integrations:
-
-```python
-[
-    {"timestamp": "2024-01-15T10:00:00+00:00", "price": 0.25},
-    {"timestamp": "2024-01-15T10:30:00+00:00", "price": 0.28},
-    {"timestamp": "2024-01-15T11:00:00+00:00", "price": 0.30},
-]
-```
-
-**Parsing**:
-```python
-def parse_list_forecast(
-    forecast: list[dict],
-    forecast_times: list[datetime],
-    value_key: str = "value",
-    timestamp_key: str = "timestamp",
-) -> list[float]:
-    """Extract values from list of dicts."""
-    # Build dict first
-    forecast_dict = {}
-    for entry in forecast:
-        timestamp = parse_datetime(entry[timestamp_key])
-        value = float(entry[value_key])
-        forecast_dict[timestamp.isoformat()] = value
-
-    # Use dict parsing
-    return parse_dict_forecast(forecast_dict, forecast_times)
-```
-
-### Time Alignment
-
-Forecasts are aligned to optimization period boundaries:
-
-```python
-def calculate_forecast_times(
-    start_time: datetime,
-    period: timedelta,
-    n_periods: int,
-) -> list[datetime]:
-    """Calculate forecast timestamps at period boundaries."""
-    return [
-        start_time + (i * period)
-        for i in range(n_periods)
-    ]
-
-# Example: 30-minute periods starting at 10:00
-forecast_times = calculate_forecast_times(
-    datetime(2024, 1, 15, 10, 0, tzinfo=UTC),
-    timedelta(minutes=30),
-    48,  # 24 hours of 30-min periods
-)
-```
-
-## Data Loader Implementation
-
-### Base Loader Pattern
-
-```python
-from dataclasses import dataclass
-from homeassistant.core import HomeAssistant
-from ..schema.battery import Battery as BatterySchema
-
-
-@dataclass
-class Battery:
-    """Data loader for battery entities."""
-
-    # Required fields
-    capacity: float  # kWh
-    charge_power: float  # kW
-    discharge_power: float  # kW
-    soc: float  # 0-1
-
-    # Optional fields
-    efficiency: float = 1.0
-    soc_min: float = 0.0
-    soc_max: float = 1.0
-    price_import: list[float] | None = None
-    price_export: list[float] | None = None
-
-    @classmethod
-    def load(
-        cls,
-        schema: BatterySchema,
-        hass: HomeAssistant,
-        forecast_times: list[datetime],
-    ) -> "Battery":
-        """Load battery data from sensors."""
-        from ..data.loaders import load_value, load_sensor, load_forecast
-
-        # Load each field based on configuration
-        return cls(
-            capacity=load_value(schema.capacity),
-            charge_power=load_value(schema.charge_power),
-            discharge_power=load_value(schema.discharge_power),
-            soc=load_sensor(schema.soc, hass),
-            efficiency=load_value(schema.efficiency) if schema.efficiency else 1.0,
-            soc_min=load_value(schema.soc_min) if schema.soc_min else 0.0,
-            soc_max=load_value(schema.soc_max) if schema.soc_max else 1.0,
-            price_import=load_forecast(schema.price_import, hass, forecast_times) if schema.price_import else None,
-            price_export=load_forecast(schema.price_export, hass, forecast_times) if schema.price_export else None,
-        )
-```
-
-### Field Loader Functions
-
-```python
-def load_value(field_config: dict) -> float:
-    """Load static value from config."""
-    return float(field_config["value"])
-
-
-def load_sensor(field_config: dict, hass: HomeAssistant) -> float:
-    """Load current sensor state."""
-    entity_id = field_config["sensor"]
-    state = hass.states.get(entity_id)
-
-    if state is None:
-        raise ValueError(f"Sensor {entity_id} not found")
-
-    try:
-        return float(state.state)
-    except ValueError as err:
-        raise ValueError(f"Invalid state for {entity_id}: {state.state}") from err
-
-
-def load_forecast(
-    field_config: dict,
-    hass: HomeAssistant,
-    forecast_times: list[datetime],
-) -> list[float]:
-    """Load forecast data from sensor attributes."""
-    entity_id = field_config["sensor"]
-    attribute = field_config["attribute"]
-
-    state = hass.states.get(entity_id)
-    if state is None:
-        raise ValueError(f"Sensor {entity_id} not found")
-
-    raw_forecast = state.attributes.get(attribute)
-    if raw_forecast is None:
-        raise ValueError(f"Attribute {attribute} not found on {entity_id}")
-
-    # Parse based on format
-    if isinstance(raw_forecast, dict):
-        return parse_dict_forecast(raw_forecast, forecast_times)
-    elif isinstance(raw_forecast, list):
-        return parse_list_forecast(raw_forecast, forecast_times)
-    else:
-        raise ValueError(f"Unsupported forecast format: {type(raw_forecast)}")
-
-
-def load_sensor_attribute(field_config: dict, hass: HomeAssistant) -> float:
-    """Load static value from sensor attribute."""
-    entity_id = field_config["sensor"]
-    attribute = field_config["attribute"]
-
-    state = hass.states.get(entity_id)
-    if state is None:
-        raise ValueError(f"Sensor {entity_id} not found")
-
-    value = state.attributes.get(attribute)
-    if value is None:
-        raise ValueError(f"Attribute {attribute} not found on {entity_id}")
-
-    try:
-        return float(value)
-    except ValueError as err:
-        raise ValueError(f"Invalid value for {entity_id}.{attribute}: {value}") from err
-```
-
-## Integration with Network Building
-
-The coordinator orchestrates data loading:
-
-```python
-async def _async_update_data(self) -> dict[str, Any]:
-    """Load data and run optimization."""
-    from .data import load_network
-
-    # Calculate forecast times
-    forecast_times = calculate_forecast_times(
-        start_time=datetime.now(UTC),
-        period=self.period,
-        n_periods=self.n_periods,
-    )
-
-    # Load network (Data mode)
-    try:
-        self.network = load_network(
-            config=self.config_entry.data,
-            config_options=self.config_entry.options,
-            hass=self.hass,
-            forecast_times=forecast_times,
-        )
-    except ValueError as err:
-        raise UpdateFailed(f"Failed to load network data: {err}") from err
-
-    # Network is now ready for optimization
-    cost = await self.hass.async_add_executor_job(
-        self.network.optimize,
-        solver_name,
-    )
-
-    return self._extract_results()
-```
-
-## Data Validation
-
-Loaders perform automatic validation:
-
-### Type Validation
-
-```python
-def load_sensor(field_config: dict, hass: HomeAssistant) -> float:
-    """Load and validate sensor value."""
-    state = hass.states.get(field_config["sensor"])
-
-    try:
-        value = float(state.state)
-    except ValueError:
-        raise ValueError(f"Sensor state is not numeric: {state.state}")
-
-    return value
-```
-
-### Range Validation
-
-```python
-def load_soc(field_config: dict, hass: HomeAssistant) -> float:
-    """Load and validate SOC (must be 0-1)."""
-    soc = load_sensor(field_config, hass)
-
-    if not 0 <= soc <= 1:
-        raise ValueError(f"SOC must be between 0 and 1, got {soc}")
-
-    return soc
-```
-
-### Forecast Length Validation
-
-```python
-def load_forecast(
-    field_config: dict,
-    hass: HomeAssistant,
-    forecast_times: list[datetime],
-) -> list[float]:
-    """Load and validate forecast length."""
-    values = parse_forecast(...)
-
-    if len(values) != len(forecast_times):
-        raise ValueError(
-            f"Forecast length mismatch: expected {len(forecast_times)}, "
-            f"got {len(values)}"
-        )
-
-    return values
-```
+The data loading pipeline consists of four stages:
+
+1. **Orchestration** ([`TimeSeriesLoader`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/time_series_loader.py)) - Coordinates the entire loading process
+2. **Extraction** ([`sensor_loader.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/sensor_loader.py)) - Reads Home Assistant entities and detects formats
+3. **Combination** ([`forecast_combiner.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/util/forecast_combiner.py)) - Merges multiple sensors into unified data
+4. **Fusion** ([`forecast_fuser.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/util/forecast_fuser.py)) - Aligns data to optimization horizon using interpolation
+
+Each stage has a single responsibility and clear interfaces, making the system testable and extensible.
+
+### Design Decisions
+
+**Why separate extraction and fusion?**
+Extraction handles heterogeneous input formats, while fusion handles temporal alignment.
+This separation allows adding new forecast formats without changing alignment logic.
+
+**Why trapezoidal integration for fusion?**
+Linear programming optimization works with energy (power × time), not instantaneous power.
+Trapezoidal integration accurately computes interval averages from point samples.
+
+**Why additive sensor combination?**
+Physical intuition: multiple solar arrays sum their power output, multiple price components sum to total cost.
+This matches real-world energy network behavior.
+
+## TimeSeriesLoader
+
+The [`TimeSeriesLoader`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/time_series_loader.py) orchestrates the complete loading pipeline.
+It provides the main interface used by configuration fields.
+
+### Responsibilities
+
+- Validate that all referenced sensors exist and are available
+- Coordinate extraction, combination, and fusion stages
+- Convert results to HAEO base units (see [Units](units.md) for details)
+- Handle single sensors and sensor lists uniformly
+
+### Interface Design
+
+The loader has two methods:
+
+- `available()` - Checks if sensors exist without loading data (used during config validation)
+- `load()` - Performs full pipeline and returns horizon-aligned values
+
+Both methods accept flexible `value` parameters (single sensor string or list) to support different configuration field types.
+
+### Return Behavior
+
+The `load()` method always returns a list of floats matching the requested horizon length.
+Values use HAEO base units: kilowatts (kW) for power, kilowatt-hours (kWh) for energy, \$/kWh for prices.
+See [Units documentation](units.md) for conversion details.
+
+## Sensor Extraction
+
+The [`sensor_loader.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/sensor_loader.py) module extracts data from Home Assistant entities.
+
+### Payload Types
+
+A sensor provides either:
+
+- **Present value** (float): Current reading at query time
+- **Forecast series** (list of timestamp/value tuples): Future predictions
+
+This distinction drives all downstream processing: present values repeat across horizons, forecast series interpolate and cycle.
+
+### Format Detection
+
+The system uses duck typing to identify forecast formats.
+Each integration has distinct attribute structures, allowing automatic detection without configuration.
+
+The detection logic tries all known parsers (see [Extractors](#extractors)) and returns the first match.
+If no parser matches, the system falls back to extracting the numeric state value.
+
+### Why Automatic Detection?
+
+Users shouldn't need to specify integration types in configuration.
+Automatic detection reduces configuration complexity and prevents errors from misconfiguration.
+Adding new forecast formats requires only a new parser module, not changes to user configuration.
+
+## Extractors
+
+The extractor system ([`extractors/`](https://github.com/ha-energy-optimiser/haeo/tree/main/custom_components/haeo/data/loader/extractors)) handles integration-specific forecast formats.
+
+### Supported Integrations
+
+| Integration               | Use Case            | Parser Module                                                                                                                                                      |
+| ------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Amber Electric            | Electricity pricing | [`amberelectric.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/extractors/amberelectric.py)                         |
+| AEMO NEM                  | Wholesale pricing   | [`aemo_nem.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/extractors/aemo_nem.py)                                   |
+| Solcast Solar             | Solar forecasting   | [`solcast_solar.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/extractors/solcast_solar.py)                         |
+| Open-Meteo Solar Forecast | Solar forecasting   | [`open_meteo_solar_forecast.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/extractors/open_meteo_solar_forecast.py) |
+
+### Parser Design
+
+Each parser is a standalone module with two responsibilities:
+
+1. **Detection**: Identify if a sensor state matches the integration's format
+2. **Extraction**: Parse forecast data into (Unix timestamp, value) tuples
+
+Parsers declare expected units and device classes for automatic unit conversion.
+
+### Adding New Formats
+
+To support a new forecast integration:
+
+1. Create a parser module in `extractors/`
+2. Implement `detect()` and `extract()` static methods
+3. Declare `DOMAIN`, `UNIT`, and `DEVICE_CLASS` class attributes
+4. Add tests to `tests/data/loader/extractors/`
+
+The system automatically discovers and uses new parsers without configuration changes.
+See existing parsers for implementation patterns.
+
+## Combining Payloads
+
+The [`forecast_combiner.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/util/forecast_combiner.py) module merges multiple sensor payloads.
+
+### Combination Strategy
+
+Multiple sensors combine additively:
+
+- **Present values** sum together
+- **Forecast series** interpolate to shared timestamps, then sum
+
+This matches physical reality: two solar arrays produce combined power, multiple price components sum to total cost.
+
+### Timestamp Alignment
+
+When combining forecast series with different timestamps, the system:
+
+1. Creates a union of all timestamps from all sensors
+2. Interpolates each sensor's values to this common timestamp set
+3. Sums interpolated values at each timestamp
+
+This ensures no information loss when sensors report forecasts at different intervals (e.g., 30-minute vs hourly).
+
+### Mixed Payloads
+
+When some sensors provide present values and others provide forecasts, the present values become the initial forecast value.
+The combination then proceeds as pure forecast series merging.
+
+## Fusion to Horizon
+
+The [`forecast_fuser.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/util/forecast_fuser.py) module aligns combined forecasts to optimization horizons.
+
+### Fusion Strategy
+
+The fusion process produces values for each horizon timestamp:
+
+- **Position 0**: Present value at horizon start
+- **Subsequent positions**: Average value over each optimization period
+
+This matches optimization requirements: linear programming needs interval averages, not point samples.
+
+### Interval Averaging
+
+The system uses trapezoidal integration to compute accurate interval averages from point forecasts.
+This accounts for value changes within optimization periods, producing more accurate results than simple point sampling or nearest-neighbor approaches.
+
+**Why trapezoidal integration?**
+Energy (kWh) = Power (kW) × Time (h).
+Optimization operates on energy quantities, so we need accurate power-over-time averaging.
+Trapezoidal integration provides the best balance of accuracy and simplicity for linear interpolation.
+
+### Forecast Cycling
+
+When forecasts don't cover the full horizon, the system cycles them using natural period alignment.
+See [Forecast Cycling](#forecast-cycling) for details.
+
+The cycling happens before fusion, ensuring the fusion always has data covering beyond the last horizon timestamp.
+
+## Forecast Cycling
+
+The [`forecast_cycle.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/util/forecast_cycle.py) module handles partial forecast coverage.
+
+### Natural Period Alignment
+
+Forecasts cycle at their natural period (24 hours for daily patterns, 7 days for weekly patterns, etc.).
+The system identifies this period automatically by detecting when forecast timestamps align with 24-hour boundaries.
+
+**Why natural periods?**
+Different forecast types have different inherent cycles:
+
+- Electricity prices often have daily patterns (time-of-use pricing)
+- Some forecasts span multiple days (7-day solar forecasts)
+- Cycling should preserve the forecast's intended pattern
+
+### Time-of-Day Preservation
+
+When cycling, the system maintains time-of-day alignment.
+A 6-hour forecast from 2pm-8pm repeats at the same times each day, not offset by arbitrary amounts.
+
+This ensures realistic patterns: expensive electricity in the evening stays expensive in the evening on subsequent days.
+
+### Design Rationale
+
+Cycling is necessary because users configure long optimization horizons (48-168 hours) but integrations provide shorter forecasts.
+Simply repeating the last value would lose time-of-day patterns.
+Wrapping to zero would produce unrealistic gaps.
+Natural period cycling preserves patterns while extending coverage.
 
 ## Error Handling
 
-Data loading errors are propagated to coordinator:
+The data loading system uses `ValueError` for all data problems.
+Coordinators catch these and convert them to appropriate Home Assistant exceptions based on context.
 
-```python
-try:
-    network = load_network(config, hass, forecast_times)
-except ValueError as err:
-    # Coordinator catches and converts to UpdateFailed
-    raise UpdateFailed(f"Failed to load network data: {err}") from err
+### Error Strategy
+
+- **Transient errors** (sensor offline, API timeout) → `UpdateFailed` (coordinator retries)
+- **Permanent errors** (invalid sensor ID, wrong device class) → `ConfigEntryError` (user must fix configuration)
+
+This separation ensures temporary issues don't require user intervention while permanent problems surface immediately.
+
+### Error Messages
+
+All error messages include specific sensor entity IDs and actionable guidance.
+Users should be able to identify the problem sensor and understand how to fix it without reading code or logs.
+
+## Testing
+
+Tests are organized by component:
+
+- [`tests/data/loader/`](https://github.com/ha-energy-optimiser/haeo/tree/main/tests/data/loader) - Extraction and loading tests
+- [`tests/data/util/`](https://github.com/ha-energy-optimiser/haeo/tree/main/tests/data/util) - Combination and fusion tests
+- [`tests/data/loader/extractors/`](https://github.com/ha-energy-optimiser/haeo/tree/main/tests/data/loader/extractors) - Format-specific parser tests
+
+### Test Strategy
+
+**Unit tests** cover individual functions (extraction, combination, fusion, cycling) in isolation.
+**Integration tests** verify the complete pipeline from sensor IDs to horizon-aligned values.
+
+Each test uses realistic fixtures based on actual integration data formats.
+This ensures parsers handle real-world edge cases (missing fields, unexpected value ranges, timezone handling).
+
+### Running Tests
+
+```bash
+# All data loading tests
+uv run pytest tests/data/ -v
+
+# Specific component
+uv run pytest tests/data/loader/test_time_series_loader.py -v
+
+# With coverage report
+uv run pytest tests/data/ --cov=custom_components.haeo.data
 ```
 
-Common error scenarios:
-- Sensor not available
-- Invalid sensor state format
-- Missing forecast attribute
-- Forecast length mismatch
-- Out of range values
+## Related Documentation
 
-## Testing Data Loaders
+- [Forecasts and Sensors guide](../user-guide/forecasts-and-sensors.md) - User-facing documentation
+- [Units](units.md) - Unit conversion system
+- [Coordinator](coordinator.md) - How coordinators use the loading system
+- [Configuration Schema](../reference/configuration-schema.md) - Field type reference
 
-```python
-async def test_battery_loader(hass: HomeAssistant) -> None:
-    """Test battery data loader."""
-    from custom_components.haeo.schema.battery import Battery as BatterySchema
-    from custom_components.haeo.data.battery import Battery as BatteryData
+## Related Documentation
 
-    # Setup test sensor
-    hass.states.async_set("sensor.battery_soc", "0.75")
+- [User forecasts guide](../user-guide/forecasts-and-sensors.md) - User-facing forecast documentation
 
-    # Create schema
-    schema = BatterySchema(
-        name={"value": "Test Battery"},
-        capacity={"value": 13.5},
-        charge_power={"value": 5.0},
-        discharge_power={"value": 5.0},
-        soc={"sensor": "sensor.battery_soc"},
+- [Configuration schema](../reference/configuration-schema.md) - Field type reference
+
+- [Coordinator](coordinator.md) - How data loading integrates with updates
+
+    hass.states.async_set("sensor.solar_1", "2500")
+    hass.states.async_set("sensor.solar_2", "1800")
+
+    loader = TimeSeriesLoader()
+    values = await loader.load(
+    hass=hass,
+    value=["sensor.solar_1", "sensor.solar_2"],
+    forecast_times=[1730890800, 1730894400, 1730898000],
     )
 
-    # Load data
-    forecast_times = calculate_forecast_times(
-        datetime.now(UTC),
-        timedelta(hours=1),
-        24,
-    )
+    assert len(values) == 3
+    assert all(isinstance(v, float) for v in values)
 
-    data = BatteryData.load(schema, hass, forecast_times)
+````
 
-    assert data.capacity == 13.5
-    assert data.soc == 0.75
-    assert data.charge_power == 5.0
+## Running Tests
+
+To test the data loading system:
+
+```bash
+# Test all loader modules
+uv run pytest tests/data/loader/ -v
+
+# Test specific modules
+uv run pytest tests/data/loader/test_sensor_loader.py -v
+uv run pytest tests/data/loader/test_fusion.py -v
+uv run pytest tests/data/loader/test_time_series_loader.py -v
+
+# Test extractors
+uv run pytest tests/data/loader/extractors/ -v
+````
+
+Complement with code quality checks:
+
+```bash
+uv run ruff check custom_components/haeo/data/loader/
+uv run mypy custom_components/haeo/data/loader/
 ```
 
 ## Related Documentation

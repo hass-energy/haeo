@@ -1,241 +1,215 @@
 # Grid Configuration
 
-The grid entity represents your connection to the electricity network.
-It allows bidirectional power flow: importing (buying) electricity and exporting (selling) electricity.
-
-## Overview
-
-A grid in HAEO represents:
-
-- **Import capability**: Buying electricity from the grid
-- **Export capability**: Selling electricity to the grid
-- **Pricing**: Cost to import, revenue from export (via forecasts)
-- **Power limits**: Optional maximum import/export rates
+The grid represents your connection to the electricity network.
+It allows bidirectional power flow: importing (buying) and exporting (selling) electricity.
 
 ## Configuration Fields
 
-| Field            | Type               | Required | Default | Description                                              |
-| ---------------- | ------------------ | -------- | ------- | -------------------------------------------------------- |
-| **Name**         | String             | Yes      | -       | Unique identifier (e.g., "Main Grid", "Grid Connection") |
-| **Import Price** | Forecast sensor(s) | Yes      | -       | Price per kWh for importing electricity                  |
-| **Export Price** | Forecast sensor(s) | Yes      | -       | Revenue per kWh for exporting electricity                |
-| **Import Limit** | Number (kW)        | No       | -       | Maximum import power                                     |
-| **Export Limit** | Number (kW)        | No       | -       | Maximum export power                                     |
+| Field            | Type                                     | Required | Default | Description                            |
+| ---------------- | ---------------------------------------- | -------- | ------- | -------------------------------------- |
+| **Name**         | String                                   | Yes      | -       | Unique identifier                      |
+| **Import Price** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Price per kWh for importing (\$/kWh)   |
+| **Export Price** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Revenue per kWh for exporting (\$/kWh) |
+| **Import Limit** | Number (kW)                              | No       | -       | Maximum import power                   |
+| **Export Limit** | Number (kW)                              | No       | -       | Maximum export power                   |
 
-### Name
+## Import Price
 
-Use descriptive, user-friendly names without special characters:
+Specify one or more Home Assistant sensors providing electricity import pricing.
 
-- ✅ "Main Grid", "Grid Connection", "House Meter"
-- ❌ "Main_Grid", "grid1", "grd"
-
-### Import Price
-
-**Forecast sensor(s)** providing electricity import prices over time.
-
-- **Format**: Single sensor or list of sensors
-- **Unit**: \$/kWh
-- **Required**: Yes
-
-**Single forecast sensor**:
+### Single Sensor
 
 ```yaml
 Import Price: sensor.electricity_import_price
 ```
 
-**Multiple forecast sensors** (e.g., today + tomorrow):
+HAEO reads the sensor's current value and any forecast data.
+A single value repeats across the optimization horizon.
+Forecast data is interpolated for each optimization period.
+
+### Multiple Sensors
+
+Combine multiple price sources or time periods:
 
 ```yaml
 Import Price:
-  - sensor.electricity_import_price_today
-  - sensor.electricity_import_price_tomorrow
+  - sensor.electricity_price_today
+  - sensor.electricity_price_tomorrow
 ```
 
-HAEO automatically merges multiple forecasts into a continuous timeline.
+HAEO combines multiple sensors by summing their values at each timestamp.
+This is useful for:
 
-!!! info "Forecast Sensors Required"
+- Splitting today and tomorrow forecasts
+- Combining wholesale and retail components
+- Adding time-of-use and demand charges
 
-    Grid pricing **must** be provided via forecast sensors.
-    Even for fixed pricing, create a forecast sensor that returns a constant value.
+### How It Works
 
-    See [Forecasts & Sensors](../forecasts-and-sensors.md) for examples of creating constant-price forecast sensors and time-of-use tariff sensors.
+See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for complete details on:
 
-### Export Price
+- How HAEO extracts present values and forecasts
+- Interpolation between forecast points
+- Combining multiple sensors
+- Creating custom price forecast sensors
 
-**Forecast sensor(s)** providing electricity export revenue over time.
+## Export Price
 
-- **Format**: Single sensor or list of sensors
-- **Unit**: \$/kWh
-- **Required**: Yes
+Specify one or more Home Assistant sensors providing electricity export pricing.
 
-Same configuration options as import price.
+Configuration works the same as Import Price (single or multiple sensors).
 
-!!! info "Export vs Import Pricing"
+**Typical relationship**: Export price is usually lower than import price.
 
-    Typically, export prices are lower than import prices:
+- Import: \$0.25/kWh (what you pay to buy)
+- Export: \$0.10/kWh (what you receive to sell)
 
-    - **Import**: \$0.25/kWh (what you pay)
-    - **Export**: \$0.10/kWh (what you receive)
+This price difference incentivizes self-consumption and strategic battery usage.
 
-    This price difference incentivizes self-consumption and strategic battery usage.
+**Important**: Ensure export price < import price to prevent unrealistic arbitrage in optimization.
 
-!!! note "Export Prices as Negative Costs"
-
-    Export prices are automatically treated as negative costs in optimization.
-    Enter positive values (e.g., 0.10) and HAEO converts them to revenue.
-    The optimizer maximizes profit from selling electricity at these prices.
-
-!!! warning "Export Price Must Be Less Than Import Price"
-
-    If export price equals or exceeds import price, the optimizer will find arbitrage opportunities.
-    It will charge batteries from the grid and immediately export, creating infinite profit loops.
-    Always ensure import price > export price to match real-world utility economics.
-
-### Import Limit
+## Import Limit
 
 Maximum power that can be imported from the grid (kW).
 
-- **Optional** - if not specified, import is unlimited.
+**Optional** - if not specified, import is unlimited.
 
 Use this to model:
 
 - Main breaker capacity
-
 - Grid connection limits
-
 - Fuse ratings
 
-- **Example**: `10` for 10 kW maximum import
+**Example**: `15` for 15 kW maximum import
 
-### Export Limit
+## Export Limit
 
 Maximum power that can be exported to the grid (kW).
 
-- **Optional** - if not specified, export is unlimited.
+**Optional** - if not specified, export is unlimited.
 
 Use this to model:
 
 - Inverter export limits
-
 - Grid connection agreements
-
 - Feed-in tariff restrictions
 
-- **Example**: `5` for 5 kW maximum export
+**Example**: `10` for 10 kW maximum export
 
-!!! warning "Regulatory Limits"
+## Configuration Example
 
-    Some jurisdictions limit export to a percentage of import capacity, or prohibit export entirely.
-    Configure accordingly.
+Dynamic pricing with forecast sensors:
 
-## Configuration Examples
+```yaml
+Name: Main Grid
+Import Price:
+  - sensor.electricity_import_today
+  - sensor.electricity_import_tomorrow
+Export Price:
+  - sensor.electricity_export_today
+  - sensor.electricity_export_tomorrow
+Import Limit: 15
+Export Limit: 10
+```
 
-### Dynamic pricing with forecast sensors
+Fixed pricing configuration:
 
-| Field           | Value                                                      |
-| --------------- | ---------------------------------------------------------- |
-| **Name**        | Main Grid                                                  |
-| **Import Price** | sensor.amber_general_price, sensor.amber_forecast_price    |
-| **Export Price** | sensor.amber_feed_in_price, sensor.amber_feed_in_forecast |
-| **Import Limit** | 15 kW                                                      |
-| **Export Limit** | 10 kW                                                      |
+```yaml
+Name: Grid Connection
+Import Price: sensor.fixed_import_price  # Single sensor (e.g., input_number or template sensor)
+Export Price: sensor.fixed_export_price
+Import Limit: 20
+Export Limit: 5
+```
 
-### Fixed pricing with template sensors
-
-| Field           | Value                       |
-| --------------- | --------------------------- |
-| **Name**        | Grid Connection             |
-| **Import Price** | sensor.constant_import_price |
-| **Export Price** | sensor.constant_export_price |
-
-See [Forecasts & Sensors](../forecasts-and-sensors.md) for creating constant-price and time-of-use template sensors.
-
-## How HAEO Uses Grid Configuration
-
-When you configure grid pricing through forecast sensors, HAEO optimizes over the forecast horizon to minimize total cost.
-The optimizer charges batteries when prices are low, discharges when prices are high, and adjusts export based on export price forecasts.
-
-The grid can import or export, but not simultaneously:
-
-- Positive power = importing from grid
-- Negative power = exporting to grid
+For more examples, see the [Forecasts and Sensors guide](../forecasts-and-sensors.md).
 
 ## Sensors Created
 
-HAEO creates this sensor for each grid:
+| Sensor                         | Unit   | Description                                |
+| ------------------------------ | ------ | ------------------------------------------ |
+| `sensor.{name}_power_imported` | kW     | Power imported from grid (positive values) |
+| `sensor.{name}_power_exported` | kW     | Power exported to grid (positive values)   |
+| `sensor.{name}_price_import`   | \$/kWh | Import price for current period            |
+| `sensor.{name}_price_export`   | \$/kWh | Export price for current period            |
 
-| Sensor                | Description                                                         |
-| --------------------- | ------------------------------------------------------------------- |
-| `sensor.{name}_power` | Optimal grid power (kW). Positive = importing, negative = exporting |
-
-The sensor includes forecast attributes with future timestamped values.
+After optimization completes, sensors show values for the current optimization period.
+The `forecast` attribute on each sensor contains future values for upcoming periods.
 
 ## Troubleshooting
 
-### Grid Always Importing
+### Sensor Not Found
 
-If your system always imports and never uses battery/solar:
+**Problem**: Error "Sensors not found or unavailable"
 
-1. **Check price forecasts**: Ensure forecasts are working (see [forecasts troubleshooting](../forecasts-and-sensors.md#troubleshooting-forecasts))
-2. **Verify pricing**: Ensure import price > export price
-3. **Review connections**: Grid must be connected to other entities
-4. **Check battery SOC**: Battery may be at minimum SOC
+**Solutions**:
 
-### Grid Always Exporting
+- Verify sensor entity IDs exist in Home Assistant
+- Check sensors are available (not "unavailable" or "unknown")
+- Ensure pricing integration is configured correctly
+- Verify sensors have appropriate device class (e.g., `monetary` for prices)
 
-If your system exports even when import would be cheaper:
+### Incorrect Price Values
 
-1. **Check export limits**: May be forcing export
-2. **Verify pricing**: Ensure export price < import price
-3. **Review load configuration**: May have load misconfigured
+**Problem**: Price values don't match expectations
 
-### Price Forecasts Not Working
+**Check**:
 
-If HAEO isn't responding to price changes:
+- Sensor units match HAEO expectations (uses Home Assistant's native currency units)
+- Multiple sensors sum correctly (intended?)
+- Forecast data quality from source
+- Import price > export price (prevents arbitrage)
 
-1. **Check forecast format**: See [forecast requirements](../forecasts-and-sensors.md#forecast-attribute-format)
-2. **Verify timestamps**: Must be ISO format with timezone
-3. **Check sensor updates**: Ensure forecasts update regularly
-4. **Review horizon**: Forecasts must cover the optimization horizon
+### Grid Not Optimizing
 
-See the [troubleshooting guide](../troubleshooting.md) for more solutions.
+**Problem**: Grid always imports or never responds to price changes
+
+**Possible causes**:
+
+- Prices are constant (no optimization needed)
+- Battery at SOC limits
+- Grid not connected to other elements
+- Load exceeds available supply
+
+**Solutions**:
+
+- Verify price sensors provide varying values
+- Check battery SOC limits and capacity
+- Review connections in network configuration
+- Check grid import limit vs total load
 
 ## Related Documentation
 
-- [Forecasts & Sensors](../forecasts-and-sensors.md) - Creating price forecast sensors
-- [Battery Configuration](battery.md) - Batteries work with grid pricing
-- [Connections](connections.md) - Connect grid to your network
-- [Grid Modeling](../../modeling/grid.md) - Mathematical formulation
-- [Troubleshooting](../troubleshooting.md) - Common issues
+- [Forecasts and Sensors Guide](../forecasts-and-sensors.md) - Understanding price sensors
+- [Connections](connections.md) - Connecting grid to the network
+- [Battery Configuration](battery.md) - Store cheap energy for later use
 
 ## Next Steps
 
-Extend your grid setup with these follow-up guides.
-
 <div class="grid cards" markdown>
 
-- :material-battery:{ .lg .middle } __Add a battery__
+- :material-connection:{ .lg .middle } **Connect to network**
 
-  Store inexpensive energy for later use while respecting device constraints.
+    ---
 
-  [:material-arrow-right: Battery guide](battery.md)
+    Learn how to connect your grid to other elements using connections.
 
-- :material-weather-sunny:{ .lg .middle } __Add solar generation__
+    [:material-arrow-right: Connections guide](connections.md)
 
-  Bring photovoltaic production into the network for self-consumption or export.
+- :material-chart-line:{ .lg .middle } **Configure price sensors**
 
-  [:material-arrow-right: Photovoltaics guide](photovoltaics.md)
+    ---
 
-- :material-source-branch:{ .lg .middle } __Define connections__
+    Deep dive into how HAEO uses electricity pricing for optimization.
 
-  Configure energy flow paths between the grid and other elements.
+    [:material-arrow-right: Forecasts and sensors](../forecasts-and-sensors.md)
 
-  [:material-arrow-right: Connection setup](connections.md)
+- :material-battery-charging:{ .lg .middle } **Add battery storage**
 
-- :material-chart-line:{ .lg .middle } __View optimization results__
+    ---
 
-  Confirm the power flows HAEO produces with your updated configuration.
+    Store cheap grid energy during off-peak hours for use during expensive periods.
 
-  [:material-arrow-right: Optimization overview](../optimization.md)
+    [:material-arrow-right: Battery configuration](battery.md)
 
 </div>

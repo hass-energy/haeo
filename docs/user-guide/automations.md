@@ -20,23 +20,23 @@ This automation sends a notification when the optimization fails, helping you qu
 
 ```yaml
 automation:
-  - alias: "HAEO: Notify on optimization failure"
-    description: "Send notification when energy optimization fails"
+  - alias: 'HAEO: Notify on optimization failure'
+    description: Send notification when energy optimization fails
     trigger:
       - platform: state
         entity_id: sensor.haeo_network_optimization_status
-        to: "failed"
+        to: failed
     action:
       - service: notify.persistent_notification
         data:
-          title: "Energy optimization failed"
+          title: Energy optimization failed
           message: >
             The HAEO energy optimization has failed.
             Please check the system logs for details.
       - service: notify.mobile_app_phone
         data:
-          title: "HAEO Alert"
-          message: "Energy optimization failed - check Home Assistant"
+          title: HAEO Alert
+          message: Energy optimization failed - check Home Assistant
           data:
             priority: high
             ttl: 0
@@ -47,9 +47,9 @@ automation:
 1. **Trigger**: Monitors the optimization status sensor
 2. **Condition**: Activates when status changes to "failed"
 3. **Actions**:
-   - Creates a persistent notification in Home Assistant
-   - Sends a mobile notification with high priority
-   - Uses TTL=0 to ensure delivery even if phone is offline
+    - Creates a persistent notification in Home Assistant
+    - Sends a mobile notification with high priority
+    - Uses TTL=0 to ensure delivery even if phone is offline
 
 ### Customization options
 
@@ -64,8 +64,8 @@ This automation writes HAEO's recommended battery power directly to a controllab
 
 ```yaml
 automation:
-  - alias: "HAEO: Apply battery power recommendation"
-    description: "Set battery power limit to the optimization recommendation"
+  - alias: 'HAEO: Apply battery power recommendation'
+    description: Set battery power limit to the optimization recommendation
     trigger:
       - platform: state
         entity_id: sensor.haeo_battery_recommended_power
@@ -75,28 +75,35 @@ automation:
           {{ trigger.to_state.state not in ['unavailable', 'unknown'] }}
       - condition: state
         entity_id: sensor.haeo_network_optimization_status
-        state: "success"
+        state: success
       - condition: template
         value_template: >
-          {{ (trigger.to_state.state | float(0)) | abs <= states('number.battery_max_safe_power') | float(5) }}
+          {{
+            (trigger.to_state.state | float(0))
+             | abs <= states('number.battery_max_safe_power')
+             | float(5)
+          }}
     action:
       - service: number.set_value
         target:
           entity_id: number.battery_power_setpoint
         data:
-          value: "{{ trigger.to_state.state | float(0) }}"
+          value: '{{ trigger.to_state.state | float(0) }}'
       - service: logbook.log
         data:
-          name: "HAEO battery dispatch"
+          name: HAEO battery dispatch
           message: >-
-            Applied {{ trigger.to_state.state | float(0) | round(2) }} kW recommendation to
+            Applied
+            {{ trigger.to_state.state | float(0) | round(2) }}
+            kW limit to
             {{ state_attr('number.battery_power_setpoint', 'friendly_name') }}.
       - service: notify.mobile_app_phone
         data:
-          title: "Battery output updated"
+          title: Battery output updated
           message: >-
-            Battery now set to {{ trigger.to_state.state | float(0) | round(2) }} kW
-            based on HAEO recommendation.
+            Battery now set to
+            {{ trigger.to_state.state | float(0) | round(2) }}
+            kW based on HAEO recommendation.
 ```
 
 ### What this automation does
@@ -117,8 +124,8 @@ This automation caps inverter output when HAEO predicts excess solar that would 
 
 ```yaml
 automation:
-  - alias: "HAEO: Solar curtailment when forecast is high"
-    description: "Limit inverter output according to HAEO recommendation"
+  - alias: 'HAEO: Solar curtailment when forecast is high'
+    description: Limit inverter output according to HAEO recommendation
     trigger:
       - platform: state
         entity_id: sensor.haeo_solar_recommended_power
@@ -128,10 +135,14 @@ automation:
           {{ trigger.to_state.state not in ['unavailable', 'unknown'] }}
       - condition: state
         entity_id: sensor.haeo_network_optimization_status
-        state: "success"
+        state: success
       - condition: template
         value_template: >
-          {{ trigger.to_state.state | float(0) < states('sensor.haeo_solar_power') | float(0) }}
+          {{
+            trigger.to_state.state
+            | float(0) < states('sensor.haeo_solar_power')
+            | float(0)
+          }}
     action:
       - choose:
           - conditions:
@@ -144,25 +155,32 @@ automation:
                   entity_id: switch.solar_inverter_export_block
               - service: notify.mobile_app_phone
                 data:
-                  title: "Solar curtailed"
-                  message: "Inverter export fully blocked due to negative pricing forecast."
+                  title: Solar curtailed
+                  message: Inverter export fully blocked due to negative pricing
+                    forecast.
         default:
           - service: select.select_option
             target:
               entity_id: select.solar_inverter_mode
             data:
-              option: "limited"
+              option: limited
           - service: number.set_value
             target:
               entity_id: number.solar_inverter_limit_kw
             data:
               value: >-
-                {{ [trigger.to_state.state | float(0), states('number.solar_inverter_limit_max') | float(15)] | min }}
+                {{
+                  [
+                    trigger.to_state.state | float(0),
+                    states('number.solar_inverter_limit_max') | float(15)
+                  ] | min
+                }}
           - service: notify.mobile_app_phone
             data:
-              title: "Solar limit updated"
+              title: Solar limit updated
               message: >-
-                Inverter capped at {{ trigger.to_state.state | float(0) | round(2) }} kW
+                Inverter capped at
+                {{ trigger.to_state.state | float(0) | round(2) }} kW
                 to follow HAEO recommendation.
 ```
 

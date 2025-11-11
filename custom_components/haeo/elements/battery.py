@@ -69,15 +69,3 @@ CONFIG_DEFAULTS: dict[str, Any] = {
     CONF_MAX_CHARGE_PERCENTAGE: 90.0,
     CONF_EFFICIENCY: 99.0,
 }
-
-
-def model_description(config: BatteryConfigSchema) -> str:
-    """Generate device model string from battery configuration."""
-    capacity_kwh = config[CONF_CAPACITY]
-
-    charge_kw = config.get(CONF_MAX_CHARGE_POWER)
-    discharge_kw = config.get(CONF_MAX_DISCHARGE_POWER)
-
-    if charge_kw is not None and discharge_kw is not None:
-        return f"Battery {capacity_kwh:.1f}kWh, {charge_kw:.1f}kW charge / {discharge_kw:.1f}kW discharge"
-    return f"Battery {capacity_kwh:.1f}kWh"

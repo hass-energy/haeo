@@ -50,7 +50,7 @@ from .model import (
     OutputType,
 )
 from .repairs import dismiss_optimization_failure_issue
-from .schema import get_loader_instance
+from .schema import get_field_meta
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,13 +93,18 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
         if field_value is None:
             continue
 
-        # Get loader and check if it handles entities
-        loader_instance = get_loader_instance(field_name, data_config_class)
+        field_meta = get_field_meta(field_name, data_config_class)
+        if field_meta is None:
+            continue
 
-        # Check if this loader deals with entity IDs (sensor, forecast loaders)
-        if hasattr(loader_instance, "is_valid_value") and loader_instance.is_valid_value(field_value):
-            # Add entity IDs from this field
+        # Check if this is a constant field (not a sensor)
+        if field_meta.field_type[1] == "constant":
+            continue
+
+        try:
             entity_ids.update(_collect_entity_ids(field_value))
+        except TypeError:
+            continue
 
     return entity_ids
 

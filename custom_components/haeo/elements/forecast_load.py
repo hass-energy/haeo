@@ -5,8 +5,8 @@ from typing import Any, Final, Literal, TypedDict
 from custom_components.haeo.schema.fields import (
     NameFieldData,
     NameFieldSchema,
-    PowerForecastsFieldData,
-    PowerForecastsFieldSchema,
+    PowerSensorsFieldData,
+    PowerSensorsFieldSchema,
 )
 
 ELEMENT_TYPE: Final = "forecast_load"
@@ -19,7 +19,7 @@ class ForecastLoadConfigSchema(TypedDict):
 
     element_type: Literal["forecast_load"]
     name: NameFieldSchema
-    forecast: PowerForecastsFieldSchema
+    forecast: PowerSensorsFieldSchema
 
 
 class ForecastLoadConfigData(TypedDict):
@@ -27,12 +27,7 @@ class ForecastLoadConfigData(TypedDict):
 
     element_type: Literal["forecast_load"]
     name: NameFieldData
-    forecast: PowerForecastsFieldData
+    forecast: PowerSensorsFieldData
 
 
 CONFIG_DEFAULTS: dict[str, Any] = {}
-
-
-def model_description(_config: ForecastLoadConfigSchema) -> str:
-    """Generate model description string for forecast load element."""
-    return "Forecast Load"

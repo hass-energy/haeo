@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import itertools
 import logging
 from pathlib import Path
-from typing import Any, Final, Literal, Required, TypedDict
+from typing import Any, Final, Literal, Required, TypedDict, cast
 
 from homeassistant.core import HomeAssistant
 import matplotlib as mpl
@@ -179,7 +179,7 @@ def _compute_activity_metrics(forecast_data: dict[str, ForecastData]) -> dict[st
     all_timestamps: set[float] = set()
     for data in forecast_data.values():
         for series_key in STACKED_FORECAST_TYPES:
-            if series := data.get(series_key):
+            if isinstance(series := data.get(series_key), Iterable):
                 all_timestamps.update(timestamp for timestamp, _ in series)
 
     if not all_timestamps:
@@ -192,10 +192,11 @@ def _compute_activity_metrics(forecast_data: dict[str, ForecastData]) -> dict[st
         interpolated: list[np.ndarray] = []
         for series_key in STACKED_FORECAST_TYPES:
             series = data.get(series_key)
-            if not series:
+            if series is None:
                 continue
 
-            series_array = np.asarray(series, dtype=float)
+            series_tuples = cast("Sequence[tuple[float, float]]", series)
+            series_array = np.asarray(series_tuples, dtype=float)
             if series_array.size == 0:
                 continue
 

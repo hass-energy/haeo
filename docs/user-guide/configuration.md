@@ -30,6 +30,7 @@ The hub configuration form includes these fields:
 A unique name for your energy hub (for example, "Home Energy System").
 
 !!! tip "Multiple Hubs"
+
     You can create multiple separate hubs for distinct energy systems (separate buildings, testing configurations, different optimization strategies).
     Each hub manages its own set of element and connection entries independently.
 
@@ -64,6 +65,7 @@ After creating your hub, add elements to represent your devices through the Home
 7. Click **Submit** to create the element
 
 !!! note "Network entry"
+
     A network entry appears automatically when you set up your hub.
     It provides optimization sensors for the overall system and does not require manual configuration.
 
@@ -130,6 +132,7 @@ Use the three-dot menu on each entry to delete it.
 The hub automatically adjusts optimization for remaining elements.
 
 !!! danger "Cascade effects"
+
     Removing elements used in connections may affect network connectivity.
 
 ### Editing hub settings

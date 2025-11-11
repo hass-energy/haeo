@@ -224,7 +224,7 @@ blockers:
   bronze:
     - Branding assets remain external because the project has not submitted icons to home-assistant/brands
   gold:
-  - Diagnostic sensors stay enabled by default to keep optimisation visibility without manual enabling
+    - Diagnostic sensors stay enabled by default to keep optimisation visibility without manual enabling
   platinum:
     - Gold tier blockers must be resolved before Platinum status applies
 

@@ -1,0 +1,128 @@
+"""Integration tests for the time series loader with real Home Assistant state.
+
+These tests verify the loader works correctly with actual Home Assistant state objects
+and sensor data extraction. They focus on:
+- Sensor availability checking
+- Entity ID validation
+- Error handling for missing/invalid sensors
+- Integration with the full pipeline
+
+Lower-level logic is tested in:
+- tests/test_data/test_time_series_loader.py (entity ID handling, mocked sensors)
+- tests/data/util/test_forecast_fuser.py (fusion logic)
+- tests/data/util/test_forecast_cycle.py (cycling logic)
+- tests/data/util/test_forecast_combiner.py (combining logic)
+"""
+
+from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
+
+from homeassistant.components.sensor.const import SensorDeviceClass
+from homeassistant.core import HomeAssistant, State
+import pytest
+
+from custom_components.haeo.data.loader.time_series_loader import TimeSeriesLoader
+
+
+async def test_time_series_loader_available_handles_missing_sensor(hass: HomeAssistant) -> None:
+    """Loader is unavailable when any referenced sensor is missing."""
+
+    loader = TimeSeriesLoader()
+
+    # Missing sensor should make it unavailable
+    assert loader.available(hass=hass, value=["sensor.missing"]) is False
+
+    # Loading a missing sensor should raise an error
+    with pytest.raises(ValueError, match=r"No time series data available"):
+        await loader.load(hass=hass, value=["sensor.missing"], forecast_times=[0])
+
+
+async def test_time_series_loader_rejects_non_sequence_values(hass: HomeAssistant) -> None:
+    """Loader enforces that the provided value is a sequence of entity IDs."""
+
+    loader = TimeSeriesLoader()
+
+    with pytest.raises(TypeError, match="sensor entity IDs"):
+        await loader.load(hass=hass, value=123, forecast_times=[0])
+
+    assert loader.available(hass=hass, value=123) is False
+
+
+async def test_time_series_loader_available_requires_valid_sensor_data(hass: HomeAssistant) -> None:
+    """Sensors without valid data cause availability to fail."""
+
+    loader = TimeSeriesLoader()
+
+    # Set up a sensor with unavailable state
+    hass.states.async_set("sensor.unavailable", "unavailable", {})
+
+    # Should be unavailable when sensor state is invalid
+    assert loader.available(hass=hass, value=["sensor.unavailable"]) is False
+
+    # Loading should raise an error
+    with pytest.raises(ValueError, match=r"No time series data available"):
+        await loader.load(hass=hass, value=["sensor.unavailable"], forecast_times=[0])
+
+
+async def test_time_series_loader_requires_sensor_entities(hass: HomeAssistant) -> None:
+    """Load attempts fail when no sensor entities are provided."""
+
+    loader = TimeSeriesLoader()
+
+    assert loader.available(hass=hass, value=[]) is False
+
+    with pytest.raises(ValueError, match="At least one sensor entity is required"):
+        await loader.load(hass=hass, value=[], forecast_times=[1])
+
+
+async def test_time_series_loader_loads_mixed_live_and_forecast(hass: HomeAssistant) -> None:
+    """Loader combines live values with forecast series and aligns to the horizon."""
+
+    loader = TimeSeriesLoader()
+
+    start = datetime(2024, 1, 1, tzinfo=UTC)
+    ts_values = [int((start + timedelta(hours=offset)).timestamp()) for offset in range(4)]
+
+    # Mock extract_time_series to return different types of series
+    def mock_extract(state: State, *, entity_id: str) -> list[tuple[int, float]]:
+        if entity_id == "sensor.live_price":
+            # Simple value returns as timestamp 0
+            return [(0, 0.2)]
+        # Forecast sensor returns actual forecast data
+        return [
+            (int((start + timedelta(hours=1)).timestamp()), 0.25),
+            (int((start + timedelta(hours=2)).timestamp()), 0.35),
+        ]
+
+    hass.states.async_set("sensor.live_price", "0.20", {})
+    hass.states.async_set("sensor.forecast_price", "0.25", {})
+
+    with patch("custom_components.haeo.data.loader.sensor_loader.extract_time_series", side_effect=mock_extract):
+        assert loader.available(hass=hass, value=["sensor.live_price", "sensor.forecast_price"]) is True
+
+        result = await loader.load(
+            hass=hass,
+            value=["sensor.live_price", "sensor.forecast_price"],
+            forecast_times=ts_values,
+        )
+
+    # Each horizon timestamp receives an interpolated value.
+    assert len(result) == len(ts_values)
+    assert all(isinstance(v, float) for v in result)
+
+
+async def test_time_series_loader_returns_empty_series_for_empty_horizon(hass: HomeAssistant) -> None:
+    """No forecast horizon results in an empty list without data access."""
+
+    loader = TimeSeriesLoader()
+
+    hass.states.async_set(
+        "sensor.live_price",
+        "0.20",
+        {
+            "device_class": SensorDeviceClass.MONETARY,
+            "unit_of_measurement": "$/kWh",
+        },
+    )
+
+    assert await loader.load(hass=hass, value=["sensor.live_price"], forecast_times=[]) == []

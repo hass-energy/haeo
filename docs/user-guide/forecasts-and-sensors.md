@@ -1,306 +1,290 @@
 # Forecasts and Sensors
 
-This page explains how HAEO uses forecast data from Home Assistant sensors for optimization.
+This guide explains how HAEO uses Home Assistant sensor data to optimize your energy network.
 
 ## Overview
 
-HAEO relies on forecast data for:
+HAEO loads data from Home Assistant sensors to understand:
 
-- **Electricity prices** (import/export)
-- **Solar generation** (photovoltaics)
-- **Load consumption** (forecast loads)
+- **Electricity prices** for import and export
+- **Solar generation** forecasts
+- **Load consumption** patterns
 
-All forecasts must be provided through Home Assistant sensor entities with properly formatted forecast attributes.
+Each sensor provides either a current value or a forecast series, never both.
+HAEO automatically detects what data each sensor exposes and combines everything into a unified time series aligned with your optimization horizon.
 
-## Forecast Attribute Format
+## How HAEO Uses Sensor Data
 
-Forecast sensors must provide a `forecast` attribute with timestamped values:
+When you configure an element like a grid or photovoltaics system, you provide one or more sensor entity IDs.
+HAEO reads these sensors and extracts either:
+
+- **Present value**: The current sensor reading at the moment optimization starts (for simple sensors)
+- **Forecast series**: A list of future timestamped predictions (for forecast-capable sensors)
+
+These values are then processed to create a complete time series covering your optimization horizon.
+
+## Single Sensor Values
+
+The simplest case is a sensor that only provides a current value without any forecast data.
+
+**Example**: A sensor showing current grid import price:
 
 ```yaml
+entity_id: sensor.current_electricity_price
+state: 0.25
+```
+
+HAEO reads the value (0.25 \$/kWh) and repeats it for every time step in your optimization horizon.
+When you configure a sensor that only provides a present value, that value is used for all optimization periods.
+
+## Forecast Sensors
+
+Some sensors provide structured forecast data instead of a simple current value.
+HAEO automatically detects and parses forecast attributes from supported integrations.
+Custom template sensors that match these formats will also work.
+
+**Supported formats** (see [Supported Forecast Formats](#supported-forecast-formats) for complete details):
+
+- [Amber Electric](https://www.home-assistant.io/integrations/amberelectric/) (electricity pricing)
+- [AEMO NEM](https://www.home-assistant.io/integrations/aemo/) (Australian electricity pricing)
+- [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar) (solar generation)
+- [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) (solar generation)
+
+**Example**: Amber Electric sensor with pricing forecast:
+
+```yaml
+entity_id: sensor.amber_general_price
+state: 0.28
 attributes:
-  forecast:
-    - datetime: "2025-10-11T12:00:00+00:00"
-      value: 5.2
-    - datetime: "2025-10-11T12:05:00+00:00"
-      value: 5.1
-    - datetime: "2025-10-11T12:10:00"
-      value: 4.9
-    # ... more timestamped values
+  forecasts:
+    - start_time: '2025-11-10T14:00:00+10:00'
+      per_kwh: 0.28
+    - start_time: '2025-11-10T14:30:00+10:00'
+      per_kwh: 0.32
+    - start_time: '2025-11-10T15:00:00+10:00'
+      per_kwh: 0.29
 ```
 
-### Requirements
+### Interpolation Behavior
 
-- **`datetime`**: ISO 8601 format with timezone
-- **`value`**: Numeric value (power in kW, price in \$/kWh, etc.)
+Forecast values are interpolated using trapezoidal integration to compute interval averages.
+This means HAEO calculates the average power or price over each optimization period, not just point samples.
 
-### Format Detection
+For the optimization horizon:
 
-HAEO uses heuristics to automatically detect the forecast format and time alignment.
-It handles various forecast styles from different integrations without requiring manual configuration.
-The optimizer intelligently interprets timestamps to align forecast data with optimization periods.
+- **Position 0**: Present value at the horizon start time
+- **Position 1+**: Average value over each subsequent time interval
 
-!!! info "Partial Coverage"
+This approach accurately represents energy consumption and costs over time.
 
-    If forecast data doesn't cover the entire optimization horizon, HAEO uses **zero values** for periods without data.
-    For best results, ensure forecasts cover your full horizon (e.g., 48 hours of data for a 48-hour horizon).
+## Multiple Sensors
 
-## Using Multiple Forecast Sensors
+You can provide multiple sensors for any field that accepts sensor(s).
+HAEO combines them automatically.
 
-When you configure multiple forecast sensors for a single element (e.g., separate today and tomorrow price sensors), HAEO automatically merges them into a continuous timeline.
+**How combining works**:
 
-!!! tip "Multiple Forecast Sources"
+- Present values **sum together**
+- Forecast series **merge on shared timestamps and sum**
+- Result: combined present value + combined forecast series
 
-    For price forecasts split across time periods:
+**Example scenarios**:
 
-    ```yaml
-    Import Price:
-      - sensor.price_today     # Covers today
-      - sensor.price_tomorrow  # Covers tomorrow
-    ```
+**Scenario 1: Two forecast sensors**
 
-    HAEO combines these into a seamless forecast covering both periods.
+```yaml
+sensor_1: sensor.solar_rooftop_forecast
+# Provides forecast series [...array 1 predictions...]
 
-## Supported Forecast Integrations
+sensor_2: sensor.solar_ground_forecast
+# Provides forecast series [...array 2 predictions...]
 
-HAEO works with any integration that provides forecast attributes in the standard format. Common integrations include:
+# Result: Forecast series (sum of both arrays at each timestamp)
+```
 
-### Solar Forecasts
+**Scenario 2: One forecast sensor, one simple sensor**
 
-- **[Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast)** - Free, accurate 7-day forecasts
-- **[Solcast Solar](https://github.com/BJReplay/ha-solcast-solar)** - Professional solar forecasting service
+```yaml
+sensor_1: sensor.solar_array_forecast
+# Provides forecast series [...predictions...]
 
-### Electricity Prices
+sensor_2: sensor.constant_load
+# Provides current value: 1.5 kW
 
-- **[Amber Electric](https://www.home-assistant.io/integrations/amberelectric/)** - Australian real-time wholesale pricing with 24-hour forecasts
+# Result: Forecast series (array predictions) + 1.5 kW at each timestamp
+```
 
-### Custom Forecasts
+This makes it easy to model multiple solar arrays, price components, or load sources without manual calculation.
 
-You can create custom forecast sensors using Home Assistant templates (see examples below).
+## Forecast Coverage and Cycling
 
-## Creating Forecast Sensors with Templates
+Forecasts don't always cover your entire optimization horizon.
+HAEO handles partial coverage automatically through **forecast cycling**.
 
-### Time-of-Use Tariff
+### How Cycling Works
 
-For fixed pricing schedules with varying time periods:
+When forecast data ends before your horizon:
+
+1. **Single sensor values** repeat for the entire horizon (already covered above)
+2. **Forecast series** cycle using natural period alignment
+
+**Natural period alignment** means HAEO identifies the pattern duration in your forecast and repeats it intelligently:
+
+- A 6-hour forecast from 2pm-8pm cycles to show the same 2pm-8pm pattern for subsequent days
+- A weekly forecast cycles weekly, preserving your full week pattern
+- Daily patterns like electricity pricing maintain realistic time-of-day structure
+
+This ensures optimization always uses plausible data rather than assuming zero values or constant prices.
+
+### What You'll See
+
+If your optimization horizon is 48 hours but you only have a 24-hour forecast:
+
+- Hours 0-24: Actual forecast data (interpolated)
+- Hours 24-48: First 24 hours repeated with time-of-day alignment
+
+For multi-day forecasts (like a 7-day solar forecast), the full pattern cycles at its natural period.
+
+## Supported Forecast Formats
+
+HAEO automatically detects and parses these forecast formats:
+
+| Integration                                                                                        | Domain                      | Use Case                        | Format              |
+| -------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------- | ------------------- |
+| [Amber Electric](https://www.home-assistant.io/integrations/amberelectric/)                        | `amberelectric`             | Electricity pricing (Australia) | 30-minute intervals |
+| [AEMO NEM](https://www.home-assistant.io/integrations/aemo/)                                       | `aemo`                      | Wholesale pricing (Australia)   | 30-minute intervals |
+| [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar)                                      | `solcast_pv_forecast`       | Solar generation                | 30-minute intervals |
+| [Open-Meteo Solar Forecast](https://www.home-assistant.io/integrations/open_meteo_solar_forecast/) | `open_meteo_solar_forecast` | Solar generation                | Hourly intervals    |
+
+Format detection is automatic—you don't need to specify the integration type.
+
+## Creating Custom Forecast Sensors
+
+You can create custom forecast sensors using Home Assistant templates.
+The forecast must be a list of dictionaries with timestamp and value keys.
+
+**Example**: Custom load forecast sensor:
 
 ```yaml
 template:
   - sensor:
-      - name: "Time of Use Import Price"
-        unique_id: tou_import_price
-        unit_of_measurement: "$/kWh"
-        state: >
-          {% set now_time = now() %}
-          {% set hour = now_time.hour %}
-          {% set minute = now_time.minute %}
-
-          {# Peak: 4pm-9pm weekdays #}
-          {% if now_time.weekday() < 5 and hour >= 16 and hour < 21 %}
-            0.52
-          {# Off-peak: 10pm-7am all days #}
-          {% elif hour >= 22 or hour < 7 %}
-            0.18
-          {# Shoulder: all other times #}
-          {% else %}
-            0.28
-          {% endif %}
-        attributes:
-          forecast: >
-            {% set forecast_list = [] %}
-            {% set start = now().replace(minute=0, second=0, microsecond=0) %}
-
-            {# Define price periods (start_hour, end_hour, is_weekday_only, price) #}
-            {% set periods = [
-              (22, 24, false, 0.18),  {# Off-peak night #}
-              (0, 7, false, 0.18),     {# Off-peak morning #}
-              (7, 16, false, 0.28),    {# Shoulder morning/afternoon #}
-              (16, 21, true, 0.52),    {# Peak weekday evening #}
-              (16, 21, false, 0.28),   {# Shoulder weekend evening #}
-              (21, 22, false, 0.28)    {# Shoulder late evening #}
-            ] %}
-
-            {# Generate 48 hours of forecast #}
-            {% for hour_offset in range(48) %}
-              {% set forecast_time = start + timedelta(hours=hour_offset) %}
-              {% set h = forecast_time.hour %}
-              {% set is_weekday = forecast_time.weekday() < 5 %}
-
-              {# Determine price for this hour #}
-              {% set price = 0.28 %}  {# Default shoulder #}
-              {% if h >= 22 or h < 7 %}
-                {% set price = 0.18 %}  {# Off-peak #}
-              {% elif is_weekday and h >= 16 and h < 21 %}
-                {% set price = 0.52 %}  {# Peak #}
-              {% endif %}
-
-              {# Add entry #}
-              {% set entry = {
-                "datetime": forecast_time.isoformat(),
-                "value": price
-              } %}
-              {% set _ = forecast_list.append(entry) %}
-            {% endfor %}
-
-            {{ forecast_list }}
-```
-
-This example shows a realistic tariff structure with different rates for weekdays vs weekends and non-uniform time periods.
-
-### Fixed Price Forecast {#constant-price-as-forecast}
-
-For a constant price that doesn't vary over time:
-
-```yaml
-template:
-  - sensor:
-      - name: "Fixed Export Price"
-        unique_id: fixed_export_price
-        unit_of_measurement: "$/kWh"
-        state: "0.08"
-        attributes:
-          forecast: >
-            {% set start = now() %}
-            {% set end = start + timedelta(hours=48) %}
-            [
-              {"datetime": "{{ start.isoformat() }}", "value": 0.08},
-              {"datetime": "{{ end.isoformat() }}", "value": 0.08}
-            ]
-```
-
-Only start and end timestamps are needed for constant values.
-HAEO will fill in the intermediate periods automatically.
-
-### Historic Load Forecast
-
-Use past consumption data to forecast future load based on same-day-last-week statistics:
-
-```yaml
-template:
-  - sensor:
-      - name: "House Load Forecast"
-        unique_id: house_load_forecast
-        unit_of_measurement: "kW"
+      - name: Custom Load Forecast
+        state: "{{ states('sensor.current_load') }}"
+        unit_of_measurement: kW
         device_class: power
-        state: "{{ states('sensor.home_power_consumption') | float(0) }}"
         attributes:
-          forecast: >
-            {% set forecast_list = [] %}
-            {% set start = now() %}
-
-            {# Generate forecast for next 48 hours using weekly pattern #}
-            {% for hour in range(48) %}
-              {% set forecast_time = start + timedelta(hours=hour) %}
-
-              {# Look back exactly 7 days to get same time last week #}
-              {% set history_time = forecast_time - timedelta(days=7) %}
-
-              {# Get average consumption from that hour last week #}
-              {# Using 1-hour window centered on the target time #}
-              {% set history_start = history_time - timedelta(minutes=30) %}
-              {% set history_end = history_time + timedelta(minutes=30) %}
-
-              {% set avg_power = state_attr('sensor.home_power_consumption', 'statistics') %}
-              {% if avg_power %}
-                {% set power_value = avg_power.mean | float(1.0) %}
-              {% else %}
-                {# Fallback: query last week's value directly #}
-                {% set power_value = states.sensor.home_power_consumption.history(history_start, history_end)
-                                      | map(attribute='state')
-                                      | map('float', 0)
-                                      | list
-                                      | average
-                                      | default(1.0) %}
-              {% endif %}
-
-              {% set entry = {
-                "datetime": forecast_time.isoformat(),
-                "value": power_value
-              } %}
-              {% set _ = forecast_list.append(entry) %}
-            {% endfor %}
-
-            {{ forecast_list }}
+          forecast:
+            - timestamp: '{{ (now() + timedelta(hours=1)).isoformat() }}'
+              value: 2.5
+            - timestamp: '{{ (now() + timedelta(hours=2)).isoformat() }}'
+              value: 3.0
+            - timestamp: '{{ (now() + timedelta(hours=3)).isoformat() }}'
+              value: 2.8
 ```
 
-This approach uses historical statistics to create realistic load forecasts based on your actual usage patterns.
+**Requirements**:
 
-!!! note "Long-term Statistics Required"
+- `state` must be a numeric value (current reading)
+- `unit_of_measurement` must match the element's expected unit (kW for power, \$/kWh for prices)
+- `device_class` should be set appropriately (`power`, `monetary`)
+- `forecast` attribute must contain timestamp/value pairs
 
-    For history-based forecasts to work properly, ensure your consumption sensor has recorder enabled and sufficient historical data (at least one week).
+HAEO will detect this as a simple forecast format and extract the data.
 
-## Troubleshooting Forecasts
+## Troubleshooting
 
-### Insufficient Forecast Coverage
+### Sensor Not Found
 
-**Problem**: Optimization uses zero values for parts of the horizon.
+**Problem**: Error message "Sensors not found or unavailable"
 
-**Solution**: Ensure forecasts cover your entire horizon.
-For example, a 48-hour optimization horizon needs 48 hours of forecast data.
+**Solutions**:
 
-**Check your sources**:
+- Verify the sensor entity ID exists in Home Assistant
+- Check that the sensor is available (not "unavailable" or "unknown")
+- Ensure the sensor has been created by its integration
 
-- Template sensors: Ensure your loop generates enough hours
-- Integration sensors: Verify the integration provides sufficient forecast length
-- Multiple sensors: Confirm combined coverage spans the full horizon
+### No Forecast Data
 
-### Forecast Not Updating
+**Problem**: Optimization uses repeated current values instead of forecasts
 
-**Check**:
+**Possible causes**:
 
-1. Sensor state updates regularly
-2. `forecast` attribute exists and has data
-3. Datetime format is correct (ISO 8601 with timezone)
-4. Values are numeric, not strings
+- Sensor doesn't provide forecast attribute
+- Forecast attribute is in an unsupported format
+- Forecast data is empty or malformed
+
+**Solutions**:
+
+- Check sensor attributes in Developer Tools → States
+- Verify the integration is configured correctly
+- Review HAEO logs for format detection warnings
 
 ### Incorrect Values
 
-**Common issues**:
+**Problem**: Optimized values don't match expectations
 
-- Wrong units (W instead of kW, cents instead of dollars)
-- Missing timezone in datetime
-- String values instead of numbers
+**Check**:
+
+- Sensor units match element configuration (kW vs W, \$ vs cents)
+- Multiple sensors are summing correctly (intended behavior?)
+- Forecast data quality from the source integration
+- Optimization horizon covers the relevant time period
 
 ## Best Practices
 
 ### Update Frequency
 
-Forecast sensors should update regularly, but not excessively:
+- **Pricing sensors**: Update before each optimization run (typically every 5-30 minutes)
+- **Solar forecasts**: Update hourly or when weather changes significantly
+- **Load forecasts**: Update based on your usage pattern changes
 
-- **Prices**: When new forecast data becomes available (typically once or twice daily)
-- **Solar**: Every 1-4 hours or when weather forecasts update
-- **Load**: Every 1-6 hours, or when your usage pattern model updates
+### Data Resolution
 
-!!! tip "Avoid Over-Updating"
+Data resolution is less critical than you might expect because HAEO interpolates all data to match your optimization period.
+However, higher resolution forecasts improve accuracy:
 
-    HAEO re-optimizes when forecast data changes.
-    Updating forecasts every few minutes provides no benefit and wastes computational resources.
-    Match update frequency to how often forecast data actually changes meaningfully.
-
-### Forecast Resolution
-
-Finer time resolution improves optimization:
-
-- **Good**: Hourly data points
-- **Better**: 30-minute data points
-- **Best**: 5-15 minute data points
-
-Match or exceed your HAEO period setting (e.g., 5-minute periods need ≤5-minute forecast resolution).
+- Use forecasts with resolution matching or finer than your optimization period
+- 5-minute optimization periods work well with 30-minute forecast intervals
+- Finer forecast data provides more accurate interpolation results
 
 ### Data Quality
 
-Ensure forecasts are realistic:
+- Validate forecast accuracy periodically against actual outcomes
+- Use reputable forecast providers with proven track records
+- Consider multiple forecast sources for critical elements
 
-- Solar can't exceed panel capacity
-- Loads should reflect actual usage patterns
-- Prices should be in correct units
+### Sensor Organization
 
-Poor forecasts lead to suboptimal scheduling.
+- Group related sensors logically (e.g., all solar arrays together)
+- Use descriptive sensor names for easy identification
+- Document custom forecast templates for future maintenance
 
-## Related Documentation
+## Next Steps
 
-- [Grid Configuration](elements/grid.md) - Using price forecasts
-- [Photovoltaics Configuration](elements/photovoltaics.md) - Using solar forecasts
-- [Load Configuration](elements/constant-load.md) - Using load forecasts
-- [Troubleshooting](troubleshooting.md#forecasts-are-not-long-enough) - Forecast issues
+<div class="grid cards" markdown>
 
-[:material-arrow-right: Continue to Element Configuration](elements/index.md)
+- :material-battery-charging: **Configure your elements**
+
+    ---
+
+    Set up batteries, grids, solar, and loads with sensor references
+
+    [:material-arrow-right: Element configuration](elements/index.md)
+
+- :material-chart-line: **Monitor optimization results**
+
+    ---
+
+    View optimized schedules and actual performance
+
+    [:material-arrow-right: Data updates guide](data-updates.md)
+
+- :material-tools: **Troubleshoot issues**
+
+    ---
+
+    Resolve common problems and error messages
+
+    [:material-arrow-right: Troubleshooting guide](troubleshooting.md)
+
+</div>

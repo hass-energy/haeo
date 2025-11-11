@@ -13,7 +13,6 @@ VALID: list[dict[str, Any]] = [
             "max_charge_power": 5.0,
             "max_discharge_power": 5.0,
         },
-        "expected_description": "Battery 10.0kWh, 5.0kW charge / 5.0kW discharge",
         "description": "Standard battery with all fields",
     },
     {
@@ -25,7 +24,6 @@ VALID: list[dict[str, Any]] = [
             "max_charge_power": 5.0,
             "max_discharge_power": 5.0,
         },
-        "expected_description": "Battery 13.5kWh, 5.0kW charge / 5.0kW discharge",
         "description": "Battery with sensor for initial SOC",
     },
     {
@@ -38,7 +36,6 @@ VALID: list[dict[str, Any]] = [
             "max_charge_power": 5.0,
             "max_discharge_power": 5.0,
         },
-        "expected_description": "Battery 10.0kWh, 5.0kW charge / 5.0kW discharge",
         "description": "Battery with minimum charge constraint",
     },
     {
@@ -51,7 +48,6 @@ VALID: list[dict[str, Any]] = [
             "max_charge_power": 5.0,
             "max_discharge_power": 5.0,
         },
-        "expected_description": "Battery 10.0kWh, 5.0kW charge / 5.0kW discharge",
         "description": "Battery with maximum charge constraint",
     },
     {
@@ -64,7 +60,6 @@ VALID: list[dict[str, Any]] = [
             "max_discharge_power": 5.0,
             "efficiency": 0.98,
         },
-        "expected_description": "Battery 10.0kWh, 5.0kW charge / 5.0kW discharge",
         "description": "Battery with custom efficiency",
     },
 ]

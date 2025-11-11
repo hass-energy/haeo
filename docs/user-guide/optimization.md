@@ -85,9 +85,9 @@ All sensors include forecast attributes with future values:
 ```yaml
 attributes:
   forecast:
-    - datetime: "2025-10-11T12:00:00+00:00"
+    - datetime: '2025-10-11T12:00:00+00:00'
       value: 1.23
-    - datetime: "2025-10-11T12:05:00+00:00"
+    - datetime: '2025-10-11T12:05:00+00:00'
       value: 1.17
     # ... more timestamped values
 ```
@@ -100,7 +100,7 @@ Use these in automations or dashboards to visualize the optimal schedule.
 
 ```yaml
 automation:
-  - alias: "Follow HAEO Battery Schedule"
+  - alias: Follow HAEO Battery Schedule
     trigger:
       - platform: state
         entity_id: sensor.main_battery_power
@@ -143,20 +143,20 @@ Explore these guides to act on the optimization outputs.
 
 - :material-play-circle-outline:{ .lg .middle } __Review a complete example__
 
-  See how the optimization outputs drive real-world decisions.
+    See how the optimization outputs drive real-world decisions.
 
-  [:material-arrow-right: Sigenergy example](examples/sigenergy-system.md)
+    [:material-arrow-right: Sigenergy example](examples/sigenergy-system.md)
 
 - :material-robot-outline:{ .lg .middle } __Build automations from the results__
 
-  Turn recommended power schedules into actionable automations.
+    Turn recommended power schedules into actionable automations.
 
-  [:material-arrow-right: Automation patterns](automations.md)
+    [:material-arrow-right: Automation patterns](automations.md)
 
 - :material-sync:{ .lg .middle } __Monitor data updates__
 
-  Understand how new sensor data triggers optimizations.
+    Understand how new sensor data triggers optimizations.
 
-  [:material-arrow-right: Data update guide](data-updates.md)
+    [:material-arrow-right: Data update guide](data-updates.md)
 
 </div>

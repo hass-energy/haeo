@@ -1,4 +1,7 @@
-"""Unit tests for SensorLoader."""
+"""Unit tests for sensor payload helpers."""
+
+from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.const import UnitOfPower
@@ -6,7 +9,7 @@ from homeassistant.core import HomeAssistant
 import pytest
 
 from custom_components.haeo.const import convert_to_base_unit
-from custom_components.haeo.data.loader import SensorLoader
+from custom_components.haeo.data.loader.sensor_loader import load_sensor, load_sensors, normalize_entity_ids
 
 
 @pytest.mark.parametrize(
@@ -20,94 +23,102 @@ from custom_components.haeo.data.loader import SensorLoader
 )
 def test_convert_to_base_unit(value: float, unit: str, cls: SensorDeviceClass | str, expected: float) -> None:
     """Ensure the helper converts as expected to kW/kWh base units."""
+
     device_class = cls if isinstance(cls, SensorDeviceClass) else None
     assert convert_to_base_unit(value, unit, device_class) == expected
 
 
-async def test_sensor_loader_single(hass: HomeAssistant) -> None:
-    """Load a single sensor value with unit conversion to kW."""
-    sensor_loader = SensorLoader()
-    hass.states.async_set(
-        "sensor.power", "1000", {"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.WATT}
-    )
-    assert sensor_loader.available(hass=hass, value="sensor.power", forecast_times=[]) is True
-    assert await sensor_loader.load(hass=hass, value="sensor.power", forecast_times=[]) == 1.0
+def test_normalize_entity_ids_accepts_str_and_sequence() -> None:
+    """Normalization converts both strings and sequences to lists of IDs."""
 
-
-async def test_sensor_loader_multiple(hass: HomeAssistant) -> None:
-    """Sum multiple sensors in kW."""
-    sensor_loader = SensorLoader()
-    hass.states.async_set(
-        "sensor.a", "1", {"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.KILO_WATT}
-    )
-    hass.states.async_set(
-        "sensor.b", "500", {"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.WATT}
-    )
-    result = await sensor_loader.load(hass=hass, value=["sensor.a", "sensor.b"], forecast_times=[])
-    assert pytest.approx(result) == 1.5
-
-
-async def test_sensor_loader_missing_sensor(hass: HomeAssistant) -> None:
-    """Test SensorLoader raises error when sensor not found."""
-    sensor_loader = SensorLoader()
-    assert sensor_loader.available(hass=hass, value=["sensor.missing"], forecast_times=[]) is False
-
-    with pytest.raises(ValueError, match=r"Sensor sensor\.missing not found"):
-        await sensor_loader.load(hass=hass, value=["sensor.missing"], forecast_times=[])
-
-
-async def test_sensor_loader_invalid_state(hass: HomeAssistant) -> None:
-    """Test SensorLoader handles invalid state values."""
-    sensor_loader = SensorLoader()
-    hass.states.async_set("sensor.invalid", "not_a_number")
-
-    assert sensor_loader.available(hass=hass, value=["sensor.invalid"], forecast_times=[]) is True
-
-    with pytest.raises(ValueError, match="Cannot parse sensor value"):
-        await sensor_loader.load(hass=hass, value=["sensor.invalid"], forecast_times=[])
-
-
-async def test_sensor_loader_unavailable_state(hass: HomeAssistant) -> None:
-    """Test SensorLoader handles unavailable sensor states."""
-    sensor_loader = SensorLoader()
-    hass.states.async_set("sensor.unavailable", "unavailable")
-
-    assert sensor_loader.available(hass=hass, value=["sensor.unavailable"], forecast_times=[]) is False
-
-
-async def test_sensor_loader_unknown_state(hass: HomeAssistant) -> None:
-    """Test SensorLoader handles unknown sensor states."""
-    sensor_loader = SensorLoader()
-    hass.states.async_set("sensor.unknown", "unknown")
-
-    assert sensor_loader.available(hass=hass, value=["sensor.unknown"], forecast_times=[]) is False
-
-
-async def test_sensor_loader_invalid_type(hass: HomeAssistant) -> None:
-    """Test SensorLoader TypeGuard validates input types."""
-    sensor_loader = SensorLoader()
-
-    assert sensor_loader.is_valid_value(123) is False
-    assert sensor_loader.is_valid_value({"key": "value"}) is False
-    assert sensor_loader.is_valid_value(None) is False
-
-    assert sensor_loader.is_valid_value("sensor.test") is True
-    assert sensor_loader.is_valid_value(["sensor.test1", "sensor.test2"]) is True
-
-    assert sensor_loader.available(hass=hass, value=123, forecast_times=[]) is False
+    assert normalize_entity_ids("sensor.single") == ["sensor.single"]
+    assert normalize_entity_ids(["sensor.one", "sensor.two"]) == ["sensor.one", "sensor.two"]
 
     with pytest.raises(TypeError, match="sensor entity ID"):
-        await sensor_loader.load(hass=hass, value=123, forecast_times=[])
+        normalize_entity_ids(123)
 
 
-async def test_sensor_loader_available_unexpected_sequence(
-    hass: HomeAssistant,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Ensure the defensive else branch in available() returns False for unexpected types."""
+def test_load_sensor_forecast_returns_series(hass: HomeAssistant) -> None:
+    """Forecast sensors return raw timestamp/value pairs."""
 
-    sensor_loader = SensorLoader()
+    start = datetime(2024, 1, 1, tzinfo=UTC)
+    hass.states.async_set(
+        "sensor.forecast",
+        "0.0",
+        {
+            "device_class": SensorDeviceClass.POWER,
+            "unit_of_measurement": UnitOfPower.KILO_WATT,
+        },
+    )
 
-    monkeypatch.setattr(SensorLoader, "is_valid_value", lambda _self, _value: True)
+    with patch(
+        "custom_components.haeo.data.loader.sensor_loader.extract_time_series",
+        return_value=[
+            (int((start + timedelta(hours=1)).timestamp()), 1.5),
+            (int((start + timedelta(hours=2)).timestamp()), 2.5),
+        ],
+    ):
+        payload = load_sensor(hass, "sensor.forecast")
+        assert payload == [
+            (int((start + timedelta(hours=1)).timestamp()), 1.5),
+            (int((start + timedelta(hours=2)).timestamp()), 2.5),
+        ]
 
-    assert sensor_loader.available(hass=hass, value=object(), forecast_times=[]) is False
+
+def test_load_sensor_returns_none_when_unavailable(hass: HomeAssistant) -> None:
+    """Load sensor returns None when sensor data is unavailable."""
+
+    hass.states.async_set("sensor.unavailable", "unavailable", {})
+
+    payload = load_sensor(hass, "sensor.unavailable")
+    assert payload is None
+
+
+def test_load_sensor_returns_none_when_missing(hass: HomeAssistant) -> None:
+    """Load sensor returns None when sensor does not exist."""
+
+    payload = load_sensor(hass, "sensor.missing")
+    assert payload is None
+
+
+async def test_load_sensors_returns_mapping(hass: HomeAssistant) -> None:
+    """Load sensors returns the raw payload for each available sensor ID."""
+
+    hass.states.async_set(
+        "sensor.a",
+        "1",
+        {"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.KILO_WATT},
+    )
+    hass.states.async_set(
+        "sensor.b",
+        "500",
+        {"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.WATT},
+    )
+
+    payloads = load_sensors(hass, ["sensor.a", "sensor.b"])
+
+    assert "sensor.a" in payloads
+    assert "sensor.b" in payloads
+    # Simple values are returned as floats
+    assert isinstance(payloads["sensor.a"], float)
+    assert isinstance(payloads["sensor.b"], float)
+    assert payloads["sensor.a"] == 1.0
+    assert payloads["sensor.b"] == 0.5
+
+
+async def test_load_sensors_excludes_unavailable(hass: HomeAssistant) -> None:
+    """Load sensors excludes sensors that are unavailable or missing."""
+
+    hass.states.async_set(
+        "sensor.a",
+        "1",
+        {"device_class": SensorDeviceClass.POWER, "unit_of_measurement": UnitOfPower.KILO_WATT},
+    )
+    hass.states.async_set("sensor.unavailable", "unavailable", {})
+
+    payloads = load_sensors(hass, ["sensor.a", "sensor.unavailable", "sensor.missing"])
+
+    assert "sensor.a" in payloads
+    assert "sensor.unavailable" not in payloads
+    assert "sensor.missing" not in payloads
+    assert len(payloads) == 1

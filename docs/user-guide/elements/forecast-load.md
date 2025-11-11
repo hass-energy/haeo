@@ -1,178 +1,57 @@
-# Forecast Load
+# Forecast Load Configuration
 
-Forecast loads represent time-varying power consumption based on forecast data.
-Use this for variable household consumption, scheduled devices, or HVAC systems.
+Forecast loads represent time-varying power consumption based on sensor data.
+Use this element for variable household consumption, scheduled devices, or HVAC systems.
 
 ## Configuration Fields
 
-| Field        | Type            | Required | Default | Description                          |
-| ------------ | --------------- | -------- | ------- | ------------------------------------ |
-| **Name**     | String          | Yes      | -       | Unique identifier                    |
-| **Type**     | "Forecast Load" | Yes      | -       | Element type                         |
-| **Forecast** | Sensor(s)       | Yes      | -       | Power consumption forecast sensor(s) |
-
-## Name
-
-Use descriptive names that indicate what the load represents:
-
-- ✅ "House Load", "Variable Consumption", "HVAC Load", "EV Charger"
-- ❌ "Load1", "Forecast", "Thing"
+| Field        | Type                                     | Required | Default | Description                      |
+| ------------ | ---------------------------------------- | -------- | ------- | -------------------------------- |
+| **Name**     | String                                   | Yes      | -       | Unique identifier                |
+| **Type**     | "Forecast Load"                          | Yes      | -       | Element type                     |
+| **Forecast** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption sensor(s) (kW) |
 
 ## Forecast
 
-One or more Home Assistant sensor entities providing consumption forecasts in kilowatts (kW).
+Specify one or more Home Assistant sensor entities providing power consumption data.
 
-### Single Forecast Sensor
+### Single Sensor
 
 ```yaml
 Forecast: sensor.house_load_forecast
 ```
 
-### Multiple Forecast Sensors
+HAEO reads the sensor's current value and any forecast data.
+If the sensor only provides a current value, HAEO repeats it across the optimization horizon.
+If the sensor includes forecast data, HAEO interpolates between forecast points for each optimization period.
 
-HAEO will merge multiple sensors into a continuous timeline:
+### Multiple Sensors
+
+Provide multiple sensors to combine different load sources:
 
 ```yaml
 Forecast:
-  - sensor.load_forecast_today
-  - sensor.load_forecast_tomorrow
+  - sensor.base_load
+  - sensor.ev_charger_schedule
+  - sensor.hvac_forecast
 ```
 
-### Forecast Format
+HAEO combines multiple sensors by:
 
-Forecast sensors must provide timestamped future values in attributes:
+- Summing present values together
+- Merging forecast series on shared timestamps
+- Adding values at each timestamp
 
-```yaml
-attributes:
-  forecast:
-    - datetime: "2025-10-13T12:00:00+00:00"
-      value: 2.5  # kW
-    - datetime: "2025-10-13T12:05:00+00:00"
-      value: 2.3
-    # ... more timestamped values
-```
+This makes it easy to model separate load components without manual addition.
 
-See the [Forecasts & Sensors guide](../forecasts-and-sensors.md) for detailed format requirements and examples.
+### How It Works
 
-## Creating Load Forecasts
+See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for complete details on:
 
-### History-Based Forecast
-
-Use past consumption to predict future load:
-
-```yaml
-template:
-  - sensor:
-      - name: "House Load Forecast"
-        unique_id: house_load_forecast
-        unit_of_measurement: "kW"
-        device_class: power
-        state: "{{ states('sensor.home_power_consumption') | float(0) }}"
-        attributes:
-          forecast: >
-            {% set forecast_list = [] %}
-            {% set start = now() %}
-
-            {% for hour in range(48) %}
-              {% set forecast_time = start + timedelta(hours=hour) %}
-              {% set history_time = forecast_time - timedelta(days=7) %}
-
-              {% set avg_power = states.sensor.home_power_consumption
-                                  .history(history_time - timedelta(minutes=30),
-                                          history_time + timedelta(minutes=30))
-                                  | map(attribute='state')
-                                  | map('float', 0)
-                                  | list
-                                  | average
-                                  | default(1.0) %}
-
-              {% set entry = {
-                "datetime": forecast_time.isoformat(),
-                "value": avg_power
-              } %}
-              {% set _ = forecast_list.append(entry) %}
-            {% endfor %}
-
-            {{ forecast_list }}
-```
-
-This uses same-day-last-week data to create realistic forecasts.
-
-### Pattern-Based Forecast
-
-Use typical hourly patterns:
-
-```yaml
-template:
-  - sensor:
-      - name: "Typical House Load"
-        unique_id: typical_house_load
-        unit_of_measurement: "kW"
-        state: >
-          {% set hour = now().hour %}
-          {% set patterns = {
-            0: 0.8, 1: 0.7, 2: 0.7, 3: 0.7, 4: 0.8, 5: 1.2,
-            6: 2.5, 7: 3.0, 8: 2.0, 9: 1.5, 10: 1.2, 11: 1.5,
-            12: 2.0, 13: 1.8, 14: 1.5, 15: 1.8, 16: 2.5, 17: 3.5,
-            18: 4.0, 19: 3.5, 20: 3.0, 21: 2.5, 22: 2.0, 23: 1.5
-          } %}
-          {{ patterns[hour] }}
-        attributes:
-          forecast: >
-            {% set patterns = {
-              0: 0.8, 1: 0.7, 2: 0.7, 3: 0.7, 4: 0.8, 5: 1.2,
-              6: 2.5, 7: 3.0, 8: 2.0, 9: 1.5, 10: 1.2, 11: 1.5,
-              12: 2.0, 13: 1.8, 14: 1.5, 15: 1.8, 16: 2.5, 17: 3.5,
-              18: 4.0, 19: 3.5, 20: 3.0, 21: 2.5, 22: 2.0, 23: 1.5
-            } %}
-            {% set forecast_list = [] %}
-            {% set start = now().replace(minute=0, second=0, microsecond=0) %}
-
-            {% for hour in range(48) %}
-              {% set forecast_time = start + timedelta(hours=hour) %}
-              {% set hour_of_day = forecast_time.hour %}
-              {% set entry = {
-                "datetime": forecast_time.isoformat(),
-                "value": patterns[hour_of_day]
-              } %}
-              {% set _ = forecast_list.append(entry) %}
-            {% endfor %}
-
-            {{ forecast_list }}
-```
-
-### Scheduled Device Forecast
-
-For predictable loads like EV charging:
-
-```yaml
-template:
-  - sensor:
-      - name: "EV Charging Schedule"
-        unique_id: ev_charging_schedule
-        unit_of_measurement: "kW"
-        state: >
-          {% set hour = now().hour %}
-          {{ 7.4 if hour >= 22 or hour < 6 else 0 }}
-        attributes:
-          forecast: >
-            {% set forecast_list = [] %}
-            {% set start = now() %}
-
-            {% for hour in range(48) %}
-              {% set forecast_time = start + timedelta(hours=hour) %}
-              {% set h = forecast_time.hour %}
-              {% set power = 7.4 if h >= 22 or h < 6 else 0 %}
-
-              {% set entry = {
-                "datetime": forecast_time.isoformat(),
-                "value": power
-              } %}
-              {% set _ = forecast_list.append(entry) %}
-            {% endfor %}
-
-            {{ forecast_list }}
-```
+- How HAEO extracts present values and forecasts
+- Interpolation between forecast points
+- Combining multiple sensors
+- Forecast cycling when coverage is partial
 
 ## Configuration Example
 
@@ -182,126 +61,97 @@ Type: Forecast Load
 Forecast: sensor.house_load_forecast
 ```
 
-## Combined with Constant Load
-
-For best results, separate baseline and variable consumption:
+Multiple sensors:
 
 ```yaml
-# Constant baseline
-Name: Base Load
-Type: Constant Load
-Power: 1.0  # kW
-
-# Variable portion
-Name: Variable Load
+Name: Total House Load
 Type: Forecast Load
-Forecast: sensor.variable_consumption
+Forecast:
+  - sensor.base_consumption
+  - sensor.ev_charger
+  - sensor.pool_pump_schedule
 ```
-
-This approach:
-
-- Makes forecasting easier (only forecast the variable portion)
-- Ensures baseline is always covered
-- Provides more accurate optimization
 
 ## Sensors Created
 
-### Power Sensor
+| Sensor                | Unit | Description               |
+| --------------------- | ---- | ------------------------- |
+| `sensor.{name}_power` | kW   | Current period load power |
 
-**Entity ID**: `sensor.{name}_power`
-
-**Unit**: kW
-
-**Description**: Current optimal power consumption based on forecast
-
-The power sensor shows forecasted consumption values at each timestep, with forecast attributes containing future values.
+After optimization completes, the sensor shows the load value for the current optimization period.
+The `forecast` attribute contains future load values for upcoming periods.
 
 ## Troubleshooting
 
-### Forecast Too Short
+### Sensor Not Found
 
-**Problem**: Optimization fails due to insufficient forecast data
-
-**Solution**: Ensure forecast covers your entire horizon (e.g., 48 hours of data for 48-hour horizon)
-
-Check your forecast sensor in Developer Tools → States to verify coverage.
-
-### Inaccurate Forecasts
-
-**Problem**: Optimization produces unrealistic schedules
+**Problem**: Error "Sensors not found or unavailable"
 
 **Solutions**:
 
-1. **Verify units**: Ensure forecast is in kW (not W or kWh)
-2. **Check data quality**: Review forecast values for reasonableness
-3. **Tune forecast model**: Improve historical averaging or patterns
-4. **Validate sensor**: Confirm forecast attribute format is correct
+- Verify sensor entity ID exists in Home Assistant
+- Check sensor is available (not "unavailable" or "unknown")
+- Ensure sensor provides numeric values
 
-### Load Forecast Not Updating
+### Incorrect Load Values
 
-**Problem**: Optimization uses stale forecast data
+**Problem**: Load values don't match expectations
+
+**Check**:
+
+- Sensor units are kW (not W or kWh)
+- Multiple sensors sum correctly (intended?)
+- Forecast data quality from source
+- Current sensor reading is realistic
+
+### Optimization Issues
+
+**Problem**: Solver cannot find solution with forecast load
+
+**Possible causes**:
+
+- Load peaks exceed available supply capacity
+- Grid import limits too low for peak loads
+- Load not connected to power sources
 
 **Solutions**:
 
-1. **Check sensor state**: Verify sensor updates regularly
-2. **Review automation**: Ensure forecast sensor update trigger works
-3. **Check time_period**: For statistics-based forecasts, confirm sufficient history exists
-
-### Optimization Infeasible with Forecast
-
-**Problem**: Solver can't find solution
-
-**Solutions**:
-
-1. **Check peak loads**: Forecast peaks may exceed supply capacity
-2. **Review grid limits**: Ensure grid can import enough during high loads
-3. **Verify connections**: Load must be connected to power sources
-4. **Check forecast values**: Ensure no unrealistically high values
-
-## When to Use Forecast Load
-
-Use forecast loads for:
-
-- ✅ Variable household consumption
-- ✅ HVAC systems with weather-dependent usage
-- ✅ Scheduled devices (EV charging, heat pumps)
-- ✅ Time-of-day varying loads
-- ✅ Commercial operations with predictable patterns
-
-Avoid for:
-
-- ❌ Pure baseline (use constant load)
-- ❌ When forecast data is unavailable
-- ❌ Initial testing (start with constant load)
-
-## Multiple Forecast Loads
-
-Configure separate forecast loads for different sources:
-
-```yaml
-# Household consumption
-Name: House Load
-Type: Forecast Load
-Forecast: sensor.house_forecast
-
-# EV charging
-Name: EV Charger
-Type: Forecast Load
-Forecast: sensor.ev_schedule
-
-# HVAC
-Name: HVAC System
-Type: Forecast Load
-Forecast: sensor.hvac_forecast
-```
-
-Total load at each timestep = sum of all load elements.
+- Increase grid import limit
+- Verify connections from grid/battery to load
+- Review forecast values for unrealistic peaks
 
 ## Related Documentation
 
-- [Constant Load Configuration](constant-load.md) - For fixed consumption
-- [Forecasts & Sensors Guide](../forecasts-and-sensors.md) - Creating forecast sensors
-- [Load Modeling](../../modeling/loads.md) - Mathematical model
+- [Constant Load Configuration](constant-load.md) - Fixed consumption alternative
+- [Forecasts and Sensors Guide](../forecasts-and-sensors.md) - Creating forecast sensors
 - [Connections](connections.md) - Connecting loads to the network
 
-[:material-arrow-right: Continue to Node Configuration](node.md)
+## Next Steps
+
+<div class="grid cards" markdown>
+
+- :material-connection:{ .lg .middle } **Connect to network**
+
+    ---
+
+    Learn how to connect your forecast load to power sources using connections.
+
+    [:material-arrow-right: Connections guide](connections.md)
+
+- :material-chart-line:{ .lg .middle } **Understand sensor loading**
+
+    ---
+
+    Deep dive into how HAEO uses forecast data for load predictions.
+
+    [:material-arrow-right: Forecasts and sensors](../forecasts-and-sensors.md)
+
+- :material-lightning-bolt:{ .lg .middle } **Add constant baseline**
+
+    ---
+
+    Combine forecast load with constant load for accurate total consumption.
+
+    [:material-arrow-right: Constant load configuration](constant-load.md)
+
+</div>
