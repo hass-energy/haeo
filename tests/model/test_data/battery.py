@@ -42,6 +42,8 @@ VALID_CASES = [
             "initial_charge_percentage": 50.0,
             "min_charge_percentage": 25.0,
             "max_charge_percentage": 90.0,
+            "max_charge_power": 5.0,
+            "max_discharge_power": 3.0,
             "efficiency": 0.95,
             "charge_cost": 0.2,
             "discharge_cost": 0.1,
@@ -53,6 +55,24 @@ VALID_CASES = [
             "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 60.0)},
             "price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.0, 0.2)},
             "price_production": {"type": "price", "unit": "$/kWh", "values": (0.1, 0.1)},
+        },
+    },
+    {
+        "description": "Battery without power limits",
+        "factory": create,
+        "data": {
+            "name": "battery_unlimited",
+            "period": 1.0,
+            "n_periods": 2,
+            "capacity": 10.0,
+            "initial_charge_percentage": 50.0,
+            # max_charge_power and max_discharge_power omitted (None)
+        },
+        "expected_outputs": {
+            "power_consumed": {"type": "power", "unit": "kW", "values": (1.0, 2.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (1.0, 2.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 6.0)},
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 60.0)},
         },
     },
 ]

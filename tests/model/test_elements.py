@@ -64,3 +64,12 @@ def test_extract_values_converts_lp_variables() -> None:
     assert isinstance(result, tuple)
     assert len(result) == 3
     assert all(isinstance(value, float) for value in result)
+
+
+def test_extract_values_handles_none() -> None:
+    """extract_values should return empty tuple for None input."""
+
+    result = extract_values(None)
+
+    assert isinstance(result, tuple)
+    assert len(result) == 0

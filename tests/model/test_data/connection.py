@@ -33,6 +33,22 @@ VALID_CASES = [
             "power_flow": {"type": "power", "unit": "kW", "values": (1.0, 2.0, 3.0)},
         },
     },
+    {
+        "description": "Connection with power limits",
+        "factory": create,
+        "data": {
+            "name": "limited_connection",
+            "period": 1.0,
+            "n_periods": 2,
+            "source": "solar",
+            "target": "battery",
+            "min_power": -5.0,
+            "max_power": 10.0,
+        },
+        "expected_outputs": {
+            "power_flow": {"type": "power", "unit": "kW", "values": (1.0, 2.0)},
+        },
+    },
 ]
 
 INVALID_CASES: list[dict[str, Any]] = []
