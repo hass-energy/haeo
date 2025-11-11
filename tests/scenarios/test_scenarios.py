@@ -44,7 +44,7 @@ def _extract_freeze_time(scenario_path: Path) -> str:
         states = json.load(f)
 
     # Extract all last_updated timestamps
-    timestamps = [state["last_updated"] for state in states if "last_updated" in state]
+    timestamps: list[str] = [state["last_updated"] for state in states if "last_updated" in state]
 
     if not timestamps:
         msg = f"No last_updated timestamps found in {states_path}"

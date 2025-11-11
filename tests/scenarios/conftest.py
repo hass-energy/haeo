@@ -21,7 +21,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 @pytest.fixture
 def scenario_path(request: pytest.FixtureRequest) -> Path:
     """Get the path to the current scenario directory from parameterized test."""
-    return request.param
+    return request.param  # type: ignore[no-any-return]
 
 
 @pytest.fixture
