@@ -91,7 +91,7 @@ class Battery(Element):
                     for i in range(n_periods - 1)
                 ],
             ],
-            efficiency=efficiency / 100.0, # Convert percentage to fraction
+            efficiency=efficiency / 100.0,  # Convert percentage to fraction
             price_production=(np.ones(n_periods) * discharge_cost).tolist() if discharge_cost is not None else None,
             price_consumption=np.linspace(0, charge_cost, n_periods).tolist() if charge_cost is not None else None,
         )
