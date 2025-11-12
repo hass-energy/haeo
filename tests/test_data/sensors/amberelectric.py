@@ -1,5 +1,6 @@
 """Test data for Amber Electric forecast sensors."""
 
+from datetime import UTC, datetime
 from typing import Any
 
 # Valid Amber sensor configurations
@@ -59,6 +60,25 @@ VALID: list[dict[str, Any]] = [
         "expected_format": "amberelectric",
         "expected_count": 1,
         "description": "Amber forecast with timezone conversion",
+    },
+    {
+        "entity_id": "sensor.amber_datetime_objects",
+        "state": "0.13",
+        "attributes": {
+            "forecasts": [
+                {
+                    "per_kwh": 0.13,
+                    "start_time": datetime(2025, 10, 5, 11, 0, 0, tzinfo=UTC),
+                },
+                {
+                    "per_kwh": 0.16,
+                    "start_time": datetime(2025, 10, 5, 11, 30, 0, tzinfo=UTC),
+                },
+            ]
+        },
+        "expected_format": "amberelectric",
+        "expected_count": 2,
+        "description": "Amber forecast with datetime objects instead of strings",
     },
 ]
 

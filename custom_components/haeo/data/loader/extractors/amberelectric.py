@@ -1,13 +1,13 @@
 """Amber Electric (amberelectric) pricing forecast parser."""
 
 from collections.abc import Sequence
-from datetime import datetime
 import logging
 from typing import Any, Literal
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
-from homeassistant.util.dt import as_utc
+
+from .datetime_utils import parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,15 +21,14 @@ def _parse_entry(item: Any) -> tuple[int, float] | None:
     if not isinstance(item, dict):
         return None
 
-    start_time_str = item.get("start_time")
+    start_time = item.get("start_time")
     per_kwh = item.get("per_kwh")
 
-    if not isinstance(start_time_str, str) or per_kwh is None:
+    if start_time is None or per_kwh is None:
         return None
 
     try:
-        dt = as_utc(datetime.fromisoformat(start_time_str))
-        timestamp_seconds = int(dt.timestamp())
+        timestamp_seconds = parse_datetime_to_timestamp(start_time)
         value = float(per_kwh)
     except (ValueError, TypeError):
         return None

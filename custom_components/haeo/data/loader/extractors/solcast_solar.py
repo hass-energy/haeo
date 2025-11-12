@@ -1,14 +1,14 @@
 """Solcast solar forecast parser."""
 
 from collections.abc import Sequence
-from datetime import datetime
 import logging
 from typing import Any, Literal
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import UnitOfPower
 from homeassistant.core import State
-from homeassistant.util.dt import as_utc
+
+from .datetime_utils import parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,15 +22,14 @@ def _parse_entry(item: Any) -> tuple[int, float] | None:
     if not isinstance(item, dict):
         return None
 
-    period_start_str = item.get("period_start")
+    period_start = item.get("period_start")
     pv_estimate = item.get("pv_estimate")
 
-    if not isinstance(period_start_str, str) or pv_estimate is None:
+    if period_start is None or pv_estimate is None:
         return None
 
     try:
-        dt = as_utc(datetime.fromisoformat(period_start_str))
-        timestamp_seconds = int(dt.timestamp())
+        timestamp_seconds = parse_datetime_to_timestamp(period_start)
         value = float(pv_estimate)
     except (ValueError, TypeError):
         return None
