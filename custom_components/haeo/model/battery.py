@@ -24,7 +24,7 @@ class Battery(Element):
         max_charge_percentage: float = 90,
         max_charge_power: Sequence[float] | float | None = None,
         max_discharge_power: Sequence[float] | float | None = None,
-        efficiency: float = 0.99,
+        efficiency: float = 99.0,
         charge_cost: float | None = None,
         discharge_cost: float | None = None,
     ) -> None:
@@ -36,11 +36,11 @@ class Battery(Element):
             n_periods: Number of time periods
             capacity: Battery capacity in kWh per period
             initial_charge_percentage: Initial charge percentage 0-100
-            min_charge_percentage: Minimum allowed charge percentage
-            max_charge_percentage: Maximum allowed charge percentage
+            min_charge_percentage: Minimum allowed charge percentage 0-100
+            max_charge_percentage: Maximum allowed charge percentage 0-100
             max_charge_power: Maximum charging power in kW per period
             max_discharge_power: Maximum discharging power in kW per period
-            efficiency: Battery efficiency (0-1)
+            efficiency: Battery round-trip efficiency percentage 0-100
             charge_cost: Cost in $/kWh when charging
             discharge_cost: Cost in $/kWh when discharging
 
@@ -91,7 +91,7 @@ class Battery(Element):
                     for i in range(n_periods - 1)
                 ],
             ],
-            efficiency=efficiency,
+            efficiency=efficiency / 100.0,  # Convert percentage to fraction
             price_production=(np.ones(n_periods) * discharge_cost).tolist() if discharge_cost is not None else None,
             price_consumption=np.linspace(0, charge_cost, n_periods).tolist() if charge_cost is not None else None,
         )

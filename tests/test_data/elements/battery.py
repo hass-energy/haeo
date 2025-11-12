@@ -58,7 +58,7 @@ VALID: list[dict[str, Any]] = [
             "initial_charge_percentage": 50.0,
             "max_charge_power": 5.0,
             "max_discharge_power": 5.0,
-            "efficiency": 0.98,
+            "efficiency": 98.0,
         },
         "description": "Battery with custom efficiency",
     },

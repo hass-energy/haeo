@@ -15,7 +15,7 @@
       "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
       "min_charge_percentage": 10.0,
       "max_charge_percentage": 100.0,
-      "efficiency": 0.99,
+      "efficiency": 99.0,
       "max_charge_power": "sensor.sigen_plant_ess_rated_charging_power",
       "max_discharge_power": "sensor.sigen_plant_ess_rated_discharging_power",
       "charge_cost": -1e-3,
