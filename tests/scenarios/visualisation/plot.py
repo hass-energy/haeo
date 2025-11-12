@@ -91,7 +91,7 @@ def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, Forecas
         element_type = sensor.attributes["element_type"]
         output_name = sensor.attributes["output_name"]
         forecast: Sequence[tuple[float, float]] = sorted(
-            (datetime.fromisoformat(dt).timestamp(), value) for dt, value in sensor.attributes["forecast"].items()
+            (dt.timestamp(), value) for dt, value in sensor.attributes["forecast"].items()
         )
 
         entry = forecast_data.setdefault(
