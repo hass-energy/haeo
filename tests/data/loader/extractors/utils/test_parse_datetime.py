@@ -1,10 +1,10 @@
-"""Tests for datetime_utils module."""
+"""Tests for parse_datetime module."""
 
 from datetime import UTC, datetime
 
 import pytest
 
-from custom_components.haeo.data.loader.extractors.datetime_utils import parse_datetime_to_timestamp
+from custom_components.haeo.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 
 
 def test_parse_datetime_string() -> None:

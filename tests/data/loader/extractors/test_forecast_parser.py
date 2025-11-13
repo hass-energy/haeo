@@ -140,7 +140,7 @@ def test_detect_multiple_formats_warns(hass: HomeAssistant, caplog: pytest.LogCa
     }
     state = _create_sensor_state(hass, "sensor.ambiguous_forecast", "0", attributes)
 
-    with patch.object(extractors._LOGGER, "warning") as warning_mock:
+    with patch("custom_components.haeo.data.loader.extractors.utils.time_series._LOGGER.warning") as warning_mock:
         result = extractors.detect_format(state)
 
     assert result is None
