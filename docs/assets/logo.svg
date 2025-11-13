@@ -6,11 +6,13 @@
     @media (prefers-color-scheme: dark){
       :root{--bg:#0a0f1a;--fg:#7fb1ff;--accent:#ffd86b;}
     }
-    svg{background:var(--bg);}
   </style>
 
   <!-- House -->
   <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
+
+    <!-- Roof and Walls -->
+    <polyline stroke="var(--fg)" fill="var(--bg)" points="64,3 3,48 3,125 125,125 125,48 64,3"/>
 
     <!-- Solar Panel -->
     <polyline stroke="var(--accent)" fill="none" points="16,32 48,8"/>
@@ -19,10 +21,6 @@
     <rect x="15" y="100" width="98" height="13" stroke="var(--accent)" fill="var(--accent)" stroke-width="5" rx="4" ry="4"/>
     <rect x="15" y="80" width="98" height="13" stroke="var(--accent)" fill="var(--accent)" stroke-width="5" rx="4" ry="4"/>
     <rect x="15" y="60" width="98" height="13" stroke="var(--accent)" fill="var(--accent)" stroke-width="5" rx="4" ry="4"/>
-
-
-    <!-- Roof and Walls -->
-    <polyline stroke="var(--fg)" fill="none" points="64,3 3,48 3,125 125,125 125,48 64,3"/>
 
     <!-- Energy hub -->
     <circle cx="64" cy="72" r="38" fill="var(--bg)" stroke="var(--bg)" stroke-width="4"/>
