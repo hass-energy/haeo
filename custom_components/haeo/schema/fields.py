@@ -230,6 +230,7 @@ class BatterySOCFieldMeta(FieldMeta):
 POWER_UNITS: Final = UnitOfPower
 ENERGY_UNITS: Final = UnitOfEnergy
 BATTERY_UNITS: Final = [PERCENTAGE]
+PERCENTAGE_UNITS: Final = [PERCENTAGE]
 # For composite patterns, create tuples for each energy unit
 PRICE_UNITS: Final[list[UnitSpec]] = [("*", "/", unit.value) for unit in UnitOfEnergy]
 
@@ -242,6 +243,7 @@ EnergyFieldSchema = Annotated[float, EnergyFieldMeta()]
 EnergySensorFieldSchema = Annotated[str, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)]
 EnergySensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)]
 PercentageFieldSchema = Annotated[float, PercentageFieldMeta()]
+PercentageSensorFieldSchema = Annotated[str, SensorFieldMeta(accepted_units=PERCENTAGE_UNITS, multiple=False)]
 BooleanFieldSchema = Annotated[bool, BooleanFieldMeta()]
 ElementNameFieldSchema = Annotated[str, ElementNameFieldMeta()]
 NameFieldSchema = Annotated[str, NameFieldMeta()]
@@ -259,6 +261,7 @@ EnergyFieldData = Annotated[float, EnergyFieldMeta()]
 EnergySensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)]
 EnergySensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)]
 PercentageFieldData = Annotated[float, PercentageFieldMeta()]
+PercentageSensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=PERCENTAGE_UNITS, multiple=False)]
 BooleanFieldData = Annotated[bool, BooleanFieldMeta()]
 ElementNameFieldData = Annotated[str, ElementNameFieldMeta()]
 NameFieldData = Annotated[str, NameFieldMeta()]

@@ -249,8 +249,12 @@
             "name": "Connection Name",
             "source": "Source Device",
             "target": "Target Device",
-            "min_power": "Minimum Power (negative for bidirectional)",
-            "max_power": "Maximum Power"
+            "max_power_source_target": "Maximum Power Source→Target",
+            "max_power_target_source": "Maximum Power Target→Source",
+            "efficiency_source_target": "Efficiency Source→Target (%)",
+            "efficiency_target_source": "Efficiency Target→Source (%)",
+            "price_source_target": "Price Source→Target",
+            "price_target_source": "Price Target→Source"
           }
         },
         "reconfigure": {
@@ -260,8 +264,12 @@
             "name": "Connection Name",
             "source": "Source Device",
             "target": "Target Device",
-            "min_power": "Minimum Power (negative for bidirectional)",
-            "max_power": "Maximum Power"
+            "max_power_source_target": "Maximum Power Source→Target",
+            "max_power_target_source": "Maximum Power Target→Source",
+            "efficiency_source_target": "Efficiency Source→Target (%)",
+            "efficiency_target_source": "Efficiency Target→Source (%)",
+            "price_source_target": "Price Source→Target",
+            "price_target_source": "Price Target→Source"
           }
         }
       },
