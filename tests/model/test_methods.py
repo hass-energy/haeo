@@ -13,11 +13,11 @@ from . import test_data
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
 def test_element_constraints(case: dict[str, Any]) -> None:
-    """Element.get_all_constraints() should return valid constraints."""
+    """Element.constraints() should return valid constraints."""
 
     element = case["factory"](case["data"])
     element.build()
-    constraints = element.get_all_constraints()
+    constraints = element.constraints()
 
     # Should return a sequence (list/tuple)
     assert isinstance(constraints, (list, tuple))

@@ -20,10 +20,10 @@ class Node(Element):
         """
         super().__init__(name=name, period=period, n_periods=n_periods)
 
-    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return node outputs including power balance shadow prices."""
 
-        outputs = dict(super().get_outputs())
+        outputs = dict(super().outputs())
 
         if self.power_balance_constraints:
             outputs[OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE] = OutputData(

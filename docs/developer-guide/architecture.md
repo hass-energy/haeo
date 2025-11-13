@@ -127,7 +127,7 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
     - Inherit from `Element`
     - Define power/energy variables
-    - Implement `build()` and `get_all_constraints()` methods
+    - Implement `build()` and `constraints()` methods
 
 2. **Add element metadata** in `elements/`:
 

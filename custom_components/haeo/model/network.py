@@ -140,7 +140,7 @@ class Network:
         # Add element constraints
         for element_name, element in self.elements.items():
             try:
-                constraints = element.get_all_constraints()
+                constraints = element.constraints()
             except Exception as exc:
                 msg = f"Failed to collect constraints for element '{element_name}'"
                 raise ValueError(msg) from exc

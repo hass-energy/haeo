@@ -76,7 +76,7 @@ class Grid(Element):
             price_production=import_price,
         )
 
-    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return the outputs for the grid with import/export naming."""
 
         mapping: dict[OutputName, OutputName] = {
@@ -89,4 +89,4 @@ class Grid(Element):
         }
 
         # Remap the output names accordingly
-        return {mapping.get(key, key): value for key, value in super().get_outputs().items()}
+        return {mapping.get(key, key): value for key, value in super().outputs().items()}

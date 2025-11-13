@@ -25,19 +25,19 @@
 
 ### Shadow Price Sensors
 
-| Sensor                                           | Unit  | Description                                |
-| ------------------------------------------------ | ----- | ------------------------------------------ |
-| `{node}_shadow_price_node_balance`               | $/kWh | Marginal energy value at the node          |
-| `{battery}_shadow_price_energy_balance`          | $/kWh | Marginal value of stored energy over time  |
-| `{battery}_shadow_price_soc_min`                 | $/kWh | Benefit of relaxing minimum SOC limit      |
-| `{battery}_shadow_price_soc_max`                 | $/kWh | Benefit of relaxing maximum SOC limit      |
-| `{entity}_shadow_price_power_consumption_max`    | $/kW  | Value of additional consumption headroom   |
-| `{entity}_shadow_price_power_production_max`     | $/kW  | Value of additional production headroom    |
-| `{grid}_shadow_price_power_export_max`           | $/kW  | Value of additional export capacity        |
-| `{grid}_shadow_price_power_import_max`           | $/kW  | Value of additional import capacity        |
-| `{connection}_shadow_price_power_flow_min`       | $/kW  | Benefit of relaxing minimum flow limit     |
-| `{connection}_shadow_price_power_flow_max`       | $/kW  | Benefit of relaxing maximum flow limit     |
-| `{photovoltaics}_shadow_price_forecast_limit`    | $/kWh | Value of additional photovoltaic capacity  |
+| Sensor                                        | Unit   | Description                               |
+| --------------------------------------------- | ------ | ----------------------------------------- |
+| `{node}_shadow_price_node_balance`            | \$/kWh | Marginal energy value at the node         |
+| `{battery}_shadow_price_energy_balance`       | \$/kWh | Marginal value of stored energy over time |
+| `{battery}_shadow_price_soc_min`              | \$/kWh | Benefit of relaxing minimum SOC limit     |
+| `{battery}_shadow_price_soc_max`              | \$/kWh | Benefit of relaxing maximum SOC limit     |
+| `{entity}_shadow_price_power_consumption_max` | \$/kW  | Value of additional consumption headroom  |
+| `{entity}_shadow_price_power_production_max`  | \$/kW  | Value of additional production headroom   |
+| `{grid}_shadow_price_power_export_max`        | \$/kW  | Value of additional export capacity       |
+| `{grid}_shadow_price_power_import_max`        | \$/kW  | Value of additional import capacity       |
+| `{connection}_shadow_price_power_flow_min`    | \$/kW  | Benefit of relaxing minimum flow limit    |
+| `{connection}_shadow_price_power_flow_max`    | \$/kW  | Benefit of relaxing maximum flow limit    |
+| `{photovoltaics}_shadow_price_forecast_limit` | \$/kWh | Value of additional photovoltaic capacity |
 
 ## Power Sign Conventions
 

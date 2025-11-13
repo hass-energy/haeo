@@ -215,7 +215,7 @@ async def test_async_update_data_returns_outputs(
 ) -> None:
     """Coordinator returns optimization results merged with element outputs."""
     fake_element = MagicMock()
-    fake_element.get_outputs.return_value = {
+    fake_element.outputs.return_value = {
         OUTPUT_NAME_POWER_CONSUMED: OutputData(
             type=OUTPUT_TYPE_POWER,
             unit="kW",
@@ -225,7 +225,7 @@ async def test_async_update_data_returns_outputs(
 
     fake_network = MagicMock()
     empty_element = MagicMock()
-    empty_element.get_outputs.return_value = {}
+    empty_element.outputs.return_value = {}
     fake_network.elements = {
         "test_battery": fake_element,
         "empty": empty_element,

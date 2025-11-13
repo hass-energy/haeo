@@ -136,16 +136,16 @@ class Battery(Element):
             constraint_max.name = f"{self.name}_soc_max_{index}"
             self.soc_max_constraints[index] = constraint_max
 
-    def get_all_constraints(self) -> tuple[LpConstraint, ...]:
+    def constraints(self) -> tuple[LpConstraint, ...]:
         """Return battery-specific constraints including SOC bounds."""
 
         return (
-            *super().get_all_constraints(),
+            *super().constraints(),
             *self.soc_min_constraints.values(),
             *self.soc_max_constraints.values(),
         )
 
-    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return battery output specifications."""
         # Add the SOC sensor output
         energy_values = np.array(extract_values(self.energy))
@@ -153,7 +153,7 @@ class Battery(Element):
         soc_values = (energy_values / capacity_array * 100.0).tolist()
 
         outputs: dict[OutputName, OutputData] = {
-            **super().get_outputs(),
+            **super().outputs(),
             OUTPUT_NAME_BATTERY_STATE_OF_CHARGE: OutputData(
                 type=OUTPUT_TYPE_SOC,
                 unit="%",

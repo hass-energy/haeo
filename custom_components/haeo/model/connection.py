@@ -77,7 +77,7 @@ class Connection:
                 constraint.name = f"{self.name}_power_max_{index}"
                 self.power_max_constraints[index] = constraint
 
-    def get_all_constraints(self) -> Sequence[LpConstraint]:
+    def constraints(self) -> Sequence[LpConstraint]:
         """Return stored connection constraints."""
 
         return (*self.power_min_constraints.values(), *self.power_max_constraints.values())
@@ -86,7 +86,7 @@ class Connection:
         """Return the cost of the connection with cycling penalties."""
         return 0
 
-    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return output specifications for the connection."""
 
         outputs: dict[OutputName, OutputData] = {

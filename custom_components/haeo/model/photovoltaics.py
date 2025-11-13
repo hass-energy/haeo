@@ -85,16 +85,16 @@ class Photovoltaics(Element):
             constraint.name = f"{self.name}_forecast_limit_{index}"
             self.forecast_limit_constraints[index] = constraint
 
-    def get_all_constraints(self) -> tuple[LpConstraint, ...]:
+    def constraints(self) -> tuple[LpConstraint, ...]:
         """Return photovoltaic constraints including forecast limits."""
 
-        return (*super().get_all_constraints(), *self.forecast_limit_constraints.values())
+        return (*super().constraints(), *self.forecast_limit_constraints.values())
 
-    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return photovoltaics output specifications."""
 
         outputs: dict[OutputName, OutputData] = {
-            **super().get_outputs(),
+            **super().outputs(),
             # Add the available power sensor output
             OUTPUT_NAME_POWER_AVAILABLE: OutputData(
                 type=OUTPUT_TYPE_POWER,

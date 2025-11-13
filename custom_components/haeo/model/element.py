@@ -95,7 +95,7 @@ class Element:
                 constraint.name = f"{self.name}_power_production_max_{index}"
                 self.power_production_max_constraints[index] = constraint
 
-    def get_all_constraints(self) -> Sequence[LpConstraint]:
+    def constraints(self) -> Sequence[LpConstraint]:
         """Return all stored constraints for this element."""
 
         return (
@@ -127,7 +127,7 @@ class Element:
 
         return cast("float", cost)
 
-    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return output specifications for the element."""
 
         outputs: dict[OutputName, OutputData] = {}
