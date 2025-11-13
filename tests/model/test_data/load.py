@@ -1,0 +1,41 @@
+"""Test data and factories for Load element."""
+
+from typing import Any
+
+from custom_components.haeo.model.load import Load
+
+
+def create(data: dict[str, Any]) -> Load:
+    """Create a test Load instance."""
+    return Load(**data)
+
+
+VALID_CASES = [
+    {
+        "description": "Load with varying consumption",
+        "factory": create,
+        "data": {
+            "name": "load",
+            "period": 1.0,
+            "n_periods": 3,
+            "forecast": [1.0, 1.5, 2.0],
+        },
+        "expected_outputs": {
+            "power_consumed": {"type": "power", "unit": "kW", "values": (1.0, 1.5, 2.0)},
+        },
+    },
+]
+
+INVALID_CASES = [
+    {
+        "description": "Load with forecast length mismatch",
+        "element_class": Load,
+        "data": {
+            "name": "load",
+            "period": 1.0,
+            "n_periods": 3,
+            "forecast": [1.0, 1.5],  # Only 2 instead of 3
+        },
+        "expected_error": r"forecast length \(2\) must match n_periods \(3\)",
+    },
+]

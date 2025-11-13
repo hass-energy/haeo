@@ -141,8 +141,7 @@ nav:
           - Battery: user-guide/elements/battery.md
           - Grid: user-guide/elements/grid.md
           - Photovoltaics: user-guide/elements/photovoltaics.md
-          - Constant Load: user-guide/elements/constant-load.md
-          - Forecast Load: user-guide/elements/forecast-load.md
+          - Load: user-guide/elements/load.md
           - Node: user-guide/elements/node.md
           - Connections: user-guide/elements/connections.md
       - Understanding Results: user-guide/optimization.md

@@ -10,7 +10,7 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.schema import schema_for_type
 
-from . import battery, connection, constant_load, forecast_load, grid, node, photovoltaics
+from . import battery, connection, grid, load, node, photovoltaics
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,8 +19,7 @@ type ElementType = Literal[
     "connection",
     "photovoltaics",
     "grid",
-    "constant_load",
-    "forecast_load",
+    "load",
     "node",
 ]
 
@@ -28,15 +27,13 @@ ELEMENT_TYPE_BATTERY: Final = battery.ELEMENT_TYPE
 ELEMENT_TYPE_CONNECTION: Final = connection.ELEMENT_TYPE
 ELEMENT_TYPE_PHOTOVOLTAICS: Final = photovoltaics.ELEMENT_TYPE
 ELEMENT_TYPE_GRID: Final = grid.ELEMENT_TYPE
-ELEMENT_TYPE_CONSTANT_LOAD: Final = constant_load.ELEMENT_TYPE
-ELEMENT_TYPE_FORECAST_LOAD: Final = forecast_load.ELEMENT_TYPE
+ELEMENT_TYPE_LOAD: Final = load.ELEMENT_TYPE
 ELEMENT_TYPE_NODE: Final = node.ELEMENT_TYPE
 
 ElementConfigSchema = (
     battery.BatteryConfigSchema
     | grid.GridConfigSchema
-    | constant_load.ConstantLoadConfigSchema
-    | forecast_load.ForecastLoadConfigSchema
+    | load.LoadConfigSchema
     | photovoltaics.PhotovoltaicsConfigSchema
     | node.NodeConfigSchema
     | connection.ConnectionConfigSchema
@@ -45,8 +42,7 @@ ElementConfigSchema = (
 ElementConfigData = (
     battery.BatteryConfigData
     | grid.GridConfigData
-    | constant_load.ConstantLoadConfigData
-    | forecast_load.ForecastLoadConfigData
+    | load.LoadConfigData
     | photovoltaics.PhotovoltaicsConfigData
     | node.NodeConfigData
     | connection.ConnectionConfigData
@@ -87,17 +83,11 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=grid.CONFIG_DEFAULTS,
         translation_key=grid.ELEMENT_TYPE,
     ),
-    constant_load.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=constant_load.ConstantLoadConfigSchema,
-        data=constant_load.ConstantLoadConfigData,
-        defaults=constant_load.CONFIG_DEFAULTS,
-        translation_key=constant_load.ELEMENT_TYPE,
-    ),
-    forecast_load.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=forecast_load.ForecastLoadConfigSchema,
-        data=forecast_load.ForecastLoadConfigData,
-        defaults=forecast_load.CONFIG_DEFAULTS,
-        translation_key=forecast_load.ELEMENT_TYPE,
+    load.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=load.LoadConfigSchema,
+        data=load.LoadConfigData,
+        defaults=load.CONFIG_DEFAULTS,
+        translation_key=load.ELEMENT_TYPE,
     ),
     node.ELEMENT_TYPE: ElementRegistryEntry(
         schema=node.NodeConfigSchema,
@@ -140,7 +130,6 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
 
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
     """Return validated element subentries excluding the network element."""
-
     return [
         ValidatedElementSubentry(
             name=subentry.title,
@@ -157,9 +146,8 @@ __all__ = [
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
     "ELEMENT_TYPE_CONNECTION",
-    "ELEMENT_TYPE_CONSTANT_LOAD",
-    "ELEMENT_TYPE_FORECAST_LOAD",
     "ELEMENT_TYPE_GRID",
+    "ELEMENT_TYPE_LOAD",
     "ELEMENT_TYPE_NODE",
     "ELEMENT_TYPE_PHOTOVOLTAICS",
     "ElementConfigData",

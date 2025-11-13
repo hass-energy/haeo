@@ -74,21 +74,15 @@ Multiple solar forecast sensors are combined additively.
 
 ## Load Configuration
 
-### Constant Load
+| Field    | Type      | Required | Default | Description                 |
+| -------- | --------- | -------- | ------- | --------------------------- |
+| Name     | string    | Yes      | -       | Unique identifier           |
+| Forecast | sensor(s) | Yes      | -       | Power consumption sensor(s) |
 
-| Field | Type       | Required | Default | Description             |
-| ----- | ---------- | -------- | ------- | ----------------------- |
-| Name  | string     | Yes      | -       | Unique identifier       |
-| Power | float (kW) | Yes      | -       | Fixed power consumption |
+The Forecast field accepts one or more sensor entity IDs providing power consumption data.
+For constant loads, use an `input_number` helper.
+For variable loads, use sensors with forecast data.
 
-### Forecast Load
-
-| Field    | Type      | Required | Default | Description           |
-| -------- | --------- | -------- | ------- | --------------------- |
-| Name     | string    | Yes      | -       | Unique identifier     |
-| Forecast | sensor(s) | Yes      | -       | Load forecast sensors |
-
-The Forecast field accepts one or more sensor entity IDs.
 See the [Forecasts and Sensors guide](../user-guide/forecasts-and-sensors.md) for details on how multiple sensors are combined.
 
 ## Connection Configuration

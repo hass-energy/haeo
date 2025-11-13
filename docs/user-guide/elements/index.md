@@ -28,13 +28,9 @@ Bi-directional grid connection for import/export with dynamic or fixed pricing.
 
 Solar power generation with forecast integration and optional curtailment.
 
-### **[Constant Load](constant-load.md)**
+### **[Load](load.md)**
 
-Fixed power consumption that doesn't vary over time.
-
-### **[Forecast Load](forecast-load.md)**
-
-Variable consumption based on forecast data.
+Power consumption with support for constant or variable forecast-based patterns.
 
 ### **[Node](node.md)**
 
@@ -96,17 +92,11 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Photovoltaics guide](photovoltaics.md)
 
-- :material-gauge:{ .lg .middle } __Constant load configuration__
+- :material-gauge:{ .lg .middle } __Load configuration__
 
-    Fixed power consumption.
+    Power consumption with constant or forecast-based patterns.
 
-    [:material-arrow-right: Constant load guide](constant-load.md)
-
-- :material-chart-timeline:{ .lg .middle } __Forecast load configuration__
-
-    Variable consumption with forecasts.
-
-    [:material-arrow-right: Forecast load guide](forecast-load.md)
+    [:material-arrow-right: Load guide](load.md)
 
 - :material-source-branch:{ .lg .middle } __Node configuration__
 

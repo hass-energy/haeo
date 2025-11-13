@@ -2,14 +2,13 @@
 
 ## Element Types
 
-| Element       | Direction     | Storage | Forecasts      | Complexity | Typical Use                |
-| ------------- | ------------- | ------- | -------------- | ---------- | -------------------------- |
-| Battery       | Bidirectional | Yes     | SOC sensor     | Medium     | Home batteries, EV storage |
-| Grid          | Bidirectional | No      | Price sensors  | Simple     | Utility import/export      |
-| Photovoltaics | Generation    | No      | Solar forecast | Simple     | Rooftop solar, arrays      |
-| Constant Load | Consumption   | No      | None           | Simple     | Baseline loads             |
-| Forecast Load | Consumption   | No      | Load forecast  | Medium     | Variable consumption       |
-| Node          | Pass-through  | No      | None           | Simple     | Balance points             |
+| Element       | Direction     | Storage | Forecasts                  | Complexity | Typical Use                |
+| ------------- | ------------- | ------- | -------------------------- | ---------- | -------------------------- |
+| Battery       | Bidirectional | Yes     | SOC sensor                 | Medium     | Home batteries, EV storage |
+| Grid          | Bidirectional | No      | Price sensors              | Simple     | Utility import/export      |
+| Photovoltaics | Generation    | No      | Solar forecast             | Simple     | Rooftop solar, arrays      |
+| Load          | Consumption   | No      | Power sensors (or constant | Simple     | All consumption patterns   |
+| Node          | Pass-through  | No      | None                       | Simple     | Balance points             |
 
 ## Element Selection
 
@@ -18,8 +17,7 @@
 - Utility connection → Grid
 - Solar panels → Photovoltaics
 - Battery system → Battery
-- Always-on devices → Constant Load
-- Variable usage → Forecast Load
+- Power consumption → Load
 - Connection hub → Node
 
 ## Capabilities
@@ -29,8 +27,7 @@
 | Battery       | Charge, discharge, energy   | Power limits, SOC range, energy balance |
 | Grid          | Import, export              | Optional power limits                   |
 | Photovoltaics | Generation (if curtailment) | Non-negativity, forecast bound          |
-| Constant Load | None (parameter)            | Fixed value                             |
-| Forecast Load | None (parameter)            | Follows forecast                        |
+| Load          | None (parameter)            | Follows forecast data                   |
 | Node          | None (enforces balance)     | Power balance (Kirchhoff's law)         |
 
 ## Configuration Details
@@ -40,5 +37,5 @@ For full configuration guide, see:
 - [Battery Configuration](../user-guide/elements/battery.md)
 - [Grid Configuration](../user-guide/elements/grid.md)
 - [Photovoltaics Configuration](../user-guide/elements/photovoltaics.md)
-- [Load Configuration](../user-guide/elements/constant-load.md)
+- [Load Configuration](../user-guide/elements/load.md)
 - [Node Configuration](../user-guide/elements/node.md)

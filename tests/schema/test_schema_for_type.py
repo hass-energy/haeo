@@ -181,7 +181,7 @@ def test_union_field_uses_first_annotated_metadata() -> None:
     annotated_fields = _get_annotated_fields(UnionFieldConfig)
 
     field_meta, is_optional = annotated_fields["value"]
-    assert field_meta.field_type[0] == SensorDeviceClass.MONETARY
+    assert field_meta.field_type == "constant"
     assert not is_optional
 
 

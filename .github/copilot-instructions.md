@@ -54,6 +54,7 @@ Users configure entities (batteries, grids, loads, generators) and connections b
 
 - **Model Tests**: Test each entity type and network operations independently
 - **Integration Tests**: Use Home Assistant test fixtures, mock external dependencies
+- **Scenario Tests**: End-to-end tests with realistic configurations, auto-discovered from `tests/scenarios/scenario*/`
 - **Coverage**: Target >95% test coverage for all modules
 
 ## Development Workflow with uv
@@ -1175,6 +1176,54 @@ async def test_entities(
     for entity_entry in entity_entries:
         assert entity_entry.device_id == device_entry.id
 ```
+
+### Scenario Testing (HAEO-Specific)
+
+- **Purpose**: End-to-end integration tests with realistic configurations and time-frozen states
+
+- **Location**: `tests/scenarios/` with centralized test runner
+
+- **Structure**:
+
+    ```
+    tests/scenarios/
+    ├── test_scenarios.py          # Centralized parameterized test runner
+    ├── conftest.py                # Shared fixtures (scenario_path, scenario_config, scenario_states)
+    ├── snapshots/
+    │   └── test_scenarios.ambr    # Single snapshot file for all scenarios
+    └── scenario*/
+        ├── config.json            # Integration configuration
+        └── states.json            # Home Assistant state data (includes timestamp for freezegun)
+    ```
+
+- **Auto-Discovery**: Test runner automatically discovers all `scenario*/` folders using `Path.glob("scenario*/")`
+
+- **Parameterization**: Uses `@pytest.mark.parametrize` with `indirect=["scenario_path"]` for fixture indirection
+
+- **Time Freezing**: Extracts timestamp from `states.json` and uses `freezegun` for deterministic results
+
+- **Snapshots**: All scenarios share single snapshot file using syrupy defaults (Home Assistant standard)
+
+**Running Scenario Tests**:
+
+```bash
+# Run all scenario tests
+uv run pytest tests/scenarios/ -m scenario
+
+# Run specific scenario
+uv run pytest tests/scenarios/ -m scenario -k scenario1
+
+# Update snapshots
+uv run pytest tests/scenarios/ -m scenario --snapshot-update
+```
+
+**Creating New Scenarios**:
+
+1. Create new folder: `tests/scenarios/scenario_name/`
+2. Add `config.json` with integration configuration
+3. Add `states.json` with Home Assistant state data (must include `now` timestamp)
+4. Run tests - auto-discovered automatically
+5. Review and commit generated snapshots
 
 ### Mock Patterns
 
