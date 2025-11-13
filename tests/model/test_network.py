@@ -183,8 +183,7 @@ def test_connect_entities() -> None:
             "battery1_to_grid1",
             source="battery1",
             target="grid1",
-            min_power=0,
-            max_power=5000,
+            max_power_source_target=5000,
         ),
     )
 
@@ -192,8 +191,10 @@ def test_connect_entities() -> None:
     assert connection.name == "battery1_to_grid1"
     assert connection.source == "battery1"
     assert connection.target == "grid1"
-    assert connection.power is not None
-    assert len(connection.power) == CONNECTION_PERIODS
+    assert connection.power_source_target is not None
+    assert connection.power_target_source is not None
+    assert len(connection.power_source_target) == CONNECTION_PERIODS
+    assert len(connection.power_target_source) == CONNECTION_PERIODS
     # Check that the connection element was added
     connection_name = "battery1_to_grid1"
     assert connection_name in network.elements
@@ -230,7 +231,7 @@ def test_connect_nonexistent_target_entity() -> None:
 
 
 def test_connection_with_negative_power_bounds() -> None:
-    """Test connection with negative power bounds for bidirectional flow."""
+    """Test connection with bidirectional power flow limits."""
     network = Network(
         name="test_network",
         period=SECONDS_PER_HOUR,
@@ -256,8 +257,8 @@ def test_connection_with_negative_power_bounds() -> None:
             "battery_grid_bidirectional",
             source="battery1",
             target="grid1",
-            min_power=-REVERSE_POWER_LIMIT,  # Allow reverse flow up to 2000W
-            max_power=MAX_POWER_LIMIT,  # Allow forward flow up to 3000W
+            max_power_source_target=MAX_POWER_LIMIT,  # Forward flow up to 3000W
+            max_power_target_source=REVERSE_POWER_LIMIT,  # Reverse flow up to 2000W
         ),
     )
 
@@ -265,17 +266,23 @@ def test_connection_with_negative_power_bounds() -> None:
     assert connection.name == "battery_grid_bidirectional"
     assert connection.source == "battery1"
     assert connection.target == "grid1"
-    assert connection.power is not None
-    assert len(connection.power) == CONNECTION_PERIODS
+    assert connection.power_source_target is not None
+    assert connection.power_target_source is not None
+    assert len(connection.power_source_target) == CONNECTION_PERIODS
+    assert len(connection.power_target_source) == CONNECTION_PERIODS
 
     # Verify power variables have correct bounds
-    for power_var in connection.power:
-        assert power_var.lowBound == -REVERSE_POWER_LIMIT
+    for power_var in connection.power_source_target:
+        assert power_var.lowBound == 0
         assert power_var.upBound == MAX_POWER_LIMIT
+
+    for power_var in connection.power_target_source:
+        assert power_var.lowBound == 0
+        assert power_var.upBound == REVERSE_POWER_LIMIT
 
 
 def test_connection_with_none_bounds() -> None:
-    """Test connection with None bounds for infinite bounds."""
+    """Test connection with None bounds for unlimited power flow."""
     network = Network(
         name="test_network",
         period=SECONDS_PER_HOUR,
@@ -293,7 +300,7 @@ def test_connection_with_none_bounds() -> None:
         export_price=[0.05, 0.08, 0.06],
     )
 
-    # Create connection with None bounds (unlimited power)
+    # Create connection with None bounds (unlimited power in both directions)
     connection = cast(
         "Connection",
         network.add(
@@ -301,19 +308,24 @@ def test_connection_with_none_bounds() -> None:
             "unlimited_connection",
             source="battery1",
             target="grid1",
-            min_power=None,  # Infinite lower bound
-            max_power=None,  # Infinite upper bound
+            # No power limits specified - unlimited in both directions
         ),
     )
 
     assert connection is not None
-    assert connection.power is not None
-    assert len(connection.power) == CONNECTION_PERIODS
+    assert connection.power_source_target is not None
+    assert connection.power_target_source is not None
+    assert len(connection.power_source_target) == CONNECTION_PERIODS
+    assert len(connection.power_target_source) == CONNECTION_PERIODS
 
-    # Verify power variables have None bounds (infinite)
-    for power_var in connection.power:
-        assert power_var.lowBound is None
-        assert power_var.upBound is None
+    # Verify power variables have None upper bounds (infinite)
+    for power_var in connection.power_source_target:
+        assert power_var.lowBound == 0  # Always positive
+        assert power_var.upBound is None  # Unlimited
+
+    for power_var in connection.power_target_source:
+        assert power_var.lowBound == 0  # Always positive
+        assert power_var.upBound is None  # Unlimited
 
 
 def test_connect_source_is_connection() -> None:

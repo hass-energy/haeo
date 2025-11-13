@@ -93,13 +93,21 @@ class Network:
                     balance_terms.append(element.power_production[t])
 
                 for conn_element in self.elements.values():
-                    if not isinstance(conn_element, Connection):
-                        continue
-
-                    if conn_element.source == element.name:
-                        balance_terms.append(-conn_element.power[t])
-                    elif conn_element.target == element.name:
-                        balance_terms.append(conn_element.power[t])
+                    if isinstance(conn_element, Connection):
+                        if conn_element.source == element.name:
+                            # Power leaving source (negative for balance)
+                            balance_terms.append(-conn_element.power_source_target[t])
+                            # Power entering source from target (positive, with efficiency applied)
+                            balance_terms.append(
+                                conn_element.power_target_source[t] * conn_element.efficiency_target_source[t]
+                            )
+                        elif conn_element.target == element.name:
+                            # Power entering target from source (positive, with efficiency applied)
+                            balance_terms.append(
+                                conn_element.power_source_target[t] * conn_element.efficiency_source_target[t]
+                            )
+                            # Power leaving target (negative for balance)
+                            balance_terms.append(-conn_element.power_target_source[t])
 
                 if not balance_terms:
                     continue
