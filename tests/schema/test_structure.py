@@ -58,7 +58,7 @@ def test_schema_available_delegates_to_loader(
     loader = TrackingLoader(available_result=available_result, loaded_value=42)
 
     class ConfigData(TypedDict):
-        value: Annotated[int, TrackingFieldMeta(field_type=("number", "constant"), loader=loader)]
+        value: Annotated[int, TrackingFieldMeta(field_type="constant", loader=loader)]
 
     entry = SimpleNamespace(data=ConfigData)
     monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)
@@ -78,7 +78,7 @@ async def test_schema_load_calls_loader(monkeypatch: pytest.MonkeyPatch) -> None
     loader = TrackingLoader(available_result=True, loaded_value=99)
 
     class ConfigData(TypedDict):
-        value: Annotated[int, TrackingFieldMeta(field_type=("number", "constant"), loader=loader)]
+        value: Annotated[int, TrackingFieldMeta(field_type="constant", loader=loader)]
 
     entry = SimpleNamespace(data=ConfigData)
     monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)
@@ -109,10 +109,8 @@ async def test_optional_none_values_are_skipped(monkeypatch: pytest.MonkeyPatch)
     optional_loader = TrackingLoader(available_result=True, loaded_value=99)
 
     class ConfigData(TypedDict):
-        value: Annotated[int, TrackingFieldMeta(field_type=("number", "constant"), loader=required_loader)]
-        optional: NotRequired[
-            Annotated[int | None, TrackingFieldMeta(field_type=("number", "constant"), loader=optional_loader)]
-        ]
+        value: Annotated[int, TrackingFieldMeta(field_type="constant", loader=required_loader)]
+        optional: NotRequired[Annotated[int | None, TrackingFieldMeta(field_type="constant", loader=optional_loader)]]
 
     entry = SimpleNamespace(data=ConfigData)
     monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)

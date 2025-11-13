@@ -3,10 +3,9 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Annotated, Any, Final, Literal
+from typing import Annotated, Any, Final, Literal, Unpack
 
-from homeassistant.components.sensor.const import SensorDeviceClass
-from homeassistant.const import CURRENCY_DOLLAR, UnitOfEnergy, UnitOfPower
+from homeassistant.const import CURRENCY_DOLLAR, PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.selector import (
     BooleanSelector,
     BooleanSelectorConfig,
@@ -23,6 +22,10 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.data.loader import ConstantLoader, Loader, TimeSeriesLoader
+from custom_components.haeo.data.loader.extractors import EntityMetadata
+
+from .params import SchemaParams
+from .util import UnitSpec
 
 type FieldValidator = vol.All | BooleanSelector | EntitySelector | NumberSelector | SelectSelector
 
@@ -31,15 +34,15 @@ type FieldValidator = vol.All | BooleanSelector | EntitySelector | NumberSelecto
 class FieldMeta(ABC):
     """Base metadata describing schema and data behaviour for a field."""
 
-    field_type: tuple[str | SensorDeviceClass, str]
+    field_type: str
     loader: Loader
 
-    def create_schema(self, **kwargs: Any) -> FieldValidator:
+    def create_schema(self, **schema_params: Unpack[SchemaParams]) -> FieldValidator:
         """Return the voluptuous validators for this field."""
-        return self._get_field_validators(**kwargs)
+        return self._get_field_validators(**schema_params)
 
     @abstractmethod
-    def _get_field_validators(self, **kwargs: Any) -> FieldValidator:
+    def _get_field_validators(self, **schema_params: Unpack[SchemaParams]) -> FieldValidator:
         """Return the validators (selector or callable) for this field."""
 
 
@@ -47,13 +50,10 @@ class FieldMeta(ABC):
 class PowerFieldMeta(FieldMeta):
     """Metadata for constant power values."""
 
-    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["constant"]] = (
-        SensorDeviceClass.POWER,
-        "constant",
-    )
+    field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
-    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
             vol.Range(min=0, min_included=True, msg="Value must be positive"),
@@ -72,23 +72,24 @@ class PowerFieldMeta(FieldMeta):
 class SensorFieldMeta(FieldMeta):
     """Generic metadata for sensor entity references."""
 
-    device_classes: Sequence[str | SensorDeviceClass]
+    accepted_units: UnitSpec | list[UnitSpec]
     multiple: bool
     loader: TimeSeriesLoader = field(default_factory=TimeSeriesLoader)
-    field_type: tuple[str | SensorDeviceClass, Literal["sensor"]] = field(init=False)
+    field_type: Literal["sensor"] = "sensor"
 
-    def __post_init__(self) -> None:
-        """Set field_type based on device_classes after initialization."""
-        # Use the first device class as the primary type indicator
-        primary_device_class = self.device_classes[0] if self.device_classes else SensorDeviceClass.POWER
-        # Use object.__setattr__ because the dataclass is frozen
-        object.__setattr__(self, "field_type", (primary_device_class, "sensor"))
+    def _get_field_validators(self, **schema_params: Unpack[SchemaParams]) -> EntitySelector:
+        """Return entity selector with unit-based filtering."""
+        # Filter compatible entities based on accepted_units
+        entity_metadata: Sequence[EntityMetadata] = schema_params.get("entity_metadata", [])
+        compatible_entities: list[str] = [
+            v.entity_id for v in entity_metadata if v.is_compatible_with(self.accepted_units)
+        ]
 
-    def _get_field_validators(self, **_kwargs: Any) -> EntitySelector:
         return EntitySelector(
             EntitySelectorConfig(
                 domain=["sensor", "input_number"],
                 multiple=self.multiple,
+                include_entities=compatible_entities,
             )
         )
 
@@ -97,13 +98,10 @@ class SensorFieldMeta(FieldMeta):
 class EnergyFieldMeta(FieldMeta):
     """Metadata for constant energy values."""
 
-    field_type: tuple[Literal[SensorDeviceClass.ENERGY], Literal["constant"]] = (
-        SensorDeviceClass.ENERGY,
-        "constant",
-    )
+    field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
-    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
             vol.Range(min=0, min_included=True, msg="Value must be positive"),
@@ -122,13 +120,10 @@ class EnergyFieldMeta(FieldMeta):
 class PriceFieldMeta(FieldMeta):
     """Metadata for constant price values."""
 
-    field_type: tuple[Literal[SensorDeviceClass.MONETARY], Literal["constant"]] = (
-        SensorDeviceClass.MONETARY,
-        "constant",
-    )
+    field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
-    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
             NumberSelector(
@@ -145,10 +140,10 @@ class PriceFieldMeta(FieldMeta):
 class PercentageFieldMeta(FieldMeta):
     """Metadata for percentage values."""
 
-    field_type: tuple[Literal["%"], Literal["constant"]] = ("%", "constant")
+    field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
-    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
 
 
@@ -156,10 +151,10 @@ class PercentageFieldMeta(FieldMeta):
 class BooleanFieldMeta(FieldMeta):
     """Metadata for boolean values."""
 
-    field_type: tuple[Literal["boolean"], Literal["constant"]] = ("boolean", "constant")
+    field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[bool] = field(default_factory=lambda: ConstantLoader[bool](bool))
 
-    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(vol.Coerce(bool), BooleanSelector(BooleanSelectorConfig()))
 
 
@@ -167,16 +162,13 @@ class BooleanFieldMeta(FieldMeta):
 class ElementNameFieldMeta(FieldMeta):
     """Metadata for selecting existing element names."""
 
-    field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
+    field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str](str))
 
-    def _get_field_validators(
-        self,
-        *,
-        participants: Sequence[str] | None = None,
-        current_element_name: str | None = None,
-        **_kwargs: Any,
-    ) -> vol.All:
+    def _get_field_validators(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
+        participants: Sequence[str] | None = schema_params.get("participants")
+        current_element_name: str | None = schema_params.get("current_element_name")
+
         participants_list = list(participants or [])
         if current_element_name and current_element_name not in participants_list:
             participants_list.append(current_element_name)
@@ -200,10 +192,10 @@ class ElementNameFieldMeta(FieldMeta):
 class NameFieldMeta(FieldMeta):
     """Metadata for free-form name values."""
 
-    field_type: tuple[Literal["string"], Literal["constant"]] = ("string", "constant")
+    field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str](str))
 
-    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(vol.Coerce(str), vol.Strip, vol.Length(min=1, msg="Name cannot be empty"))
 
 
@@ -211,13 +203,10 @@ class NameFieldMeta(FieldMeta):
 class PowerFlowFieldMeta(FieldMeta):
     """Metadata for power flow limits."""
 
-    field_type: tuple[Literal[SensorDeviceClass.POWER], Literal["constant"]] = (
-        SensorDeviceClass.POWER,
-        "constant",
-    )
+    field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
-    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
             NumberSelector(
@@ -230,57 +219,50 @@ class PowerFlowFieldMeta(FieldMeta):
 class BatterySOCFieldMeta(FieldMeta):
     """Metadata for battery state-of-charge percentages."""
 
-    field_type: tuple[Literal[SensorDeviceClass.BATTERY], Literal["constant"]] = (
-        SensorDeviceClass.BATTERY,
-        "constant",
-    )
+    field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
 
-    def _get_field_validators(self, **_kwargs: Any) -> vol.All:
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
 
 
-ENERGY_SENSORS: Final = [
-    SensorDeviceClass.ENERGY,
-    SensorDeviceClass.ENERGY_STORAGE,
-    SensorDeviceClass.BATTERY,
-    SensorDeviceClass.POWER,
-]
-# Some "Power" forecast sensors like solar seem to be put on sensors that have Energy class rather than Power
-POWER_SENSORS: Final = [SensorDeviceClass.POWER, SensorDeviceClass.ENERGY]
-BATTERY_SENSORS: Final = [SensorDeviceClass.BATTERY]
-PRICE_SENSORS: Final = []
+# Define unit sets for sensor filtering
+POWER_UNITS: Final = UnitOfPower
+ENERGY_UNITS: Final = UnitOfEnergy
+BATTERY_UNITS: Final = [PERCENTAGE]
+# For composite patterns, create tuples for each energy unit
+PRICE_UNITS: Final[list[UnitSpec]] = [("*", "/", unit.value) for unit in UnitOfEnergy]
 
 # Schema mode type aliases (configuration with entity IDs)
 PowerFieldSchema = Annotated[float, PowerFieldMeta()]
-PowerSensorFieldSchema = Annotated[Sequence[str], SensorFieldMeta(device_classes=POWER_SENSORS, multiple=False)]
-PowerSensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(device_classes=POWER_SENSORS, multiple=True)]
+PowerSensorFieldSchema = Annotated[Sequence[str], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=False)]
+PowerSensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True)]
 PowerFlowFieldSchema = Annotated[float, PowerFlowFieldMeta()]
 EnergyFieldSchema = Annotated[float, EnergyFieldMeta()]
-EnergySensorFieldSchema = Annotated[str, SensorFieldMeta(device_classes=ENERGY_SENSORS, multiple=False)]
-EnergySensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(device_classes=ENERGY_SENSORS, multiple=True)]
+EnergySensorFieldSchema = Annotated[str, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)]
+EnergySensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)]
 PercentageFieldSchema = Annotated[float, PercentageFieldMeta()]
 BooleanFieldSchema = Annotated[bool, BooleanFieldMeta()]
 ElementNameFieldSchema = Annotated[str, ElementNameFieldMeta()]
 NameFieldSchema = Annotated[str, NameFieldMeta()]
 BatterySOCFieldSchema = Annotated[float, BatterySOCFieldMeta()]
-BatterySOCSensorFieldSchema = Annotated[str, SensorFieldMeta(device_classes=BATTERY_SENSORS, multiple=False)]
+BatterySOCSensorFieldSchema = Annotated[str, SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)]
 PriceFieldSchema = Annotated[float, PriceFieldMeta()]
-PriceSensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(device_classes=PRICE_SENSORS, multiple=True)]
+PriceSensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
 
 # Data mode type aliases (loaded runtime values)
 PowerFieldData = Annotated[float, PowerFieldMeta()]
-PowerSensorFieldData = Annotated[list[float], SensorFieldMeta(device_classes=POWER_SENSORS, multiple=False)]
-PowerSensorsFieldData = Annotated[list[float], SensorFieldMeta(device_classes=POWER_SENSORS, multiple=True)]
+PowerSensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=False)]
+PowerSensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True)]
 PowerFlowFieldData = Annotated[float, PowerFlowFieldMeta()]
 EnergyFieldData = Annotated[float, EnergyFieldMeta()]
-EnergySensorFieldData = Annotated[list[float], SensorFieldMeta(device_classes=ENERGY_SENSORS, multiple=False)]
-EnergySensorsFieldData = Annotated[list[float], SensorFieldMeta(device_classes=ENERGY_SENSORS, multiple=True)]
+EnergySensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)]
+EnergySensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)]
 PercentageFieldData = Annotated[float, PercentageFieldMeta()]
 BooleanFieldData = Annotated[bool, BooleanFieldMeta()]
 ElementNameFieldData = Annotated[str, ElementNameFieldMeta()]
 NameFieldData = Annotated[str, NameFieldMeta()]
 BatterySOCFieldData = Annotated[float, BatterySOCFieldMeta()]
-BatterySOCSensorFieldData = Annotated[list[float], SensorFieldMeta(device_classes=BATTERY_SENSORS, multiple=False)]
+BatterySOCSensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)]
 PriceFieldData = Annotated[float, PriceFieldMeta()]
-PriceSensorsFieldData = Annotated[list[float], SensorFieldMeta(device_classes=PRICE_SENSORS, multiple=True)]
+PriceSensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]

@@ -5,6 +5,7 @@ from typing import Any, cast
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ElementConfigSchema, is_element_config_schema
 from custom_components.haeo.network import evaluate_network_connectivity
 from custom_components.haeo.schema import schema_for_type
@@ -56,7 +57,10 @@ class ElementSubentryFlow(ConfigSubentryFlow):
 
         # Show the form to the user
         schema = schema_for_type(
-            self.schema_cls, participants=self._get_non_connection_element_names(), current_element_name=None
+            self.schema_cls,
+            entity_metadata=extract_entity_metadata(self.hass),
+            participants=self._get_non_connection_element_names(),
+            current_element_name=None,
         )
         schema = self.add_suggested_values_to_schema(schema, self.defaults)
 
@@ -98,6 +102,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         # Get the schema
         schema = schema_for_type(
             self.schema_cls,
+            entity_metadata=extract_entity_metadata(self.hass),
             participants=self._get_non_connection_element_names(),
             current_element_name=subentry.data.get(CONF_NAME),
         )

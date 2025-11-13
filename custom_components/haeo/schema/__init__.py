@@ -1,14 +1,28 @@
 """Schema utilities for HAEO type configurations."""
 
-from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, cast, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, Unpack, cast, get_args, get_origin, get_type_hints
 from typing import get_origin as typing_get_origin
 
 from homeassistant.core import HomeAssistant
 import voluptuous as vol
 
 from custom_components.haeo.data.loader import ConstantLoader, Loader
+from custom_components.haeo.data.loader.extractors import EntityMetadata
 
 from .fields import FieldMeta, FieldValidator
+from .params import SchemaParams
+
+__all__ = [
+    "EntityMetadata",
+    "FieldMeta",
+    "FieldValidator",
+    "available",
+    "get_field_meta",
+    "get_loader_instance",
+    "load",
+    "schema_for_type",
+]
+
 
 if TYPE_CHECKING:
     from custom_components.haeo.elements import (
@@ -202,22 +216,21 @@ def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool]]:
     return annotated
 
 
-def schema_for_type(cls: type, **kwargs: Any) -> vol.Schema:
+def schema_for_type(cls: type, **schema_params: Unpack[SchemaParams]) -> vol.Schema:
     """Create a schema for a TypedDict type.
 
     Args:
         cls: The TypedDict class to create schema for
-        **kwargs: Additional arguments passed to field validators
+        **schema_params: Schema parameters passed to field validators
 
     Returns:
         Voluptuous schema
 
     """
     annotated_fields = _get_annotated_fields(cls)
-
     schema: dict[vol.Required | vol.Optional, FieldValidator] = {}
     for field, (meta, is_optional) in annotated_fields.items():
-        validator = meta.create_schema(**kwargs)
+        validator = meta.create_schema(**schema_params)
         schema_key = (vol.Optional if is_optional else vol.Required)(field)
         schema[schema_key] = validator
 
