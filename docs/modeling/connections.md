@@ -73,7 +73,7 @@ where $\Delta t$ is the time period in hours.
 
 **Bidirectional flow:**
 Both directions can be active simultaneously in the optimization model, though typically only one direction will have non-zero flow at any given time.
-Misconfigurations can result in both being used however, for example if you set up the connection such that it can arbitrage power between the two elements.
+Misconfigurations can result in both being used, however, for example if you set up the connection such that it can arbitrage power between the two elements.
 
 **Efficiency modeling:**
 Represents real-world losses (inverter efficiency, transmission losses, etc.).
