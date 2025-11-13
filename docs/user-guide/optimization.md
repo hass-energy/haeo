@@ -61,6 +61,23 @@ Current energy level (kWh).
 
 Current state of charge (%).
 
+## Shadow Price Sensors
+
+Shadow price sensors publish the marginal value of key constraints over the optimization horizon.
+They translate physical limits into dollar-per-kilowatt-hour signals that explain the optimizer's dispatch choices.
+
+Available sensors include:
+
+- **Nodes**: `sensor.{node_name}_shadow_price_node_balance` reports the local spot price for energy at each node.
+- **Batteries**: `sensor.{battery_name}_shadow_price_energy_balance`, `sensor.{battery_name}_shadow_price_soc_min`, `sensor.{battery_name}_shadow_price_soc_max`, `sensor.{battery_name}_shadow_price_power_consumption_max`, and `sensor.{battery_name}_shadow_price_power_production_max` quantify the value of stored energy, SOC bounds, and charge/discharge headroom.
+- **Grid**: `sensor.{grid_name}_shadow_price_power_import_max` and `sensor.{grid_name}_shadow_price_power_export_max` indicate when import or export limits restrict the optimization.
+- **Other controllable elements**: `sensor.{entity_name}_shadow_price_power_consumption_max` and `sensor.{entity_name}_shadow_price_power_production_max` appear for any device that enforces variable power caps.
+- **Connections**: `sensor.{connection_name}_shadow_price_power_flow_min` and `sensor.{connection_name}_shadow_price_power_flow_max` tell you when minimum or maximum flow limits block energy transfers between elements.
+- **Solar**: `sensor.{pv_name}_shadow_price_forecast_limit` shows when extra photovoltaic output would reduce total cost.
+
+Each shadow price sensor mirrors the standard forecast attribute layout so you can inspect future periods in dashboards and automations.
+Review [Shadow Prices](../modeling/shadow-prices.md) for detailed interpretation guidance.
+
 ## Forecast Attributes
 
 All sensors include forecast attributes with future values:

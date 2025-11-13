@@ -1,10 +1,18 @@
 """Photovoltaics entity for electrical system modeling."""
 
 from collections.abc import Mapping, Sequence
+from typing import cast
 
-from pulp import LpVariable
+from pulp import LpConstraint, LpVariable
 
-from .const import OUTPUT_NAME_POWER_AVAILABLE, OUTPUT_TYPE_POWER, OutputData, OutputName
+from .const import (
+    OUTPUT_NAME_POWER_AVAILABLE,
+    OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT,
+    OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_SHADOW_PRICE,
+    OutputData,
+    OutputName,
+)
 from .element import Element
 
 
@@ -45,25 +53,48 @@ class Photovoltaics(Element):
             raise ValueError(msg)
 
         self.forecast = forecast
+        self._curtailment = curtailment
+        self.forecast_limit_constraints: dict[int, LpConstraint] = {}
 
         super().__init__(
             name=name,
             period=period,
             n_periods=n_periods,
-            power_production=[
-                LpVariable(name=f"{name}_power_{i}", lowBound=0, upBound=v) for i, v in enumerate(forecast)
-            ]
+            power_production=[LpVariable(name=f"{name}_power_{i}", lowBound=0, upBound=None) for i in range(n_periods)]
             if curtailment
             else forecast,
             price_production=price_production,
             price_consumption=price_consumption,
         )
 
-    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+    def build(self) -> None:
+        """Build photovoltaic constraints including forecast limits."""
+
+        self.forecast_limit_constraints.clear()
+
+        super().build()
+
+        if not self._curtailment or self.power_production is None:
+            return
+
+        for index, power_var in enumerate(self.power_production):
+            if not isinstance(power_var, LpVariable):
+                continue
+
+            constraint = cast("LpConstraint", power_var <= self.forecast[index])
+            constraint.name = f"{self.name}_forecast_limit_{index}"
+            self.forecast_limit_constraints[index] = constraint
+
+    def constraints(self) -> tuple[LpConstraint, ...]:
+        """Return photovoltaic constraints including forecast limits."""
+
+        return (*super().constraints(), *self.forecast_limit_constraints.values())
+
+    def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return photovoltaics output specifications."""
 
-        return {
-            **super().get_outputs(),
+        outputs: dict[OutputName, OutputData] = {
+            **super().outputs(),
             # Add the available power sensor output
             OUTPUT_NAME_POWER_AVAILABLE: OutputData(
                 type=OUTPUT_TYPE_POWER,
@@ -71,3 +102,12 @@ class Photovoltaics(Element):
                 values=tuple(self.forecast),
             ),
         }
+
+        if self.forecast_limit_constraints:
+            outputs[OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kWh",
+                values=self._shadow_prices(self.forecast_limit_constraints),
+            )
+
+        return outputs

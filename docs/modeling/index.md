@@ -291,3 +291,4 @@ Each element type has detailed mathematical formulation:
 
 - **[User Guide](../user-guide/index.md)** - Configuring HAEO networks
 - **[Units Guide](../developer-guide/units.md)** - Unit conventions
+- **[Shadow Prices](shadow-prices.md)** - Marginal values for network constraints

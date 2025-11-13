@@ -10,7 +10,10 @@ from pulp import LpConstraint, LpVariable, lpSum
 from .const import (
     OUTPUT_NAME_POWER_FLOW_SOURCE_TARGET,
     OUTPUT_NAME_POWER_FLOW_TARGET_SOURCE,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN,
     OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_SHADOW_PRICE,
     OutputData,
     OutputName,
     extract_values,
@@ -95,9 +98,45 @@ class Connection:
         self.price_source_target = price_source_target
         self.price_target_source = price_target_source
 
+        # Initialize constraint dictionaries for shadow prices
+        self.power_min_constraints: dict[int, LpConstraint] = {}
+        self.power_max_constraints: dict[int, LpConstraint] = {}
+
+    def build(self) -> None:
+        """Store explicit constraints for power bounds so duals are available."""
+
+        self.power_min_constraints.clear()
+        self.power_max_constraints.clear()
+
+        # Create constraints for source->target direction (indices 0 to n_periods-1)
+        for index, power_var in enumerate(self.power_source_target):
+            if power_var.lowBound is not None:
+                constraint = cast("LpConstraint", power_var >= float(power_var.lowBound))
+                constraint.name = f"{self.name}_power_st_min_{index}"
+                self.power_min_constraints[index] = constraint
+
+            if power_var.upBound is not None:
+                constraint = cast("LpConstraint", power_var <= float(power_var.upBound))
+                constraint.name = f"{self.name}_power_st_max_{index}"
+                self.power_max_constraints[index] = constraint
+
+        # Create constraints for target->source direction (indices n_periods to 2*n_periods-1)
+        n_periods = len(self.power_target_source)
+        for index, power_var in enumerate(self.power_target_source):
+            if power_var.lowBound is not None:
+                constraint = cast("LpConstraint", power_var >= float(power_var.lowBound))
+                constraint.name = f"{self.name}_power_ts_min_{index}"
+                self.power_min_constraints[n_periods + index] = constraint
+
+            if power_var.upBound is not None:
+                constraint = cast("LpConstraint", power_var <= float(power_var.upBound))
+                constraint.name = f"{self.name}_power_ts_max_{index}"
+                self.power_max_constraints[n_periods + index] = constraint
+
     def constraints(self) -> Sequence[LpConstraint]:
-        """Return constraints for the connection."""
-        return []
+        """Return stored connection constraints."""
+
+        return (*self.power_min_constraints.values(), *self.power_max_constraints.values())
 
     def cost(self) -> float:
         """Return the cost of the connection with transfer pricing."""
@@ -114,10 +153,10 @@ class Connection:
             )
         return cast("float", cost)
 
-    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return output specifications for the connection."""
 
-        return {
+        outputs: dict[OutputName, OutputData] = {
             OUTPUT_NAME_POWER_FLOW_SOURCE_TARGET: OutputData(
                 type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_source_target)
             ),
@@ -125,3 +164,28 @@ class Connection:
                 type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_target_source)
             ),
         }
+
+        if self.power_min_constraints:
+            outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kW",
+                values=self._shadow_prices(self.power_min_constraints),
+            )
+
+        if self.power_max_constraints:
+            outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kW",
+                values=self._shadow_prices(self.power_max_constraints),
+            )
+
+        return outputs
+
+    @staticmethod
+    def _shadow_prices(constraints: Mapping[int, LpConstraint]) -> tuple[float, ...]:
+        """Return dual values for the provided constraints."""
+
+        return tuple(
+            float(pi) if (pi := getattr(constraint, "pi", None)) is not None else 0.0
+            for constraint in constraints.values()
+        )

@@ -32,7 +32,7 @@ This reduces the number of explicit constraints you need and improves solver per
 
 ### Expose element outputs
 
-Each element must implement `get_outputs()` so the Home Assistant integration can discover the sensor data automatically.
+Each element must implement `outputs()` so the Home Assistant integration can discover the sensor data automatically.
 Return a tuple of `ElementOutput` dataclasses where `values` is the full time series as floats.
 Use `pulp.value()` to convert decision variables into numeric values and provide copies of any underlying lists so callers cannot mutate internal state.
 

@@ -1,11 +1,21 @@
 """Battery entity for electrical system modeling."""
 
 from collections.abc import Mapping, Sequence
+from typing import cast
 
 import numpy as np
-from pulp import LpVariable
+from pulp import LpConstraint, LpVariable
 
-from .const import OUTPUT_NAME_BATTERY_STATE_OF_CHARGE, OUTPUT_TYPE_SOC, OutputData, OutputName, extract_values
+from .const import (
+    OUTPUT_NAME_BATTERY_STATE_OF_CHARGE,
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MAX,
+    OUTPUT_NAME_SHADOW_PRICE_SOC_MIN,
+    OUTPUT_TYPE_SHADOW_PRICE,
+    OUTPUT_TYPE_SOC,
+    OutputData,
+    OutputName,
+    extract_values,
+)
 from .element import Element
 
 
@@ -54,6 +64,10 @@ class Battery(Element):
         initial_soc_value = float(initial_soc_array[0])
 
         self.capacity = capacity_values
+        self.min_charge_percentage = min_charge_percentage
+        self.max_charge_percentage = max_charge_percentage
+        self.soc_min_constraints: dict[int, LpConstraint] = {}
+        self.soc_max_constraints: dict[int, LpConstraint] = {}
 
         # Broadcast charge/discharge power bounds
         if max_charge_power is not None:
@@ -96,19 +110,69 @@ class Battery(Element):
             price_consumption=np.linspace(0, charge_cost, n_periods).tolist() if charge_cost is not None else None,
         )
 
-    def get_outputs(self) -> Mapping[OutputName, OutputData]:
-        """Return battery output specifications."""
+    def build(self) -> None:
+        """Build battery constraints and store dual-enabled references."""
 
+        self.soc_min_constraints.clear()
+        self.soc_max_constraints.clear()
+
+        super().build()
+
+        if self.energy is None:
+            return
+
+        for index, energy_var in enumerate(self.energy):
+            if not isinstance(energy_var, LpVariable):
+                continue
+
+            min_energy = self.capacity[index] * (self.min_charge_percentage / 100.0)
+            max_energy = self.capacity[index] * (self.max_charge_percentage / 100.0)
+
+            constraint_min = cast("LpConstraint", energy_var >= min_energy)
+            constraint_min.name = f"{self.name}_soc_min_{index}"
+            self.soc_min_constraints[index] = constraint_min
+
+            constraint_max = cast("LpConstraint", energy_var <= max_energy)
+            constraint_max.name = f"{self.name}_soc_max_{index}"
+            self.soc_max_constraints[index] = constraint_max
+
+    def constraints(self) -> tuple[LpConstraint, ...]:
+        """Return battery-specific constraints including SOC bounds."""
+
+        return (
+            *super().constraints(),
+            *self.soc_min_constraints.values(),
+            *self.soc_max_constraints.values(),
+        )
+
+    def outputs(self) -> Mapping[OutputName, OutputData]:
+        """Return battery output specifications."""
         # Add the SOC sensor output
         energy_values = np.array(extract_values(self.energy))
         capacity_array = np.array(self.capacity)
         soc_values = (energy_values / capacity_array * 100.0).tolist()
 
-        return {
-            **super().get_outputs(),
+        outputs: dict[OutputName, OutputData] = {
+            **super().outputs(),
             OUTPUT_NAME_BATTERY_STATE_OF_CHARGE: OutputData(
                 type=OUTPUT_TYPE_SOC,
                 unit="%",
                 values=tuple(soc_values),
             ),
         }
+
+        if self.soc_min_constraints:
+            outputs[OUTPUT_NAME_SHADOW_PRICE_SOC_MIN] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kWh",
+                values=self._shadow_prices(self.soc_min_constraints),
+            )
+
+        if self.soc_max_constraints:
+            outputs[OUTPUT_NAME_SHADOW_PRICE_SOC_MAX] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kWh",
+                values=self._shadow_prices(self.soc_max_constraints),
+            )
+
+        return outputs

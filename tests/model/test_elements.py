@@ -15,11 +15,11 @@ from . import test_data
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
 def test_element_outputs(case: dict[str, Any]) -> None:
-    """Element.get_outputs should report expected series for each element type."""
+    """Element.outputs should report expected series for each element type."""
 
     # Create element using the factory from the case
     element = case["factory"](case["data"])
-    outputs = element.get_outputs()
+    outputs = element.outputs()
 
     # Get expected outputs from the case
     expected_outputs = case["expected_outputs"]

@@ -16,6 +16,7 @@ def test_element_constraints(case: dict[str, Any]) -> None:
     """Element.constraints() should return valid constraints."""
 
     element = case["factory"](case["data"])
+    element.build()
     constraints = element.constraints()
 
     # Should return a sequence (list/tuple)

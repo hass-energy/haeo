@@ -30,6 +30,17 @@ OUTPUT_NAME_BATTERY_STATE_OF_CHARGE: Final = "battery_state_of_charge"
 OUTPUT_NAME_OPTIMIZATION_COST: Final = "optimization_cost"
 OUTPUT_NAME_OPTIMIZATION_STATUS: Final = "optimization_status"
 OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "optimization_duration"
+OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE: Final = "shadow_price_node_balance"
+OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE: Final = "shadow_price_energy_balance"
+OUTPUT_NAME_SHADOW_PRICE_SOC_MIN: Final = "shadow_price_soc_min"
+OUTPUT_NAME_SHADOW_PRICE_SOC_MAX: Final = "shadow_price_soc_max"
+OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT: Final = "shadow_price_forecast_limit"
+OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX: Final = "shadow_price_power_consumption_max"
+OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX: Final = "shadow_price_power_production_max"
+OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX: Final = "shadow_price_power_export_max"
+OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX: Final = "shadow_price_power_import_max"
+OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN: Final = "shadow_price_power_flow_min"
+OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX: Final = "shadow_price_power_flow_max"
 
 type OutputName = Literal[
     "power_flow",
@@ -49,6 +60,17 @@ type OutputName = Literal[
     "optimization_cost",
     "optimization_status",
     "optimization_duration",
+    "shadow_price_node_balance",
+    "shadow_price_energy_balance",
+    "shadow_price_soc_min",
+    "shadow_price_soc_max",
+    "shadow_price_forecast_limit",
+    "shadow_price_power_consumption_max",
+    "shadow_price_power_production_max",
+    "shadow_price_power_export_max",
+    "shadow_price_power_import_max",
+    "shadow_price_power_flow_min",
+    "shadow_price_power_flow_max",
 ]
 
 # Output types
@@ -59,6 +81,7 @@ OUTPUT_TYPE_SOC: Final = "soc"
 OUTPUT_TYPE_COST: Final = "cost"
 OUTPUT_TYPE_STATUS: Final = "status"
 OUTPUT_TYPE_DURATION: Final = "duration"
+OUTPUT_TYPE_SHADOW_PRICE: Final = "shadow_price"
 
 type OutputType = Literal[
     "power",
@@ -68,6 +91,7 @@ type OutputType = Literal[
     "cost",
     "status",
     "duration",
+    "shadow_price",
 ]
 
 
