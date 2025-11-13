@@ -184,15 +184,9 @@ def extract_entity_metadata(hass: HomeAssistant) -> list["EntityMetadata"]:
         if state is None:
             continue
 
-        # Check simple unit_of_measurement
-        unit = state.attributes.get("unit_of_measurement")
+        # Use extractor system to get unit (handles both simple and forecast formats)
+        unit, _ = get_extracted_units(state)
         if unit:
             metadata.append(EntityMetadata(entity_id=entity.entity_id, unit_of_measurement=unit))
-            continue
-
-        # Check forecast format units
-        detected_unit, _ = get_extracted_units(state)
-        if detected_unit:
-            metadata.append(EntityMetadata(entity_id=entity.entity_id, unit_of_measurement=detected_unit))
 
     return metadata
