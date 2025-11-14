@@ -171,9 +171,11 @@ async def test_scenarios(
         ]
 
         def round_floats(value: Any) -> Any:
-            """Round all floats in the value to 2 decimal places."""
+            """Round all floats in the value to 2 decimal places and normalize ±0."""
             if isinstance(value, float):
-                return round(value, 2)
+                rounded = round(value, 2)
+                # Normalize negative zero to positive zero
+                return 0.0 if rounded == 0.0 else rounded
             if isinstance(value, Mapping):
                 return {k: round_floats(v) for k, v in value.items()}
             if isinstance(value, Sequence) and not isinstance(value, str):
@@ -183,10 +185,7 @@ async def test_scenarios(
 
         # Round all of the sensor states and attributes to 2 decimal places to avoid floating point precision issues
         for sensor in haeo_sensors:
-            # Round state if it's a float
-            if isinstance(sensor.state, float):
-                sensor.state = round(sensor.state, 2)
-            # Round all floats in attributes
+            sensor.state = round_floats(sensor.state)
             sensor.attributes = round_floats(sensor.attributes)
 
         # Check the sensors against snapshots
