@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
 
 if TYPE_CHECKING:
     from custom_components.haeo.schema.util import UnitSpec
