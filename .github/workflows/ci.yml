@@ -103,7 +103,7 @@ jobs:
           # token is not needed for public repo by default
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: ha-energy-optimiser/haeo
+          slug: hass-energy/haeo
 
   hassfest: # https://developers.home-assistant.io/blog/2020/04/16/hassfest
     name: Hassfest validation

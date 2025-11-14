@@ -22,10 +22,10 @@ See Home Assistant documentation for background on entities and sensors:
 
 The data loading pipeline consists of four stages:
 
-1. **Orchestration** ([`TimeSeriesLoader`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/time_series_loader.py)) - Coordinates the entire loading process
-2. **Extraction** ([`sensor_loader.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/sensor_loader.py)) - Reads Home Assistant entities and detects formats
-3. **Combination** ([`forecast_combiner.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/util/forecast_combiner.py)) - Merges multiple sensors into unified data
-4. **Fusion** ([`forecast_fuser.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/util/forecast_fuser.py)) - Aligns data to optimization horizon using interpolation
+1. **Orchestration** ([`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/time_series_loader.py)) - Coordinates the entire loading process
+2. **Extraction** ([`sensor_loader.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/sensor_loader.py)) - Reads Home Assistant entities and detects formats
+3. **Combination** ([`forecast_combiner.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_combiner.py)) - Merges multiple sensors into unified data
+4. **Fusion** ([`forecast_fuser.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_fuser.py)) - Aligns data to optimization horizon using interpolation
 
 Each stage has a single responsibility and clear interfaces, making the system testable and extensible.
 
@@ -45,7 +45,7 @@ This matches real-world energy network behavior.
 
 ## TimeSeriesLoader
 
-The [`TimeSeriesLoader`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/time_series_loader.py) orchestrates the complete loading pipeline.
+The [`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/time_series_loader.py) orchestrates the complete loading pipeline.
 It provides the main interface used by configuration fields.
 
 ### Responsibilities
@@ -72,7 +72,7 @@ See [Units documentation](units.md) for conversion details.
 
 ## Sensor Extraction
 
-The [`sensor_loader.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/sensor_loader.py) module extracts data from Home Assistant entities.
+The [`sensor_loader.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/sensor_loader.py) module extracts data from Home Assistant entities.
 
 ### Payload Types
 
@@ -99,16 +99,16 @@ Adding new forecast formats requires only a new parser module, not changes to us
 
 ## Extractors
 
-The extractor system ([`extractors/`](https://github.com/ha-energy-optimiser/haeo/tree/main/custom_components/haeo/data/loader/extractors)) handles integration-specific forecast formats.
+The extractor system ([`extractors/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/data/loader/extractors)) handles integration-specific forecast formats.
 
 ### Supported Integrations
 
 | Integration               | Use Case            | Parser Module                                                                                                                                                      |
 | ------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Amber Electric            | Electricity pricing | [`amberelectric.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/extractors/amberelectric.py)                         |
-| AEMO NEM                  | Wholesale pricing   | [`aemo_nem.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/extractors/aemo_nem.py)                                   |
-| Solcast Solar             | Solar forecasting   | [`solcast_solar.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/extractors/solcast_solar.py)                         |
-| Open-Meteo Solar Forecast | Solar forecasting   | [`open_meteo_solar_forecast.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/extractors/open_meteo_solar_forecast.py) |
+| Amber Electric            | Electricity pricing | [`amberelectric.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/amberelectric.py)                         |
+| AEMO NEM                  | Wholesale pricing   | [`aemo_nem.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/aemo_nem.py)                                   |
+| Solcast Solar             | Solar forecasting   | [`solcast_solar.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/solcast_solar.py)                         |
+| Open-Meteo Solar Forecast | Solar forecasting   | [`open_meteo_solar_forecast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/open_meteo_solar_forecast.py) |
 
 ### Parser Design
 
@@ -133,7 +133,7 @@ See existing parsers for implementation patterns.
 
 ## Combining Payloads
 
-The [`forecast_combiner.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/util/forecast_combiner.py) module merges multiple sensor payloads.
+The [`forecast_combiner.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_combiner.py) module merges multiple sensor payloads.
 
 ### Combination Strategy
 
@@ -161,7 +161,7 @@ The combination then proceeds as pure forecast series merging.
 
 ## Fusion to Horizon
 
-The [`forecast_fuser.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/util/forecast_fuser.py) module aligns combined forecasts to optimization horizons.
+The [`forecast_fuser.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_fuser.py) module aligns combined forecasts to optimization horizons.
 
 ### Fusion Strategy
 
@@ -191,7 +191,7 @@ The cycling happens before fusion, ensuring the fusion always has data covering 
 
 ## Forecast Cycling
 
-The [`forecast_cycle.py`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/util/forecast_cycle.py) module handles partial forecast coverage.
+The [`forecast_cycle.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_cycle.py) module handles partial forecast coverage.
 
 ### Natural Period Alignment
 
@@ -240,9 +240,9 @@ Users should be able to identify the problem sensor and understand how to fix it
 
 Tests are organized by component:
 
-- [`tests/data/loader/`](https://github.com/ha-energy-optimiser/haeo/tree/main/tests/data/loader) - Extraction and loading tests
-- [`tests/data/util/`](https://github.com/ha-energy-optimiser/haeo/tree/main/tests/data/util) - Combination and fusion tests
-- [`tests/data/loader/extractors/`](https://github.com/ha-energy-optimiser/haeo/tree/main/tests/data/loader/extractors) - Format-specific parser tests
+- [`tests/data/loader/`](https://github.com/hass-energy/haeo/tree/main/tests/data/loader) - Extraction and loading tests
+- [`tests/data/util/`](https://github.com/hass-energy/haeo/tree/main/tests/data/util) - Combination and fusion tests
+- [`tests/data/loader/extractors/`](https://github.com/hass-energy/haeo/tree/main/tests/data/loader/extractors) - Format-specific parser tests
 
 ### Test Strategy
 
