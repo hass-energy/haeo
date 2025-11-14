@@ -6,7 +6,15 @@ from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ElementConfigSchema, is_element_config_schema
+from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ElementConfigSchema, is_element_config_schema
+from custom_components.haeo.elements.battery import (
+    CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MIN_CHARGE_PERCENTAGE,
+    CONF_OVERCHARGE_COST,
+    CONF_SOFT_MAX_CHARGE_PERCENTAGE,
+    CONF_SOFT_MIN_CHARGE_PERCENTAGE,
+    CONF_UNDERCHARGE_COST,
+)
 from custom_components.haeo.network import evaluate_network_connectivity
 from custom_components.haeo.schema import schema_for_type
 from custom_components.haeo.validation import collect_participant_configs
@@ -42,6 +50,11 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             # Check duplicate names in sibling subentries
             elif name in self._get_used_names():
                 errors[CONF_NAME] = "name_exists"
+
+            # Battery-specific validation
+            if self.element_type == ELEMENT_TYPE_BATTERY:
+                battery_errors = self._validate_battery_soft_limits(user_input)
+                errors.update(battery_errors)
 
             if not errors:
                 # user_input has been validated by voluptuous via the schema
@@ -79,6 +92,11 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                 errors[CONF_NAME] = "missing_name"
             elif new_name in self._get_used_names():
                 errors[CONF_NAME] = "name_exists"
+
+            # Battery-specific validation
+            if self.element_type == ELEMENT_TYPE_BATTERY:
+                battery_errors = self._validate_battery_soft_limits(user_input)
+                errors.update(battery_errors)
 
             if not errors:
                 # user_input has been validated by voluptuous via the schema
@@ -141,6 +159,37 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             return self._get_reconfigure_subentry().subentry_id
         except Exception:
             return None
+
+    def _validate_battery_soft_limits(self, user_input: dict[str, Any]) -> dict[str, str]:
+        """Validate battery soft limit configuration.
+
+        Returns:
+            Dictionary of field errors
+
+        """
+        errors: dict[str, str] = {}
+
+        soft_min = user_input.get(CONF_SOFT_MIN_CHARGE_PERCENTAGE)
+        soft_max = user_input.get(CONF_SOFT_MAX_CHARGE_PERCENTAGE)
+        undercharge_cost = user_input.get(CONF_UNDERCHARGE_COST)
+        overcharge_cost = user_input.get(CONF_OVERCHARGE_COST)
+        min_charge = user_input.get(CONF_MIN_CHARGE_PERCENTAGE)
+        max_charge = user_input.get(CONF_MAX_CHARGE_PERCENTAGE)
+
+        # Validate soft_max and overcharge_cost are paired
+        if (soft_max is not None) != (overcharge_cost is not None):
+            errors["base"] = "overcharge_fields_incomplete"
+
+        # Validate soft_min and undercharge_cost are paired
+        if (soft_min is not None) != (undercharge_cost is not None):
+            errors["base"] = "undercharge_fields_incomplete"
+
+        # Validate range ordering if all values present
+        if soft_min is not None and soft_max is not None and min_charge is not None and max_charge is not None:
+            if not (min_charge <= soft_min < soft_max <= max_charge):
+                errors["base"] = "invalid_soft_charge_range"
+
+        return errors
 
 
 def create_subentry_flow_class(

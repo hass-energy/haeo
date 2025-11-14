@@ -81,7 +81,11 @@
             "max_discharge_power": "Maximum Discharge Power",
             "efficiency": "Round-trip Efficiency",
             "charge_cost": "Charge Cost (Optional)",
-            "discharge_cost": "Discharge Cost (Optional)"
+            "discharge_cost": "Discharge Cost (Optional)",
+            "soft_min_charge_percentage": "Soft Minimum Charge Level (Optional)",
+            "soft_max_charge_percentage": "Soft Maximum Charge Level (Optional)",
+            "undercharge_cost": "Undercharge Cost (Optional)",
+            "overcharge_cost": "Overcharge Cost (Optional)"
           }
         },
         "reconfigure": {
@@ -97,13 +101,20 @@
             "max_discharge_power": "Maximum Discharge Power",
             "efficiency": "Round-trip Efficiency",
             "charge_cost": "Charge Cost (Optional)",
-            "discharge_cost": "Discharge Cost (Optional)"
+            "discharge_cost": "Discharge Cost (Optional)",
+            "soft_min_charge_percentage": "Soft Minimum Charge Level (Optional)",
+            "soft_max_charge_percentage": "Soft Maximum Charge Level (Optional)",
+            "undercharge_cost": "Undercharge Cost (Optional)",
+            "overcharge_cost": "Overcharge Cost (Optional)"
           }
         }
       },
       "error": {
         "name_exists": "A device with this name already exists",
-        "missing_name": "Name is required"
+        "missing_name": "Name is required",
+        "overcharge_fields_incomplete": "Both soft maximum and overcharge cost must be set together",
+        "undercharge_fields_incomplete": "Both soft minimum and undercharge cost must be set together",
+        "invalid_soft_charge_range": "Soft charge range must be within hard limits (min <= soft_min < soft_max <= max)"
       }
     },
     "grid": {
