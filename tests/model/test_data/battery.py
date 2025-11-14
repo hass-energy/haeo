@@ -29,6 +29,7 @@ VALID_CASES = [
             "power_produced": {"type": "power", "unit": "kW", "values": (2.375, 0.0, 0.0)},
             "energy_stored": {"type": "energy", "unit": "kWh", "values": (2.0, 4.25, 9.0)},
             "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (20.0, 42.5, 90.0)},
+            "price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.0, -0.0005, -0.001)},
         },
     },
     {
@@ -59,6 +60,7 @@ VALID_CASES = [
                 "unit": "%",
                 "values": (80.0, 48.421052631578945, 16.842105263157894),
             },
+            "price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.0, -0.0005, -0.001)},
         },
     },
     {
@@ -83,6 +85,7 @@ VALID_CASES = [
             "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 1.0, 0.0)},
             "energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 7.0, 6.0)},
             "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 70.0, 60.0)},
+            "price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.0, -0.0005, -0.001)},
         },
     },
 ]
