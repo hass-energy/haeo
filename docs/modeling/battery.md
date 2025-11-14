@@ -39,8 +39,8 @@ The battery model requires these configuration parameters:
 
 **Optional soft limit parameters**:
 
-- $\text{SOC}\_{\text{soft,min}}$: Soft minimum state of charge (%) - `soft_min_charge_percentage`
-- $\text{SOC}\_{\text{soft,max}}$: Soft maximum state of charge (%) - `soft_max_charge_percentage`
+- $\text{SOC}\_{\text{soft,min}}$: Soft minimum state of charge (%) - `undercharge_percentage`
+- $\text{SOC}\_{\text{soft,max}}$: Soft maximum state of charge (%) - `overcharge_percentage`
 - $c\_{\text{undercharge}}$: Undercharge cost penalty (\$/kWh) - `undercharge_cost`
 - $c\_{\text{overcharge}}$: Overcharge cost penalty (\$/kWh) - `overcharge_cost`
 
@@ -80,8 +80,8 @@ These are **hard limits** enforced by variable bounds in the linear program.
 
 Batteries can be configured with **soft limits** to model preferred operating ranges with economic penalties for exceeding them:
 
-- $\text{SOC}\_{\text{soft,min}}$: Soft minimum state of charge (%) - `soft_min_charge_percentage`
-- $\text{SOC}\_{\text{soft,max}}$: Soft maximum state of charge (%) - `soft_max_charge_percentage`
+- $\text{SOC}\_{\text{soft,min}}$: Soft minimum state of charge (%) - `undercharge_percentage`
+- $\text{SOC}\_{\text{soft,max}}$: Soft maximum state of charge (%) - `overcharge_percentage`
 - $c\_{\text{undercharge}}$: Cost penalty for operating below soft minimum (\$/kWh) - `undercharge_cost`
 - $c\_{\text{overcharge}}$: Cost penalty for operating above soft maximum (\$/kWh) - `overcharge_cost`
 
@@ -96,12 +96,16 @@ $$
 
 **Soft limit constraints**:
 
+The constraints work on the energy dynamics (power flows) rather than stored energy directly:
+
 $$
 \begin{align}
-E(t) &\geq C \cdot \frac{\text{SOC}\_{\text{soft,min}}}{100} - s\_{\text{under}}(t) \\
-E(t) &\leq C \cdot \frac{\text{SOC}\_{\text{soft,max}}}{100} + s\_{\text{over}}(t)
+E(t-1) + \Delta E(t) + s\_{\text{under}}(t) &\geq C \cdot \frac{\text{SOC}\_{\text{soft,min}}}{100} \\
+E(t-1) + \Delta E(t) - s\_{\text{over}}(t) &\leq C \cdot \frac{\text{SOC}\_{\text{soft,max}}}{100}
 \end{align}
 $$
+
+where $\Delta E(t) = \left( P\_{\text{charge}}(t) \cdot \sqrt{\eta} - \frac{P\_{\text{discharge}}(t)}{\sqrt{\eta}} \right) \cdot \Delta t$ is the energy change.
 
 The slack variables are bounded:
 

@@ -16,7 +16,7 @@ def test_battery_with_overcharge_only() -> None:
         initial_charge_percentage=50.0,
         min_charge_percentage=10.0,
         max_charge_percentage=90.0,
-        soft_max_charge_percentage=80.0,
+        overcharge_percentage=80.0,
         overcharge_cost=5.0,
     )
 
@@ -49,7 +49,7 @@ def test_battery_with_undercharge_only() -> None:
         initial_charge_percentage=50.0,
         min_charge_percentage=10.0,
         max_charge_percentage=90.0,
-        soft_min_charge_percentage=20.0,
+        undercharge_percentage=20.0,
         undercharge_cost=3.0,
     )
 
@@ -78,8 +78,8 @@ def test_battery_with_both_soft_limits() -> None:
         initial_charge_percentage=50.0,
         min_charge_percentage=5.0,
         max_charge_percentage=95.0,
-        soft_min_charge_percentage=10.0,
-        soft_max_charge_percentage=90.0,
+        undercharge_percentage=10.0,
+        overcharge_percentage=90.0,
         undercharge_cost=2.0,
         overcharge_cost=4.0,
     )
@@ -129,8 +129,8 @@ def test_battery_with_time_varying_costs() -> None:
         initial_charge_percentage=50.0,
         min_charge_percentage=10.0,
         max_charge_percentage=90.0,
-        soft_min_charge_percentage=20.0,
-        soft_max_charge_percentage=80.0,
+        undercharge_percentage=20.0,
+        overcharge_percentage=80.0,
         undercharge_cost=[1.0, 2.0, 3.0],
         overcharge_cost=[4.0, 5.0, 6.0],
     )
@@ -148,7 +148,7 @@ def test_battery_soft_limit_only_without_cost() -> None:
         n_periods=3,
         capacity=10.0,
         initial_charge_percentage=50.0,
-        soft_max_charge_percentage=80.0,
+        overcharge_percentage=80.0,
     )
 
     # No slack should be created without cost
@@ -182,8 +182,8 @@ def test_battery_soft_limits_constraints() -> None:
         initial_charge_percentage=50.0,
         min_charge_percentage=10.0,
         max_charge_percentage=90.0,
-        soft_min_charge_percentage=20.0,
-        soft_max_charge_percentage=80.0,
+        undercharge_percentage=20.0,
+        overcharge_percentage=80.0,
         undercharge_cost=2.0,
         overcharge_cost=4.0,
     )
@@ -206,8 +206,8 @@ def test_battery_soft_limits_cost() -> None:
         initial_charge_percentage=50.0,
         min_charge_percentage=10.0,
         max_charge_percentage=90.0,
-        soft_min_charge_percentage=20.0,
-        soft_max_charge_percentage=80.0,
+        undercharge_percentage=20.0,
+        overcharge_percentage=80.0,
         undercharge_cost=2.0,
         overcharge_cost=4.0,
     )
@@ -227,8 +227,8 @@ def test_battery_with_varying_capacity() -> None:
         initial_charge_percentage=50.0,
         min_charge_percentage=10.0,
         max_charge_percentage=90.0,
-        soft_min_charge_percentage=20.0,
-        soft_max_charge_percentage=80.0,
+        undercharge_percentage=20.0,
+        overcharge_percentage=80.0,
         undercharge_cost=2.0,
         overcharge_cost=4.0,
     )

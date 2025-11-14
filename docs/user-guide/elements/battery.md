@@ -22,10 +22,10 @@ A battery in HAEO represents:
 | **Initial Charge Percentage**   | Sensor ID          | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
 | **Min Charge Percentage**       | Number (%)         | No       | 10      | Minimum allowed SOC (hard limit)                           |
 | **Max Charge Percentage**       | Number (%)         | No       | 90      | Maximum allowed SOC (hard limit)                           |
-| **Soft Min Charge Percentage**  | Number (%)         | No       | -       | Preferred minimum SOC (requires undercharge cost)          |
-| **Soft Max Charge Percentage**  | Number (%)         | No       | -       | Preferred maximum SOC (requires overcharge cost)           |
-| **Undercharge Cost**            | Number (\$/kWh)    | No       | -       | Penalty for operating below soft minimum                   |
-| **Overcharge Cost**             | Number (\$/kWh)    | No       | -       | Penalty for operating above soft maximum                   |
+| **Undercharge Percentage**      | Number (%)         | No       | -       | Soft minimum SOC (requires undercharge cost)               |
+| **Overcharge Percentage**       | Number (%)         | No       | -       | Soft maximum SOC (requires overcharge cost)                |
+| **Undercharge Cost**            | Number (\$/kWh)    | No       | -       | Penalty for operating below undercharge percentage         |
+| **Overcharge Cost**             | Number (\$/kWh)    | No       | -       | Penalty for operating above overcharge percentage          |
 | **Efficiency**                  | Number (%)         | No       | 99      | **One-way** efficiency (see below)                         |
 | **Max Charge Power**            | Number (kW)        | No       | -       | Maximum charging power                                     |
 | **Max Discharge Power**         | Number (kW)        | No       | -       | Maximum discharging power                                  |
@@ -82,49 +82,49 @@ Set a small negative value if you want the battery to favour early charging, or 
 Adds an extra cost per kWh when discharging.
 Use a small positive value if the battery switches direction too often, or leave it at zero if you are happy with the schedule.
 
-### Soft Minimum Charge Level (Optional)
+### Undercharge Percentage (Optional)
 
-Define a preferred minimum SOC below the hard minimum.
-When paired with undercharge cost, the optimizer can temporarily operate in the range between the hard minimum and soft minimum when economically justified.
-
-For example:
-
-- Hard minimum: 5% (absolute lower limit)
-- Soft minimum: 10% (preferred lower limit)
-
-The optimizer will normally stay above 10%, but can use the 5-10% range during extreme conditions (e.g., very high grid prices).
-
-### Soft Maximum Charge Level (Optional)
-
-Define a preferred maximum SOC above the hard maximum.
-When paired with overcharge cost, the optimizer can temporarily operate in the range between the soft maximum and hard maximum when economically beneficial.
+Define a soft minimum SOC below which penalty costs apply.
+When paired with undercharge cost, the optimizer can temporarily operate in the range between the hard minimum and undercharge percentage when economically justified.
 
 For example:
 
-- Soft maximum: 90% (preferred upper limit)
-- Hard maximum: 95% (absolute upper limit)
+- Hard minimum: 5% (absolute lower limit via `min_charge_percentage`)
+- Undercharge percentage: 10% (soft minimum with penalties)
 
-The optimizer will normally stay below 90%, but can use the 90-95% range to capture cheap energy (e.g., excess solar production).
+The optimizer will normally stay above 10%, but can use the 5-10% range during extreme conditions (e.g., very high grid prices), paying the undercharge cost penalty.
+
+### Overcharge Percentage (Optional)
+
+Define a soft maximum SOC above which penalty costs apply.
+When paired with overcharge cost, the optimizer can temporarily operate in the range between the overcharge percentage and hard maximum when economically beneficial.
+
+For example:
+
+- Overcharge percentage: 90% (soft maximum with penalties)
+- Hard maximum: 95% (absolute upper limit via `max_charge_percentage`)
+
+The optimizer will normally stay below 90%, but can use the 90-95% range to capture cheap energy (e.g., excess solar production), paying the overcharge cost penalty.
 
 ### Undercharge Cost (Optional)
 
-Cost penalty in \$/kWh for operating below the soft minimum charge level.
-Required when soft minimum charge level is configured.
+Cost penalty in \$/kWh for operating below the undercharge percentage.
+Required when undercharge percentage is configured.
 
 **Setting the cost**: Consider battery degradation from deep discharge cycles.
 A typical value might be \$0.50-\$2.00/kWh.
-Higher values more strongly discourage operation below the soft minimum.
+Higher values more strongly discourage operation below the undercharge percentage.
 
 **Time-varying costs**: You can provide multiple sensor values for time-varying costs (e.g., higher penalties during peak hours).
 
 ### Overcharge Cost (Optional)
 
-Cost penalty in \$/kWh for operating above the soft maximum charge level.
-Required when soft maximum charge level is configured.
+Cost penalty in \$/kWh for operating above the overcharge percentage.
+Required when overcharge percentage is configured.
 
 **Setting the cost**: Consider battery degradation from high SOC levels.
 A typical value might be \$0.50-\$2.00/kWh.
-Higher values more strongly discourage operation above the soft maximum.
+Higher values more strongly discourage operation above the overcharge percentage.
 
 **Time-varying costs**: You can provide multiple sensor values for time-varying costs (e.g., dynamic penalty based on conditions).
 
@@ -158,8 +158,8 @@ A battery configured with soft limits for extended operating range:
 | **Initial Charge Percentage**    | sensor.battery_soc |
 | **Min Charge Percentage**        | 5%                 |
 | **Max Charge Percentage**        | 95%                |
-| **Soft Min Charge Percentage**   | 10%                |
-| **Soft Max Charge Percentage**   | 90%                |
+| **Undercharge Percentage**       | 10%                |
+| **Overcharge Percentage**        | 90%                |
 | **Undercharge Cost**             | 1.50 \$/kWh        |
 | **Overcharge Cost**              | 1.00 \$/kWh        |
 | **Efficiency**                   | 98.5%              |
