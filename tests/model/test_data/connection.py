@@ -4,124 +4,138 @@ from typing import Any
 
 from custom_components.haeo.model.connection import Connection
 
-from . import fix_lp_variable
-
-
-def create(data: dict[str, Any]) -> Connection:
-    """Create a test Connection instance with fixed values."""
-
-    connection = Connection(**data)
-
-    for index, variable in enumerate(connection.power_source_target):
-        fix_lp_variable(variable, float(index + 1))
-
-    for index, variable in enumerate(connection.power_target_source):
-        fix_lp_variable(variable, float(index + 0.5))
-
-    return connection
-
-
 VALID_CASES = [
     {
-        "description": "Connection between two nodes",
-        "factory": create,
+        "description": "Connection with forward flow only",
+        "factory": Connection,
         "data": {
-            "name": "grid_link",
+            "name": "forward_connection",
             "period": 1.0,
             "n_periods": 3,
             "source": "battery",
-            "target": "grid",
-        },
-        "expected_outputs": {
-            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (1.0, 2.0, 3.0)},
-            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.5, 1.5, 2.5)},
-        },
-    },
-    {
-        "description": "Connection with power limits",
-        "factory": create,
-        "data": {
-            "name": "limited_connection",
-            "period": 1.0,
-            "n_periods": 2,
-            "source": "solar",
-            "target": "battery",
+            "target": "load",
             "max_power_source_target": 5.0,
-            "max_power_target_source": 10.0,
+        },
+        "inputs": {
+            "source_power": [None, None, None],  # Infinite source
+            "target_power": [None, None, None],  # Infinite sink
+            "source_cost": 0.1,  # Cost to provide power from source
+            "target_cost": -0.2,  # Revenue for consuming at target
         },
         "expected_outputs": {
-            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (1.0, 2.0)},
-            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.5, 1.5)},
+            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (5.0, 5.0, 5.0)},
+            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
-        "description": "Connection with efficiency",
-        "factory": create,
+        "description": "Connection with reverse flow only",
+        "factory": Connection,
         "data": {
-            "name": "inverter_connection",
-            "period": 1.0,
-            "n_periods": 2,
-            "source": "dc_net",
-            "target": "ac_net",
-            "max_power_source_target": 5.0,
-            "max_power_target_source": 5.0,
-            "efficiency_source_target": 95.0,
-            "efficiency_target_source": 94.0,
-        },
-        "expected_outputs": {
-            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (1.0, 2.0)},
-            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.5, 1.5)},
-        },
-    },
-    {
-        "description": "Connection with pricing",
-        "factory": create,
-        "data": {
-            "name": "priced_connection",
+            "name": "reverse_connection",
             "period": 1.0,
             "n_periods": 3,
-            "source": "node_a",
-            "target": "node_b",
-            "price_source_target": [0.1, 0.2, 0.15],
-            "price_target_source": [0.12, 0.18, 0.14],
+            "source": "grid",
+            "target": "solar",
+            "max_power_target_source": 3.0,
+        },
+        "inputs": {
+            "source_power": [None, None, None],  # Infinite
+            "target_power": [None, None, None],  # Infinite
+            "source_cost": 0.2,  # Benefit for consuming at source (encourages reverse flow)
+            "target_cost": -0.1,  # Benefit for providing from target (encourages reverse flow)
         },
         "expected_outputs": {
-            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (1.0, 2.0, 3.0)},
-            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.5, 1.5, 2.5)},
+            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (3.0, 3.0, 3.0)},
         },
     },
     {
-        "description": "Connection with time-varying power limits",
-        "factory": create,
+        "description": "Connection respecting forward power limit",
+        "factory": Connection,
+        "data": {
+            "name": "limited_forward",
+            "period": 1.0,
+            "n_periods": 2,
+            "source": "gen",
+            "target": "net",
+            "max_power_source_target": 4.0,
+        },
+        "inputs": {
+            "source_power": [None, None],
+            "target_power": [None, None],
+            "source_cost": 0.0,
+            "target_cost": -0.1,
+        },
+        "expected_outputs": {
+            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (4.0, 4.0)},
+            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
+        },
+    },
+    {
+        "description": "Connection with efficiency losses",
+        "factory": Connection,
+        "data": {
+            "name": "inverter",
+            "period": 1.0,
+            "n_periods": 2,
+            "source": "dc",
+            "target": "ac",
+            "max_power_source_target": 10.0,
+            "efficiency_source_target": 95.0,
+        },
+        "inputs": {
+            "source_power": [5.0, 5.0],  # Fixed source
+            "target_power": [None, None],  # Infinite sink
+            "source_cost": 0.0,
+            "target_cost": 0.0,
+        },
+        "expected_outputs": {
+            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (5.0, 5.0)},
+            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
+        },
+    },
+    {
+        "description": "Connection with transfer pricing discouraging flow",
+        "factory": Connection,
+        "data": {
+            "name": "priced_link",
+            "period": 1.0,
+            "n_periods": 2,
+            "source": "node_a",
+            "target": "node_b",
+            "price_source_target": [0.5, 0.5],  # High transfer cost
+        },
+        "inputs": {
+            "source_power": [None, None],
+            "target_power": [None, None],
+            "source_cost": 0.1,
+            "target_cost": -0.2,  # Not enough to offset transfer cost
+        },
+        "expected_outputs": {
+            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
+            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
+        },
+    },
+    {
+        "description": "Connection with time-varying limits",
+        "factory": Connection,
         "data": {
             "name": "varying_connection",
             "period": 1.0,
             "n_periods": 3,
             "source": "grid",
             "target": "net",
-            "max_power_source_target": [10.0, 8.0, 12.0],
-            "max_power_target_source": [5.0, 6.0, 4.0],
+            "max_power_source_target": [10.0, 5.0, 8.0],
+        },
+        "inputs": {
+            "source_power": [None, None, None],
+            "target_power": [None, None, None],
+            "source_cost": 0.0,
+            "target_cost": -0.1,
         },
         "expected_outputs": {
-            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (1.0, 2.0, 3.0)},
-            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.5, 1.5, 2.5)},
-        },
-    },
-    {
-        "description": "Connection with time-varying efficiency",
-        "factory": create,
-        "data": {
-            "name": "varying_efficiency_connection",
-            "period": 1.0,
-            "n_periods": 2,
-            "source": "source_node",
-            "target": "target_node",
-            "efficiency_source_target": [95.0, 96.0],
-            "efficiency_target_source": [94.0, 93.0],
-        },
-        "expected_outputs": {
-            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (1.0, 2.0)},
-            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.5, 1.5)},
+            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (10.0, 5.0, 8.0)},
+            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
         },
     },
 ]

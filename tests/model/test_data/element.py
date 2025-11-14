@@ -8,7 +8,14 @@ from . import lp_sequence
 
 
 def create(data: dict[str, Any]) -> Element:
-    """Create a test Element instance with fixed values."""
+    """Create a test Element instance with fixed values.
+
+    Note: Element is the abstract base class. These tests verify basic
+    functionality using fixed LP variables. Concrete element tests use
+    real optimization scenarios.
+    """
+    # Remove power_setup if present (not used for base Element tests)
+    data.pop("power_setup", None)
 
     # Extract optional price fields if not provided
     element_data = {

@@ -4,20 +4,24 @@ from typing import Any
 
 from custom_components.haeo.model.node import Node
 
-
-def create(data: dict[str, Any]) -> Node:
-    """Create a test Node instance."""
-    return Node(**data)
-
-
 VALID_CASES = [
     {
         "description": "Node with basic configuration",
-        "factory": create,
+        "factory": Node,
         "data": {
             "name": "node",
             "period": 1,
             "n_periods": 2,
+        },
+        "expected_outputs": {},
+    },
+    {
+        "description": "Node with multiple periods",
+        "factory": Node,
+        "data": {
+            "name": "hub_node",
+            "period": 1,
+            "n_periods": 24,
         },
         "expected_outputs": {},
     },
