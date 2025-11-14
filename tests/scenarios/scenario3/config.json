@@ -18,7 +18,7 @@
       "efficiency": 99.0,
       "max_charge_power": "sensor.sigen_plant_ess_rated_charging_power",
       "max_discharge_power": "sensor.sigen_plant_ess_rated_discharging_power",
-      "charge_cost": -1e-3,
+      "early_charge_incentive": 1e-3,
       "discharge_cost": 0.02
     },
     "Solar": {
