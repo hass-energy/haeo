@@ -6,7 +6,12 @@ from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ElementConfigSchema, is_element_config_schema
+from custom_components.haeo.elements import (
+    ELEMENT_TYPE_BATTERY,
+    ELEMENT_TYPE_CONNECTION,
+    ElementConfigSchema,
+    is_element_config_schema,
+)
 from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
@@ -185,9 +190,14 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             errors["base"] = "undercharge_fields_incomplete"
 
         # Validate range ordering if all values present
-        if soft_min is not None and soft_max is not None and min_charge is not None and max_charge is not None:
-            if not (min_charge <= soft_min < soft_max <= max_charge):
-                errors["base"] = "invalid_soft_charge_range"
+        if (
+            soft_min is not None
+            and soft_max is not None
+            and min_charge is not None
+            and max_charge is not None
+            and not (min_charge <= soft_min < soft_max <= max_charge)
+        ):
+            errors["base"] = "invalid_soft_charge_range"
 
         return errors
 
