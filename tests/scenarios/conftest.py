@@ -8,16 +8,6 @@ from typing import Any
 import pytest
 
 
-# Skip all scenario tests unless -m scenario is specified
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Modify collected test items to skip scenario tests unless specified."""
-    if not config.getoption("-m"):
-        skip_me = pytest.mark.skip(reason="use `-m scenario` to run this test")
-        for item in items:
-            if "scenario" in item.keywords:
-                item.add_marker(skip_me)
-
-
 @pytest.fixture
 def scenario_path(request: pytest.FixtureRequest) -> Path:
     """Get the path to the current scenario directory from parameterized test."""
