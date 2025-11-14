@@ -1,6 +1,5 @@
 """Test data and factories for Load element."""
 
-from typing import Any
 
 from custom_components.haeo.model.load import Load
 

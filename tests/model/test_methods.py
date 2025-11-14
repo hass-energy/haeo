@@ -1,6 +1,5 @@
 """Tests for element methods (constraints and cost)."""
 
-import inspect
 from typing import Any
 
 import pytest
@@ -18,7 +17,7 @@ def test_element_constraints(case: dict[str, Any]) -> None:
 
     factory = case["factory"]
     data = case["data"]
-    element = factory(data) if inspect.isfunction(factory) else factory(**data)
+    element = factory(**data)
     constraints = element.constraints()
 
     # Should return a sequence (list/tuple)
@@ -41,7 +40,7 @@ def test_element_cost(case: dict[str, Any]) -> None:
 
     factory = case["factory"]
     data = case["data"]
-    element = factory(data) if inspect.isfunction(factory) else factory(**data)
+    element = factory(**data)
     cost = element.cost()
 
     # Should return a number (float, int) or LP expression (has arithmetic operations)

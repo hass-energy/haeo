@@ -16,7 +16,7 @@ VALID_CASES = [
             "export_price": [0.05, 0.08, 0.06],
         },
         "inputs": {
-            "power": [5.0, 8.0, 6.0],  # Fixed load (positive = import needed)
+            "power": [-5.0, -8.0, -6.0],  # Negative = import (from grid perspective, production)
             "cost": 0.0,
         },
         "expected_outputs": {
@@ -39,7 +39,7 @@ VALID_CASES = [
             "export_price": [0.05, 0.08, 0.06],
         },
         "inputs": {
-            "power": [-3.0, -5.0, -4.0],  # Fixed generation (negative = export)
+            "power": [3.0, 5.0, 4.0],  # Positive = export (from grid perspective, consumption)
             "cost": 0.0,
         },
         "expected_outputs": {
@@ -60,7 +60,7 @@ VALID_CASES = [
             "import_price": [0.1, 0.2],
         },
         "inputs": {
-            "power": [5.0, 5.0],  # Exactly at limit
+            "power": [-5.0, -5.0],  # Negative = import (at limit)
             "cost": 0.0,
         },
         "expected_outputs": {
@@ -80,7 +80,7 @@ VALID_CASES = [
             "export_price": [0.05, 0.08],
         },
         "inputs": {
-            "power": [-4.0, -4.0],  # Exactly at limit (negative = export)
+            "power": [4.0, 4.0],  # Positive = export (at limit)
             "cost": 0.0,
         },
         "expected_outputs": {

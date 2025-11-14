@@ -1,6 +1,5 @@
 """Test data and factories for Photovoltaics element."""
 
-from typing import Any
 
 from custom_components.haeo.model.photovoltaics import Photovoltaics
 

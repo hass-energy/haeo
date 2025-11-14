@@ -7,7 +7,7 @@ from custom_components.haeo.model.element import Element
 from . import lp_sequence
 
 
-def create(data: dict[str, Any]) -> Element:
+def create(**data: Any) -> Element:
     """Create a test Element instance with fixed values.
 
     Note: Element is the abstract base class. These tests verify basic
