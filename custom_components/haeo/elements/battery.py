@@ -54,8 +54,8 @@ class BatteryConfigSchema(TypedDict):
     discharge_cost: NotRequired[PriceFieldSchema]
     undercharge_percentage: NotRequired[BatterySOCFieldSchema]
     overcharge_percentage: NotRequired[BatterySOCFieldSchema]
-    undercharge_cost: NotRequired[PriceFieldSchema | PriceSensorsFieldSchema]
-    overcharge_cost: NotRequired[PriceFieldSchema | PriceSensorsFieldSchema]
+    undercharge_cost: NotRequired[PriceSensorsFieldSchema]
+    overcharge_cost: NotRequired[PriceSensorsFieldSchema]
 
 
 class BatteryConfigData(TypedDict):
@@ -74,8 +74,8 @@ class BatteryConfigData(TypedDict):
     discharge_cost: NotRequired[PriceFieldData]
     undercharge_percentage: NotRequired[BatterySOCFieldData]
     overcharge_percentage: NotRequired[BatterySOCFieldData]
-    undercharge_cost: NotRequired[PriceFieldData | PriceSensorsFieldData]
-    overcharge_cost: NotRequired[PriceFieldData | PriceSensorsFieldData]
+    undercharge_cost: NotRequired[PriceSensorsFieldData]
+    overcharge_cost: NotRequired[PriceSensorsFieldData]
 
 
 CONFIG_DEFAULTS: dict[str, Any] = {

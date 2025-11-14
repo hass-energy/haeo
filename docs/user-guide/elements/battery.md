@@ -15,22 +15,22 @@ A battery in HAEO represents:
 
 ## Configuration Fields
 
-| Field                           | Type               | Required | Default | Description                                                |
-| ------------------------------- | ------------------ | -------- | ------- | ---------------------------------------------------------- |
-| **Name**                        | String             | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
-| **Capacity**                    | Number (kWh)       | Yes      | -       | Total energy storage capacity                              |
-| **Initial Charge Percentage**   | Sensor ID          | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
-| **Min Charge Percentage**       | Number (%)         | No       | 10      | Minimum allowed SOC (hard limit)                           |
-| **Max Charge Percentage**       | Number (%)         | No       | 90      | Maximum allowed SOC (hard limit)                           |
-| **Undercharge Percentage**      | Number (%)         | No       | -       | Soft minimum SOC (requires undercharge cost)               |
-| **Overcharge Percentage**       | Number (%)         | No       | -       | Soft maximum SOC (requires overcharge cost)                |
-| **Undercharge Cost**            | Number (\$/kWh)    | No       | -       | Penalty for operating below undercharge percentage         |
-| **Overcharge Cost**             | Number (\$/kWh)    | No       | -       | Penalty for operating above overcharge percentage          |
-| **Efficiency**                  | Number (%)         | No       | 99      | **One-way** efficiency (see below)                         |
-| **Max Charge Power**            | Number (kW)        | No       | -       | Maximum charging power                                     |
-| **Max Discharge Power**         | Number (kW)        | No       | -       | Maximum discharging power                                  |
-| **Charge Cost**                 | Number (\$/kWh)    | No       | 0       | Additional charging cost (see below)                       |
-| **Discharge Cost**              | Number (\$/kWh)    | No       | 0       | Additional discharging cost (see below)                    |
+| Field                         | Type            | Required | Default | Description                                                |
+| ----------------------------- | --------------- | -------- | ------- | ---------------------------------------------------------- |
+| **Name**                      | String          | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
+| **Capacity**                  | Number (kWh)    | Yes      | -       | Total energy storage capacity                              |
+| **Initial Charge Percentage** | Sensor ID       | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
+| **Min Charge Percentage**     | Number (%)      | No       | 10      | Minimum allowed SOC (hard limit)                           |
+| **Max Charge Percentage**     | Number (%)      | No       | 90      | Maximum allowed SOC (hard limit)                           |
+| **Undercharge Percentage**    | Number (%)      | No       | -       | Soft minimum SOC (requires undercharge cost)               |
+| **Overcharge Percentage**     | Number (%)      | No       | -       | Soft maximum SOC (requires overcharge cost)                |
+| **Undercharge Cost**          | Number (\$/kWh) | No       | -       | Penalty for operating below undercharge percentage         |
+| **Overcharge Cost**           | Number (\$/kWh) | No       | -       | Penalty for operating above overcharge percentage          |
+| **Efficiency**                | Number (%)      | No       | 99      | **One-way** efficiency (see below)                         |
+| **Max Charge Power**          | Number (kW)     | No       | -       | Maximum charging power                                     |
+| **Max Discharge Power**       | Number (kW)     | No       | -       | Maximum discharging power                                  |
+| **Charge Cost**               | Number (\$/kWh) | No       | 0       | Additional charging cost (see below)                       |
+| **Discharge Cost**            | Number (\$/kWh) | No       | 0       | Additional discharging cost (see below)                    |
 
 If not specified, power is unconstrained (limited only by other system constraints).
 
@@ -151,20 +151,20 @@ A typical battery configuration without soft limits:
 
 A battery configured with soft limits for extended operating range:
 
-| Field                            | Example Value      |
-| -------------------------------- | ------------------ |
-| **Name**                         | Main Battery       |
-| **Capacity**                     | 15 kWh             |
-| **Initial Charge Percentage**    | sensor.battery_soc |
-| **Min Charge Percentage**        | 5%                 |
-| **Max Charge Percentage**        | 95%                |
-| **Undercharge Percentage**       | 10%                |
-| **Overcharge Percentage**        | 90%                |
-| **Undercharge Cost**             | 1.50 \$/kWh        |
-| **Overcharge Cost**              | 1.00 \$/kWh        |
-| **Efficiency**                   | 98.5%              |
-| **Max Charge Power**             | 6 kW               |
-| **Max Discharge Power**          | 6 kW               |
+| Field                         | Example Value      |
+| ----------------------------- | ------------------ |
+| **Name**                      | Main Battery       |
+| **Capacity**                  | 15 kWh             |
+| **Initial Charge Percentage** | sensor.battery_soc |
+| **Min Charge Percentage**     | 5%                 |
+| **Max Charge Percentage**     | 95%                |
+| **Undercharge Percentage**    | 10%                |
+| **Overcharge Percentage**     | 90%                |
+| **Undercharge Cost**          | 1.50 \$/kWh        |
+| **Overcharge Cost**           | 1.00 \$/kWh        |
+| **Efficiency**                | 98.5%              |
+| **Max Charge Power**          | 6 kW               |
+| **Max Discharge Power**       | 6 kW               |
 
 In this example:
 
@@ -191,10 +191,10 @@ Soft limits are useful when you want to:
 1. **Extend operational range conditionally**: Allow the battery to exceed normal limits during extreme price events while discouraging routine operation outside preferred ranges.
 
 2. **Model battery degradation**: Reflect increased degradation costs at very low or very high SOC levels.
-The optimizer will use these ranges only when grid savings exceed the penalty costs.
+    The optimizer will use these ranges only when grid savings exceed the penalty costs.
 
 3. **Safety margins with flexibility**: Maintain conservative normal operation while retaining emergency capacity.
-For example, keep 10% reserve normally but use it during power outages or price spikes.
+    For example, keep 10% reserve normally but use it during power outages or price spikes.
 
 4. **Time-varying constraints**: Use sensor-based costs to implement dynamic penalties based on conditions like temperature, battery age, or time of day.
 
