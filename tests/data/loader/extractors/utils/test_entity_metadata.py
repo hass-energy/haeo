@@ -129,11 +129,11 @@ async def test_extract_entity_metadata_skips_none_state(
     assert result[0].entity_id == "sensor.power"
 
 
-async def test_extract_entity_metadata_skips_none_unit(
+async def test_extract_entity_metadata_includes_none_unit(
     hass: HomeAssistant,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """Test that extract_entity_metadata skips entities without units."""
+    """Test that extract_entity_metadata includes entities without units for exclusion mask."""
     # Register entities
     entity_registry.async_get_or_create(
         domain="sensor",
@@ -154,10 +154,11 @@ async def test_extract_entity_metadata_skips_none_unit(
 
     result = extract_entity_metadata(hass)
 
-    # Should only include entities with units
-    assert len(result) == 1
-    assert result[0].entity_id == "sensor.power"
-    assert result[0].unit_of_measurement == "kW"
+    # Should include both entities (with and without units) for exclusion mask
+    assert len(result) == 2
+    entity_map = {meta.entity_id: meta for meta in result}
+    assert entity_map["sensor.power"].unit_of_measurement == "kW"
+    assert entity_map["sensor.no_unit"].unit_of_measurement is None
 
 
 async def test_extract_entity_metadata_uses_get_extracted_units(

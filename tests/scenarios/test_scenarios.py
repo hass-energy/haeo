@@ -1,7 +1,7 @@
 """Centralized parameterized test runner for all scenario tests."""
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 import json
 import logging
 from pathlib import Path
@@ -169,6 +169,24 @@ async def test_scenarios(
             for s in hass.states.async_all("sensor")
             if (r := entity_registry.async_get(s.entity_id)) is not None and r.platform == DOMAIN
         ]
+
+        def round_floats(value: Any) -> Any:
+            """Round all floats in the value to 2 decimal places and normalize ±0."""
+            if isinstance(value, float):
+                rounded = round(value, 2)
+                # Normalize negative zero to positive zero
+                return 0.0 if rounded == 0.0 else rounded
+            if isinstance(value, Mapping):
+                return {k: round_floats(v) for k, v in value.items()}
+            if isinstance(value, Sequence) and not isinstance(value, str):
+                return [round_floats(v) for v in value]
+
+            return value
+
+        # Round all of the sensor states and attributes to 2 decimal places to avoid floating point precision issues
+        for sensor in haeo_sensors:
+            sensor.state = round_floats(sensor.state)
+            sensor.attributes = round_floats(sensor.attributes)
 
         # Check the sensors against snapshots
         assert snapshot == haeo_sensors
