@@ -79,17 +79,17 @@ class SensorFieldMeta(FieldMeta):
 
     def _get_field_validators(self, **schema_params: Unpack[SchemaParams]) -> EntitySelector:
         """Return entity selector with unit-based filtering."""
-        # Filter compatible entities based on accepted_units
+        # Filter incompatible entities based on accepted_units
         entity_metadata: Sequence[EntityMetadata] = schema_params.get("entity_metadata", [])
-        compatible_entities: list[str] = [
-            v.entity_id for v in entity_metadata if v.is_compatible_with(self.accepted_units)
+        incompatible_entities: list[str] = [
+            v.entity_id for v in entity_metadata if not v.is_compatible_with(self.accepted_units)
         ]
 
         return EntitySelector(
             EntitySelectorConfig(
                 domain=["sensor", "input_number"],
                 multiple=self.multiple,
-                include_entities=compatible_entities,
+                exclude_entities=incompatible_entities,
             )
         )
 

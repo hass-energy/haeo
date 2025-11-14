@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
 
 if TYPE_CHECKING:
     from custom_components.haeo.schema.util import UnitSpec
@@ -50,22 +49,7 @@ def extract_entity_metadata(hass: HomeAssistant) -> list[EntityMetadata]:
     # Import here to avoid circular dependency
     from .time_series import get_extracted_units  # noqa: PLC0415
 
-    entity_reg = er.async_get(hass)
-    metadata: list[EntityMetadata] = []
-
-    # Get all sensor and input_number entities
-    for entity in entity_reg.entities.values():
-        if entity.domain not in ("sensor", "input_number"):
-            continue
-
-        # Get current state to check unit
-        state = hass.states.get(entity.entity_id)
-        if state is None:
-            continue
-
-        # Use extractor system to get unit (handles both simple and forecast formats)
-        unit, _ = get_extracted_units(state)
-        if unit:
-            metadata.append(EntityMetadata(entity_id=entity.entity_id, unit_of_measurement=unit))
-
-    return metadata
+    return [
+        EntityMetadata(entity_id=entity_id, unit_of_measurement=unit)
+        for entity_id, (unit, _) in [(state.entity_id, get_extracted_units(state)) for state in hass.states.async_all()]
+    ]
