@@ -206,7 +206,7 @@ Developer documentation explains architecture and design decisions, not implemen
 
 When referencing implementation:
 
-- Link to the specific module on GitHub: [`TimeSeriesLoader`](https://github.com/ha-energy-optimiser/haeo/blob/main/custom_components/haeo/data/loader/time_series_loader.py)
+- Link to the specific module on GitHub: [`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/time_series_loader.py)
 - Reference function/class names in text: "The `combine_sensor_payloads()` function merges multiple sensors..."
 - Describe purpose and behavior, not implementation: "combines additively" not "loops through payloads and sums values"
 
