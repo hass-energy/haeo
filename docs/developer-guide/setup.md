@@ -13,7 +13,7 @@ Set up your development environment for HAEO.
 ### Clone Repository
 
 ```bash
-git clone https://github.com/ha-energy-optimiser/haeo.git
+git clone https://github.com/hass-energy/haeo.git
 cd haeo
 ```
 
