@@ -1,6 +1,5 @@
 """Test data and factories for Load element."""
 
-
 from custom_components.haeo.model.load import Load
 
 VALID_CASES = [
