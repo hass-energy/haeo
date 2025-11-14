@@ -104,8 +104,8 @@ Quick **reference tables and schemas**:
 
 ## Getting Help
 
-- **Issues**: Report bugs on [GitHub Issues](https://github.com/ha-energy-optimiser/haeo/issues)
-- **Discussions**: Ask questions in [GitHub Discussions](https://github.com/ha-energy-optimiser/haeo/discussions)
+- **Issues**: Report bugs on [GitHub Issues](https://github.com/hass-energy/haeo/issues)
+- **Discussions**: Ask questions in [GitHub Discussions](https://github.com/hass-energy/haeo/discussions)
 - **Contributing**: See our [contribution guidelines](developer-guide/contributing.md)
 
 ## Next Steps

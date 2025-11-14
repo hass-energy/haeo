@@ -20,7 +20,7 @@ HACS provides automatic updates and easy installation.
 3. Click the three dots (⋮) in the top right corner
 4. Select **Custom repositories**
 5. Add the following details:
-    - **Repository**: `https://github.com/ha-energy-optimiser/haeo`
+    - **Repository**: `https://github.com/hass-energy/haeo`
     - **Category**: `Integration`
 6. Click **Add**
 
@@ -48,7 +48,7 @@ If you prefer not to use HACS or need manual control:
 
 ### Step 1: Download HAEO
 
-1. Visit the [releases page](https://github.com/ha-energy-optimiser/haeo/releases)
+1. Visit the [releases page](https://github.com/hass-energy/haeo/releases)
 2. Download the latest `haeo.zip` file
 3. Extract the archive
 
@@ -103,7 +103,7 @@ If HAEO appears in the list, the installation was successful!
 
 !!! warning "Breaking Changes"
 
-    Always check the [release notes](https://github.com/ha-energy-optimiser/haeo/releases) before updating.
+    Always check the [release notes](https://github.com/hass-energy/haeo/releases) before updating.
     Pay special attention to major version changes.
     Some updates may require configuration adjustments.
 

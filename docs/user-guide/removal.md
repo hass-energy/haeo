@@ -114,7 +114,7 @@ If you encounter issues removing HAEO:
 If you continue to experience issues removing HAEO:
 
 1. Check the [HACS documentation](https://hacs.xyz/docs/basic/operations/#uninstall-remove) for the latest uninstall notes
-2. Review the [HAEO GitHub Issues](https://github.com/ha-energy-optimiser/haeo/issues)
+2. Review the [HAEO GitHub Issues](https://github.com/hass-energy/haeo/issues)
 3. Create a new issue with:
     - Home Assistant version
     - HAEO version

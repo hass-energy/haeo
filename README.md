@@ -4,7 +4,7 @@
 
 # HAEO - Home Assistant Energy Optimization
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration) [![GitHub Release](https://img.shields.io/github/release/ha-energy-optimiser/haeo.svg)](https://github.com/ha-energy-optimiser/haeo/releases) [![License](https://img.shields.io/github/license/ha-energy-optimiser/haeo.svg)](LICENSE) [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://ha-energy-optimiser.github.io/haeo/)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration) [![GitHub Release](https://img.shields.io/github/release/hass-energy/haeo.svg)](https://github.com/hass-energy/haeo/releases) [![License](https://img.shields.io/github/license/hass-energy/haeo.svg)](LICENSE) [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://hass-energy.github.io/haeo/)
 
 HAEO (Home Assistant Energy Optimization) is a custom integration that optimizes your home's energy usage in real-time using linear programming.
 It helps you minimize energy costs by intelligently managing battery storage, solar generation, grid import/export, and loads based on electricity prices, forecasts, and system constraints.
@@ -37,14 +37,14 @@ This focused approach means:
 
 ## 📚 Documentation
 
-**[Read the full documentation →](https://ha-energy-optimiser.github.io/haeo/)**
+**[Read the full documentation →](https://hass-energy.github.io/haeo/)**
 
-- **[Installation Guide](https://ha-energy-optimiser.github.io/haeo/user-guide/installation/)** - Get started with HAEO
-- **[Configuration Guide](https://ha-energy-optimiser.github.io/haeo/user-guide/configuration/)** - Set up your energy system
-- **[Element Configuration](https://ha-energy-optimiser.github.io/haeo/user-guide/elements/)** - Configure batteries, solar, grids, and loads
-- **[Mathematical Modeling](https://ha-energy-optimiser.github.io/haeo/modeling/)** - Understand the optimization
-- **[Developer Guide](https://ha-energy-optimiser.github.io/haeo/developer-guide/)** - Contribute to HAEO
-- **[API Reference](https://ha-energy-optimiser.github.io/haeo/api/)** - Auto-generated API docs
+- **[Installation Guide](https://hass-energy.github.io/haeo/user-guide/installation/)** - Get started with HAEO
+- **[Configuration Guide](https://hass-energy.github.io/haeo/user-guide/configuration/)** - Set up your energy system
+- **[Element Configuration](https://hass-energy.github.io/haeo/user-guide/elements/)** - Configure batteries, solar, grids, and loads
+- **[Mathematical Modeling](https://hass-energy.github.io/haeo/modeling/)** - Understand the optimization
+- **[Developer Guide](https://hass-energy.github.io/haeo/developer-guide/)** - Contribute to HAEO
+- **[API Reference](https://hass-energy.github.io/haeo/api/)** - Auto-generated API docs
 
 ## ✨ Features
 
@@ -85,13 +85,13 @@ This minimizes your total energy cost over a configurable time horizon (default 
 
 ### HACS Installation (Recommended)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ha-energy-optimiser&repository=haeo&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hass-energy&repository=haeo&category=integration)
 
 1. Open HACS in your Home Assistant instance
 2. Click on "Integrations"
 3. Click the three dots in the top right corner
 4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/ha-energy-optimiser/haeo`
+5. Add this repository URL: `https://github.com/hass-energy/haeo`
 6. Select "Integration" as the category
 7. Click "Add"
 8. Search for "HAEO" and click "Download"
@@ -99,7 +99,7 @@ This minimizes your total energy cost over a configurable time horizon (default 
 
 ### Manual Installation
 
-1. Download the latest release from the [releases page](https://github.com/ha-energy-optimiser/haeo/releases)
+1. Download the latest release from the [releases page](https://github.com/hass-energy/haeo/releases)
 2. Extract the `haeo` folder to your `custom_components` directory
 3. Restart Home Assistant
 
@@ -225,7 +225,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ```bash
 # Clone the repository
-git clone https://github.com/ha-energy-optimiser/haeo.git
+git clone https://github.com/hass-energy/haeo.git
 cd haeo
 
 # Install dependencies with uv
@@ -241,8 +241,8 @@ uv run mypy custom_components/
 
 ## 🐛 Support
 
-- **Issues**: [GitHub Issues](https://github.com/ha-energy-optimiser/haeo/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/ha-energy-optimiser/haeo/discussions)
+- **Issues**: [GitHub Issues](https://github.com/hass-energy/haeo/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/hass-energy/haeo/discussions)
 
 When reporting issues, please include:
 

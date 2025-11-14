@@ -81,8 +81,8 @@ These examples show real-world configurations with all the details you need to r
 If you run into issues:
 
 1. Check the **[Troubleshooting](troubleshooting.md)** page for common problems
-2. Search existing [GitHub Issues](https://github.com/ha-energy-optimiser/haeo/issues)
-3. Ask in [GitHub Discussions](https://github.com/ha-energy-optimiser/haeo/discussions)
+2. Search existing [GitHub Issues](https://github.com/hass-energy/haeo/issues)
+3. Ask in [GitHub Discussions](https://github.com/hass-energy/haeo/discussions)
 4. Report bugs by opening a new issue
 
 !!! warning "Important"
