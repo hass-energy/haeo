@@ -22,8 +22,3 @@ class NodeConfigData(TypedDict):
 
 
 CONFIG_DEFAULTS: dict[str, Any] = {}
-
-
-def model_description(_config: NodeConfigSchema) -> str:
-    """Generate model description string for node element."""
-    return "Node"

@@ -16,14 +16,8 @@ VALID_DATA = [
             CONF_NAME: "Test Grid",
             CONF_IMPORT_LIMIT: 5000,
             CONF_EXPORT_LIMIT: 3000,
-            CONF_IMPORT_PRICE: {
-                "live": [],
-                "forecast": [],
-            },
-            CONF_EXPORT_PRICE: {
-                "live": [],
-                "forecast": [],
-            },
+            CONF_IMPORT_PRICE: ["sensor.grid_import_price"],
+            CONF_EXPORT_PRICE: ["sensor.grid_export_price"],
         },
     },
     {
@@ -32,14 +26,8 @@ VALID_DATA = [
             CONF_NAME: "Smart Grid",
             CONF_IMPORT_LIMIT: 8000,
             CONF_EXPORT_LIMIT: 5000,
-            CONF_IMPORT_PRICE: {
-                "live": ["sensor.smart_grid_import_price"],
-                "forecast": ["sensor.smart_grid_import_price"],
-            },
-            CONF_EXPORT_PRICE: {
-                "live": ["sensor.smart_grid_export_price"],
-                "forecast": ["sensor.smart_grid_export_price"],
-            },
+            CONF_IMPORT_PRICE: ["sensor.smart_grid_import_price"],
+            CONF_EXPORT_PRICE: ["sensor.smart_grid_export_price"],
         },
     },
 ]
@@ -50,14 +38,8 @@ INVALID_DATA = [
         "config": {
             CONF_NAME: "",
             CONF_IMPORT_LIMIT: 5000,
-            CONF_IMPORT_PRICE: {
-                "live": [],
-                "forecast": [],
-            },
-            CONF_EXPORT_PRICE: {
-                "live": [],
-                "forecast": [],
-            },
+            CONF_IMPORT_PRICE: ["sensor.grid_import_price"],
+            CONF_EXPORT_PRICE: ["sensor.grid_export_price"],
         },
         "error": "cannot be empty",
     },
@@ -66,14 +48,8 @@ INVALID_DATA = [
         "config": {
             CONF_NAME: "Test Grid",
             CONF_IMPORT_LIMIT: -1000,
-            CONF_IMPORT_PRICE: {
-                "live": [],
-                "forecast": [],
-            },
-            CONF_EXPORT_PRICE: {
-                "live": [],
-                "forecast": [],
-            },
+            CONF_IMPORT_PRICE: ["sensor.grid_import_price"],
+            CONF_EXPORT_PRICE: ["sensor.grid_export_price"],
         },
         "error": "value must be positive",
     },

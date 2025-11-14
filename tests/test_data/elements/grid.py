@@ -19,7 +19,6 @@ VALID: list[dict[str, Any]] = [
             "import_limit": 7.0,
             "export_limit": 3.5,
         },
-        "expected_description": "Grid Import 7.0kW, Export 3.5kW",
         "description": "Grid with both import and export limits",
     },
     {
@@ -36,7 +35,6 @@ VALID: list[dict[str, Any]] = [
             },
             "import_limit": 7.0,
         },
-        "expected_description": "Grid Import 7.0kW",
         "description": "Grid with only import limit",
     },
     {
@@ -53,7 +51,6 @@ VALID: list[dict[str, Any]] = [
             },
             "export_limit": 3.5,
         },
-        "expected_description": "Grid Export 3.5kW",
         "description": "Grid with only export limit",
     },
     {
@@ -69,7 +66,6 @@ VALID: list[dict[str, Any]] = [
                 "forecast": [],
             },
         },
-        "expected_description": "Grid Connection",
         "description": "Grid with no power limits",
     },
     {
@@ -86,7 +82,6 @@ VALID: list[dict[str, Any]] = [
             },
             "export_limit": 5.0,
         },
-        "expected_description": "Grid Export 5.0kW",
         "description": "Test export-only grid description",
     },
 ]

@@ -1,9 +1,9 @@
-"""Fixture for scenario tests."""
+"""Fixtures for centralized scenario tests."""
 
 from collections.abc import Sequence
 import json
 from pathlib import Path
-from typing import Any, TypeGuard, cast
+from typing import Any
 
 import pytest
 
@@ -18,28 +18,10 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 item.add_marker(skip_me)
 
 
-def _is_dict(value: Any) -> TypeGuard[dict[str, Any]]:
-    return isinstance(value, dict)
-
-
-def _is_state_sequence(value: Any) -> TypeGuard[Sequence[dict[str, Any]]]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
-        return False
-    return all(isinstance(item, dict) for item in value)
-
-
 @pytest.fixture
 def scenario_path(request: pytest.FixtureRequest) -> Path:
-    """Get the path to the current scenario directory.
-
-    This fixture determines the scenario directory based on the test file location.
-    For tests in tests/scenarios/test_scenario1.py, it returns tests/scenarios/scenario1/
-    """
-    node_path = getattr(request.node, "path", None)
-    if node_path is None:
-        msg = "Fixture request is missing node path information"
-        raise RuntimeError(msg)
-    return cast("Path", node_path).parent
+    """Get the path to the current scenario directory from parameterized test."""
+    return request.param  # type: ignore[no-any-return]
 
 
 @pytest.fixture
@@ -48,7 +30,7 @@ def scenario_config(scenario_path: Path) -> dict[str, Any]:
     config_path = scenario_path / "config.json"
     with config_path.open() as f:
         data = json.load(f)
-    if not _is_dict(data):
+    if not isinstance(data, dict):
         msg = f"Scenario config {config_path} must contain an object"
         raise TypeError(msg)
     return data
@@ -60,7 +42,10 @@ def scenario_states(scenario_path: Path) -> Sequence[dict[str, Any]]:
     states_path = scenario_path / "states.json"
     with states_path.open() as f:
         data = json.load(f)
-    if not _is_state_sequence(data):
+    if not isinstance(data, Sequence) or isinstance(data, (str, bytes, bytearray)):
+        msg = f"Scenario states {states_path} must contain an array"
+        raise TypeError(msg)
+    if not all(isinstance(item, dict) for item in data):
         msg = f"Scenario states {states_path} must contain an array of objects"
         raise TypeError(msg)
     return data

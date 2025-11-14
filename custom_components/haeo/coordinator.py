@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 import logging
 import time
 from typing import Any, get_type_hints
@@ -49,7 +49,7 @@ from .model import (
     OutputType,
 )
 from .repairs import dismiss_optimization_failure_issue
-from .schema import get_loader_instance
+from .schema import get_field_meta
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,13 +92,18 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
         if field_value is None:
             continue
 
-        # Get loader and check if it handles entities
-        loader_instance = get_loader_instance(field_name, data_config_class)
+        field_meta = get_field_meta(field_name, data_config_class)
+        if field_meta is None:
+            continue
 
-        # Check if this loader deals with entity IDs (sensor, forecast loaders)
-        if hasattr(loader_instance, "is_valid_value") and loader_instance.is_valid_value(field_value):
-            # Add entity IDs from this field
+        # Check if this is a constant field (not a sensor)
+        if field_meta.field_type == "constant":
+            continue
+
+        try:
             entity_ids.update(_collect_entity_ids(field_value))
+        except TypeError:
+            continue
 
     return entity_ids
 
@@ -110,7 +115,7 @@ class CoordinatorOutput:
     type: OutputType
     unit: str | None
     state: StateType | None
-    forecast: dict[str, Any] | None
+    forecast: dict[datetime, Any] | None
     entity_category: EntityCategory | None = None
     device_class: SensorDeviceClass | None = None
     state_class: SensorStateClass | None = None
@@ -154,12 +159,14 @@ def _build_coordinator_output(
 
     values = tuple(output_data.values)
     state: Any | None = values[0] if values else None
-    forecast: dict[str, Any] | None = None
+    forecast: dict[datetime, Any] | None = None
 
     if forecast_times and len(values) == len(forecast_times) and len(values) > 1:
         try:
+            # Convert timestamps to localized datetime objects using HA's configured timezone
+            local_tz = dt_util.get_default_time_zone()
             forecast = {
-                datetime.fromtimestamp(timestamp, tz=UTC).isoformat(): value
+                datetime.fromtimestamp(timestamp, tz=local_tz): value
                 for timestamp, value in zip(forecast_times, values, strict=True)
             }
         except ValueError:

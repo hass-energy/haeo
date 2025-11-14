@@ -1,8 +1,8 @@
-"""Tests for schema utilities covering flattening and loader dispatch."""
+"""Tests for schema utilities covering loader dispatch."""
 
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, Any, TypedDict, cast
+from typing import Annotated, Any, NotRequired, TypedDict, cast
 
 from homeassistant.core import HomeAssistant
 import pytest
@@ -10,7 +10,7 @@ import pytest
 from custom_components.haeo.data.loader import ConstantLoader
 from custom_components.haeo.elements import ElementConfigSchema
 from custom_components.haeo.schema import available as schema_available
-from custom_components.haeo.schema import flatten, get_loader_instance, unflatten
+from custom_components.haeo.schema import get_loader_instance
 from custom_components.haeo.schema import load as schema_load
 from custom_components.haeo.schema.fields import FieldMeta
 
@@ -47,23 +47,6 @@ class TrackingFieldMeta(FieldMeta):
         return lambda value: value
 
 
-@pytest.mark.parametrize(
-    ("flat", "structured"),
-    [
-        ({"name": "grid"}, {"name": "grid"}),
-        (
-            {"price:live": ["sensor.import"], "price:forecast": ["sensor.forecast"]},
-            {"price": {"live": ["sensor.import"], "forecast": ["sensor.forecast"]}},
-        ),
-    ],
-)
-def test_flatten_round_trip(flat: dict[str, Any], structured: dict[str, Any]) -> None:
-    """Flattening and unflattening should be reversible for supported shapes."""
-
-    assert flatten(structured) == flat
-    assert unflatten(flat) == structured
-
-
 @pytest.mark.parametrize("available_result", [True, False])
 def test_schema_available_delegates_to_loader(
     monkeypatch: pytest.MonkeyPatch,
@@ -75,7 +58,7 @@ def test_schema_available_delegates_to_loader(
     loader = TrackingLoader(available_result=available_result, loaded_value=42)
 
     class ConfigData(TypedDict):
-        value: Annotated[int, TrackingFieldMeta(field_type=("number", "constant"), loader=loader)]
+        value: Annotated[int, TrackingFieldMeta(field_type="constant", loader=loader)]
 
     entry = SimpleNamespace(data=ConfigData)
     monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)
@@ -95,7 +78,7 @@ async def test_schema_load_calls_loader(monkeypatch: pytest.MonkeyPatch) -> None
     loader = TrackingLoader(available_result=True, loaded_value=99)
 
     class ConfigData(TypedDict):
-        value: Annotated[int, TrackingFieldMeta(field_type=("number", "constant"), loader=loader)]
+        value: Annotated[int, TrackingFieldMeta(field_type="constant", loader=loader)]
 
     entry = SimpleNamespace(data=ConfigData)
     monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)
@@ -117,3 +100,31 @@ def test_get_loader_instance_fallback() -> None:
 
     loader = get_loader_instance("value", PlainConfig)
     assert isinstance(loader, ConstantLoader)
+
+
+async def test_optional_none_values_are_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Optional fields provided as None should not trigger loader access."""
+
+    required_loader = TrackingLoader(available_result=True, loaded_value=11)
+    optional_loader = TrackingLoader(available_result=True, loaded_value=99)
+
+    class ConfigData(TypedDict):
+        value: Annotated[int, TrackingFieldMeta(field_type="constant", loader=required_loader)]
+        optional: NotRequired[Annotated[int | None, TrackingFieldMeta(field_type="constant", loader=optional_loader)]]
+
+    entry = SimpleNamespace(data=ConfigData)
+    monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)
+
+    config = cast(
+        "ElementConfigSchema",
+        {"element_type": "stub", "value": "sensor.example", "optional": None},
+    )
+    hass = cast("HomeAssistant", object())
+
+    assert schema_available(config, hass=hass) is True
+    assert optional_loader.available_calls == []
+
+    loaded = cast("ConfigData", await schema_load(config, hass=hass, forecast_times=[]))
+    assert "optional" not in loaded
+    assert required_loader.load_calls == [{"value": "sensor.example", "hass": hass, "forecast_times": []}]
+    assert optional_loader.load_calls == []

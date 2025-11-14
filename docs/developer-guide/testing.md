@@ -10,8 +10,9 @@ For more information on testing Home Assistant integrations, see:
 ## Test Organization
 
 - `tests/conftest.py` - Shared fixtures (Home Assistant instance, mock config entries, common scenarios)
-- `tests/test_*.py` - Component tests (model, coordinator, sensors, flows)
-- `tests/scenarios/*.py` - Complete system integration tests
+- `tests/model/` - Model element tests with structured test data
+- `tests/flows/` - Config flow tests
+- `tests/scenarios/` - Complete system integration tests
 
 ## Test Structure
 
@@ -20,6 +21,113 @@ For more information on testing Home Assistant integrations, see:
 **Integration tests**: Coordinator data flow, sensor updates, config entry lifecycle
 
 **Scenario tests**: Complete battery + solar + grid systems with realistic data
+
+## Scenario Testing
+
+Scenario tests verify complete system integration with realistic Home Assistant data.
+All scenarios are automatically discovered and tested by `tests/scenarios/test_scenarios.py`.
+
+### Structure
+
+Each scenario folder contains:
+
+- `config.json` - HAEO configuration with elements and connections
+- `states.json` - Filtered Home Assistant entity states
+
+New scenarios are automatically discovered by the test runner (any `scenario*/` folder).
+
+### Running Scenario Tests
+
+```bash
+# Run all scenarios (scenarios are skipped by default)
+uv run pytest tests/scenarios/test_scenarios.py -m scenario
+
+# Run specific scenario
+uv run pytest tests/scenarios/test_scenarios.py::test_scenarios[scenario1] -m scenario
+
+# Update snapshots after changes
+uv run pytest tests/scenarios/test_scenarios.py -m scenario --snapshot-update
+```
+
+### Test Behavior
+
+- Automatically extracts freeze time from most recent `last_updated` timestamp in states.json
+- Parameterized test runs once per scenario with unique test ID
+- Snapshots stored in `tests/scenarios/snapshots/test_scenarios.ambr`
+- Visualizations generated in each scenario's `visualizations/` directory
+
+For detailed scenario setup instructions, see `tests/scenarios/README.md`.
+
+## Model Element Testing
+
+Model element tests are organized in `tests/model/` with structured test data:
+
+- `test_elements.py` - Parametrized tests for element outputs and validation
+- `test_data/__init__.py` - Utilities and test case aggregation
+- `test_data/element.py` - Base Element test cases
+- `test_data/battery.py` - Battery-specific test cases
+- `test_data/connection.py` - Connection test cases
+- `test_data/grid.py` - Grid test cases
+- `test_data/photovoltaics.py` - Photovoltaics test cases
+
+### Test Case Structure
+
+Each test data module provides:
+
+**Factory function**: Creates element instances with fixed LP variable values for testing
+
+```python
+def create(data: dict[str, Any]) -> Element:
+    """Create a test Element instance with fixed values."""
+    return Element(**data)
+```
+
+**VALID_CASES**: List of test cases with expected outputs
+
+```python
+VALID_CASES = [
+    {
+        "description": "Battery with full configuration",
+        "factory": create,
+        "data": {
+            "name": "battery",
+            "n_periods": 2,
+            # etc
+        },
+        "expected_outputs": {
+            "power_consumed": {
+                "type": "power",
+                "unit": "kW",
+                "values": (1.0, 2.0),
+                # etc
+            },
+        },
+    }
+]
+```
+
+**INVALID_CASES**: Test cases that should raise validation errors
+
+```python
+INVALID_CASES = [
+    {
+        "description": "Grid with import price length mismatch",
+        "element_class": Grid,
+        "data": {"name": "grid", "n_periods": 2, "price_import": (0.3,)},
+        "expected_error": r"price_import length \(1\) must match n_periods \(2\)",
+    }
+]
+```
+
+### Adding New Element Tests
+
+When adding a new element type:
+
+1. Create `tests/model/test_data/new_element.py`
+2. Implement `create(data)` factory function
+3. Define `VALID_CASES` with expected outputs (type, unit, values)
+4. Define `INVALID_CASES` for validation errors
+5. Cases automatically included via aggregation in `__init__.py`
 
 ## Type Safety Philosophy
 
@@ -107,12 +215,12 @@ schema_cls = registry_entry.schema
 4. **Better error messages**: RuntimeError explains programming error vs silently logging
 5. **Coverage focus**: Test coverage focuses on actual business logic
 
-## Adding Element Tests
+## Adding Config Flow Tests
 
 When adding new element types:
 
 1. Add to `ELEMENT_TYPES` in `elements/__init__.py`
-2. Add test data in `tests/flows/test_data/`
+2. Add config flow test data in `tests/flows/test_data/`
 3. Parameterized tests automatically include the new type by iterating over `tuple(ELEMENT_TYPES)`
 
 Parameterized tests marked with `@pytest.mark.parametrize` run once per element type.

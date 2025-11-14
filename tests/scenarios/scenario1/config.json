@@ -15,7 +15,7 @@
       "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
       "min_charge_percentage": 10.0,
       "max_charge_percentage": 100.0,
-      "efficiency": 0.99,
+      "efficiency": 99.0,
       "max_charge_power": "sensor.sigen_plant_ess_rated_charging_power",
       "max_discharge_power": "sensor.sigen_plant_ess_rated_discharging_power",
       "charge_cost": -1e-3,
@@ -63,21 +63,15 @@
     "Grid": {
       "element_type": "grid",
       "name": "Grid",
-      "import_price": {
-        "live": ["sensor.home_general_price"],
-        "forecast": ["sensor.home_general_forecast"]
-      },
-      "export_price": {
-        "live": ["sensor.home_feed_in_price"],
-        "forecast": ["sensor.home_feed_in_forecast"]
-      },
+      "import_price": ["sensor.home_general_price", "sensor.home_general_forecast"],
+      "export_price": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
       "import_limit": 55,
       "export_limit": 30
     },
     "Constant Load": {
-      "element_type": "constant_load",
+      "element_type": "load",
       "name": "Constant Load",
-      "power": 1.0
+      "forecast": ["input_number.constant_load_power"]
     },
     "DC Net->Battery": {
       "element_type": "connection",

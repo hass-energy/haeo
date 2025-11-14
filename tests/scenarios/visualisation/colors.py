@@ -14,19 +14,19 @@ _PHOTOVOLTAICS_PALETTE = [
 ]
 
 _BATTERY_PALETTE = [
-    "#1f77b4",  # Blue (primary)
-    "#aec7e8",  # Light blue
-    "#4a90d9",  # Medium blue
-    "#0d5a9e",  # Dark blue
-    "#c5d9f1",  # Pale blue
-]
-
-_GRID_PALETTE = [
     "#2ca02c",  # Green (primary)
     "#98df8a",  # Light green
     "#5cb85c",  # Medium green
     "#1e7b1e",  # Dark green
     "#c7e9c0",  # Pale green
+]
+
+_GRID_PALETTE = [
+    "#1f77b4",  # Blue (primary)
+    "#aec7e8",  # Light blue
+    "#4a90d9",  # Medium blue
+    "#0d5a9e",  # Dark blue
+    "#c5d9f1",  # Pale blue
 ]
 
 _LOAD_PALETTE = [
@@ -53,8 +53,6 @@ ELEMENT_COLOR_PALETTES: dict[str, list[str]] = {
     "battery": _BATTERY_PALETTE,
     "grid": _GRID_PALETTE,
     "load": _LOAD_PALETTE,
-    "constant_load": _LOAD_PALETTE,  # Shares palette with load
-    "forecast_load": _LOAD_PALETTE,  # Shares palette with load
 }
 
 # Fallback color palette for unknown element types
@@ -66,8 +64,6 @@ class ColorMapper:
 
     This class maintains state about which elements have been assigned colors,
     ensuring that multiple elements of the same type get distinct but related colors.
-    Elements that share the same color palette (e.g., load, constant_load, forecast_load)
-    will share the same color counter.
     """
 
     def __init__(self) -> None:
@@ -108,29 +104,3 @@ class ColorMapper:
         # Cache and return the color
         self._element_colors[element_name] = color
         return color
-
-    def get_all_colors(self) -> dict[str, str]:
-        """Get all element name to color mappings.
-
-        Returns:
-            Dictionary mapping element names to their assigned colors
-
-        """
-        return self._element_colors.copy()
-
-
-def get_element_color(element_type: str) -> str:
-    """Get the primary color for a given element type.
-
-    This function returns the primary (first) color from the palette for the given type.
-    For new code, consider using ColorMapper for better color assignment.
-
-    Args:
-        element_type: The type of element (e.g., "photovoltaics", "battery", "load")
-
-    Returns:
-        Hex color code for the element type
-
-    """
-    palette = ELEMENT_COLOR_PALETTES.get(element_type, FALLBACK_PALETTE)
-    return palette[0]

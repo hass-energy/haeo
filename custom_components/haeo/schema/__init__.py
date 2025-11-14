@@ -1,15 +1,28 @@
-"""Schema utilities for flattening and reconstructing HAEO type configurations."""
+"""Schema utilities for HAEO type configurations."""
 
-from collections.abc import Mapping
-from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, cast, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, Unpack, cast, get_args, get_origin, get_type_hints
 from typing import get_origin as typing_get_origin
 
 from homeassistant.core import HomeAssistant
 import voluptuous as vol
 
 from custom_components.haeo.data.loader import ConstantLoader, Loader
+from custom_components.haeo.data.loader.extractors import EntityMetadata
 
 from .fields import FieldMeta, FieldValidator
+from .params import SchemaParams
+
+__all__ = [
+    "EntityMetadata",
+    "FieldMeta",
+    "FieldValidator",
+    "available",
+    "get_field_meta",
+    "get_loader_instance",
+    "load",
+    "schema_for_type",
+]
+
 
 if TYPE_CHECKING:
     from custom_components.haeo.elements import (
@@ -31,18 +44,18 @@ def _get_registry_entry(element_type: "ElementType") -> "ElementRegistryEntry":
     return ELEMENT_TYPES[element_type]
 
 
-def get_loader_instance(field_name: str, config_class: type) -> Loader:
-    """Extract the loader instance from a field's FieldMeta annotation.
+def get_field_meta(field_name: str, config_class: type) -> FieldMeta | None:
+    """Extract the FieldMeta instance from a field's annotation.
 
     This inspects the type annotations of a Data mode TypedDict to find the
-    FieldMeta instance, which contains the typed loader instance.
+    FieldMeta instance.
 
     Args:
         field_name: Name of the field
         config_class: TypedDict config class (Data mode)
 
     Returns:
-        The loader instance (ConstantLoader, SensorLoader, ForecastLoader, etc.)
+        The FieldMeta instance, or None if not found
 
     """
     hints = get_type_hints(config_class, include_extras=True)
@@ -57,10 +70,27 @@ def get_loader_instance(field_name: str, config_class: type) -> Loader:
     if get_origin(field_type) is Annotated:
         for meta in field_type.__metadata__:
             if isinstance(meta, FieldMeta):
-                return meta.loader
+                return meta
 
-    # Fallback
-    return ConstantLoader[Any](object)
+    return None
+
+
+def get_loader_instance(field_name: str, config_class: type) -> Loader:
+    """Extract the loader instance from a field's FieldMeta annotation.
+
+    This inspects the type annotations of a Data mode TypedDict to find the
+    FieldMeta instance, which contains the typed loader instance.
+
+    Args:
+        field_name: Name of the field
+        config_class: TypedDict config class (Data mode)
+
+    Returns:
+        The loader instance
+
+    """
+    field_meta = get_field_meta(field_name, config_class)
+    return field_meta.loader if field_meta else ConstantLoader[Any](object)
 
 
 def available(
@@ -186,61 +216,22 @@ def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool]]:
     return annotated
 
 
-def schema_for_type(cls: type, **kwargs: Any) -> vol.Schema:
+def schema_for_type(cls: type, **schema_params: Unpack[SchemaParams]) -> vol.Schema:
     """Create a schema for a TypedDict type.
 
     Args:
         cls: The TypedDict class to create schema for
-        defaults: Optional dict of default values to pre-populate (flattened format)
-        **kwargs: Additional arguments passed to field validators
+        **schema_params: Schema parameters passed to field validators
 
     Returns:
-        Voluptuous schema with optional defaults
+        Voluptuous schema
 
     """
     annotated_fields = _get_annotated_fields(cls)
-
     schema: dict[vol.Required | vol.Optional, FieldValidator] = {}
     for field, (meta, is_optional) in annotated_fields.items():
-        validator = meta.create_schema(**kwargs)
-
-        if isinstance(validator, Mapping):
-            for subkey, subvalidator in validator.items():
-                key = f"{field}:{subkey}"
-                schema_key = (vol.Optional if is_optional else vol.Required)(key)
-                schema[schema_key] = subvalidator
-        else:
-            key = field
-            schema_key = (vol.Optional if is_optional else vol.Required)(key)
-            schema[schema_key] = validator
+        validator = meta.create_schema(**schema_params)
+        schema_key = (vol.Optional if is_optional else vol.Required)(field)
+        schema[schema_key] = validator
 
     return vol.Schema(schema)
-
-
-def unflatten(data: Mapping[str, Any]) -> dict[str, Any]:
-    """Convert flattened delimited dictionary to to structured dictionary."""
-    output: dict[str, Any] = {}
-
-    # Unflatten data treating ":" as delimiter
-    for k, v in data.items():
-        ks = k.split(":")
-        if len(ks) > 1:
-            output.setdefault(ks[0], {})[ks[1]] = v
-        else:
-            output[k] = v
-
-    return output
-
-
-def flatten(config: Mapping[str, Any]) -> dict[str, Any]:
-    """Convert structured dictionary to flattened delimited dictionary."""
-
-    output: dict[str, Any] = {}
-    for k, v in config.items():
-        if isinstance(v, dict):
-            for subk, subv in v.items():
-                output[f"{k}:{subk}"] = subv
-        else:
-            output[k] = v
-
-    return output

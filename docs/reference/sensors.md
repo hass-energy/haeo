@@ -34,18 +34,16 @@
 
 ## Forecast Attribute
 
-All sensors include `forecast` attribute:
+All sensors include a `forecast` attribute that maps ISO 8601 timestamps to future values:
 
 ```yaml
 attributes:
   forecast:
-    - datetime: '2025-10-12T10:00:00+00:00'
-      value: 5.2
-    - datetime: '2025-10-12T10:05:00+00:00'
-      value: 5.1
+    '2025-10-12T10:00:00+00:00': 5.2
+    '2025-10-12T10:05:00+00:00': 5.1
 ```
 
-Length = number of periods in horizon.
+The dictionary contains one entry per optimisation period in the horizon.
 
 ## Sensor States
 

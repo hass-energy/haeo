@@ -7,8 +7,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.util import slugify
 
-from custom_components.haeo.schema import unflatten
-
 from .const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
@@ -86,8 +84,7 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
         if subentry.subentry_type != "network":
             raw_data.setdefault("name", name)
             raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
-            structured_config = unflatten(raw_data)
-            subentry_info["config"] = structured_config
+            subentry_info["config"] = raw_data
 
         subentries_info.append(subentry_info)
 

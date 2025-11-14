@@ -59,12 +59,173 @@ Elsewhere, favour neutral language such as "elements" or "devices".
 - Verify external Home Assistant links still lead to maintained content.
 - Replace redirected URLs with their final destinations.
 
+## DRY principle for documentation
+
+**Don't Repeat Yourself** applies to documentation as much as code.
+When information exists in one authoritative location, link to it rather than duplicating.
+
+### Single source of truth
+
+Establish primary references for cross-cutting concepts:
+
+- **Forecasts and sensors**: `docs/user-guide/forecasts-and-sensors.md` is the authoritative source for sensor behavior, data extraction, multiple sensors, forecast cycling, and supported formats
+- **Units**: `docs/developer-guide/units.md` covers unit conversion and base units
+- **Home Assistant concepts**: Link to [HA developer docs](https://developers.home-assistant.io/) for standard platform concepts (ConfigEntry, DataUpdateCoordinator, Entity, etc.)
+
+### When to duplicate vs link
+
+**Link when:**
+
+- The concept is explained thoroughly elsewhere
+- The information changes independently (implementation details, API references)
+- The target audience differs (user vs developer documentation)
+
+**Duplicate when:**
+
+- The information is element-specific (battery SOC limits vs grid import limits)
+- Context is essential for understanding (brief inline examples)
+
+## Cross-referencing strategy
+
+Effective cross-references guide readers without overwhelming them.
+
+### Link text best practices
+
+- Use descriptive link text: "See the [Forecasts and Sensors guide](../user-guide/forecasts-and-sensors.md)" not "See [here](#)"
+- Inline field type links: `**Forecast** | [sensor(s)](../user-guide/forecasts-and-sensors.md)` in configuration tables
+- Reference specific sections when helpful: "[Forecast Cycling](../user-guide/forecasts-and-sensors.md#forecast-coverage-and-cycling)"
+
+### Avoiding circular references
+
+- User guides should link to reference documentation, not vice versa
+- Element pages link to the forecasts guide; the forecasts guide doesn't enumerate all elements
+- Developer guides can reference user guides for context, but focus on architecture not usage
+
+### Cross-reference maintenance
+
+When updating a primary reference:
+
+- Search for links to that page across the documentation
+- Verify links still point to correct sections (especially after heading changes)
+- Update inline descriptions if the linked content's scope changed
+
+## Technical accuracy checklist
+
+Before committing documentation changes, verify:
+
+### Units and measurements
+
+- [ ] Power uses kW (kilowatts), not W or MW
+- [ ] Energy uses kWh (kilowatt-hours), not Wh or MWh
+- [ ] Prices use \$/kWh, not cents or other currencies
+- [ ] Time uses seconds for internal timestamps, hours for user-facing durations
+- [ ] All numeric examples use realistic values
+
+### Sensor behavior
+
+- [ ] Sensors provide EITHER present value OR forecast, never both
+- [ ] Multiple sensors combine additively (sum at each timestamp)
+- [ ] Forecast cycling uses natural period alignment, not arbitrary repetition
+- [ ] Interpolation is trapezoidal (interval averages), not point sampling
+
+### Implementation details
+
+- [ ] Sensor field types link to forecasts-and-sensors.md
+- [ ] Code examples match actual implementation (verify against source)
+- [ ] Configuration examples use valid YAML structure
+- [ ] Sensor naming matches actual output (e.g., `power_imported` not `import_power`)
+
+## Next steps requirements
+
+All user-facing pages must end with a **Next Steps** section.
+
+### Purpose
+
+Next Steps sections help users discover related topics and continue their learning journey.
+They prevent dead-ends and guide users toward completing common workflows.
+
+### Structure
+
+Use Material for MkDocs grid cards format (match `docs/index.md`):
+
+```markdown
+## Next Steps
+
+<div class="grid cards" markdown>
+
+-   :material-icon:{ .lg .middle } **Card title**
+
+    ---
+
+    Brief description of what the user will learn or accomplish.
+
+    [:material-arrow-right: Link text](path/to/page.md)
+
+</div>
+```
+
+### Content guidelines
+
+- **3 cards maximum**: More creates choice paralysis
+- **Logical progression**: Next steps should flow naturally from current page content
+- **Actionable descriptions**: Focus on what users will do or learn, not just topic names
+- **Appropriate icons**: Use Material icons that match the topic (`:material-battery-charging:`, `:material-chart-line:`, etc.)
+
+### Examples of good Next Steps
+
+From photovoltaics configuration:
+
+1. Connect to network (logical next action after configuring an element)
+2. Understand sensor loading (deepens understanding of the Forecast field)
+3. Add battery storage (common use case combining elements)
+
+From forecasts and sensors guide:
+
+1. Configure specific elements (apply knowledge to real configuration)
+2. Understand optimization (see how forecast data affects results)
+3. Troubleshooting (address common issues)
+
+## Code in developer docs
+
+Developer documentation explains architecture and design decisions, not implementation details.
+
+### What to include
+
+- **High-level architecture**: Component responsibilities, interactions, data flow
+- **Design rationale**: Why decisions were made, alternatives considered, trade-offs
+- **Extension points**: How to add new features (new parsers, new element types)
+- **Key concepts**: Algorithms explained conceptually (trapezoidal integration purpose, not formula)
+
+### What to avoid
+
+- **Code reproduction**: Don't copy class definitions, function signatures, or implementation logic
+- **Line-by-line explanations**: Readers can view source code if they need that detail
+- **Detailed examples**: Brief conceptual examples are fine, but not exhaustive test cases
+
+### Linking to source code
+
+When referencing implementation:
+
+- Link to the specific module on GitHub: [`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/time_series_loader.py)
+- Reference function/class names in text: "The `combine_sensor_payloads()` function merges multiple sensors..."
+- Describe purpose and behavior, not implementation: "combines additively" not "loops through payloads and sums values"
+
+### When code examples are appropriate
+
+Use code snippets when:
+
+- Showing API usage patterns (how to call the loader, not how it's implemented)
+- Demonstrating test patterns (structure, not exhaustive cases)
+- Illustrating external interfaces (config schema, sensor attributes)
+
+Keep snippets minimal and focused on the concept being explained.
+
 ## Consistency review
 
 - Confirm terminology matches the glossary above.
 - Compare duplicate topics (for example, battery configuration vs battery modeling) to ensure they complement rather than repeat one another.
-- Ensure every user-facing page ends with a **Next steps** callout that links to the most relevant follow-up topics, and refresh those links whenever nearby content changes.
-- Match the **Next steps** layout in `docs/index.md`.
+- Ensure every user-facing page ends with a **Next Steps** section that links to the most relevant follow-up topics, and refresh those links whenever nearby content changes.
+- Match the **Next Steps** layout in `docs/index.md`.
     Use a Material grid, apply `{ .lg .middle }` to the icon, follow with a descriptive sentence, and finish with an arrow-link call to action.
 - Summarise directory layouts at a high level; avoid listing every file because those inventories fall out of date quickly.
 - Make sure each page introduces a concept once and references it elsewhere instead of re-explaining it.
@@ -136,5 +297,9 @@ Before opening a pull request:
 - [ ] Terminology and naming consistent with existing pages
 - [ ] No quantitative performance claims without benchmarks
 - [ ] Templates applied or intentionally adapted with justification in the PR description
+- [ ] No duplicate information (checked against primary references)
+- [ ] Technical details verified for accuracy (units, sensor behavior, implementation)
+- [ ] User-facing pages include Next Steps sections
+- [ ] Developer documentation focuses on architecture, not code reproduction
 
 Following these guidelines keeps HAEO documentation lean, accurate, and easy to maintain.

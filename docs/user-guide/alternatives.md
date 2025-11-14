@@ -226,8 +226,8 @@ All three projects welcome contributions:
 
 ### HAEO Support
 
-- [GitHub Issues](https://github.com/ha-energy-optimiser/haeo/issues)
-- [GitHub Discussions](https://github.com/ha-energy-optimiser/haeo/discussions)
+- [GitHub Issues](https://github.com/hass-energy/haeo/issues)
+- [GitHub Discussions](https://github.com/hass-energy/haeo/discussions)
 - [Documentation](../index.md)
 
 ### Community Forums

@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import itertools
 import logging
 from pathlib import Path
-from typing import Any, Final, Literal, Required, TypedDict
+from typing import Any, Final, Literal, Required, TypedDict, cast
 
 from homeassistant.core import HomeAssistant
 import matplotlib as mpl
@@ -91,7 +91,7 @@ def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, Forecas
         element_type = sensor.attributes["element_type"]
         output_name = sensor.attributes["output_name"]
         forecast: Sequence[tuple[float, float]] = sorted(
-            (datetime.fromisoformat(dt).timestamp(), value) for dt, value in sensor.attributes["forecast"].items()
+            (dt.timestamp(), value) for dt, value in sensor.attributes["forecast"].items()
         )
 
         entry = forecast_data.setdefault(
@@ -139,7 +139,8 @@ def _compute_activity_metrics(forecast_data: dict[str, ForecastData]) -> dict[st
             if series is None:
                 continue
 
-            series_array = np.asarray(series, dtype=float)
+            series_tuples = cast("Sequence[tuple[float, float]]", series)
+            series_array = np.asarray(series_tuples, dtype=float)
             if series_array.size == 0:
                 continue
 

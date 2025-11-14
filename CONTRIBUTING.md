@@ -47,7 +47,7 @@ uv run ruff format custom_components/ tests/
 uv run mypy custom_components/
 ```
 
-See the [Developer Guide](https://ha-energy-optimiser.github.io/haeo/developer-guide/) for detailed setup instructions.
+See the [Developer Guide](https://hass-energy.github.io/haeo/developer-guide/) for detailed setup instructions.
 
 ## Any contributions you make will be under the MIT Software License
 
@@ -129,9 +129,13 @@ uv run pytest --cov=custom_components.haeo --cov-report=html
 
 # Run specific test file
 uv run pytest tests/test_model.py
+
+# Run scenario tests (skipped by default)
+uv run pytest tests/scenarios/test_scenarios.py -m scenario
 ```
 
 All tests must pass before your PR can be merged.
+Note: Scenario tests are skipped by default and only run when explicitly requested with `-m scenario`.
 
 ## Documentation
 
@@ -146,7 +150,7 @@ uv run mkdocs serve
 
 Documentation is automatically deployed when changes are merged to `main`.
 
-See the [Contributing Guide](https://ha-energy-optimiser.github.io/haeo/developer-guide/contributing/) in the documentation for more details.
+See the [Contributing Guide](https://hass-energy.github.io/haeo/developer-guide/contributing/) in the documentation for more details.
 
 ## License
 

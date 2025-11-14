@@ -1,7 +1,12 @@
 """Test data and validation for connection flow configuration."""
 
 from custom_components.haeo.const import CONF_NAME
-from custom_components.haeo.elements.connection import CONF_MAX_POWER, CONF_MIN_POWER, CONF_SOURCE, CONF_TARGET
+from custom_components.haeo.elements.connection import (
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_SOURCE,
+    CONF_TARGET,
+)
 
 # Test data for connection flow
 VALID_DATA = [
@@ -19,8 +24,8 @@ VALID_DATA = [
             CONF_NAME: "Battery to Grid",
             CONF_SOURCE: "Battery1",
             CONF_TARGET: "Grid1",
-            CONF_MIN_POWER: 0.0,
-            CONF_MAX_POWER: 5000.0,
+            CONF_MAX_POWER_SOURCE_TARGET: "sensor.power_limit",
+            CONF_MAX_POWER_TARGET_SOURCE: "sensor.power_limit",
         },
     },
 ]

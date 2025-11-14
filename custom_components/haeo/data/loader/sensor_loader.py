@@ -1,83 +1,85 @@
-"""Loader for `sensor` field types."""
+"""Load sensor data from Home Assistant entities."""
 
 from collections.abc import Sequence
 from typing import Any, TypeGuard
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.const import convert_to_base_unit
+from .extractors import extract_time_series
+
+type ForecastSeries = list[tuple[int, float]]
+type SensorPayload = float | ForecastSeries
 
 
-class SensorLoader:
-    """Loader for sensor values (returns float)."""
+def is_sensor_sequence(value: Any) -> TypeGuard[Sequence[str]]:
+    """Return True when *value* is a sequence of sensor entity IDs."""
 
-    def available(self, *, hass: HomeAssistant, value: Any, **_kwargs: Any) -> bool:
-        """Return True if all sensors are available.
+    return (
+        isinstance(value, Sequence)
+        and not isinstance(value, (bytes, str))
+        and all(isinstance(item, str) for item in value)
+    )
 
-        Args:
-            hass: Home Assistant instance
-            value: Single sensor entity ID or list of sensor entity IDs to check
-            **_kwargs: Additional keyword arguments (unused)
 
-        Returns:
-            True if all sensors are available and have valid states
+def normalize_entity_ids(value: Any) -> list[str]:
+    """Return a list of entity IDs extracted from *value*.
 
-        """
-        # Handle both single sensor ID (str) and list of sensor IDs (Sequence[str])
-        # Guard against non-iterable values
-        if not self.is_valid_value(value):
-            return False
-        if isinstance(value, str):
-            sensor_list = [value]
-        elif isinstance(value, Sequence):
-            sensor_list = list(value)
-        else:
-            return False
+    Accepts either a single entity ID or any sequence of entity IDs. Raises
+    ``TypeError`` when the input does not describe sensor entities.
+    """
 
-        return all(
-            (state := hass.states.get(sid)) is not None and state.state not in ("unknown", "unavailable", "none")
-            for sid in sensor_list
-        )
+    if isinstance(value, str):
+        return [value]
 
-    async def load(self, *, hass: HomeAssistant, value: Any, **_kwargs: Any) -> float:
-        """Load sensor values and return their sum or single value.
+    if is_sensor_sequence(value):
+        return list(value)
 
-        Args:
-            hass: Home Assistant instance
-            value: Single sensor entity ID or list of sensor entity IDs to load
-            **kwargs: Additional keyword arguments (unused)
+    msg = "Value must be a sensor entity ID or a sequence of sensor entity IDs"
+    raise TypeError(msg)
 
-        Returns:
-            Sum of all sensor values as a float (or single value if only one sensor)
 
-        """
-        # Handle both single sensor ID (str) and list of sensor IDs (Sequence[str])
-        if not self.is_valid_value(value):
-            msg = "Value must be a sensor entity ID (str) or a sequence of sensor entity IDs (Sequence[str])"
-            raise TypeError(msg)
+def load_sensor(hass: HomeAssistant, entity_id: str) -> SensorPayload | None:
+    """Load sensor data for a single entity ID.
 
-        sensor_list: Sequence[str] = [value] if isinstance(value, str) else value
+    Checks if the sensor is a forecast sensor and loads it using forecast extraction,
+    or falls back to the state value if no forecast is available.
 
-        total: float = 0.0
-        for sid in sensor_list:
-            state = hass.states.get(sid)
-            if state is None:
-                msg = f"Sensor {sid} not found"
-                raise ValueError(msg)
-            try:
-                sensor_value = float(state.state)
-            except (ValueError, TypeError) as e:
-                msg = f"Cannot parse sensor value for {sid}: {state.state}"
-                raise ValueError(msg) from e
-            # Convert units when possible
-            device_class = state.attributes.get("device_class")
-            unit = state.attributes.get("unit_of_measurement")
-            sensor_value = convert_to_base_unit(sensor_value, unit, device_class)
-            total += sensor_value
+    Args:
+        hass: Home Assistant instance
+        entity_id: The entity ID to load
 
-        # Return the calculated total
-        return total
+    Returns:
+        Either a float (for simple values) or a list of (timestamp, value) tuples
+        (for forecast data), or None if no data is available
 
-    def is_valid_value(self, value: Any) -> TypeGuard[Sequence[str] | str]:
-        """Check if the value is a valid sensor ID or sequence of sensor IDs."""
-        return isinstance(value, str) or (isinstance(value, Sequence) and all(isinstance(item, str) for item in value))
+    """
+    state = hass.states.get(entity_id)
+    if state is None:
+        return None
+
+    try:
+        return extract_time_series(state, entity_id=entity_id)
+    except ValueError:
+        return None
+
+
+def load_sensors(hass: HomeAssistant, entity_ids: Sequence[str]) -> dict[str, SensorPayload]:
+    """Load sensor data for multiple entity IDs.
+
+    Args:
+        hass: Home Assistant instance
+        entity_ids: List of entity IDs to load
+
+    Returns:
+        Dictionary mapping entity IDs to their sensor payloads.
+        Only includes sensors that successfully loaded data.
+
+    """
+    payloads: dict[str, SensorPayload] = {}
+
+    for entity_id in entity_ids:
+        payload = load_sensor(hass, entity_id)
+        if payload is not None:
+            payloads[entity_id] = payload
+
+    return payloads

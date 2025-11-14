@@ -5,9 +5,10 @@ from typing import Any, cast
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ElementConfigSchema, is_element_config_schema
 from custom_components.haeo.network import evaluate_network_connectivity
-from custom_components.haeo.schema import flatten, schema_for_type, unflatten
+from custom_components.haeo.schema import schema_for_type
 from custom_components.haeo.validation import collect_participant_configs
 
 
@@ -28,7 +29,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         """
         self.element_type: str = element_type
         self.schema_cls: type[ElementConfigSchema] = schema_cls
-        self.defaults: dict[str, Any] = flatten(defaults)
+        self.defaults: dict[str, Any] = defaults
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Add new element - validates name uniqueness, creates subentry."""
@@ -43,10 +44,9 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                 errors[CONF_NAME] = "name_exists"
 
             if not errors:
-                new_config = cast(
-                    "ElementConfigSchema",
-                    unflatten({CONF_ELEMENT_TYPE: self.element_type, **user_input}),
-                )
+                # user_input has been validated by voluptuous via the schema
+                # Cast is safe here as we're just adding the element_type field
+                new_config = cast("ElementConfigSchema", {CONF_ELEMENT_TYPE: self.element_type, **user_input})
 
                 hub_entry = self._get_entry()
                 participant_configs = collect_participant_configs(hub_entry)
@@ -57,7 +57,10 @@ class ElementSubentryFlow(ConfigSubentryFlow):
 
         # Show the form to the user
         schema = schema_for_type(
-            self.schema_cls, participants=self._get_non_connection_element_names(), current_element_name=None
+            self.schema_cls,
+            entity_metadata=extract_entity_metadata(self.hass),
+            participants=self._get_non_connection_element_names(),
+            current_element_name=None,
         )
         schema = self.add_suggested_values_to_schema(schema, self.defaults)
 
@@ -78,10 +81,9 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                 errors[CONF_NAME] = "name_exists"
 
             if not errors:
-                updated_config = cast(
-                    "ElementConfigSchema",
-                    unflatten({**user_input, CONF_ELEMENT_TYPE: self.element_type}),
-                )
+                # user_input has been validated by voluptuous via the schema
+                # Cast is safe here as we're just adding the element_type field
+                updated_config = cast("ElementConfigSchema", {**user_input, CONF_ELEMENT_TYPE: self.element_type})
 
                 participant_configs = collect_participant_configs(hub_entry)
                 current_name = subentry.data.get(CONF_NAME)
@@ -100,10 +102,11 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         # Get the schema
         schema = schema_for_type(
             self.schema_cls,
+            entity_metadata=extract_entity_metadata(self.hass),
             participants=self._get_non_connection_element_names(),
             current_element_name=subentry.data.get(CONF_NAME),
         )
-        schema = self.add_suggested_values_to_schema(schema, flatten(subentry.data))
+        schema = self.add_suggested_values_to_schema(schema, subentry.data)
 
         return self.async_show_form(step_id="reconfigure", data_schema=schema, errors=errors)
 

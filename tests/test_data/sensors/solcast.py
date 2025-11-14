@@ -1,5 +1,6 @@
 """Test data for Solcast Solar forecast sensors."""
 
+from datetime import UTC, datetime
 from typing import Any
 
 # Valid Solcast sensor configurations
@@ -37,6 +38,44 @@ VALID: list[dict[str, Any]] = [
         "expected_format": "solcast_solar",
         "expected_count": 2,
         "description": "Multiple Solcast forecast entries",
+    },
+    {
+        "entity_id": "sensor.solcast_datetime_objects",
+        "state": "0",
+        "attributes": {
+            "detailedForecast": [
+                {
+                    "period_start": datetime(2025, 10, 6, 0, 0, 0, tzinfo=UTC),
+                    "pv_estimate": 5,
+                },
+                {
+                    "period_start": datetime(2025, 10, 6, 0, 30, 0, tzinfo=UTC),
+                    "pv_estimate": 15,
+                },
+            ]
+        },
+        "expected_format": "solcast_solar",
+        "expected_count": 2,
+        "description": "Solcast forecast with datetime objects instead of strings",
+    },
+    {
+        "entity_id": "sensor.solcast_mixed_datetime_types",
+        "state": "0",
+        "attributes": {
+            "detailedForecast": [
+                {
+                    "period_start": "2025-10-06T00:00:00+11:00",
+                    "pv_estimate": 3,
+                },
+                {
+                    "period_start": datetime(2025, 10, 6, 1, 0, 0, tzinfo=UTC),
+                    "pv_estimate": 8,
+                },
+            ]
+        },
+        "expected_format": "solcast_solar",
+        "expected_count": 2,
+        "description": "Solcast forecast with mixed string and datetime object timestamps",
     },
 ]
 

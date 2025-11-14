@@ -1,7 +1,5 @@
 """Tests for the HAEO sensor platform."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from datetime import UTC, datetime
 from types import MappingProxyType
@@ -41,7 +39,9 @@ class _DummyCoordinator:
         self.last_update_success = True
         self._listeners: list[Callable[[], None]] = []
 
-    def async_add_listener(self, update_callback: Callable[[], None]) -> Callable[[], None]:
+    def async_add_listener(
+        self, update_callback: Callable[[], None], _context: object | None = None
+    ) -> Callable[[], None]:
         """Register a listener and return an unsubscribe callback."""
         self._listeners.append(update_callback)
         return lambda: None
@@ -52,7 +52,7 @@ def _make_output(
     type_: OutputType,
     unit: str | None,
     state: float | str | None,
-    forecast: dict[str, float] | None,
+    forecast: dict[datetime, float] | None,
     entity_category: EntityCategory | None,
     device_class: SensorDeviceClass | None,
     state_class: SensorStateClass | None,
@@ -147,7 +147,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
                 type_=OUTPUT_TYPE_POWER,
                 unit="kW",
                 state=1.5,
-                forecast={datetime.now(tz=UTC).isoformat(): 1.5},
+                forecast={datetime.now(tz=UTC): 1.5},
                 entity_category=None,
                 device_class=SensorDeviceClass.POWER,
                 state_class=SensorStateClass.MEASUREMENT,
@@ -179,6 +179,20 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
     assert power_sensor.native_unit_of_measurement == "kW"
     assert power_sensor.device_class is SensorDeviceClass.POWER
     assert power_sensor.state_class is SensorStateClass.MEASUREMENT
+
+
+async def test_async_setup_entry_ignores_missing_coordinator(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Setup should no-op when the config entry lacks runtime data."""
+
+    config_entry.runtime_data = None
+    async_add_entities = Mock()
+
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    async_add_entities.assert_not_called()
 
 
 async def test_async_setup_entry_skips_when_no_outputs(
@@ -225,7 +239,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
     )
     sensor.async_write_ha_state = Mock()
 
-    forecast_time = datetime(2024, 1, 1, tzinfo=UTC).isoformat()
+    forecast_time = datetime(2024, 1, 1, tzinfo=UTC)
     updated_output = _make_output(
         type_=OUTPUT_TYPE_POWER,
         unit="W",
@@ -325,3 +339,37 @@ def test_sensor_availability_follows_coordinator(device_entry: DeviceEntry) -> N
 
     coordinator.last_update_success = False
     assert sensor.available is False
+
+
+async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: DeviceEntry) -> None:
+    """async_added_to_hass should trigger an initial update when data exists."""
+
+    coordinator = _DummyCoordinator()
+    output = _make_output(
+        type_=OUTPUT_TYPE_POWER,
+        unit="kW",
+        state=1.0,
+        forecast=None,
+        entity_category=None,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+    )
+    coordinator.data = {"battery": {OUTPUT_NAME_POWER_CONSUMED: output}}
+
+    sensor = HaeoSensor(
+        cast("HaeoDataUpdateCoordinator", coordinator),
+        device_entry=device_entry,
+        element_key="battery",
+        element_title="Battery",
+        element_type=BATTERY_TYPE,
+        output_name=OUTPUT_NAME_POWER_CONSUMED,
+        output_data=output,
+        unique_id="sensor-id",
+    )
+
+    sensor._handle_coordinator_update = Mock()
+
+    await sensor.async_added_to_hass()
+
+    sensor._handle_coordinator_update.assert_called_once()

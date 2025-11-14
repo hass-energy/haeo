@@ -1,7 +1,5 @@
 """Tests for HAEO diagnostics utilities."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime, timedelta
 from types import MappingProxyType
 from unittest.mock import Mock
@@ -95,9 +93,9 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
     coordinator.update_interval = timedelta(minutes=5)
     coordinator.last_update_success_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     forecast_map = {
-        datetime(2024, 1, 1, 12, 0, tzinfo=UTC).isoformat(): 3.0,
-        datetime(2024, 1, 1, 12, 15, tzinfo=UTC).isoformat(): 2.5,
-        datetime(2024, 1, 1, 12, 30, tzinfo=UTC).isoformat(): 2.0,
+        datetime(2024, 1, 1, 12, 0, tzinfo=UTC): 3.0,
+        datetime(2024, 1, 1, 12, 15, tzinfo=UTC): 2.5,
+        datetime(2024, 1, 1, 12, 30, tzinfo=UTC): 2.0,
     }
     coordinator.data = {
         "test_hub": {

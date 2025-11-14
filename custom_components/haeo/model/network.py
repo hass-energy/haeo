@@ -11,10 +11,9 @@ from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, getSolver, lpSum
 
 from .battery import Battery
 from .connection import Connection
-from .constant_load import ConstantLoad
 from .element import Element
-from .forecast_load import ForecastLoad
 from .grid import Grid
+from .load import Load
 from .node import Node
 from .photovoltaics import Photovoltaics
 
@@ -36,7 +35,6 @@ class Network:
     period: float  # Period in hours
     n_periods: int
     elements: dict[str, Element | Connection] = field(default_factory=dict)
-    sensor_data_available: bool = True
 
     def add(self, element_type: str, name: str, **kwargs: object) -> Element | Connection:
         """Add an element to the network by type.
@@ -53,8 +51,7 @@ class Network:
         factories: dict[str, Callable[..., Element | Connection]] = {
             "battery": Battery,
             "photovoltaics": Photovoltaics,
-            "constant_load": ConstantLoad,
-            "forecast_load": ForecastLoad,
+            "load": Load,
             "grid": Grid,
             "node": Node,
             "connection": Connection,
@@ -95,11 +92,19 @@ class Network:
                 for conn_element in self.elements.values():
                     if isinstance(conn_element, Connection):
                         if conn_element.source == element.name:
-                            # Power leaving the element (negative for balance)
-                            balance_terms.append(-conn_element.power[t])
+                            # Power leaving source (negative for balance)
+                            balance_terms.append(-conn_element.power_source_target[t])
+                            # Power entering source from target (positive, with efficiency applied)
+                            balance_terms.append(
+                                conn_element.power_target_source[t] * conn_element.efficiency_target_source[t]
+                            )
                         elif conn_element.target == element.name:
-                            # Power entering the element (positive for balance)
-                            balance_terms.append(conn_element.power[t])
+                            # Power entering target from source (positive, with efficiency applied)
+                            balance_terms.append(
+                                conn_element.power_source_target[t] * conn_element.efficiency_source_target[t]
+                            )
+                            # Power leaving target (negative for balance)
+                            balance_terms.append(-conn_element.power_target_source[t])
 
                 # Power balance: sum of all terms should be zero
                 if balance_terms:

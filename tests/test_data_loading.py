@@ -17,6 +17,40 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
 )
+from custom_components.haeo.elements.load import CONF_FORECAST
+
+
+async def test_load_network_successful_loads_load_participant(hass: HomeAssistant) -> None:
+    """load_network should populate the network when all fields are available."""
+
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="loaded_entry")
+    entry.add_to_hass(hass)
+
+    # Set up test sensor
+    hass.states.async_set("sensor.baseload", "2.5", {"unit_of_measurement": "kW"})
+
+    participants = cast(
+        "dict[str, ElementConfigSchema]",
+        {
+            "load": {
+                CONF_ELEMENT_TYPE: "load",
+                CONF_NAME: "Baseload",
+                CONF_FORECAST: ["sensor.baseload"],
+            }
+        },
+    )
+
+    result = await load_network(
+        hass,
+        entry,
+        period_seconds=1800,
+        n_periods=4,
+        participants=participants,
+        forecast_times=[0, 1800, 3600, 5400],
+    )
+
+    assert result.period == pytest.approx(0.5)
+    assert "Baseload" in result.elements
 
 
 async def test_load_network_with_missing_sensors(hass: HomeAssistant) -> None:

@@ -13,7 +13,7 @@ Set up your development environment for HAEO.
 ### Clone Repository
 
 ```bash
-git clone https://github.com/ha-energy-optimiser/haeo.git
+git clone https://github.com/hass-energy/haeo.git
 cd haeo
 ```
 
@@ -36,8 +36,8 @@ This installs all development dependencies including:
 # All tests
 uv run pytest
 
-# Specific test file
-uv run pytest tests/test_model.py
+# Model element tests
+uv run pytest tests/model/
 
 # With coverage
 uv run pytest --cov=custom_components.haeo

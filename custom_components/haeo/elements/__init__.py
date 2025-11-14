@@ -1,6 +1,6 @@
 """HAEO element registry with field-based metadata."""
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping
 import logging
 from typing import Any, Final, Literal, NamedTuple, TypeGuard
 
@@ -8,9 +8,9 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.schema import flatten, schema_for_type
+from custom_components.haeo.schema import schema_for_type
 
-from . import battery, connection, constant_load, forecast_load, grid, node, photovoltaics
+from . import battery, connection, grid, load, node, photovoltaics
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,8 +19,7 @@ type ElementType = Literal[
     "connection",
     "photovoltaics",
     "grid",
-    "constant_load",
-    "forecast_load",
+    "load",
     "node",
 ]
 
@@ -28,15 +27,13 @@ ELEMENT_TYPE_BATTERY: Final = battery.ELEMENT_TYPE
 ELEMENT_TYPE_CONNECTION: Final = connection.ELEMENT_TYPE
 ELEMENT_TYPE_PHOTOVOLTAICS: Final = photovoltaics.ELEMENT_TYPE
 ELEMENT_TYPE_GRID: Final = grid.ELEMENT_TYPE
-ELEMENT_TYPE_CONSTANT_LOAD: Final = constant_load.ELEMENT_TYPE
-ELEMENT_TYPE_FORECAST_LOAD: Final = forecast_load.ELEMENT_TYPE
+ELEMENT_TYPE_LOAD: Final = load.ELEMENT_TYPE
 ELEMENT_TYPE_NODE: Final = node.ELEMENT_TYPE
 
 ElementConfigSchema = (
     battery.BatteryConfigSchema
     | grid.GridConfigSchema
-    | constant_load.ConstantLoadConfigSchema
-    | forecast_load.ForecastLoadConfigSchema
+    | load.LoadConfigSchema
     | photovoltaics.PhotovoltaicsConfigSchema
     | node.NodeConfigSchema
     | connection.ConnectionConfigSchema
@@ -45,8 +42,7 @@ ElementConfigSchema = (
 ElementConfigData = (
     battery.BatteryConfigData
     | grid.GridConfigData
-    | constant_load.ConstantLoadConfigData
-    | forecast_load.ForecastLoadConfigData
+    | load.LoadConfigData
     | photovoltaics.PhotovoltaicsConfigData
     | node.NodeConfigData
     | connection.ConnectionConfigData
@@ -60,7 +56,6 @@ class ElementRegistryEntry(NamedTuple):
     data: type[Any]
     defaults: dict[str, Any]
     translation_key: ElementType
-    describe: Callable[[Any], str]
 
 
 ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
@@ -69,49 +64,36 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         data=battery.BatteryConfigData,
         defaults=battery.CONFIG_DEFAULTS,
         translation_key=battery.ELEMENT_TYPE,
-        describe=battery.model_description,
     ),
     connection.ELEMENT_TYPE: ElementRegistryEntry(
         schema=connection.ConnectionConfigSchema,
         data=connection.ConnectionConfigData,
         defaults=connection.CONFIG_DEFAULTS,
         translation_key=connection.ELEMENT_TYPE,
-        describe=connection.model_description,
     ),
     photovoltaics.ELEMENT_TYPE: ElementRegistryEntry(
         schema=photovoltaics.PhotovoltaicsConfigSchema,
         data=photovoltaics.PhotovoltaicsConfigData,
         defaults=photovoltaics.CONFIG_DEFAULTS,
         translation_key=photovoltaics.ELEMENT_TYPE,
-        describe=photovoltaics.model_description,
     ),
     grid.ELEMENT_TYPE: ElementRegistryEntry(
         schema=grid.GridConfigSchema,
         data=grid.GridConfigData,
         defaults=grid.CONFIG_DEFAULTS,
         translation_key=grid.ELEMENT_TYPE,
-        describe=grid.model_description,
     ),
-    constant_load.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=constant_load.ConstantLoadConfigSchema,
-        data=constant_load.ConstantLoadConfigData,
-        defaults=constant_load.CONFIG_DEFAULTS,
-        translation_key=constant_load.ELEMENT_TYPE,
-        describe=constant_load.model_description,
-    ),
-    forecast_load.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=forecast_load.ForecastLoadConfigSchema,
-        data=forecast_load.ForecastLoadConfigData,
-        defaults=forecast_load.CONFIG_DEFAULTS,
-        translation_key=forecast_load.ELEMENT_TYPE,
-        describe=forecast_load.model_description,
+    load.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=load.LoadConfigSchema,
+        data=load.LoadConfigData,
+        defaults=load.CONFIG_DEFAULTS,
+        translation_key=load.ELEMENT_TYPE,
     ),
     node.ELEMENT_TYPE: ElementRegistryEntry(
         schema=node.NodeConfigSchema,
         data=node.NodeConfigData,
         defaults=node.CONFIG_DEFAULTS,
         translation_key=node.ELEMENT_TYPE,
-        describe=node.model_description,
     ),
 }
 
@@ -125,17 +107,6 @@ class ValidatedElementSubentry(NamedTuple):
     config: ElementConfigSchema
 
 
-def get_model_description(config: ElementConfigSchema) -> str:
-    """Get model description for an element configuration."""
-
-    element_type = config[CONF_ELEMENT_TYPE]
-    entry = ELEMENT_TYPES.get(element_type)
-    if entry is None:
-        msg = f"Unknown element type: {element_type}"
-        raise ValueError(msg)
-    return entry.describe(config)
-
-
 def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
     """Return True when value matches any ElementConfigSchema TypedDict."""
 
@@ -147,11 +118,10 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
         return False
 
     entry = ELEMENT_TYPES[element_type]
-    flattened = flatten({k: v for k, v in value.items() if k != CONF_ELEMENT_TYPE})
     schema = schema_for_type(entry.schema)
 
     try:
-        schema(flattened)
+        schema({k: v for k, v in value.items() if k != CONF_ELEMENT_TYPE})  # validate without the element_type field
     except (vol.Invalid, vol.MultipleInvalid):
         return False
 
@@ -160,7 +130,6 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
 
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
     """Return validated element subentries excluding the network element."""
-
     return [
         ValidatedElementSubentry(
             name=subentry.title,
@@ -173,27 +142,19 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     ]
 
 
-SensorValue = str | Sequence[str]
-ForecastTimes = Sequence[int]
-
-
 __all__ = [
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
     "ELEMENT_TYPE_CONNECTION",
-    "ELEMENT_TYPE_CONSTANT_LOAD",
-    "ELEMENT_TYPE_FORECAST_LOAD",
     "ELEMENT_TYPE_GRID",
+    "ELEMENT_TYPE_LOAD",
     "ELEMENT_TYPE_NODE",
     "ELEMENT_TYPE_PHOTOVOLTAICS",
     "ElementConfigData",
     "ElementConfigSchema",
     "ElementRegistryEntry",
     "ElementType",
-    "ForecastTimes",
-    "SensorValue",
     "ValidatedElementSubentry",
     "collect_element_subentries",
-    "get_model_description",
     "is_element_config_schema",
 ]
