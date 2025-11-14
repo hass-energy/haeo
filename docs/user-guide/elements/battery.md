@@ -15,18 +15,22 @@ A battery in HAEO represents:
 
 ## Configuration Fields
 
-| Field                         | Type            | Required | Default | Description                                                |
-| ----------------------------- | --------------- | -------- | ------- | ---------------------------------------------------------- |
-| **Name**                      | String          | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
-| **Capacity**                  | Number (kWh)    | Yes      | -       | Total energy storage capacity                              |
-| **Initial Charge Percentage** | Sensor ID       | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
-| **Min Charge Percentage**     | Number (%)      | No       | 10      | Minimum allowed SOC                                        |
-| **Max Charge Percentage**     | Number (%)      | No       | 90      | Maximum allowed SOC                                        |
-| **Efficiency**                | Number (%)      | No       | 99      | **One-way** efficiency (see below)                         |
-| **Max Charge Power**          | Number (kW)     | No       | -       | Maximum charging power                                     |
-| **Max Discharge Power**       | Number (kW)     | No       | -       | Maximum discharging power                                  |
-| **Charge Cost**               | Number (\$/kWh) | No       | 0       | Additional charging cost (see below)                       |
-| **Discharge Cost**            | Number (\$/kWh) | No       | 0       | Additional discharging cost (see below)                    |
+| Field                           | Type               | Required | Default | Description                                                |
+| ------------------------------- | ------------------ | -------- | ------- | ---------------------------------------------------------- |
+| **Name**                        | String             | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
+| **Capacity**                    | Number (kWh)       | Yes      | -       | Total energy storage capacity                              |
+| **Initial Charge Percentage**   | Sensor ID          | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
+| **Min Charge Percentage**       | Number (%)         | No       | 10      | Minimum allowed SOC (hard limit)                           |
+| **Max Charge Percentage**       | Number (%)         | No       | 90      | Maximum allowed SOC (hard limit)                           |
+| **Soft Min Charge Percentage**  | Number (%)         | No       | -       | Preferred minimum SOC (requires undercharge cost)          |
+| **Soft Max Charge Percentage**  | Number (%)         | No       | -       | Preferred maximum SOC (requires overcharge cost)           |
+| **Undercharge Cost**            | Number (\$/kWh)    | No       | -       | Penalty for operating below soft minimum                   |
+| **Overcharge Cost**             | Number (\$/kWh)    | No       | -       | Penalty for operating above soft maximum                   |
+| **Efficiency**                  | Number (%)         | No       | 99      | **One-way** efficiency (see below)                         |
+| **Max Charge Power**            | Number (kW)        | No       | -       | Maximum charging power                                     |
+| **Max Discharge Power**         | Number (kW)        | No       | -       | Maximum discharging power                                  |
+| **Charge Cost**                 | Number (\$/kWh)    | No       | 0       | Additional charging cost (see below)                       |
+| **Discharge Cost**              | Number (\$/kWh)    | No       | 0       | Additional discharging cost (see below)                    |
 
 If not specified, power is unconstrained (limited only by other system constraints).
 

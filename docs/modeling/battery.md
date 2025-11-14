@@ -26,6 +26,8 @@ For each time step $t \in \{0, 1, \ldots, T-1\}$:
 
 The battery model requires these configuration parameters:
 
+**Required parameters**:
+
 - $C$: Battery capacity (kWh) - `capacity`
 - $E_{\text{initial}}$: Initial energy level (kWh) - derived from `initial_charge_percentage`
 - $\text{SOC}_{\min}$: Minimum state of charge (%) - `min_charge_percentage` (default: 10%)
@@ -34,6 +36,13 @@ The battery model requires these configuration parameters:
 - $P_{\text{discharge}}^{\max}$: Maximum discharging power (kW) - `max_discharge_power`
 - $\eta$: Round-trip efficiency (0-1) - `efficiency` (default: 0.99)
 - $\Delta t$: Time step duration (hours) - `period`
+
+**Optional soft limit parameters**:
+
+- $\text{SOC}\_{\text{soft,min}}$: Soft minimum state of charge (%) - `soft_min_charge_percentage`
+- $\text{SOC}\_{\text{soft,max}}$: Soft maximum state of charge (%) - `soft_max_charge_percentage`
+- $c\_{\text{undercharge}}$: Undercharge cost penalty (\$/kWh) - `undercharge_cost`
+- $c\_{\text{overcharge}}$: Overcharge cost penalty (\$/kWh) - `overcharge_cost`
 
 ### Constraints
 
