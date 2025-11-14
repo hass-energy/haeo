@@ -103,8 +103,8 @@ The extractor system ([`extractors/`](https://github.com/hass-energy/haeo/tree/m
 
 ### Supported Integrations
 
-| Integration               | Use Case            | Parser Module                                                                                                                                                      |
-| ------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Integration               | Use Case            | Parser Module                                                                                                                                              |
+| ------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Amber Electric            | Electricity pricing | [`amberelectric.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/amberelectric.py)                         |
 | AEMO NEM                  | Wholesale pricing   | [`aemo_nem.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/aemo_nem.py)                                   |
 | Solcast Solar             | Solar forecasting   | [`solcast_solar.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/solcast_solar.py)                         |
