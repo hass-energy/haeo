@@ -12,6 +12,8 @@ _PULP_VALUE: Final[PulpValueFn] = cast("Callable[[LpVariable], float]", pulp_val
 
 # Output names
 OUTPUT_NAME_POWER_FLOW: Final = "power_flow"
+OUTPUT_NAME_POWER_FLOW_SOURCE_TARGET: Final = "power_flow_source_target"
+OUTPUT_NAME_POWER_FLOW_TARGET_SOURCE: Final = "power_flow_target_source"
 OUTPUT_NAME_POWER_AVAILABLE: Final = "power_available"
 OUTPUT_NAME_POWER_CONSUMED: Final = "power_consumed"
 OUTPUT_NAME_POWER_PRODUCED: Final = "power_produced"
@@ -31,6 +33,8 @@ OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "optimization_duration"
 
 type OutputName = Literal[
     "power_flow",
+    "power_flow_source_target",
+    "power_flow_target_source",
     "power_available",
     "power_consumed",
     "power_produced",

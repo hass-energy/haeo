@@ -47,7 +47,7 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
 )
-from custom_components.haeo.elements.connection import CONF_MAX_POWER, CONF_SOURCE, CONF_TARGET
+from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.grid import (
     CONF_EXPORT_LIMIT,
     CONF_EXPORT_PRICE,
@@ -146,7 +146,6 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_CONNECTION,
                 CONF_SOURCE: "test_battery",
                 CONF_TARGET: "test_grid",
-                CONF_MAX_POWER: 5000,
             }
         ),
         subentry_type=ELEMENT_TYPE_CONNECTION,

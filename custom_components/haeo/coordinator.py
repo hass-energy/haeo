@@ -97,7 +97,7 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
             continue
 
         # Check if this is a constant field (not a sensor)
-        if field_meta.field_type[1] == "constant":
+        if field_meta.field_type == "constant":
             continue
 
         try:

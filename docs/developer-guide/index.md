@@ -6,7 +6,7 @@ This section covers architecture, development setup, and contribution guidelines
 ## Quick Start
 
 ```bash
-git clone https://github.com/ha-energy-optimiser/haeo.git
+git clone https://github.com/hass-energy/haeo.git
 cd haeo
 uv sync
 uv run pytest

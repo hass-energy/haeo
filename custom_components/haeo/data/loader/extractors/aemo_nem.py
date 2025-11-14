@@ -7,7 +7,7 @@ from typing import Any, Literal
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
-from .datetime_utils import parse_datetime_to_timestamp
+from .utils.parse_datetime import parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 

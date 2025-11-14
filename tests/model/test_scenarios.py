@@ -158,8 +158,8 @@ def test_optimization_failure() -> None:
         network.optimize()
 
 
-def test_connection_power_balance_with_negative_flow() -> None:
-    """Test that power balance works correctly with negative power flows."""
+def test_connection_power_balance_with_bidirectional_flow() -> None:
+    """Test that power balance works correctly with bidirectional power flows."""
     network = Network(
         name="test_network",
         period=SECONDS_PER_HOUR,
@@ -183,8 +183,8 @@ def test_connection_power_balance_with_negative_flow() -> None:
         "battery_grid_bidirectional",
         source="battery1",
         target="grid1",
-        min_power=-REVERSE_POWER_LIMIT,  # Allow reverse flow
-        max_power=MAX_POWER_LIMIT,  # Allow forward flow
+        max_power_source_target=MAX_POWER_LIMIT,  # Forward flow
+        max_power_target_source=REVERSE_POWER_LIMIT,  # Reverse flow
     )
 
     # Validate the network (should pass)
