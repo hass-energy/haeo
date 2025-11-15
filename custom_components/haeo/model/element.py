@@ -3,7 +3,7 @@
 from collections.abc import Mapping, MutableSequence, Sequence
 from typing import TYPE_CHECKING, Literal, cast
 
-from pulp import LpConstraint, LpVariable, lpSum
+from pulp import LpAffineExpression, LpConstraint, LpVariable, lpSum
 
 from .const import OutputData, OutputName
 
@@ -106,18 +106,20 @@ class Element:
                 result.append(constraint_or_sequence)
         return result
 
-    def cost(self) -> float:
-        """Return the cost of the element.
+    def cost(self) -> Sequence[LpAffineExpression]:
+        """Return the cost expressions of the entity.
+
+        Returns a sequence of cost expressions for aggregation at the network level.
 
         Units: $ = ($/kWh) * kW * period_hours
 
         Returns:
-            Cost expression or 0 if no cost
+            Sequence of cost expressions (empty if no cost)
 
-        Default implementation returns 0 (no cost). Subclasses should override as needed.
+        Default implementation returns empty list. Subclasses should override as needed.
 
         """
-        return 0.0
+        return []
 
     def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return output specifications for the element.

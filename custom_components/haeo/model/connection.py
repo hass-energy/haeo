@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 
-from pulp import LpVariable, lpSum
+from pulp import LpAffineExpression, LpVariable, lpSum
 
 from .const import (
     CONSTRAINT_NAME_MAX_POWER_SOURCE_TARGET,
@@ -88,20 +88,29 @@ class Connection(Element):
         self.price_source_target = price_source_target
         self.price_target_source = price_target_source
 
-    def cost(self) -> float:
-        """Return the cost of the connection with transfer pricing."""
-        cost = 0
+    def cost(self) -> Sequence[LpAffineExpression]:
+        """Return the cost expressions of the connection with transfer pricing.
+
+        Returns a sequence of cost expressions for aggregation at the network level.
+        """
+        costs: list[LpAffineExpression] = []
         if self.price_source_target is not None:
-            cost += lpSum(
-                price * power * self.period
-                for price, power in zip(self.price_source_target, self.power_source_target, strict=True)
+            costs.append(
+                lpSum(
+                    price * power * self.period
+                    for price, power in zip(self.price_source_target, self.power_source_target, strict=True)
+                )
             )
+
         if self.price_target_source is not None:
-            cost += lpSum(
-                price * power * self.period
-                for price, power in zip(self.price_target_source, self.power_target_source, strict=True)
+            costs.append(
+                lpSum(
+                    price * power * self.period
+                    for price, power in zip(self.price_target_source, self.power_target_source, strict=True)
+                )
             )
-        return cost
+
+        return costs
 
     def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return output specifications for the connection."""

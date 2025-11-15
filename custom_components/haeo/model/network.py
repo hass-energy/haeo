@@ -5,7 +5,6 @@ from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass, field
 import io
 import logging
-from typing import cast
 
 from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, getSolver, lpSum, value
 
@@ -94,13 +93,6 @@ class Network:
 
         return constraints
 
-    def cost(self) -> float:
-        """Return the cost expression for the network."""
-        result = lpSum([e.cost() for e in self.elements.values() if e.cost() != 0])
-        # lpSum returns either a LpAffineExpression or a number (0 if empty list)
-        # The LpAffineExpression is duck-typed as float in PuLP's optimization context
-        return cast("float", result)
-
     def optimize(self, optimizer: str = "HiGHS") -> float:
         """Solve the optimization problem and return the cost.
 
@@ -125,10 +117,10 @@ class Network:
                 raise ValueError(msg) from e
 
         # Create the LP problem
-        prob = LpProblem(f"{self.name}_optimization", LpMinimize)  # type: ignore[no-untyped-call]
+        prob = LpProblem(f"{self.name}_optimization", LpMinimize)
 
-        # Add the objective function (minimize cost)
-        prob += self.cost(), "Total_Cost"
+        # Add the objective function (minimize total cost)
+        prob += lpSum(c for element in self.elements.values() for c in element.cost())
 
         # Add all constraints
         for constraint in self.constraints():
@@ -148,7 +140,7 @@ class Network:
         try:
             with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
                 # Solve the problem
-                status = prob.solve(solver)  # type: ignore[no-untyped-call]
+                status = prob.solve(solver)
         finally:
             # Always log the captured output for debugging
             if stdout_capture.getvalue().strip():
@@ -157,9 +149,7 @@ class Network:
                 _LOGGER.debug("Optimization stderr: %s", stderr_capture.getvalue())
 
         if status == 1:  # Optimal solution found
-            objective_value = value(prob.objective) if prob.objective is not None else 0.0  # type: ignore[no-untyped-call]
-            # Handle PuLP return types - value() can return various types
-            return float(objective_value) if isinstance(objective_value, (int, float)) else 0.0
+            return value(prob.objective) if prob.objective is not None else 0.0
 
         msg = f"Optimization failed with status: {LpStatus[status]}"
         raise ValueError(msg)

@@ -30,7 +30,7 @@ def safe_value(var: LpVariable | float | None) -> float:
         return 0.0
     if isinstance(var, Real):
         return float(var)
-    return float(value(var))  # type: ignore[no-untyped-call]
+    return float(value(var))
 
 
 def test_simple_optimization() -> None:

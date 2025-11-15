@@ -138,6 +138,54 @@ VALID_CASES = [
             "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
         },
     },
+    {
+        "description": "Connection with bidirectional transfer pricing",
+        "factory": Connection,
+        "data": {
+            "name": "bidirectional_priced",
+            "period": 1.0,
+            "n_periods": 2,
+            "source": "node_a",
+            "target": "node_b",
+            "price_source_target": [0.1, 0.1],
+            "price_target_source": [0.15, 0.15],
+        },
+        "inputs": {
+            "source_power": [None, None],
+            "target_power": [None, None],
+            "source_cost": 0.0,
+            "target_cost": 0.0,
+        },
+        "expected_outputs": {
+            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
+            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
+        },
+    },
+    {
+        "description": "Connection with bidirectional efficiency losses",
+        "factory": Connection,
+        "data": {
+            "name": "bidirectional_converter",
+            "period": 1.0,
+            "n_periods": 2,
+            "source": "dc_bus",
+            "target": "ac_bus",
+            "max_power_source_target": 10.0,
+            "max_power_target_source": 10.0,
+            "efficiency_source_target": 95.0,
+            "efficiency_target_source": 93.0,
+        },
+        "inputs": {
+            "source_power": [5.0, -3.0],
+            "target_power": [None, None],
+            "source_cost": 0.0,
+            "target_cost": 0.0,
+        },
+        "expected_outputs": {
+            "power_flow_source_target": {"type": "power", "unit": "kW", "values": (5.0, 0.0)},
+            "power_flow_target_source": {"type": "power", "unit": "kW", "values": (0.0, 3.0)},
+        },
+    },
 ]
 
 INVALID_CASES: list[dict[str, Any]] = []

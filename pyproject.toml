@@ -69,6 +69,15 @@ split-on-trailing-comma = false
 
 [tool.ruff.lint.per-file-ignores]
 
+"stubs/**/*.pyi" = [
+    'N802',   # Function name should be lowercase - PuLP uses camelCase (e.g., getSolver)
+    'N803',   # Argument name should be lowercase - PuLP uses camelCase (e.g., lowBound)
+    'N815',   # Variable in class scope should not be mixedCase - PuLP uses mixed case
+    'A002',   # Argument shadows a Python builtin - stub files reflect actual API
+    'ARG001', # Unused function argument - stub signatures must match actual API
+    'ARG002', # Unused method argument - stub signatures must match actual API
+]
+
 "tests/**/*.py" = [
     'S101',    # Assert is allowed in tests
     'B011',    # Assert false is allowed in tests
@@ -80,6 +89,11 @@ split-on-trailing-comma = false
     'SIM105',  # Use contextlib.suppress instead of try-except-pass - test exception handling patterns differ
     'BLE001',  # Do not catch blind exception - test code needs to handle various exception types
 ]
+
+
+[tool.pyright]
+stubPath = "stubs"
+typeCheckingMode = "strict"
 
 
 [tool.ruff.lint.pylint]
@@ -97,10 +111,7 @@ disallow_any_unimported = false
 follow_imports = "normal"
 follow_untyped_imports = true
 explicit_package_bases = true
-
-[[tool.mypy.overrides]]
-module = "pulp.*"
-ignore_missing_imports = true
+mypy_path = "stubs"
 
 [[tool.mypy.overrides]]
 # In our tests, we often overwrite methods on classes to mock out behavior.

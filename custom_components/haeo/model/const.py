@@ -1,14 +1,8 @@
 """Constants for HAEO energy modeling."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Final, Literal, cast
-
-from pulp import LpVariable
-from pulp import value as pulp_value
-
-PulpValueFn = Callable[[LpVariable], float]
-_PULP_VALUE: Final[PulpValueFn] = cast("Callable[[LpVariable], float]", pulp_value)
+from typing import Any, Final, Literal
 
 # Output names
 OUTPUT_NAME_POWER_FLOW: Final = "power_flow"
