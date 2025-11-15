@@ -1,10 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="256" height="256"
-     style="--haeo-bg:#fff;--haeo-fg:#0b57ff;--haeo-accent:#ffd400;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="256" height="256">
   <title>HAEO</title>
   <style>
-    :root{--bg:var(--haeo-bg);--fg:var(--haeo-fg);--accent:var(--haeo-accent);}
+    :root{--bg:#0a0f1a;--fg:#7fb1ff;--accent:#ffd400;}
     @media (prefers-color-scheme: dark){
-      :root{--bg:#0a0f1a;--fg:#7fb1ff;--accent:#ffd86b;}
+      :root{--bg:#0a0f1a;--fg:#7fb1ff;--accent:#ffd400;}
     }
   </style>
 

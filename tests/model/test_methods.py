@@ -15,7 +15,9 @@ from . import test_data
 def test_element_constraints(case: dict[str, Any]) -> None:
     """Element.constraints() should return valid constraints."""
 
-    element = case["factory"](case["data"])
+    factory = case["factory"]
+    data = case["data"]
+    element = factory(**data)
     constraints = element.constraints()
 
     # Should return a sequence (list/tuple)
@@ -36,7 +38,9 @@ def test_element_constraints(case: dict[str, Any]) -> None:
 def test_element_cost(case: dict[str, Any]) -> None:
     """Element.cost() should return a numeric cost value or LP expression."""
 
-    element = case["factory"](case["data"])
+    factory = case["factory"]
+    data = case["data"]
+    element = factory(**data)
     cost = element.cost()
 
     # Should return a number (float, int) or LP expression (has arithmetic operations)
