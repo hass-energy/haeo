@@ -1,10 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 128" width="512" height="128"
-     style="--haeo-bg:#fff;--haeo-fg:#0b57ff;--haeo-accent:#ffd400;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 128" width="512" height="128">
   <title>HAEO</title>
   <style>
-    :root{--bg:var(--haeo-bg);--fg:var(--haeo-fg);--accent:var(--haeo-accent);}
+    :root{--bg:#0a0f1a;--fg:#7fb1ff;--accent:#ffd400;--text:#000;}
     @media (prefers-color-scheme: dark){
-      :root{--bg:#0a0f1a;--fg:#7fb1ff;--accent:#ffd86b;}
+      :root{--bg:#0a0f1a;--fg:#7fb1ff;--accent:#ffd400;--text:#7fb1ff;}
     }
   </style>
 
@@ -28,6 +27,6 @@
     <polyline stroke="var(--accent)" stroke-width="4" fill="none" points=" 40,75 51,75 55,67 60,84 70,58 78,75 88,75"/>
   </g>
 
-  <text x="138" y="111" font-family="Arial, sans-serif" text-anchor="start" dominant-baseline="text-top" font-size="128" fill="var(--fg)">HAEO</text>
+  <text x="138" y="111" font-family="Arial, sans-serif" text-anchor="start" dominant-baseline="text-top" font-size="128" fill="var(--text)">HAEO</text>
 
 </svg>
