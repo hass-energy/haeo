@@ -54,6 +54,6 @@ INVALID_CASES = [
             "n_periods": 3,
             "forecast": [1.0, 1.5],  # Only 2 instead of 3
         },
-        "expected_error": r"forecast length \(2\) must match n_periods \(3\)",
+        "expected_error": "Sequence length .* must match n_periods",
     },
 ]

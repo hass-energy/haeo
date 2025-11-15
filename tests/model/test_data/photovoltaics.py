@@ -94,12 +94,11 @@ INVALID_CASES = [
         "data": {
             "name": "photovoltaics",
             "period": 1.0,
-            "n_periods": 2,
-            "forecast": (1.2,),  # Only 1 instead of 2
-            "price_production": (0.1, 0.2),
-            "price_consumption": (0.3, 0.4),
+            "n_periods": 3,
+            "forecast": (1.2, 1.4),  # Only 2 instead of 3
+            "price_production": (0.1, 0.2, 0.3),
         },
-        "expected_error": "forecast length",
+        "expected_error": "Sequence length .* must match n_periods",
     },
     {
         "description": "Photovoltaics with price_production length mismatch",
@@ -107,24 +106,10 @@ INVALID_CASES = [
         "data": {
             "name": "photovoltaics",
             "period": 1.0,
-            "n_periods": 2,
-            "forecast": (1.2, 1.4),
-            "price_production": (0.1,),  # Only 1 instead of 2
-            "price_consumption": (0.3, 0.4),
+            "n_periods": 3,
+            "forecast": (1.2, 1.4, 1.6),
+            "price_production": (0.1, 0.2),  # Only 2 instead of 3
         },
-        "expected_error": "price_production length",
-    },
-    {
-        "description": "Photovoltaics with price_consumption length mismatch",
-        "element_class": Photovoltaics,
-        "data": {
-            "name": "photovoltaics",
-            "period": 1.0,
-            "n_periods": 2,
-            "forecast": (1.2, 1.4),
-            "price_production": (0.1, 0.2),
-            "price_consumption": (0.3,),  # Only 1 instead of 2
-        },
-        "expected_error": "price_consumption length",
+        "expected_error": "Sequence length .* must match n_periods",
     },
 ]

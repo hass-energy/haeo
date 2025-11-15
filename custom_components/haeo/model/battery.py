@@ -3,10 +3,28 @@
 from collections.abc import Mapping, MutableSequence, Sequence
 
 import numpy as np
-from pulp import LpConstraint, LpVariable, lpSum
+from pulp import LpAffineExpression, LpConstraint, LpVariable, lpSum
 
-from .const import OUTPUT_NAME_BATTERY_STATE_OF_CHARGE, OUTPUT_TYPE_SOC, OutputData, OutputName, extract_values
+from .const import (
+    CONSTRAINT_NAME_ENERGY_BALANCE,
+    CONSTRAINT_NAME_MAX_CHARGE_POWER,
+    CONSTRAINT_NAME_MAX_DISCHARGE_POWER,
+    CONSTRAINT_NAME_POWER_BALANCE,
+    OUTPUT_NAME_BATTERY_STATE_OF_CHARGE,
+    OUTPUT_NAME_ENERGY_STORED,
+    OUTPUT_NAME_POWER_CONSUMED,
+    OUTPUT_NAME_POWER_PRODUCED,
+    OUTPUT_NAME_PRICE_CONSUMPTION,
+    OUTPUT_NAME_PRICE_PRODUCTION,
+    OUTPUT_TYPE_ENERGY,
+    OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_PRICE,
+    OUTPUT_TYPE_SOC,
+    OutputData,
+    OutputName,
+)
 from .element import Element
+from .util import broadcast_to_sequence, extract_values
 
 
 class Battery(Element):
@@ -55,21 +73,24 @@ class Battery(Element):
             overcharge_cost: Cost in $/kWh for operating above soft maximum
 
         """
-        # Broadcast capacity to n_periods using numpy
-        capacity_array = np.broadcast_to(np.atleast_1d(capacity), (n_periods,))
-        capacity_values = capacity_array.tolist()
+        super().__init__(name=name, period=period, n_periods=n_periods)
+
+        # Broadcast capacity to n_periods
+        self.capacity: list[float] = broadcast_to_sequence(capacity, n_periods)
 
         # Broadcast initial_charge_percentage and get first value
-        initial_soc_array = np.broadcast_to(np.atleast_1d(initial_charge_percentage), (n_periods,))
-        initial_soc_value = float(initial_soc_array[0])
+        initial_soc_values = broadcast_to_sequence(initial_charge_percentage, n_periods)
+        initial_soc_value: float = initial_soc_values[0]
 
-        self.capacity = capacity_values
+        # Store battery-specific attributes
+        self.efficiency = efficiency / 100.0  # Convert percentage to fraction
         self.min_charge_percentage = min_charge_percentage
         self.max_charge_percentage = max_charge_percentage
         self.undercharge_percentage = undercharge_percentage
         self.overcharge_percentage = overcharge_percentage
 
         # Pre-calculate energy limits for soft constraints
+        capacity_array = np.array(self.capacity)
         self.soft_min_energy: list[float] | None = None
         self.soft_max_energy: list[float] | None = None
         if undercharge_percentage is not None:
@@ -78,17 +99,27 @@ class Battery(Element):
             self.soft_max_energy = (capacity_array * overcharge_percentage / 100.0).tolist()
 
         # Broadcast charge/discharge power bounds
-        if max_charge_power is not None:
-            charge_array = np.broadcast_to(np.atleast_1d(max_charge_power), (n_periods,))
-            charge_bounds = charge_array.tolist()
-        else:
-            charge_bounds = [None] * n_periods
+        charge_bounds: list[float] | None = broadcast_to_sequence(max_charge_power, n_periods)
+        discharge_bounds: list[float] | None = broadcast_to_sequence(max_discharge_power, n_periods)
 
-        if max_discharge_power is not None:
-            discharge_array = np.broadcast_to(np.atleast_1d(max_discharge_power), (n_periods,))
-            discharge_bounds = discharge_array.tolist()
-        else:
-            discharge_bounds = [None] * n_periods
+        # Power variables (bounds will be added as constraints)
+        self.power_consumption = [
+            LpVariable(name=f"{name}_power_consumption_{i}", lowBound=0) for i in range(n_periods)
+        ]
+        self.power_production = [LpVariable(name=f"{name}_power_production_{i}", lowBound=0) for i in range(n_periods)]
+
+        # Energy variables
+        self.energy: list[LpAffineExpression | LpVariable] = [
+            LpAffineExpression(constant=initial_soc_value * self.capacity[0] / 100.0),
+            *[
+                LpVariable(
+                    name=f"{name}_energy_{i}",
+                    lowBound=self.capacity[i] * (min_charge_percentage / 100.0),
+                    upBound=self.capacity[i] * (max_charge_percentage / 100.0),
+                )
+                for i in range(1, n_periods)
+            ],
+        ]
 
         # Create slack variables for soft limits if configured
         self.overcharge_slack: Sequence[LpVariable] | None = None
@@ -122,40 +153,83 @@ class Battery(Element):
                 for i in range(n_periods - 1)
             ]
 
-        super().__init__(
-            name=name,
-            period=period,
-            n_periods=n_periods,
-            power_consumption=[
-                LpVariable(name=f"{name}_power_consumption_{i}", lowBound=0, upBound=charge_bounds[i])
-                for i in range(n_periods)
-            ],
-            power_production=[
-                LpVariable(name=f"{name}_power_production_{i}", lowBound=0, upBound=discharge_bounds[i])
-                for i in range(n_periods)
-            ],
-            energy=[
-                initial_soc_value * capacity_values[0] / 100.0,
-                *[
-                    LpVariable(
-                        name=f"{name}_energy_{i}",
-                        lowBound=capacity_values[i] * (min_charge_percentage / 100.0),
-                        upBound=capacity_values[i] * (max_charge_percentage / 100.0),
-                    )
-                    for i in range(n_periods - 1)
-                ],
-            ],
-            efficiency=efficiency / 100.0,  # Convert percentage to fraction
-            price_production=(np.ones(n_periods) * discharge_cost).tolist() if discharge_cost is not None else None,
-            price_consumption=np.linspace(0, -early_charge_incentive, n_periods).tolist(),
+        # Prices
+        self.price_production: list[float] | None = broadcast_to_sequence(discharge_cost, n_periods)
+        self.price_consumption: list[float] = np.linspace(0, -early_charge_incentive, n_periods).tolist()
+
+        # Build energy balance constraints: E[t] = E[t-1] + (charge - discharge) * period
+        self._constraints[CONSTRAINT_NAME_ENERGY_BALANCE] = [
+            self.energy[t]
+            == self.energy[t - 1]
+            + (self.power_consumption[t - 1] * self.efficiency - self.power_production[t - 1] / self.efficiency)
+            * self.period
+            for t in range(1, n_periods)
+        ]
+
+        # Add power bound constraints if specified
+        if charge_bounds is not None:
+            self._constraints[CONSTRAINT_NAME_MAX_CHARGE_POWER] = [
+                self.power_consumption[t] <= charge_bounds[t] for t in range(n_periods)
+            ]
+        if discharge_bounds is not None:
+            self._constraints[CONSTRAINT_NAME_MAX_DISCHARGE_POWER] = [
+                self.power_production[t] <= discharge_bounds[t] for t in range(n_periods)
+            ]
+
+    def build_constraints(self) -> None:
+        """Build network-dependent constraints for the battery.
+
+        This includes power balance constraints using connection_power().
+        Energy balance constraints are already built in __init__.
+        """
+        self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
+            self.connection_power(t) - self.power_consumption[t] + self.power_production[t] == 0
+            for t in range(self.n_periods)
+        ]
+
+    def cost(self) -> Sequence[LpAffineExpression]:
+        """Return the cost expressions of the battery."""
+        costs: list[LpAffineExpression] = []
+        # Consumption pricing (incentive to charge earlier)
+        costs.append(
+            lpSum(
+                -price * power * self.period
+                for price, power in zip(self.price_consumption, self.power_consumption, strict=True)
+            )
         )
+
+        # Production pricing (discharge cost)
+        if self.price_production is not None:
+            costs.append(
+                lpSum(
+                    price * power * self.period
+                    for price, power in zip(self.price_production, self.power_production, strict=True)
+                )
+            )
+
+        # Add overcharge penalty cost
+        if self.overcharge_slack is not None and self.overcharge_cost_values is not None:
+            costs.append(
+                lpSum(
+                    slack * cost_value
+                    for slack, cost_value in zip(self.overcharge_slack, self.overcharge_cost_values[1:], strict=True)
+                )
+            )
+
+        # Add undercharge penalty cost
+        if self.undercharge_slack is not None and self.undercharge_cost_values is not None:
+            costs.append(
+                lpSum(
+                    slack * cost_value
+                    for slack, cost_value in zip(self.undercharge_slack, self.undercharge_cost_values[1:], strict=True)
+                )
+            )
+
+        return costs
 
     def constraints(self) -> Sequence[LpConstraint]:
         """Return constraints for the battery including soft limit constraints."""
         constraints: MutableSequence[LpConstraint] = list(super().constraints())
-
-        if self.energy is None or self.power_consumption is None or self.power_production is None:
-            return constraints
 
         # Add soft maximum constraint (overcharge)
         if self.overcharge_slack is not None and self.soft_max_energy is not None:
@@ -179,39 +253,36 @@ class Battery(Element):
 
         return constraints
 
-    def cost(self) -> float:
-        """Return the total cost including soft limit penalties."""
-        cost = super().cost()
-
-        # Add overcharge penalty cost
-        if self.overcharge_slack is not None and self.overcharge_cost_values is not None:
-            cost += lpSum(
-                slack * cost_value
-                for slack, cost_value in zip(self.overcharge_slack, self.overcharge_cost_values[1:], strict=True)
-            )
-
-        # Add undercharge penalty cost
-        if self.undercharge_slack is not None and self.undercharge_cost_values is not None:
-            cost += lpSum(
-                slack * cost_value
-                for slack, cost_value in zip(self.undercharge_slack, self.undercharge_cost_values[1:], strict=True)
-            )
-
-        return cost
-
-    def get_outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return battery output specifications."""
-
         # Add the SOC sensor output
         energy_values = np.array(extract_values(self.energy))
         capacity_array = np.array(self.capacity)
         soc_values = (energy_values / capacity_array * 100.0).tolist()
 
-        return {
-            **super().get_outputs(),
+        outputs: dict[OutputName, OutputData] = {
+            OUTPUT_NAME_POWER_CONSUMED: OutputData(
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_consumption)
+            ),
+            OUTPUT_NAME_POWER_PRODUCED: OutputData(
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_production)
+            ),
+            OUTPUT_NAME_ENERGY_STORED: OutputData(
+                type=OUTPUT_TYPE_ENERGY, unit="kWh", values=extract_values(self.energy)
+            ),
+            OUTPUT_NAME_PRICE_CONSUMPTION: OutputData(
+                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.price_consumption)
+            ),
             OUTPUT_NAME_BATTERY_STATE_OF_CHARGE: OutputData(
                 type=OUTPUT_TYPE_SOC,
                 unit="%",
                 values=tuple(soc_values),
             ),
         }
+
+        if self.price_production is not None:
+            outputs[OUTPUT_NAME_PRICE_PRODUCTION] = OutputData(
+                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.price_production)
+            )
+
+        return outputs

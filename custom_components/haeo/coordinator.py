@@ -310,7 +310,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Add element outputs from each network element keyed by element name
         for element_name, element in network.elements.items():
-            element_outputs = element.get_outputs()
+            element_outputs = element.outputs()
             if not element_outputs:
                 continue
 
