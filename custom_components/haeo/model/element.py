@@ -75,30 +75,32 @@ class Element:
 
         return constraints
 
-    def cost(self) -> Sequence[tuple[LpAffineExpression, str]]:
+    def cost(self) -> Sequence[LpAffineExpression]:
         """Return the cost expressions of the entity using separate consumption/production variables.
 
-        Returns a sequence of (cost_expression, label) tuples for aggregation at the network level.
+        Returns a sequence of cost expressions for aggregation at the network level.
 
         Units: $ = ($/kWh) * kW * period_hours
         """
-        costs: list[tuple[LpAffineExpression, str]] = []
+        costs: list[LpAffineExpression] = []
         # Handle separate consumption and production pricing
         if self.price_consumption is not None and self.power_consumption is not None:
             # Revenue for consumption (exporting to grid) - negative cost = revenue
-            consumption_cost = lpSum(
-                -price * power * self.period
-                for price, power in zip(self.price_consumption, self.power_consumption, strict=False)
+            costs.append(
+                lpSum(
+                    -price * power * self.period
+                    for price, power in zip(self.price_consumption, self.power_consumption, strict=True)
+                )
             )
-            costs.append((consumption_cost, f"{self.name}_consumption_cost"))
 
         if self.price_production is not None and self.power_production is not None:
             # Cost for production (importing from grid)
-            production_cost = lpSum(
-                price * power * self.period
-                for price, power in zip(self.price_production, self.power_production, strict=False)
+            costs.append(
+                lpSum(
+                    price * power * self.period
+                    for price, power in zip(self.price_production, self.power_production, strict=True)
+                )
             )
-            costs.append((production_cost, f"{self.name}_production_cost"))
 
         return costs
 

@@ -129,11 +129,8 @@ class Network:
         # Create the LP problem
         prob = LpProblem(f"{self.name}_optimization", LpMinimize)
 
-        # Add the objective function (minimize cost)
-        # Aggregate all cost expressions from elements with their labels
-        for element in self.elements.values():
-            for c, label in element.cost():
-                prob += c, label
+        # Add the objective function (minimize total cost)
+        prob += lpSum(c for element in self.elements.values() for c in element.cost())
 
         # Add all constraints
         for constraint in self.constraints():

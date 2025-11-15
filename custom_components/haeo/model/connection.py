@@ -98,27 +98,27 @@ class Connection:
         """Return constraints for the connection."""
         return []
 
-    def cost(self) -> Sequence[tuple[LpAffineExpression, str]]:
+    def cost(self) -> Sequence[LpAffineExpression]:
         """Return the cost expressions of the connection with transfer pricing.
 
-        Returns a sequence of (cost_expression, label) tuples for aggregation at the network level.
+        Returns a sequence of cost expressions for aggregation at the network level.
         """
-        costs: list[tuple[LpAffineExpression, str]] = []
+        costs: list[LpAffineExpression] = []
         if self.price_source_target is not None:
-            source_target_cost = lpSum(
-                price * power * self.period
-                for price, power in zip(self.price_source_target, self.power_source_target, strict=False)
+            costs.append(
+                lpSum(
+                    price * power * self.period
+                    for price, power in zip(self.price_source_target, self.power_source_target, strict=False)
+                )
             )
-            if isinstance(source_target_cost, LpAffineExpression):
-                costs.append((source_target_cost, f"{self.name}_source_to_target_cost"))
 
         if self.price_target_source is not None:
-            target_source_cost = lpSum(
-                price * power * self.period
-                for price, power in zip(self.price_target_source, self.power_target_source, strict=False)
+            costs.append(
+                lpSum(
+                    price * power * self.period
+                    for price, power in zip(self.price_target_source, self.power_target_source, strict=False)
+                )
             )
-            if isinstance(target_source_cost, LpAffineExpression):
-                costs.append((target_source_cost, f"{self.name}_target_to_source_cost"))
 
         return costs
 
