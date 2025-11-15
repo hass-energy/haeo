@@ -7,6 +7,7 @@ import pytest
 
 from custom_components.haeo.model import extract_values
 from custom_components.haeo.model.connection import Connection
+from custom_components.haeo.model.element import Element
 
 from . import test_data
 
@@ -172,3 +173,22 @@ def test_extract_values_handles_none() -> None:
 
     assert isinstance(result, tuple)
     assert len(result) == 0
+
+
+def test_element_constraints_skip_non_variable_energy() -> None:
+    """Element.constraints should skip energy values that are not LpVariables."""
+    power_consumption = test_data.lp_sequence("consumption", 3)
+    power_production = test_data.lp_sequence("production", 3)
+
+    element = Element(
+        name="test_element",
+        period=1.0,
+        n_periods=3,
+        power_consumption=power_consumption,
+        power_production=power_production,
+        energy=(10.0, 15.0, 20.0),
+    )
+
+    constraints_list = element.constraints()
+    assert isinstance(constraints_list, list)
+    assert len(constraints_list) == 0

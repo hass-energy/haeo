@@ -46,7 +46,24 @@ VALID_CASES = [
             "price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.25, 0.35)},
             "price_production": {"type": "price", "unit": "$/kWh", "values": (0.15, 0.1)},
         },
-    }
+    },
+    {
+        "description": "Base element with malformed energy sequence",
+        "factory": Element,
+        "data": {
+            "name": "malformed_element",
+            "period": 1.0,
+            "n_periods": 3,
+            "power_consumption": lp_sequence("consumption", 3),
+            "power_production": lp_sequence("production", 3),
+            "energy": (10.0, 15.0, 20.0),
+        },
+        "expected_outputs": {
+            "power_consumed": {"type": "power", "unit": "kW", "values": (1.0, 2.0, 3.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (1.0, 2.0, 3.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (10.0, 15.0, 20.0)},
+        },
+    },
 ]
 
 INVALID_CASES: list[dict[str, Any]] = []
