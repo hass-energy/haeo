@@ -88,8 +88,8 @@ class Battery(Element):
         self.power_production = [LpVariable(name=f"{name}_power_production_{i}", lowBound=0) for i in range(n_periods)]
 
         # Energy variables
-        self.energy = [
-            initial_soc_value * self.capacity[0] / 100.0,
+        self.energy: list[LpAffineExpression | LpVariable] = [
+            LpAffineExpression(constant=initial_soc_value * self.capacity[0] / 100.0),
             *[
                 LpVariable(
                     name=f"{name}_energy_{i}",

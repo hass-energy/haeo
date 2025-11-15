@@ -3,7 +3,7 @@
 from numbers import Real
 from typing import cast
 
-from pulp import LpVariable, value
+from pulp import LpAffineExpression, LpVariable, value
 import pytest
 
 from custom_components.haeo.elements import (
@@ -24,7 +24,7 @@ MAX_POWER_LIMIT = 3000
 REVERSE_POWER_LIMIT = 2000
 
 
-def safe_value(var: LpVariable | float | None) -> float:
+def safe_value(var: LpVariable | LpAffineExpression | float | None) -> float:
     """Return a numeric value for PuLP variables or raw numbers."""
     if var is None:
         return 0.0

@@ -1,9 +1,9 @@
 """Generic electrical entity for energy system modeling."""
 
 from collections.abc import Mapping, MutableSequence, Sequence
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal
 
-from pulp import LpAffineExpression, LpConstraint, LpVariable, lpSum
+from pulp import LpAffineExpression, LpConstraint, lpSum
 
 from .const import OutputData, OutputName
 
@@ -50,7 +50,7 @@ class Element:
         """
         self._connections.append((connection, end))
 
-    def connection_power(self, t: int) -> float | LpVariable:
+    def connection_power(self, t: int) -> LpAffineExpression:
         """Return the net power from connections at timestep t.
 
         Positive means power flowing into this element from connections.
@@ -60,7 +60,7 @@ class Element:
             t: Time period index
 
         Returns:
-            Sum of connection powers (LP expression or float)
+            Sum of connection powers (LP expression)
 
         """
         terms = []
@@ -77,7 +77,7 @@ class Element:
                 # Power leaving target (negative)
                 terms.append(-conn.power_target_source[t])
 
-        return cast("float | LpVariable", lpSum(terms) if terms else 0.0)
+        return lpSum(terms) if terms else LpAffineExpression(constant=0.0)
 
     def build_constraints(self) -> None:
         """Build network-dependent constraints (e.g., power balance).

@@ -2,6 +2,8 @@
 
 from collections.abc import Mapping, Sequence
 
+from pulp import LpAffineExpression
+
 from .const import CONSTRAINT_NAME_POWER_BALANCE, OUTPUT_NAME_POWER_CONSUMED, OUTPUT_TYPE_POWER, OutputData, OutputName
 from .element import Element
 from .util import broadcast_to_sequence, extract_values
@@ -23,7 +25,9 @@ class Load(Element):
         super().__init__(name=name, period=period, n_periods=n_periods)
 
         # Validate forecast length and store as power consumption
-        self.power_consumption = broadcast_to_sequence(forecast, n_periods)
+        self.power_consumption: list[LpAffineExpression] = [
+            LpAffineExpression(constant=v) for v in broadcast_to_sequence(forecast, n_periods)
+        ]
 
     def build_constraints(self) -> None:
         """Build network-dependent constraints for the load.

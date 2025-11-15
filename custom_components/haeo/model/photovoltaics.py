@@ -49,10 +49,10 @@ class Photovoltaics(Element):
         self.price_production = broadcast_to_sequence(price_production, n_periods)
 
         # Power production variables or constants
-        self.power_production: list[LpVariable] | list[float] = (
+        self.power_production: list[LpVariable | LpAffineExpression] = (
             [LpVariable(name=f"{name}_power_{i}", lowBound=0, upBound=v) for i, v in enumerate(self.forecast)]
             if curtailment
-            else self.forecast
+            else [LpAffineExpression(constant=v) for v in self.forecast]
         )
 
     def build_constraints(self) -> None:
