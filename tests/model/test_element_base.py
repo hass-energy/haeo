@@ -5,7 +5,6 @@ from unittest.mock import Mock
 from pulp import LpAffineExpression, LpConstraint, LpVariable
 
 from custom_components.haeo.model.connection import Connection
-from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.node import Node
 
 
