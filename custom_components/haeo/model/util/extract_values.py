@@ -1,5 +1,6 @@
+"""Extract numeric values from sequences of LP variables and floats."""
+
 from collections.abc import Sequence
-from typing import cast
 
 from pulp import LpVariable
 from pulp import value as pulp_value
@@ -16,5 +17,5 @@ def extract_values(sequence: Sequence[LpVariable | float] | None) -> tuple[float
         if isinstance(item, LpVariable):
             resolved.append(pulp_value(item))
         else:
-            resolved.append(cast("float", item))
+            resolved.append(item)
     return tuple(resolved)

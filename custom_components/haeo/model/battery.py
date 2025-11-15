@@ -3,7 +3,7 @@
 from collections.abc import Mapping, Sequence
 
 import numpy as np
-from pulp import LpVariable, lpSum
+from pulp import LpAffineExpression, LpVariable, lpSum
 
 from .const import (
     CONSTRAINT_NAME_ENERGY_BALANCE,
@@ -71,7 +71,7 @@ class Battery(Element):
         self.capacity: list[float] = broadcast_to_sequence(capacity, n_periods)
 
         # Broadcast initial_charge_percentage and get first value
-        initial_soc_values: list[float] = broadcast_to_sequence(initial_charge_percentage, n_periods)  # type: ignore[assignment]
+        initial_soc_values = broadcast_to_sequence(initial_charge_percentage, n_periods)
         initial_soc_value: float = initial_soc_values[0]
 
         # Store battery-specific attributes
@@ -134,26 +134,27 @@ class Battery(Element):
             for t in range(self.n_periods)
         ]
 
-    def cost(self) -> float:
-        """Return the cost of the battery.
-
-        Units: $ = ($/kWh) * kW * period_hours
-        """
-        cost = 0
+    def cost(self) -> Sequence[LpAffineExpression]:
+        """Return the cost expressions of the battery."""
+        costs: list[LpAffineExpression] = []
         # Consumption pricing (incentive to charge earlier)
-        cost += lpSum(
-            -price * power * self.period
-            for price, power in zip(self.price_consumption, self.power_consumption, strict=True)
+        costs.append(
+            lpSum(
+                -price * power * self.period
+                for price, power in zip(self.price_consumption, self.power_consumption, strict=True)
+            )
         )
 
         # Production pricing (discharge cost)
         if self.price_production is not None:
-            cost += lpSum(
-                price * power * self.period
-                for price, power in zip(self.price_production, self.power_production, strict=True)
+            costs.append(
+                lpSum(
+                    price * power * self.period
+                    for price, power in zip(self.price_production, self.power_production, strict=True)
+                )
             )
 
-        return cost
+        return costs
 
     def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return battery output specifications."""

@@ -46,11 +46,13 @@ def broadcast_to_sequence(
 
     # If it's a single value, broadcast it
     if len(value_array) == 1:
-        return np.broadcast_to(value_array, (n_periods,)).tolist()
+        result: list[float] = np.broadcast_to(value_array, (n_periods,)).tolist()
+        return result
 
     # If it's a sequence, validate length
     if len(value_array) != n_periods:
         msg = f"Sequence length ({len(value_array)}) must match n_periods ({n_periods})"
         raise ValueError(msg)
 
-    return value_array.tolist()
+    result_list: list[float] = value_array.tolist()
+    return result_list

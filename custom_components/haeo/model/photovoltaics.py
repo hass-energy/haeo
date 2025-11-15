@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 
-from pulp import LpVariable, lpSum
+from pulp import LpAffineExpression, LpVariable, lpSum
 
 from .const import (
     CONSTRAINT_NAME_POWER_BALANCE,
@@ -64,18 +64,17 @@ class Photovoltaics(Element):
             self.connection_power(t) + self.power_production[t] == 0 for t in range(self.n_periods)
         ]
 
-    def cost(self) -> float:
-        """Return the cost of the photovoltaics.
-
-        Units: $ = ($/kWh) * kW * period_hours
-        """
+    def cost(self) -> Sequence[LpAffineExpression]:
+        """Return the cost expressions of the photovoltaics."""
         if self.price_production is None:
-            return 0.0
+            return []
 
-        return lpSum(
-            price * power * self.period
-            for price, power in zip(self.price_production, self.power_production, strict=True)
-        )
+        return [
+            lpSum(
+                price * power * self.period
+                for price, power in zip(self.price_production, self.power_production, strict=True)
+            )
+        ]
 
     def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return photovoltaics output specifications."""

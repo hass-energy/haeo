@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 
-from pulp import LpVariable, lpSum
+from pulp import LpAffineExpression, LpVariable, lpSum
 
 from .const import (
     CONSTRAINT_NAME_POWER_BALANCE,
@@ -70,28 +70,28 @@ class Grid(Element):
             for t in range(self.n_periods)
         ]
 
-    def cost(self) -> float:
-        """Return the cost of the grid connection.
-
-        Units: $ = ($/kWh) * kW * period_hours
-        """
-
-        cost = 0
+    def cost(self) -> Sequence[LpAffineExpression]:
+        """Return the cost expressions of the grid connection."""
+        costs: list[LpAffineExpression] = []
         # Export pricing (revenue when exporting)
         if self.export_price is not None:
-            cost += lpSum(
-                -price * power * self.period
-                for price, power in zip(self.export_price, self.power_consumption, strict=True)
+            costs.append(
+                lpSum(
+                    -price * power * self.period
+                    for price, power in zip(self.export_price, self.power_consumption, strict=True)
+                )
             )
 
         # Import pricing (cost when importing)
         if self.import_price is not None:
-            cost += lpSum(
-                price * power * self.period
-                for price, power in zip(self.import_price, self.power_production, strict=True)
+            costs.append(
+                lpSum(
+                    price * power * self.period
+                    for price, power in zip(self.import_price, self.power_production, strict=True)
+                )
             )
 
-        return cost
+        return costs
 
     def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return the outputs for the grid with import/export naming."""

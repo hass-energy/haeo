@@ -9,9 +9,7 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_GRID,
-    ELEMENT_TYPE_LOAD,
     ELEMENT_TYPE_NODE,
-    ELEMENT_TYPE_PHOTOVOLTAICS,
 )
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.connection import Connection
