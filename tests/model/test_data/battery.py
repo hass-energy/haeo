@@ -101,6 +101,6 @@ INVALID_CASES: list[dict[str, Any]] = [
             "capacity": [10.0, 10.0],  # Length 2, should be 3
             "initial_charge_percentage": 50.0,
         },
-        "expected_error": "could not be broadcast",
+        "expected_error": "Sequence length .* must match n_periods",
     },
 ]

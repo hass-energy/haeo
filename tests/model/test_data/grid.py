@@ -98,13 +98,13 @@ INVALID_CASES = [
         "data": {
             "name": "grid",
             "period": 1.0,
-            "n_periods": 2,
+            "n_periods": 3,
             "import_limit": 5.0,
             "export_limit": 4.0,
-            "import_price": (0.3,),  # Only 1 instead of 2
-            "export_price": (0.1, 0.2),
+            "import_price": (0.3, 0.4),  # Only 2 instead of 3
+            "export_price": (0.1, 0.2, 0.3),
         },
-        "expected_error": "import_price must contain 2 entries",
+        "expected_error": "Sequence length .* must match n_periods",
     },
     {
         "description": "Grid with export_price length mismatch",
@@ -112,12 +112,12 @@ INVALID_CASES = [
         "data": {
             "name": "grid",
             "period": 1.0,
-            "n_periods": 2,
+            "n_periods": 3,
             "import_limit": 5.0,
             "export_limit": 4.0,
-            "import_price": (0.3, 0.4),
-            "export_price": (0.1,),  # Only 1 instead of 2
+            "import_price": (0.3, 0.4, 0.5),
+            "export_price": (0.1, 0.2),  # Only 2 instead of 3
         },
-        "expected_error": "export_price must contain 2 entries",
+        "expected_error": "Sequence length .* must match n_periods",
     },
 ]

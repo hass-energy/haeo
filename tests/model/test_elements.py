@@ -24,7 +24,7 @@ def _solve_element_scenario(element: Any, inputs: dict[str, Any] | None) -> dict
     """
     if inputs is None:
         # No optimization - get outputs directly
-        outputs = element.get_outputs()
+        outputs = element.outputs()
         return {
             name: {
                 "type": output_data.type,
@@ -102,7 +102,7 @@ def _solve_element_scenario(element: Any, inputs: dict[str, Any] | None) -> dict
         raise ValueError(msg)
 
     # Extract and return outputs
-    outputs = element.get_outputs()
+    outputs = element.outputs()
     return {
         name: {
             "type": output_data.type,

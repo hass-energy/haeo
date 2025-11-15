@@ -31,6 +31,14 @@ OUTPUT_NAME_OPTIMIZATION_COST: Final = "optimization_cost"
 OUTPUT_NAME_OPTIMIZATION_STATUS: Final = "optimization_status"
 OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "optimization_duration"
 
+# Constraint names (will become outputs in future PR)
+CONSTRAINT_NAME_ENERGY_BALANCE: Final = "energy_balance"
+CONSTRAINT_NAME_POWER_BALANCE: Final = "power_balance"
+CONSTRAINT_NAME_MAX_CHARGE_POWER: Final = "max_charge_power"
+CONSTRAINT_NAME_MAX_DISCHARGE_POWER: Final = "max_discharge_power"
+CONSTRAINT_NAME_MAX_POWER_SOURCE_TARGET: Final = "max_power_source_target"
+CONSTRAINT_NAME_MAX_POWER_TARGET_SOURCE: Final = "max_power_target_source"
+
 type OutputName = Literal[
     "power_flow",
     "power_flow_source_target",
@@ -78,18 +86,3 @@ class OutputData:
     type: OutputType
     unit: str | None
     values: Sequence[Any]
-
-
-def extract_values(sequence: Sequence[LpVariable | float] | None) -> tuple[float, ...]:
-    """Convert a sequence of PuLP variables or floats to a tuple of floats."""
-
-    if sequence is None:
-        return ()
-
-    resolved: list[float] = []
-    for item in sequence:
-        if isinstance(item, LpVariable):
-            resolved.append(_PULP_VALUE(item))
-        else:
-            resolved.append(float(item))
-    return tuple(resolved)
