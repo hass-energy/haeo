@@ -201,7 +201,7 @@ gold:
 platinum:
   strict-typing:
     status: done
-    comment: pyproject.toml enables mypy strict mode and uv run mypy custom_components/haeo --strict completes without errors
+    comment: pyproject.toml enables pyright strict mode and uv run pyright custom_components/haeo completes without errors
 
   async-dependency:
     status: done

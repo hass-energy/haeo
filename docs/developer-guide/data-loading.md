@@ -316,7 +316,7 @@ Complement with code quality checks:
 
 ```bash
 uv run ruff check custom_components/haeo/data/loader/
-uv run mypy custom_components/haeo/data/loader/
+uv run pyright custom_components/haeo/data/loader/
 ```
 
 ## Related Documentation

@@ -24,9 +24,9 @@ async def test_user_flow_success(hass: HomeAssistant) -> None:
     """Test successful hub creation via user flow."""
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
-    assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "user"
-    assert result["errors"] == {}
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "user"
+    assert result.get("errors") == {}
 
     # Configure with valid data
     result = await hass.config_entries.flow.async_configure(
@@ -38,12 +38,14 @@ async def test_user_flow_success(hass: HomeAssistant) -> None:
         },
     )
 
-    assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Test Hub"
-    assert result["data"][CONF_NAME] == "Test Hub"
-    assert result["data"]["integration_type"] == INTEGRATION_TYPE_HUB
-    assert result["data"][CONF_HORIZON_HOURS] == 48
-    assert result["data"][CONF_PERIOD_MINUTES] == 5
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    assert result.get("title") == "Test Hub"
+    data = result.get("data")
+    assert data is not None
+    assert data[CONF_NAME] == "Test Hub"
+    assert data["integration_type"] == INTEGRATION_TYPE_HUB
+    assert data[CONF_HORIZON_HOURS] == 48
+    assert data[CONF_PERIOD_MINUTES] == 5
 
     # Verify entry was created
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -78,8 +80,8 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         },
     )
 
-    assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {CONF_NAME: "name_exists"}
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("errors") == {CONF_NAME: "name_exists"}
 
     # Verify flow can recover from error
     result = await hass.config_entries.flow.async_configure(
@@ -91,8 +93,8 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         },
     )
 
-    assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["title"] == "New Hub"
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    assert result.get("title") == "New Hub"
 
 
 async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> None:
@@ -109,7 +111,7 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
         },
     )
 
-    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     # Try to create hub with same name (case-insensitive, spaces normalized)
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
@@ -124,19 +126,20 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
     )
 
     # Should be rejected due to unique_id check
-    assert result["type"] == FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
+    assert result.get("type") == FlowResultType.ABORT
+    assert result.get("reason") == "already_configured"
 
 
 async def test_user_flow_default_values(hass: HomeAssistant) -> None:
     """Test that default values are suggested in the form."""
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
-    assert result["type"] == FlowResultType.FORM
-    assert result["data_schema"] is not None
+    assert result.get("type") == FlowResultType.FORM
+    data_schema = result.get("data_schema")
+    assert data_schema is not None
 
     # Check suggested values exist in the schema
-    schema_keys = {vol_key.schema: vol_key for vol_key in result["data_schema"].schema}
+    schema_keys = {vol_key.schema: vol_key for vol_key in data_schema.schema}
 
     # Verify default values
     assert schema_keys[CONF_HORIZON_HOURS].default() == DEFAULT_HORIZON_HOURS
@@ -213,9 +216,9 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
         flow.handler = (hub_entry.entry_id, element_type)
 
         step_result = await flow.async_step_user(user_input=None)
-        assert step_result["type"] == FlowResultType.FORM
+        assert step_result.get("type") == FlowResultType.FORM
 
-        schema = step_result["data_schema"]
+        schema = step_result.get("data_schema")
         if schema is None:
             continue
 

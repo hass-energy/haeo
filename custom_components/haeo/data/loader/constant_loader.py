@@ -14,6 +14,7 @@ class ConstantLoader[T]:
 
     def __init__(self, cls: type[T]) -> None:
         """Initialize with the expected constant type."""
+        super().__init__()
         self._type = cls
 
     def available(self, value: Any, **_kwargs: Any) -> bool:

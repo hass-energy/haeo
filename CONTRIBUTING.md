@@ -40,11 +40,11 @@ uv sync
 uv run pytest
 
 # Run linters
-uv run ruff check custom_components/ tests/
-uv run ruff format custom_components/ tests/
+uv run ruff check
+uv run ruff format
 
 # Type checking
-uv run mypy custom_components/
+uv run pyright
 ```
 
 See the [Developer Guide](https://hass-energy.github.io/haeo/developer-guide/) for detailed setup instructions.
