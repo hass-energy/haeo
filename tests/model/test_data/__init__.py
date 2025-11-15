@@ -66,7 +66,6 @@ __all__ = [
     "VALID_CASES",
     "battery",
     "connection",
-    "element",
     "fix_lp_variable",
     "grid",
     "load",

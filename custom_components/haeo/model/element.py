@@ -30,6 +30,7 @@ class Element:
             n_periods: Number of time periods
 
         """
+        super().__init__()
         self.name = name
         self.period = period
         self.n_periods = n_periods

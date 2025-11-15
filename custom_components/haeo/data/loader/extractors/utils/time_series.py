@@ -27,9 +27,9 @@ def detect_format(state: State) -> "ExtractorFormat | None":
 
     """
     # Import here to avoid circular dependency
-    from custom_components.haeo.data.loader.extractors import _FORMATS  # noqa: PLC0415
+    from custom_components.haeo.data.loader.extractors import FORMATS  # noqa: PLC0415
 
-    valid_formats: list[ExtractorFormat] = [domain for domain, parser in _FORMATS.items() if parser.detect(state)]
+    valid_formats: list[ExtractorFormat] = [domain for domain, parser in FORMATS.items() if parser.detect(state)]
 
     if len(valid_formats) == 1:
         return valid_formats[0]
@@ -90,12 +90,12 @@ def extract_time_series(state: State, *, entity_id: str) -> float | list[tuple[i
 
     """
     # Import here to avoid circular dependency
-    from custom_components.haeo.data.loader.extractors import _FORMATS  # noqa: PLC0415
+    from custom_components.haeo.data.loader.extractors import FORMATS  # noqa: PLC0415
 
     extractor_type = detect_format(state)
 
     if extractor_type is not None:
-        extracted = _FORMATS[extractor_type].extract(state)
+        extracted = FORMATS[extractor_type].extract(state)
         if extracted:
             # Convert all forecast values to base units
             unit, device_class = get_extracted_units(state)
@@ -115,7 +115,7 @@ def get_extracted_units(state: State) -> tuple[str | None, SensorDeviceClass | N
 
     """
     # Import here to avoid circular dependency
-    from custom_components.haeo.data.loader.extractors import _FORMATS  # noqa: PLC0415
+    from custom_components.haeo.data.loader.extractors import FORMATS  # noqa: PLC0415
 
     extractor_type = detect_format(state)
 
@@ -124,5 +124,5 @@ def get_extracted_units(state: State) -> tuple[str | None, SensorDeviceClass | N
         device_class = state.attributes.get("device_class")
         return (unit, device_class)
 
-    extractor = _FORMATS[extractor_type]
+    extractor = FORMATS[extractor_type]
     return extractor.UNIT, extractor.DEVICE_CLASS

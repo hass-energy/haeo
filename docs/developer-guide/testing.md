@@ -232,7 +232,7 @@ All PRs must pass:
 - All tests
 - Coverage ≥ 95%
 - Ruff linting
-- MyPy type checking
+- Pyright type checking
 
 ## Related Documentation
 
