@@ -218,3 +218,43 @@ def test_network_invalid_solver() -> None:
     # Try to use non-existent solver
     with pytest.raises(ValueError, match="Failed to get solver 'NonExistentSolver'"):
         network.optimize(optimizer="NonExistentSolver")
+
+
+def test_network_optimize_validates_before_running() -> None:
+    """Test that optimize() calls validate() and catches validation errors."""
+    network = Network(
+        name="test_network",
+        period=1.0,
+        n_periods=3,
+    )
+
+    # Add elements but create an invalid connection
+    network.add(ELEMENT_TYPE_NODE, "node1")
+    network.add(ELEMENT_TYPE_CONNECTION, "bad_conn", source="node1", target="nonexistent_node")
+
+    # Should raise validation error when trying to optimize
+    with pytest.raises(ValueError, match="Target element 'nonexistent_node' not found"):
+        network.optimize()
+
+
+def test_network_optimize_build_constraints_error() -> None:
+    """Test that optimize() catches and wraps build_constraints errors."""
+    network = Network(
+        name="test_network",
+        period=1.0,
+        n_periods=3,
+    )
+
+    # Add a regular element
+    network.add(ELEMENT_TYPE_NODE, "node1")
+
+    # Mock an element that raises an exception during build_constraints
+    mock_element = Mock(spec=Element)
+    mock_element.build_constraints.side_effect = RuntimeError("Build failed")
+    mock_element.constraints.return_value = []
+    mock_element.cost.return_value = []
+    network.elements["failing_element"] = mock_element
+
+    # Should wrap the error with context about which element failed
+    with pytest.raises(ValueError, match="Failed to build constraints for element 'failing_element'"):
+        network.optimize()
