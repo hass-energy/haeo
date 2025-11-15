@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pulp import LpMinimize, LpProblem, LpVariable, getSolver, lpSum
+from pulp import LpAffineExpression, LpMinimize, LpProblem, LpVariable, getSolver, lpSum
 import pytest
 
 from custom_components.haeo.model import extract_values
@@ -38,7 +38,7 @@ def _solve_element_scenario(element: Any, inputs: dict[str, Any] | None) -> dict
     n_periods = element.n_periods
     period = element.period
 
-    problem = LpProblem(f"test_{element.name}", LpMinimize)  # type: ignore[no-untyped-call]
+    problem = LpProblem(f"test_{element.name}", LpMinimize)
 
     # Add element constraints
     for constraint in element.constraints():
@@ -51,12 +51,14 @@ def _solve_element_scenario(element: Any, inputs: dict[str, Any] | None) -> dict
         source_cost = inputs.get("source_cost", 0.0)
         target_cost = inputs.get("target_cost", 0.0)
 
-        # Create power variables: None = unbounded, float = fixed
+        # Create power variables: None = unbounded, float = fixed value as LpAffineExpression
         source_vars = [
-            LpVariable(f"source_power_{i}") if val is None else float(val) for i, val in enumerate(source_power)
+            LpVariable(f"source_power_{i}") if val is None else LpAffineExpression(val)
+            for i, val in enumerate(source_power)
         ]
         target_vars = [
-            LpVariable(f"target_power_{i}") if val is None else float(val) for i, val in enumerate(target_power)
+            LpVariable(f"target_power_{i}") if val is None else LpAffineExpression(val)
+            for i, val in enumerate(target_power)
         ]
 
         # Power balance: net flow at each side
@@ -65,12 +67,12 @@ def _solve_element_scenario(element: Any, inputs: dict[str, Any] | None) -> dict
             problem += target_vars[i] == element.power_source_target[i] - element.power_target_source[i]
 
         # Objective function
-        objective = element.cost()
+        cost_terms = list(element.cost())
         if source_cost != 0.0:
-            objective += lpSum(source_vars[i] * source_cost * period for i in range(n_periods))
+            cost_terms.append(lpSum(source_vars[i] * source_cost * period for i in range(n_periods)))
         if target_cost != 0.0:
-            objective += lpSum(target_vars[i] * target_cost * period for i in range(n_periods))
-        problem += objective
+            cost_terms.append(lpSum(target_vars[i] * target_cost * period for i in range(n_periods)))
+        problem += lpSum(cost_terms)
 
     else:
         # Regular elements (Battery, Grid, PV, Load)
@@ -89,14 +91,14 @@ def _solve_element_scenario(element: Any, inputs: dict[str, Any] | None) -> dict
             problem += power_vars[i] == consumption[i] - production[i]
 
         # Objective function
-        objective = element.cost()
+        cost_terms = list(element.cost())
         if power_cost != 0.0:
-            objective += lpSum(power_vars[i] * power_cost * period for i in range(n_periods))
-        problem += objective
+            cost_terms.append(lpSum(power_vars[i] * power_cost * period for i in range(n_periods)))
+        problem += lpSum(cost_terms)
 
     # Solve
     solver = getSolver("HiGHS", msg=0)
-    status = problem.solve(solver)  # type: ignore[no-untyped-call]
+    status = problem.solve(solver)
     if status != 1:
         msg = f"Optimization failed with status {status}"
         raise ValueError(msg)
