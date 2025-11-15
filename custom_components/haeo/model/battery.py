@@ -1,9 +1,9 @@
 """Battery entity for electrical system modeling."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, MutableSequence, Sequence
 
 import numpy as np
-from pulp import LpAffineExpression, LpVariable, lpSum
+from pulp import LpAffineExpression, LpConstraint, LpVariable, lpSum
 
 from .const import (
     CONSTRAINT_NAME_ENERGY_BALANCE,
@@ -45,6 +45,10 @@ class Battery(Element):
         efficiency: float = 99.0,
         early_charge_incentive: float = 1e-3,
         discharge_cost: float | None = None,
+        undercharge_percentage: float | None = None,
+        overcharge_percentage: float | None = None,
+        undercharge_cost: Sequence[float] | float | None = None,
+        overcharge_cost: Sequence[float] | float | None = None,
     ) -> None:
         """Initialize a battery entity.
 
@@ -63,6 +67,10 @@ class Battery(Element):
                 to prefer later charging. Linearly increases from 0 to -incentive across periods.
                 Default 0.001 (0.1 cents/kWh) encourages charging later when costs are equal.
             discharge_cost: Cost in $/kWh when discharging
+            undercharge_percentage: Soft minimum charge percentage for undercharge slack
+            overcharge_percentage: Soft maximum charge percentage for overcharge slack
+            undercharge_cost: Cost in $/kWh for operating below soft minimum
+            overcharge_cost: Cost in $/kWh for operating above soft maximum
 
         """
         super().__init__(name=name, period=period, n_periods=n_periods)
@@ -76,6 +84,19 @@ class Battery(Element):
 
         # Store battery-specific attributes
         self.efficiency = efficiency / 100.0  # Convert percentage to fraction
+        self.min_charge_percentage = min_charge_percentage
+        self.max_charge_percentage = max_charge_percentage
+        self.undercharge_percentage = undercharge_percentage
+        self.overcharge_percentage = overcharge_percentage
+
+        # Pre-calculate energy limits for soft constraints
+        capacity_array = np.array(self.capacity)
+        self.soft_min_energy: list[float] | None = None
+        self.soft_max_energy: list[float] | None = None
+        if undercharge_percentage is not None:
+            self.soft_min_energy = (capacity_array * undercharge_percentage / 100.0).tolist()
+        if overcharge_percentage is not None:
+            self.soft_max_energy = (capacity_array * overcharge_percentage / 100.0).tolist()
 
         # Broadcast charge/discharge power bounds
         charge_bounds: list[float] | None = broadcast_to_sequence(max_charge_power, n_periods)
@@ -99,6 +120,38 @@ class Battery(Element):
                 for i in range(1, n_periods)
             ],
         ]
+
+        # Create slack variables for soft limits if configured
+        self.overcharge_slack: Sequence[LpVariable] | None = None
+        self.undercharge_slack: Sequence[LpVariable] | None = None
+        self.overcharge_cost_values: list[float] | None = None
+        self.undercharge_cost_values: list[float] | None = None
+
+        if overcharge_percentage is not None and overcharge_cost is not None:
+            overcharge_cost_array = np.broadcast_to(np.atleast_1d(overcharge_cost), (n_periods,))
+            self.overcharge_cost_values = overcharge_cost_array.tolist()
+            max_overcharge = capacity_array * (max_charge_percentage - overcharge_percentage) / 100.0
+            self.overcharge_slack = [
+                LpVariable(
+                    name=f"{name}_overcharge_slack_{i}",
+                    lowBound=0,
+                    upBound=float(max_overcharge[i]),
+                )
+                for i in range(n_periods - 1)
+            ]
+
+        if undercharge_percentage is not None and undercharge_cost is not None:
+            undercharge_cost_array = np.broadcast_to(np.atleast_1d(undercharge_cost), (n_periods,))
+            self.undercharge_cost_values = undercharge_cost_array.tolist()
+            max_undercharge = capacity_array * (undercharge_percentage - min_charge_percentage) / 100.0
+            self.undercharge_slack = [
+                LpVariable(
+                    name=f"{name}_undercharge_slack_{i}",
+                    lowBound=0,
+                    upBound=float(max_undercharge[i]),
+                )
+                for i in range(n_periods - 1)
+            ]
 
         # Prices
         self.price_production: list[float] | None = broadcast_to_sequence(discharge_cost, n_periods)
@@ -154,7 +207,51 @@ class Battery(Element):
                 )
             )
 
+        # Add overcharge penalty cost
+        if self.overcharge_slack is not None and self.overcharge_cost_values is not None:
+            costs.append(
+                lpSum(
+                    slack * cost_value
+                    for slack, cost_value in zip(self.overcharge_slack, self.overcharge_cost_values[1:], strict=True)
+                )
+            )
+
+        # Add undercharge penalty cost
+        if self.undercharge_slack is not None and self.undercharge_cost_values is not None:
+            costs.append(
+                lpSum(
+                    slack * cost_value
+                    for slack, cost_value in zip(self.undercharge_slack, self.undercharge_cost_values[1:], strict=True)
+                )
+            )
+
         return costs
+
+    def constraints(self) -> Sequence[LpConstraint]:
+        """Return constraints for the battery including soft limit constraints."""
+        constraints: MutableSequence[LpConstraint] = list(super().constraints())
+
+        # Add soft maximum constraint (overcharge)
+        if self.overcharge_slack is not None and self.soft_max_energy is not None:
+            for t in range(1, len(self.energy)):
+                energy_change = (
+                    self.power_consumption[t - 1] * self.efficiency - self.power_production[t - 1] / self.efficiency
+                ) * self.period
+                constraints.append(
+                    self.energy[t - 1] + energy_change - self.overcharge_slack[t - 1] <= self.soft_max_energy[t]
+                )
+
+        # Add soft minimum constraint (undercharge)
+        if self.undercharge_slack is not None and self.soft_min_energy is not None:
+            for t in range(1, len(self.energy)):
+                energy_change = (
+                    self.power_consumption[t - 1] * self.efficiency - self.power_production[t - 1] / self.efficiency
+                ) * self.period
+                constraints.append(
+                    self.energy[t - 1] + energy_change + self.undercharge_slack[t - 1] >= self.soft_min_energy[t]
+                )
+
+        return constraints
 
     def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return battery output specifications."""

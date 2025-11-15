@@ -26,6 +26,8 @@ For each time step $t \in \{0, 1, \ldots, T-1\}$:
 
 The battery model requires these configuration parameters:
 
+**Required parameters**:
+
 - $C$: Battery capacity (kWh) - `capacity`
 - $E_{\text{initial}}$: Initial energy level (kWh) - derived from `initial_charge_percentage`
 - $\text{SOC}_{\min}$: Minimum state of charge (%) - `min_charge_percentage` (default: 10%)
@@ -34,6 +36,13 @@ The battery model requires these configuration parameters:
 - $P_{\text{discharge}}^{\max}$: Maximum discharging power (kW) - `max_discharge_power`
 - $\eta$: Round-trip efficiency (0-1) - `efficiency` (default: 0.99)
 - $\Delta t$: Time step duration (hours) - `period`
+
+**Optional soft limit parameters**:
+
+- $\text{SOC}\_{\text{soft,min}}$: Soft minimum state of charge (%) - `undercharge_percentage`
+- $\text{SOC}\_{\text{soft,max}}$: Soft maximum state of charge (%) - `overcharge_percentage`
+- $c\_{\text{undercharge}}$: Undercharge cost penalty (\$/kWh) - `undercharge_cost`
+- $c\_{\text{overcharge}}$: Overcharge cost penalty (\$/kWh) - `overcharge_cost`
 
 ### Constraints
 
@@ -65,6 +74,60 @@ $$
 C \cdot \frac{\text{SOC}_{\min}}{100} \leq E(t) \leq C \cdot \frac{\text{SOC}_{\max}}{100} \quad \forall t
 $$
 
+These are **hard limits** enforced by variable bounds in the linear program.
+
+#### Soft SOC Limits (Optional)
+
+Batteries can be configured with **soft limits** to model preferred operating ranges with economic penalties for exceeding them:
+
+- $\text{SOC}\_{\text{soft,min}}$: Soft minimum state of charge (%) - `undercharge_percentage`
+- $\text{SOC}\_{\text{soft,max}}$: Soft maximum state of charge (%) - `overcharge_percentage`
+- $c\_{\text{undercharge}}$: Cost penalty for operating below soft minimum (\$/kWh) - `undercharge_cost`
+- $c\_{\text{overcharge}}$: Cost penalty for operating above soft maximum (\$/kWh) - `overcharge_cost`
+
+These soft limits introduce **slack variables** that relax the soft constraints:
+
+$$
+\begin{align}
+s\_{\text{under}}(t) &\geq 0 \quad \text{(undercharge slack)} \\
+s\_{\text{over}}(t) &\geq 0 \quad \text{(overcharge slack)}
+\end{align}
+$$
+
+**Soft limit constraints**:
+
+The constraints work on the energy dynamics (power flows) rather than stored energy directly:
+
+$$
+\begin{align}
+E(t-1) + \Delta E(t) + s\_{\text{under}}(t) &\geq C \cdot \frac{\text{SOC}\_{\text{soft,min}}}{100} \\
+E(t-1) + \Delta E(t) - s\_{\text{over}}(t) &\leq C \cdot \frac{\text{SOC}\_{\text{soft,max}}}{100}
+\end{align}
+$$
+
+where $\Delta E(t) = \left( P\_{\text{charge}}(t) \cdot \sqrt{\eta} - \frac{P\_{\text{discharge}}(t)}{\sqrt{\eta}} \right) \cdot \Delta t$ is the energy change.
+
+The slack variables are bounded:
+
+$$
+\begin{align}
+0 \leq s\_{\text{under}}(t) &\leq C \cdot \frac{\text{SOC}\_{\text{soft,min}} - \text{SOC}\_{\text{min}}}{100} \\
+0 \leq s\_{\text{over}}(t) &\leq C \cdot \frac{\text{SOC}\_{\text{max}} - \text{SOC}\_{\text{soft,max}}}{100}
+\end{align}
+$$
+
+These bounds ensure energy never exceeds the hard limits:
+
+$$
+\text{SOC}\_{\text{min}} \leq \text{SOC}\_{\text{soft,min}} < \text{SOC}\_{\text{soft,max}} \leq \text{SOC}\_{\text{max}}
+$$
+
+**Economic interpretation**: The optimizer can use the range outside soft limits when the marginal benefit (e.g., avoiding expensive grid imports) exceeds the penalty cost. This models scenarios like:
+
+- Battery degradation from deep discharge/full charge cycles
+- Safety margins for grid stability services
+- Operational preferences with economic trade-offs
+
 #### Power Limits
 
 Charging and discharging have maximum rates determined by the inverter and battery specifications:
@@ -88,6 +151,15 @@ $$
 $$
 
 Where $c_{\text{charge}}$ and $c_{\text{discharge}}$ (in \$/kWh) represent the marginal cost of battery usage.
+
+**With soft limits**, additional penalty costs apply:
+
+$$
+\text{Soft Limit Cost} = \sum_{t=0}^{T-1} \left( s\_{\text{under}}(t) \cdot c\_{\text{undercharge}} + s\_{\text{over}}(t) \cdot c\_{\text{overcharge}} \right)
+$$
+
+The slack variables $s\_{\text{under}}(t)$ and $s\_{\text{over}}(t)$ measure energy (kWh) outside preferred operating ranges.
+These costs can be time-varying (forecasts) to model dynamic pricing scenarios.
 
 ## Physical Interpretation
 

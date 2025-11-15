@@ -17,6 +17,8 @@ from custom_components.haeo.schema.fields import (
     PowerSensorFieldSchema,
     PriceFieldData,
     PriceFieldSchema,
+    PriceSensorsFieldData,
+    PriceSensorsFieldSchema,
 )
 
 ELEMENT_TYPE: Final = "battery"
@@ -30,6 +32,10 @@ CONF_MAX_CHARGE_POWER: Final = "max_charge_power"
 CONF_MAX_DISCHARGE_POWER: Final = "max_discharge_power"
 CONF_EARLY_CHARGE_INCENTIVE: Final = "early_charge_incentive"
 CONF_DISCHARGE_COST: Final = "discharge_cost"
+CONF_UNDERCHARGE_PERCENTAGE: Final = "undercharge_percentage"
+CONF_OVERCHARGE_PERCENTAGE: Final = "overcharge_percentage"
+CONF_UNDERCHARGE_COST: Final = "undercharge_cost"
+CONF_OVERCHARGE_COST: Final = "overcharge_cost"
 
 
 class BatteryConfigSchema(TypedDict):
@@ -46,6 +52,10 @@ class BatteryConfigSchema(TypedDict):
     max_discharge_power: NotRequired[PowerSensorFieldSchema]
     early_charge_incentive: NotRequired[PriceFieldSchema]
     discharge_cost: NotRequired[PriceFieldSchema]
+    undercharge_percentage: NotRequired[BatterySOCFieldSchema]
+    overcharge_percentage: NotRequired[BatterySOCFieldSchema]
+    undercharge_cost: NotRequired[PriceSensorsFieldSchema]
+    overcharge_cost: NotRequired[PriceSensorsFieldSchema]
 
 
 class BatteryConfigData(TypedDict):
@@ -62,6 +72,10 @@ class BatteryConfigData(TypedDict):
     max_discharge_power: NotRequired[PowerSensorFieldData]
     early_charge_incentive: NotRequired[PriceFieldData]
     discharge_cost: NotRequired[PriceFieldData]
+    undercharge_percentage: NotRequired[BatterySOCFieldData]
+    overcharge_percentage: NotRequired[BatterySOCFieldData]
+    undercharge_cost: NotRequired[PriceSensorsFieldData]
+    overcharge_cost: NotRequired[PriceSensorsFieldData]
 
 
 CONFIG_DEFAULTS: dict[str, Any] = {
