@@ -6,7 +6,6 @@
   "files.trimFinalNewlines": true,
   "files.trimTrailingWhitespace": true,
   "files.eol": "\n",
-  "python.analysis.typeCheckingMode": "standard",
   "files.associations": {
     "*.yaml": "home-assistant"
   },
