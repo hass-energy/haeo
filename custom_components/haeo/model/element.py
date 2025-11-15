@@ -2,9 +2,8 @@
 
 from collections.abc import Mapping, MutableSequence, Sequence
 from dataclasses import dataclass
-from typing import cast
 
-from pulp import LpConstraint, LpVariable, lpSum
+from pulp import LpAffineExpression, LpConstraint, LpVariable, lpSum
 
 from .const import (
     OUTPUT_NAME_ENERGY_STORED,
@@ -59,36 +58,49 @@ class Element:
         if self.energy is not None and self.power_consumption is not None and self.power_production is not None:
             # Energy balance: E[t] = E[t-1] + (charge - discharge) * period
             # where charge and discharge include efficiency adjustments
+            # Note: energy[0] is initial value (float), energy[t] for t >= 1 are LpVariables
             for t in range(1, len(self.energy)):
+                energy_t = self.energy[t]
+                energy_prev = self.energy[t - 1]
+
+                # Type narrowing: By construction, energy[t] for t >= 1 is always LpVariable
+                # and energy[0] is always float. We verify this at runtime.
+                if not isinstance(energy_t, LpVariable):
+                    continue  # Skip if not a variable (shouldn't happen by construction)
+
                 energy_change = (
                     self.power_consumption[t - 1] * self.efficiency - self.power_production[t - 1] / self.efficiency
                 ) * self.period
-                constraints.append(cast("LpConstraint", self.energy[t] == self.energy[t - 1] + energy_change))
+                constraints.append(energy_t == energy_prev + energy_change)
 
         return constraints
 
-    def cost(self) -> float:
-        """Return the cost of the entity using separate consumption/production variables.
+    def cost(self) -> Sequence[tuple[LpAffineExpression, str]]:
+        """Return the cost expressions of the entity using separate consumption/production variables.
+
+        Returns a sequence of (cost_expression, label) tuples for aggregation at the network level.
 
         Units: $ = ($/kWh) * kW * period_hours
         """
-        cost = 0
+        costs: list[tuple[LpAffineExpression, str]] = []
         # Handle separate consumption and production pricing
         if self.price_consumption is not None and self.power_consumption is not None:
             # Revenue for consumption (exporting to grid) - negative cost = revenue
-            cost += lpSum(
+            consumption_cost = lpSum(
                 -price * power * self.period
                 for price, power in zip(self.price_consumption, self.power_consumption, strict=False)
             )
+            costs.append((consumption_cost, f"{self.name}_consumption_cost"))
 
         if self.price_production is not None and self.power_production is not None:
             # Cost for production (importing from grid)
-            cost += lpSum(
+            production_cost = lpSum(
                 price * power * self.period
                 for price, power in zip(self.price_production, self.power_production, strict=False)
             )
+            costs.append((production_cost, f"{self.name}_production_cost"))
 
-        return cast("float", cost)
+        return costs
 
     def get_outputs(self) -> Mapping[OutputName, OutputData]:
         """Return output specifications for the element."""
