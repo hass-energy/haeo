@@ -2,79 +2,105 @@
 
 from typing import Any
 
-from pulp import LpVariable
-
 from custom_components.haeo.model.battery import Battery
-
-from . import fix_lp_variable
-
-
-def create(data: dict[str, Any]) -> Battery:
-    """Create a test Battery instance with fixed values."""
-
-    battery = Battery(**data)
-
-    if battery.power_consumption is not None:
-        for index, variable in enumerate(battery.power_consumption):
-            if isinstance(variable, LpVariable):
-                fix_lp_variable(variable, float(index + 1))
-    if battery.power_production is not None:
-        for index, variable in enumerate(battery.power_production):
-            if isinstance(variable, LpVariable):
-                fix_lp_variable(variable, float(index + 1))
-    if battery.energy is not None:
-        for variable in battery.energy[1:]:
-            if isinstance(variable, LpVariable):
-                fix_lp_variable(variable, 6.0)
-
-    return battery
-
 
 VALID_CASES = [
     {
-        "description": "Battery with full configuration",
-        "factory": create,
+        "description": "Battery charging from infinite source",
+        "factory": Battery,
         "data": {
-            "name": "battery",
+            "name": "battery_charging",
             "period": 1.0,
-            "n_periods": 2,
-            "capacity": [10.0, 10.0],
-            "initial_charge_percentage": 50.0,
-            "min_charge_percentage": 25.0,
+            "n_periods": 3,
+            "capacity": 10.0,
+            "initial_charge_percentage": 20.0,
+            "min_charge_percentage": 10.0,
             "max_charge_percentage": 90.0,
             "max_charge_power": 5.0,
-            "max_discharge_power": 3.0,
-            "efficiency": 0.95,
-            "charge_cost": 0.2,
-            "discharge_cost": 0.1,
+            "max_discharge_power": 5.0,
+            "efficiency": 95.0,
+        },
+        "inputs": {
+            "power": [None, None, None],  # Infinite (unbounded)
+            "cost": -0.1,  # Negative cost = benefit for consuming (encourages charging)
         },
         "expected_outputs": {
-            "power_consumed": {"type": "power", "unit": "kW", "values": (1.0, 2.0)},
-            "power_produced": {"type": "power", "unit": "kW", "values": (1.0, 2.0)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 6.0)},
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 60.0)},
-            "price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.0, 0.2)},
-            "price_production": {"type": "price", "unit": "$/kWh", "values": (0.1, 0.1)},
+            "power_consumed": {"type": "power", "unit": "kW", "values": (5.0, 5.0, 5.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (2.375, 0.0, 0.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (2.0, 4.25, 9.0)},
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (20.0, 42.5, 90.0)},
+            "price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.0, -0.0005, -0.001)},
         },
     },
     {
-        "description": "Battery without power limits",
-        "factory": create,
+        "description": "Battery discharging to infinite sink",
+        "factory": Battery,
         "data": {
-            "name": "battery_unlimited",
+            "name": "battery_discharging",
             "period": 1.0,
-            "n_periods": 2,
+            "n_periods": 3,
             "capacity": 10.0,
-            "initial_charge_percentage": 50.0,
-            # max_charge_power and max_discharge_power omitted (None)
+            "initial_charge_percentage": 80.0,
+            "min_charge_percentage": 10.0,
+            "max_charge_percentage": 90.0,
+            "max_charge_power": 5.0,
+            "max_discharge_power": 3.0,
+            "efficiency": 95.0,
+        },
+        "inputs": {
+            "power": [None, None, None],  # Infinite (unbounded)
+            "cost": 0.1,  # Positive cost = benefit for providing power (encourages discharging)
         },
         "expected_outputs": {
-            "power_consumed": {"type": "power", "unit": "kW", "values": (1.0, 2.0)},
-            "power_produced": {"type": "power", "unit": "kW", "values": (1.0, 2.0)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 6.0)},
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 60.0)},
+            "power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (3.0, 3.0, 3.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (8.0, 4.842105263157895, 1.6842105263157894)},
+            "battery_state_of_charge": {
+                "type": "soc",
+                "unit": "%",
+                "values": (80.0, 48.421052631578945, 16.842105263157894),
+            },
+            "price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.0, -0.0005, -0.001)},
+        },
+    },
+    {
+        "description": "Battery with fixed load pattern",
+        "factory": Battery,
+        "data": {
+            "name": "battery_fixed",
+            "period": 1.0,
+            "n_periods": 3,
+            "capacity": 10.0,
+            "initial_charge_percentage": 50.0,
+            "max_charge_power": 5.0,
+            "max_discharge_power": 5.0,
+            "efficiency": 100.0,
+        },
+        "inputs": {
+            "power": [2.0, -1.0, 1.0],  # Positive=charge, negative=discharge
+            "cost": 0.0,
+        },
+        "expected_outputs": {
+            "power_consumed": {"type": "power", "unit": "kW", "values": (2.0, 0.0, 1.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 1.0, 0.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 7.0, 6.0)},
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 70.0, 60.0)},
+            "price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.0, -0.0005, -0.001)},
         },
     },
 ]
 
-INVALID_CASES: list[dict[str, Any]] = []
+INVALID_CASES: list[dict[str, Any]] = [
+    {
+        "description": "Battery with capacity length mismatch",
+        "element_class": Battery,
+        "data": {
+            "name": "invalid_battery",
+            "period": 1.0,
+            "n_periods": 3,
+            "capacity": [10.0, 10.0],  # Length 2, should be 3
+            "initial_charge_percentage": 50.0,
+        },
+        "expected_error": "could not be broadcast",
+    },
+]

@@ -1,19 +1,11 @@
 """Test data and factories for Load element."""
 
-from typing import Any
-
 from custom_components.haeo.model.load import Load
-
-
-def create(data: dict[str, Any]) -> Load:
-    """Create a test Load instance."""
-    return Load(**data)
-
 
 VALID_CASES = [
     {
         "description": "Load with varying consumption",
-        "factory": create,
+        "factory": Load,
         "data": {
             "name": "load",
             "period": 1.0,
@@ -22,6 +14,32 @@ VALID_CASES = [
         },
         "expected_outputs": {
             "power_consumed": {"type": "power", "unit": "kW", "values": (1.0, 1.5, 2.0)},
+        },
+    },
+    {
+        "description": "Load with zero consumption",
+        "factory": Load,
+        "data": {
+            "name": "load_zero",
+            "period": 1.0,
+            "n_periods": 2,
+            "forecast": [0.0, 0.0],
+        },
+        "expected_outputs": {
+            "power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
+        },
+    },
+    {
+        "description": "Load with high consumption",
+        "factory": Load,
+        "data": {
+            "name": "load_high",
+            "period": 1.0,
+            "n_periods": 4,
+            "forecast": [10.0, 15.0, 12.0, 8.0],
+        },
+        "expected_outputs": {
+            "power_consumed": {"type": "power", "unit": "kW", "values": (10.0, 15.0, 12.0, 8.0)},
         },
     },
 ]

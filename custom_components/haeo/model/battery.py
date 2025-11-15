@@ -25,7 +25,7 @@ class Battery(Element):
         max_charge_power: Sequence[float] | float | None = None,
         max_discharge_power: Sequence[float] | float | None = None,
         efficiency: float = 99.0,
-        charge_cost: float | None = None,
+        early_charge_incentive: float = 1e-3,
         discharge_cost: float | None = None,
         undercharge_percentage: float | None = None,
         overcharge_percentage: float | None = None,
@@ -45,7 +45,9 @@ class Battery(Element):
             max_charge_power: Maximum charging power in kW per period
             max_discharge_power: Maximum discharging power in kW per period
             efficiency: Battery round-trip efficiency percentage 0-100
-            charge_cost: Cost in $/kWh when charging
+            early_charge_incentive: Positive value ($/kWh) that creates a small incentive
+                to prefer later charging. Linearly increases from 0 to -incentive across periods.
+                Default 0.001 (0.1 cents/kWh) encourages charging later when costs are equal.
             discharge_cost: Cost in $/kWh when discharging
             undercharge_percentage: Soft minimum charge percentage for undercharge slack
             overcharge_percentage: Soft maximum charge percentage for overcharge slack
@@ -145,7 +147,7 @@ class Battery(Element):
             ],
             efficiency=efficiency / 100.0,  # Convert percentage to fraction
             price_production=(np.ones(n_periods) * discharge_cost).tolist() if discharge_cost is not None else None,
-            price_consumption=np.linspace(0, charge_cost, n_periods).tolist() if charge_cost is not None else None,
+            price_consumption=np.linspace(0, -early_charge_incentive, n_periods).tolist(),
         )
 
     def constraints(self) -> Sequence[LpConstraint]:

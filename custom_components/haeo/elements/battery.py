@@ -30,7 +30,7 @@ CONF_MAX_CHARGE_PERCENTAGE: Final = "max_charge_percentage"
 CONF_EFFICIENCY: Final = "efficiency"
 CONF_MAX_CHARGE_POWER: Final = "max_charge_power"
 CONF_MAX_DISCHARGE_POWER: Final = "max_discharge_power"
-CONF_CHARGE_COST: Final = "charge_cost"
+CONF_EARLY_CHARGE_INCENTIVE: Final = "early_charge_incentive"
 CONF_DISCHARGE_COST: Final = "discharge_cost"
 CONF_UNDERCHARGE_PERCENTAGE: Final = "undercharge_percentage"
 CONF_OVERCHARGE_PERCENTAGE: Final = "overcharge_percentage"
@@ -50,7 +50,7 @@ class BatteryConfigSchema(TypedDict):
     efficiency: PercentageFieldSchema
     max_charge_power: NotRequired[PowerSensorFieldSchema]
     max_discharge_power: NotRequired[PowerSensorFieldSchema]
-    charge_cost: NotRequired[PriceFieldSchema]
+    early_charge_incentive: NotRequired[PriceFieldSchema]
     discharge_cost: NotRequired[PriceFieldSchema]
     undercharge_percentage: NotRequired[BatterySOCFieldSchema]
     overcharge_percentage: NotRequired[BatterySOCFieldSchema]
@@ -70,7 +70,7 @@ class BatteryConfigData(TypedDict):
     efficiency: PercentageFieldData
     max_charge_power: NotRequired[PowerSensorFieldData]
     max_discharge_power: NotRequired[PowerSensorFieldData]
-    charge_cost: NotRequired[PriceFieldData]
+    early_charge_incentive: NotRequired[PriceFieldData]
     discharge_cost: NotRequired[PriceFieldData]
     undercharge_percentage: NotRequired[BatterySOCFieldData]
     overcharge_percentage: NotRequired[BatterySOCFieldData]

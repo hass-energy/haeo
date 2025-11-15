@@ -1,40 +1,88 @@
 """Test data and factories for Photovoltaics element."""
 
-from typing import Any
-
-from pulp import LpVariable
-
 from custom_components.haeo.model.photovoltaics import Photovoltaics
-
-from . import fix_lp_variable
-
-
-def create(data: dict[str, Any]) -> Photovoltaics:
-    """Create a test Photovoltaics instance with fixed values."""
-
-    pv = Photovoltaics(**data)
-
-    if pv.power_production is not None:
-        for variable, value in zip(pv.power_production, pv.forecast, strict=False):
-            if isinstance(variable, LpVariable):
-                fix_lp_variable(variable, value)
-
-    return pv
-
 
 VALID_CASES = [
     {
-        "description": "Photovoltaics with valid forecast",
-        "factory": create,
+        "description": "Photovoltaics full production without curtailment",
+        "factory": Photovoltaics,
         "data": {
-            "name": "pv",
+            "name": "pv_no_curtailment",
             "period": 1.0,
-            "n_periods": 2,
-            "forecast": [1.2, 1.4],
+            "n_periods": 3,
+            "forecast": [5.0, 10.0, 8.0],
+            "curtailment": False,
+        },
+        "inputs": {
+            "power": [None, None, None],  # Infinite sink (unbounded)
+            "cost": 0.0,
         },
         "expected_outputs": {
-            "power_available": {"type": "power", "unit": "kW", "values": (1.2, 1.4)},
-            "power_produced": {"type": "power", "unit": "kW", "values": (1.2, 1.4)},
+            "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
+        },
+    },
+    {
+        "description": "Photovoltaics with curtailment due to negative benefit",
+        "factory": Photovoltaics,
+        "data": {
+            "name": "pv_curtailment",
+            "period": 1.0,
+            "n_periods": 3,
+            "forecast": [5.0, 10.0, 8.0],
+            "curtailment": True,
+            "price_production": [0.0, 0.0, 0.0],
+        },
+        "inputs": {
+            "power": [None, None, None],  # Infinite
+            "cost": -0.1,  # Negative cost with negative power_vars gives positive total (discourages production)
+        },
+        "expected_outputs": {
+            "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "price_production": {"type": "price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+        },
+    },
+    {
+        "description": "Photovoltaics with production cost outweighing benefit",
+        "factory": Photovoltaics,
+        "data": {
+            "name": "pv_cost",
+            "period": 1.0,
+            "n_periods": 3,
+            "forecast": [5.0, 10.0, 8.0],
+            "curtailment": True,
+            "price_production": [0.5, 0.5, 0.5],  # High production cost
+        },
+        "inputs": {
+            "power": [None, None, None],
+            "cost": 0.1,  # Low benefit for consuming
+        },
+        "expected_outputs": {
+            "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "price_production": {"type": "price", "unit": "$/kWh", "values": (0.5, 0.5, 0.5)},
+        },
+    },
+    {
+        "description": "Photovoltaics zero cost production with benefit",
+        "factory": Photovoltaics,
+        "data": {
+            "name": "pv_beneficial",
+            "period": 1.0,
+            "n_periods": 3,
+            "forecast": [5.0, 10.0, 8.0],
+            "curtailment": True,
+            "price_production": [0.0, 0.0, 0.0],
+        },
+        "inputs": {
+            "power": [None, None, None],
+            "cost": 0.2,  # Positive cost with negative power_vars gives negative total (encourages production)
+        },
+        "expected_outputs": {
+            "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
+            "price_production": {"type": "price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
 ]

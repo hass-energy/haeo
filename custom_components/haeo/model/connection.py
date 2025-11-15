@@ -54,6 +54,7 @@ class Connection:
         """
         self.name = name
         self.period = period
+        self.n_periods = n_periods
         self.source = source
         self.target = target
 
