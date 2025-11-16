@@ -1,6 +1,6 @@
 # Battery Modeling
 
-This page explains how HAEO models battery storage systems using linear programming.
+This page explains how HAEO models battery storage systems using linear programming with a multi-section approach.
 
 ## Overview
 
@@ -8,127 +8,142 @@ A battery in HAEO is modeled as an energy storage device with:
 
 - **Energy capacity**: Maximum stored energy
 - **Power constraints**: Maximum charge/discharge rates
-- **State of charge (SOC) tracking**: Energy level over time
+- **Multi-section SOC tracking**: Separate sections with different cost profiles
 - **Efficiency losses**: Energy lost during charge/discharge cycles
-- **Operating range**: Minimum and maximum SOC limits
+- **Flexible operating ranges**: Preferred ranges with penalties for operation outside them
+
+## Multi-Section Model Approach
+
+HAEO uses a **multi-section battery model** instead of slack variables.
+The battery's state of charge range is divided into sections, each with its own cumulative energy variables and cost structure:
+
+1. **Undercharge section** (if configured): `[undercharge_percentage, min_charge_percentage]`
+2. **Normal section** (always present): `[min_charge_percentage, max_charge_percentage]`
+3. **Overcharge section** (if configured): `[max_charge_percentage, overcharge_percentage]`
+
+### Key Semantic Change
+
+- **`undercharge_percentage`** and **`overcharge_percentage`** are **absolute limits** (outer bounds)
+- **`min_charge_percentage`** and **`max_charge_percentage`** are **preferred operating range** (inner bounds)
+
+**Example configuration**:
+```
+undercharge=5% < min=10% < max=90% < overcharge=95%
+```
+
+This creates three sections where operation in the undercharge and overcharge zones incurs economic penalties.
 
 ## Model Formulation
 
 ### Decision Variables
 
-For each time step $t \in \{0, 1, \ldots, T-1\}$:
+For each section $n$ and time step $t \in \{0, 1, \ldots, T-1\}$:
 
-- $P_{\text{charge}}(t)$: Charging power (kW)
-- $P_{\text{discharge}}(t)$: Discharging power (kW)
-- $E(t)$: Energy stored in battery (kWh)
+- $E_{\text{charged}}^n(t)$: Cumulative energy charged into section $n$ (kWh, monotonically increasing)
+- $E_{\text{discharged}}^n(t)$: Cumulative energy discharged from section $n$ (kWh, monotonically increasing)
+- $P_{\text{charge}}(t)$: Total charging power (kW)
+- $P_{\text{discharge}}(t)$: Total discharging power (kW)
 
 ### Parameters
-
-The battery model requires these configuration parameters:
 
 **Required parameters**:
 
 - $C$: Battery capacity (kWh) - `capacity`
 - $E_{\text{initial}}$: Initial energy level (kWh) - derived from `initial_charge_percentage`
-- $\text{SOC}_{\min}$: Minimum state of charge (%) - `min_charge_percentage` (default: 10%)
-- $\text{SOC}_{\max}$: Maximum state of charge (%) - `max_charge_percentage` (default: 90%)
+- $\text{SOC}_{\text{min}}$: Preferred minimum state of charge (%) - `min_charge_percentage` (default: 10%)
+- $\text{SOC}_{\text{max}}$: Preferred maximum state of charge (%) - `max_charge_percentage` (default: 90%)
 - $P_{\text{charge}}^{\max}$: Maximum charging power (kW) - `max_charge_power`
 - $P_{\text{discharge}}^{\max}$: Maximum discharging power (kW) - `max_discharge_power`
 - $\eta$: Round-trip efficiency (0-1) - `efficiency` (default: 0.99)
 - $\Delta t$: Time step duration (hours) - `period`
 
-**Optional soft limit parameters**:
+**Optional section boundary parameters**:
 
-- $\text{SOC}\_{\text{soft,min}}$: Soft minimum state of charge (%) - `undercharge_percentage`
-- $\text{SOC}\_{\text{soft,max}}$: Soft maximum state of charge (%) - `overcharge_percentage`
-- $c\_{\text{undercharge}}$: Undercharge cost penalty (\$/kWh) - `undercharge_cost`
-- $c\_{\text{overcharge}}$: Overcharge cost penalty (\$/kWh) - `overcharge_cost`
+- $\text{SOC}\_{\text{undercharge}}$: Absolute minimum state of charge (%) - `undercharge_percentage`
+- $\text{SOC}\_{\text{overcharge}}$: Absolute maximum state of charge (%) - `overcharge_percentage`
+- $c\_{\text{undercharge}}$: Cost penalty for discharging in undercharge section (\$/kWh) - `undercharge_cost`
+- $c\_{\text{overcharge}}$: Cost penalty for charging in overcharge section (\$/kWh) - `overcharge_cost`
 
 ### Constraints
 
-#### Energy Balance
+#### 1. Monotonicity Constraints
 
-The core of the battery model is the energy balance constraint.
-It relates the battery's energy level across time steps:
+Cumulative energy variables can only increase over time:
 
 $$
-E(t+1) = E(t) + \left( P_{\text{charge}}(t) \cdot \sqrt{\eta} - \frac{P_{\text{discharge}}(t)}{\sqrt{\eta}} \right) \cdot \Delta t
+\begin{align}
+E_{\text{charged}}^n(t) &\geq E_{\text{charged}}^n(t-1) \quad \forall n, t \\
+E_{\text{discharged}}^n(t) &\geq E_{\text{discharged}}^n(t-1) \quad \forall n, t
+\end{align}
+$$
+
+This ensures energy flows are unidirectional (charging increases charged energy, discharging increases discharged energy).
+
+#### 2. Section Capacity Constraints
+
+Each section's net energy must stay within its virtual capacity:
+
+$$
+0 \leq E_{\text{charged}}^n(t) - E_{\text{discharged}}^n(t) \leq C^n \quad \forall n, t
+$$
+
+Where $C^n$ is the virtual capacity of section $n$:
+
+$$
+C^n = C \cdot \frac{\text{SOC}\_{\text{upper}}^n - \text{SOC}\_{\text{lower}}^n}{100}
+$$
+
+**Example**: For a 10 kWh battery with normal section `[10%, 90%]`:
+$$
+C^{\text{normal}} = 10 \cdot \frac{90 - 10}{100} = 8 \text{ kWh}
+$$
+
+#### 3. Stacked SOC Ordering Constraints
+
+Lower sections must be filled before higher sections can charge, and discharge in reverse order:
+
+$$
+\frac{E_{\text{charged}}^n(t) - E_{\text{discharged}}^n(t)}{C^n} \geq \frac{E_{\text{charged}}^{n+1}(t) - E_{\text{discharged}}^{n+1}(t)}{C^{n+1}} \quad \forall n < N, t
+$$
+
+This ensures that:
+- Charging fills lower sections (undercharge → normal → overcharge)
+- Discharging empties higher sections first (overcharge → normal → undercharge)
+
+#### 4. Power Transfer Consistency Constraint
+
+The sum of net energy changes across all sections equals the net power input:
+
+$$
+\sum_{n} \left[ \left( E_{\text{charged}}^n(t) - E_{\text{charged}}^n(t-1) \right) - \left( E_{\text{discharged}}^n(t) - E_{\text{discharged}}^n(t-1) \right) \right] = P_{\text{input}}(t) \cdot \Delta t
+$$
+
+Where the net power input includes efficiency:
+
+$$
+P_{\text{input}}(t) = P_{\text{charge}}(t) \cdot \sqrt{\eta} - \frac{P_{\text{discharge}}(t)}{\sqrt{\eta}}
 $$
 
 **Efficiency modeling**: The round-trip efficiency $\eta$ is split symmetrically between charging and discharging.
 Using $\sqrt{\eta}$ for both operations ensures the combined round-trip efficiency equals $\eta$ exactly.
 
-#### Initial Condition
+#### 5. Initial Energy Distribution
 
-The initial energy level is fixed (not optimized):
+Initial energy is distributed across sections from bottom to top:
 
-$$
-E(0) = E_{\text{initial}} = C \cdot \frac{\text{initial\_charge\_percentage}}{100}
-$$
-
-#### SOC Limits
-
-Energy must stay within the operational range to protect battery health:
+For initial SOC of $\text{SOC}_{\text{initial}}$%, sections fill sequentially until total energy is placed:
 
 $$
-C \cdot \frac{\text{SOC}_{\min}}{100} \leq E(t) \leq C \cdot \frac{\text{SOC}_{\max}}{100} \quad \forall t
+E_{\text{total}}(0) = C \cdot \frac{\text{SOC}_{\text{initial}}}{100}
 $$
 
-These are **hard limits** enforced by variable bounds in the linear program.
+**Example**: 50% SOC in a battery with sections `[5%-10%-90%-95%]` and capacity 10 kWh:
+- Total initial energy: 5 kWh
+- Undercharge section (5-10%): 0.5 kWh (full)
+- Normal section (10-90%): 4.5 kWh (partial fill)
+- Overcharge section (90-95%): 0 kWh (empty)
 
-#### Soft SOC Limits (Optional)
-
-Batteries can be configured with **soft limits** to model preferred operating ranges with economic penalties for exceeding them:
-
-- $\text{SOC}\_{\text{soft,min}}$: Soft minimum state of charge (%) - `undercharge_percentage`
-- $\text{SOC}\_{\text{soft,max}}$: Soft maximum state of charge (%) - `overcharge_percentage`
-- $c\_{\text{undercharge}}$: Cost penalty for operating below soft minimum (\$/kWh) - `undercharge_cost`
-- $c\_{\text{overcharge}}$: Cost penalty for operating above soft maximum (\$/kWh) - `overcharge_cost`
-
-These soft limits introduce **slack variables** that relax the soft constraints:
-
-$$
-\begin{align}
-s\_{\text{under}}(t) &\geq 0 \quad \text{(undercharge slack)} \\
-s\_{\text{over}}(t) &\geq 0 \quad \text{(overcharge slack)}
-\end{align}
-$$
-
-**Soft limit constraints**:
-
-The constraints work on the energy dynamics (power flows) rather than stored energy directly:
-
-$$
-\begin{align}
-E(t-1) + \Delta E(t) + s\_{\text{under}}(t) &\geq C \cdot \frac{\text{SOC}\_{\text{soft,min}}}{100} \\
-E(t-1) + \Delta E(t) - s\_{\text{over}}(t) &\leq C \cdot \frac{\text{SOC}\_{\text{soft,max}}}{100}
-\end{align}
-$$
-
-where $\Delta E(t) = \left( P\_{\text{charge}}(t) \cdot \sqrt{\eta} - \frac{P\_{\text{discharge}}(t)}{\sqrt{\eta}} \right) \cdot \Delta t$ is the energy change.
-
-The slack variables are bounded:
-
-$$
-\begin{align}
-0 \leq s\_{\text{under}}(t) &\leq C \cdot \frac{\text{SOC}\_{\text{soft,min}} - \text{SOC}\_{\text{min}}}{100} \\
-0 \leq s\_{\text{over}}(t) &\leq C \cdot \frac{\text{SOC}\_{\text{max}} - \text{SOC}\_{\text{soft,max}}}{100}
-\end{align}
-$$
-
-These bounds ensure energy never exceeds the hard limits:
-
-$$
-\text{SOC}\_{\text{min}} \leq \text{SOC}\_{\text{soft,min}} < \text{SOC}\_{\text{soft,max}} \leq \text{SOC}\_{\text{max}}
-$$
-
-**Economic interpretation**: The optimizer can use the range outside soft limits when the marginal benefit (e.g., avoiding expensive grid imports) exceeds the penalty cost. This models scenarios like:
-
-- Battery degradation from deep discharge/full charge cycles
-- Safety margins for grid stability services
-- Operational preferences with economic trade-offs
-
-#### Power Limits
+#### 6. Power Limits
 
 Charging and discharging have maximum rates determined by the inverter and battery specifications:
 
@@ -143,50 +158,76 @@ $$
 
 ### Cost Contribution
 
-Battery operation can include charge and discharge costs.
-They model degradation:
+Battery operation costs are calculated per section based on energy flow:
 
 $$
-\text{Battery Cost} = \sum_{t=0}^{T-1} \left( P_{\text{charge}}(t) \cdot c_{\text{charge}} + P_{\text{discharge}}(t) \cdot c_{\text{discharge}} \right) \cdot \Delta t
+\text{Battery Cost} = \sum_{n} \sum_{t=1}^{T-1} \left[ \Delta E_{\text{charged}}^n(t) \cdot c_{\text{charge}}^n(t) + \Delta E_{\text{discharged}}^n(t) \cdot c_{\text{discharge}}^n(t) \right]
 $$
 
-Where $c_{\text{charge}}$ and $c_{\text{discharge}}$ (in \$/kWh) represent the marginal cost of battery usage.
+Where:
+- $\Delta E_{\text{charged}}^n(t) = E_{\text{charged}}^n(t) - E_{\text{charged}}^n(t-1)$ is the energy charged into section $n$ during timestep $t$
+- $\Delta E_{\text{discharged}}^n(t) = E_{\text{discharged}}^n(t) - E_{\text{discharged}}^n(t-1)$ is the energy discharged from section $n$ during timestep $t$
 
-**With soft limits**, additional penalty costs apply:
+#### Cost Structure by Section
 
-$$
-\text{Soft Limit Cost} = \sum_{t=0}^{T-1} \left( s\_{\text{under}}(t) \cdot c\_{\text{undercharge}} + s\_{\text{over}}(t) \cdot c\_{\text{overcharge}} \right)
-$$
+**Undercharge section** (if configured):
+- Charge cost: Early charge incentive (encourages filling this section)
+- Discharge cost: $c_{\text{undercharge}}$ (penalty for deep discharge)
 
-The slack variables $s\_{\text{under}}(t)$ and $s\_{\text{over}}(t)$ measure energy (kWh) outside preferred operating ranges.
-These costs can be time-varying (forecasts) to model dynamic pricing scenarios.
+**Normal section** (always present):
+- Charge cost: Early charge incentive (small negative value that increases linearly over time to encourage later charging)
+- Discharge cost: $c_{\text{discharge}}$ (standard degradation cost, if configured)
+
+**Overcharge section** (if configured):
+- Charge cost: $c_{\text{overcharge}}$ (penalty for overcharging)
+- Discharge cost: $c_{\text{discharge}}$ (standard discharge cost)
+
+**Economic interpretation**: The multi-section cost structure allows the optimizer to make economic trade-offs:
+- Discharging into the undercharge section when grid prices are very high
+- Charging into the overcharge section when grid prices are very low or excess solar is available
+- Preferring the normal section for routine operation
 
 ## Physical Interpretation
 
-### Energy Balance
+### Multi-Section Energy Tracking
 
-The energy balance equation captures the fundamental physics:
+The multi-section model tracks cumulative energy flows rather than absolute stored energy:
 
-**Energy increase** = **Energy charged** - **Energy discharged** - **Losses**
+**Section net energy** = **Cumulative charged** - **Cumulative discharged**
 
-Losses occur during both charging and discharging:
+This approach:
+- Eliminates the need for slack variables
+- Naturally handles different cost zones through constraint structure
+- Uses only linear constraints (no binary variables required)
+- Enables efficient LP solving even with multiple sections
 
-- **Charging**: Only $\eta\_{\text{charge}}$ of input energy is stored
-- **Discharging**: Only $\eta\_{\text{discharge}}$ of stored energy is output
+### State of Charge Calculation
 
-For symmetric modeling: $\eta*{\text{charge}} = \eta*{\text{discharge}} = \sqrt{\eta}$
-
-This gives round-trip efficiency: $\eta*{\text{charge}} \times \eta*{\text{discharge}} = \eta$
-
-### State of Charge
-
-State of charge as a percentage:
+Total battery SOC is computed from all sections:
 
 $$
-\text{SOC}(t) = \frac{E(t)}{C} \times 100
+\text{SOC}(t) = \frac{\sum_n \left( E_{\text{charged}}^n(t) - E_{\text{discharged}}^n(t) \right)}{C} \times 100
 $$
 
-HAEO tracks energy $E(t)$ directly, but SOC sensors report percentages.
+The stacked SOC ordering constraints ensure energy flows naturally:
+- Charging fills from lowest to highest section
+- Discharging empties from highest to lowest section
+
+### Energy Flow Example
+
+Consider a 10 kWh battery with configuration `[5%-10%-90%-95%]`:
+
+**Charging from 8% to 92%**:
+1. Fill undercharge section (5-10%): 0.2 kWh to reach 10%
+2. Fill normal section (10-90%): 8.0 kWh to reach 90%
+3. Partial fill overcharge section (90-92%): 0.2 kWh
+
+The monotonicity and stacking constraints ensure this order automatically.
+
+**Discharging from 92% to 8%**:
+1. Empty overcharge section first (92-90%): -0.2 kWh
+2. Empty normal section (90-10%): -8.0 kWh
+3. Partial empty undercharge section (10-8%): -0.2 kWh
 
 ### Power Balance Integration
 
@@ -239,11 +280,33 @@ This approach:
 - Maintains exact round-trip efficiency
 - Allows LP formulation (linear constraints)
 
-## Configuration impact
+## Configuration Impact
 
-Increasing capacity or widening the SOC range gives the optimizer more flexibility at the expense of longer charge and discharge windows and potentially faster battery wear.
-Tighter power limits slow how quickly the schedule can respond, while higher limits require the supporting hardware to cope with the additional load.
-Improving efficiency directly reduces losses because the model applies the factor on every charge and discharge cycle.
+### Capacity and SOC Range
+
+- **Capacity**: Larger batteries provide more energy arbitrage opportunities but require longer charge/discharge windows
+- **Normal section range** (`min_charge_percentage` to `max_charge_percentage`): Wider range gives more flexibility with no economic penalty
+- **Section boundaries** (`undercharge_percentage`, `overcharge_percentage`): Extending absolute limits allows emergency operation with penalties
+
+### Cost Configuration
+
+- **Undercharge cost**: Higher values discourage deep discharge (battery protection)
+- **Overcharge cost**: Higher values discourage full charge (battery longevity)
+- **Balance with grid prices**: Set penalties relative to typical grid price volatility
+
+**Example scenario**: If grid prices vary $0.05-0.50/kWh, setting `undercharge_cost=0.10` allows deep discharge when grid exceeds $0.10/kWh above baseline.
+
+### Power Limits
+
+- Tighter limits slow schedule response
+- Higher limits require capable inverter hardware
+- Asymmetric limits model different charge/discharge capabilities
+
+### Efficiency
+
+- Applied symmetrically: $\sqrt{\eta}$ for charging, $1/\sqrt{\eta}$ for discharging
+- Affects all sections equally
+- Higher efficiency directly reduces operational costs
 
 ## Related Documentation
 

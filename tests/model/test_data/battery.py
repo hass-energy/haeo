@@ -92,15 +92,73 @@ VALID_CASES = [
 
 INVALID_CASES: list[dict[str, Any]] = [
     {
-        "description": "Battery with capacity length mismatch",
+        "description": "Battery capacity array length mismatch",
         "element_class": Battery,
         "data": {
-            "name": "invalid_battery",
+            "name": "test_battery",
             "period": 1.0,
             "n_periods": 3,
-            "capacity": [10.0, 10.0],  # Length 2, should be 3
+            "capacity": [10.0, 10.0],  # Only 2 values for 3 periods
             "initial_charge_percentage": 50.0,
+            "min_charge_percentage": 20.0,
+            "max_charge_percentage": 80.0,
+            "max_charge_power": 5.0,
+            "max_discharge_power": 5.0,
+            "efficiency": 95.0,
         },
         "expected_error": "Sequence length .* must match n_periods",
+    },
+    {
+        "description": "Battery min_charge_percentage greater than max_charge_percentage",
+        "element_class": Battery,
+        "data": {
+            "name": "test_battery",
+            "period": 1.0,
+            "n_periods": 3,
+            "capacity": 10.0,
+            "initial_charge_percentage": 50.0,
+            "min_charge_percentage": 80.0,  # Greater than max
+            "max_charge_percentage": 20.0,
+            "max_charge_power": 5.0,
+            "max_discharge_power": 5.0,
+            "efficiency": 95.0,
+        },
+        "expected_error": "min_charge_percentage .* must be less than max_charge_percentage",
+    },
+    {
+        "description": "Battery undercharge_percentage greater than min_charge_percentage",
+        "element_class": Battery,
+        "data": {
+            "name": "test_battery",
+            "period": 1.0,
+            "n_periods": 3,
+            "capacity": 10.0,
+            "initial_charge_percentage": 50.0,
+            "min_charge_percentage": 20.0,
+            "max_charge_percentage": 80.0,
+            "undercharge_percentage": 30.0,  # Greater than min
+            "max_charge_power": 5.0,
+            "max_discharge_power": 5.0,
+            "efficiency": 95.0,
+        },
+        "expected_error": "undercharge_percentage .* must be less than min_charge_percentage",
+    },
+    {
+        "description": "Battery max_charge_percentage greater than overcharge_percentage",
+        "element_class": Battery,
+        "data": {
+            "name": "test_battery",
+            "period": 1.0,
+            "n_periods": 3,
+            "capacity": 10.0,
+            "initial_charge_percentage": 50.0,
+            "min_charge_percentage": 20.0,
+            "max_charge_percentage": 80.0,
+            "overcharge_percentage": 70.0,  # Less than max
+            "max_charge_power": 5.0,
+            "max_discharge_power": 5.0,
+            "efficiency": 95.0,
+        },
+        "expected_error": "overcharge_percentage .* must be greater than max_charge_percentage",
     },
 ]

@@ -20,12 +20,12 @@ A battery in HAEO represents:
 | **Name**                      | String          | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
 | **Capacity**                  | Number (kWh)    | Yes      | -       | Total energy storage capacity                              |
 | **Initial Charge Percentage** | Sensor ID       | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
-| **Min Charge Percentage**     | Number (%)      | No       | 10      | Minimum allowed SOC (hard limit)                           |
-| **Max Charge Percentage**     | Number (%)      | No       | 90      | Maximum allowed SOC (hard limit)                           |
-| **Undercharge Percentage**    | Number (%)      | No       | -       | Soft minimum SOC (requires undercharge cost)               |
-| **Overcharge Percentage**     | Number (%)      | No       | -       | Soft maximum SOC (requires overcharge cost)                |
-| **Undercharge Cost**          | Number (\$/kWh) | No       | -       | Penalty for operating below undercharge percentage         |
-| **Overcharge Cost**           | Number (\$/kWh) | No       | -       | Penalty for operating above overcharge percentage          |
+| **Min Charge Percentage**     | Number (%)      | No       | 10      | Preferred minimum SOC (inner bound of normal operation)    |
+| **Max Charge Percentage**     | Number (%)      | No       | 90      | Preferred maximum SOC (inner bound of normal operation)    |
+| **Undercharge Percentage**    | Number (%)      | No       | -       | Absolute minimum SOC (outer bound, requires cost)          |
+| **Overcharge Percentage**     | Number (%)      | No       | -       | Absolute maximum SOC (outer bound, requires cost)          |
+| **Undercharge Cost**          | Number (\$/kWh) | No       | -       | Penalty for discharging in undercharge section             |
+| **Overcharge Cost**           | Number (\$/kWh) | No       | -       | Penalty for charging in overcharge section                 |
 | **Efficiency**                | Number (%)      | No       | 99      | **One-way** efficiency (see below)                         |
 | **Max Charge Power**          | Number (kW)     | No       | -       | Maximum charging power                                     |
 | **Max Discharge Power**       | Number (kW)     | No       | -       | Maximum discharging power                                  |
@@ -56,8 +56,10 @@ HAEO expects values between 0 and 100.
 
 ### Min and max charge percentage
 
-Set the allowable SOC range to protect your battery.
-Leaving the defaults is a good starting point unless your manufacturer recommends otherwise.
+Set the preferred operating range for routine battery use.
+HAEO will normally keep the battery within this range.
+These are the **inner bounds** of normal operation.
+Leaving the defaults (10-90%) is a good starting point unless your manufacturer recommends otherwise.
 
 ### Efficiency
 
@@ -84,49 +86,59 @@ Use a small positive value if the battery switches direction too often, or leave
 
 ### Undercharge Percentage (Optional)
 
-Define a soft minimum SOC below which penalty costs apply.
-When paired with undercharge cost, the optimizer can temporarily operate in the range between the hard minimum and undercharge percentage when economically justified.
+Define the **absolute minimum SOC** (outer bound) below which the battery cannot discharge.
+This creates an "undercharge section" between `undercharge_percentage` and `min_charge_percentage`.
 
-For example:
+**Ordering requirement**: Must be less than `min_charge_percentage`.
 
-- Hard minimum: 5% (absolute lower limit via `min_charge_percentage`)
-- Undercharge percentage: 10% (soft minimum with penalties)
+**Example**:
+```
+undercharge_percentage=5% < min_charge_percentage=10%
+```
 
-The optimizer will normally stay above 10%, but can use the 5-10% range during extreme conditions (e.g., very high grid prices), paying the undercharge cost penalty.
+Creates an undercharge section from 5-10% where discharging incurs penalty costs.
+The optimizer will normally keep SOC above 10%, but can discharge into the 5-10% range during extreme conditions (e.g., very high grid prices) while paying the undercharge cost penalty.
 
 ### Overcharge Percentage (Optional)
 
-Define a soft maximum SOC above which penalty costs apply.
-When paired with overcharge cost, the optimizer can temporarily operate in the range between the overcharge percentage and hard maximum when economically beneficial.
+Define the **absolute maximum SOC** (outer bound) above which the battery cannot charge.
+This creates an "overcharge section" between `max_charge_percentage` and `overcharge_percentage`.
 
-For example:
+**Ordering requirement**: Must be greater than `max_charge_percentage`.
 
-- Overcharge percentage: 90% (soft maximum with penalties)
-- Hard maximum: 95% (absolute upper limit via `max_charge_percentage`)
+**Example**:
+```
+max_charge_percentage=90% < overcharge_percentage=95%
+```
 
-The optimizer will normally stay below 90%, but can use the 90-95% range to capture cheap energy (e.g., excess solar production), paying the overcharge cost penalty.
+Creates an overcharge section from 90-95% where charging incurs penalty costs.
+The optimizer will normally keep SOC below 90%, but can charge into the 90-95% range to capture cheap energy (e.g., excess solar production) while paying the overcharge cost penalty.
 
 ### Undercharge Cost (Optional)
 
-Cost penalty in \$/kWh for operating below the undercharge percentage.
-Required when undercharge percentage is configured.
+Cost penalty in \$/kWh for **discharging** in the undercharge section.
+Required when `undercharge_percentage` is configured.
 
 **Setting the cost**: Consider battery degradation from deep discharge cycles.
 A typical value might be \$0.50-\$2.00/kWh.
-Higher values more strongly discourage operation below the undercharge percentage.
+Higher values more strongly discourage deep discharge.
 
-**Time-varying costs**: You can provide multiple sensor values for time-varying costs (e.g., higher penalties during peak hours).
+**Applies to**: Energy discharged **from** the undercharge section (below `min_charge_percentage`).
+
+**Time-varying costs**: You can provide sensor-based values for dynamic penalties.
 
 ### Overcharge Cost (Optional)
 
-Cost penalty in \$/kWh for operating above the overcharge percentage.
-Required when overcharge percentage is configured.
+Cost penalty in \$/kWh for **charging** in the overcharge section.
+Required when `overcharge_percentage` is configured.
 
 **Setting the cost**: Consider battery degradation from high SOC levels.
 A typical value might be \$0.50-\$2.00/kWh.
-Higher values more strongly discourage operation above the overcharge percentage.
+Higher values more strongly discourage overcharging.
 
-**Time-varying costs**: You can provide multiple sensor values for time-varying costs (e.g., dynamic penalty based on conditions).
+**Applies to**: Energy charged **into** the overcharge section (above `max_charge_percentage`).
+
+**Time-varying costs**: You can provide sensor-based values for dynamic penalties.
 
 ## Configuration Examples
 
@@ -147,19 +159,19 @@ A typical battery configuration without soft limits:
 | **Charge Cost**               | -0.005 \$/kWh      |
 | **Discharge Cost**            | 0.001 \$/kWh       |
 
-### Battery with Soft Limits
+### Battery with Extended Operating Range
 
-A battery configured with soft limits for extended operating range:
+A battery configured with undercharge and overcharge sections for extended range:
 
 | Field                         | Example Value      |
 | ----------------------------- | ------------------ |
 | **Name**                      | Main Battery       |
 | **Capacity**                  | 15 kWh             |
 | **Initial Charge Percentage** | sensor.battery_soc |
-| **Min Charge Percentage**     | 5%                 |
-| **Max Charge Percentage**     | 95%                |
-| **Undercharge Percentage**    | 10%                |
-| **Overcharge Percentage**     | 90%                |
+| **Min Charge Percentage**     | 10%                |
+| **Max Charge Percentage**     | 90%                |
+| **Undercharge Percentage**    | 5%                 |
+| **Overcharge Percentage**     | 95%                |
 | **Undercharge Cost**          | 1.50 \$/kWh        |
 | **Overcharge Cost**           | 1.00 \$/kWh        |
 | **Efficiency**                | 98.5%              |
@@ -168,8 +180,10 @@ A battery configured with soft limits for extended operating range:
 
 In this example:
 
-- Normal operation: 10-90% (80% usable range)
-- Extended operation: 5-95% when economically justified (90% total range)
+- **Undercharge section**: 5-10% (deep discharge with \$1.50/kWh penalty)
+- **Normal section**: 10-90% (preferred operation, no penalty)
+- **Overcharge section**: 90-95% (high SOC with \$1.00/kWh penalty)
+- Total usable range: 5-95% (90%)
 - Higher undercharge cost reflects greater degradation risk at low SOC
 
 ## Sensors Created
@@ -184,25 +198,26 @@ HAEO creates these sensors for each battery:
 
 Each sensor includes forecast attributes with future timestamped values for visualization and automations.
 
-## When to Use Soft Limits
+## When to Use Extended Operating Ranges
 
-Soft limits are useful when you want to:
+Configure undercharge and overcharge sections when you want to:
 
-1. **Extend operational range conditionally**: Allow the battery to exceed normal limits during extreme price events while discouraging routine operation outside preferred ranges.
+1. **Extend operational range conditionally**: Allow the battery to use extended capacity during extreme price events while keeping normal operation in the preferred range.
 
 2. **Model battery degradation**: Reflect increased degradation costs at very low or very high SOC levels.
-    The optimizer will use these ranges only when grid savings exceed the penalty costs.
+    The optimizer will use these sections only when grid savings exceed the penalty costs.
 
-3. **Safety margins with flexibility**: Maintain conservative normal operation while retaining emergency capacity.
-    For example, keep 10% reserve normally but use it during power outages or price spikes.
+3. **Safety margins with flexibility**: Maintain conservative normal operation (e.g., 10-90%) while retaining emergency capacity (e.g., 5-95%).
+    The battery can access the extended range during price spikes or excess solar.
 
 4. **Time-varying constraints**: Use sensor-based costs to implement dynamic penalties based on conditions like temperature, battery age, or time of day.
 
-**When NOT to use soft limits**:
+**When NOT to use extended ranges**:
 
-- When hard limits are sufficient for your use case
-- When you want strict enforcement (use hard limits instead)
+- When the normal operating range is sufficient for your use case
+- When you want strict limits without exceptions
 - When the penalty cost structure is unclear or difficult to estimate
+- For new batteries where manufacturer recommendations are uncertain
 
 ## Troubleshooting
 

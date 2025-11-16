@@ -129,19 +129,28 @@ def test_optimization_failure() -> None:
     """Test optimization failure handling."""
     network = Network(name="test_network", period=1.0, n_periods=3)
 
-    # Create an infeasible optimization problem by adding conflicting constraints
-    # Add a battery with impossible constraints
+    # Create an infeasible optimization problem with conflicting constraints
+    # Add a load that must be met
+    network.add(ELEMENT_TYPE_LOAD, "load", forecast=[1000, 1000, 1000])
+
+    # Add a battery that can't supply power (no initial charge, can't charge)
     network.add(
         ELEMENT_TYPE_BATTERY,
         "battery",
         capacity=1000,
-        initial_charge_percentage=50,
-        min_charge_percentage=90,  # Impossible - starting charge is below minimum
+        initial_charge_percentage=0,  # Empty
         max_charge_power=0,  # Can't charge
-        max_discharge_power=0,  # Can't discharge
+        max_discharge_power=5000,  # Could discharge if it had charge
     )
 
-    # This should result in an infeasible optimization problem
+    # Add a node to connect them
+    network.add(ELEMENT_TYPE_NODE, "node")
+
+    # Connect battery to node to load (but battery is empty and can't charge)
+    network.add(ELEMENT_TYPE_CONNECTION, "battery_to_node", source="battery", target="node")
+    network.add(ELEMENT_TYPE_CONNECTION, "node_to_load", source="node", target="load")
+
+    # This should result in an infeasible optimization problem (load can't be met)
     with pytest.raises(ValueError, match="Optimization failed with status"):
         network.optimize()
 
