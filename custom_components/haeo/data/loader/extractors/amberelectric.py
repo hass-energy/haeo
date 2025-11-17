@@ -1,13 +1,14 @@
 """Amber Electric energy pricing forecast parser."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from datetime import datetime
 import logging
-from typing import Any, Literal
+from typing import Literal, Protocol, TypedDict, TypeGuard
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
-from .utils.parse_datetime import parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,25 +16,23 @@ Format = Literal["amberelectric"]
 DOMAIN: Format = "amberelectric"
 
 
-def _parse_entry(item: Any) -> tuple[int, float] | None:
-    """Validate and convert a forecast item."""
+class AmberForecastEntry(TypedDict):
+    """Type definition for an Amber Electric forecast entry."""
 
-    if not isinstance(item, dict):
-        return None
+    start_time: str | datetime
+    per_kwh: float
 
-    start_time = item.get("start_time")
-    per_kwh = item.get("per_kwh")
 
-    if start_time is None or per_kwh is None:
-        return None
+class AmberElectricAttributes(TypedDict):
+    """Type definition for Amber Electric State attributes."""
 
-    try:
-        timestamp_seconds = parse_datetime_to_timestamp(start_time)
-        value = float(per_kwh)
-    except (ValueError, TypeError):
-        return None
+    forecasts: Sequence[AmberForecastEntry]
 
-    return timestamp_seconds, value
+
+class AmberElectricState(Protocol):
+    """Protocol for a State object with validated Amber Electric forecast data."""
+
+    attributes: AmberElectricAttributes
 
 
 class Parser:
@@ -44,33 +43,30 @@ class Parser:
     DEVICE_CLASS: SensorDeviceClass = SensorDeviceClass.MONETARY
 
     @staticmethod
-    def detect(state: State) -> bool:
-        """Check if data matches Amber Electric (amberelectric) pricing format."""
+    def detect(state: State) -> TypeGuard[AmberElectricState]:
+        """Check if data matches Amber Electric (amberelectric) pricing format and narrow type."""
 
-        if not (isinstance(state.attributes, dict) and "forecasts" in state.attributes):
+        if "forecasts" not in state.attributes:
             return False
 
         forecasts = state.attributes["forecasts"]
-        if not (isinstance(forecasts, list) and forecasts):
+        if not isinstance(forecasts, Sequence) or not forecasts:
             return False
 
-        return all(_parse_entry(item) is not None for item in forecasts)
+        return all(
+            isinstance(item, Mapping)
+            and "start_time" in item
+            and "per_kwh" in item
+            and isinstance(item["per_kwh"], (int, float))
+            and is_parsable_to_datetime(item["start_time"])
+            for item in forecasts
+        )
 
     @staticmethod
-    def extract(state: State) -> Sequence[tuple[int, float]]:
+    def extract(state: AmberElectricState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
         """Extract forecast data from Amber Electric pricing format."""
-
-        forecasts = state.attributes.get("forecasts")
-        if not isinstance(forecasts, list) or not forecasts:
-            _LOGGER.warning("Amber forecast payload is not a non-empty list; rejecting data")
-            return []
-
-        parsed: list[tuple[int, float]] = []
-        for index, item in enumerate(forecasts):
-            if (entry := _parse_entry(item)) is None:
-                _LOGGER.warning("Invalid Amber forecast entry at index %s; rejecting entire dataset", index)
-                return []
-            parsed.append(entry)
-
+        parsed: list[tuple[int, float]] = [
+            (parse_datetime_to_timestamp(item["start_time"]), item["per_kwh"]) for item in state.attributes["forecasts"]
+        ]
         parsed.sort(key=lambda x: x[0])
-        return parsed
+        return parsed, Parser.UNIT, Parser.DEVICE_CLASS

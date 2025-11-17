@@ -52,11 +52,14 @@ def test_load_sensor_forecast_returns_series(hass: HomeAssistant) -> None:
     )
 
     with patch(
-        "custom_components.haeo.data.loader.sensor_loader.extract_time_series",
-        return_value=[
-            (int((start + timedelta(hours=1)).timestamp()), 1.5),
-            (int((start + timedelta(hours=2)).timestamp()), 2.5),
-        ],
+        "custom_components.haeo.data.loader.sensor_loader.extract",
+        return_value=(
+            [
+                (int((start + timedelta(hours=1)).timestamp()), 1.5),
+                (int((start + timedelta(hours=2)).timestamp()), 2.5),
+            ],
+            UnitOfPower.KILO_WATT,
+        ),
     ):
         payload = load_sensor(hass, "sensor.forecast")
         assert payload == [

@@ -83,21 +83,24 @@ async def test_time_series_loader_loads_mixed_live_and_forecast(hass: HomeAssist
     start = datetime(2024, 1, 1, tzinfo=UTC)
     ts_values = [int((start + timedelta(hours=offset)).timestamp()) for offset in range(4)]
 
-    # Mock extract_time_series to return different types of series
-    def mock_extract(state: State, *, entity_id: str) -> list[tuple[int, float]]:
-        if entity_id == "sensor.live_price":
-            # Simple value returns as timestamp 0
-            return [(0, 0.2)]
+    # Mock extract to return different types of series
+    def mock_extract(state: State) -> tuple[list[tuple[int, float]] | float, str]:
+        if state.entity_id == "sensor.live_price":
+            # Simple value returns as float
+            return (0.2, "$/kWh")
         # Forecast sensor returns actual forecast data
-        return [
-            (int((start + timedelta(hours=1)).timestamp()), 0.25),
-            (int((start + timedelta(hours=2)).timestamp()), 0.35),
-        ]
+        return (
+            [
+                (int((start + timedelta(hours=1)).timestamp()), 0.25),
+                (int((start + timedelta(hours=2)).timestamp()), 0.35),
+            ],
+            "$/kWh",
+        )
 
     hass.states.async_set("sensor.live_price", "0.20", {})
     hass.states.async_set("sensor.forecast_price", "0.25", {})
 
-    with patch("custom_components.haeo.data.loader.sensor_loader.extract_time_series", side_effect=mock_extract):
+    with patch("custom_components.haeo.data.loader.sensor_loader.extract", side_effect=mock_extract):
         assert loader.available(hass=hass, value=["sensor.live_price", "sensor.forecast_price"]) is True
 
         result = await loader.load(
