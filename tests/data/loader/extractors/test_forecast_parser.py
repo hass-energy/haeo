@@ -81,11 +81,6 @@ def test_extract_empty_data(hass: HomeAssistant) -> None:
     assert result == 42.0
 
 
-# Removed test_detect_multiple_formats_warns:
-# The new extract() interface doesn't expose format detection separately.
-# Multiple format detection is handled internally by the extract() function.
-
-
 def test_extract_unknown_format_falls_back_to_simple_value(hass: HomeAssistant) -> None:
     """Test that extracting from unknown format falls back to simple value."""
     entity_id = "sensor.unknown"
