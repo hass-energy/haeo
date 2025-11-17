@@ -1,11 +1,10 @@
 """Forecast cycle utilities."""
 
-from collections.abc import Sequence
 from typing import Final
 
 import numpy as np
 
-type ForecastSeries = Sequence[tuple[int, float]]
+from . import ForecastSeries
 
 _SECONDS_PER_DAY: Final = 24 * 60 * 60
 

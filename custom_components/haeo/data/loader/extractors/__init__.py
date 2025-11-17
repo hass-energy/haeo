@@ -42,6 +42,10 @@ def extract(state: State) -> tuple[Sequence[tuple[int, float]] | float, str | No
     """
 
     # Extract raw data and unit
+    data: Sequence[tuple[int, float]] | float
+    unit: str | StrEnum | None
+    device_class: SensorDeviceClass | None
+
     if aemo_nem.Parser.detect(state):
         data, unit, device_class = aemo_nem.Parser.extract(state)
     elif amberelectric.Parser.detect(state):
@@ -54,9 +58,8 @@ def extract(state: State) -> tuple[Sequence[tuple[int, float]] | float, str | No
         # If no extractor matched read the state as a single float value
         data = float(state.state)
         unit = state.attributes.get("unit_of_measurement")
-        device_class = (
-            SensorDeviceClass(state.attributes.get("device_class")) if state.attributes.get("device_class") else None
-        )
+        device_class_attr = state.attributes.get("device_class")
+        device_class = SensorDeviceClass(device_class_attr) if device_class_attr else None
 
     # Normalize unit to string (handle enum values with .value attribute)
     unit_str: str | None = unit.value if isinstance(unit, StrEnum) else unit

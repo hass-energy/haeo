@@ -127,7 +127,7 @@ def test_extract_raises_for_non_numeric_state(hass: HomeAssistant) -> None:
         {"unit_of_measurement": "kWh"},
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="could not convert string to float"):
         extractors.extract(state)
 
 
