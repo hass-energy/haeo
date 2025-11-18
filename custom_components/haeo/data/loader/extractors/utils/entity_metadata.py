@@ -47,9 +47,16 @@ def extract_entity_metadata(hass: HomeAssistant) -> list[EntityMetadata]:
 
     """
     # Import here to avoid circular dependency
-    from .time_series import get_extracted_units  # noqa: PLC0415
+    from custom_components.haeo.data.loader import extractors  # noqa: PLC0415
 
-    return [
-        EntityMetadata(entity_id=entity_id, unit_of_measurement=unit)
-        for entity_id, (unit, _) in [(state.entity_id, get_extracted_units(state)) for state in hass.states.async_all()]
-    ]
+    entities: list[EntityMetadata] = []
+    for state in hass.states.async_all():
+        try:
+            # This will only work for sensor entities that return floats
+            unit = extractors.extract(state).unit
+        except (ValueError, KeyError):
+            unit = state.attributes.get("unit_of_measurement")
+
+        entities.append(EntityMetadata(entity_id=state.entity_id, unit_of_measurement=unit))
+
+    return entities

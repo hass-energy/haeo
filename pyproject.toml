@@ -60,6 +60,7 @@ ignore = [
     'ANN401',  # Dynamically typed expressions - legitimate use of Any for **kwargs parameters
     'TRY300',  # Consider moving statement to else block - overly pedantic about code structure
     'TRY301',  # Abstract raise to inner function - overly pedantic, creates unnecessary indirection
+    'PLR0911', # Too many return statements - something for code review not linting
 ]
 
 [tool.ruff.lint.isort]

@@ -141,7 +141,7 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
 
         # Add network structure information when available
         if coordinator.network:
-            connection_pairs = []
+            connection_pairs: list[dict[str, str]] = []
             for element_name, element in coordinator.network.elements.items():
                 if element_name.startswith("connection_"):
                     source = getattr(element, "source", None)
@@ -149,17 +149,17 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
                     if source and target:
                         connection_pairs.append({"from": source, "to": target})
 
-            network_info = {
+            connectivity_result = validate_network_topology(collect_participant_configs(config_entry))
+            connected_components = [list(component) for component in connectivity_result.components]
+
+            network_info: dict[str, Any] = {
                 "num_elements": len(coordinator.network.elements),
                 "element_names": list(coordinator.network.elements.keys()),
                 "connections": connection_pairs,
+                "connectivity_check": connectivity_result.is_connected,
+                "connected_components": connected_components,
+                "num_components": len(connected_components),
             }
-
-            connectivity_result = validate_network_topology(collect_participant_configs(config_entry))
-            connected_components = [list(component) for component in connectivity_result.components]
-            network_info["connectivity_check"] = connectivity_result.is_connected
-            network_info["connected_components"] = connected_components
-            network_info["num_components"] = len(connected_components)
 
             diagnostics["network"] = network_info
 
