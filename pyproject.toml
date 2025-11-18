@@ -98,6 +98,7 @@ pythonVersion = "3.13"
 typeCheckingMode = "strict"
 stubPath = "stubs"
 include = ["tests", "custom_components"]
+extraPaths = ["."]
 
 # Allow unknown types in data extraction code where external APIs return Any
 reportUnknownVariableType = "error"

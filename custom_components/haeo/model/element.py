@@ -64,7 +64,7 @@ class Element:
             Sum of connection powers (LP expression)
 
         """
-        terms = []
+        terms: list[LpAffineExpression] = []
 
         for conn, end in self._connections:
             if end == "source":

@@ -68,6 +68,7 @@ class ColorMapper:
 
     def __init__(self) -> None:
         """Initialize the color mapper."""
+        super().__init__()
         # Track counters by palette identity (using id()) so types sharing palettes share counters
         self._palette_counters: dict[int, int] = {}
         self._element_colors: dict[str, str] = {}

@@ -69,12 +69,12 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
     }
 
     # Add subentry information
-    subentries_info = []
+    subentries_info: list[dict[str, Any]] = []
     for subentry in config_entry.subentries.values():
         raw_data = dict(subentry.data)
         name = raw_data.get("name")
 
-        subentry_info = {
+        subentry_info: dict[str, Any] = {
             "subentry_id": subentry.subentry_id,
             "subentry_type": subentry.subentry_type,
             "title": subentry.title,
