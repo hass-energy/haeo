@@ -42,8 +42,6 @@ For each section $n$ and time step $t \in \{0, 1, \ldots, T-1\}$:
 
 - $E_{\text{charged}}^n(t)$: Cumulative energy charged into section $n$ (kWh, monotonically increasing)
 - $E_{\text{discharged}}^n(t)$: Cumulative energy discharged from section $n$ (kWh, monotonically increasing)
-- $P_{\text{charge}}(t)$: Total charging power (kW)
-- $P_{\text{discharge}}(t)$: Total discharging power (kW)
 
 ### Parameters
 
