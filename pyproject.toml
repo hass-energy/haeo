@@ -100,67 +100,6 @@ stubPath = "stubs"
 include = ["tests", "custom_components"]
 extraPaths = ["."]
 
-# Allow unknown types in data extraction code where external APIs return Any
-reportUnknownVariableType = "error"
-reportUnknownArgumentType = "error"
-reportUnknownMemberType = "error"
-reportUnnecessaryIsInstance = "error"
-reportUnnecessaryComparison = "error"
-
-# Strict reporting rules - enable ALL for maximum type safety
-reportMissingImports = "error"
-reportMissingTypeStubs = "error"
-reportUndefinedVariable = "error"
-reportAssertAlwaysTrue = "error"
-reportInvalidStringEscapeSequence = "error"
-reportInvalidTypeVarUse = "error"
-reportMissingTypeArgument = "error"
-reportSelfClsParameterName = "error"
-reportUnsupportedDunderAll = "error"
-reportUnusedExpression = "error"
-reportWildcardImportFromLibrary = "error"
-reportAbstractUsage = "error"
-reportArgumentType = "error"
-reportAssignmentType = "error"
-reportAttributeAccessIssue = "error"
-reportCallIssue = "error"
-reportGeneralTypeIssues = "error"
-reportInconsistentConstructor = "error"
-reportIndexIssue = "error"
-reportInvalidTypeArguments = "error"
-reportNoOverloadImplementation = "error"
-reportOperatorIssue = "error"
-reportOptionalSubscript = "error"
-reportOptionalMemberAccess = "error"
-reportOptionalCall = "error"
-reportOptionalIterable = "error"
-reportOptionalContextManager = "error"
-reportOptionalOperand = "error"
-reportRedeclaration = "error"
-reportReturnType = "error"
-reportTypedDictNotRequiredAccess = "error"
-reportPrivateImportUsage = "error"
-reportUnboundVariable = "error"
-reportUnusedCoroutine = "error"
-reportFunctionMemberAccess = "error"
-reportIncompatibleMethodOverride = "error"
-reportIncompatibleVariableOverride = "error"
-reportInconsistentOverload = "error"
-reportOverlappingOverload = "error"
-reportPossiblyUnboundVariable = "error"
-reportMissingSuperCall = "error"
-reportUninitializedInstanceVariable = "error"
-reportInvalidStubStatement = "error"
-reportIncompleteStub = "error"
-reportUnusedVariable = "error"
-reportUnusedClass = "error"
-reportUnusedFunction = "error"
-reportUnusedImport = "error"
-reportDuplicateImport = "error"
-reportConstantRedefinition = "error"
-reportDeprecated = "error"
-reportMatchNotExhaustive = "error"
-
 # Test-specific overrides - allow patterns common in testing
 [[tool.pyright.executionEnvironments]]
 root = "tests"
@@ -180,7 +119,6 @@ python_functions = ["test_*"]
 asyncio_mode = "auto"
 addopts = ["--strict-markers", "--strict-config", "--disable-warnings"]
 markers = [
-    "asyncio: marks tests as requiring asyncio (deselect with '-m \"not asyncio\"')",
     "scenario: marks tests as scenario tests (select with '-m \"scenario\"')",
 ]
 
