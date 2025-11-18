@@ -35,7 +35,7 @@ class Element:
         self.period = period
         self.n_periods = n_periods
 
-        # Constraint storage - dictionary allows re-entrancy
+        # Constraint storage - dictionary allows reentrant access
         self._constraints: dict[str, LpConstraint | Sequence[LpConstraint]] = {}
 
         # Track connections for power balance
@@ -52,7 +52,7 @@ class Element:
         self._connections.append((connection, end))
 
     def connection_power(self, t: int) -> LpAffineExpression:
-        """Return the net power from connections at timestep t.
+        """Return the net power from connections at time t.
 
         Positive means power flowing into this element from connections.
         Negative means power flowing out of this element to connections.

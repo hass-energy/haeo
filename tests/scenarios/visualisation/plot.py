@@ -284,13 +284,7 @@ def create_stacked_visualization(hass: HomeAssistant, output_path: str, title: s
         ),
     )
 
-    fig, (ax_power, ax_price) = plt.subplots(
-        2,
-        1,
-        sharex=True,
-        figsize=(16, 10),
-        gridspec_kw={"height_ratios": [3, 1]},
-    )
+    fig, (ax_power, ax_price) = plt.subplots(2, 1, sharex=True, figsize=(16, 10), gridspec_kw={"height_ratios": [3, 1]})
 
     # Set labels and formatting for the power subplot
     ax_power.set_title(title, fontsize=14, pad=20)

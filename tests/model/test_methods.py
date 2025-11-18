@@ -4,6 +4,8 @@ from typing import Any
 
 import pytest
 
+from custom_components.haeo.helpers.types import is_sequence
+
 from . import test_data
 
 
@@ -21,7 +23,7 @@ def test_element_constraints(case: dict[str, Any]) -> None:
     constraints = element.constraints()
 
     # Should return a sequence (list/tuple)
-    assert isinstance(constraints, (list, tuple))
+    assert is_sequence(constraints)
 
     # All items should be constraint-like objects or equations
     # For elements without energy balance, this may be empty
