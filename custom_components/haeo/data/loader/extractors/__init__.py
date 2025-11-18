@@ -2,14 +2,13 @@
 
 from collections.abc import Sequence
 from enum import StrEnum
+from typing import NamedTuple
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
-from custom_components.haeo.const import convert_to_base_unit
-
 from . import aemo_nem, amberelectric, open_meteo_solar_forecast, solcast_solar
-from .utils import EntityMetadata, extract_entity_metadata
+from .utils import EntityMetadata, base_unit_for_device_class, convert_to_base_unit, extract_entity_metadata
 
 # Union of all domain literal types from the extractor modules
 ExtractorFormat = aemo_nem.Format | amberelectric.Format | open_meteo_solar_forecast.Format | solcast_solar.Format
@@ -32,14 +31,17 @@ _FORMATS: dict[ExtractorFormat, DataExtractor] = {
 }
 
 
-def extract(state: State) -> tuple[Sequence[tuple[int, float]] | float, str | None]:
-    """Extract forecast data from a State object and convert to base units.
+class ExtractedData(NamedTuple):
+    """Container for extracted data and metadata."""
 
-    Returns a tuple of (data, unit) where:
-    - data is either a sequence of (timestamp, value) tuples or a single float value
-    - unit is the unit of measurement after conversion to base units
-    - values are converted to base units (kW for power, kWh for energy)
-    """
+    data: Sequence[tuple[int, float]] | float
+    """Extracted forecast data, either a sequence of (timestamp, value) tuples or a single float value."""
+    unit: str | None
+    """Unit of measurement after conversion to base units. (None if unknown)"""
+
+
+def extract(state: State) -> ExtractedData:
+    """Extract data from a State object and convert to base units."""
 
     # Extract raw data and unit
     data: Sequence[tuple[int, float]] | float
@@ -64,15 +66,18 @@ def extract(state: State) -> tuple[Sequence[tuple[int, float]] | float, str | No
     # Normalize unit to string (handle enum values with .value attribute)
     unit_str: str | None = unit.value if isinstance(unit, StrEnum) else unit
 
+    # Get base unit for the device class (if one exists)
+    base_unit = base_unit_for_device_class(device_class) or unit_str
+
     # Convert values to base units
     if isinstance(data, Sequence):
         # Convert each value in the forecast series
         converted_data = [(ts, convert_to_base_unit(value, unit_str, device_class)) for ts, value in data]
-        return converted_data, unit_str
+        return ExtractedData(converted_data, base_unit)
 
     # Convert single value
     converted_value = convert_to_base_unit(data, unit_str, device_class)
-    return converted_value, unit_str
+    return ExtractedData(converted_value, base_unit)
 
 
 __all__ = [

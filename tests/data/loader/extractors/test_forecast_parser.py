@@ -39,19 +39,19 @@ def test_extract_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_dat
     """Test extraction of valid forecast data."""
     state = _create_sensor_state(hass, sensor_data["entity_id"], sensor_data["state"], sensor_data["attributes"])
 
-    result, unit = extractors.extract(state)
+    result = extractors.extract(state)
 
     expected_count = sensor_data["expected_count"]
     assert result is not None, f"Expected data for {parser_type}"
-    assert isinstance(result, list), "Valid forecasts should return a list of time series entries"
-    assert len(result) >= 1, f"Expected at least one entry for {parser_type}"
+    assert isinstance(result.data, list), "Valid forecasts should return a list of time series entries"
+    assert len(result.data) >= 1
     if expected_count > 0:
-        assert len(result) == expected_count, f"Expected {expected_count} entries for {parser_type}"
+        assert len(result.data) == expected_count
         # Verify chronological order (only check if multiple entries)
-        if len(result) > 1:
-            assert result[0][0] < result[-1][0], f"Timestamps should be in chronological order for {parser_type}"
+        if len(result.data) > 1:
+            assert result.data[0][0] < result.data[-1][0], "Timestamps should be in chronological order"
 
-    assert unit is not None, f"Expected unit for {parser_type}"
+    assert result.unit is not None, f"Expected unit for {parser_type}"
 
 
 @pytest.mark.parametrize(
@@ -65,20 +65,20 @@ def test_invalid_sensor_handling(hass: HomeAssistant, parser_type: str, sensor_d
     state = _create_sensor_state(hass, entity_id, sensor_data["state"], sensor_data["attributes"])
 
     # Invalid sensors should fall back to simple value extraction
-    result, _ = extractors.extract(state)
+    result = extractors.extract(state)
 
     # Should fall back to reading the state as a float
-    assert isinstance(result, float)
+    assert isinstance(result.data, float)
 
 
 def test_extract_empty_data(hass: HomeAssistant) -> None:
     """Test extraction with empty attributes falls back to simple value."""
     state = _create_sensor_state(hass, "sensor.empty", "42.0", {})
 
-    result, _ = extractors.extract(state)
+    result = extractors.extract(state)
 
-    assert isinstance(result, float)
-    assert result == 42.0
+    assert isinstance(result.data, float)
+    assert result.data == 42.0
 
 
 def test_extract_unknown_format_falls_back_to_simple_value(hass: HomeAssistant) -> None:
@@ -86,12 +86,12 @@ def test_extract_unknown_format_falls_back_to_simple_value(hass: HomeAssistant) 
     entity_id = "sensor.unknown"
     state = _create_sensor_state(hass, entity_id, "42.5", {"unknown_field": "value"})
 
-    result, _ = extractors.extract(state)
+    result = extractors.extract(state)
 
-    assert result is not None
+    assert result.data is not None
     # Simple value extraction returns a float directly
-    assert isinstance(result, float)
-    assert result == 42.5
+    assert isinstance(result.data, float)
+    assert result.data == 42.5
 
 
 def test_extract_unknown_format_returns_unit() -> None:
@@ -105,10 +105,9 @@ def test_extract_unknown_format_returns_unit() -> None:
         },
     )
 
-    result, unit = extractors.extract(state)
-    assert isinstance(result, float)
-    assert result == 42.0
-    assert unit == "test_unit"
+    result = extractors.extract(state)
+    assert isinstance(result.data, float)
+    assert result == extractors.ExtractedData(42.0, "test_unit")
 
 
 def test_extract_raises_for_non_numeric_state(hass: HomeAssistant) -> None:

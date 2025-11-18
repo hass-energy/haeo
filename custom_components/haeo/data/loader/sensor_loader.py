@@ -58,8 +58,7 @@ def load_sensor(hass: HomeAssistant, entity_id: str) -> SensorPayload | None:
         return None
 
     try:
-        data, *_ = extract(state)
-        return data
+        return extract(state).data
     except ValueError:
         return None
 

@@ -8,7 +8,8 @@ from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 import pytest
 
-from custom_components.haeo.const import convert_to_base_unit
+from custom_components.haeo.data.loader.extractors import ExtractedData
+from custom_components.haeo.data.loader.extractors.utils import convert_to_base_unit
 from custom_components.haeo.data.loader.sensor_loader import load_sensor, load_sensors, normalize_entity_ids
 
 
@@ -53,12 +54,12 @@ def test_load_sensor_forecast_returns_series(hass: HomeAssistant) -> None:
 
     with patch(
         "custom_components.haeo.data.loader.sensor_loader.extract",
-        return_value=(
-            [
+        return_value=ExtractedData(
+            data=[
                 (int((start + timedelta(hours=1)).timestamp()), 1.5),
                 (int((start + timedelta(hours=2)).timestamp()), 2.5),
             ],
-            UnitOfPower.KILO_WATT,
+            unit=UnitOfPower.KILO_WATT,
         ),
     ):
         payload = load_sensor(hass, "sensor.forecast")

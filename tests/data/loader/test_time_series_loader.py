@@ -21,6 +21,7 @@ from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.core import HomeAssistant, State
 import pytest
 
+from custom_components.haeo.data.loader.extractors import ExtractedData
 from custom_components.haeo.data.loader.time_series_loader import TimeSeriesLoader
 
 
@@ -84,17 +85,17 @@ async def test_time_series_loader_loads_mixed_live_and_forecast(hass: HomeAssist
     ts_values = [int((start + timedelta(hours=offset)).timestamp()) for offset in range(4)]
 
     # Mock extract to return different types of series
-    def mock_extract(state: State) -> tuple[list[tuple[int, float]] | float, str]:
+    def mock_extract(state: State) -> ExtractedData:
         if state.entity_id == "sensor.live_price":
             # Simple value returns as float
-            return (0.2, "$/kWh")
+            return ExtractedData(data=0.2, unit="$/kWh")
         # Forecast sensor returns actual forecast data
-        return (
-            [
+        return ExtractedData(
+            data=[
                 (int((start + timedelta(hours=1)).timestamp()), 0.25),
                 (int((start + timedelta(hours=2)).timestamp()), 0.35),
             ],
-            "$/kWh",
+            unit="$/kWh",
         )
 
     hass.states.async_set("sensor.live_price", "0.20", {})

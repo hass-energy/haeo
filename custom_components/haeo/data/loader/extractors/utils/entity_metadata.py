@@ -53,7 +53,7 @@ def extract_entity_metadata(hass: HomeAssistant) -> list[EntityMetadata]:
     for state in hass.states.async_all():
         try:
             # This will only work for sensor entities that return floats
-            _, unit = extractors.extract(state)
+            unit = extractors.extract(state).unit
         except (ValueError, KeyError):
             unit = state.attributes.get("unit_of_measurement")
 
