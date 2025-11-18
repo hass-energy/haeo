@@ -207,7 +207,7 @@ class Battery(Element):
     def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return battery output specifications."""
         # Calculate total SOC from all sections
-        total_energy_values = []
+        total_energy_values: list[float] = []
         for t in range(self.n_periods):
             total_energy = 0.0
             for section in self.sections:
@@ -267,24 +267,15 @@ class Battery(Element):
 
         """
         if min_charge >= max_charge:
-            msg = (
-                f"min_charge_percentage ({min_charge}) must be less than "
-                f"max_charge_percentage ({max_charge})"
-            )
+            msg = f"min_charge_percentage ({min_charge}) must be less than max_charge_percentage ({max_charge})"
             raise ValueError(msg)
 
         if undercharge is not None and undercharge >= min_charge:
-            msg = (
-                f"undercharge_percentage ({undercharge}) must be less than "
-                f"min_charge_percentage ({min_charge})"
-            )
+            msg = f"undercharge_percentage ({undercharge}) must be less than min_charge_percentage ({min_charge})"
             raise ValueError(msg)
 
         if overcharge is not None and overcharge <= max_charge:
-            msg = (
-                f"overcharge_percentage ({overcharge}) must be greater than "
-                f"max_charge_percentage ({max_charge})"
-            )
+            msg = f"overcharge_percentage ({overcharge}) must be greater than max_charge_percentage ({max_charge})"
             raise ValueError(msg)
 
     def _build_sections(
@@ -495,4 +486,3 @@ class Battery(Element):
 
         # Store constraints with appropriate names
         self._constraints[CONSTRAINT_NAME_ENERGY_BALANCE] = constraints
-

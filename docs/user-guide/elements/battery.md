@@ -92,6 +92,7 @@ This creates an "undercharge section" between `undercharge_percentage` and `min_
 **Ordering requirement**: Must be less than `min_charge_percentage`.
 
 **Example**:
+
 ```
 undercharge_percentage=5% < min_charge_percentage=10%
 ```
@@ -107,6 +108,7 @@ This creates an "overcharge section" between `max_charge_percentage` and `overch
 **Ordering requirement**: Must be greater than `max_charge_percentage`.
 
 **Example**:
+
 ```
 max_charge_percentage=90% < overcharge_percentage=95%
 ```

@@ -27,6 +27,7 @@ The battery's state of charge range is divided into sections, each with its own 
 - **`min_charge_percentage`** and **`max_charge_percentage`** are **preferred operating range** (inner bounds)
 
 **Example configuration**:
+
 ```
 undercharge=5% < min=10% < max=90% < overcharge=95%
 ```
@@ -94,6 +95,7 @@ C^n = C \cdot \frac{\text{SOC}\_{\text{upper}}^n - \text{SOC}\_{\text{lower}}^n}
 $$
 
 **Example**: For a 10 kWh battery with normal section `[10%, 90%]`:
+
 $$
 C^{\text{normal}} = 10 \cdot \frac{90 - 10}{100} = 8 \text{ kWh}
 $$
@@ -107,6 +109,7 @@ $$
 $$
 
 This ensures that:
+
 - Charging fills lower sections (undercharge → normal → overcharge)
 - Discharging empties higher sections first (overcharge → normal → undercharge)
 
@@ -138,6 +141,7 @@ E_{\text{total}}(0) = C \cdot \frac{\text{SOC}_{\text{initial}}}{100}
 $$
 
 **Example**: 50% SOC in a battery with sections `[5%-10%-90%-95%]` and capacity 10 kWh:
+
 - Total initial energy: 5 kWh
 - Undercharge section (5-10%): 0.5 kWh (full)
 - Normal section (10-90%): 4.5 kWh (partial fill)
@@ -165,24 +169,29 @@ $$
 $$
 
 Where:
+
 - $\Delta E_{\text{charged}}^n(t) = E_{\text{charged}}^n(t) - E_{\text{charged}}^n(t-1)$ is the energy charged into section $n$ during timestep $t$
 - $\Delta E_{\text{discharged}}^n(t) = E_{\text{discharged}}^n(t) - E_{\text{discharged}}^n(t-1)$ is the energy discharged from section $n$ during timestep $t$
 
 #### Cost Structure by Section
 
 **Undercharge section** (if configured):
+
 - Charge cost: Early charge incentive (encourages filling this section)
 - Discharge cost: $c_{\text{undercharge}}$ (penalty for deep discharge)
 
 **Normal section** (always present):
+
 - Charge cost: Early charge incentive (small negative value that increases linearly over time to encourage later charging)
 - Discharge cost: $c_{\text{discharge}}$ (standard degradation cost, if configured)
 
 **Overcharge section** (if configured):
+
 - Charge cost: $c_{\text{overcharge}}$ (penalty for overcharging)
 - Discharge cost: $c_{\text{discharge}}$ (standard discharge cost)
 
 **Economic interpretation**: The multi-section cost structure allows the optimizer to make economic trade-offs:
+
 - Discharging into the undercharge section when grid prices are very high
 - Charging into the overcharge section when grid prices are very low or excess solar is available
 - Preferring the normal section for routine operation
@@ -196,6 +205,7 @@ The multi-section model tracks cumulative energy flows rather than absolute stor
 **Section net energy** = **Cumulative charged** - **Cumulative discharged**
 
 This approach:
+
 - Eliminates the need for slack variables
 - Naturally handles different cost zones through constraint structure
 - Uses only linear constraints (no binary variables required)
@@ -210,6 +220,7 @@ $$
 $$
 
 The stacked SOC ordering constraints ensure energy flows naturally:
+
 - Charging fills from lowest to highest section
 - Discharging empties from highest to lowest section
 
@@ -218,6 +229,7 @@ The stacked SOC ordering constraints ensure energy flows naturally:
 Consider a 10 kWh battery with configuration `[5%-10%-90%-95%]`:
 
 **Charging from 8% to 92%**:
+
 1. Fill undercharge section (5-10%): 0.2 kWh to reach 10%
 2. Fill normal section (10-90%): 8.0 kWh to reach 90%
 3. Partial fill overcharge section (90-92%): 0.2 kWh
@@ -225,6 +237,7 @@ Consider a 10 kWh battery with configuration `[5%-10%-90%-95%]`:
 The monotonicity and stacking constraints ensure this order automatically.
 
 **Discharging from 92% to 8%**:
+
 1. Empty overcharge section first (92-90%): -0.2 kWh
 2. Empty normal section (90-10%): -8.0 kWh
 3. Partial empty undercharge section (10-8%): -0.2 kWh
