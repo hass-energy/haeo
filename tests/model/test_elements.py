@@ -40,12 +40,12 @@ def _solve_element_scenario(element: Any, inputs: dict[str, Any] | None) -> dict
 
     problem = LpProblem(f"test_{element.name}", LpMinimize)
 
-    # Add element constraints
-    for constraint in element.constraints():
-        problem += constraint
-
     # Handle Connection elements (two-sided power balance)
     if isinstance(element, Connection):
+        # Add element constraints
+        for constraint in element.constraints():
+            problem += constraint
+
         source_power = inputs.get("source_power", [None] * n_periods)
         target_power = inputs.get("target_power", [None] * n_periods)
         source_cost = inputs.get("source_cost", 0.0)
@@ -79,16 +79,22 @@ def _solve_element_scenario(element: Any, inputs: dict[str, Any] | None) -> dict
         power = inputs.get("power", [None] * n_periods)
         power_cost = inputs.get("cost", 0.0)
 
-        # Create power variables
+        # Create power variables for the external power flow
         power_vars = [LpVariable(f"power_{i}") if val is None else float(val) for i, val in enumerate(power)]
 
-        # Get consumption and production (treat None as zero)
-        consumption = getattr(element, "power_consumption", None) or [0.0] * n_periods
-        production = getattr(element, "power_production", None) or [0.0] * n_periods
+        # Mock connection_power() to return the power variables
+        # This allows elements to set up their own internal power balance constraints
+        def mock_connection_power(t: int) -> LpAffineExpression:
+            return power_vars[t] if isinstance(power_vars[t], LpVariable) else LpAffineExpression(power_vars[t])
 
-        # Power balance constraint (same for all elements)
-        for i in range(n_periods):
-            problem += power_vars[i] == consumption[i] - production[i]
+        element.connection_power = mock_connection_power  # type: ignore[method-assign]
+
+        # Call build_constraints() to set up power balance with mocked connection_power
+        element.build_constraints()
+
+        # Add all element constraints (including the power balance from build_constraints)
+        for constraint in element.constraints():
+            problem += constraint
 
         # Objective function
         cost_terms = list(element.cost())
