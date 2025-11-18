@@ -50,7 +50,7 @@ class Parser:
             return False
 
         forecasts = state.attributes["forecasts"]
-        if not isinstance(forecasts, Sequence) or not forecasts:
+        if not (isinstance(forecasts, Sequence) and not isinstance(forecasts, (str, bytes))) or not forecasts:
             return False
 
         return all(
