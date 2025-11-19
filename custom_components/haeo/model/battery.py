@@ -197,44 +197,50 @@ class Battery(Element):
         if undercharge_ratio is not None and undercharge_cost is not None:
             undercharge_range = np.array(min_charge_ratio) - np.array(undercharge_ratio)
             undercharge_capacity = (undercharge_range * np.array(self.capacity)).tolist()
+            # Only allocate up to the section's capacity
+            section_initial_charge = min(initial_charge, undercharge_capacity[0])
             self._sections.append(
                 BatterySection(
                     name="undercharge",
                     capacity=undercharge_capacity,
                     charge_cost=(charge_early_incentive * 3).tolist(),
                     discharge_cost=((discharge_early_incentive * 1) + np.array(discharge_cost)).tolist(),
-                    initial_charge=initial_charge,
+                    initial_charge=section_initial_charge,
                     period=period,
                     n_periods=n_periods,
                 )
             )
-            initial_charge = max(initial_charge - undercharge_capacity[0], 0.0)
+            initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
         normal_range = np.array(max_charge_ratio) - np.array(min_charge_ratio)
         normal_capacity = (normal_range * np.array(self.capacity)).tolist()
+        # Only allocate up to the section's capacity
+        section_initial_charge = min(initial_charge, normal_capacity[0])
         self._sections.append(
             BatterySection(
                 name="normal",
                 capacity=normal_capacity,
                 charge_cost=(charge_early_incentive * 2).tolist(),
                 discharge_cost=((discharge_early_incentive * 2) + np.array(discharge_cost)).tolist(),
-                initial_charge=initial_charge,
+                initial_charge=section_initial_charge,
                 period=period,
                 n_periods=n_periods,
             )
         )
-        initial_charge = max(initial_charge - normal_capacity[0], 0.0)
+        initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
         if overcharge_ratio is not None and overcharge_cost is not None:
             overcharge_range = np.array(overcharge_ratio) - np.array(max_charge_ratio)
             overcharge_capacity = (overcharge_range * np.array(self.capacity)).tolist()
+            # Only allocate up to the section's capacity
+            section_initial_charge = min(initial_charge, overcharge_capacity[0])
             self._sections.append(
                 BatterySection(
                     name="overcharge",
                     capacity=overcharge_capacity,
                     charge_cost=((charge_early_incentive * 1) + np.array(overcharge_cost)).tolist(),
                     discharge_cost=((discharge_early_incentive * 3) + np.array(discharge_cost)).tolist(),
-                    initial_charge=initial_charge,
+                    initial_charge=section_initial_charge,
                     period=period,
                     n_periods=n_periods,
                 )
