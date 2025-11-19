@@ -1,11 +1,9 @@
 """Battery entity for electrical system modeling."""
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 
 import numpy as np
-from numpy.typing import NDArray
-from pulp import LpAffineExpression, LpConstraint, LpVariable
+from pulp import LpAffineExpression, LpVariable
 from pulp.pulp import lpSum
 
 from .const import (
@@ -17,8 +15,10 @@ from .const import (
     OUTPUT_NAME_POWER_CONSUMED,
     OUTPUT_NAME_POWER_PRODUCED,
     OUTPUT_NAME_PRICE_CONSUMPTION,
+    OUTPUT_NAME_PRICE_PRODUCTION,
     OUTPUT_TYPE_ENERGY,
     OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_PRICE,
     OUTPUT_TYPE_SOC,
     OutputData,
     OutputName,
@@ -41,6 +41,18 @@ class BatterySection:
         period: float,
         n_periods: int,
     ) -> None:
+        """Initialize a battery section.
+
+        Args:
+            name: Name of the section
+            capacity: Section capacity in kWh per period
+            charge_cost: Cost in $/kWh for charging per period
+            discharge_cost: Cost in $/kWh for discharging per period
+            initial_charge: Initial charge in kWh
+            period: Time period in hours
+            n_periods: Number of time periods
+
+        """
         self.name = name
         self.capacity = capacity
         self.charge_cost = [LpAffineExpression(constant=float(c)) for c in charge_cost]
@@ -48,13 +60,15 @@ class BatterySection:
         self.period = period
         self.n_periods = n_periods
 
-        # Initial charge is set based rather than variable
+        # Initial charge is set as constant, not variable
         self.energy_in: list[LpAffineExpression | LpVariable] = [
             LpAffineExpression(constant=float(initial_charge)),
             *[LpVariable(f"{name}_energy_in_t{t}", lowBound=0.0) for t in range(1, n_periods + 1)],
         ]
+        # Initial discharge is always 0
         self.energy_out: list[LpAffineExpression | LpVariable] = [
-            LpVariable(f"{name}_energy_out_t{t}", lowBound=0.0) for t in range(n_periods + 1)
+            LpAffineExpression(constant=0.0),
+            *[LpVariable(f"{name}_energy_out_t{t}", lowBound=0.0) for t in range(1, n_periods + 1)],
         ]
 
         self.constraints = {
@@ -140,57 +154,28 @@ class Battery(Element):
         """
         super().__init__(name=name, period=period, n_periods=n_periods)
 
-        # Extract all the simple parameters we will need later
+        # These parameters are defined per power item (so n_periods values)
         self.efficiency = broadcast_to_sequence(efficiency, n_periods)
-        
-        # Convert all parameters to sequences
-        capacity_seq = broadcast_to_sequence(capacity, n_periods)
-        min_charge_percentage = broadcast_to_sequence(min_charge_percentage, n_periods)
-        max_charge_percentage = broadcast_to_sequence(max_charge_percentage, n_periods)
-        undercharge_percentage = broadcast_to_sequence(undercharge_percentage, n_periods)
-        overcharge_percentage = broadcast_to_sequence(overcharge_percentage, n_periods)
-        undercharge_cost_seq = broadcast_to_sequence(undercharge_cost, n_periods)
-        overcharge_cost_seq = broadcast_to_sequence(overcharge_cost, n_periods)
-        discharge_cost_seq = broadcast_to_sequence(discharge_cost, n_periods)
-        max_charge_power_seq = broadcast_to_sequence(max_charge_power, n_periods)
-        max_discharge_power_seq = broadcast_to_sequence(max_discharge_power, n_periods)
-        
-        # Extend capacity to n_periods+1 by repeating last value (for energy state variables)
-        capacity_extended = [*capacity_seq, capacity_seq[-1]]
-        
+        self.max_charge_power = broadcast_to_sequence(max_charge_power, n_periods)
+        self.max_discharge_power = broadcast_to_sequence(max_discharge_power, n_periods)
+        undercharge_cost = broadcast_to_sequence(undercharge_cost, n_periods)
+        overcharge_cost = broadcast_to_sequence(overcharge_cost, n_periods)
+        discharge_cost = broadcast_to_sequence(discharge_cost, n_periods)
+
+        # These parameters are defined per energy item, so extend by 1 (repeats the last value)
+        min_charge_ratio = broadcast_to_sequence(min_charge_percentage, n_periods + 1)
+        max_charge_ratio = broadcast_to_sequence(max_charge_percentage, n_periods + 1)
+        undercharge_ratio = broadcast_to_sequence(undercharge_percentage, n_periods + 1)
+        overcharge_ratio = broadcast_to_sequence(overcharge_percentage, n_periods + 1)
+        self.capacity = broadcast_to_sequence(capacity, n_periods + 1)
+
         # Validate percentage ordering for all time periods
-        if min_charge_percentage and max_charge_percentage:
-            for t in range(len(min_charge_percentage)):
-                if min_charge_percentage[t] >= max_charge_percentage[t]:
-                    msg = (
-                        f"min_charge_percentage ({min_charge_percentage[t]}) "
-                        f"must be less than max_charge_percentage ({max_charge_percentage[t]}) "
-                        f"at time period {t}"
-                    )
-                    raise ValueError(msg)
-
-        if undercharge_percentage and min_charge_percentage:
-            for t in range(len(undercharge_percentage)):
-                if undercharge_percentage[t] >= min_charge_percentage[t]:
-                    msg = (
-                        f"undercharge_percentage ({undercharge_percentage[t]}) "
-                        f"must be less than min_charge_percentage ({min_charge_percentage[t]}) "
-                        f"at time period {t}"
-                    )
-                    raise ValueError(msg)
-
-        if max_charge_percentage and overcharge_percentage:
-            for t in range(len(max_charge_percentage)):
-                if max_charge_percentage[t] >= overcharge_percentage[t]:
-                    msg = (
-                        f"overcharge_percentage ({overcharge_percentage[t]}) "
-                        f"must be greater than max_charge_percentage ({max_charge_percentage[t]}) "
-                        f"at time period {t}"
-                    )
-                    raise ValueError(msg)
+        self._validate_parameters(
+            min_charge_ratio, max_charge_ratio, undercharge_ratio, overcharge_ratio, undercharge_cost, overcharge_cost
+        )
 
         # Get the first value of initial_charge_percentage and convert to energy
-        initial_soc = broadcast_to_sequence(initial_charge_percentage, n_periods)[0]
+        initial_soc_ratio = broadcast_to_sequence(initial_charge_percentage, n_periods)[0] / 100.0
 
         # From the early charge value, make two incentives, one for charging early and one for discharging early.
         # We will also multiply these values for each section to make it more/less attractive.
@@ -198,67 +183,66 @@ class Battery(Element):
         charge_early_incentive = np.linspace(-early_charge_incentive, 0.0, n_periods)
         discharge_early_incentive = np.linspace(0.0, early_charge_incentive, n_periods)
 
+        # Convert cost parameters to sequences (per power item so n_periods)
+
         # This is the energy that is unusable due to being below absolute minimum percentage
-        unusable_percentage = undercharge_percentage if undercharge_percentage is not None else min_charge_percentage
-        self.inaccessible_energy: Sequence[float] = (np.array(unusable_percentage) / 100.0 * np.array(capacity_extended)).tolist()
+        unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_charge_ratio
+        self.inaccessible_energy: Sequence[float] = (np.array(unusable_ratio) * np.array(self.capacity)).tolist()
 
         # Calculate initial charge in kWh (remove unusable percentage)
-        initial_charge = (initial_soc - unusable_percentage[0]) / 100.0 * capacity_seq[0]
+        initial_charge: float = max((initial_soc_ratio - unusable_ratio[0]) * self.capacity[0], 0.0)
 
         self._sections: list[BatterySection] = []
-        if undercharge_percentage is not None and undercharge_cost_seq is not None:
-            undercharge_range = (np.array(min_charge_percentage) - np.array(undercharge_percentage)) / 100.0
-            undercharge_capacity = (undercharge_range * np.array(capacity_extended)).tolist()
-            section_initial = min(max(initial_charge, 0.0), undercharge_capacity[0])
+        if undercharge_ratio is not None and undercharge_cost is not None:
+            undercharge_range = np.array(min_charge_ratio) - np.array(undercharge_ratio)
+            undercharge_capacity = (undercharge_range * np.array(self.capacity)).tolist()
             self._sections.append(
                 BatterySection(
                     name="undercharge",
                     capacity=undercharge_capacity,
                     charge_cost=(charge_early_incentive * 3).tolist(),
-                    discharge_cost=((discharge_early_incentive * 1) + np.array(undercharge_cost_seq)).tolist(),
-                    initial_charge=section_initial,
+                    discharge_cost=((discharge_early_incentive * 1) + np.array(discharge_cost)).tolist(),
+                    initial_charge=initial_charge,
                     period=period,
                     n_periods=n_periods,
                 )
             )
-            initial_charge -= section_initial
+            initial_charge = max(initial_charge - undercharge_capacity[0], 0.0)
 
         normal_range = (np.array(max_charge_percentage) - np.array(min_charge_percentage)) / 100.0
-        normal_capacity = (normal_range * np.array(capacity_extended)).tolist()
-        section_initial = min(max(initial_charge, 0.0), normal_capacity[0])
+        normal_capacity = (normal_range * np.array(self.capacity)).tolist()
         self._sections.append(
             BatterySection(
                 name="normal",
                 capacity=normal_capacity,
                 charge_cost=(charge_early_incentive * 2).tolist(),
-                discharge_cost=((discharge_early_incentive * 2) + np.array(discharge_cost_seq)).tolist(),
-                initial_charge=section_initial,
+                discharge_cost=((discharge_early_incentive * 2) + np.array(discharge_cost)).tolist(),
+                initial_charge=initial_charge,
                 period=period,
                 n_periods=n_periods,
             )
         )
-        initial_charge -= section_initial
+        initial_charge = max(initial_charge - normal_capacity[0], 0.0)
 
-        if overcharge_percentage is not None and overcharge_cost_seq is not None:
-            overcharge_range = (np.array(overcharge_percentage) - np.array(max_charge_percentage)) / 100.0
-            overcharge_capacity = (overcharge_range * np.array(capacity_extended)).tolist()
-            section_initial = min(max(initial_charge, 0.0), overcharge_capacity[0])
+        if overcharge_ratio is not None and overcharge_cost is not None:
+            overcharge_range = np.array(overcharge_ratio) - np.array(max_charge_ratio)
+            overcharge_capacity = (overcharge_range * np.array(self.capacity)).tolist()
             self._sections.append(
                 BatterySection(
                     name="overcharge",
                     capacity=overcharge_capacity,
-                    charge_cost=((charge_early_incentive * 1) + np.array(overcharge_cost_seq)).tolist(),
-                    discharge_cost=((discharge_early_incentive * 3) + np.array(discharge_cost_seq)).tolist(),
-                    initial_charge=section_initial,
+                    charge_cost=((charge_early_incentive * 1) + np.array(overcharge_cost)).tolist(),
+                    discharge_cost=((discharge_early_incentive * 3) + np.array(discharge_cost)).tolist(),
+                    initial_charge=initial_charge,
                     period=period,
                     n_periods=n_periods,
                 )
             )
-        
+
         # Add section constraints to battery constraints
         for section in self._sections:
-            for constraint_name, constraint_list in section.constraints.items():
-                self._constraints[f"{section.name}_{constraint_name}"] = constraint_list
+            for constraint_name, constraint in section.constraints.items():
+                self._constraints[f"{section.name}_{constraint_name}"] = constraint
 
         if max_charge_power is not None or max_discharge_power is not None:
             # Make the power limits constraints by measuring relative power consumption
@@ -280,12 +264,12 @@ class Battery(Element):
     @property
     def power_consumption(self) -> Sequence[LpAffineExpression]:
         """Return the power consumption of the battery."""
-        return [s.power_consumption[t] for t in range(self.n_periods) for s in self._sections]
+        return [lpSum(s.power_consumption[t] for s in self._sections) for t in range(self.n_periods)]
 
     @property
     def power_production(self) -> Sequence[LpAffineExpression]:
         """Return the power production of the battery."""
-        return [s.power_production[t] for t in range(self.n_periods) for s in self._sections]
+        return [lpSum(s.power_production[t] for s in self._sections) for t in range(self.n_periods)]
 
     @property
     def stored_energy(self) -> Sequence[LpAffineExpression]:
@@ -314,7 +298,7 @@ class Battery(Element):
         self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
             self.connection_power(t) * (self.efficiency[t] / 100.0) * self.period
             == lpSum(
-                (s.energy_in[t + 1] - s.energy_in[t]) - (s.energy_out[t + 1] - s.energy_out[t]) for s in self.sections
+                (s.energy_in[t + 1] - s.energy_in[t]) - (s.energy_out[t + 1] - s.energy_out[t]) for s in self._sections
             )
             for t in range(self.n_periods)
         ]
@@ -331,13 +315,12 @@ class Battery(Element):
 
     def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return battery output specifications."""
+        # Get total energy stored values
+        total_energy_values = extract_values(self.stored_energy)
 
         # Convert to SOC percentage
         capacity_array = np.array(self.capacity)[:-1]  # Use n_periods values
         soc_values = (np.array(total_energy_values) / capacity_array * 100.0).tolist()
-
-        # Extract the early charge incentive values for price_consumption output
-        price_consumption_values = tuple(extract_values(self.early_charge_incentive))
 
         outputs: dict[OutputName, OutputData] = {
             OUTPUT_NAME_POWER_CONSUMED: OutputData(
@@ -347,7 +330,7 @@ class Battery(Element):
                 type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(self.power_production))
             ),
             OUTPUT_NAME_ENERGY_STORED: OutputData(
-                type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(extract_values(self.stored_energy))
+                type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(total_energy_values)
             ),
             OUTPUT_NAME_BATTERY_STATE_OF_CHARGE: OutputData(
                 type=OUTPUT_TYPE_SOC,
@@ -357,24 +340,90 @@ class Battery(Element):
         }
 
         for section in self._sections:
-            outputs.update(
-                {
-                    f"{section.name}_{OUTPUT_NAME_ENERGY_STORED}": OutputData(
-                        type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(extract_values(section.stored_energy))
-                    ),
-                    f"{section.name}_{OUTPUT_NAME_POWER_PRODUCED}": OutputData(
-                        type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_production))
-                    ),
-                    f"{section.name}_{OUTPUT_NAME_POWER_CONSUMED}": OutputData(
-                        type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_consumption))
-                    ),
-                    f"{section.name}_{OUTPUT_NAME_PRICE_CONSUMPTION}": OutputData(
-                        type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.charge_cost))
-                    ),
-                    f"{section.name}_{OUTPUT_NAME_PRICE_PRODUCTION}": OutputData(
-                        type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.discharge_cost))
-                    ),
-                }
-            )
+            # Section stored_energy has n_periods+1 values, we only want n_periods for outputs
+            section_energy_values = extract_values(section.stored_energy)[:-1]
+            section_outputs: dict[OutputName, OutputData] = {
+                f"{section.name}_{OUTPUT_NAME_ENERGY_STORED}": OutputData(  # type: ignore[dict-item]
+                    type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(section_energy_values)
+                ),
+                f"{section.name}_{OUTPUT_NAME_POWER_PRODUCED}": OutputData(  # type: ignore[dict-item]
+                    type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_production))
+                ),
+                f"{section.name}_{OUTPUT_NAME_POWER_CONSUMED}": OutputData(  # type: ignore[dict-item]
+                    type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_consumption))
+                ),
+                f"{section.name}_{OUTPUT_NAME_PRICE_CONSUMPTION}": OutputData(  # type: ignore[dict-item]
+                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.charge_cost))
+                ),
+                f"{section.name}_{OUTPUT_NAME_PRICE_PRODUCTION}": OutputData(  # type: ignore[dict-item]
+                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.discharge_cost))
+                ),
+            }
+            outputs.update(section_outputs)
 
         return outputs
+
+    @staticmethod
+    def _validate_parameters(
+        min_charge_ratio: Sequence[float],
+        max_charge_ratio: Sequence[float],
+        undercharge_ratio: Sequence[float] | None,
+        overcharge_ratio: Sequence[float] | None,
+        undercharge_cost: Sequence[float] | float | None,
+        overcharge_cost: Sequence[float] | float | None,
+    ) -> None:
+        """Validate percentage ordering for all time periods.
+
+        Args:
+            min_charge_ratio: Minimum charge percentage sequence
+            max_charge_ratio: Maximum charge percentage sequence
+            undercharge_ratio: Undercharge ratio sequence or None
+            overcharge_ratio: Overcharge ratio sequence or None
+            undercharge_cost: Undercharge cost or None
+            overcharge_cost: Overcharge cost or None
+
+        Raises:
+            ValueError: If percentage parameters violate ordering constraints
+
+        """
+        # If undercharge_percentage is not None, then undercharge_cost must be provided
+        if undercharge_ratio is not None and undercharge_cost is None:
+            msg = "undercharge_cost must be provided if undercharge_percentage is not None"
+            raise ValueError(msg)
+
+        # If overcharge_percentage is not None, then overcharge_cost must be provided
+        if overcharge_ratio is not None and overcharge_cost is None:
+            msg = "overcharge_cost must be provided if overcharge_percentage is not None"
+            raise ValueError(msg)
+
+        # Validate min < max for all time periods
+        for t in range(len(min_charge_ratio)):
+            if min_charge_ratio[t] >= max_charge_ratio[t]:
+                msg = (
+                    f"min_charge_ratio ({min_charge_ratio[t]}) "
+                    f"must be less than max_charge_ratio ({max_charge_ratio[t]}) "
+                    f"at time period {t}"
+                )
+                raise ValueError(msg)
+
+        # Validate undercharge < min for all time periods
+        if undercharge_ratio is not None:
+            for t in range(len(undercharge_ratio)):
+                if undercharge_ratio[t] >= min_charge_ratio[t]:
+                    msg = (
+                        f"undercharge_ratio ({undercharge_ratio[t]}) "
+                        f"must be less than min_charge_ratio ({min_charge_ratio[t]}) "
+                        f"at time period {t}"
+                    )
+                    raise ValueError(msg)
+
+        # Validate max < overcharge for all time periods
+        if overcharge_ratio is not None:
+            for t in range(len(overcharge_ratio)):
+                if max_charge_ratio[t] >= overcharge_ratio[t]:
+                    msg = (
+                        f"overcharge_ratio ({overcharge_ratio[t]}) "
+                        f"must be greater than max_charge_ratio ({max_charge_ratio[t]}) "
+                        f"at time period {t}"
+                    )
+                    raise ValueError(msg)
