@@ -155,7 +155,7 @@ class Battery(Element):
         super().__init__(name=name, period=period, n_periods=n_periods)
 
         # These parameters are defined per power item (so n_periods values)
-        self.efficiency = broadcast_to_sequence(efficiency, n_periods)
+        self.efficiency = percentage_to_ratio(broadcast_to_sequence(efficiency, n_periods))
         self.max_charge_power = broadcast_to_sequence(max_charge_power, n_periods)
         self.max_discharge_power = broadcast_to_sequence(max_discharge_power, n_periods)
         undercharge_cost = broadcast_to_sequence(undercharge_cost, n_periods)
@@ -258,6 +258,17 @@ class Battery(Element):
                 for t in range(self.n_periods)
             ]
 
+        # Prevent simultaneous full charging and discharging using time-slicing constraint:
+        # This allows cycling but on a time-sliced basis (e.g., charge 50% of time, discharge 50%)
+        if self.max_charge_power is not None and self.max_discharge_power is not None:
+            self._constraints["time_slice_constraint"] = [
+                self.power_consumption[t] / self.max_charge_power[t]
+                + self.power_production[t] / self.max_discharge_power[t]
+                <= 1.0
+                for t in range(self.n_periods)
+                if self.max_charge_power[t] > 0 and self.max_discharge_power[t] > 0
+            ]
+
     @property
     def power_consumption(self) -> Sequence[LpAffineExpression]:
         """Return the power consumption of the battery."""
@@ -273,7 +284,7 @@ class Battery(Element):
         """Return the stored energy of the battery."""
         return [
             self.inaccessible_energy[t] + lpSum(s.energy_in[t] - s.energy_out[t] for s in self._sections)
-            for t in range(self.n_periods)
+            for t in range(self.n_periods + 1)
         ]
 
     def build_constraints(self) -> None:
@@ -282,21 +293,11 @@ class Battery(Element):
         This includes power balance constraints using connection_power().
         Efficiency losses are applied to prevent oscillation (cycling).
         """
+
         # Power balance with efficiency:
-        # - When charging (connection_power > 0): stored energy = connection_power * efficiency * period
-        # - When discharging (connection_power < 0): connection_power = stored energy * efficiency
-        #
-        # Since we can't easily split charging/discharging in LP, we apply efficiency to connection_power:
-        # connection_power * efficiency * period = net internal energy change
-        #
-        # This means:
-        # - Charging: Less energy stored than power consumed (efficiency loss)
-        # - Discharging: Less power delivered than energy extracted (efficiency loss)
         self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
-            self.connection_power(t) * (self.efficiency[t] / 100.0) * self.period
-            == lpSum(
-                (s.energy_in[t + 1] - s.energy_in[t]) - (s.energy_out[t + 1] - s.energy_out[t]) for s in self._sections
-            )
+            self.connection_power(t) * self.efficiency[t]
+            == self.power_consumption[t] - self.power_production[t] / self.efficiency[t]
             for t in range(self.n_periods)
         ]
 
@@ -316,7 +317,7 @@ class Battery(Element):
         total_energy_values = extract_values(self.stored_energy)
 
         # Convert to SOC percentage
-        capacity_array = np.array(self.capacity)[:-1]  # Use n_periods values
+        capacity_array = np.array(self.capacity)
         soc_values = (np.array(total_energy_values) / capacity_array * 100.0).tolist()
 
         outputs: dict[OutputName, OutputData] = {
@@ -337,8 +338,8 @@ class Battery(Element):
         }
 
         for section in self._sections:
-            # Section stored_energy has n_periods+1 values, we only want n_periods for outputs
-            section_energy_values = extract_values(section.stored_energy)[:-1]
+            # Section stored_energy has n_periods+1 values
+            section_energy_values = extract_values(section.stored_energy)
             section_outputs: dict[OutputName, OutputData] = {
                 f"{section.name}_{OUTPUT_NAME_ENERGY_STORED}": OutputData(  # type: ignore[dict-item]
                     type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(section_energy_values)
