@@ -24,7 +24,7 @@ from .const import (
     OutputName,
 )
 from .element import Element
-from .util import broadcast_to_sequence, extract_values
+from .util import broadcast_to_sequence, extract_values, percentage_to_ratio
 
 
 class BatterySection:
@@ -160,13 +160,14 @@ class Battery(Element):
         self.max_discharge_power = broadcast_to_sequence(max_discharge_power, n_periods)
         undercharge_cost = broadcast_to_sequence(undercharge_cost, n_periods)
         overcharge_cost = broadcast_to_sequence(overcharge_cost, n_periods)
-        discharge_cost = broadcast_to_sequence(discharge_cost, n_periods)
+        discharge_cost = broadcast_to_sequence(discharge_cost if discharge_cost is not None else 0.0, n_periods)
 
         # These parameters are defined per energy item, so extend by 1 (repeats the last value)
-        min_charge_ratio = broadcast_to_sequence(min_charge_percentage, n_periods + 1)
-        max_charge_ratio = broadcast_to_sequence(max_charge_percentage, n_periods + 1)
-        undercharge_ratio = broadcast_to_sequence(undercharge_percentage, n_periods + 1)
-        overcharge_ratio = broadcast_to_sequence(overcharge_percentage, n_periods + 1)
+        # Convert percentages (0-100) to ratios (0-1)
+        min_charge_ratio = percentage_to_ratio(broadcast_to_sequence(min_charge_percentage, n_periods + 1))
+        max_charge_ratio = percentage_to_ratio(broadcast_to_sequence(max_charge_percentage, n_periods + 1))
+        undercharge_ratio = percentage_to_ratio(broadcast_to_sequence(undercharge_percentage, n_periods + 1))
+        overcharge_ratio = percentage_to_ratio(broadcast_to_sequence(overcharge_percentage, n_periods + 1))
         self.capacity = broadcast_to_sequence(capacity, n_periods + 1)
 
         # Validate percentage ordering for all time periods
@@ -209,7 +210,7 @@ class Battery(Element):
             )
             initial_charge = max(initial_charge - undercharge_capacity[0], 0.0)
 
-        normal_range = (np.array(max_charge_percentage) - np.array(min_charge_percentage)) / 100.0
+        normal_range = np.array(max_charge_ratio) - np.array(min_charge_ratio)
         normal_capacity = (normal_range * np.array(self.capacity)).tolist()
         self._sections.append(
             BatterySection(
@@ -244,22 +245,18 @@ class Battery(Element):
             for constraint_name, constraint in section.constraints.items():
                 self._constraints[f"{section.name}_{constraint_name}"] = constraint
 
-        if max_charge_power is not None or max_discharge_power is not None:
-            # Make the power limits constraints by measuring relative power consumption
-            total_power = [
-                lpSum(s.power_consumption[t] - s.power_production[t] for s in self._sections)
+        # Power limits constrain the individual charge/discharge power, not the net
+        # This prevents unbounded increases in both energy_in and energy_out
+        if self.max_charge_power is not None:
+            self._constraints[CONSTRAINT_NAME_MAX_CHARGE_POWER] = [
+                lpSum(s.power_consumption[t] for s in self._sections) <= self.max_charge_power[t]
                 for t in range(self.n_periods)
             ]
-
-            # Total power must be within charge/discharge limits
-            if self.max_charge_power is not None:
-                self._constraints[CONSTRAINT_NAME_MAX_CHARGE_POWER] = [
-                    total_power[t] <= self.max_charge_power[t] for t in range(self.n_periods)
-                ]
-            if self.max_discharge_power is not None:
-                self._constraints[CONSTRAINT_NAME_MAX_DISCHARGE_POWER] = [
-                    -total_power[t] <= self.max_discharge_power[t] for t in range(self.n_periods)
-                ]
+        if self.max_discharge_power is not None:
+            self._constraints[CONSTRAINT_NAME_MAX_DISCHARGE_POWER] = [
+                lpSum(s.power_production[t] for s in self._sections) <= self.max_discharge_power[t]
+                for t in range(self.n_periods)
+            ]
 
     @property
     def power_consumption(self) -> Sequence[LpAffineExpression]:
