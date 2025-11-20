@@ -80,20 +80,16 @@ class BatterySection:
             "capacity_lower": [self.energy_in[t + 1] - self.energy_out[t + 1] >= 0 for t in range(n_periods)],
         }
 
-    @property
-    def power_consumption(self) -> Sequence[LpAffineExpression]:
-        """Return the power consumption of the section."""
-        return [(self.energy_in[t + 1] - self.energy_in[t]) / self.period for t in range(self.n_periods)]
-
-    @property
-    def power_production(self) -> Sequence[LpAffineExpression]:
-        """Return the power production of the section."""
-        return [(self.energy_out[t + 1] - self.energy_out[t]) / self.period for t in range(self.n_periods)]
-
-    @property
-    def stored_energy(self) -> Sequence[LpAffineExpression]:
-        """Return the stored energy of the section."""
-        return [self.energy_in[t] - self.energy_out[t] for t in range(self.n_periods + 1)]
+        # Pre-calculate power and energy expressions to avoid recomputing them
+        self.power_consumption: Sequence[LpAffineExpression] = [
+            (self.energy_in[t + 1] - self.energy_in[t]) / self.period for t in range(self.n_periods)
+        ]
+        self.power_production: Sequence[LpAffineExpression] = [
+            (self.energy_out[t + 1] - self.energy_out[t]) / self.period for t in range(self.n_periods)
+        ]
+        self.stored_energy: Sequence[LpAffineExpression] = [
+            self.energy_in[t] - self.energy_out[t] for t in range(self.n_periods + 1)
+        ]
 
     def cost(self) -> Sequence[LpAffineExpression]:
         """Return the cost of the section."""
@@ -180,9 +176,11 @@ class Battery(Element):
 
         # From the early charge value, make two incentives, one for charging early and one for discharging early.
         # We will also multiply these values for each section to make it more/less attractive.
-        # This also makes a small spread between charging and discharging which helps prevent oscillation.
+        # Charge incentive: negative cost (benefit) that decreases over time (-incentive -> 0)
+        # Discharge incentive: positive cost that increases over time (incentive -> 2*incentive)
+        # This ensures discharging always has a cost, preventing arbitrage from free early discharge
         charge_early_incentive = np.linspace(-early_charge_incentive, 0.0, n_periods)
-        discharge_early_incentive = np.linspace(0.0, early_charge_incentive, n_periods)
+        discharge_early_incentive = np.linspace(early_charge_incentive, 2.0 * early_charge_incentive, n_periods)
 
         # Convert cost parameters to sequences (per power item so n_periods)
 
@@ -204,7 +202,7 @@ class Battery(Element):
                     name="undercharge",
                     capacity=undercharge_capacity,
                     charge_cost=(charge_early_incentive * 3).tolist(),
-                    discharge_cost=((discharge_early_incentive * 1) + np.array(discharge_cost)).tolist(),
+                    discharge_cost=((discharge_early_incentive * 1) + np.array(undercharge_cost)).tolist(),
                     initial_charge=section_initial_charge,
                     period=period,
                     n_periods=n_periods,
@@ -251,17 +249,27 @@ class Battery(Element):
             for constraint_name, constraint in section.constraints.items():
                 self._constraints[f"{section.name}_{constraint_name}"] = constraint
 
+        # Pre-calculate power and energy expressions to avoid recomputing them
+        self.power_consumption: Sequence[LpAffineExpression] = [
+            lpSum(s.power_consumption[t] for s in self._sections) for t in range(self.n_periods)
+        ]
+        self.power_production: Sequence[LpAffineExpression] = [
+            lpSum(s.power_production[t] for s in self._sections) for t in range(self.n_periods)
+        ]
+        self.stored_energy: Sequence[LpAffineExpression] = [
+            self.inaccessible_energy[t] + lpSum(s.energy_in[t] - s.energy_out[t] for s in self._sections)
+            for t in range(self.n_periods + 1)
+        ]
+
         # Power limits constrain the individual charge/discharge power, not the net
         # This prevents unbounded increases in both energy_in and energy_out
         if self.max_charge_power is not None:
             self._constraints[CONSTRAINT_NAME_MAX_CHARGE_POWER] = [
-                lpSum(s.power_consumption[t] for s in self._sections) <= self.max_charge_power[t]
-                for t in range(self.n_periods)
+                self.power_consumption[t] <= self.max_charge_power[t] for t in range(self.n_periods)
             ]
         if self.max_discharge_power is not None:
             self._constraints[CONSTRAINT_NAME_MAX_DISCHARGE_POWER] = [
-                lpSum(s.power_production[t] for s in self._sections) <= self.max_discharge_power[t]
-                for t in range(self.n_periods)
+                self.power_production[t] <= self.max_discharge_power[t] for t in range(self.n_periods)
             ]
 
         # Prevent simultaneous full charging and discharging using time-slicing constraint:
@@ -275,24 +283,6 @@ class Battery(Element):
                 if self.max_charge_power[t] > 0 and self.max_discharge_power[t] > 0
             ]
 
-    @property
-    def power_consumption(self) -> Sequence[LpAffineExpression]:
-        """Return the power consumption of the battery."""
-        return [lpSum(s.power_consumption[t] for s in self._sections) for t in range(self.n_periods)]
-
-    @property
-    def power_production(self) -> Sequence[LpAffineExpression]:
-        """Return the power production of the battery."""
-        return [lpSum(s.power_production[t] for s in self._sections) for t in range(self.n_periods)]
-
-    @property
-    def stored_energy(self) -> Sequence[LpAffineExpression]:
-        """Return the stored energy of the battery."""
-        return [
-            self.inaccessible_energy[t] + lpSum(s.energy_in[t] - s.energy_out[t] for s in self._sections)
-            for t in range(self.n_periods + 1)
-        ]
-
     def build_constraints(self) -> None:
         """Build network-dependent constraints for the battery.
 
@@ -301,9 +291,13 @@ class Battery(Element):
         """
 
         # Power balance with efficiency:
+        # External Power = (Internal Charge / Efficiency) - (Internal Discharge * Efficiency)
+        # This accounts for losses in both directions:
+        # - Charging requires MORE external power than stored
+        # - Discharging provides LESS external power than released
         self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
-            self.connection_power(t) * self.efficiency[t]
-            == self.power_consumption[t] - self.power_production[t] / self.efficiency[t]
+            self.connection_power(t)
+            == self.power_consumption[t] / self.efficiency[t] - self.power_production[t] * self.efficiency[t]
             for t in range(self.n_periods)
         ]
 

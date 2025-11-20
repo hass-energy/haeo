@@ -23,7 +23,7 @@ def broadcast_to_sequence(
 def broadcast_to_sequence(
     value: float | Sequence[float] | None,
     n_periods: int,
-) -> list[float] | None:
+) -> Sequence[float] | None:
     """Broadcast a scalar or sequence to match n_periods.
 
     Args:
@@ -33,9 +33,6 @@ def broadcast_to_sequence(
     Returns:
         List of floats with length n_periods, or None if input is None
 
-    Raises:
-        ValueError: If sequence length doesn't match n_periods
-
     """
     # Handle None input
     if value is None:
@@ -43,6 +40,10 @@ def broadcast_to_sequence(
 
     # Convert to array and broadcast
     value_array = np.atleast_1d(value)
+
+    if value_array.size == 0:
+        msg = "Sequence cannot be empty"
+        raise ValueError(msg)
 
     # If it's a single value, broadcast it
     if len(value_array) == 1:
@@ -56,4 +57,4 @@ def broadcast_to_sequence(
     if len(value_array) > n_periods:
         return value_array[:n_periods].tolist()
 
-    return value_array.tolist() + [value_array[-1]] * (n_periods - len(value_array))
+    return value_array.tolist() + [float(value_array[-1])] * (n_periods - len(value_array))

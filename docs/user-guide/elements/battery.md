@@ -1,7 +1,7 @@
 # Battery Configuration
 
 Batteries are energy storage devices that can charge (store energy) and discharge (release energy).
-HAEO optimizes when to charge and discharge based on electricity prices, solar availability, and system constraints.
+HAEO optimizes when to charge and discharge based on electricity prices, solar availability, and economic preferences.
 
 ## Overview
 
@@ -11,7 +11,7 @@ A battery in HAEO represents:
 - **Power limits** for charging and discharging (kW)
 - **State of Charge (SOC)** tracking via a Home Assistant sensor
 - **Efficiency** losses during charge/discharge cycles
-- **Operating range** constraints (min/max SOC)
+- **Operating range preferences** guided by economic costs (min/max SOC)
 
 ## Configuration Fields
 
@@ -20,17 +20,17 @@ A battery in HAEO represents:
 | **Name**                      | String          | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
 | **Capacity**                  | Number (kWh)    | Yes      | -       | Total energy storage capacity                              |
 | **Initial Charge Percentage** | Sensor ID       | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
-| **Min Charge Percentage**     | Number (%)      | No       | 10      | Preferred minimum SOC (inner bound of normal operation)    |
-| **Max Charge Percentage**     | Number (%)      | No       | 90      | Preferred maximum SOC (inner bound of normal operation)    |
-| **Undercharge Percentage**    | Number (%)      | No       | -       | Absolute minimum SOC (outer bound, requires cost)          |
-| **Overcharge Percentage**     | Number (%)      | No       | -       | Absolute maximum SOC (outer bound, requires cost)          |
-| **Undercharge Cost**          | Number (\$/kWh) | No       | -       | Penalty for discharging in undercharge section             |
-| **Overcharge Cost**           | Number (\$/kWh) | No       | -       | Penalty for charging in overcharge section                 |
+| **Min Charge Percentage**     | Number (%)      | No       | 10      | Preferred minimum SOC (inner bound, no penalties)          |
+| **Max Charge Percentage**     | Number (%)      | No       | 90      | Preferred maximum SOC (inner bound, no penalties)          |
+| **Undercharge Percentage**    | Number (%)      | No       | -       | Economic minimum SOC (outer bound, requires cost)          |
+| **Overcharge Percentage**     | Number (%)      | No       | -       | Economic maximum SOC (outer bound, requires cost)          |
+| **Undercharge Cost**          | Number (\$/kWh) | No       | -       | Economic penalty for discharging below min SOC             |
+| **Overcharge Cost**           | Number (\$/kWh) | No       | -       | Economic penalty for charging above max SOC                |
 | **Efficiency**                | Number (%)      | No       | 99      | **One-way** efficiency (see below)                         |
 | **Max Charge Power**          | Number (kW)     | No       | -       | Maximum charging power                                     |
 | **Max Discharge Power**       | Number (kW)     | No       | -       | Maximum discharging power                                  |
-| **Charge Cost**               | Number (\$/kWh) | No       | 0       | Additional charging cost (see below)                       |
-| **Discharge Cost**            | Number (\$/kWh) | No       | 0       | Additional discharging cost (see below)                    |
+| **Early Charge Incentive**    | Number (\$/kWh) | No       | 0.001   | Small cost to prefer early charging (advanced, see below)  |
+| **Discharge Cost**            | Number (\$/kWh) | No       | 0       | Base discharge cost for degradation modeling (see below)   |
 
 If not specified, power is unconstrained (limited only by other system constraints).
 
@@ -73,20 +73,35 @@ Most lithium systems sit in the high 90s, while older chemistries are lower.
 Add limits if your inverter or wiring restricts how quickly the battery can charge or discharge.
 Leave the fields blank when no practical limit applies.
 
-### Charge Cost
+### Early Charge Incentive (Advanced)
 
-Adds an extra cost (or incentive) per kWh when charging.
-Leave it at zero for most systems.
-Set a small negative value if you want the battery to favour early charging, or a small positive value if you want to discourage unnecessary cycling.
+Creates a small time-varying cost that prefers charging earlier in the optimization window when all else is equal.
+Default is 0.001 \$/kWh (0.1 cents).
+
+**How it works**: The incentive varies linearly from a small negative cost (encourages charging) at the beginning of the optimization window to zero at the end.
+This prevents arbitrary timing decisions when grid prices are flat.
+
+**When to adjust**:
+
+- Keep the default (0.001) for most systems
+- Increase slightly (0.002-0.005) if the battery seems to delay charging unnecessarily
+- Decrease (0.0005) if you want more flexibility in timing
+
+**Important**: Keep this value small (< 0.01 \$/kWh) so it doesn't override actual price signals.
 
 ### Discharge Cost
 
-Adds an extra cost per kWh when discharging.
-Use a small positive value if the battery switches direction too often, or leave it at zero if you are happy with the schedule.
+Base cost in \$/kWh applied to all battery discharge operations.
+Models battery degradation from cycling.
+
+**Setting the cost**: Consider the cost of battery wear per cycle.
+A typical value is \$0.00-\$0.05/kWh depending on battery chemistry and expected lifetime.
+
+**Leave at zero** if you don't want to model degradation costs.
 
 ### Undercharge Percentage (Optional)
 
-Define the **absolute minimum SOC** (outer bound) below which the battery cannot discharge.
+Define an **economic minimum SOC** (outer bound) with a cost penalty for discharging below the preferred minimum.
 This creates an "undercharge section" between `undercharge_percentage` and `min_charge_percentage`.
 
 **Ordering requirement**: Must be less than `min_charge_percentage`.
@@ -97,12 +112,15 @@ This creates an "undercharge section" between `undercharge_percentage` and `min_
 undercharge_percentage=5% < min_charge_percentage=10%
 ```
 
-Creates an undercharge section from 5-10% where discharging incurs penalty costs.
-The optimizer will normally keep SOC above 10%, but can discharge into the 5-10% range during extreme conditions (e.g., very high grid prices) while paying the undercharge cost penalty.
+Creates an undercharge section from 5-10% where discharging incurs the `undercharge_cost` penalty.
+The optimizer will prefer to keep SOC above 10%, but can economically discharge into the 5-10% range during extreme conditions (e.g., very high grid prices) when the grid revenue exceeds the penalty cost.
+
+**Key insight**: This is not a hard limit.
+The battery can operate in the undercharge range when economically justified (e.g., grid prices spike high enough to overcome the penalty).
 
 ### Overcharge Percentage (Optional)
 
-Define the **absolute maximum SOC** (outer bound) above which the battery cannot charge.
+Define an **economic maximum SOC** (outer bound) with a cost penalty for charging above the preferred maximum.
 This creates an "overcharge section" between `max_charge_percentage` and `overcharge_percentage`.
 
 **Ordering requirement**: Must be greater than `max_charge_percentage`.
@@ -113,40 +131,59 @@ This creates an "overcharge section" between `max_charge_percentage` and `overch
 max_charge_percentage=90% < overcharge_percentage=95%
 ```
 
-Creates an overcharge section from 90-95% where charging incurs penalty costs.
-The optimizer will normally keep SOC below 90%, but can charge into the 90-95% range to capture cheap energy (e.g., excess solar production) while paying the overcharge cost penalty.
+Creates an overcharge section from 90-95% where charging incurs the `overcharge_cost` penalty.
+The optimizer will prefer to keep SOC below 90%, but can economically charge into the 90-95% range to capture cheap energy (e.g., excess solar production or negative grid prices) when the value exceeds the penalty cost.
+
+**Key insight**: This is not a hard limit.
+The battery can operate in the overcharge range when economically justified (e.g., free solar would otherwise be curtailed).
 
 ### Undercharge Cost (Optional)
 
-Cost penalty in \$/kWh for **discharging** in the undercharge section.
+Economic penalty in \$/kWh for **discharging** from the undercharge section.
 Required when `undercharge_percentage` is configured.
 
-**Setting the cost**: Consider battery degradation from deep discharge cycles.
-A typical value might be \$0.50-\$2.00/kWh.
-Higher values more strongly discourage deep discharge.
+**Setting the cost**: Consider the economic value of avoiding deep discharge:
 
-**Applies to**: Energy discharged **from** the undercharge section (below `min_charge_percentage`).
+- Battery degradation from deep cycles
+- Manufacturer warranty conditions
+- Your risk tolerance for low SOC states
 
-**Time-varying costs**: You can provide sensor-based values for dynamic penalties.
+Typical values: \$0.50-\$2.00/kWh
+
+**How it works**: The optimizer compares grid revenue against this penalty.
+If grid prices are \$0.40/kWh and undercharge cost is \$0.50/kWh, the battery won't discharge into the undercharge section.
+If grid prices spike to \$0.80/kWh, the optimizer will economically justify deep discharge because the \$0.40/kWh profit exceeds the \$0.50/kWh penalty.
+
+**Applies to**: Energy discharged from the undercharge section (below `min_charge_percentage`).
+
+!!! warning "Current Limitation"
+This parameter is validated but not currently applied in cost calculations (implementation bug).
+The undercharge section currently only uses the base `discharge_cost` parameter.
 
 ### Overcharge Cost (Optional)
 
-Cost penalty in \$/kWh for **charging** in the overcharge section.
+Economic penalty in \$/kWh for **charging** into the overcharge section.
 Required when `overcharge_percentage` is configured.
 
-**Setting the cost**: Consider battery degradation from high SOC levels.
-A typical value might be \$0.50-\$2.00/kWh.
-Higher values more strongly discourage overcharging.
+**Setting the cost**: Consider the economic value of avoiding high SOC:
 
-**Applies to**: Energy charged **into** the overcharge section (above `max_charge_percentage`).
+- Battery degradation from high SOC levels
+- Cell balancing concerns
+- Your risk tolerance for high SOC states
 
-**Time-varying costs**: You can provide sensor-based values for dynamic penalties.
+Typical values: \$0.50-\$2.00/kWh
+
+**How it works**: The optimizer compares available energy value against this penalty.
+If grid prices are \$0.10/kWh and overcharge cost is \$1.00/kWh, the battery won't charge into the overcharge section.
+If you have excess solar (free energy), the optimizer will economically justify charging the overcharge section because capturing free energy exceeds the \$1.00/kWh penalty.
+
+**Applies to**: Energy charged into the overcharge section (above `max_charge_percentage`).
 
 ## Configuration Examples
 
 ### Basic Battery Configuration
 
-A typical battery configuration without soft limits:
+A typical battery configuration with just the essential parameters:
 
 | Field                         | Example Value      |
 | ----------------------------- | ------------------ |
@@ -155,15 +192,15 @@ A typical battery configuration without soft limits:
 | **Initial Charge Percentage** | sensor.battery_soc |
 | **Min Charge Percentage**     | 20%                |
 | **Max Charge Percentage**     | 90%                |
-| **Efficiency**                | 98.5%              |
+| **Efficiency**                | 99%                |
 | **Max Charge Power**          | 6 kW               |
 | **Max Discharge Power**       | 6 kW               |
-| **Charge Cost**               | -0.005 \$/kWh      |
-| **Discharge Cost**            | 0.001 \$/kWh       |
+
+This creates a battery that operates in the 20-90% range with no economic penalties for staying within that range.
 
 ### Battery with Extended Operating Range
 
-A battery configured with undercharge and overcharge sections for extended range:
+A battery configured with undercharge and overcharge sections for conditional extended operation:
 
 | Field                         | Example Value      |
 | ----------------------------- | ------------------ |
@@ -176,17 +213,19 @@ A battery configured with undercharge and overcharge sections for extended range
 | **Overcharge Percentage**     | 95%                |
 | **Undercharge Cost**          | 1.50 \$/kWh        |
 | **Overcharge Cost**           | 1.00 \$/kWh        |
-| **Efficiency**                | 98.5%              |
+| **Efficiency**                | 99%                |
 | **Max Charge Power**          | 6 kW               |
 | **Max Discharge Power**       | 6 kW               |
+| **Discharge Cost**            | 0.02 \$/kWh        |
 
 In this example:
 
-- **Undercharge section**: 5-10% (deep discharge with \$1.50/kWh penalty)
-- **Normal section**: 10-90% (preferred operation, no penalty)
-- **Overcharge section**: 90-95% (high SOC with \$1.00/kWh penalty)
+- **Undercharge section**: 5-10% (available with \$1.50/kWh discharge penalty)
+- **Normal section**: 10-90% (preferred operation, only \$0.02/kWh discharge cost for degradation)
+- **Overcharge section**: 90-95% (available with \$1.00/kWh charge penalty)
 - Total usable range: 5-95% (90%)
 - Higher undercharge cost reflects greater degradation risk at low SOC
+- Optimizer will use extended sections only when grid conditions justify the penalties
 
 ## Sensors Created
 
@@ -204,22 +243,24 @@ Each sensor includes forecast attributes with future timestamped values for visu
 
 Configure undercharge and overcharge sections when you want to:
 
-1. **Extend operational range conditionally**: Allow the battery to use extended capacity during extreme price events while keeping normal operation in the preferred range.
+1. **Economic flexibility for extreme conditions**: Allow the battery to operate in extended SOC ranges when grid conditions make it economically worthwhile (e.g., very high grid prices justify deep discharge despite degradation costs).
 
-2. **Model battery degradation**: Reflect increased degradation costs at very low or very high SOC levels.
-    The optimizer will use these sections only when grid savings exceed the penalty costs.
+2. **Model degradation economics**: Reflect the real economic cost of battery degradation at extreme SOC levels.
+   The optimizer will automatically trade off grid savings against battery wear costs.
 
-3. **Safety margins with flexibility**: Maintain conservative normal operation (e.g., 10-90%) while retaining emergency capacity (e.g., 5-95%).
-    The battery can access the extended range during price spikes or excess solar.
+3. **Capture opportunistic value**: Enable the battery to charge above normal limits when excess solar is available or grid prices are negative, while still discouraging routine overcharging.
 
-4. **Time-varying constraints**: Use sensor-based costs to implement dynamic penalties based on conditions like temperature, battery age, or time of day.
+4. **Flexible protection**: Maintain conservative normal operation (e.g., 10-90%) while allowing economically-justified excursions (e.g., 5-95%) rather than imposing hard limits.
 
 **When NOT to use extended ranges**:
 
 - When the normal operating range is sufficient for your use case
-- When you want strict limits without exceptions
-- When the penalty cost structure is unclear or difficult to estimate
-- For new batteries where manufacturer recommendations are uncertain
+- When you want absolute hard limits that cannot be violated under any circumstances (cost-based boundaries are economic, not physical)
+- When you cannot estimate appropriate penalty costs relative to your grid price volatility
+- For new batteries where the degradation cost structure is uncertain
+
+**Key difference from hard limits**: Extended ranges create economic trade-offs, not absolute constraints.
+The battery can operate in these ranges when conditions justify it, providing flexibility while still protecting against unnecessary degradation.
 
 ## Troubleshooting
 
@@ -228,7 +269,7 @@ Configure undercharge and overcharge sections when you want to:
 If your battery remains idle:
 
 1. **Check price forecasts**: HAEO needs price variation to optimize.
-    See the [forecasts page](../forecasts-and-sensors.md) for details.
+   See the [forecasts page](../forecasts-and-sensors.md) for details.
 2. **Verify SOC sensor**: Ensure it's reporting correctly
 3. **Review constraints**: Too-tight SOC limits may prevent operation
 4. **Check connections**: Battery must be [connected](connections.md) to the network
@@ -279,22 +320,22 @@ Build on your battery configuration with these guides.
 
 <div class="grid cards" markdown>
 
-- :material-power-plug:{ .lg .middle } __Add a grid connection__
+- :material-power-plug:{ .lg .middle } **Add a grid connection**
 
-    Link your battery to grid pricing so HAEO can optimize imports and exports.
+  Link your battery to grid pricing so HAEO can optimize imports and exports.
 
-    [:material-arrow-right: Grid guide](grid.md)
+  [:material-arrow-right: Grid guide](grid.md)
 
-- :material-source-branch:{ .lg .middle } __Define connections__
+- :material-source-branch:{ .lg .middle } **Define connections**
 
-    Create power flow links between your battery and the rest of the network.
+  Create power flow links between your battery and the rest of the network.
 
-    [:material-arrow-right: Connection setup](connections.md)
+  [:material-arrow-right: Connection setup](connections.md)
 
-- :material-chart-line:{ .lg .middle } __View optimization results__
+- :material-chart-line:{ .lg .middle } **View optimization results**
 
-    Verify the battery schedule and state of charge produced by HAEO.
+  Verify the battery schedule and state of charge produced by HAEO.
 
-    [:material-arrow-right: Optimization overview](../optimization.md)
+  [:material-arrow-right: Optimization overview](../optimization.md)
 
 </div>
