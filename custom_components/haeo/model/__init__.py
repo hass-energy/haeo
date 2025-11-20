@@ -29,7 +29,6 @@ from .const import (
 )
 from .element import Element as Element
 from .network import Network as Network
-from .util import extract_values
 
 __all__ = [
     "OUTPUT_NAME_BATTERY_STATE_OF_CHARGE",

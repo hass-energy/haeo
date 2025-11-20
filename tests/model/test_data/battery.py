@@ -1,12 +1,12 @@
 """Test data and factories for Battery element."""
 
-from typing import Any
-
 from custom_components.haeo.model.battery import Battery
 
-VALID_CASES = [
+from .element_types import ElementTestCase
+
+VALID_CASES: list[ElementTestCase] = [
     {
-        "description": "Battery charging from infinite source",
+        "description": "Battery charging with fixed input",
         "factory": Battery,
         "data": {
             "name": "battery_charging",
@@ -21,23 +21,24 @@ VALID_CASES = [
             "efficiency": 95.0,
         },
         "inputs": {
-            "power": [None, None, None],  # Infinite (unbounded)
-            "cost": -0.1,  # Negative cost = benefit for consuming (encourages charging)
+            "power": [5.0, 2.0, 0.0],  # Forced input to test efficiency
+            "input_cost": 0.0,
+            "output_cost": 0.0,
         },
         "expected_outputs": {
-            "power_consumed": {"type": "power", "unit": "kW", "values": (5.0, 2.0, 0.0)},
-            "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (2.0, 7.0, 9.0)},
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (20.0, 70.0, 90.0)},
-            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (1.0, 6.0, 8.0)},
-            "normal_power_consumed": {"type": "power", "unit": "kW", "values": (5.0, 2.0, 0.0)},
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (20.0, 67.5, 86.5, 86.5)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (2.0, 6.75, 8.65, 8.65)},
+            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (1.0, 5.75, 7.65, 7.65)},
+            "normal_power_consumed": {"type": "power", "unit": "kW", "values": (4.75, 1.9, 0.0)},
             "normal_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
             "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, -0.001, 0.0)},
-            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.001, 0.002, 0.003)},
+            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
+            "power_consumed": {"type": "power", "unit": "kW", "values": (4.75, 1.9, 0.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
-        "description": "Battery discharging to infinite sink",
+        "description": "Battery discharging with fixed output",
         "factory": Battery,
         "data": {
             "name": "battery_discharging",
@@ -48,23 +49,32 @@ VALID_CASES = [
             "min_charge_percentage": 10.0,
             "max_charge_percentage": 90.0,
             "max_charge_power": 5.0,
-            "max_discharge_power": 3.0,
+            "max_discharge_power": 4.0,
             "efficiency": 95.0,
         },
         "inputs": {
-            "power": [None, None, None],  # Infinite (unbounded)
-            "cost": 0.1,  # Positive cost = benefit for providing power (encourages discharging)
+            "power": [-3.0, -3.0, 0.0],  # Forced output to test efficiency
+            "input_cost": 0.0,
+            "output_cost": 0.0,
         },
         "expected_outputs": {
-            "power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "power_produced": {"type": "power", "unit": "kW", "values": (3.0, 1.0, 3.0)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (8.0, 5.0, 4.0)},
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (80.0, 50.0, 40.0)},
-            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (7.0, 4.0, 3.0)},
+            "battery_state_of_charge": {
+                "type": "soc",
+                "unit": "%",
+                "values": (80.0, 48.421052632, 16.842105263, 16.842105263),
+            },
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (8.0, 4.842105263, 1.684210526, 1.684210526)},
+            "normal_energy_stored": {
+                "type": "energy",
+                "unit": "kWh",
+                "values": (7.0, 3.842105263, 0.684210526, 0.684210526),
+            },
             "normal_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "normal_power_produced": {"type": "power", "unit": "kW", "values": (3.0, 1.0, 3.0)},
+            "normal_power_produced": {"type": "power", "unit": "kW", "values": (3.157894737, 3.157894737, 0.0)},
             "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, -0.001, 0.0)},
-            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.001, 0.002, 0.003)},
+            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
+            "power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (3.157894737, 3.157894737, 0.0)},
         },
     },
     {
@@ -82,18 +92,20 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [2.0, -1.0, 1.0],  # Positive=charge, negative=discharge
-            "cost": 0.0,
+            "input_cost": 0.0,
+            "output_cost": 0.0,
         },
         "expected_outputs": {
-            "power_consumed": {"type": "power", "unit": "kW", "values": (2.0, 0.0, 1.0)},
-            "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 1.0, 0.0)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 7.0, 6.0)},
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 70.0, 60.0)},
-            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (4.0, 6.0, 5.0)},
+            # Note: Time-slice constraint allows some cycling, but neutral cost prevents it.
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 70.0, 60.0, 70.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 7.0, 6.0, 7.0)},
+            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (4.0, 6.0, 5.0, 6.0)},
             "normal_power_consumed": {"type": "power", "unit": "kW", "values": (2.0, 0.0, 1.0)},
             "normal_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 1.0, 0.0)},
             "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, -0.001, 0.0)},
-            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.001, 0.002, 0.003)},
+            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
+            "power_consumed": {"type": "power", "unit": "kW", "values": (2.0, 0.0, 1.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 1.0, 0.0)},
         },
     },
     {
@@ -104,25 +116,39 @@ VALID_CASES = [
             "period": 1.0,
             "n_periods": 3,
             "capacity": 10.0,
-            "initial_charge_percentage": 75.0,  # Start near max
+            "initial_charge_percentage": 50.0,  # Start in middle
             "min_charge_percentage": 20.0,
             "max_charge_percentage": 80.0,
             "overcharge_percentage": 95.0,
-            "overcharge_cost": 10.0,  # Very expensive - more than external benefit
+            "overcharge_cost": 1.0,  # Expensive (1 $/kWh) - more than external benefit
             "max_charge_power": 10.0,
+            "max_discharge_power": 10.0,
             "efficiency": 100.0,  # Perfect efficiency to simplify
         },
         "inputs": {
             "power": [None, None, None],  # Infinite (unbounded)
-            "cost": -0.1,  # 0.1 $/kWh benefit for charging
+            # Benefit for charging (0.1 $/kWh = 10 cents/kWh) - much larger than early_charge_incentive
+            "input_cost": -0.1,
+            "output_cost": 0.1,
         },
         "expected_outputs": {
-            # Should charge to 80% but not beyond due to high overcharge cost
-            "power_consumed": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 0.0)},
+            # With small external benefit (0.01 $/kWh), overcharge cost (1 $/kWh) is too high
+            # Battery should charge to 80% (max normal) and stay there
+            # Overcharge section should remain empty
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 80.0, 80.0, 80.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 8.0, 8.0, 8.0)},
+            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (3.0, 6.0, 6.0, 6.0)},
+            "normal_power_consumed": {"type": "power", "unit": "kW", "values": (3.0, 0.0, 0.0)},
+            "normal_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, -0.001, 0.0)},
+            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
+            "overcharge_energy_stored": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0, 0.0)},
+            "overcharge_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "overcharge_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "overcharge_price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.999, 0.9995, 1.0)},
+            "overcharge_price_production": {"type": "price", "unit": "$/kWh", "values": (0.003, 0.0045, 0.006)},
+            "power_consumed": {"type": "power", "unit": "kW", "values": (3.0, 0.0, 0.0)},
             "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (7.5, 8.0, 8.0)},
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (75.0, 80.0, 80.0)},
-            "section_overcharge_energy": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -143,17 +169,24 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [None, None, None],  # Infinite (unbounded)
-            "cost": -0.1,  # 0.1 $/kWh benefit for charging
+            "input_cost": -0.1,  # 0.1 $/kWh benefit for charging
+            "output_cost": 0.1,
         },
         "expected_outputs": {
-            # Should charge to 80% then continue to 95% using overcharge
-            # Optimizer may split charging across periods due to costs
-            # Energy values show state at START of each period
-            "power_consumed": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 1.5)},
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (75.0, 95.0, 95.0, 95.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (7.5, 9.5, 9.5, 9.5)},
+            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.5, 6.0, 6.0, 6.0)},
+            "normal_power_consumed": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 0.0)},
+            "normal_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, -0.001, 0.0)},
+            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
+            "overcharge_energy_stored": {"type": "energy", "unit": "kWh", "values": (0.0, 1.5, 1.5, 1.5)},
+            "overcharge_power_consumed": {"type": "power", "unit": "kW", "values": (1.5, 0.0, 0.0)},
+            "overcharge_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "overcharge_price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.009, 0.0095, 0.01)},
+            "overcharge_price_production": {"type": "price", "unit": "$/kWh", "values": (0.003, 0.0045, 0.006)},
+            "power_consumed": {"type": "power", "unit": "kW", "values": (2.0, 0.0, 0.0)},
             "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (7.5, 8.0, 8.0)},
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (75.0, 80.0, 80.0)},
-            "section_overcharge_energy": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -169,21 +202,30 @@ VALID_CASES = [
             "max_charge_percentage": 80.0,
             "undercharge_percentage": 5.0,
             "undercharge_cost": 10.0,  # Very expensive - more than external benefit
+            "max_charge_power": 10.0,
             "max_discharge_power": 10.0,
             "efficiency": 100.0,  # Perfect efficiency to simplify
         },
         "inputs": {
             "power": [None, None, None],  # Infinite (unbounded)
-            "cost": 0.1,  # 0.1 $/kWh benefit for discharging
+            "input_cost": 0.1,  # 0.1 $/kWh benefit for discharging
+            "output_cost": -0.1,
         },
         "expected_outputs": {
-            # Should discharge from normal section (0.5 kWh available) but not touch undercharge
-            # Battery starts at 25% with undercharge section full (1.5 kWh) and normal section at 0.5 kWh
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (25.0, 20.0, 20.0, 20.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (2.5, 2.0, 2.0, 2.0)},
+            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (0.5, 0.0, 0.0, 0.0)},
+            "normal_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "normal_power_produced": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 0.0)},
+            "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, -0.001, 0.0)},
+            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
             "power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.5)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (2.5, 2.5, 2.5)},
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (25.0, 25.0, 25.0)},
-            "section_undercharge_energy": {"type": "energy", "unit": "kWh", "values": (1.5, 1.5, 1.5)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 0.0)},
+            "undercharge_energy_stored": {"type": "energy", "unit": "kWh", "values": (1.5, 1.5, 1.5, 1.5)},
+            "undercharge_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "undercharge_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "undercharge_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.003, -0.0015, 0.0)},
+            "undercharge_price_production": {"type": "price", "unit": "$/kWh", "values": (10.001, 10.0015, 10.002)},
         },
     },
     {
@@ -199,22 +241,30 @@ VALID_CASES = [
             "max_charge_percentage": 80.0,
             "undercharge_percentage": 5.0,
             "undercharge_cost": 0.01,  # Cheap - less than external benefit
+            "max_charge_power": 10.0,
             "max_discharge_power": 10.0,
             "efficiency": 100.0,  # Perfect efficiency to simplify
         },
         "inputs": {
             "power": [None, None, None],  # Infinite (unbounded)
-            "cost": 0.1,  # 0.1 $/kWh benefit for discharging
+            "input_cost": 0.1,  # 0.1 $/kWh benefit for discharging
+            "output_cost": -0.1,
         },
         "expected_outputs": {
-            # Should discharge normal section then continue into undercharge section
-            # Battery starts at 25% with undercharge full (1.5 kWh) and normal at 0.5 kWh
-            # Scaled incentives encourage proper ordering: normal discharges first
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (25.0, 5.0, 5.0, 5.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (2.5, 0.5, 0.5, 0.5)},
+            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (0.5, 0.0, 0.0, 0.0)},
+            "normal_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "normal_power_produced": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 0.0)},
+            "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, -0.001, 0.0)},
+            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
             "power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "power_produced": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 1.5)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (2.5, 2.0, 2.0)},
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (25.0, 20.0, 20.0)},
-            "section_undercharge_energy": {"type": "energy", "unit": "kWh", "values": (1.5, 1.5, 1.5)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (2.0, 0.0, 0.0)},
+            "undercharge_energy_stored": {"type": "energy", "unit": "kWh", "values": (1.5, 0.0, 0.0, 0.0)},
+            "undercharge_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "undercharge_power_produced": {"type": "power", "unit": "kW", "values": (1.5, 0.0, 0.0)},
+            "undercharge_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.003, -0.0015, 0.0)},
+            "undercharge_price_production": {"type": "price", "unit": "$/kWh", "values": (0.011, 0.0115, 0.012)},
         },
     },
     {
@@ -239,17 +289,29 @@ VALID_CASES = [
         "inputs": {
             # Test that both sections can coexist without conflicts
             "power": [None, None, None],
-            "cost": 0.0,
+            "input_cost": 0.0,
+            "output_cost": 0.0,
         },
         "expected_outputs": {
-            # Early charge incentive causes charging to 80% in period 0
-            # Both sections coexist without conflicts
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 80.0, 80.0, 80.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 8.0, 8.0, 8.0)},
+            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (3.0, 6.0, 6.0, 6.0)},
+            "normal_power_consumed": {"type": "power", "unit": "kW", "values": (3.0, 0.0, 0.0)},
+            "normal_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, -0.001, 0.0)},
+            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
+            "overcharge_energy_stored": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0, 0.0)},
+            "overcharge_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "overcharge_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "overcharge_price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.009, 0.0095, 0.01)},
+            "overcharge_price_production": {"type": "price", "unit": "$/kWh", "values": (0.003, 0.0045, 0.006)},
             "power_consumed": {"type": "power", "unit": "kW", "values": (3.0, 0.0, 0.0)},
             "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 8.0, 8.0)},
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 80.0, 80.0)},
-            "section_undercharge_energy": {"type": "energy", "unit": "kWh", "values": (1.5, 1.5, 1.5)},
-            "section_overcharge_energy": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
+            "undercharge_energy_stored": {"type": "energy", "unit": "kWh", "values": (1.5, 1.5, 1.5, 1.5)},
+            "undercharge_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "undercharge_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "undercharge_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.003, -0.0015, 0.0)},
+            "undercharge_price_production": {"type": "price", "unit": "$/kWh", "values": (0.011, 0.0115, 0.012)},
         },
     },
     {
@@ -262,7 +324,7 @@ VALID_CASES = [
             "capacity": 10.0,
             "initial_charge_percentage": 75.0,
             "min_charge_percentage": 20.0,
-            "max_charge_percentage": [80.0, 70.0, 70.0],  # Threshold drops in period 1
+            "max_charge_percentage": [80.0, 70.0, 70.0, 70.0],  # Threshold drops in period 1
             "overcharge_percentage": 95.0,
             "overcharge_cost": 0.05,
             "max_charge_power": 10.0,
@@ -271,43 +333,64 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [0.0, 0.0, 0.0],  # No external power flow
-            "cost": 0.0,
+            "input_cost": 0.0,
+            "output_cost": 0.0,
         },
         "expected_outputs": {
-            # Battery starts at 75% in normal range
-            # When threshold drops to 70%, the 5% (0.5 kWh) moves to overcharge section
-            # Total energy stays at 7.5 kWh, but section distribution changes
-            # Small power flows in period 0 may occur due to optimizer handling constraint changes
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (75.0, 75.0, 75.0, 75.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (7.5, 7.5, 7.5, 7.5)},
+            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.5, 5.0, 5.0, 5.0)},
+            "normal_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "normal_power_produced": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 0.0)},
+            "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, -0.001, 0.0)},
+            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
+            "overcharge_energy_stored": {"type": "energy", "unit": "kWh", "values": (0.0, 0.5, 0.5, 0.5)},
+            "overcharge_power_consumed": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 0.0)},
+            "overcharge_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
+            "overcharge_price_consumption": {"type": "price", "unit": "$/kWh", "values": (0.049, 0.0495, 0.05)},
+            "overcharge_price_production": {"type": "price", "unit": "$/kWh", "values": (0.003, 0.0045, 0.006)},
             "power_consumed": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 0.0)},
             "power_produced": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 0.0)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (7.5, 7.5, 7.5)},
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (75.0, 75.0, 75.0)},
-            "section_overcharge_energy": {"type": "energy", "unit": "kWh", "values": (0.0, 0.5, 0.5)},
+        },
+    },
+    {
+        "description": "Battery with 50% efficiency - explicit efficiency validation",
+        "factory": Battery,
+        "data": {
+            "name": "battery_efficiency_test",
+            "period": 1.0,
+            "n_periods": 2,
+            "capacity": 10.0,
+            "initial_charge_percentage": 50.0,
+            "min_charge_percentage": 10.0,
+            "max_charge_percentage": 90.0,
+            "max_charge_power": 10.0,
+            "max_discharge_power": 10.0,
+            "efficiency": 50.0,  # 50% round-trip efficiency
+        },
+        "inputs": {
+            "power": [8.0, 0.0],  # Forced input to test efficiency (max charge 4.0kWh / 0.5 = 8.0kW)
+            "input_cost": 0.0,
+            "output_cost": 0.0,
+        },
+        "expected_outputs": {
+            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 90.0, 90.0)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 9.0, 9.0)},
+            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (4.0, 8.0, 8.0)},
+            "normal_power_consumed": {"type": "power", "unit": "kW", "values": (4.0, 0.0)},
+            "normal_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
+            "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, 0.0)},
+            "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.004)},
+            "power_consumed": {"type": "power", "unit": "kW", "values": (4.0, 0.0)},
+            "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
         },
     },
 ]
 
-INVALID_CASES: list[dict[str, Any]] = [
-    {
-        "description": "Battery capacity array length mismatch",
-        "element_class": Battery,
-        "data": {
-            "name": "test_battery",
-            "period": 1.0,
-            "n_periods": 3,
-            "capacity": [10.0, 10.0],  # Only 2 values for 3 periods
-            "initial_charge_percentage": 50.0,
-            "min_charge_percentage": 20.0,
-            "max_charge_percentage": 80.0,
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
-            "efficiency": 95.0,
-        },
-        "expected_error": "Sequence length .* must match n_periods",
-    },
+INVALID_CASES: list[ElementTestCase] = [
     {
         "description": "Battery min_charge_percentage greater than max_charge_percentage",
-        "element_class": Battery,
+        "factory": Battery,
         "data": {
             "name": "test_battery",
             "period": 1.0,
@@ -320,11 +403,11 @@ INVALID_CASES: list[dict[str, Any]] = [
             "max_discharge_power": 5.0,
             "efficiency": 95.0,
         },
-        "expected_error": "min_charge_percentage .* must be less than max_charge_percentage",
+        "expected_error": "min_charge_ratio .* must be less than max_charge_ratio",
     },
     {
         "description": "Battery undercharge_percentage greater than min_charge_percentage",
-        "element_class": Battery,
+        "factory": Battery,
         "data": {
             "name": "test_battery",
             "period": 1.0,
@@ -334,15 +417,16 @@ INVALID_CASES: list[dict[str, Any]] = [
             "min_charge_percentage": 20.0,
             "max_charge_percentage": 80.0,
             "undercharge_percentage": 30.0,  # Greater than min
+            "undercharge_cost": 0.01,
             "max_charge_power": 5.0,
             "max_discharge_power": 5.0,
             "efficiency": 95.0,
         },
-        "expected_error": "undercharge_percentage .* must be less than min_charge_percentage",
+        "expected_error": "undercharge_ratio .* must be less than min_charge_ratio",
     },
     {
         "description": "Battery max_charge_percentage greater than overcharge_percentage",
-        "element_class": Battery,
+        "factory": Battery,
         "data": {
             "name": "test_battery",
             "period": 1.0,
@@ -352,10 +436,24 @@ INVALID_CASES: list[dict[str, Any]] = [
             "min_charge_percentage": 20.0,
             "max_charge_percentage": 80.0,
             "overcharge_percentage": 70.0,  # Less than max
+            "overcharge_cost": 0.01,
             "max_charge_power": 5.0,
             "max_discharge_power": 5.0,
             "efficiency": 95.0,
         },
-        "expected_error": "overcharge_percentage .* must be greater than max_charge_percentage",
+        "expected_error": "overcharge_ratio .* must be greater than max_charge_ratio",
+    },
+    {
+        "description": "Battery with empty forecast",
+        "factory": Battery,
+        "data": {
+            "name": "test_battery",
+            "period": 1.0,
+            "n_periods": 3,
+            "capacity": 10.0,
+            "initial_charge_percentage": 50.0,
+            "max_charge_percentage": [],  # Empty list
+        },
+        "expected_error": "Sequence cannot be empty",
     },
 ]
