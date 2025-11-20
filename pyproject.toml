@@ -9,7 +9,7 @@ dependencies = ["homeassistant>=2025.4.4", "numpy>=2.2.2", "pulp[highs]>=3.3.0"]
 
 [dependency-groups]
 dev = [
-    "freezegun==1.5.2",
+    "freezegun>=1.5.2",
     "matplotlib>=3.10.7",
     "mdformat-beautysh>=1.0.0",
     "mdformat-config>=0.2.1",
@@ -26,9 +26,9 @@ dev = [
     "mkdocs-material>=9.5.47",
     "mkdocs>=1.6.1",
     "pyright>=1.1.390",
-    "pytest-cov>=6.1.1,<=6.2.1",
-    "pytest-homeassistant-custom-component>=0.13.260,<=0.13.294",
-    "pytest>=8.3.5,<=9.0.1",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "pytest-homeassistant-custom-component>=0.13.281",
     "ruff>=0.13.1",
     "setuptools>=80.9.0",
     "syrupy>=4.9.1",
@@ -48,7 +48,7 @@ ignore = [
     'COM812',  # Formatter already deals with trailing commas
     'D202',    # Blank lines after docstring are fine
     'D203',    # Don't put a newline between the class and docstring (D211 is used instead)
-    'D213',    # Multiline docstrings have an empty first line (Incompatible with D212)
+    'D213',    # Multiline doc strings have an empty first line (Incompatible with D212)
     'PLR0913', # Parameter limits are a something for code review not linting
     'PLR0915', # Too many statements is something for code review not linting
     'PLR0912', # Too many branches is something for code review not linting
