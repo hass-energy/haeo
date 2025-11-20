@@ -281,8 +281,9 @@ $$
 - **Discharge cost**: Base discharge cost $c_{\text{discharge}}$ with weak late-discharge incentive (1× multiplier)
 
 !!! bug "Implementation Note"
-The `undercharge_cost` parameter is currently not applied in the cost calculation (potential bug).
-Only the base `discharge_cost` is used for the undercharge section.
+
+  The `undercharge_cost` parameter is currently not applied in the cost calculation (potential bug).
+  Only the base `discharge_cost` is used for the undercharge section.
 
 **Normal section** (always present):
 
@@ -347,7 +348,7 @@ For a battery with $\epsilon = 0.001$ \$/kWh, $c_{\text{undercharge}} = 1.50$ \$
 - Normal discharge: $2 \times 0.001 = 0.002$ \$/kWh
 - Undercharge discharge: $1 \times 0.001 + 1.50 = 1.501$ \$/kWh (penalty)
 
-The small incentive values (tenths of cents) break ties when grid prices are equal, while the larger penalty values ($1+/kWh) require significant price differentials to overcome.
+The small incentive values (tenths of cents) break ties when grid prices are equal, while the larger penalty values (\$1+/kWh) require significant price differentials to overcome.
 
 ## Physical Interpretation
 

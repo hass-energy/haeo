@@ -157,8 +157,9 @@ If grid prices spike to \$0.80/kWh, the optimizer will economically justify deep
 **Applies to**: Energy discharged from the undercharge section (below `min_charge_percentage`).
 
 !!! warning "Current Limitation"
-This parameter is validated but not currently applied in cost calculations (implementation bug).
-The undercharge section currently only uses the base `discharge_cost` parameter.
+
+    This parameter is validated but not currently applied in cost calculations (implementation bug).
+    The undercharge section currently only uses the base `discharge_cost` parameter.
 
 ### Overcharge Cost (Optional)
 
@@ -246,7 +247,7 @@ Configure undercharge and overcharge sections when you want to:
 1. **Economic flexibility for extreme conditions**: Allow the battery to operate in extended SOC ranges when grid conditions make it economically worthwhile (e.g., very high grid prices justify deep discharge despite degradation costs).
 
 2. **Model degradation economics**: Reflect the real economic cost of battery degradation at extreme SOC levels.
-   The optimizer will automatically trade off grid savings against battery wear costs.
+    The optimizer will automatically trade off grid savings against battery wear costs.
 
 3. **Capture opportunistic value**: Enable the battery to charge above normal limits when excess solar is available or grid prices are negative, while still discouraging routine overcharging.
 
@@ -269,7 +270,7 @@ The battery can operate in these ranges when conditions justify it, providing fl
 If your battery remains idle:
 
 1. **Check price forecasts**: HAEO needs price variation to optimize.
-   See the [forecasts page](../forecasts-and-sensors.md) for details.
+    See the [forecasts page](../forecasts-and-sensors.md) for details.
 2. **Verify SOC sensor**: Ensure it's reporting correctly
 3. **Review constraints**: Too-tight SOC limits may prevent operation
 4. **Check connections**: Battery must be [connected](connections.md) to the network
@@ -322,20 +323,20 @@ Build on your battery configuration with these guides.
 
 - :material-power-plug:{ .lg .middle } **Add a grid connection**
 
-  Link your battery to grid pricing so HAEO can optimize imports and exports.
+    Link your battery to grid pricing so HAEO can optimize imports and exports.
 
-  [:material-arrow-right: Grid guide](grid.md)
+    [:material-arrow-right: Grid guide](grid.md)
 
 - :material-source-branch:{ .lg .middle } **Define connections**
 
-  Create power flow links between your battery and the rest of the network.
+    Create power flow links between your battery and the rest of the network.
 
-  [:material-arrow-right: Connection setup](connections.md)
+    [:material-arrow-right: Connection setup](connections.md)
 
 - :material-chart-line:{ .lg .middle } **View optimization results**
 
-  Verify the battery schedule and state of charge produced by HAEO.
+    Verify the battery schedule and state of charge produced by HAEO.
 
-  [:material-arrow-right: Optimization overview](../optimization.md)
+    [:material-arrow-right: Optimization overview](../optimization.md)
 
 </div>
