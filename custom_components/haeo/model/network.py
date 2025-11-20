@@ -68,9 +68,9 @@ class Network:
             source_element = self.elements.get(element.source)
             target_element = self.elements.get(element.target)
 
-            if source_element is not None and isinstance(source_element, Element):
+            if source_element is not None and not isinstance(source_element, Connection):
                 source_element.register_connection(element, "source")
-            if target_element is not None and isinstance(target_element, Element):
+            if target_element is not None and isinstance(target_element, Connection):
                 target_element.register_connection(element, "target")
 
         return element

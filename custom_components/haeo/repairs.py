@@ -14,7 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 def _summarize_components(components: Sequence[Collection[str]]) -> str:
     """Create a human-readable summary of disconnected components."""
 
-    lines = []
+    lines: list[str] = []
     for index, component in enumerate(components, start=1):
         members = ", ".join(sorted(component)) if component else "(no entities)"
         lines.append(f"{index}) {members}")

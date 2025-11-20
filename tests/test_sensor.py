@@ -35,6 +35,7 @@ class _DummyCoordinator:
     """Minimal coordinator stub for sensor tests."""
 
     def __init__(self) -> None:
+        super().__init__()
         self.data: dict[str, dict[str, CoordinatorOutput]] = {}
         self.last_update_success = True
         self._listeners: list[Callable[[], None]] = []

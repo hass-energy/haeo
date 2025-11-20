@@ -27,7 +27,7 @@ This installs all development dependencies including:
 
 - pytest (testing)
 - ruff (linting/formatting)
-- mypy (type checking)
+- pyright (type checking)
 - mkdocs (documentation)
 
 ## Running Tests
@@ -48,19 +48,19 @@ uv run pytest --cov=custom_components.haeo
 ### Linting
 
 ```bash
-uv run ruff check custom_components/ tests/
+uv run ruff check
 ```
 
 ### Formatting
 
 ```bash
-uv run ruff format custom_components/ tests/
+uv run ruff format
 ```
 
 ### Type Checking
 
 ```bash
-uv run mypy custom_components/
+uv run pyright
 ```
 
 ## Documentation

@@ -150,6 +150,7 @@ async def test_async_setup_entry_initializes_coordinator(
 
     class DummyCoordinator:
         def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+            super().__init__()
             self.hass = hass_param
             self.config_entry = entry_param
             self.async_config_entry_first_refresh = AsyncMock()

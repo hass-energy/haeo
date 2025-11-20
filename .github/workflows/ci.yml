@@ -52,8 +52,8 @@ jobs:
       - name: Type Check
         if: ${{ !cancelled() }}
         run: |
-          uv run mypy . \
-            | reviewdog -f=mypy -name="mypy type check" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
+          uv run pyright \
+            | reviewdog -efm="%f:%l:%c - %t%*[^:]: %m" -name="pyright type check" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
       - name: Prettier
         if: ${{ !cancelled() }}

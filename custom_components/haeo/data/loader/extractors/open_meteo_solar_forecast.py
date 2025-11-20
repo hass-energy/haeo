@@ -9,6 +9,8 @@ from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import UnitOfPower
 from homeassistant.core import State
 
+from custom_components.haeo.helpers.types import is_mapping
+
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,7 +46,7 @@ class Parser:
             return False
 
         watts = state.attributes["watts"]
-        if not isinstance(watts, Mapping) or not watts:
+        if not is_mapping(watts) or not watts:
             return False
 
         return all(is_parsable_to_datetime(k) and isinstance(v, (int, float)) for k, v in watts.items())
