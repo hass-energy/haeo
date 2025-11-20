@@ -6,7 +6,7 @@ import numpy as np
 
 from custom_components.haeo.data.util.forecast_cycle import normalize_forecast_cycle
 
-type ForecastSeries = list[tuple[int, float]]
+from . import ForecastSeries
 
 
 def fuse_to_horizon(

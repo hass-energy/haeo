@@ -130,6 +130,13 @@ INVALID: list[dict[str, Any]] = [
         "description": "Amber sensor with forecasts not being a list",
     },
     {
+        "entity_id": "sensor.empty_forecasts",
+        "state": "0",
+        "attributes": {"forecasts": []},
+        "expected_format": None,
+        "description": "Amber sensor with empty forecasts list",
+    },
+    {
         "entity_id": "sensor.amber_mixed_valid_invalid",
         "state": "0.13",
         "attributes": {

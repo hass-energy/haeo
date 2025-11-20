@@ -4,8 +4,7 @@ from collections.abc import Mapping
 
 import numpy as np
 
-type ForecastSeries = list[tuple[int, float]]
-type SensorPayload = float | ForecastSeries
+from . import ForecastSeries, SensorPayload
 
 
 def combine_sensor_payloads(payloads: Mapping[str, SensorPayload]) -> tuple[float, ForecastSeries]:
