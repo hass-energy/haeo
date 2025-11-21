@@ -261,15 +261,18 @@ class Battery(Element):
             for t in range(self.n_periods + 1)
         ]
 
-        # Power limits constrain the individual charge/discharge power, not the net
-        # This prevents unbounded increases in both energy_in and energy_out
+        # Power limits constrain external power (after efficiency losses)
+        # max_charge_power: limits total power drawn from network (internal storage is less due to efficiency)
+        # max_discharge_power: limits total power sent to network (internal release is more due to efficiency)
         if self.max_charge_power is not None:
             self._constraints[CONSTRAINT_NAME_MAX_CHARGE_POWER] = [
-                self.power_consumption[t] <= self.max_charge_power[t] for t in range(self.n_periods)
+                self.power_consumption[t] / self.efficiency[t] <= self.max_charge_power[t]
+                for t in range(self.n_periods)
             ]
         if self.max_discharge_power is not None:
             self._constraints[CONSTRAINT_NAME_MAX_DISCHARGE_POWER] = [
-                self.power_production[t] <= self.max_discharge_power[t] for t in range(self.n_periods)
+                self.power_production[t] * self.efficiency[t] <= self.max_discharge_power[t]
+                for t in range(self.n_periods)
             ]
 
         # Prevent simultaneous full charging and discharging using time-slicing constraint:
@@ -338,7 +341,6 @@ class Battery(Element):
         }
 
         for section in self._sections:
-            # Section stored_energy has n_periods+1 values
             section_energy_values = extract_values(section.stored_energy)
             section_outputs: dict[OutputName, OutputData] = {
                 f"{section.name}_{OUTPUT_NAME_ENERGY_STORED}": OutputData(  # type: ignore[dict-item]
