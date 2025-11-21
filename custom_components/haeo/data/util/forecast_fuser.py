@@ -16,20 +16,29 @@ def fuse_to_horizon(
 ) -> list[float]:
     """Fuse a combined forecast into interval values aligned with the requested horizon.
 
-    Returns n values for n timestamps where:
-    - Position 0: Present value at horizon_times[0] (rounded current time)
-    - Position k (k≥1): Interval average over [horizon_times[k-1] → horizon_times[k]]
+    Args:
+        present_value: Current sensor value (actual current state)
+        forecast_series: Time series forecast data
+        horizon_times: Boundary timestamps (n_periods+1 values representing interval boundaries)
+
+    Returns:
+        n_periods interval values where:
+        - Position 0: Present value at horizon_times[0] (actual current state)
+        - Position k (k≥1): Interval average over [horizon_times[k-1] → horizon_times[k]]
 
     Fills the horizon by:
-    1. Using forecast data directly where available
-    2. Cycling through 24-hour blocks when beyond the forecast range
+    1. Using present_value as the actual current state
+    2. Using forecast data for interval calculations where available
+    3. Cycling through 24-hour blocks when beyond the forecast range
+
     """
 
     if not horizon_times:
         return []
 
     if not forecast_series:
-        return [float(present_value) for _ in range(len(horizon_times))]
+        # Return n_periods values (len(horizon_times) - 1), all set to present_value
+        return [float(present_value) for _ in range(len(horizon_times) - 1)]
 
     horizon_start = horizon_times[0]
     # We need to extend beyond the last timestamp to compute the final interval average
@@ -76,11 +85,17 @@ def fuse_to_horizon(
     cum = np.concatenate([[0], np.cumsum(time_diffs * value_averages)])
 
     # Extract cumulative values at horizon timestamps
+    # For n+1 boundary timestamps, we need only n intervals
     horizon_indices = np.searchsorted(expanded_block_array["timestamp"], horizon_times)
     cum_target = cum[horizon_indices]
 
-    # Compute interval averages for positions 1 to n-1
+    # Compute interval averages for positions 1 to n_periods-1
+    # np.diff(cum_target) gives us n_periods differences (one per interval between boundaries)
+    # np.diff(horizon_times) gives us n_periods time differences
+    # We want n_periods = len(horizon_times) - 1 total values
     v_target = np.diff(cum_target) / np.diff(horizon_times)
 
-    # Return n values: present value at position 0, followed by n-1 interval averages
-    return [float(present_value)] + [float(value) for value in v_target]
+    # v_target now has len(horizon_times) - 1 values (one per interval)
+    # Return: present value at position 0, followed by len(horizon_times) - 2 interval averages
+    # This gives us len(horizon_times) - 1 total values
+    return [float(present_value)] + [float(value) for value in v_target[: len(horizon_times) - 2]]

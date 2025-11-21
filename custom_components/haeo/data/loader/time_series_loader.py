@@ -51,7 +51,12 @@ class TimeSeriesLoader:
         forecast_times: Sequence[int],
         **_kwargs: Any,
     ) -> list[float]:
-        """Load sensor values and forecasts, returning interpolated values for ``forecast_times``."""
+        """Load sensor values and forecasts, returning interpolated values for ``forecast_times``.
+
+        Note: forecast_times has n_periods+1 values (interval boundaries),
+        but this loader returns n_periods values (interval averages).
+        The fuse_to_horizon function handles this conversion.
+        """
 
         entity_ids = _collect_sensor_ids(value)
 
