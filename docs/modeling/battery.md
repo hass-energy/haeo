@@ -94,6 +94,11 @@ This creates three sections where operation in the undercharge and overcharge zo
 
 ## Model Formulation
 
+The battery model follows the [fence post pattern](index.md#power-and-energy-discretization) used throughout HAEO's optimization.
+Power variables (charge/discharge rates) represent average power over each period and have $T$ values indexed as $t \in \{0, 1, \ldots, T-1\}$.
+Energy variables (stored energy, SOC) represent instantaneous values at time boundaries and have $T+1$ values indexed as $t \in \{0, 1, \ldots, T\}$.
+Power is calculated from the change in energy between consecutive boundaries divided by the period duration.
+
 ### Decision Variables
 
 For each section $n$ and time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for energy state):
