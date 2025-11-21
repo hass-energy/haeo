@@ -17,7 +17,7 @@ def broadcast_to_sequence(
 def broadcast_to_sequence(
     value: float | Sequence[float],
     n_periods: int,
-) -> list[float]: ...
+) -> Sequence[float]: ...
 
 
 def broadcast_to_sequence(
@@ -47,13 +47,13 @@ def broadcast_to_sequence(
 
     # If it's a single value, broadcast it
     if len(value_array) == 1:
-        return list(np.broadcast_to(value_array, (n_periods,)))
+        return np.broadcast_to(value_array, (n_periods,)).tolist()
 
     # If it's a sequence repeat the last value if it's not the same length
     if len(value_array) == n_periods:
-        return list(value_array)
+        return value_array.tolist()
 
     if len(value_array) > n_periods:
-        return list(value_array[:n_periods])
+        return value_array[:n_periods].tolist()
 
-    return list(value_array) + [float(value_array[-1])] * (n_periods - len(value_array))
+    return value_array.tolist() + [float(value_array[-1])] * (n_periods - len(value_array))
