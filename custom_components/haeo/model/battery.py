@@ -250,29 +250,27 @@ class Battery(Element):
                 self._constraints[f"{section.name}_{constraint_name}"] = constraint
 
         # Pre-calculate power and energy expressions to avoid recomputing them
+        # power_consumption: external power drawn from network (more than stored due to efficiency loss)
+        # power_production: external power sent to network (less than released due to efficiency loss)
         self.power_consumption: Sequence[LpAffineExpression] = [
-            lpSum(s.power_consumption[t] for s in self._sections) for t in range(self.n_periods)
+            lpSum(s.power_consumption[t] for s in self._sections) / self.efficiency[t] for t in range(self.n_periods)
         ]
         self.power_production: Sequence[LpAffineExpression] = [
-            lpSum(s.power_production[t] for s in self._sections) for t in range(self.n_periods)
+            lpSum(s.power_production[t] for s in self._sections) * self.efficiency[t] for t in range(self.n_periods)
         ]
         self.stored_energy: Sequence[LpAffineExpression] = [
             self.inaccessible_energy[t] + lpSum(s.energy_in[t] - s.energy_out[t] for s in self._sections)
             for t in range(self.n_periods + 1)
         ]
 
-        # Power limits constrain external power (after efficiency losses)
-        # max_charge_power: limits total power drawn from network (internal storage is less due to efficiency)
-        # max_discharge_power: limits total power sent to network (internal release is more due to efficiency)
+        # Power limits constrain external power (power_consumption/power_production already include efficiency)
         if self.max_charge_power is not None:
             self._constraints[CONSTRAINT_NAME_MAX_CHARGE_POWER] = [
-                self.power_consumption[t] / self.efficiency[t] <= self.max_charge_power[t]
-                for t in range(self.n_periods)
+                self.power_consumption[t] <= self.max_charge_power[t] for t in range(self.n_periods)
             ]
         if self.max_discharge_power is not None:
             self._constraints[CONSTRAINT_NAME_MAX_DISCHARGE_POWER] = [
-                self.power_production[t] * self.efficiency[t] <= self.max_discharge_power[t]
-                for t in range(self.n_periods)
+                self.power_production[t] <= self.max_discharge_power[t] for t in range(self.n_periods)
             ]
 
         # Prevent simultaneous full charging and discharging using time-slicing constraint:
@@ -293,14 +291,10 @@ class Battery(Element):
         Efficiency losses are applied to prevent oscillation (cycling).
         """
 
-        # Power balance with efficiency:
-        # External Power = (Internal Charge / Efficiency) - (Internal Discharge * Efficiency)
-        # This accounts for losses in both directions:
-        # - Charging requires MORE external power than stored
-        # - Discharging provides LESS external power than released
+        # Power balance: connection_power equals net external power
+        # power_consumption and power_production already include efficiency losses
         self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
-            self.connection_power(t)
-            == self.power_consumption[t] / self.efficiency[t] - self.power_production[t] * self.efficiency[t]
+            self.connection_power(t) == self.power_consumption[t] - self.power_production[t]
             for t in range(self.n_periods)
         ]
 
