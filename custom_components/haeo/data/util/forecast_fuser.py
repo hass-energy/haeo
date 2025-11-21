@@ -10,7 +10,7 @@ from . import ForecastSeries
 
 
 def fuse_to_horizon(
-    present_value: float,
+    present_value: float | None,
     forecast_series: ForecastSeries,
     horizon_times: Sequence[int],
 ) -> list[float]:
@@ -28,8 +28,15 @@ def fuse_to_horizon(
     if not horizon_times:
         return []
 
-    if not forecast_series:
-        return [float(present_value) for _ in range(len(horizon_times))]
+    # Can't make any values if both forecast and present_value are missing
+    if not forecast_series and present_value is None:
+        msg = "Either forecast_series or present_value must be provided."
+        raise ValueError(msg)
+
+    # Just a present value, no forecast
+    if not forecast_series and present_value is not None:
+        # Return n_periods values (len(horizon_times) - 1), all set to present_value (or 0.0 if None)
+        return [present_value] * (len(horizon_times) - 1)
 
     horizon_start = horizon_times[0]
     # We need to extend beyond the last timestamp to compute the final interval average
@@ -38,19 +45,23 @@ def fuse_to_horizon(
 
     block, cover_seconds = normalize_forecast_cycle(forecast_series, horizon_start)
 
-    # Insert present_value at horizon_start into the block
+    # Insert present_value at horizon_start into the block (if present_value is not None)
     # First, check if there's already a point at horizon_start
     block_list = list(block)
     block_array_temp = np.array(block_list, dtype=[("timestamp", np.int64), ("value", np.float64)])
     idx = np.searchsorted(block_array_temp["timestamp"], horizon_start)
 
-    if idx < len(block_array_temp) and block_array_temp["timestamp"][idx] == horizon_start:
-        # Replace existing value
-        block_array_temp["value"][idx] = present_value
-        block_with_present = block_array_temp.tolist()
+    if present_value is not None:
+        if idx < len(block_array_temp) and block_array_temp["timestamp"][idx] == horizon_start:
+            # Replace existing value
+            block_array_temp["value"][idx] = present_value
+            block_with_present = block_array_temp.tolist()
+        else:
+            # Insert new point
+            block_with_present = [*block_list[:idx], (horizon_start, present_value), *block_list[idx:]]
     else:
-        # Insert new point
-        block_with_present = [*block_list[:idx], (horizon_start, present_value), *block_list[idx:]]
+        # No present value, use block as-is
+        block_with_present = block_list
 
     # Repeat cover_seconds as needed to cover the entire extended horizon
     # We need at least 2 repetitions to ensure we can interpolate beyond the original forecast
@@ -82,5 +93,10 @@ def fuse_to_horizon(
     # Compute interval averages for positions 1 to n-1
     v_target = np.diff(cum_target) / np.diff(horizon_times)
 
-    # Return n values: present value at position 0, followed by n-1 interval averages
-    return [float(present_value)] + [float(value) for value in v_target]
+    # v_target now has len(horizon_times) - 1 values (one per interval)
+    # Return: present value at position 0 (or first interval average if present_value is None),
+    # followed by remaining interval averages
+    # This gives us len(horizon_times) - 1 total values
+    if present_value is not None:
+        return [float(present_value)] + [float(value) for value in v_target[1:]]
+    return [float(value) for value in v_target]
