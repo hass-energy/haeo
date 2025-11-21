@@ -53,11 +53,11 @@ def _solve_connection_scenario(
 
     # Create power variables: None = unbounded, float = fixed value as LpAffineExpression
     source_vars = [
-        LpVariable(f"source_power_{i}") if val is None else LpAffineExpression(val)
+        LpVariable(f"source_power_{i}") if val is None else LpAffineExpression(constant=val)
         for i, val in enumerate(source_power)
     ]
     target_vars = [
-        LpVariable(f"target_power_{i}") if val is None else LpAffineExpression(val)
+        LpVariable(f"target_power_{i}") if val is None else LpAffineExpression(constant=val)
         for i, val in enumerate(target_power)
     ]
 

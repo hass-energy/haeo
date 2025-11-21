@@ -282,8 +282,8 @@ $$
 
 !!! bug "Implementation Note"
 
-  The `undercharge_cost` parameter is currently not applied in the cost calculation (potential bug).
-  Only the base `discharge_cost` is used for the undercharge section.
+The `undercharge_cost` parameter is currently not applied in the cost calculation (potential bug).
+Only the base `discharge_cost` is used for the undercharge section.
 
 **Normal section** (always present):
 
