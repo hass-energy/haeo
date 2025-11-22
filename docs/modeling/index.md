@@ -109,17 +109,62 @@ The optimization horizon is divided into discrete periods:
 
 Each decision variable exists for every time step.
 
+## Power and Energy Discretization
+
+HAEO distinguishes between two types of measurements across the optimization horizon:
+
+**Power variables** represent average power over each period.
+These are interval measurements—the "fences" in the fence post analogy.
+With $T$ periods, power variables have $T$ values indexed as $t \in \{0, 1, \ldots, T-1\}$.
+
+**Energy variables** represent instantaneous stored energy at time boundaries.
+These are point measurements—the "posts" in the fence post analogy.
+With $T$ periods, energy variables have $T+1$ values indexed as $t \in \{0, 1, \ldots, T\}$.
+
+```mermaid
+gantt
+    title A Gantt Diagram
+    dateFormat X
+    axisFormat %s
+    section Another
+        E0 :milestone, 0, 0s
+        P0 :active, 1s
+        E1 :milestone,
+        P1 :active, 1s
+        E2 :milestone,
+        P2 :active, 1s
+        E3 :milestone,
+
+```
+
+**Energy values** (milestones) are measured at **4 time boundaries**: $E(0), E(1), E(2), E(3)$
+
+**Power values** (bars) are measured over **3 time intervals**: $P(0), P(1), P(2)$
+
+This distinction matters for cost calculations.
+Prices apply to average power over intervals, which is then converted to energy:
+
+$$
+\text{Energy consumed} = P(t) \times \Delta t
+$$
+
+$$
+\text{Cost} = P(t) \times \Delta t \times \text{price}(t)
+$$
+
+Where $\Delta t$ is the period duration in hours.
+
 ## Decision Variables
 
 HAEO's LP solver determines optimal values for these variables:
 
-| Variable          | Symbol                  | Units | Description                       | Count          |
-| ----------------- | ----------------------- | ----- | --------------------------------- | -------------- |
-| Connection power  | $P_c(t)$                | kW    | Power flow through connection $c$ | $N_c \times T$ |
-| Battery energy    | $E_b(t)$                | kWh   | Stored energy in battery $b$      | $N_b \times T$ |
-| Grid import       | $P_{\text{import}}(t)$  | kW    | Power imported from grid          | $N_g \times T$ |
-| Grid export       | $P_{\text{export}}(t)$  | kW    | Power exported to grid            | $N_g \times T$ |
-| Solar curtailment | $P_{\text{curtail}}(t)$ | kW    | Curtailed solar generation        | $N_s \times T$ |
+| Variable          | Symbol                  | Units | Description                       | Count              |
+| ----------------- | ----------------------- | ----- | --------------------------------- | ------------------ |
+| Connection power  | $P_c(t)$                | kW    | Power flow through connection $c$ | $N_c \times T$     |
+| Battery energy    | $E_b(t)$                | kWh   | Stored energy in battery $b$      | $N_b \times (T+1)$ |
+| Grid import       | $P_{\text{import}}(t)$  | kW    | Power imported from grid          | $N_g \times T$     |
+| Grid export       | $P_{\text{export}}(t)$  | kW    | Power exported to grid            | $N_g \times T$     |
+| Solar curtailment | $P_{\text{curtail}}(t)$ | kW    | Curtailed solar generation        | $N_s \times T$     |
 
 Where:
 

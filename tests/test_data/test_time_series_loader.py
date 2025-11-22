@@ -113,10 +113,10 @@ async def test_time_series_loader_load_merges_present_and_forecast(
     result = await loader.load(
         hass=hass,
         value=["sensor.present_power", "sensor.forecast_day", "sensor.forecast_night"],
-        forecast_times=[100, 250, 400, 700],
+        forecast_times=[100, 250, 400, 700, 850],
     )
 
-    # Verify correct number of values and that present value is at position 0
+    # Verify correct number of interval values
     assert len(result) == 4
     assert result[0] == pytest.approx(1.5)
     # Remaining values are computed by fusion logic (tested in test_forecast_fuser.py)
@@ -138,9 +138,10 @@ async def test_time_series_loader_load_present_only(hass: HomeAssistant, monkeyp
     result = await loader.load(
         hass=hass,
         value=["sensor.a", "sensor.b"],
-        forecast_times=[0, 60],
+        forecast_times=[0, 60, 120],
     )
 
+    # Returns 2 interval values, both equal to summed present value
     assert result == [5.0, 5.0]
 
 
