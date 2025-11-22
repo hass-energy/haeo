@@ -1,10 +1,10 @@
 """Test data and factories for Connection element."""
 
-from typing import Any
-
 from custom_components.haeo.model.connection import Connection
 
-VALID_CASES = [
+from .connection_types import ConnectionTestCase
+
+VALID_CASES: list[ConnectionTestCase] = [
     {
         "description": "Connection with forward flow only",
         "factory": Connection,
@@ -188,4 +188,4 @@ VALID_CASES = [
     },
 ]
 
-INVALID_CASES: list[dict[str, Any]] = []
+INVALID_CASES: list[ConnectionTestCase] = []

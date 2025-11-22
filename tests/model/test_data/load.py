@@ -2,7 +2,9 @@
 
 from custom_components.haeo.model.load import Load
 
-VALID_CASES = [
+from .element_types import ElementTestCase
+
+VALID_CASES: list[ElementTestCase] = [
     {
         "description": "Load with varying consumption",
         "factory": Load,
@@ -44,10 +46,10 @@ VALID_CASES = [
     },
 ]
 
-INVALID_CASES = [
+INVALID_CASES: list[ElementTestCase] = [
     {
         "description": "Load with forecast length mismatch",
-        "element_class": Load,
+        "factory": Load,
         "data": {
             "name": "load",
             "period": 1.0,

@@ -1,10 +1,10 @@
 """Test data and factories for Battery element."""
 
-from typing import Any
-
 from custom_components.haeo.model.battery import Battery
 
-VALID_CASES = [
+from .element_types import ElementTestCase
+
+VALID_CASES: list[ElementTestCase] = [
     {
         "description": "Battery charging from infinite source",
         "factory": Battery,
@@ -22,7 +22,8 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [None, None, None],  # Infinite (unbounded)
-            "cost": -0.1,  # Negative cost = benefit for consuming (encourages charging)
+            "input_cost": -0.1,  # Negative cost = benefit for consuming (encourages charging)
+            "output_cost": 0.1,
         },
         "expected_outputs": {
             "power_consumed": {"type": "power", "unit": "kW", "values": (5.0, 5.0, 5.0)},
@@ -49,7 +50,8 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [None, None, None],  # Infinite (unbounded)
-            "cost": 0.1,  # Positive cost = benefit for providing power (encourages discharging)
+            "input_cost": 0.1,  # Positive cost = benefit for providing power (encourages discharging)
+            "output_cost": -0.1,
         },
         "expected_outputs": {
             "power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
@@ -78,7 +80,8 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [2.0, -1.0, 1.0],  # Positive=charge, negative=discharge
-            "cost": 0.0,
+            "input_cost": 0.0,
+            "output_cost": 0.0,
         },
         "expected_outputs": {
             "power_consumed": {"type": "power", "unit": "kW", "values": (2.0, 0.0, 1.0)},
@@ -90,10 +93,10 @@ VALID_CASES = [
     },
 ]
 
-INVALID_CASES: list[dict[str, Any]] = [
+INVALID_CASES: list[ElementTestCase] = [
     {
         "description": "Battery with capacity length mismatch",
-        "element_class": Battery,
+        "factory": Battery,
         "data": {
             "name": "invalid_battery",
             "period": 1.0,
