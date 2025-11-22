@@ -7,14 +7,16 @@ import numpy as np
 from . import ForecastSeries, SensorPayload
 
 
-def combine_sensor_payloads(payloads: Mapping[str, SensorPayload]) -> tuple[float, ForecastSeries]:
+def combine_sensor_payloads(payloads: Mapping[str, SensorPayload]) -> tuple[float | None, ForecastSeries]:
     """Sum present values and merge forecast series on shared timestamps."""
 
-    present_value = 0.0
+    present_value: float | None = None
     forecast_series: list[ForecastSeries] = []
 
     for payload in payloads.values():
         if isinstance(payload, float):
+            if present_value is None:
+                present_value = 0.0
             present_value += payload
         elif isinstance(payload, list):
             forecast_series.append(payload)

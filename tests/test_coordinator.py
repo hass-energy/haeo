@@ -234,6 +234,7 @@ async def test_async_update_data_returns_outputs(
     expected_forecast_times = (
         int(datetime(2024, 1, 1, 0, 0, tzinfo=UTC).timestamp()),
         int(datetime(2024, 1, 1, 0, 30, tzinfo=UTC).timestamp()),
+        int(datetime(2024, 1, 1, 1, 0, tzinfo=UTC).timestamp()),
     )
 
     with (

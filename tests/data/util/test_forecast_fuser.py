@@ -1,181 +1,157 @@
 """Unit tests for forecast fusion logic.
 
-These tests focus on the fuser's core responsibilities:
-- Placing present value at position 0
-- Computing interval averages using trapezoidal integration
-- Handling edge cases (empty data, missing values)
+The fuser combines present values with forecast data to create horizon-aligned interval values using
+the fence post pattern where n+1 boundary timestamps produce n interval values:
+- Position 0: Present value (actual current state at t0)
+- Position k (k≥1): Interval average over [horizon_times[k-1] → horizon_times[k]]
 
-Cycling behavior is tested comprehensively in test_forecast_cycle.py.
-Tests here use forecast data that covers the entire horizon to avoid cycling complexity.
+Tests cover:
+- Present value override behavior (0.0 vs actual values)
+- Interval averaging via trapezoidal integration
+- Edge cases (empty forecasts, constant values, misaligned timestamps)
+
+Cycling behavior (forecast shorter than horizon) is tested in test_forecast_cycle.py.
+Tests use simple integer timestamps to avoid datetime complexity.
 """
-
-from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from custom_components.haeo.data.util.forecast_fuser import fuse_to_horizon
 
 
-def test_fuse_to_horizon_separates_present_and_forecast() -> None:
-    """Fuse to horizon correctly separates present values from forecast values."""
-    start = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
-    # Use 3 timestamps to avoid cycling complexity
-    horizon_times = [int((start + timedelta(hours=h)).timestamp()) for h in range(3)]
+@pytest.mark.parametrize(
+    ("present_value", "forecast_series", "horizon_times", "expected"),
+    [
+        pytest.param(
+            100.0,
+            [(1000, 150.0), (2000, 200.0), (3000, 250.0), (4000, 300.0)],
+            [0, 1000, 2000, 3000, 4000],
+            [100.0, 175.0, 225.0, 275.0],
+            id="present_overrides_forecast_at_t0",
+        ),
+        pytest.param(
+            0.0,
+            [(1000, 150.0), (2000, 200.0), (3000, 250.0), (4000, 300.0)],
+            [0, 1000, 2000, 3000, 4000],
+            [0.0, 175.0, 225.0, 275.0],
+            id="zero_present_value",
+        ),
+        pytest.param(
+            100.0,
+            [],
+            [0, 1000, 2000, 3000, 4000],
+            [100.0, 100.0, 100.0, 100.0],
+            id="only_present_value_no_forecast",
+        ),
+        pytest.param(
+            0.0,
+            [],
+            [0, 1000, 2000, 3000, 4000],
+            [0.0, 0.0, 0.0, 0.0],
+            id="zero_present_no_forecast_returns_zeros",
+        ),
+        pytest.param(
+            50.0,
+            [(0, 100.0), (1000, 150.0), (2000, 200.0), (3000, 250.0)],
+            [0, 1000, 2000, 3000],
+            [50.0, 175.0, 225.0],
+            id="present_at_t0_overrides_forecast",
+        ),
+        pytest.param(
+            0.0,
+            [(0, 100.0), (1800, 150.0), (3600, 200.0), (5400, 250.0), (7200, 300.0), (9000, 350.0)],
+            [0, 1800, 3600, 5400, 7200, 9000],
+            [0.0, 175.0, 225.0, 275.0, 325.0],
+            id="present_zero_with_forecast",
+        ),
+        pytest.param(
+            10.0,
+            [(1000, 20.0), (2000, 30.0), (3000, 40.0), (4000, 50.0), (5000, 60.0)],
+            [0, 1000, 2000, 3000, 4000, 5000],
+            [10.0, 25.0, 35.0, 45.0, 55.0],
+            id="complete_forecast_coverage",
+        ),
+        pytest.param(
+            5.0,
+            [(1000, 15.0), (2000, 20.0), (3000, 25.0)],
+            [0, 1000, 2000, 3000, 4000],
+            [5.0, 17.5, 22.5, 24.940758293838865],
+            id="forecast_cycles_beyond_range",
+        ),
+        pytest.param(
+            42.0,
+            [(0, 84.0), (1000, 84.0), (2000, 84.0)],
+            [0, 1000, 2000],
+            [42.0, 84.0],
+            id="present_overrides_constant_forecast",
+        ),
+        pytest.param(
+            30.0,
+            [(0, 100.0), (2000, 200.0), (4000, 300.0)],
+            [0, 500, 1500, 2500, 3500],  # Horizon boundaries don't align with forecast points
+            [30.0, 150.0, 200.0, 250.0],  # present@0, then trapezoidal averages from pure forecast
+            id="interpolation_between_forecast_points",
+        ),
+        pytest.param(
+            25.0,
+            [(-1000, 50.0), (1000, 150.0), (3000, 250.0)],
+            [0, 1000, 2000, 3000],  # Forecast straddles t0 (starts before horizon)
+            [25.0, 175.0, 225.0],  # Present@0, then pure forecast averages
+            id="forecast_straddles_present_time",
+        ),
+        pytest.param(
+            50.0,
+            [(500, 100.0), (1500, 200.0), (2500, 300.0)],
+            [0, 1000, 2000, 3000],  # Horizon starts before first forecast point
+            [50.0, 200.0, 287.20379146919424],  # present@0, then pure forecast averages
+            id="horizon_starts_before_forecast",
+        ),
+        pytest.param(
+            10.0,
+            [(0, 100.0), (3000, 400.0)],  # Sparse forecast requiring interpolation
+            [0, 1000, 2000, 3000, 4000],  # Multiple intervals between forecast points
+            [10.0, 250.0, 350.0, 398.2014388489209],  # present@0, then pure forecast averages
+            id="sparse_forecast_multiple_interpolations",
+        ),
+        pytest.param(
+            15.0,
+            [(-500, 30.0), (500, 60.0), (1500, 90.0)],  # Forecast before and after t0
+            [0, 1000, 2000],  # Check present value replacement works with straddling forecast
+            [15.0, 86.1611374407583],  # present@0 replaces first interval, then pure forecast average
+            id="forecast_before_and_after_present_override",
+        ),
+    ],
+)
+def test_fuse_to_horizon(
+    present_value: float,
+    forecast_series: list[tuple[int, float]],
+    horizon_times: list[int],
+    expected: list[float],
+) -> None:
+    """Test fuse_to_horizon with various input configurations using fence post pattern.
 
-    # Present value and future forecast
-    present_value = 100.0
-    forecast_series = [
-        (int((start + timedelta(hours=1)).timestamp()), 150.0),
-        (int((start + timedelta(hours=2)).timestamp()), 200.0),
-    ]
+    With n+1 boundary timestamps, returns n_periods values where:
+    - Position 0: Present value (replaces first interval, not affecting future forecast)
+    - Positions 1 to n-1: Interval averages computed from pure forecast data
 
+    This gives n_periods = len(horizon_times) - 1 total values.
+
+    Present value does NOT influence forecast computation - it only replaces the
+    first interval result. All subsequent intervals use trapezoidal integration
+    of the forecast data without any present_value influence.
+    """
     result = fuse_to_horizon(present_value, forecast_series, horizon_times)
 
-    assert len(result) == 3
-    # Position 0: Present value at t0
-    assert result[0] == pytest.approx(100.0)
-    # Position 1: Interval average over [t0 → t1], linear from 100 to 150
-    assert result[1] == pytest.approx(125.0)
-    # Position 2: Interval average over [t1 → t2], linear from 150 to 200
-    assert result[2] == pytest.approx(175.0)
+    assert result == pytest.approx(expected)
 
 
-def test_fuse_to_horizon_handles_no_present_value() -> None:
-    """Fuse to horizon works when there is no present value."""
-    start = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
-    horizon_times = [int((start + timedelta(hours=h)).timestamp()) for h in range(3)]
-
-    # Only forecast values
-    present_value = 0.0
-    forecast_series = [
-        (int((start + timedelta(hours=1)).timestamp()), 150.0),
-        (int((start + timedelta(hours=2)).timestamp()), 200.0),
-    ]
-
-    result = fuse_to_horizon(present_value, forecast_series, horizon_times)
-
-    assert len(result) == 3
-    # Position 0: Present value (0.0)
-    assert result[0] == pytest.approx(0.0)
-    # Position 1: Interval average over [t0 → t1], linear from 0 to 150
-    assert result[1] == pytest.approx(75.0)
-    # Position 2: Interval average over [t1 → t2], linear from 150 to 200
-    assert result[2] == pytest.approx(175.0)
+def test_empty_horizon_times() -> None:
+    """Test that empty horizon_times returns empty list."""
+    result = fuse_to_horizon(42.0, [(0, 100.0)], [])
+    assert result == []
 
 
-def test_fuse_to_horizon_handles_only_present_value() -> None:
-    """Fuse to horizon works when there is only a present value."""
-    start = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
-    horizon_times = [int((start + timedelta(hours=h)).timestamp()) for h in range(24)]
-
-    # Only present value, no forecast
-    present_value = 100.0
-    forecast_series: list[tuple[int, float]] = []
-
-    result = fuse_to_horizon(present_value, forecast_series, horizon_times)
-
-    assert len(result) == 24
-    # All values should be the present value repeated
-    for value in result:
-        assert value == pytest.approx(100.0)
-
-
-def test_fuse_to_horizon_interpolates_within_forecast_range() -> None:
-    """Fuse to horizon correctly interpolates within the forecast range."""
-    start = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
-    horizon_times = [int((start + timedelta(minutes=m)).timestamp()) for m in [0, 30, 60, 90]]
-
-    # Forecast covering entire horizon to avoid cycling
-    present_value = 0.0
-    forecast_series = [
-        (int(start.timestamp()), 100.0),
-        (int((start + timedelta(minutes=30)).timestamp()), 150.0),
-        (int((start + timedelta(minutes=60)).timestamp()), 200.0),
-        (int((start + timedelta(minutes=90)).timestamp()), 250.0),
-    ]
-
-    result = fuse_to_horizon(present_value, forecast_series, horizon_times)
-
-    assert len(result) == 4
-    # Position 0: Present value (0.0, overrides forecast)
-    assert result[0] == pytest.approx(0.0)
-    # Position 1: Interval average over [0 → 30min], linear from 0 to 150
-    assert result[1] == pytest.approx(75.0)
-    # Position 2: Interval average over [30 → 60min], linear from 150 to 200
-    assert result[2] == pytest.approx(175.0)
-    # Position 3: Interval average over [60 → 90min], linear from 200 to 250
-    assert result[3] == pytest.approx(225.0)
-
-
-def test_fuse_to_horizon_with_cycling() -> None:
-    """Fuse to horizon handles horizons beyond forecast range via cycling."""
-    start = datetime(2024, 1, 1, 0, 0, tzinfo=UTC)
-    horizon_times = [int((start + timedelta(hours=h)).timestamp()) for h in range(8)]
-
-    # Forecast covering first 6 hours
-    present_value = 0.0
-    forecast_series = [(int((start + timedelta(hours=h)).timestamp()), float(h * 10)) for h in range(6)]
-
-    result = fuse_to_horizon(present_value, forecast_series, horizon_times)
-
-    # Verify correct length and present value at position 0
-    assert len(result) == 8
-    assert result[0] == pytest.approx(0.0)
-    # Remaining values are produced by cycling logic (tested in test_forecast_cycle.py)
-    assert all(isinstance(v, float) for v in result)
-
-
-def test_fuse_to_horizon_with_single_forecast_point() -> None:
-    """Fuse to horizon handles a single forecast point."""
-    start = datetime(2024, 1, 1, 0, 0, tzinfo=UTC)
-    horizon_times = [int((start + timedelta(hours=h)).timestamp()) for h in range(3)]
-
-    present_value = 5.0
-    forecast_series = [(int((start + timedelta(hours=1)).timestamp()), 15.0)]
-
-    result = fuse_to_horizon(present_value, forecast_series, horizon_times)
-
-    assert len(result) == 3
-    # Position 0: Present value
-    assert result[0] == pytest.approx(5.0)
-    # Position 1: Interval average [0 → 1hr], linear from 5 to 15
-    assert result[1] == pytest.approx(10.0)
-    # Position 2: Beyond forecast range, handled by cycling
-    assert isinstance(result[2], float)
-
-
-def test_fuse_to_horizon_returns_zeros_when_no_data() -> None:
-    """Fuse to horizon should emit zeros when both present and forecast data are absent."""
-
-    start = datetime(2024, 1, 1, tzinfo=UTC)
-    horizon_times = [int((start + timedelta(hours=h)).timestamp()) for h in range(6)]
-
-    result = fuse_to_horizon(0.0, [], horizon_times)
-
-    assert result == [0.0] * len(horizon_times)
-
-
-def test_fuse_to_horizon_with_forecast_covering_full_horizon() -> None:
-    """Fuse to horizon produces accurate interval averages when forecast covers entire horizon."""
-    timestamp = int(datetime(2024, 1, 1, tzinfo=UTC).timestamp())
-    horizon_times = [timestamp + index * 3600 for index in range(4)]
-
-    # Forecast covering entire horizon
-    present_value = 0.0
-    forecast_series = [
-        (timestamp, 10.0),
-        (timestamp + 3600, 20.0),
-        (timestamp + 7200, 30.0),
-        (timestamp + 10800, 40.0),
-    ]
-
-    result = fuse_to_horizon(present_value, forecast_series, horizon_times)
-
-    # Position 0: Present value (overrides forecast)
-    assert result[0] == pytest.approx(0.0)
-    # Position 1: Interval average [t0 → t1], linear from 0 to 20
-    assert result[1] == pytest.approx(10.0)
-    # Position 2: Interval average [t1 → t2], linear from 20 to 30
-    assert result[2] == pytest.approx(25.0)
-    # Position 3: Interval average [t2 → t3], linear from 30 to 40
-    assert result[3] == pytest.approx(35.0)
+def test_neither_forecast_nor_present_value_raises_error() -> None:
+    """Test that missing both forecast_series and present_value raises ValueError."""
+    with pytest.raises(ValueError, match="Either forecast_series or present_value must be provided"):
+        fuse_to_horizon(None, [], [0, 1000, 2000])
