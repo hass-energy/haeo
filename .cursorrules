@@ -1,0 +1,34 @@
+# Cursor Rules for HAEO Project
+
+## Instructions
+
+Please follow the detailed development guidelines in `.github/copilot-instructions.md` for all coding tasks.
+
+## Project Context
+
+This is the HAEO (Home Assistant Energy Optimization) custom integration - a Python 3.13+ Home Assistant custom component for energy network optimization using linear programming.
+
+## Key Guidelines
+
+- **Energy Model Development**: Inherit from base `Entity` class, implement power/energy variables
+- **Integration Development**: Use generic property detection, Voluptuous schemas for validation
+- **Code Quality**: Follow strict typing (Platinum), use American English, SI units
+- **Python Requirements**: Python 3.13+, modern features (pattern matching, type hints, f-strings)
+- **Async Programming**: All external I/O must be async, use asyncio best practices
+
+## Architecture Components
+
+- **Network**: Container managing entities and connections, runs optimization
+- **Entities**: Battery, Grid, Load, Generator, Node - each with power/energy variables
+- **Coordinator**: Bridges HA entities with optimization network
+- **Config Flow**: UI configuration validation and management
+- **Sensors**: Expose optimization results to Home Assistant
+
+## Development Workflow
+
+Use `uv` for fast, reliable Python package management:
+
+- `uv sync` - Install dependencies
+- `uv run pytest` - Run tests
+- `uv run ruff check/format` - Code quality
+- `uv run mypy` - Type checking
