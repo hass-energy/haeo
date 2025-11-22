@@ -82,7 +82,8 @@ async def test_time_series_loader_loads_mixed_live_and_forecast(hass: HomeAssist
     loader = TimeSeriesLoader()
 
     start = datetime(2024, 1, 1, tzinfo=UTC)
-    ts_values = [int((start + timedelta(hours=offset)).timestamp()) for offset in range(4)]
+    # Pass n+1 boundary timestamps (5 timestamps for 4 intervals)
+    ts_values = [int((start + timedelta(hours=offset)).timestamp()) for offset in range(5)]
 
     # Mock extract to return different types of series
     def mock_extract(state: State) -> ExtractedData:
@@ -94,6 +95,7 @@ async def test_time_series_loader_loads_mixed_live_and_forecast(hass: HomeAssist
             data=[
                 (int((start + timedelta(hours=1)).timestamp()), 0.25),
                 (int((start + timedelta(hours=2)).timestamp()), 0.35),
+                (int((start + timedelta(hours=3)).timestamp()), 0.40),
             ],
             unit="$/kWh",
         )
@@ -110,8 +112,8 @@ async def test_time_series_loader_loads_mixed_live_and_forecast(hass: HomeAssist
             forecast_times=ts_values,
         )
 
-    # Each horizon timestamp receives an interpolated value.
-    assert len(result) == len(ts_values)
+    # Returns n_periods interval values (len(ts_values)-1)
+    assert len(result) == len(ts_values) - 1
     assert all(isinstance(v, float) for v in result)
 
 
