@@ -37,11 +37,11 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
             LpVariable(f"test_in_{i}", lowBound=0.0) if val is None else LpAffineExpression(constant=max(val, 0.0))
             for i, val in enumerate(power)
         ]
-        power_ouptuts = [
+        power_outputs = [
             LpVariable(f"test_out_{i}", lowBound=0.0) if val is None else LpAffineExpression(constant=max(-val, 0.0))
             for i, val in enumerate(power)
         ]
-        total_power = [power_inputs[i] - power_ouptuts[i] for i in range(n_periods)]
+        total_power = [power_inputs[i] - power_outputs[i] for i in range(n_periods)]
 
         # Mock connection_power() to return the power variables
         # This allows elements to set up their own internal power balance constraints
@@ -65,7 +65,7 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         cost_terms = [
             *element.cost(),
             *[input_cost[i] * power_inputs[i] * period for i in range(n_periods) if input_cost[i] != 0.0],
-            *[output_cost[i] * power_ouptuts[i] * period for i in range(n_periods) if output_cost[i] != 0.0],
+            *[output_cost[i] * power_outputs[i] * period for i in range(n_periods) if output_cost[i] != 0.0],
         ]
 
         problem += lpSum(cost_terms)
