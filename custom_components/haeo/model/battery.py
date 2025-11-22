@@ -135,8 +135,8 @@ class Battery(Element):
             max_charge_power: Maximum charging power in kW per period
             max_discharge_power: Maximum discharging power in kW per period
             efficiency: Battery round-trip efficiency percentage 0-100.
-                The implementation converts this to one-way efficiency (sqrt of round-trip)
-                and applies it symmetrically to charge and discharge operations.
+                Internally converted to one-way efficiency (sqrt of round-trip) and applied
+                symmetrically to charge and discharge operations.
             early_charge_incentive: Positive value ($/kWh) that creates a small incentive
                 to prefer earlier charging. Linearly increases from 0 to -incentive across periods.
                 Default 0.001 (0.1 cents/kWh) encourages charging earlier when costs are equal.

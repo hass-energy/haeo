@@ -26,10 +26,22 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": 0.0,
         },
         "expected_outputs": {
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (20.0, 67.5, 86.5, 86.5)},
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (2.0, 6.75, 8.65, 8.65)},
-            "normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (1.0, 5.75, 7.65, 7.65)},
-            "normal_power_consumed": {"type": "power", "unit": "kW", "values": (4.75, 1.9, 0.0)},
+            "battery_state_of_charge": {
+                "type": "soc",
+                "unit": "%",
+                "values": (20.0, 68.733971724, 88.227560413, 88.227560413),
+            },
+            "energy_stored": {
+                "type": "energy",
+                "unit": "kWh",
+                "values": (2.0, 6.873397172, 8.822756041, 8.822756041),
+            },
+            "normal_energy_stored": {
+                "type": "energy",
+                "unit": "kWh",
+                "values": (1.0, 5.873397172, 7.822756041, 7.822756041),
+            },
+            "normal_power_consumed": {"type": "power", "unit": "kW", "values": (4.873397172, 1.949358869, 0.0)},
             "normal_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
             "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, -0.001, 0.0)},
             "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
@@ -61,16 +73,16 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_state_of_charge": {
                 "type": "soc",
                 "unit": "%",
-                "values": (80.0, 48.421052632, 16.842105263, 16.842105263),
+                "values": (80.0, 49.220649437, 18.441298875, 18.441298875),
             },
-            "energy_stored": {"type": "energy", "unit": "kWh", "values": (8.0, 4.842105263, 1.684210526, 1.684210526)},
+            "energy_stored": {"type": "energy", "unit": "kWh", "values": (8.0, 4.922064944, 1.844129887, 1.844129887)},
             "normal_energy_stored": {
                 "type": "energy",
                 "unit": "kWh",
-                "values": (7.0, 3.842105263, 0.684210526, 0.684210526),
+                "values": (7.0, 3.922064944, 0.844129887, 0.844129887),
             },
             "normal_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "normal_power_produced": {"type": "power", "unit": "kW", "values": (3.157894737, 3.157894737, 0.0)},
+            "normal_power_produced": {"type": "power", "unit": "kW", "values": (3.077935056, 3.077935056, 0.0)},
             "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, -0.001, 0.0)},
             "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
             "power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
@@ -369,7 +381,7 @@ VALID_CASES: list[ElementTestCase] = [
             "efficiency": 50.0,  # 50% round-trip efficiency
         },
         "inputs": {
-            "power": [8.0, 0.0],  # Forced input to test efficiency (max charge 4.0kWh / 0.5 = 8.0kW)
+            "power": [5.656854249, 0.0],  # Forced input to test efficiency (4.0kWh / sqrt(0.5) ≈ 5.657kW)
             "input_cost": 0.0,
             "output_cost": 0.0,
         },
@@ -381,7 +393,7 @@ VALID_CASES: list[ElementTestCase] = [
             "normal_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
             "normal_price_consumption": {"type": "price", "unit": "$/kWh", "values": (-0.002, 0.0)},
             "normal_price_production": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.004)},
-            "power_consumed": {"type": "power", "unit": "kW", "values": (8.0, 0.0)},
+            "power_consumed": {"type": "power", "unit": "kW", "values": (5.656854249, 0.0)},
             "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
         },
     },
