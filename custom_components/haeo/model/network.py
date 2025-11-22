@@ -128,7 +128,7 @@ class Network:
 
         # Get the specified solver
         try:
-            solver = getSolver(optimizer)
+            solver = getSolver(optimizer, msg=0)
         except Exception as e:
             msg = f"Failed to get solver '{optimizer}': {e}"
             raise ValueError(msg) from e
