@@ -46,7 +46,7 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
         period_seconds=1800,
         n_periods=4,
         participants=participants,
-        forecast_times=[0, 1800, 3600, 5400, 7200],  # n+1=5 timestamps for n=4 periods
+        forecast_times=[0, 1800, 3600, 5400, 7200],
     )
 
     assert result.period == pytest.approx(0.5)
