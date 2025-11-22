@@ -121,7 +121,7 @@ For each section $n$ and time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time
 - $\text{SOC}_{\text{max}}$: Preferred maximum state of charge (%) - `max_charge_percentage` (default: 90%)
 - $P_{\text{charge}}^{\max}$: Maximum charging power (kW) - `max_charge_power`
 - $P_{\text{discharge}}^{\max}$: Maximum discharging power (kW) - `max_discharge_power`
-- $\eta$: One-way efficiency (0-100) - `efficiency` (default: 99%)
+- $\eta$: Round-trip efficiency (0-100) - `efficiency` (default: 99%, internally converted to one-way)
 - $\Delta t$: Time step duration (hours) - `period`
 - $\epsilon$: Early charge incentive (\$/kWh) - `early_charge_incentive` (default: 0.001)
 
@@ -183,7 +183,7 @@ for all $t \in [0, T-1]$.
 Where:
 
 - $P_{\text{connection}}(t)$ is the power from network connections (positive = charging, negative = discharging)
-- $\eta$ is the one-way efficiency percentage (applied symmetrically to both charge and discharge)
+- $\eta$ is the one-way efficiency percentage (converted internally from user-provided round-trip efficiency)
 
 **Efficiency application**: The efficiency multiplier applies to the connection power, causing:
 
@@ -268,8 +268,8 @@ The costs use multipliers of the `early_charge_incentive` parameter $\epsilon$ t
 
 $$
 \begin{align}
-c_{\text{charge-early}}(t) &= -\epsilon \cdot \frac{t}{T-1} \quad \text{(linear from } -\epsilon \text{ to } 0\text{)} \\
-c_{\text{discharge-late}}(t) &= \epsilon \cdot \frac{t}{T-1} \quad \text{(linear from } 0 \text{ to } \epsilon\text{)}
+c_{\text{charge-early}}(t) &= -\epsilon \cdot \left(1 - \frac{t}{T-1}\right) \quad \text{(linear from } -\epsilon \text{ to } 0\text{)} \\
+c_{\text{discharge-early}}(t) &= \epsilon \cdot \left(1 + \frac{t}{T-1}\right) \quad \text{(linear from } \epsilon \text{ to } 2\epsilon\text{)}
 \end{align}
 $$
 
@@ -278,41 +278,36 @@ $$
 $$
 \begin{align}
 c_{\text{charge}}^{\text{undercharge}}(t) &= 3 \cdot c_{\text{charge-early}}(t) \\
-c_{\text{discharge}}^{\text{undercharge}}(t) &= 1 \cdot c_{\text{discharge-late}}(t) + c_{\text{discharge}}
+c_{\text{discharge}}^{\text{undercharge}}(t) &= 1 \cdot c_{\text{discharge-late}}(t) + c_{\text{undercharge}}
 \end{align}
 $$
 
 - **Charge cost**: Strong early-charging preference (3× multiplier, most negative)
-- **Discharge cost**: Base discharge cost $c_{\text{discharge}}$ with weak late-discharge incentive (1× multiplier)
-
-!!! bug "Implementation Note"
-
-The `undercharge_cost` parameter is currently not applied in the cost calculation (potential bug).
-Only the base `discharge_cost` is used for the undercharge section.
+- **Discharge cost**: Weak discharge incentive (1× multiplier) plus undercharge penalty $c_{\text{undercharge}}$
 
 **Normal section** (always present):
 
 $$
 \begin{align}
 c_{\text{charge}}^{\text{normal}}(t) &= 2 \cdot c_{\text{charge-early}}(t) \\
-c_{\text{discharge}}^{\text{normal}}(t) &= 2 \cdot c_{\text{discharge-late}}(t) + c_{\text{discharge}}
+c_{\text{discharge}}^{\text{normal}}(t) &= 2 \cdot c_{\text{discharge-early}}(t) + c_{\text{discharge}}
 \end{align}
 $$
 
 - **Charge cost**: Moderate early-charging preference (2× multiplier)
-- **Discharge cost**: Base discharge cost $c_{\text{discharge}}$ (e.g., degradation cost)
+- **Discharge cost**: Moderate discharge incentive (2× multiplier) plus base degradation cost $c_{\text{discharge}}$
 
 **Overcharge section** (if configured):
 
 $$
 \begin{align}
 c_{\text{charge}}^{\text{overcharge}}(t) &= 1 \cdot c_{\text{charge-early}}(t) + c_{\text{overcharge}} \\
-c_{\text{discharge}}^{\text{overcharge}}(t) &= 3 \cdot c_{\text{discharge-late}}(t) + c_{\text{discharge}}
+c_{\text{discharge}}^{\text{overcharge}}(t) &= 3 \cdot c_{\text{discharge-early}}(t) + c_{\text{discharge}}
 \end{align}
 $$
 
-- **Charge cost**: User-configured penalty $c_{\text{overcharge}}$ to discourage overcharging
-- **Discharge cost**: Strong late-discharging preference (3× multiplier, most positive, makes discharging attractive)
+- **Charge cost**: Weak early-charging preference (1× multiplier) plus user-configured penalty $c_{\text{overcharge}}$
+- **Discharge cost**: Strong discharge incentive (3× multiplier) plus base degradation cost $c_{\text{discharge}}$
 
 #### Economic Behavior
 
@@ -326,13 +321,14 @@ The multiplier structure creates natural economic preferences:
 
 The optimizer will naturally prefer filling lower sections first when all else is equal, but can economically justify charging the overcharge section if grid prices are low enough to overcome the penalty.
 
-**Discharging order** (lower cost = more attractive):
+**Discharging order** (lower cost = more attractive, ignoring penalties):
 
-1. Overcharge section: 3× late discharge incentive (strongest preference)
-2. Normal section: 2× late discharge incentive
-3. Undercharge section: 1× late discharge incentive + penalty
+1. Undercharge section: 1× discharge cost (lowest multiplier)
+2. Normal section: 2× discharge cost (moderate multiplier)
+3. Overcharge section: 3× discharge cost (highest multiplier)
 
-The optimizer will naturally prefer emptying higher sections first, but can economically justify discharging from the undercharge section if grid prices are high enough to overcome the penalty.
+However, the undercharge penalty ($c_{\text{undercharge}}$, typically \$1-2/kWh) overwhelms the small multiplier difference, making the undercharge section very unattractive for discharge.
+In practice, the optimizer will prefer discharging from normal and overcharge sections, only using the undercharge section when grid prices justify the penalty.
 
 **Key insight**: This is **cost-based guidance**, not hard constraints.
 The optimizer can use any section at any time if the economic conditions (grid prices, solar availability) justify it.
@@ -343,17 +339,24 @@ For a battery with $\epsilon = 0.001$ \$/kWh, $c_{\text{undercharge}} = 1.50$ \$
 
 **At $t=0$ (first period)**:
 
-- Undercharge charge: $3 \times (-0.001) = -0.003$ \$/kWh (pays you to charge)
-- Normal charge: $2 \times (-0.001) = -0.002$ \$/kWh
+- Undercharge charge: $3 \times (-0.001) = -0.003$ \$/kWh (benefit, encourages charging)
+- Normal charge: $2 \times (-0.001) = -0.002$ \$/kWh (benefit, encourages charging)
 - Overcharge charge: $1 \times (-0.001) + 1.00 = 0.999$ \$/kWh (penalty)
+- Undercharge discharge: $1 \times 0.001 + 1.50 = 1.501$ \$/kWh (penalty)
+- Normal discharge: $2 \times 0.001 = 0.002$ \$/kWh (small cost)
+- Overcharge discharge: $3 \times 0.001 = 0.003$ \$/kWh (small cost)
 
 **At $t=47$ (last period)**:
 
-- Overcharge discharge: $3 \times 0.001 = 0.003$ \$/kWh (nearly free)
-- Normal discharge: $2 \times 0.001 = 0.002$ \$/kWh
-- Undercharge discharge: $1 \times 0.001 + 1.50 = 1.501$ \$/kWh (penalty)
+- Undercharge charge: $3 \times 0.000 = 0.000$ \$/kWh (neutral)
+- Normal charge: $2 \times 0.000 = 0.000$ \$/kWh (neutral)
+- Overcharge charge: $1 \times 0.000 + 1.00 = 1.000$ \$/kWh (penalty)
+- Undercharge discharge: $1 \times 0.002 + 1.50 = 1.502$ \$/kWh (penalty)
+- Normal discharge: $2 \times 0.002 = 0.004$ \$/kWh (small cost)
+- Overcharge discharge: $3 \times 0.002 = 0.006$ \$/kWh (small cost)
 
-The small incentive values (tenths of cents) break ties when grid prices are equal, while the larger penalty values (\$1+/kWh) require significant price differentials to overcome.
+The small time-varying incentive values (tenths of cents) break ties when grid prices are equal, with charging becoming less attractive over time and discharging costs increasing slightly over time.
+The larger penalty values (\$1+/kWh) for undercharge/overcharge sections require significant price differentials to overcome.
 
 ## Physical Interpretation
 
@@ -439,25 +442,27 @@ See the [units documentation](../developer-guide/units.md) for detailed explanat
 
 ### Efficiency Modeling
 
-HAEO applies one-way efficiency as a simple multiplier:
+HAEO accepts round-trip efficiency as input and converts it internally to one-way efficiency using $\eta_{\text{one-way}} = \sqrt{\eta_{\text{round-trip}}}$.
+The one-way efficiency is then applied as a simple multiplier:
 
 $$
-\text{Net internal energy change} = P_{\text{connection}}(t) \cdot \frac{\eta}{100} \cdot \Delta t
+\text{Net internal energy change} = P_{\text{connection}}(t) \cdot \eta_{\text{one-way}} \cdot \Delta t
 $$
 
 This means:
 
-- **When charging** ($P_{\text{connection}} > 0$): $\eta$ of the power becomes stored energy (e.g., 99% efficiency means 1% loss)
-- **When discharging** ($P_{\text{connection}} < 0$): $\eta$ of the power is delivered (e.g., 99% efficiency means 1% loss)
+- **When charging** ($P_{\text{connection}} > 0$): $\eta_{\text{one-way}}$ of the power becomes stored energy (e.g., 99.5% one-way means 0.5% loss)
+- **When discharging** ($P_{\text{connection}} < 0$): $\eta_{\text{one-way}}$ of the power is delivered (e.g., 99.5% one-way means 0.5% loss)
 
-**Round-trip efficiency**: If configured with 99% one-way efficiency:
+**Example**: If you configure round-trip efficiency as 99%:
 
-- Charge 1 kWh → stores 0.99 kWh (1% loss)
-- Discharge that 0.99 kWh → delivers 0.9801 kWh (1% loss again)
-- Round-trip: 98.01% efficiency
+- Internal one-way efficiency: $\sqrt{0.99} \approx 0.995$ (99.5%)
+- Charge 1 kWh → stores 0.995 kWh (0.5% loss)
+- Discharge that 0.995 kWh → delivers 0.990 kWh (0.5% loss again)
+- Round-trip: 99.0% efficiency ✓
 
-**Configuration tip**: If you know your round-trip efficiency (e.g., 95%), use that value directly.
-The model will apply losses on both charge and discharge, resulting in approximately $\sqrt{0.95} \approx 97.5\%$ one-way behavior.
+**Configuration**: Use your battery's specified round-trip efficiency directly.
+HAEO will automatically handle the conversion to one-way efficiency for accurate charge/discharge modeling.
 
 ## Configuration Impact
 
@@ -512,7 +517,8 @@ The cost parameters create economic trade-offs rather than hard limits:
 
 ### Efficiency
 
-- Applied as simple multiplier: $\eta/100$ to connection power
+- User provides round-trip efficiency, internally converted to one-way: $\eta_{\text{one-way}} = \sqrt{\eta_{\text{round-trip}}}$
+- Applied as simple multiplier to connection power
 - Affects all sections equally
 - Higher efficiency directly reduces energy losses and operational costs
 - Creates natural economic disincentive for unnecessary cycling

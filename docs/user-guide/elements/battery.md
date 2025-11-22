@@ -26,7 +26,7 @@ A battery in HAEO represents:
 | **Overcharge Percentage**     | Number (%)      | No       | -       | Economic maximum SOC (outer bound, requires cost)          |
 | **Undercharge Cost**          | Number (\$/kWh) | No       | -       | Economic penalty for discharging below min SOC             |
 | **Overcharge Cost**           | Number (\$/kWh) | No       | -       | Economic penalty for charging above max SOC                |
-| **Efficiency**                | Number (%)      | No       | 99      | **One-way** efficiency (see below)                         |
+| **Efficiency**                | Number (%)      | No       | 99      | Round-trip efficiency (see below)                          |
 | **Max Charge Power**          | Number (kW)     | No       | -       | Maximum charging power                                     |
 | **Max Discharge Power**       | Number (kW)     | No       | -       | Maximum discharging power                                  |
 | **Early Charge Incentive**    | Number (\$/kWh) | No       | 0.001   | Small cost to prefer early charging (advanced, see below)  |
@@ -63,10 +63,10 @@ Leaving the defaults (10-90%) is a good starting point unless your manufacturer 
 
 ### Efficiency
 
-Enter the one-way efficiency as a percentage.
-If you only know the round-trip efficiency, take the square root to convert it.
-For example, a 97% round-trip battery becomes roughly 98.5% one-way.
-Most lithium systems sit in the high 90s, while older chemistries are lower.
+Enter the round-trip efficiency as a percentage (0-100).
+HAEO automatically converts this to one-way efficiency internally for accurate charge/discharge modeling.
+Most modern lithium batteries have round-trip efficiencies in the 95-98% range, while older chemistries may be lower.
+Refer to your battery or inverter specifications for the round-trip efficiency value.
 
 ### Max charge and discharge power
 
