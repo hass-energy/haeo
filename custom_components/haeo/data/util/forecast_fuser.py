@@ -79,7 +79,6 @@ def fuse_to_horizon(
     cum = np.concatenate([[0], np.cumsum(time_diffs * value_averages)])
 
     # Extract cumulative values at horizon timestamps
-    # For n+1 boundary timestamps, we need only n intervals
     horizon_indices = np.searchsorted(expanded_block_array["timestamp"], horizon_times)
     cum_target = cum[horizon_indices]
 
