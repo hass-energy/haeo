@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Mapping, Sequence
 import json
 import logging
+from numbers import Real
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -172,8 +173,8 @@ async def test_scenarios(
 
         def round_floats(value: Any) -> Any:
             """Round all floats in the value to 2 decimal places and normalize ±0."""
-            if isinstance(value, float):
-                rounded = round(value, 2)
+            if isinstance(value, Real):
+                rounded = round(float(value), 2)
                 # Normalize negative zero to positive zero
                 return 0.0 if rounded == 0.0 else rounded
             if isinstance(value, Mapping):
