@@ -2,7 +2,9 @@
 
 from custom_components.haeo.model.grid import Grid
 
-VALID_CASES = [
+from .element_types import ElementTestCase
+
+VALID_CASES: list[ElementTestCase] = [
     {
         "description": "Grid importing power for fixed load",
         "factory": Grid,
@@ -17,7 +19,6 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [-5.0, -8.0, -6.0],  # Negative = import (from grid perspective, production)
-            "cost": 0.0,
         },
         "expected_outputs": {
             "power_imported": {"type": "power", "unit": "kW", "values": (5.0, 8.0, 6.0)},
@@ -40,7 +41,6 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [3.0, 5.0, 4.0],  # Positive = export (from grid perspective, consumption)
-            "cost": 0.0,
         },
         "expected_outputs": {
             "power_imported": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
@@ -61,7 +61,6 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [-5.0, -5.0],  # Negative = import (at limit)
-            "cost": 0.0,
         },
         "expected_outputs": {
             "power_imported": {"type": "power", "unit": "kW", "values": (5.0, 5.0)},
@@ -81,7 +80,6 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [4.0, 4.0],  # Positive = export (at limit)
-            "cost": 0.0,
         },
         "expected_outputs": {
             "power_imported": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
@@ -91,10 +89,10 @@ VALID_CASES = [
     },
 ]
 
-INVALID_CASES = [
+INVALID_CASES: list[ElementTestCase] = [
     {
         "description": "Grid with import_price length mismatch",
-        "element_class": Grid,
+        "factory": Grid,
         "data": {
             "name": "grid",
             "period": 1.0,
@@ -108,7 +106,7 @@ INVALID_CASES = [
     },
     {
         "description": "Grid with export_price length mismatch",
-        "element_class": Grid,
+        "factory": Grid,
         "data": {
             "name": "grid",
             "period": 1.0,

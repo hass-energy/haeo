@@ -2,7 +2,9 @@
 
 from custom_components.haeo.model.photovoltaics import Photovoltaics
 
-VALID_CASES = [
+from .element_types import ElementTestCase
+
+VALID_CASES: list[ElementTestCase] = [
     {
         "description": "Photovoltaics full production without curtailment",
         "factory": Photovoltaics,
@@ -15,7 +17,6 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [None, None, None],  # Infinite sink (unbounded)
-            "cost": 0.0,
         },
         "expected_outputs": {
             "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
@@ -35,7 +36,8 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [None, None, None],  # Infinite
-            "cost": -0.1,  # Negative cost with negative power_vars gives positive total (discourages production)
+            "input_cost": -0.1,  # Negative cost with negative power_vars gives positive total (discourages production)
+            "output_cost": 0.1,
         },
         "expected_outputs": {
             "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
@@ -56,7 +58,8 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [None, None, None],
-            "cost": 0.1,  # Low benefit for consuming
+            "input_cost": 0.1,  # Low benefit for consuming
+            "output_cost": -0.1,
         },
         "expected_outputs": {
             "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
@@ -77,7 +80,8 @@ VALID_CASES = [
         },
         "inputs": {
             "power": [None, None, None],
-            "cost": 0.2,  # Positive cost with negative power_vars gives negative total (encourages production)
+            "input_cost": 0.2,  # Positive cost with negative power_vars gives negative total (encourages production)
+            "output_cost": -0.2,
         },
         "expected_outputs": {
             "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
@@ -87,10 +91,10 @@ VALID_CASES = [
     },
 ]
 
-INVALID_CASES = [
+INVALID_CASES: list[ElementTestCase] = [
     {
         "description": "Photovoltaics with forecast length mismatch",
-        "element_class": Photovoltaics,
+        "factory": Photovoltaics,
         "data": {
             "name": "photovoltaics",
             "period": 1.0,
@@ -102,7 +106,7 @@ INVALID_CASES = [
     },
     {
         "description": "Photovoltaics with price_production length mismatch",
-        "element_class": Photovoltaics,
+        "factory": Photovoltaics,
         "data": {
             "name": "photovoltaics",
             "period": 1.0,

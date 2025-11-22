@@ -5,13 +5,13 @@ from typing import Any
 from pulp import LpAffineExpression, LpMinimize, LpProblem, LpVariable, getSolver, lpSum
 import pytest
 
-from custom_components.haeo.model import extract_values
-from custom_components.haeo.model.connection import Connection
+from custom_components.haeo.model.util import broadcast_to_sequence, extract_values
 
 from . import test_data
+from .test_data.element_types import ElementTestCase, ElementTestCaseInputs
 
 
-def _solve_element_scenario(element: Any, inputs: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) -> dict[str, dict[str, Any]]:
     """Set up and solve an optimization scenario for an element.
 
     Args:
@@ -22,86 +22,60 @@ def _solve_element_scenario(element: Any, inputs: dict[str, Any] | None) -> dict
         Dict mapping output names to {type, unit, values}
 
     """
-    if inputs is None:
-        # No optimization - get outputs directly
-        outputs = element.outputs()
-        return {
-            name: {
-                "type": output_data.type,
-                "unit": output_data.unit,
-                "values": output_data.values,
-            }
-            for name, output_data in outputs.items()
-        }
+    if inputs is not None:
+        # Get n_periods and period from element
+        n_periods = element.n_periods
+        period = element.period
 
-    # Get n_periods and period from element
-    n_periods = element.n_periods
-    period = element.period
+        problem = LpProblem(f"test_{element.name}", LpMinimize)
 
-    problem = LpProblem(f"test_{element.name}", LpMinimize)
-
-    # Add element constraints
-    for constraint in element.constraints():
-        problem += constraint
-
-    # Handle Connection elements (two-sided power balance)
-    if isinstance(element, Connection):
-        source_power = inputs.get("source_power", [None] * n_periods)
-        target_power = inputs.get("target_power", [None] * n_periods)
-        source_cost = inputs.get("source_cost", 0.0)
-        target_cost = inputs.get("target_cost", 0.0)
-
-        # Create power variables: None = unbounded, float = fixed value as LpAffineExpression
-        source_vars = [
-            LpVariable(f"source_power_{i}") if val is None else LpAffineExpression(val)
-            for i, val in enumerate(source_power)
-        ]
-        target_vars = [
-            LpVariable(f"target_power_{i}") if val is None else LpAffineExpression(val)
-            for i, val in enumerate(target_power)
-        ]
-
-        # Power balance: net flow at each side
-        for i in range(n_periods):
-            problem += source_vars[i] == element.power_source_target[i] - element.power_target_source[i]
-            problem += target_vars[i] == element.power_source_target[i] - element.power_target_source[i]
-
-        # Objective function
-        cost_terms = list(element.cost())
-        if source_cost != 0.0:
-            cost_terms.append(lpSum(source_vars[i] * source_cost * period for i in range(n_periods)))
-        if target_cost != 0.0:
-            cost_terms.append(lpSum(target_vars[i] * target_cost * period for i in range(n_periods)))
-        problem += lpSum(cost_terms)
-
-    else:
         # Regular elements (Battery, Grid, PV, Load)
         power = inputs.get("power", [None] * n_periods)
-        power_cost = inputs.get("cost", 0.0)
 
-        # Create power variables
-        power_vars = [LpVariable(f"power_{i}") if val is None else float(val) for i, val in enumerate(power)]
+        # Create the variables to inject power
+        power_inputs = [
+            LpVariable(f"test_in_{i}", lowBound=0.0) if val is None else LpAffineExpression(constant=max(val, 0.0))
+            for i, val in enumerate(power)
+        ]
+        power_ouptuts = [
+            LpVariable(f"test_out_{i}", lowBound=0.0) if val is None else LpAffineExpression(constant=max(-val, 0.0))
+            for i, val in enumerate(power)
+        ]
+        total_power = [power_inputs[i] - power_ouptuts[i] for i in range(n_periods)]
 
-        # Get consumption and production (treat None as zero)
-        consumption = getattr(element, "power_consumption", None) or [0.0] * n_periods
-        production = getattr(element, "power_production", None) or [0.0] * n_periods
+        # Mock connection_power() to return the power variables
+        # This allows elements to set up their own internal power balance constraints
+        def mock_connection_power(t: int) -> LpAffineExpression:
+            return total_power[t]
 
-        # Power balance constraint (same for all elements)
-        for i in range(n_periods):
-            problem += power_vars[i] == consumption[i] - production[i]
+        element.connection_power = mock_connection_power
+
+        # Call build_constraints() to set up power balance with mocked connection_power
+        element.build_constraints()
+
+        # Add all element constraints (including the power balance from build_constraints)
+        for constraint in element.constraints():
+            problem += constraint
+
+        # Add costs for the injected power
+        input_cost = broadcast_to_sequence(inputs.get("input_cost", 0.0), n_periods)
+        output_cost = broadcast_to_sequence(inputs.get("output_cost", 0.0), n_periods)
 
         # Objective function
-        cost_terms = list(element.cost())
-        if power_cost != 0.0:
-            cost_terms.append(lpSum(power_vars[i] * power_cost * period for i in range(n_periods)))
+        cost_terms = [
+            *element.cost(),
+            *[input_cost[i] * power_inputs[i] * period for i in range(n_periods) if input_cost[i] != 0.0],
+            *[output_cost[i] * power_ouptuts[i] * period for i in range(n_periods) if output_cost[i] != 0.0],
+        ]
+
         problem += lpSum(cost_terms)
 
-    # Solve
-    solver = getSolver("HiGHS", msg=0)
-    status = problem.solve(solver)
-    if status != 1:
-        msg = f"Optimization failed with status {status}"
-        raise ValueError(msg)
+        # Solve
+        solver = getSolver("HiGHS", msg=0)
+        status = problem.solve(solver)
+        if status != 1:
+            msg = f"Optimization failed with status {status}"
+            raise ValueError(msg)
 
     # Extract and return outputs
     outputs = element.outputs()
@@ -117,10 +91,10 @@ def _solve_element_scenario(element: Any, inputs: dict[str, Any] | None) -> dict
 
 @pytest.mark.parametrize(
     "case",
-    test_data.VALID_CASES,
+    test_data.VALID_ELEMENT_CASES,
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
-def test_element_outputs(case: dict[str, Any]) -> None:
+def test_element_outputs(case: ElementTestCase) -> None:
     """Element.get_outputs should report expected series for each element type."""
 
     # Create element using the factory
@@ -132,6 +106,7 @@ def test_element_outputs(case: dict[str, Any]) -> None:
     outputs = _solve_element_scenario(element, case.get("inputs"))
 
     # Validate outputs match expected
+    assert "expected_outputs" in case
     expected_outputs = case["expected_outputs"]
     assert set(outputs.keys()) == set(expected_outputs.keys())
 
@@ -139,19 +114,20 @@ def test_element_outputs(case: dict[str, Any]) -> None:
         output = outputs[output_name]
         assert output["type"] == expected["type"]
         assert output["unit"] == expected["unit"]
-        assert output["values"] == expected["values"]
+        assert output["values"] == pytest.approx(expected["values"], rel=1e-9, abs=1e-9)
 
 
 @pytest.mark.parametrize(
     "case",
-    test_data.INVALID_CASES,
+    test_data.INVALID_ELEMENT_CASES,
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
-def test_element_validation(case: dict[str, Any]) -> None:
+def test_element_validation(case: ElementTestCase) -> None:
     """Element classes should validate input sequence lengths match n_periods."""
 
+    assert "expected_error" in case
     with pytest.raises(ValueError, match=case["expected_error"]):
-        case["element_class"](**case["data"])
+        case["factory"](**case["data"])
 
 
 def test_extract_values_converts_lp_variables() -> None:

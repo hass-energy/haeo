@@ -188,9 +188,6 @@ async def test_scenarios(
             sensor.state = round_floats(sensor.state)
             sensor.attributes = round_floats(sensor.attributes)
 
-        # Check the sensors against snapshots
-        assert snapshot == haeo_sensors
-
         # Ensure all entities are registered
         await hass.async_block_till_done()
 
@@ -203,5 +200,8 @@ async def test_scenarios(
             scenario_path.name,
             scenario_path / "visualizations",
         )
+
+        # Check the sensors against snapshots
+        assert snapshot == haeo_sensors
 
         _LOGGER.info("Test completed - integration setup and sensor creation verified")

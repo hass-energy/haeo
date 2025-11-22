@@ -1,10 +1,10 @@
 """Test data and factories for Node element."""
 
-from typing import Any
-
 from custom_components.haeo.model.node import Node
 
-VALID_CASES = [
+from .element_types import ElementTestCase
+
+VALID_CASES: list[ElementTestCase] = [
     {
         "description": "Node with basic configuration",
         "factory": Node,
@@ -27,4 +27,4 @@ VALID_CASES = [
     },
 ]
 
-INVALID_CASES: list[dict[str, Any]] = []
+INVALID_CASES: list[ElementTestCase] = []
