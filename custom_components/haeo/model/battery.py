@@ -134,7 +134,9 @@ class Battery(Element):
             max_charge_percentage: Preferred maximum charge percentage (inner bound) 0-100
             max_charge_power: Maximum charging power in kW per period
             max_discharge_power: Maximum discharging power in kW per period
-            efficiency: Battery round-trip efficiency percentage 0-100
+            efficiency: Battery round-trip efficiency percentage 0-100.
+                The implementation converts this to one-way efficiency (sqrt of round-trip)
+                and applies it symmetrically to charge and discharge operations.
             early_charge_incentive: Positive value ($/kWh) that creates a small incentive
                 to prefer earlier charging. Linearly increases from 0 to -incentive across periods.
                 Default 0.001 (0.1 cents/kWh) encourages charging earlier when costs are equal.
@@ -150,8 +152,10 @@ class Battery(Element):
         """
         super().__init__(name=name, period=period, n_periods=n_periods)
 
-        # These parameters are defined per power item (so n_periods values)
-        self.efficiency = percentage_to_ratio(broadcast_to_sequence(efficiency, n_periods))
+        # Convert round-trip efficiency to one-way efficiency (applied symmetrically to charge/discharge)
+        # Round-trip efficiency = (one-way efficiency)^2, so one-way = sqrt(round-trip)
+        efficiency_ratio = percentage_to_ratio(broadcast_to_sequence(efficiency, n_periods))
+        self.efficiency = [np.sqrt(eff) for eff in efficiency_ratio]
         self.max_charge_power = broadcast_to_sequence(max_charge_power, n_periods)
         self.max_discharge_power = broadcast_to_sequence(max_discharge_power, n_periods)
         undercharge_cost = broadcast_to_sequence(undercharge_cost, n_periods)
@@ -177,8 +181,9 @@ class Battery(Element):
         # From the early charge value, make two incentives, one for charging early and one for discharging early.
         # We will also multiply these values for each section to make it more/less attractive.
         # Charge incentive: negative cost (benefit) that decreases over time (-incentive -> 0)
+        #   This provides a small benefit for charging earlier when costs are equal.
         # Discharge incentive: positive cost that increases over time (incentive -> 2*incentive)
-        # This ensures discharging always has a cost, preventing arbitrage from free early discharge
+        #   This increases the cost of discharging earlier, encouraging later discharge when revenues are equal.
         charge_early_incentive = np.linspace(-early_charge_incentive, 0.0, n_periods)
         discharge_early_incentive = np.linspace(early_charge_incentive, 2.0 * early_charge_incentive, n_periods)
 

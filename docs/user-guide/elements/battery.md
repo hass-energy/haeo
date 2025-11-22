@@ -156,11 +156,6 @@ If grid prices spike to \$0.80/kWh, the optimizer will economically justify deep
 
 **Applies to**: Energy discharged from the undercharge section (below `min_charge_percentage`).
 
-!!! warning "Current Limitation"
-
-    This parameter is validated but not currently applied in cost calculations (implementation bug).
-    The undercharge section currently only uses the base `discharge_cost` parameter.
-
 ### Overcharge Cost (Optional)
 
 Economic penalty in \$/kWh for **charging** into the overcharge section.

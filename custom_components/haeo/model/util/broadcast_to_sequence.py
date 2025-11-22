@@ -26,12 +26,19 @@ def broadcast_to_sequence(
 ) -> Sequence[float] | None:
     """Broadcast a scalar or sequence to match n_periods.
 
+    For single values, broadcasts to n_periods length.
+    For sequences that are too short, extends by repeating the last value.
+    For sequences that are too long, truncates to n_periods.
+
     Args:
         value: Scalar value, sequence to broadcast, or None
         n_periods: Target number of periods
 
     Returns:
         List of floats with length n_periods, or None if input is None
+
+    Raises:
+        ValueError: If the input sequence is empty
 
     """
     # Handle None input
@@ -52,12 +59,9 @@ def broadcast_to_sequence(
 
     # If it's a sequence repeat the last value if it's not the same length
     if len(value_array) == n_periods:
-        result = value_array.tolist()
-        return result
+        return value_array.tolist()
 
     if len(value_array) > n_periods:
-        result = value_array[:n_periods].tolist()
-        return result
+        return value_array[:n_periods].tolist()
 
-    result = value_array.tolist() + [float(value_array[-1])] * (n_periods - len(value_array))
-    return result
+    return value_array.tolist() + [float(value_array[-1])] * (n_periods - len(value_array))
