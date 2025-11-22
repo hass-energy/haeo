@@ -15,10 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from custom_components.haeo.elements import ElementType
-
-# Use non-GUI backend
-mpl.use("Agg")
-
 from custom_components.haeo.model import (
     OUTPUT_NAME_BATTERY_STATE_OF_CHARGE,
     OUTPUT_NAME_POWER_AVAILABLE,
@@ -33,6 +29,12 @@ from custom_components.haeo.model import (
 )
 
 from .colors import ColorMapper
+
+# Use non-GUI backend
+mpl.use("Agg")
+
+# Fix SVG hash salt for consistent output
+mpl.rcParams["svg.hashsalt"] = "42"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -359,7 +361,7 @@ def create_stacked_visualization(hass: HomeAssistant, output_path: str, title: s
     fig.subplots_adjust(top=0.93, bottom=0.10, left=0.08, right=0.95, hspace=0.15)
 
     # Save as SVG
-    fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3)
+    fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3, metadata={"Date": None})
     _LOGGER.info("Visualization saved to %s", output_path)
 
     # Also save as PNG for easier viewing
