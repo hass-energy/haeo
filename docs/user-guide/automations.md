@@ -261,6 +261,6 @@ Enable automation traces to see execution history:
 
 If you have questions or need help creating automations:
 
-- Check the [HAEO GitHub Discussions](https://github.com/ha-energy-optimiser/haeo/discussions)
+- Check the [HAEO GitHub Discussions](https://github.com/hass-energy/haeo/discussions)
 - Review existing automation examples from the community
 - Ask in the Home Assistant Community forums with the `haeo` tag

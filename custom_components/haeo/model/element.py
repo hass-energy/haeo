@@ -1,33 +1,18 @@
 """Generic electrical entity for energy system modeling."""
 
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
-from typing import cast
+from collections.abc import Mapping, MutableSequence, Sequence
+from typing import TYPE_CHECKING, Literal
 
-from pulp import LpConstraint, LpVariable, lpSum
+from pulp import LpAffineExpression, LpConstraint, lpSum
 
-from .const import (
-    OUTPUT_NAME_ENERGY_STORED,
-    OUTPUT_NAME_POWER_CONSUMED,
-    OUTPUT_NAME_POWER_PRODUCED,
-    OUTPUT_NAME_PRICE_CONSUMPTION,
-    OUTPUT_NAME_PRICE_PRODUCTION,
-    OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX,
-    OUTPUT_TYPE_ENERGY,
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_PRICE,
-    OUTPUT_TYPE_SHADOW_PRICE,
-    OutputData,
-    OutputName,
-    extract_values,
-)
+from .const import OutputData, OutputName
+
+if TYPE_CHECKING:
+    from .connection import Connection
 
 
-@dataclass
 class Element:
-    """Generic electrical entity which models the relationship between power and energy.
+    """Base class for electrical entities in energy system modeling.
 
     All values use kW-based units:
     - Power: kW
@@ -36,153 +21,111 @@ class Element:
     - Price: $/kWh
     """
 
-    # Name of the entity
-    name: str
+    def __init__(self, name: str, period: float, n_periods: int) -> None:
+        """Initialize an element.
 
-    # Period for time step calculations (in hours)
-    period: float
-    n_periods: int
+        Args:
+            name: Name of the entity
+            period: Time period in hours
+            n_periods: Number of time periods
 
-    # Separate power variables for consumption and production (in kW)
-    power_consumption: Sequence[LpVariable | float] | None = None  # Positive when consuming
-    power_production: Sequence[LpVariable | float] | None = None  # Positive when producing
+        """
+        self.name = name
+        self.period = period
+        self.n_periods = n_periods
 
-    # Separate prices for consumption and production (in $/kWh)
-    price_consumption: Sequence[LpVariable | float] | None = None  # Cost when consuming
-    price_production: Sequence[LpVariable | float] | None = None  # Revenue when producing
+        # Constraint storage - dictionary allows re-entrancy
+        self._constraints: dict[str, LpConstraint | Sequence[LpConstraint]] = {}
 
-    # Energy storage
-    energy: Sequence[LpVariable | float] | None = None  # Energy in kWh
-    efficiency: float = 1.0
+        # Track connections for power balance
+        self._connections: list[tuple[Connection, Literal["source", "target"]]] = []
 
-    # Stored constraints populated during build/solve workflow
-    energy_balance_constraints: dict[int, LpConstraint] = field(init=False, default_factory=dict)
-    power_balance_constraints: dict[int, LpConstraint] = field(init=False, default_factory=dict)
-    power_consumption_max_constraints: dict[int, LpConstraint] = field(init=False, default_factory=dict)
-    power_production_max_constraints: dict[int, LpConstraint] = field(init=False, default_factory=dict)
+    def register_connection(self, connection: "Connection", end: Literal["source", "target"]) -> None:
+        """Register a connection to this element.
 
-    def build(self) -> None:
-        """Construct and store element constraints."""
+        Args:
+            connection: The connection object
+            end: Whether this element is the 'source' or 'target' of the connection
 
-        self.energy_balance_constraints.clear()
-        self.power_consumption_max_constraints.clear()
-        self.power_production_max_constraints.clear()
+        """
+        self._connections.append((connection, end))
 
-        if self.energy is not None and self.power_consumption is not None and self.power_production is not None:
-            for t in range(1, len(self.energy)):
-                energy_change = (
-                    self.power_consumption[t - 1] * self.efficiency - self.power_production[t - 1] / self.efficiency
-                ) * self.period
-                constraint = cast("LpConstraint", self.energy[t] == self.energy[t - 1] + energy_change)
-                constraint.name = f"{self.name}_energy_balance_{t}"
-                self.energy_balance_constraints[t] = constraint
+    def connection_power(self, t: int) -> LpAffineExpression:
+        """Return the net power from connections at timestep t.
 
-        if self.power_consumption is not None:
-            for index, power_var in enumerate(self.power_consumption):
-                if not isinstance(power_var, LpVariable) or power_var.upBound is None:
-                    continue
+        Positive means power flowing into this element from connections.
+        Negative means power flowing out of this element to connections.
 
-                constraint = cast("LpConstraint", power_var <= float(power_var.upBound))
-                constraint.name = f"{self.name}_power_consumption_max_{index}"
-                self.power_consumption_max_constraints[index] = constraint
+        Args:
+            t: Time period index
 
-        if self.power_production is not None:
-            for index, power_var in enumerate(self.power_production):
-                if not isinstance(power_var, LpVariable) or power_var.upBound is None:
-                    continue
+        Returns:
+            Sum of connection powers (LP expression)
 
-                constraint = cast("LpConstraint", power_var <= float(power_var.upBound))
-                constraint.name = f"{self.name}_power_production_max_{index}"
-                self.power_production_max_constraints[index] = constraint
+        """
+        terms: list[LpAffineExpression] = []
+
+        for conn, end in self._connections:
+            if end == "source":
+                # Power leaving source (negative)
+                terms.append(-conn.power_source_target[t])
+                # Power entering source from target (positive, with efficiency applied)
+                terms.append(conn.power_target_source[t] * conn.efficiency_target_source[t])
+            elif end == "target":
+                # Power entering target from source (positive, with efficiency applied)
+                terms.append(conn.power_source_target[t] * conn.efficiency_source_target[t])
+                # Power leaving target (negative)
+                terms.append(-conn.power_target_source[t])
+
+        return lpSum(terms) if terms else LpAffineExpression(constant=0.0)
+
+    def build_constraints(self) -> None:
+        """Build network-dependent constraints (e.g., power balance).
+
+        This method is called after all connections are registered and should
+        create and store constraints in self._constraints dictionary.
+
+        Elements should use connection_power(t) to get the net power from
+        connections when building their power balance constraints.
+
+        Default implementation does nothing. Subclasses should override as needed.
+        """
 
     def constraints(self) -> Sequence[LpConstraint]:
-        """Return all stored constraints for this element."""
+        """Return all constraints for this element.
 
-        return (
-            *self.energy_balance_constraints.values(),
-            *self.power_consumption_max_constraints.values(),
-            *self.power_production_max_constraints.values(),
-        )
+        Returns:
+            Flattened sequence of all stored constraints
 
-    def cost(self) -> float:
-        """Return the cost of the entity using separate consumption/production variables.
+        """
+        result: MutableSequence[LpConstraint] = []
+        for constraint_or_sequence in self._constraints.values():
+            if isinstance(constraint_or_sequence, Sequence):
+                result.extend(constraint_or_sequence)
+            else:
+                result.append(constraint_or_sequence)
+        return result
+
+    def cost(self) -> Sequence[LpAffineExpression]:
+        """Return the cost expressions of the entity.
+
+        Returns a sequence of cost expressions for aggregation at the network level.
 
         Units: $ = ($/kWh) * kW * period_hours
+
+        Returns:
+            Sequence of cost expressions (empty if no cost)
+
+        Default implementation returns empty list. Subclasses should override as needed.
+
         """
-        cost = 0
-        # Handle separate consumption and production pricing
-        if self.price_consumption is not None and self.power_consumption is not None:
-            # Revenue for consumption (exporting to grid) - negative cost = revenue
-            cost += lpSum(
-                -price * power * self.period
-                for price, power in zip(self.price_consumption, self.power_consumption, strict=False)
-            )
-
-        if self.price_production is not None and self.power_production is not None:
-            # Cost for production (importing from grid)
-            cost += lpSum(
-                price * power * self.period
-                for price, power in zip(self.price_production, self.power_production, strict=False)
-            )
-
-        return cast("float", cost)
+        return []
 
     def outputs(self) -> Mapping[OutputName, OutputData]:
-        """Return output specifications for the element."""
+        """Return output specifications for the element.
 
-        outputs: dict[OutputName, OutputData] = {}
-        if self.power_consumption is not None:
-            outputs[OUTPUT_NAME_POWER_CONSUMED] = OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_consumption)
-            )
+        Each element should provide its own specific outputs.
 
-        if self.power_production is not None:
-            outputs[OUTPUT_NAME_POWER_PRODUCED] = OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_production)
-            )
-
-        if self.energy is not None:
-            outputs[OUTPUT_NAME_ENERGY_STORED] = OutputData(
-                type=OUTPUT_TYPE_ENERGY, unit="kWh", values=extract_values(self.energy)
-            )
-
-        if self.price_consumption is not None:
-            outputs[OUTPUT_NAME_PRICE_CONSUMPTION] = OutputData(
-                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.price_consumption)
-            )
-        if self.price_production is not None:
-            outputs[OUTPUT_NAME_PRICE_PRODUCTION] = OutputData(
-                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.price_production)
-            )
-
-        if self.energy_balance_constraints:
-            outputs[OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE,
-                unit="$/kWh",
-                values=self._shadow_prices(self.energy_balance_constraints),
-            )
-
-        if self.power_consumption_max_constraints:
-            outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE,
-                unit="$/kW",
-                values=self._shadow_prices(self.power_consumption_max_constraints),
-            )
-
-        if self.power_production_max_constraints:
-            outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE,
-                unit="$/kW",
-                values=self._shadow_prices(self.power_production_max_constraints),
-            )
-
-        return outputs
-
-    @staticmethod
-    def _shadow_prices(constraints: Mapping[int, LpConstraint]) -> tuple[float, ...]:
-        """Return dual values for the provided constraints."""
-
-        return tuple(
-            float(pi) if (pi := getattr(constraint, "pi", None)) is not None else 0.0
-            for constraint in constraints.values()
-        )
+        Default implementation returns empty dict. Subclasses should override as needed.
+        """
+        return {}

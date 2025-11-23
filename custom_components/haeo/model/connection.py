@@ -1,13 +1,12 @@
 """Connection class for electrical system modeling."""
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import cast
 
-import numpy as np
-from pulp import LpConstraint, LpVariable, lpSum
+from pulp import LpAffineExpression, LpVariable, lpSum
 
 from .const import (
+    CONSTRAINT_NAME_MAX_POWER_SOURCE_TARGET,
+    CONSTRAINT_NAME_MAX_POWER_TARGET_SOURCE,
     OUTPUT_NAME_POWER_FLOW_SOURCE_TARGET,
     OUTPUT_NAME_POWER_FLOW_TARGET_SOURCE,
     OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX,
@@ -16,12 +15,12 @@ from .const import (
     OUTPUT_TYPE_SHADOW_PRICE,
     OutputData,
     OutputName,
-    extract_values,
 )
+from .element import Element
+from .util import broadcast_to_sequence, extract_values
 
 
-@dataclass
-class Connection:
+class Connection(Element):
     """Connection class for electrical system modeling."""
 
     def __init__(
@@ -55,108 +54,70 @@ class Connection:
             price_target_source: Price in $/kWh for target to source flow (per period)
 
         """
-        self.name = name
-        self.period = period
+
+        # Initialize base Element class
+        super().__init__(name=name, period=period, n_periods=n_periods)
+
+        # Store source and target
         self.source = source
         self.target = target
 
-        # Broadcast power limits to n_periods using numpy
-        if max_power_source_target is not None:
-            st_array = np.broadcast_to(np.atleast_1d(max_power_source_target), (n_periods,))
-            st_bounds = st_array.tolist()
-        else:
-            st_bounds = [None] * n_periods
+        # Broadcast power limits to n_periods
+        st_bounds = broadcast_to_sequence(max_power_source_target, n_periods)
+        ts_bounds = broadcast_to_sequence(max_power_target_source, n_periods)
 
-        if max_power_target_source is not None:
-            ts_array = np.broadcast_to(np.atleast_1d(max_power_target_source), (n_periods,))
-            ts_bounds = ts_array.tolist()
-        else:
-            ts_bounds = [None] * n_periods
+        # Initialize separate power variables for each direction (both positive, bounds as constraints)
+        self.power_source_target = [LpVariable(name=f"{name}_power_st_{i}", lowBound=0) for i in range(n_periods)]
+        self.power_target_source = [LpVariable(name=f"{name}_power_ts_{i}", lowBound=0) for i in range(n_periods)]
 
-        # Initialize separate power variables for each direction (both positive)
-        self.power_source_target = [
-            LpVariable(name=f"{name}_power_st_{i}", lowBound=0, upBound=st_bounds[i]) for i in range(n_periods)
-        ]
-        self.power_target_source = [
-            LpVariable(name=f"{name}_power_ts_{i}", lowBound=0, upBound=ts_bounds[i]) for i in range(n_periods)
-        ]
+        # Add power bound constraints if specified
+        if st_bounds is not None:
+            self._constraints[CONSTRAINT_NAME_MAX_POWER_SOURCE_TARGET] = [
+                self.power_source_target[t] <= st_bounds[t] for t in range(n_periods)
+            ]
+        if ts_bounds is not None:
+            self._constraints[CONSTRAINT_NAME_MAX_POWER_TARGET_SOURCE] = [
+                self.power_target_source[t] <= ts_bounds[t] for t in range(n_periods)
+            ]
 
         # Broadcast and convert efficiency to fraction (default 100% = 1.0)
-        if efficiency_source_target is not None:
-            st_eff_array = np.broadcast_to(np.atleast_1d(efficiency_source_target), (n_periods,))
-            self.efficiency_source_target = (st_eff_array / 100.0).tolist()
-        else:
-            self.efficiency_source_target = [1.0] * n_periods
+        st_eff_values = broadcast_to_sequence(efficiency_source_target, n_periods)
+        self.efficiency_source_target = [e / 100.0 for e in st_eff_values] if st_eff_values else [1.0] * n_periods
 
-        if efficiency_target_source is not None:
-            ts_eff_array = np.broadcast_to(np.atleast_1d(efficiency_target_source), (n_periods,))
-            self.efficiency_target_source = (ts_eff_array / 100.0).tolist()
-        else:
-            self.efficiency_target_source = [1.0] * n_periods
+        ts_eff_values = broadcast_to_sequence(efficiency_target_source, n_periods)
+        self.efficiency_target_source = [e / 100.0 for e in ts_eff_values] if ts_eff_values else [1.0] * n_periods
 
         # Store prices (None means no cost)
         self.price_source_target = price_source_target
         self.price_target_source = price_target_source
 
-        # Initialize constraint dictionaries for shadow prices
-        self.power_min_constraints: dict[int, LpConstraint] = {}
-        self.power_max_constraints: dict[int, LpConstraint] = {}
+    def cost(self) -> Sequence[LpAffineExpression]:
+        """Return the cost expressions of the connection with transfer pricing.
 
-    def build(self) -> None:
-        """Store explicit constraints for power bounds so duals are available."""
-
-        self.power_min_constraints.clear()
-        self.power_max_constraints.clear()
-
-        # Create constraints for source->target direction (indices 0 to n_periods-1)
-        for index, power_var in enumerate(self.power_source_target):
-            if power_var.lowBound is not None:
-                constraint = cast("LpConstraint", power_var >= float(power_var.lowBound))
-                constraint.name = f"{self.name}_power_st_min_{index}"
-                self.power_min_constraints[index] = constraint
-
-            if power_var.upBound is not None:
-                constraint = cast("LpConstraint", power_var <= float(power_var.upBound))
-                constraint.name = f"{self.name}_power_st_max_{index}"
-                self.power_max_constraints[index] = constraint
-
-        # Create constraints for target->source direction (indices n_periods to 2*n_periods-1)
-        n_periods = len(self.power_target_source)
-        for index, power_var in enumerate(self.power_target_source):
-            if power_var.lowBound is not None:
-                constraint = cast("LpConstraint", power_var >= float(power_var.lowBound))
-                constraint.name = f"{self.name}_power_ts_min_{index}"
-                self.power_min_constraints[n_periods + index] = constraint
-
-            if power_var.upBound is not None:
-                constraint = cast("LpConstraint", power_var <= float(power_var.upBound))
-                constraint.name = f"{self.name}_power_ts_max_{index}"
-                self.power_max_constraints[n_periods + index] = constraint
-
-    def constraints(self) -> Sequence[LpConstraint]:
-        """Return stored connection constraints."""
-
-        return (*self.power_min_constraints.values(), *self.power_max_constraints.values())
-
-    def cost(self) -> float:
-        """Return the cost of the connection with transfer pricing."""
-        cost = 0
+        Returns a sequence of cost expressions for aggregation at the network level.
+        """
+        costs: list[LpAffineExpression] = []
         if self.price_source_target is not None:
-            cost += lpSum(
-                price * power * self.period
-                for price, power in zip(self.price_source_target, self.power_source_target, strict=False)
+            costs.append(
+                lpSum(
+                    price * power * self.period
+                    for price, power in zip(self.price_source_target, self.power_source_target, strict=True)
+                )
             )
+
         if self.price_target_source is not None:
-            cost += lpSum(
-                price * power * self.period
-                for price, power in zip(self.price_target_source, self.power_target_source, strict=False)
+            costs.append(
+                lpSum(
+                    price * power * self.period
+                    for price, power in zip(self.price_target_source, self.power_target_source, strict=True)
+                )
             )
-        return cast("float", cost)
+
+        return costs
 
     def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return output specifications for the connection."""
-
-        outputs: dict[OutputName, OutputData] = {
+        return {
             OUTPUT_NAME_POWER_FLOW_SOURCE_TARGET: OutputData(
                 type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_source_target)
             ),
@@ -164,28 +125,3 @@ class Connection:
                 type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_target_source)
             ),
         }
-
-        if self.power_min_constraints:
-            outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE,
-                unit="$/kW",
-                values=self._shadow_prices(self.power_min_constraints),
-            )
-
-        if self.power_max_constraints:
-            outputs[OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE,
-                unit="$/kW",
-                values=self._shadow_prices(self.power_max_constraints),
-            )
-
-        return outputs
-
-    @staticmethod
-    def _shadow_prices(constraints: Mapping[int, LpConstraint]) -> tuple[float, ...]:
-        """Return dual values for the provided constraints."""
-
-        return tuple(
-            float(pi) if (pi := getattr(constraint, "pi", None)) is not None else 0.0
-            for constraint in constraints.values()
-        )

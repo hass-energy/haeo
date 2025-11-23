@@ -1,19 +1,13 @@
 """Test data and factories for Node element."""
 
-from typing import Any
-
 from custom_components.haeo.model.node import Node
 
+from .element_types import ElementTestCase
 
-def create(data: dict[str, Any]) -> Node:
-    """Create a test Node instance."""
-    return Node(**data)
-
-
-VALID_CASES = [
+VALID_CASES: list[ElementTestCase] = [
     {
         "description": "Node with basic configuration",
-        "factory": create,
+        "factory": Node,
         "data": {
             "name": "node",
             "period": 1,
@@ -21,6 +15,16 @@ VALID_CASES = [
         },
         "expected_outputs": {},
     },
+    {
+        "description": "Node with multiple periods",
+        "factory": Node,
+        "data": {
+            "name": "hub_node",
+            "period": 1,
+            "n_periods": 24,
+        },
+        "expected_outputs": {},
+    },
 ]
 
-INVALID_CASES: list[dict[str, Any]] = []
+INVALID_CASES: list[ElementTestCase] = []

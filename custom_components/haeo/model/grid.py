@@ -2,25 +2,21 @@
 
 from collections.abc import Mapping, Sequence
 
-from pulp import LpVariable
+from pulp import LpAffineExpression, LpVariable, lpSum
 
 from .const import (
-    OUTPUT_NAME_POWER_CONSUMED,
+    CONSTRAINT_NAME_POWER_BALANCE,
     OUTPUT_NAME_POWER_EXPORTED,
     OUTPUT_NAME_POWER_IMPORTED,
-    OUTPUT_NAME_POWER_PRODUCED,
-    OUTPUT_NAME_PRICE_CONSUMPTION,
     OUTPUT_NAME_PRICE_EXPORT,
     OUTPUT_NAME_PRICE_IMPORT,
-    OUTPUT_NAME_PRICE_PRODUCTION,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX,
+    OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_PRICE,
     OutputData,
     OutputName,
 )
 from .element import Element
+from .util import broadcast_to_sequence, extract_values
 
 
 class Grid(Element):
@@ -49,44 +45,83 @@ class Grid(Element):
             export_price: Price in $/kWh when exporting
 
         """
+        super().__init__(name=name, period=period, n_periods=n_periods)
 
-        if import_price is not None and len(import_price) != n_periods:
-            msg = f"import_price must contain {n_periods} entries"
+        # Validate import_price length strictly
+        if isinstance(import_price, Sequence) and len(import_price) != n_periods:
+            msg = f"Sequence length {len(import_price)} must match n_periods {n_periods}"
             raise ValueError(msg)
-        if export_price is not None and len(export_price) != n_periods:
-            msg = f"export_price must contain {n_periods} entries"
+
+        # Validate export_price length strictly
+        if isinstance(export_price, Sequence) and len(export_price) != n_periods:
+            msg = f"Sequence length {len(export_price)} must match n_periods {n_periods}"
             raise ValueError(msg)
+
+        # Validate and store prices
+        self.import_price = broadcast_to_sequence(import_price, n_periods)
+        self.export_price = broadcast_to_sequence(export_price, n_periods)
 
         # power_consumption: positive when exporting to grid (grid consuming our power)
-        power_consumption = [
+        self.power_consumption = [
             LpVariable(name=f"{name}_export_{i}", lowBound=0, upBound=export_limit) for i in range(n_periods)
         ]
         # power_production: positive when importing from grid (grid producing power for us)
-        power_production = [
+        self.power_production = [
             LpVariable(name=f"{name}_import_{i}", lowBound=0, upBound=import_limit) for i in range(n_periods)
         ]
 
-        super().__init__(
-            name=name,
-            period=period,
-            n_periods=n_periods,
-            power_consumption=power_consumption,  # Consuming = exporting (grid consuming our power)
-            power_production=power_production,  # Producing = importing (grid producing power for us)
-            price_consumption=export_price,
-            price_production=import_price,
-        )
+    def build_constraints(self) -> None:
+        """Build network-dependent constraints for the grid.
+
+        This includes power balance constraints using connection_power().
+        """
+        self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
+            self.connection_power(t) - self.power_consumption[t] + self.power_production[t] == 0
+            for t in range(self.n_periods)
+        ]
+
+    def cost(self) -> Sequence[LpAffineExpression]:
+        """Return the cost expressions of the grid connection."""
+        costs: list[LpAffineExpression] = []
+        # Export pricing (revenue when exporting)
+        if self.export_price is not None:
+            costs.append(
+                lpSum(
+                    -price * power * self.period
+                    for price, power in zip(self.export_price, self.power_consumption, strict=True)
+                )
+            )
+
+        # Import pricing (cost when importing)
+        if self.import_price is not None:
+            costs.append(
+                lpSum(
+                    price * power * self.period
+                    for price, power in zip(self.import_price, self.power_production, strict=True)
+                )
+            )
+
+        return costs
 
     def outputs(self) -> Mapping[OutputName, OutputData]:
         """Return the outputs for the grid with import/export naming."""
 
-        mapping: dict[OutputName, OutputName] = {
-            OUTPUT_NAME_POWER_CONSUMED: OUTPUT_NAME_POWER_EXPORTED,
-            OUTPUT_NAME_POWER_PRODUCED: OUTPUT_NAME_POWER_IMPORTED,
-            OUTPUT_NAME_PRICE_CONSUMPTION: OUTPUT_NAME_PRICE_EXPORT,
-            OUTPUT_NAME_PRICE_PRODUCTION: OUTPUT_NAME_PRICE_IMPORT,
-            OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX: OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX,
-            OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX: OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX,
+        outputs: dict[OutputName, OutputData] = {
+            OUTPUT_NAME_POWER_EXPORTED: OutputData(
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_consumption)
+            ),
+            OUTPUT_NAME_POWER_IMPORTED: OutputData(
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_production)
+            ),
         }
 
-        # Remap the output names accordingly
-        return {mapping.get(key, key): value for key, value in super().outputs().items()}
+        if self.export_price is not None:
+            outputs[OUTPUT_NAME_PRICE_EXPORT] = OutputData(
+                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.export_price)
+            )
+        if self.import_price is not None:
+            outputs[OUTPUT_NAME_PRICE_IMPORT] = OutputData(
+                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.import_price)
+            )
+
+        return outputs

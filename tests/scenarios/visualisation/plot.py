@@ -15,10 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from custom_components.haeo.elements import ElementType
-
-# Use non-GUI backend
-mpl.use("Agg")
-
 from custom_components.haeo.model import (
     OUTPUT_NAME_BATTERY_STATE_OF_CHARGE,
     OUTPUT_NAME_POWER_AVAILABLE,
@@ -44,6 +40,12 @@ from custom_components.haeo.model import (
 )
 
 from .colors import ColorMapper
+
+# Use non-GUI backend
+mpl.use("Agg")
+
+# Fix SVG hash salt for consistent output
+mpl.rcParams["svg.hashsalt"] = "42"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -230,7 +232,12 @@ def plot_stacked_layer(
     hatches: Iterable[str] | None = None,
     **format_args: Any,
 ) -> None:
-    """Plot a stacked layer of forecast data on the given axis."""
+    """Plot stacked power forecast data on the given axis.
+
+    Power values represent average power over time intervals (not instantaneous values).
+    Uses step='post' to display each value from its timestamp through the full period length.
+    For example, a value at t=300 with 300-second periods is displayed from t=300 to t=600.
+    """
 
     # Calculate a common time index from the union of all timestamps
     times = np.array(sorted({dt[0] for (_, data) in forecast_data for dt in data}))
@@ -277,7 +284,11 @@ def plot_stacked_layer(
 
 
 def plot_price_series(ax: Any, forecast_data: Sequence[tuple[str, str, Sequence[tuple[float, float]]]]) -> None:
-    """Plot price forecast outputs as line series on the provided axis."""
+    """Plot price forecast outputs as line series on the provided axis.
+
+    Prices represent values over time intervals (like power), displayed with
+    steps-post to show each price from its timestamp through the period length.
+    """
 
     for label, color, data in forecast_data:
         values = np.asarray(data, dtype=float)
@@ -287,7 +298,12 @@ def plot_price_series(ax: Any, forecast_data: Sequence[tuple[str, str, Sequence[
 
 
 def plot_soc(ax: Any, forecast_data: Sequence[tuple[str, Sequence[tuple[float, float]]]]) -> None:
-    """Plot the state of charge (SOC) data on a secondary y-axis."""
+    """Plot state of charge (SOC) data on a secondary y-axis.
+
+    SOC represents instantaneous battery state at time boundaries (fence posts),
+    not average values over intervals. Uses linear interpolation between points
+    to show continuous state transitions.
+    """
 
     ax_soc = ax.twinx()
     ax_soc.set_ylabel("State of Charge (%)", fontsize=11)
@@ -297,6 +313,7 @@ def plot_soc(ax: Any, forecast_data: Sequence[tuple[str, Sequence[tuple[float, f
         d = np.asarray(data, dtype=float)
 
         times_dt = [datetime.fromtimestamp(t, tz=UTC) for t in d[:, 0]]
+        # Use linear interpolation (default) since SOC is instantaneous state, not step function
         ax_soc.plot(times_dt, d[:, 1], color=color, linestyle="--", linewidth=1.5)
 
     ax_soc.tick_params(axis="y", labelsize=9)
@@ -434,7 +451,7 @@ def create_stacked_visualization(hass: HomeAssistant, output_path: str, title: s
     fig.subplots_adjust(top=0.93, bottom=0.10, left=0.08, right=0.95, hspace=0.15)
 
     # Save as SVG
-    fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3)
+    fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3, metadata={"Date": None})
     _LOGGER.info("Visualization saved to %s", output_path)
 
     # Also save as PNG for easier viewing

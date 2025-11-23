@@ -64,5 +64,5 @@ Monitor system metrics and tune horizons or model complexity if you notice susta
 Watch for warning signs such as repeated `failed` or `infeasible` states, rising CPU usage, or sensors that stop updating.
 Reduce problem size, verify forecasts, and confirm sensor connectivity before retrying.
 
-If you encounter a limitation that blocks your use case, visit the [HAEO GitHub issues](https://github.com/ha-energy-optimiser/haeo/issues) page or open a [discussion](https://github.com/ha-energy-optimiser/haeo/discussions) with scenario details.
+If you encounter a limitation that blocks your use case, visit the [HAEO GitHub issues](https://github.com/hass-energy/haeo/issues) page or open a [discussion](https://github.com/hass-energy/haeo/discussions) with scenario details.
 Community feedback guides future improvements, so share the context behind your request whenever possible.

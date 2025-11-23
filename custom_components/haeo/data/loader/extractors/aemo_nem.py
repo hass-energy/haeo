@@ -1,13 +1,14 @@
 """AEMO energy market forecast parser."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from datetime import datetime
 import logging
-from typing import Any, Literal
+from typing import Literal, Protocol, TypedDict, TypeGuard
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
-from .utils.parse_datetime import parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,25 +16,23 @@ Format = Literal["aemo_nem"]
 DOMAIN: Format = "aemo_nem"
 
 
-def _parse_entry(item: Any) -> tuple[int, float] | None:
-    """Validate and convert a forecast item."""
+class AemoForecastEntry(TypedDict):
+    """Type definition for an AEMO forecast entry."""
 
-    if not isinstance(item, dict):
-        return None
+    start_time: str | datetime
+    price: float
 
-    start_time = item.get("start_time")
-    price = item.get("price")
 
-    if start_time is None or price is None:
-        return None
+class AemoNemAttributes(TypedDict):
+    """Type definition for AEMO NEM State attributes."""
 
-    try:
-        timestamp_seconds = parse_datetime_to_timestamp(start_time)
-        value = float(price)
-    except (ValueError, TypeError):
-        return None
+    forecast: Sequence[AemoForecastEntry]
 
-    return timestamp_seconds, value
+
+class AemoNemState(Protocol):
+    """Protocol for a State object with validated AEMO NEM forecast data."""
+
+    attributes: AemoNemAttributes
 
 
 class Parser:
@@ -44,33 +43,30 @@ class Parser:
     DEVICE_CLASS: SensorDeviceClass = SensorDeviceClass.MONETARY
 
     @staticmethod
-    def detect(state: State) -> bool:
-        """Check if data matches AEMO energy market format."""
+    def detect(state: State) -> TypeGuard[AemoNemState]:
+        """Check if data matches AEMO energy market format and narrow type."""
 
-        if not (isinstance(state.attributes, dict) and "forecast" in state.attributes):
+        if "forecast" not in state.attributes:
             return False
 
         forecast = state.attributes["forecast"]
-        if not (isinstance(forecast, list) and forecast):
+        if not (isinstance(forecast, Sequence) and not isinstance(forecast, (str, bytes))) or not forecast:
             return False
 
-        return all(_parse_entry(item) is not None for item in forecast)
+        return all(
+            isinstance(item, Mapping)
+            and "start_time" in item
+            and "price" in item
+            and isinstance(item["price"], (int, float))
+            and is_parsable_to_datetime(item["start_time"])
+            for item in forecast
+        )
 
     @staticmethod
-    def extract(state: State) -> Sequence[tuple[int, float]]:
+    def extract(state: AemoNemState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
         """Extract forecast data from AEMO energy market format."""
-
-        forecast = state.attributes.get("forecast")
-        if not isinstance(forecast, list) or not forecast:
-            _LOGGER.warning("AEMO forecast payload is not a non-empty list; rejecting data")
-            return []
-
-        parsed: list[tuple[int, float]] = []
-        for index, item in enumerate(forecast):
-            if (entry := _parse_entry(item)) is None:
-                _LOGGER.warning("Invalid AEMO forecast entry at index %s; rejecting entire dataset", index)
-                return []
-            parsed.append(entry)
-
+        parsed: list[tuple[int, float]] = [
+            (parse_datetime_to_timestamp(item["start_time"]), item["price"]) for item in state.attributes["forecast"]
+        ]
         parsed.sort(key=lambda x: x[0])
-        return parsed
+        return parsed, Parser.UNIT, Parser.DEVICE_CLASS

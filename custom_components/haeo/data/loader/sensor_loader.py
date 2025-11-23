@@ -5,9 +5,9 @@ from typing import Any, TypeGuard
 
 from homeassistant.core import HomeAssistant
 
-from .extractors import extract_time_series
+from .extractors import extract
 
-type ForecastSeries = list[tuple[int, float]]
+type ForecastSeries = Sequence[tuple[int, float]]
 type SensorPayload = float | ForecastSeries
 
 
@@ -58,7 +58,7 @@ def load_sensor(hass: HomeAssistant, entity_id: str) -> SensorPayload | None:
         return None
 
     try:
-        return extract_time_series(state, entity_id=entity_id)
+        return extract(state).data
     except ValueError:
         return None
 

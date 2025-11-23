@@ -191,8 +191,8 @@ HAEO doesn't respond to price changes.
 If these solutions don't help:
 
 1. **Check logs**: Settings → System → Logs
-2. **GitHub Issues**: [Report a bug](https://github.com/ha-energy-optimiser/haeo/issues)
-3. **Discussions**: [Ask for help](https://github.com/ha-energy-optimiser/haeo/discussions)
+2. **GitHub Issues**: [Report a bug](https://github.com/hass-energy/haeo/issues)
+3. **Discussions**: [Ask for help](https://github.com/hass-energy/haeo/discussions)
 
 Include:
 
@@ -223,6 +223,6 @@ Try these resources if you still need assistance after working through the troub
 
     Share logs and scenarios to get tailored assistance.
 
-    [:material-arrow-right: GitHub discussions](https://github.com/ha-energy-optimiser/haeo/discussions)
+    [:material-arrow-right: GitHub discussions](https://github.com/hass-energy/haeo/discussions)
 
 </div>

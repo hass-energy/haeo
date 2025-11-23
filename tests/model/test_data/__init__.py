@@ -8,7 +8,8 @@ from typing import Any, cast
 
 from pulp import LpVariable
 
-type TestCase = dict[str, Any]
+from .connection_types import ConnectionTestCase
+from .element_types import ElementTestCase
 
 
 def fix_lp_variable(variable: LpVariable, value: float) -> None:
@@ -32,43 +33,58 @@ def lp_sequence(name: str, length: int) -> Sequence[LpVariable]:
 
 
 # Import modules after defining utilities to avoid circular imports
-from . import battery, connection, element, grid, load, node, photovoltaics  # noqa: E402
+from . import battery, connection, grid, load, node, photovoltaics  # noqa: E402
 
 
-def _aggregate_cases() -> tuple[list[TestCase], list[TestCase]]:
-    """Aggregate test cases from all element modules."""
-    valid_cases: list[TestCase] = [
-        *element.VALID_CASES,
+def _aggregate_element_cases() -> list[ElementTestCase]:
+    """Aggregate valid element test cases."""
+    return [
         *battery.VALID_CASES,
-        *connection.VALID_CASES,
         *load.VALID_CASES,
         *grid.VALID_CASES,
         *node.VALID_CASES,
         *photovoltaics.VALID_CASES,
     ]
 
-    invalid_cases: list[TestCase] = [
-        *element.INVALID_CASES,
+
+def _aggregate_connection_cases() -> list[ConnectionTestCase]:
+    """Aggregate valid connection test cases."""
+    return [
+        *connection.VALID_CASES,
+    ]
+
+
+def _aggregate_invalid_element_cases() -> list[ElementTestCase]:
+    """Aggregate invalid element test cases."""
+    return [
         *battery.INVALID_CASES,
-        *connection.INVALID_CASES,
         *load.INVALID_CASES,
         *grid.INVALID_CASES,
         *node.INVALID_CASES,
         *photovoltaics.INVALID_CASES,
     ]
 
-    return valid_cases, invalid_cases
+
+def _aggregate_invalid_connection_cases() -> list[ConnectionTestCase]:
+    """Aggregate invalid connection test cases."""
+    return [
+        *connection.INVALID_CASES,
+    ]
 
 
-# Aggregate all valid and invalid cases from element modules
-VALID_CASES, INVALID_CASES = _aggregate_cases()
+# Aggregate cases
+VALID_ELEMENT_CASES = _aggregate_element_cases()
+VALID_CONNECTION_CASES = _aggregate_connection_cases()
+INVALID_ELEMENT_CASES = _aggregate_invalid_element_cases()
+INVALID_CONNECTION_CASES = _aggregate_invalid_connection_cases()
 
 __all__ = [
-    "INVALID_CASES",
-    "VALID_CASES",
+    "INVALID_CONNECTION_CASES",
+    "INVALID_ELEMENT_CASES",
+    "VALID_CONNECTION_CASES",
+    "VALID_ELEMENT_CASES",
     "battery",
     "connection",
-    "element",
     "fix_lp_variable",
     "grid",
     "load",

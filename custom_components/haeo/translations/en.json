@@ -80,8 +80,12 @@
             "max_charge_power": "Maximum Charge Power",
             "max_discharge_power": "Maximum Discharge Power",
             "efficiency": "Round-trip Efficiency",
-            "charge_cost": "Charge Cost (Optional)",
-            "discharge_cost": "Discharge Cost (Optional)"
+            "early_charge_incentive": "Early Charge Incentive",
+            "discharge_cost": "Discharge Cost (Optional)",
+            "undercharge_percentage": "Undercharge Percentage (Optional)",
+            "overcharge_percentage": "Overcharge Percentage (Optional)",
+            "undercharge_cost": "Undercharge Cost (Optional)",
+            "overcharge_cost": "Overcharge Cost (Optional)"
           }
         },
         "reconfigure": {
@@ -95,9 +99,13 @@
             "max_charge_percentage": "Maximum Charge Level",
             "max_charge_power": "Maximum Charge Power",
             "max_discharge_power": "Maximum Discharge Power",
-            "efficiency": "Round-trip Efficiency",
-            "charge_cost": "Charge Cost (Optional)",
-            "discharge_cost": "Discharge Cost (Optional)"
+            "efficiency": "One-way Efficiency",
+            "early_charge_incentive": "Early Charge Incentive",
+            "discharge_cost": "Discharge Cost (Optional)",
+            "undercharge_percentage": "Undercharge Percentage (Optional)",
+            "overcharge_percentage": "Overcharge Percentage (Optional)",
+            "undercharge_cost": "Undercharge Cost (Optional)",
+            "overcharge_cost": "Overcharge Cost (Optional)"
           }
         }
       },

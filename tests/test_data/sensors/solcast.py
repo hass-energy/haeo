@@ -96,6 +96,13 @@ INVALID: list[dict[str, Any]] = [
         "description": "Solcast sensor with detailedForecast not being a list",
     },
     {
+        "entity_id": "sensor.solcast_empty_detailed_forecast",
+        "state": "0",
+        "attributes": {"detailedForecast": []},
+        "expected_format": None,
+        "description": "Solcast sensor with empty detailedForecast list",
+    },
+    {
         "entity_id": "sensor.solcast_bad_timestamp",
         "state": "0",
         "attributes": {"detailedForecast": [{"period_start": "not a timestamp", "pv_estimate": 100}]},

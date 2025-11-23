@@ -1,14 +1,15 @@
 """Solcast solar forecast parser."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from datetime import datetime
 import logging
-from typing import Any, Literal
+from typing import Literal, Protocol, TypedDict, TypeGuard
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import UnitOfPower
 from homeassistant.core import State
 
-from .utils.parse_datetime import parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,25 +17,23 @@ Format = Literal["solcast_solar"]
 DOMAIN: Format = "solcast_solar"
 
 
-def _parse_entry(item: Any) -> tuple[int, float] | None:
-    """Validate and convert a forecast item."""
+class SolcastForecastEntry(TypedDict):
+    """Type definition for a Solcast forecast entry."""
 
-    if not isinstance(item, dict):
-        return None
+    period_start: str | datetime
+    pv_estimate: float
 
-    period_start = item.get("period_start")
-    pv_estimate = item.get("pv_estimate")
 
-    if period_start is None or pv_estimate is None:
-        return None
+class SolcastSolarAttributes(TypedDict):
+    """Type definition for Solcast solar forecast State attributes."""
 
-    try:
-        timestamp_seconds = parse_datetime_to_timestamp(period_start)
-        value = float(pv_estimate)
-    except (ValueError, TypeError):
-        return None
+    detailedForecast: Sequence[SolcastForecastEntry]
 
-    return timestamp_seconds, value
+
+class SolcastSolarState(Protocol):
+    """Protocol for a State object with validated Solcast solar forecast data."""
+
+    attributes: SolcastSolarAttributes
 
 
 class Parser:
@@ -45,33 +44,37 @@ class Parser:
     DEVICE_CLASS: SensorDeviceClass = SensorDeviceClass.POWER
 
     @staticmethod
-    def detect(state: State) -> bool:
-        """Check if data matches Solcast solar forecast format."""
+    def detect(state: State) -> TypeGuard[SolcastSolarState]:
+        """Check if data matches Solcast solar forecast format and narrow type."""
 
-        if not (isinstance(state.attributes, dict) and "detailedForecast" in state.attributes):
+        if "detailedForecast" not in state.attributes:
             return False
 
         detailed_forecast = state.attributes["detailedForecast"]
-        if not (isinstance(detailed_forecast, list) and detailed_forecast):
+        if (
+            not (isinstance(detailed_forecast, Sequence) and not isinstance(detailed_forecast, (str, bytes)))
+            or not detailed_forecast
+        ):
             return False
 
-        return all(_parse_entry(item) is not None for item in detailed_forecast)
+        return all(
+            isinstance(item, Mapping)
+            and "period_start" in item
+            and "pv_estimate" in item
+            and isinstance(item["pv_estimate"], (int, float))
+            and is_parsable_to_datetime(item["period_start"])
+            for item in detailed_forecast
+        )
 
     @staticmethod
-    def extract(state: State) -> Sequence[tuple[int, float]]:
-        """Extract forecast data from Solcast solar forecast format."""
+    def extract(state: SolcastSolarState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
+        """Extract forecast data from Solcast solar forecast format.
 
-        detailed_forecast = state.attributes.get("detailedForecast")
-        if not isinstance(detailed_forecast, list) or not detailed_forecast:
-            _LOGGER.warning("Solcast forecast payload is not a non-empty list; rejecting data")
-            return []
-
-        parsed: list[tuple[int, float]] = []
-        for index, item in enumerate(detailed_forecast):
-            if (entry := _parse_entry(item)) is None:
-                _LOGGER.warning("Invalid Solcast forecast entry at index %s; rejecting entire dataset", index)
-                return []
-            parsed.append(entry)
-
+        State has been validated by detect(), so all entries are guaranteed to be valid.
+        """
+        parsed: list[tuple[int, float]] = [
+            (parse_datetime_to_timestamp(item["period_start"]), item["pv_estimate"])
+            for item in state.attributes["detailedForecast"]
+        ]
         parsed.sort(key=lambda x: x[0])
-        return parsed
+        return parsed, Parser.UNIT, Parser.DEVICE_CLASS

@@ -31,3 +31,12 @@ def parse_datetime_to_timestamp(value: Any) -> int:
 
     msg = f"Expected datetime or string, got {type(value).__name__}"
     raise ValueError(msg)
+
+
+def is_parsable_to_datetime(value: Any) -> bool:
+    """Check if a value can be parsed to a UTC timestamp."""
+    try:
+        parse_datetime_to_timestamp(value)
+        return True
+    except (ValueError, TypeError):
+        return False

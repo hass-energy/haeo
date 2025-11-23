@@ -59,7 +59,29 @@ attributes:
     '2025-10-12T10:05:00+00:00': 5.1
 ```
 
-The dictionary contains one entry per optimisation period in the horizon.
+The number of forecast entries depends on the sensor type.
+
+## Forecast Lengths
+
+Power and energy sensors have different forecast lengths due to how they measure values:
+
+**Power sensors** (kW) measure average power over each optimization period.
+With a 12-hour horizon and 15-minute periods, power sensors have 48 forecast entries (one per period).
+
+**Energy sensors** (kWh, %, SOC) measure instantaneous values at time boundaries between periods.
+With the same 12-hour horizon and 15-minute periods, energy sensors have 49 forecast entries (one per boundary).
+
+This applies consistently across all element types:
+
+- Battery power: 48 values (intervals)
+- Battery energy/SOC: 49 values (boundaries)
+- Grid power: 48 values (intervals)
+- Solar power: 48 values (intervals)
+- Load power: 48 values (intervals)
+
+The extra boundary value in energy sensors represents the state at the end of the optimization horizon.
+
+For more technical details, see the [modeling documentation](../modeling/index.md#power-and-energy-discretization).
 
 ## Sensor States
 

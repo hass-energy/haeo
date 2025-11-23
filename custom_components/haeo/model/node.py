@@ -1,35 +1,29 @@
 """Node for electrical system modeling."""
 
-from collections.abc import Mapping
-
-from .const import OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE, OUTPUT_TYPE_SHADOW_PRICE, OutputData, OutputName
+from .const import CONSTRAINT_NAME_POWER_BALANCE
 from .element import Element
 
 
 class Node(Element):
     """Node for electrical system modeling."""
 
-    def __init__(self, name: str, period: int, n_periods: int) -> None:
+    def __init__(self, name: str, period: float, n_periods: int) -> None:
         """Initialize a node.
 
         Args:
             name: Name of the node
-            period: Time period in seconds
+            period: Time period in hours (model units)
             n_periods: Number of time periods
 
         """
         super().__init__(name=name, period=period, n_periods=n_periods)
 
-    def outputs(self) -> Mapping[OutputName, OutputData]:
-        """Return node outputs including power balance shadow prices."""
+    def build_constraints(self) -> None:
+        """Build network-dependent constraints for the node.
 
-        outputs = dict(super().outputs())
-
-        if self.power_balance_constraints:
-            outputs[OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE,
-                unit="$/kWh",
-                values=self._shadow_prices(self.power_balance_constraints),
-            )
-
-        return outputs
+        This includes power balance constraints using connection_power().
+        Nodes are pure junctions with no generation or consumption.
+        """
+        self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
+            self.connection_power(t) == 0 for t in range(self.n_periods)
+        ]

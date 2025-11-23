@@ -63,14 +63,14 @@ def _collect_entity_ids(value: Any) -> set[str]:
 
     if isinstance(value, Mapping):
         mapping_ids: set[str] = set()
-        for nested in value.values():
-            mapping_ids.update(_collect_entity_ids(nested))
+        for nested_value in value.values():
+            mapping_ids.update(_collect_entity_ids(nested_value))
         return mapping_ids
 
-    if isinstance(value, Sequence):
+    if isinstance(value, Sequence) and not isinstance(value, str):
         sequence_ids: set[str] = set()
-        for nested in value:
-            sequence_ids.update(_collect_entity_ids(nested))
+        for nested_value in value:
+            sequence_ids.update(_collect_entity_ids(nested_value))
         return sequence_ids
 
     return set()
@@ -157,26 +157,41 @@ def _build_coordinator_output(
     *,
     forecast_times: tuple[int, ...] | None,
 ) -> CoordinatorOutput:
-    """Convert model output values into coordinator state and forecast."""
+    """Convert model output values into coordinator state and forecast.
+
+    This function handles the "fence post problem" where different output types require
+    different numbers of timestamps:
+
+    - **Interval values** (power, prices): Average values over time periods.
+      These have n_periods values, each representing the average from the start
+      of that period to its end. Use the first n_periods timestamps (fence posts).
+
+    - **Boundary values** (energy, SOC): Instantaneous state at specific points in time.
+      These have n_periods+1 values (one more than intervals) representing the state
+      at each fence post. Use all n_periods+1 timestamps.
+
+    The forecast_times tuple contains n_periods+1 timestamps (all fence posts).
+    Each output type zips its values with however many timestamps it needs.
+
+    Example with 3 periods of 300 seconds starting at t=0:
+      - forecast_times: [0, 300, 600, 900] (n_periods+1 = 4 fence posts)
+      - Interval values (n=3): zip with [0, 300, 600]
+      - Boundary values (n=4): zip with [0, 300, 600, 900]
+    """
 
     values = tuple(output_data.values)
     state: Any | None = values[0] if values else None
     forecast: dict[datetime, Any] | None = None
-    aligned_times: tuple[int, ...] | None = None
 
     if forecast_times and len(values) > 1:
-        if len(values) == len(forecast_times):
-            aligned_times = forecast_times
-        elif len(values) == len(forecast_times) - 1:
-            aligned_times = forecast_times[1:]
-
-    if aligned_times:
         try:
             # Convert timestamps to localized datetime objects using HA's configured timezone
             local_tz = dt_util.get_default_time_zone()
+            # Zip values with available timestamps - interval values use n_periods timestamps,
+            # boundary values use all n_periods+1 timestamps (strict=False handles both)
             forecast = {
                 datetime.fromtimestamp(timestamp, tz=local_tz): value
-                for timestamp, value in zip(aligned_times, values, strict=True)
+                for timestamp, value in zip(forecast_times, values, strict=False)
             }
         except ValueError:
             forecast = None
@@ -253,14 +268,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     @staticmethod
     def _generate_forecast_timestamps(*, period_seconds: int, n_periods: int) -> tuple[int, ...]:
-        """Return rounded forecast timestamps for the optimization horizon."""
+        """Return forecast timestamps representing all fence posts (period boundaries).
+
+        Generates n_periods+1 timestamps representing the start of each period plus
+        the end of the final period. These are the "fence posts" in the fence post problem.
+
+        Example: 3 periods of 300s starting at t=0 returns [0, 300, 600, 900]
+        """
 
         epoch_seconds = dt_util.utcnow().timestamp()
         rounded_epoch = int(epoch_seconds // period_seconds * period_seconds)
         origin_time = dt_util.utc_from_timestamp(rounded_epoch)
 
         return tuple(
-            int((origin_time + timedelta(seconds=period_seconds * index)).timestamp()) for index in range(n_periods)
+            int((origin_time + timedelta(seconds=period_seconds * index)).timestamp()) for index in range(n_periods + 1)
         )
 
     async def _async_update_data(self) -> CoordinatorData:
