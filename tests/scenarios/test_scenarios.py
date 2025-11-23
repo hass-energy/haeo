@@ -39,20 +39,37 @@ def _discover_scenarios() -> list[Path]:
 
 
 def _extract_freeze_time(scenario_path: Path) -> str:
-    """Extract the most recent last_updated timestamp from states.json."""
+    """Extract freeze time from scenario data.
+
+    Uses environment.timestamp from scenario.json if available (new format),
+    otherwise falls back to extracting from states.json (old format).
+    """
+    # Try new single-file format first
+    scenario_file = scenario_path / "scenario.json"
+    if scenario_file.exists():
+        with scenario_file.open() as f:
+            data = json.load(f)
+        # Use environment timestamp if available
+        if "environment" in data and data["environment"].get("timestamp"):
+            return data["environment"]["timestamp"]
+        # Fall back to extracting from inputs
+        if "inputs" in data:
+            timestamps = [state["last_updated"] for state in data["inputs"] if "last_updated" in state]
+            if timestamps:
+                return max(timestamps)
+
+    # Fall back to old format
     states_path = scenario_path / "states.json"
-    with states_path.open() as f:
-        states = json.load(f)
+    if states_path.exists():
+        with states_path.open() as f:
+            states = json.load(f)
+        # Extract all last_updated timestamps
+        timestamps = [state["last_updated"] for state in states if "last_updated" in state]
+        if timestamps:
+            return max(timestamps)
 
-    # Extract all last_updated timestamps
-    timestamps: list[str] = [state["last_updated"] for state in states if "last_updated" in state]
-
-    if not timestamps:
-        msg = f"No last_updated timestamps found in {states_path}"
-        raise ValueError(msg)
-
-    # Return the most recent timestamp
-    return max(timestamps)
+    msg = f"No timestamp found in {scenario_path}"
+    raise ValueError(msg)
 
 
 # Discover scenarios and create test parameters
@@ -75,9 +92,14 @@ async def test_scenarios(
     freeze_timestamp: str,
     scenario_config: dict[str, Any],
     scenario_states: Sequence[dict[str, Any]],
+    scenario_outputs: Sequence[dict[str, Any]],
     snapshot: SnapshotAssertion,
 ) -> None:
-    """Test that scenario sets up correctly and optimization engine runs successfully."""
+    """Test that scenario sets up correctly and optimization engine runs successfully.
+
+    If scenario_outputs is provided (from scenario.json outputs section), it will be used
+    for snapshot comparison. Otherwise, all HAEO sensors will be compared to snapshots.
+    """
     # Apply freeze_time dynamically
     with freeze_time(freeze_timestamp):
         # Set up sensor states from scenario data and wait until they are loaded
@@ -213,7 +235,21 @@ async def test_scenarios(
             scenario_path / "visualizations",
         )
 
-        # Check the sensors against snapshots
-        assert snapshot == haeo_sensors
+        # Check outputs against snapshots
+        # If scenario_outputs is provided, use it for comparison; otherwise use all haeo sensors
+        if scenario_outputs:
+            _LOGGER.info("Using scenario outputs for snapshot comparison")
+            # Convert output state dicts to match expected format
+            output_comparison = []
+            for output_state in scenario_outputs:
+                entity_id = output_state.get("entity_id")
+                if entity_id:
+                    state = hass.states.get(entity_id)
+                    if state:
+                        output_comparison.append(state)
+            assert snapshot == output_comparison
+        else:
+            _LOGGER.info("Using all HAEO sensors for snapshot comparison")
+            assert snapshot == haeo_sensors
 
         _LOGGER.info("Test completed - integration setup and sensor creation verified")

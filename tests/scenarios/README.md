@@ -6,26 +6,23 @@ Quick start guide for testing HAEO with real Home Assistant data.
 
 ### Option 1: From Diagnostics (Easiest - Recommended)
 
-Download diagnostics from Home Assistant UI and extract scenario data:
+Download diagnostics from Home Assistant UI and save as scenario:
 
+```bash
+# Use the extraction script (saves as single scenario.json file)
+python tests/scenarios/extract_from_diagnostics.py diagnostics.json tests/scenarios/my_scenario/
+```
+
+Or manually:
 ```python
 import json
 
 with open('diagnostics.json') as f:
     diagnostics = json.load(f)
 
-# Save config
-with open('tests/scenarios/my_scenario/config.json', 'w') as f:
-    json.dump(diagnostics['config'], f, indent=2)
-
-# Save input states  
-with open('tests/scenarios/my_scenario/states.json', 'w') as f:
-    json.dump(diagnostics['inputs'], f, indent=2)
-```
-
-Or use the extraction script:
-```bash
-python tests/scenarios/extract_from_diagnostics.py diagnostics.json tests/scenarios/my_scenario/
+# Save as single scenario.json file (includes config, environment, inputs, outputs)
+with open('tests/scenarios/my_scenario/scenario.json', 'w') as f:
+    json.dump(diagnostics, f, indent=2)
 ```
 
 ### Option 2: Direct from Home Assistant
@@ -48,12 +45,19 @@ python tests/scenarios/extract_from_diagnostics.py diagnostics.json tests/scenar
 
 ## Test Structure
 
-Each scenario needs:
+Each scenario can use either:
 
+**New format (single file - recommended):**
 ```
 scenario_name/
-├── states.json     # Filtered HA states (from diagnostics or filter_states.py)
-└── config.json     # HAEO configuration (from diagnostics or manual)
+└── scenario.json   # Single file with config, environment, inputs, outputs
+```
+
+**Old format (backward compatible):**
+```
+scenario_name/
+├── config.json     # HAEO configuration
+└── states.json     # Input sensor states
 ```
 
 All scenarios are automatically discovered and tested by `tests/scenarios/test_scenarios.py`.
@@ -61,14 +65,16 @@ Snapshots are stored in `tests/scenarios/snapshots/test_scenarios.ambr`.
 
 ## What's in Diagnostics Format
 
-The diagnostics output now has a flat structure with four main keys:
+The diagnostics output has a flat structure with four main keys (in order):
 
-- **config**: HAEO configuration (participants, horizon_hours, period_minutes)
+- **config**: HAEO configuration (participants, horizon_hours, period_minutes) - user editable
+- **environment**: HA version, HAEO version, timestamp, timezone - user editable for testing
 - **inputs**: All input sensor states with attributes and forecasts
-- **outputs**: Output sensor states from optimization (when available, useful for diagnostics)
-- **environment**: HA version, HAEO version, timestamp, timezone
+- **outputs**: Output sensor states from optimization (used for snapshot comparison)
 
-This makes it easy to capture a problematic state and create a reproducible test scenario for debugging.
+Keys are ordered so user-editable sections (config, environment) appear first, followed by data sections (inputs, outputs).
+
+The environment.timestamp is used as the freeze time for the test, and outputs are used for snapshot comparison.
 
 ## Usage Examples
 

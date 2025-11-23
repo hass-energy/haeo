@@ -5,8 +5,7 @@ Usage:
     python extract_from_diagnostics.py diagnostics.json output_dir/
 
 This will create:
-    output_dir/config.json
-    output_dir/states.json
+    output_dir/scenario.json (single file in diagnostic format)
 """
 
 import json
@@ -15,7 +14,7 @@ from pathlib import Path
 
 
 def extract_scenario(diagnostics_path: Path, output_dir: Path) -> None:
-    """Extract scenario files from diagnostics JSON."""
+    """Extract scenario file from diagnostics JSON."""
     with diagnostics_path.open() as f:
         diagnostics = json.load(f)
 
@@ -28,33 +27,19 @@ def extract_scenario(diagnostics_path: Path, output_dir: Path) -> None:
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save config
-    config_path = output_dir / "config.json"
-    with config_path.open("w") as f:
-        json.dump(diagnostics["config"], f, indent=2)
-    print(f"✓ Saved config to {config_path}")
+    # Save as single scenario.json file with sorted keys
+    # Keys are already in the right order: config, environment, inputs, outputs
+    scenario_path = output_dir / "scenario.json"
+    with scenario_path.open("w") as f:
+        json.dump(diagnostics, f, indent=2, sort_keys=False)
 
-    # Save input states
-    states_path = output_dir / "states.json"
-    with states_path.open("w") as f:
-        json.dump(diagnostics["inputs"], f, indent=2)
-    print(f"✓ Saved {len(diagnostics['inputs'])} input states to {states_path}")
+    print(f"✓ Saved scenario to {scenario_path}")
+    print(f"  - Config with {len(diagnostics['config'].get('participants', {}))} participants")
+    print(f"  - {len(diagnostics['inputs'])} input states")
+    print(f"  - {len(diagnostics.get('outputs', []))} output states")
+    print(f"  - Environment: {diagnostics['environment'].get('ha_version')} @ {diagnostics['environment'].get('timestamp')}")
 
-    # Optionally save output states for reference
-    if diagnostics.get("outputs"):
-        output_states_path = output_dir / "output_states.json"
-        with output_states_path.open("w") as f:
-            json.dump(diagnostics["outputs"], f, indent=2)
-        print(f"✓ Saved {len(diagnostics['outputs'])} output states to {output_states_path}")
-        print("  (output_states.json is for reference only, not used by tests)")
-
-    # Save environment info for debugging
-    env_path = output_dir / "environment.json"
-    with env_path.open("w") as f:
-        json.dump(diagnostics["environment"], f, indent=2)
-    print(f"✓ Saved environment info to {env_path}")
-
-    print("\nScenario files created successfully!")
+    print("\nScenario file created successfully!")
     print(f"\nTo run this scenario:")
     print(f"  uv run pytest tests/scenarios/ -m scenario -k {output_dir.name}")
 

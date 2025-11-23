@@ -78,9 +78,11 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
         "timezone": str(dt_util.get_default_time_zone()),
     }
 
+    # Return with sorted keys - config and environment at top, inputs and outputs at end
+    # This puts user-editable sections (config, environment) at the top
     return {
         "config": config,
+        "environment": environment,
         "inputs": inputs,
         "outputs": outputs,
-        "environment": environment,
     }

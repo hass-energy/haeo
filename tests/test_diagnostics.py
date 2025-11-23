@@ -26,7 +26,7 @@ from custom_components.haeo.model.const import OUTPUT_NAME_POWER_CONSUMED, OUTPU
 
 
 async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
-    """Diagnostics returns correct structure with four main keys."""
+    """Diagnostics returns correct structure with four main keys in the right order."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -47,6 +47,10 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     assert "inputs" in diagnostics
     assert "outputs" in diagnostics
     assert "environment" in diagnostics
+
+    # Verify key order: config, environment, inputs, outputs
+    keys = list(diagnostics.keys())
+    assert keys == ["config", "environment", "inputs", "outputs"]
 
     # Verify config structure
     assert diagnostics["config"][CONF_HORIZON_HOURS] == 24

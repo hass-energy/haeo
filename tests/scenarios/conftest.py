@@ -15,27 +15,57 @@ def scenario_path(request: pytest.FixtureRequest) -> Path:
 
 
 @pytest.fixture
-def scenario_config(scenario_path: Path) -> dict[str, Any]:
-    """Load scenario configuration for the current test scenario."""
+def scenario_data(scenario_path: Path) -> dict[str, Any]:
+    """Load scenario data from diagnostic format file.
+
+    Tries to load from scenario.json (new format) first, then falls back to
+    loading from separate config.json and states.json files (old format).
+    """
+    # Try new single-file format first
+    scenario_file = scenario_path / "scenario.json"
+    if scenario_file.exists():
+        with scenario_file.open() as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            msg = f"Scenario file {scenario_file} must contain an object"
+            raise TypeError(msg)
+        # Validate required keys
+        if not all(key in data for key in ("config", "inputs", "environment")):
+            msg = f"Scenario file {scenario_file} must contain config, inputs, and environment keys"
+            raise ValueError(msg)
+        return data
+
+    # Fall back to old format with separate files
     config_path = scenario_path / "config.json"
+    states_path = scenario_path / "states.json"
+
     with config_path.open() as f:
-        data = json.load(f)
-    if not isinstance(data, dict):
-        msg = f"Scenario config {config_path} must contain an object"
-        raise TypeError(msg)
-    return data
+        config = json.load(f)
+    with states_path.open() as f:
+        states = json.load(f)
+
+    # Convert old format to new format
+    return {
+        "config": config,
+        "environment": {"timestamp": None},  # Will be extracted from states
+        "inputs": states,
+        "outputs": [],
+    }
 
 
 @pytest.fixture
-def scenario_states(scenario_path: Path) -> Sequence[dict[str, Any]]:
-    """Load scenario states data for the current test scenario."""
-    states_path = scenario_path / "states.json"
-    with states_path.open() as f:
-        data = json.load(f)
-    if not isinstance(data, Sequence) or isinstance(data, (str, bytes, bytearray)):
-        msg = f"Scenario states {states_path} must contain an array"
-        raise TypeError(msg)
-    if not all(isinstance(item, dict) for item in data):
-        msg = f"Scenario states {states_path} must contain an array of objects"
-        raise TypeError(msg)
-    return data
+def scenario_config(scenario_data: dict[str, Any]) -> dict[str, Any]:
+    """Extract config from scenario data."""
+    return scenario_data["config"]
+
+
+@pytest.fixture
+def scenario_states(scenario_data: dict[str, Any]) -> Sequence[dict[str, Any]]:
+    """Extract input states from scenario data."""
+    return scenario_data["inputs"]
+
+
+@pytest.fixture
+def scenario_outputs(scenario_data: dict[str, Any]) -> Sequence[dict[str, Any]]:
+    """Extract output states from scenario data for snapshot comparison."""
+    return scenario_data.get("outputs", [])
