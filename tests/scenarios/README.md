@@ -14,14 +14,15 @@ python tests/scenarios/extract_from_diagnostics.py diagnostics.json tests/scenar
 ```
 
 Or manually:
+
 ```python
 import json
 
-with open('diagnostics.json') as f:
+with open("diagnostics.json") as f:
     diagnostics = json.load(f)
 
 # Save as single scenario.json file (includes config, environment, inputs, outputs)
-with open('tests/scenarios/my_scenario/scenario.json', 'w') as f:
+with open("tests/scenarios/my_scenario/scenario.json", "w") as f:
     json.dump(diagnostics, f, indent=2)
 ```
 
@@ -45,19 +46,11 @@ with open('tests/scenarios/my_scenario/scenario.json', 'w') as f:
 
 ## Test Structure
 
-Each scenario can use either:
+Each scenario uses a single file:
 
-**New format (single file - recommended):**
 ```
 scenario_name/
 └── scenario.json   # Single file with config, environment, inputs, outputs
-```
-
-**Old format (backward compatible):**
-```
-scenario_name/
-├── config.json     # HAEO configuration
-└── states.json     # Input sensor states
 ```
 
 All scenarios are automatically discovered and tested by `tests/scenarios/test_scenarios.py`.

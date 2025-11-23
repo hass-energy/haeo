@@ -9,8 +9,8 @@ This will create:
 """
 
 import json
-import sys
 from pathlib import Path
+import sys
 
 
 def extract_scenario(diagnostics_path: Path, output_dir: Path) -> None:
@@ -37,15 +37,17 @@ def extract_scenario(diagnostics_path: Path, output_dir: Path) -> None:
     print(f"  - Config with {len(diagnostics['config'].get('participants', {}))} participants")
     print(f"  - {len(diagnostics['inputs'])} input states")
     print(f"  - {len(diagnostics.get('outputs', []))} output states")
-    print(f"  - Environment: {diagnostics['environment'].get('ha_version')} @ {diagnostics['environment'].get('timestamp')}")
+    ha_version = diagnostics["environment"].get("ha_version")
+    timestamp = diagnostics["environment"].get("timestamp")
+    print(f"  - Environment: {ha_version} @ {timestamp}")
 
     print("\nScenario file created successfully!")
-    print(f"\nTo run this scenario:")
+    print("\nTo run this scenario:")
     print(f"  uv run pytest tests/scenarios/ -m scenario -k {output_dir.name}")
 
 
 def main() -> None:
-    """Main entry point."""
+    """Execute main extraction logic."""
     if len(sys.argv) != 3:
         print("Usage: python extract_from_diagnostics.py diagnostics.json output_dir/")
         sys.exit(1)

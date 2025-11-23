@@ -41,32 +41,27 @@ def _discover_scenarios() -> list[Path]:
 def _extract_freeze_time(scenario_path: Path) -> str:
     """Extract freeze time from scenario data.
 
-    Uses environment.timestamp from scenario.json if available (new format),
-    otherwise falls back to extracting from states.json (old format).
+    Uses environment.timestamp from scenario.json.
     """
-    # Try new single-file format first
     scenario_file = scenario_path / "scenario.json"
-    if scenario_file.exists():
-        with scenario_file.open() as f:
-            data = json.load(f)
-        # Use environment timestamp if available
-        if "environment" in data and data["environment"].get("timestamp"):
-            return data["environment"]["timestamp"]
-        # Fall back to extracting from inputs
-        if "inputs" in data:
-            timestamps = [state["last_updated"] for state in data["inputs"] if "last_updated" in state]
-            if timestamps:
-                return max(timestamps)
+    if not scenario_file.exists():
+        msg = f"Scenario file not found: {scenario_file}"
+        raise FileNotFoundError(msg)
 
-    # Fall back to old format
-    states_path = scenario_path / "states.json"
-    if states_path.exists():
-        with states_path.open() as f:
-            states = json.load(f)
-        # Extract all last_updated timestamps
-        timestamps = [state["last_updated"] for state in states if "last_updated" in state]
+    with scenario_file.open() as f:
+        data = json.load(f)
+
+    # Use environment timestamp if available
+    if "environment" in data and data["environment"].get("timestamp"):
+        timestamp: str = data["environment"]["timestamp"]
+        return timestamp
+
+    # Fall back to extracting from inputs if no timestamp in environment
+    if "inputs" in data:
+        timestamps = [state["last_updated"] for state in data["inputs"] if "last_updated" in state]
         if timestamps:
-            return max(timestamps)
+            max_timestamp: str = max(timestamps)
+            return max_timestamp
 
     msg = f"No timestamp found in {scenario_path}"
     raise ValueError(msg)

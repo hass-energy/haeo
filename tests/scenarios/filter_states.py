@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# ruff: noqa: T201 Allow print statements for the script
+
 
 """HAEO Scenario States Filter Script.
 

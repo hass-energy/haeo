@@ -44,7 +44,8 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
         if subentry.subentry_type != "network":
             participant_config = dict(subentry.data)
             participant_config.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
-            all_entity_ids.update(extract_entity_ids_from_config(participant_config))
+            # Type ignore: participant_config is a valid ElementConfigSchema from subentry.data
+            all_entity_ids.update(extract_entity_ids_from_config(participant_config))  # type: ignore[arg-type]
 
     # Extract input states using State.as_dict()
     inputs: list[dict[str, Any]] = []
@@ -57,13 +58,17 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
     outputs: list[dict[str, Any]] = []
     if coordinator and coordinator.data:
         # Create lookup dict for efficient lookups
-        subentry_by_slug = {slugify(subentry.title): subentry for subentry in config_entry.subentries.values()}
+        from homeassistant.config_entries import ConfigSubentry
+
+        subentry_by_slug: dict[str, ConfigSubentry] = {
+            slugify(subentry.title): subentry for subentry in config_entry.subentries.values()
+        }
 
         for element_key, element_outputs in coordinator.data.items():
-            subentry = subentry_by_slug.get(element_key)
-            if subentry:
+            output_subentry: ConfigSubentry | None = subentry_by_slug.get(element_key)
+            if output_subentry is not None:
                 for output_name in element_outputs:
-                    unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{output_name}"
+                    unique_id = f"{config_entry.entry_id}_{output_subentry.subentry_id}_{output_name}"
                     entity_id = f"sensor.{config_entry.domain}_{unique_id}"
                     state = hass.states.get(entity_id)
                     if state is not None:

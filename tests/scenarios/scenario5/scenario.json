@@ -1,0 +1,3020 @@
+{
+  "config": {
+    "participants": {
+      "DC Net": {
+        "element_type": "node",
+        "name": "DC Net"
+      },
+      "AC Net": {
+        "element_type": "node",
+        "name": "AC Net"
+      },
+      "Battery": {
+        "element_type": "battery",
+        "name": "Battery",
+        "capacity": "sensor.sigen_plant_rated_energy_capacity",
+        "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
+        "min_charge_percentage": 10.0,
+        "max_charge_percentage": 100.0,
+        "efficiency": 99.0,
+        "max_charge_power": "sensor.sigen_plant_ess_rated_charging_power",
+        "max_discharge_power": "sensor.sigen_plant_ess_rated_discharging_power",
+        "early_charge_incentive": 0.001,
+        "discharge_cost": 0.02
+      },
+      "Solar": {
+        "element_type": "photovoltaics",
+        "name": "Solar",
+        "forecast": [
+          "sensor.solcast_pv_forecast_forecast_day_3",
+          "sensor.solcast_pv_forecast_forecast_today",
+          "sensor.solcast_pv_forecast_forecast_tomorrow"
+        ],
+        "curtailment": true
+      },
+      "Grid": {
+        "element_type": "grid",
+        "name": "Grid",
+        "import_price": [
+          "sensor.home_general_price",
+          "sensor.home_general_forecast"
+        ],
+        "export_price": [
+          "sensor.home_feed_in_price",
+          "sensor.home_feed_in_forecast"
+        ],
+        "import_limit": 55,
+        "export_limit": 30
+      },
+      "Constant Load": {
+        "element_type": "load",
+        "name": "Constant Load",
+        "forecast": [
+          "input_number.constant_load_power"
+        ]
+      },
+      "DC Net->Battery": {
+        "element_type": "connection",
+        "name": "DC Net->Battery",
+        "source": "DC Net",
+        "target": "Battery"
+      },
+      "Solar->DC Net": {
+        "element_type": "connection",
+        "name": "Solar->DC Net",
+        "source": "Solar",
+        "target": "DC Net"
+      },
+      "AC Net->DC Net": {
+        "element_type": "connection",
+        "name": "Inverter",
+        "source": "DC Net",
+        "target": "AC Net"
+      },
+      "Grid->AC Net": {
+        "element_type": "connection",
+        "name": "Grid->AC Net",
+        "source": "Grid",
+        "target": "AC Net"
+      },
+      "Load->AC Net": {
+        "element_type": "connection",
+        "name": "Load->AC Net",
+        "source": "Constant Load",
+        "target": "AC Net"
+      }
+    },
+    "horizon_hours": 72,
+    "period_minutes": 5
+  },
+  "environment": {
+    "ha_version": "2025.9.4",
+    "haeo_version": "0.1.0",
+    "timestamp": "2025-11-11T11:26:37.833545+00:00",
+    "timezone": "UTC"
+  },
+  "inputs": [
+    {
+      "entity_id": "sensor.home_feed_in_forecast",
+      "state": "0.12",
+      "attributes": {
+        "state_class": "measurement",
+        "forecasts": [
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T21:35:00+10:00",
+            "per_kwh": 0.12,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T11:30:01+00:00",
+            "end_time": "2025-11-11T11:35:00+00:00",
+            "renewables": 13,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T21:40:00+10:00",
+            "per_kwh": 0.12,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T11:35:01+00:00",
+            "end_time": "2025-11-11T11:40:00+00:00",
+            "renewables": 13,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T21:45:00+10:00",
+            "per_kwh": 0.12,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T11:40:01+00:00",
+            "end_time": "2025-11-11T11:45:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T21:50:00+10:00",
+            "per_kwh": 0.11,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T11:45:01+00:00",
+            "end_time": "2025-11-11T11:50:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T21:55:00+10:00",
+            "per_kwh": 0.11,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T11:50:01+00:00",
+            "end_time": "2025-11-11T11:55:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T22:00:00+10:00",
+            "per_kwh": 0.11,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T11:55:01+00:00",
+            "end_time": "2025-11-11T12:00:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T22:30:00+10:00",
+            "per_kwh": 0.12,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T12:00:01+00:00",
+            "end_time": "2025-11-11T12:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T23:00:00+10:00",
+            "per_kwh": 0.12,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T12:30:01+00:00",
+            "end_time": "2025-11-11T13:00:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T23:30:00+10:00",
+            "per_kwh": 0.14,
+            "spot_per_kwh": 0.15,
+            "start_time": "2025-11-11T13:00:01+00:00",
+            "end_time": "2025-11-11T13:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-12T00:00:00+10:00",
+            "per_kwh": 0.13,
+            "spot_per_kwh": 0.14,
+            "start_time": "2025-11-11T13:30:01+00:00",
+            "end_time": "2025-11-11T14:00:00+00:00",
+            "renewables": 11,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T00:30:00+10:00",
+            "per_kwh": 0.12,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T14:00:01+00:00",
+            "end_time": "2025-11-11T14:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T01:00:00+10:00",
+            "per_kwh": 0.12,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T14:30:01+00:00",
+            "end_time": "2025-11-11T15:00:00+00:00",
+            "renewables": 11,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T01:30:00+10:00",
+            "per_kwh": 0.11,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T15:00:01+00:00",
+            "end_time": "2025-11-11T15:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T02:00:00+10:00",
+            "per_kwh": 0.11,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T15:30:01+00:00",
+            "end_time": "2025-11-11T16:00:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T02:30:00+10:00",
+            "per_kwh": 0.11,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T16:00:01+00:00",
+            "end_time": "2025-11-11T16:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T03:00:00+10:00",
+            "per_kwh": 0.09,
+            "spot_per_kwh": 0.1,
+            "start_time": "2025-11-11T16:30:01+00:00",
+            "end_time": "2025-11-11T17:00:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T03:30:00+10:00",
+            "per_kwh": 0.09,
+            "spot_per_kwh": 0.1,
+            "start_time": "2025-11-11T17:00:01+00:00",
+            "end_time": "2025-11-11T17:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T04:00:00+10:00",
+            "per_kwh": 0.09,
+            "spot_per_kwh": 0.1,
+            "start_time": "2025-11-11T17:30:01+00:00",
+            "end_time": "2025-11-11T18:00:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T04:30:00+10:00",
+            "per_kwh": 0.11,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T18:00:01+00:00",
+            "end_time": "2025-11-11T18:30:00+00:00",
+            "renewables": 10,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T05:00:00+10:00",
+            "per_kwh": 0.12,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T18:30:01+00:00",
+            "end_time": "2025-11-11T19:00:00+00:00",
+            "renewables": 9,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T05:30:00+10:00",
+            "per_kwh": 0.16,
+            "spot_per_kwh": 0.17,
+            "start_time": "2025-11-11T19:00:01+00:00",
+            "end_time": "2025-11-11T19:30:00+00:00",
+            "renewables": 10,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T06:00:00+10:00",
+            "per_kwh": 0.12,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T19:30:01+00:00",
+            "end_time": "2025-11-11T20:00:00+00:00",
+            "renewables": 25,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T06:30:00+10:00",
+            "per_kwh": 0.07,
+            "spot_per_kwh": 0.07,
+            "start_time": "2025-11-11T20:00:01+00:00",
+            "end_time": "2025-11-11T20:30:00+00:00",
+            "renewables": 44,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T07:00:00+10:00",
+            "per_kwh": 0.01,
+            "spot_per_kwh": 0.01,
+            "start_time": "2025-11-11T20:30:01+00:00",
+            "end_time": "2025-11-11T21:00:00+00:00",
+            "renewables": 58,
+            "spike_status": "none",
+            "descriptor": "low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T07:30:00+10:00",
+            "per_kwh": -0.0,
+            "spot_per_kwh": 0.0,
+            "start_time": "2025-11-11T21:00:01+00:00",
+            "end_time": "2025-11-11T21:30:00+00:00",
+            "renewables": 66,
+            "spike_status": "none",
+            "descriptor": "low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T08:00:00+10:00",
+            "per_kwh": -0.01,
+            "spot_per_kwh": -0.01,
+            "start_time": "2025-11-11T21:30:01+00:00",
+            "end_time": "2025-11-11T22:00:00+00:00",
+            "renewables": 75,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T08:30:00+10:00",
+            "per_kwh": -0.01,
+            "spot_per_kwh": -0.01,
+            "start_time": "2025-11-11T22:00:01+00:00",
+            "end_time": "2025-11-11T22:30:00+00:00",
+            "renewables": 80,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T09:00:00+10:00",
+            "per_kwh": -0.02,
+            "spot_per_kwh": -0.03,
+            "start_time": "2025-11-11T22:30:01+00:00",
+            "end_time": "2025-11-11T23:00:00+00:00",
+            "renewables": 82,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T09:30:00+10:00",
+            "per_kwh": -0.05,
+            "spot_per_kwh": -0.04,
+            "start_time": "2025-11-11T23:00:01+00:00",
+            "end_time": "2025-11-11T23:30:00+00:00",
+            "renewables": 80,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T10:00:00+10:00",
+            "per_kwh": -0.05,
+            "spot_per_kwh": -0.04,
+            "start_time": "2025-11-11T23:30:01+00:00",
+            "end_time": "2025-11-12T00:00:00+00:00",
+            "renewables": 82,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T10:30:00+10:00",
+            "per_kwh": -0.06,
+            "spot_per_kwh": -0.05,
+            "start_time": "2025-11-12T00:00:01+00:00",
+            "end_time": "2025-11-12T00:30:00+00:00",
+            "renewables": 84,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T11:00:00+10:00",
+            "per_kwh": -0.07,
+            "spot_per_kwh": -0.06,
+            "start_time": "2025-11-12T00:30:01+00:00",
+            "end_time": "2025-11-12T01:00:00+00:00",
+            "renewables": 84,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T11:30:00+10:00",
+            "per_kwh": -0.08,
+            "spot_per_kwh": -0.07,
+            "start_time": "2025-11-12T01:00:01+00:00",
+            "end_time": "2025-11-12T01:30:00+00:00",
+            "renewables": 83,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T12:00:00+10:00",
+            "per_kwh": -0.08,
+            "spot_per_kwh": -0.07,
+            "start_time": "2025-11-12T01:30:01+00:00",
+            "end_time": "2025-11-12T02:00:00+00:00",
+            "renewables": 84,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T12:30:00+10:00",
+            "per_kwh": -0.08,
+            "spot_per_kwh": -0.08,
+            "start_time": "2025-11-12T02:00:01+00:00",
+            "end_time": "2025-11-12T02:30:00+00:00",
+            "renewables": 83,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T13:00:00+10:00",
+            "per_kwh": -0.09,
+            "spot_per_kwh": -0.08,
+            "start_time": "2025-11-12T02:30:01+00:00",
+            "end_time": "2025-11-12T03:00:00+00:00",
+            "renewables": 83,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T13:30:00+10:00",
+            "per_kwh": -0.1,
+            "spot_per_kwh": -0.09,
+            "start_time": "2025-11-12T03:00:01+00:00",
+            "end_time": "2025-11-12T03:30:00+00:00",
+            "renewables": 81,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T14:00:00+10:00",
+            "per_kwh": -0.09,
+            "spot_per_kwh": -0.09,
+            "start_time": "2025-11-12T03:30:01+00:00",
+            "end_time": "2025-11-12T04:00:00+00:00",
+            "renewables": 79,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T14:30:00+10:00",
+            "per_kwh": -0.08,
+            "spot_per_kwh": -0.09,
+            "start_time": "2025-11-12T04:00:01+00:00",
+            "end_time": "2025-11-12T04:30:00+00:00",
+            "renewables": 75,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T15:00:00+10:00",
+            "per_kwh": -0.08,
+            "spot_per_kwh": -0.08,
+            "start_time": "2025-11-12T04:30:01+00:00",
+            "end_time": "2025-11-12T05:00:00+00:00",
+            "renewables": 71,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T15:30:00+10:00",
+            "per_kwh": -0.01,
+            "spot_per_kwh": -0.05,
+            "start_time": "2025-11-12T05:00:01+00:00",
+            "end_time": "2025-11-12T05:30:00+00:00",
+            "renewables": 69,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T16:00:00+10:00",
+            "per_kwh": -0.0,
+            "spot_per_kwh": -0.04,
+            "start_time": "2025-11-12T05:30:01+00:00",
+            "end_time": "2025-11-12T06:00:00+00:00",
+            "renewables": 66,
+            "spike_status": "none",
+            "descriptor": "low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T16:30:00+10:00",
+            "per_kwh": 0.0,
+            "spot_per_kwh": -0.04,
+            "start_time": "2025-11-12T06:00:01+00:00",
+            "end_time": "2025-11-12T06:30:00+00:00",
+            "renewables": 61,
+            "spike_status": "none",
+            "descriptor": "low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T17:00:00+10:00",
+            "per_kwh": 0.02,
+            "spot_per_kwh": -0.01,
+            "start_time": "2025-11-12T06:30:01+00:00",
+            "end_time": "2025-11-12T07:00:00+00:00",
+            "renewables": 58,
+            "spike_status": "none",
+            "descriptor": "low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T17:30:00+10:00",
+            "per_kwh": 0.03,
+            "spot_per_kwh": -0.01,
+            "start_time": "2025-11-12T07:00:01+00:00",
+            "end_time": "2025-11-12T07:30:00+00:00",
+            "renewables": 51,
+            "spike_status": "none",
+            "descriptor": "low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T18:00:00+10:00",
+            "per_kwh": 0.08,
+            "spot_per_kwh": 0.05,
+            "start_time": "2025-11-12T07:30:01+00:00",
+            "end_time": "2025-11-12T08:00:00+00:00",
+            "renewables": 35,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T18:30:00+10:00",
+            "per_kwh": 0.12,
+            "spot_per_kwh": 0.09,
+            "start_time": "2025-11-12T08:00:01+00:00",
+            "end_time": "2025-11-12T08:30:00+00:00",
+            "renewables": 16,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T19:00:00+10:00",
+            "per_kwh": 0.16,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-12T08:30:01+00:00",
+            "end_time": "2025-11-12T09:00:00+00:00",
+            "renewables": 8,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T19:30:00+10:00",
+            "per_kwh": 0.16,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-12T09:00:01+00:00",
+            "end_time": "2025-11-12T09:30:00+00:00",
+            "renewables": 7,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T20:00:00+10:00",
+            "per_kwh": 0.15,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-12T09:30:01+00:00",
+            "end_time": "2025-11-12T10:00:00+00:00",
+            "renewables": 7,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T20:30:00+10:00",
+            "per_kwh": 0.12,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-12T10:00:01+00:00",
+            "end_time": "2025-11-12T10:30:00+00:00",
+            "renewables": 6,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T21:00:00+10:00",
+            "per_kwh": 0.11,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-12T10:30:01+00:00",
+            "end_time": "2025-11-12T11:00:00+00:00",
+            "renewables": 6,
+            "spike_status": "none",
+            "descriptor": "high"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T21:30:00+10:00",
+            "per_kwh": 0.11,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-12T11:00:01+00:00",
+            "end_time": "2025-11-12T11:30:00+00:00",
+            "renewables": 6,
+            "spike_status": "none",
+            "descriptor": "high"
+          }
+        ],
+        "channel_type": "feedIn",
+        "unit_of_measurement": "$/kWh",
+        "attribution": "Data provided by Amber Electric",
+        "friendly_name": "Home - Feed In Forecast"
+      },
+      "last_changed": "2025-11-11T11:15:39.259892+00:00",
+      "last_reported": "2025-11-11T11:25:42.286190+00:00",
+      "last_updated": "2025-11-11T11:25:42.286190+00:00",
+      "context": {
+        "id": "01K9SAM70EEWZ6A75M1MSW9H6M",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.home_feed_in_price",
+      "state": "0.11",
+      "attributes": {
+        "state_class": "measurement",
+        "duration": 5,
+        "date": "2025-11-11",
+        "per_kwh": 0.11,
+        "nem_date": "2025-11-11T21:30:00+10:00",
+        "spot_per_kwh": 0.12,
+        "start_time": "2025-11-11T11:25:01+00:00",
+        "end_time": "2025-11-11T11:30:00+00:00",
+        "renewables": 13,
+        "estimate": false,
+        "spike_status": "none",
+        "channel_type": "feedIn",
+        "unit_of_measurement": "$/kWh",
+        "attribution": "Data provided by Amber Electric",
+        "friendly_name": "Home - Feed In Price"
+      },
+      "last_changed": "2025-11-11T11:25:42.284005+00:00",
+      "last_reported": "2025-11-11T11:25:42.284005+00:00",
+      "last_updated": "2025-11-11T11:25:42.284005+00:00",
+      "context": {
+        "id": "01K9SAM70CRG9T3HM2J2CBKDPB",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.home_general_forecast",
+      "state": "0.22",
+      "attributes": {
+        "state_class": "measurement",
+        "forecasts": [
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T21:35:00+10:00",
+            "per_kwh": 0.22,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T11:30:01+00:00",
+            "end_time": "2025-11-11T11:35:00+00:00",
+            "renewables": 13,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T21:40:00+10:00",
+            "per_kwh": 0.22,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T11:35:01+00:00",
+            "end_time": "2025-11-11T11:40:00+00:00",
+            "renewables": 13,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T21:45:00+10:00",
+            "per_kwh": 0.22,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T11:40:01+00:00",
+            "end_time": "2025-11-11T11:45:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T21:50:00+10:00",
+            "per_kwh": 0.22,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T11:45:01+00:00",
+            "end_time": "2025-11-11T11:50:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T21:55:00+10:00",
+            "per_kwh": 0.21,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T11:50:01+00:00",
+            "end_time": "2025-11-11T11:55:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 5,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T22:00:00+10:00",
+            "per_kwh": 0.21,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T11:55:01+00:00",
+            "end_time": "2025-11-11T12:00:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T22:30:00+10:00",
+            "per_kwh": 0.22,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T12:00:01+00:00",
+            "end_time": "2025-11-11T12:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T23:00:00+10:00",
+            "per_kwh": 0.23,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T12:30:01+00:00",
+            "end_time": "2025-11-11T13:00:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-11T23:30:00+10:00",
+            "per_kwh": 0.25,
+            "spot_per_kwh": 0.15,
+            "start_time": "2025-11-11T13:00:01+00:00",
+            "end_time": "2025-11-11T13:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-11",
+            "nem_date": "2025-11-12T00:00:00+10:00",
+            "per_kwh": 0.23,
+            "spot_per_kwh": 0.14,
+            "start_time": "2025-11-11T13:30:01+00:00",
+            "end_time": "2025-11-11T14:00:00+00:00",
+            "renewables": 11,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T00:30:00+10:00",
+            "per_kwh": 0.23,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T14:00:01+00:00",
+            "end_time": "2025-11-11T14:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T01:00:00+10:00",
+            "per_kwh": 0.23,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T14:30:01+00:00",
+            "end_time": "2025-11-11T15:00:00+00:00",
+            "renewables": 11,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T01:30:00+10:00",
+            "per_kwh": 0.21,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T15:00:01+00:00",
+            "end_time": "2025-11-11T15:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T02:00:00+10:00",
+            "per_kwh": 0.21,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T15:30:01+00:00",
+            "end_time": "2025-11-11T16:00:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T02:30:00+10:00",
+            "per_kwh": 0.21,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T16:00:01+00:00",
+            "end_time": "2025-11-11T16:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T03:00:00+10:00",
+            "per_kwh": 0.19,
+            "spot_per_kwh": 0.1,
+            "start_time": "2025-11-11T16:30:01+00:00",
+            "end_time": "2025-11-11T17:00:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T03:30:00+10:00",
+            "per_kwh": 0.19,
+            "spot_per_kwh": 0.1,
+            "start_time": "2025-11-11T17:00:01+00:00",
+            "end_time": "2025-11-11T17:30:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T04:00:00+10:00",
+            "per_kwh": 0.19,
+            "spot_per_kwh": 0.1,
+            "start_time": "2025-11-11T17:30:01+00:00",
+            "end_time": "2025-11-11T18:00:00+00:00",
+            "renewables": 12,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T04:30:00+10:00",
+            "per_kwh": 0.21,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-11T18:00:01+00:00",
+            "end_time": "2025-11-11T18:30:00+00:00",
+            "renewables": 10,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T05:00:00+10:00",
+            "per_kwh": 0.23,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T18:30:01+00:00",
+            "end_time": "2025-11-11T19:00:00+00:00",
+            "renewables": 9,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T05:30:00+10:00",
+            "per_kwh": 0.27,
+            "spot_per_kwh": 0.17,
+            "start_time": "2025-11-11T19:00:01+00:00",
+            "end_time": "2025-11-11T19:30:00+00:00",
+            "renewables": 10,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T06:00:00+10:00",
+            "per_kwh": 0.23,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-11T19:30:01+00:00",
+            "end_time": "2025-11-11T20:00:00+00:00",
+            "renewables": 25,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T06:30:00+10:00",
+            "per_kwh": 0.16,
+            "spot_per_kwh": 0.07,
+            "start_time": "2025-11-11T20:00:01+00:00",
+            "end_time": "2025-11-11T20:30:00+00:00",
+            "renewables": 44,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T07:00:00+10:00",
+            "per_kwh": 0.1,
+            "spot_per_kwh": 0.01,
+            "start_time": "2025-11-11T20:30:01+00:00",
+            "end_time": "2025-11-11T21:00:00+00:00",
+            "renewables": 58,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T07:30:00+10:00",
+            "per_kwh": 0.09,
+            "spot_per_kwh": 0.0,
+            "start_time": "2025-11-11T21:00:01+00:00",
+            "end_time": "2025-11-11T21:30:00+00:00",
+            "renewables": 66,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T08:00:00+10:00",
+            "per_kwh": 0.08,
+            "spot_per_kwh": -0.01,
+            "start_time": "2025-11-11T21:30:01+00:00",
+            "end_time": "2025-11-11T22:00:00+00:00",
+            "renewables": 75,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T08:30:00+10:00",
+            "per_kwh": 0.08,
+            "spot_per_kwh": -0.01,
+            "start_time": "2025-11-11T22:00:01+00:00",
+            "end_time": "2025-11-11T22:30:00+00:00",
+            "renewables": 80,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T09:00:00+10:00",
+            "per_kwh": 0.06,
+            "spot_per_kwh": -0.03,
+            "start_time": "2025-11-11T22:30:01+00:00",
+            "end_time": "2025-11-11T23:00:00+00:00",
+            "renewables": 82,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T09:30:00+10:00",
+            "per_kwh": 0.05,
+            "spot_per_kwh": -0.04,
+            "start_time": "2025-11-11T23:00:01+00:00",
+            "end_time": "2025-11-11T23:30:00+00:00",
+            "renewables": 80,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T10:00:00+10:00",
+            "per_kwh": 0.05,
+            "spot_per_kwh": -0.04,
+            "start_time": "2025-11-11T23:30:01+00:00",
+            "end_time": "2025-11-12T00:00:00+00:00",
+            "renewables": 82,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T10:30:00+10:00",
+            "per_kwh": 0.04,
+            "spot_per_kwh": -0.05,
+            "start_time": "2025-11-12T00:00:01+00:00",
+            "end_time": "2025-11-12T00:30:00+00:00",
+            "renewables": 84,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T11:00:00+10:00",
+            "per_kwh": 0.03,
+            "spot_per_kwh": -0.06,
+            "start_time": "2025-11-12T00:30:01+00:00",
+            "end_time": "2025-11-12T01:00:00+00:00",
+            "renewables": 84,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T11:30:00+10:00",
+            "per_kwh": 0.02,
+            "spot_per_kwh": -0.07,
+            "start_time": "2025-11-12T01:00:01+00:00",
+            "end_time": "2025-11-12T01:30:00+00:00",
+            "renewables": 83,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T12:00:00+10:00",
+            "per_kwh": 0.02,
+            "spot_per_kwh": -0.07,
+            "start_time": "2025-11-12T01:30:01+00:00",
+            "end_time": "2025-11-12T02:00:00+00:00",
+            "renewables": 84,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T12:30:00+10:00",
+            "per_kwh": 0.01,
+            "spot_per_kwh": -0.08,
+            "start_time": "2025-11-12T02:00:01+00:00",
+            "end_time": "2025-11-12T02:30:00+00:00",
+            "renewables": 83,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T13:00:00+10:00",
+            "per_kwh": 0.01,
+            "spot_per_kwh": -0.08,
+            "start_time": "2025-11-12T02:30:01+00:00",
+            "end_time": "2025-11-12T03:00:00+00:00",
+            "renewables": 83,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T13:30:00+10:00",
+            "per_kwh": -0.0,
+            "spot_per_kwh": -0.09,
+            "start_time": "2025-11-12T03:00:01+00:00",
+            "end_time": "2025-11-12T03:30:00+00:00",
+            "renewables": 81,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T14:00:00+10:00",
+            "per_kwh": 0.0,
+            "spot_per_kwh": -0.09,
+            "start_time": "2025-11-12T03:30:01+00:00",
+            "end_time": "2025-11-12T04:00:00+00:00",
+            "renewables": 79,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T14:30:00+10:00",
+            "per_kwh": -0.0,
+            "spot_per_kwh": -0.09,
+            "start_time": "2025-11-12T04:00:01+00:00",
+            "end_time": "2025-11-12T04:30:00+00:00",
+            "renewables": 75,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T15:00:00+10:00",
+            "per_kwh": 0.01,
+            "spot_per_kwh": -0.08,
+            "start_time": "2025-11-12T04:30:01+00:00",
+            "end_time": "2025-11-12T05:00:00+00:00",
+            "renewables": 71,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T15:30:00+10:00",
+            "per_kwh": 0.04,
+            "spot_per_kwh": -0.05,
+            "start_time": "2025-11-12T05:00:01+00:00",
+            "end_time": "2025-11-12T05:30:00+00:00",
+            "renewables": 69,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T16:00:00+10:00",
+            "per_kwh": 0.04,
+            "spot_per_kwh": -0.04,
+            "start_time": "2025-11-12T05:30:01+00:00",
+            "end_time": "2025-11-12T06:00:00+00:00",
+            "renewables": 66,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T16:30:00+10:00",
+            "per_kwh": 0.05,
+            "spot_per_kwh": -0.04,
+            "start_time": "2025-11-12T06:00:01+00:00",
+            "end_time": "2025-11-12T06:30:00+00:00",
+            "renewables": 61,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T17:00:00+10:00",
+            "per_kwh": 0.07,
+            "spot_per_kwh": -0.01,
+            "start_time": "2025-11-12T06:30:01+00:00",
+            "end_time": "2025-11-12T07:00:00+00:00",
+            "renewables": 58,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T17:30:00+10:00",
+            "per_kwh": 0.08,
+            "spot_per_kwh": -0.01,
+            "start_time": "2025-11-12T07:00:01+00:00",
+            "end_time": "2025-11-12T07:30:00+00:00",
+            "renewables": 51,
+            "spike_status": "none",
+            "descriptor": "extremely_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T18:00:00+10:00",
+            "per_kwh": 0.14,
+            "spot_per_kwh": 0.05,
+            "start_time": "2025-11-12T07:30:01+00:00",
+            "end_time": "2025-11-12T08:00:00+00:00",
+            "renewables": 35,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T18:30:00+10:00",
+            "per_kwh": 0.18,
+            "spot_per_kwh": 0.09,
+            "start_time": "2025-11-12T08:00:01+00:00",
+            "end_time": "2025-11-12T08:30:00+00:00",
+            "renewables": 16,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T19:00:00+10:00",
+            "per_kwh": 0.22,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-12T08:30:01+00:00",
+            "end_time": "2025-11-12T09:00:00+00:00",
+            "renewables": 8,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T19:30:00+10:00",
+            "per_kwh": 0.23,
+            "spot_per_kwh": 0.13,
+            "start_time": "2025-11-12T09:00:01+00:00",
+            "end_time": "2025-11-12T09:30:00+00:00",
+            "renewables": 7,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T20:00:00+10:00",
+            "per_kwh": 0.21,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-12T09:30:01+00:00",
+            "end_time": "2025-11-12T10:00:00+00:00",
+            "renewables": 7,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T20:30:00+10:00",
+            "per_kwh": 0.22,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-12T10:00:01+00:00",
+            "end_time": "2025-11-12T10:30:00+00:00",
+            "renewables": 6,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T21:00:00+10:00",
+            "per_kwh": 0.21,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-12T10:30:01+00:00",
+            "end_time": "2025-11-12T11:00:00+00:00",
+            "renewables": 6,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          },
+          {
+            "duration": 30,
+            "date": "2025-11-12",
+            "nem_date": "2025-11-12T21:30:00+10:00",
+            "per_kwh": 0.21,
+            "spot_per_kwh": 0.12,
+            "start_time": "2025-11-12T11:00:01+00:00",
+            "end_time": "2025-11-12T11:30:00+00:00",
+            "renewables": 6,
+            "spike_status": "none",
+            "descriptor": "very_low"
+          }
+        ],
+        "channel_type": "general",
+        "unit_of_measurement": "$/kWh",
+        "attribution": "Data provided by Amber Electric",
+        "friendly_name": "Home - General Forecast"
+      },
+      "last_changed": "2025-11-11T11:25:42.285087+00:00",
+      "last_reported": "2025-11-11T11:25:42.285087+00:00",
+      "last_updated": "2025-11-11T11:25:42.285087+00:00",
+      "context": {
+        "id": "01K9SAM70D5KQ5YYD5QPKMYV0K",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.home_general_price",
+      "state": "0.21",
+      "attributes": {
+        "state_class": "measurement",
+        "duration": 5,
+        "date": "2025-11-11",
+        "per_kwh": 0.21,
+        "nem_date": "2025-11-11T21:30:00+10:00",
+        "spot_per_kwh": 0.12,
+        "start_time": "2025-11-11T11:25:01+00:00",
+        "end_time": "2025-11-11T11:30:00+00:00",
+        "renewables": 13,
+        "estimate": false,
+        "spike_status": "none",
+        "channel_type": "general",
+        "unit_of_measurement": "$/kWh",
+        "attribution": "Data provided by Amber Electric",
+        "friendly_name": "Home - General Price"
+      },
+      "last_changed": "2025-11-11T11:25:42.283821+00:00",
+      "last_reported": "2025-11-11T11:25:42.283821+00:00",
+      "last_updated": "2025-11-11T11:25:42.283821+00:00",
+      "context": {
+        "id": "01K9SAM70BNFRV5NXK0RXRCPQ9",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.sigen_plant_battery_state_of_charge",
+      "state": "37.5",
+      "attributes": {
+        "state_class": "measurement",
+        "unit_of_measurement": "%",
+        "device_class": "battery",
+        "icon": "mdi:battery",
+        "friendly_name": "Sigen Plant Battery State of Charge"
+      },
+      "last_changed": "2025-11-11T11:26:32.831594+00:00",
+      "last_reported": "2025-11-11T11:26:37.832501+00:00",
+      "last_updated": "2025-11-11T11:26:32.831594+00:00",
+      "context": {
+        "id": "01K9SANRBZ2QKZ9QXV2HG3XAPY",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.sigen_plant_consumed_power",
+      "state": "3.171000",
+      "attributes": {
+        "state_class": "measurement",
+        "unit_of_measurement": "kW",
+        "device_class": "power",
+        "icon": "mdi:home-lightning-bolt",
+        "friendly_name": "Sigen Plant Consumed Power"
+      },
+      "last_changed": "2025-11-11T11:26:37.833545+00:00",
+      "last_reported": "2025-11-11T11:26:37.833545+00:00",
+      "last_updated": "2025-11-11T11:26:37.833545+00:00",
+      "context": {
+        "id": "01K9SANX89QNZNZKM6T6AGVRFX",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.sigen_plant_ess_rated_charging_power",
+      "state": "46.2",
+      "attributes": {
+        "state_class": "measurement",
+        "unit_of_measurement": "kW",
+        "device_class": "power",
+        "friendly_name": "Sigen Plant ESS Rated Charging Power"
+      },
+      "last_changed": "2025-11-08T04:11:30.832977+00:00",
+      "last_reported": "2025-11-11T11:26:37.832847+00:00",
+      "last_updated": "2025-11-08T04:11:30.832977+00:00",
+      "context": {
+        "id": "01K9GTK14G2AASM4QY9G99HY9X",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.sigen_plant_ess_rated_discharging_power",
+      "state": "52.8",
+      "attributes": {
+        "state_class": "measurement",
+        "unit_of_measurement": "kW",
+        "device_class": "power",
+        "friendly_name": "Sigen Plant ESS Rated Discharging Power"
+      },
+      "last_changed": "2025-11-08T04:11:30.833071+00:00",
+      "last_reported": "2025-11-11T11:26:37.832884+00:00",
+      "last_updated": "2025-11-08T04:11:30.833071+00:00",
+      "context": {
+        "id": "01K9GTK14HVZCF5C6DD369524N",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.sigen_plant_max_active_power",
+      "state": "59.998",
+      "attributes": {
+        "state_class": "measurement",
+        "unit_of_measurement": "kW",
+        "device_class": "power",
+        "friendly_name": "Sigen Plant Max Active Power"
+      },
+      "last_changed": "2025-11-08T04:11:30.831406+00:00",
+      "last_reported": "2025-11-11T11:26:37.832457+00:00",
+      "last_updated": "2025-11-08T04:11:30.831406+00:00",
+      "context": {
+        "id": "01K9GTK14F4N3C8ZQSQ6716QSN",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.sigen_plant_pv_power",
+      "state": "0.000000",
+      "attributes": {
+        "state_class": "measurement",
+        "unit_of_measurement": "kW",
+        "device_class": "power",
+        "icon": "mdi:solar-power",
+        "friendly_name": "Sigen Plant PV Power"
+      },
+      "last_changed": "2025-11-11T08:11:35.831871+00:00",
+      "last_reported": "2025-11-11T11:26:37.833417+00:00",
+      "last_updated": "2025-11-11T08:11:35.831871+00:00",
+      "context": {
+        "id": "01K9RZGSGQWP1H7M6CQ813FK4E",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.sigen_plant_rated_energy_capacity",
+      "state": "88.66",
+      "attributes": {
+        "state_class": "total",
+        "unit_of_measurement": "kWh",
+        "device_class": "energy",
+        "friendly_name": "Sigen Plant Rated Energy Capacity"
+      },
+      "last_changed": "2025-11-08T04:11:30.833226+00:00",
+      "last_reported": "2025-11-11T11:26:37.832922+00:00",
+      "last_updated": "2025-11-08T04:11:30.833226+00:00",
+      "context": {
+        "id": "01K9GTK14HNN3YG9GSQ8E08AYD",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.solcast_pv_forecast_forecast_day_3",
+      "state": "228.8214",
+      "attributes": {
+        "state_class": "total",
+        "26bd_9be8_a9e4_b300": 116.002,
+        "estimate_26bd_9be8_a9e4_b300": 116.002,
+        "estimate10_26bd_9be8_a9e4_b300": 97.468,
+        "estimate90_26bd_9be8_a9e4_b300": 116.1552,
+        "cfa5_a188_eb8e_f7af": 112.8194,
+        "estimate_cfa5_a188_eb8e_f7af": 112.8194,
+        "estimate10_cfa5_a188_eb8e_f7af": 85.9938,
+        "estimate90_cfa5_a188_eb8e_f7af": 117.5694,
+        "estimate": 228.8214,
+        "estimate10": 183.4618,
+        "estimate90": 233.7247,
+        "dayname": "Thursday",
+        "dataCorrect": true,
+        "detailedForecast": [
+          {
+            "period_start": "2025-11-13T00:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T00:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T01:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T01:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T02:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T02:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T03:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T03:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T04:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T04:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T05:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T05:30:00+11:00",
+            "pv_estimate": 0.0928,
+            "pv_estimate10": 0.0372,
+            "pv_estimate90": 0.0928
+          },
+          {
+            "period_start": "2025-11-13T06:00:00+11:00",
+            "pv_estimate": 2.7136,
+            "pv_estimate10": 0.6089,
+            "pv_estimate90": 2.7136
+          },
+          {
+            "period_start": "2025-11-13T06:30:00+11:00",
+            "pv_estimate": 5.1935,
+            "pv_estimate10": 2.7917,
+            "pv_estimate90": 5.1935
+          },
+          {
+            "period_start": "2025-11-13T07:00:00+11:00",
+            "pv_estimate": 7.3706,
+            "pv_estimate10": 5.1613,
+            "pv_estimate90": 7.3706
+          },
+          {
+            "period_start": "2025-11-13T07:30:00+11:00",
+            "pv_estimate": 10.4434,
+            "pv_estimate10": 8.2463,
+            "pv_estimate90": 10.4434
+          },
+          {
+            "period_start": "2025-11-13T08:00:00+11:00",
+            "pv_estimate": 13.7499,
+            "pv_estimate10": 11.7821,
+            "pv_estimate90": 13.9339
+          },
+          {
+            "period_start": "2025-11-13T08:30:00+11:00",
+            "pv_estimate": 16.6792,
+            "pv_estimate10": 14.9867,
+            "pv_estimate90": 16.6792
+          },
+          {
+            "period_start": "2025-11-13T09:00:00+11:00",
+            "pv_estimate": 19.3861,
+            "pv_estimate10": 17.6135,
+            "pv_estimate90": 19.3861
+          },
+          {
+            "period_start": "2025-11-13T09:30:00+11:00",
+            "pv_estimate": 21.6482,
+            "pv_estimate10": 19.9379,
+            "pv_estimate90": 21.6482
+          },
+          {
+            "period_start": "2025-11-13T10:00:00+11:00",
+            "pv_estimate": 23.6343,
+            "pv_estimate10": 22.0532,
+            "pv_estimate90": 23.6343
+          },
+          {
+            "period_start": "2025-11-13T10:30:00+11:00",
+            "pv_estimate": 25.2447,
+            "pv_estimate10": 23.1742,
+            "pv_estimate90": 25.2447
+          },
+          {
+            "period_start": "2025-11-13T11:00:00+11:00",
+            "pv_estimate": 26.4336,
+            "pv_estimate10": 23.5421,
+            "pv_estimate90": 26.4336
+          },
+          {
+            "period_start": "2025-11-13T11:30:00+11:00",
+            "pv_estimate": 27.1672,
+            "pv_estimate10": 23.7682,
+            "pv_estimate90": 27.1672
+          },
+          {
+            "period_start": "2025-11-13T12:00:00+11:00",
+            "pv_estimate": 27.5551,
+            "pv_estimate10": 23.6735,
+            "pv_estimate90": 27.5551
+          },
+          {
+            "period_start": "2025-11-13T12:30:00+11:00",
+            "pv_estimate": 27.674,
+            "pv_estimate10": 23.2798,
+            "pv_estimate90": 27.674
+          },
+          {
+            "period_start": "2025-11-13T13:00:00+11:00",
+            "pv_estimate": 27.3864,
+            "pv_estimate10": 22.5351,
+            "pv_estimate90": 27.3864
+          },
+          {
+            "period_start": "2025-11-13T13:30:00+11:00",
+            "pv_estimate": 26.5262,
+            "pv_estimate10": 21.363,
+            "pv_estimate90": 26.5262
+          },
+          {
+            "period_start": "2025-11-13T14:00:00+11:00",
+            "pv_estimate": 25.3721,
+            "pv_estimate10": 20.0218,
+            "pv_estimate90": 25.4633
+          },
+          {
+            "period_start": "2025-11-13T14:30:00+11:00",
+            "pv_estimate": 24.0679,
+            "pv_estimate10": 18.4475,
+            "pv_estimate90": 24.0679
+          },
+          {
+            "period_start": "2025-11-13T15:00:00+11:00",
+            "pv_estimate": 22.2724,
+            "pv_estimate10": 16.4518,
+            "pv_estimate90": 22.2724
+          },
+          {
+            "period_start": "2025-11-13T15:30:00+11:00",
+            "pv_estimate": 20.1111,
+            "pv_estimate10": 14.2185,
+            "pv_estimate90": 20.1111
+          },
+          {
+            "period_start": "2025-11-13T16:00:00+11:00",
+            "pv_estimate": 17.5352,
+            "pv_estimate10": 11.7812,
+            "pv_estimate90": 17.5352
+          },
+          {
+            "period_start": "2025-11-13T16:30:00+11:00",
+            "pv_estimate": 14.7456,
+            "pv_estimate10": 9.4049,
+            "pv_estimate90": 14.7754
+          },
+          {
+            "period_start": "2025-11-13T17:00:00+11:00",
+            "pv_estimate": 10.9165,
+            "pv_estimate10": 6.3557,
+            "pv_estimate90": 12.0425
+          },
+          {
+            "period_start": "2025-11-13T17:30:00+11:00",
+            "pv_estimate": 7.3535,
+            "pv_estimate10": 3.4339,
+            "pv_estimate90": 9.3601
+          },
+          {
+            "period_start": "2025-11-13T18:00:00+11:00",
+            "pv_estimate": 4.6043,
+            "pv_estimate10": 1.7821,
+            "pv_estimate90": 7.1872
+          },
+          {
+            "period_start": "2025-11-13T18:30:00+11:00",
+            "pv_estimate": 1.5618,
+            "pv_estimate10": 0.4036,
+            "pv_estimate90": 4.6152
+          },
+          {
+            "period_start": "2025-11-13T19:00:00+11:00",
+            "pv_estimate": 0.2036,
+            "pv_estimate10": 0.0679,
+            "pv_estimate90": 0.9362
+          },
+          {
+            "period_start": "2025-11-13T19:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T20:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T20:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T21:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T21:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T22:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T22:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T23:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T23:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          }
+        ],
+        "detailedHourly": [
+          {
+            "period_start": "2025-11-13T00:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T01:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T02:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T03:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T04:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T05:00:00+11:00",
+            "pv_estimate": 0.0464,
+            "pv_estimate10": 0.0186,
+            "pv_estimate90": 0.0464
+          },
+          {
+            "period_start": "2025-11-13T06:00:00+11:00",
+            "pv_estimate": 3.9535,
+            "pv_estimate10": 1.7003,
+            "pv_estimate90": 3.9535
+          },
+          {
+            "period_start": "2025-11-13T07:00:00+11:00",
+            "pv_estimate": 8.907,
+            "pv_estimate10": 6.7038,
+            "pv_estimate90": 8.907
+          },
+          {
+            "period_start": "2025-11-13T08:00:00+11:00",
+            "pv_estimate": 15.2146,
+            "pv_estimate10": 13.3844,
+            "pv_estimate90": 15.3066
+          },
+          {
+            "period_start": "2025-11-13T09:00:00+11:00",
+            "pv_estimate": 20.5172,
+            "pv_estimate10": 18.7757,
+            "pv_estimate90": 20.5172
+          },
+          {
+            "period_start": "2025-11-13T10:00:00+11:00",
+            "pv_estimate": 24.4395,
+            "pv_estimate10": 22.6137,
+            "pv_estimate90": 24.4395
+          },
+          {
+            "period_start": "2025-11-13T11:00:00+11:00",
+            "pv_estimate": 26.8004,
+            "pv_estimate10": 23.6551,
+            "pv_estimate90": 26.8004
+          },
+          {
+            "period_start": "2025-11-13T12:00:00+11:00",
+            "pv_estimate": 27.6146,
+            "pv_estimate10": 23.4766,
+            "pv_estimate90": 27.6146
+          },
+          {
+            "period_start": "2025-11-13T13:00:00+11:00",
+            "pv_estimate": 26.9563,
+            "pv_estimate10": 21.949,
+            "pv_estimate90": 26.9563
+          },
+          {
+            "period_start": "2025-11-13T14:00:00+11:00",
+            "pv_estimate": 24.72,
+            "pv_estimate10": 19.2347,
+            "pv_estimate90": 24.7656
+          },
+          {
+            "period_start": "2025-11-13T15:00:00+11:00",
+            "pv_estimate": 21.1917,
+            "pv_estimate10": 15.3351,
+            "pv_estimate90": 21.1917
+          },
+          {
+            "period_start": "2025-11-13T16:00:00+11:00",
+            "pv_estimate": 16.1404,
+            "pv_estimate10": 10.593,
+            "pv_estimate90": 16.1553
+          },
+          {
+            "period_start": "2025-11-13T17:00:00+11:00",
+            "pv_estimate": 9.135,
+            "pv_estimate10": 4.8948,
+            "pv_estimate90": 10.7013
+          },
+          {
+            "period_start": "2025-11-13T18:00:00+11:00",
+            "pv_estimate": 3.0831,
+            "pv_estimate10": 1.0929,
+            "pv_estimate90": 5.9012
+          },
+          {
+            "period_start": "2025-11-13T19:00:00+11:00",
+            "pv_estimate": 0.1018,
+            "pv_estimate10": 0.034,
+            "pv_estimate90": 0.4681
+          },
+          {
+            "period_start": "2025-11-13T20:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T21:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T22:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-13T23:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          }
+        ],
+        "unit_of_measurement": "kWh",
+        "attribution": "Data retrieved from Solcast",
+        "device_class": "energy",
+        "friendly_name": "Solcast PV Forecast Forecast Day 3"
+      },
+      "last_changed": "2025-11-10T18:46:33.628592+00:00",
+      "last_reported": "2025-11-11T00:00:00.420081+00:00",
+      "last_updated": "2025-11-10T18:46:33.628592+00:00",
+      "context": {
+        "id": "01K9QHEQCW66HEX7G68N3RR2YB",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.solcast_pv_forecast_forecast_today",
+      "state": "208.1126",
+      "attributes": {
+        "state_class": "total",
+        "26bd_9be8_a9e4_b300": 107.9079,
+        "estimate_26bd_9be8_a9e4_b300": 107.9079,
+        "estimate10_26bd_9be8_a9e4_b300": 79.693,
+        "estimate90_26bd_9be8_a9e4_b300": 113.4198,
+        "cfa5_a188_eb8e_f7af": 100.2047,
+        "estimate_cfa5_a188_eb8e_f7af": 100.2047,
+        "estimate10_cfa5_a188_eb8e_f7af": 69.1973,
+        "estimate90_cfa5_a188_eb8e_f7af": 116.2874,
+        "estimate": 208.1126,
+        "estimate10": 148.8904,
+        "estimate90": 229.7073,
+        "dayname": "Tuesday",
+        "dataCorrect": true,
+        "detailedForecast": [
+          {
+            "period_start": "2025-11-11T00:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T00:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T01:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T01:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T02:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T02:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T03:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T03:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T04:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T04:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T05:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T05:30:00+11:00",
+            "pv_estimate": 0.0188,
+            "pv_estimate10": 0.0188,
+            "pv_estimate90": 0.0188
+          },
+          {
+            "period_start": "2025-11-11T06:00:00+11:00",
+            "pv_estimate": 0.6673,
+            "pv_estimate10": 0.5305,
+            "pv_estimate90": 1.0426
+          },
+          {
+            "period_start": "2025-11-11T06:30:00+11:00",
+            "pv_estimate": 3.9476,
+            "pv_estimate10": 2.075,
+            "pv_estimate90": 4.8256
+          },
+          {
+            "period_start": "2025-11-11T07:00:00+11:00",
+            "pv_estimate": 6.4743,
+            "pv_estimate10": 4.591,
+            "pv_estimate90": 7.0156
+          },
+          {
+            "period_start": "2025-11-11T07:30:00+11:00",
+            "pv_estimate": 9.9246,
+            "pv_estimate10": 8.9289,
+            "pv_estimate90": 9.9246
+          },
+          {
+            "period_start": "2025-11-11T08:00:00+11:00",
+            "pv_estimate": 13.0814,
+            "pv_estimate10": 11.571,
+            "pv_estimate90": 13.2774
+          },
+          {
+            "period_start": "2025-11-11T08:30:00+11:00",
+            "pv_estimate": 16.1981,
+            "pv_estimate10": 13.1568,
+            "pv_estimate90": 16.1981
+          },
+          {
+            "period_start": "2025-11-11T09:00:00+11:00",
+            "pv_estimate": 18.8196,
+            "pv_estimate10": 14.0998,
+            "pv_estimate90": 18.8196
+          },
+          {
+            "period_start": "2025-11-11T09:30:00+11:00",
+            "pv_estimate": 21.2143,
+            "pv_estimate10": 15.4893,
+            "pv_estimate90": 21.2143
+          },
+          {
+            "period_start": "2025-11-11T10:00:00+11:00",
+            "pv_estimate": 23.2453,
+            "pv_estimate10": 17.0433,
+            "pv_estimate90": 23.2453
+          },
+          {
+            "period_start": "2025-11-11T10:30:00+11:00",
+            "pv_estimate": 24.7587,
+            "pv_estimate10": 18.225,
+            "pv_estimate90": 24.9031
+          },
+          {
+            "period_start": "2025-11-11T11:00:00+11:00",
+            "pv_estimate": 25.3183,
+            "pv_estimate10": 19.1547,
+            "pv_estimate90": 26.2346
+          },
+          {
+            "period_start": "2025-11-11T11:30:00+11:00",
+            "pv_estimate": 26.2801,
+            "pv_estimate10": 19.7467,
+            "pv_estimate90": 27.0234
+          },
+          {
+            "period_start": "2025-11-11T12:00:00+11:00",
+            "pv_estimate": 26.3296,
+            "pv_estimate10": 19.6543,
+            "pv_estimate90": 27.3943
+          },
+          {
+            "period_start": "2025-11-11T12:30:00+11:00",
+            "pv_estimate": 25.4059,
+            "pv_estimate10": 18.8453,
+            "pv_estimate90": 27.3526
+          },
+          {
+            "period_start": "2025-11-11T13:00:00+11:00",
+            "pv_estimate": 24.5797,
+            "pv_estimate10": 18.1377,
+            "pv_estimate90": 27.0673
+          },
+          {
+            "period_start": "2025-11-11T13:30:00+11:00",
+            "pv_estimate": 23.7,
+            "pv_estimate10": 17.4684,
+            "pv_estimate90": 26.4126
+          },
+          {
+            "period_start": "2025-11-11T14:00:00+11:00",
+            "pv_estimate": 22.6091,
+            "pv_estimate10": 16.3453,
+            "pv_estimate90": 25.3511
+          },
+          {
+            "period_start": "2025-11-11T14:30:00+11:00",
+            "pv_estimate": 21.3135,
+            "pv_estimate10": 14.6176,
+            "pv_estimate90": 23.7889
+          },
+          {
+            "period_start": "2025-11-11T15:00:00+11:00",
+            "pv_estimate": 19.2481,
+            "pv_estimate10": 12.5802,
+            "pv_estimate90": 21.9885
+          },
+          {
+            "period_start": "2025-11-11T15:30:00+11:00",
+            "pv_estimate": 16.7013,
+            "pv_estimate10": 10.2945,
+            "pv_estimate90": 19.8364
+          },
+          {
+            "period_start": "2025-11-11T16:00:00+11:00",
+            "pv_estimate": 14.0536,
+            "pv_estimate10": 8.1157,
+            "pv_estimate90": 17.3435
+          },
+          {
+            "period_start": "2025-11-11T16:30:00+11:00",
+            "pv_estimate": 11.3352,
+            "pv_estimate10": 6.3055,
+            "pv_estimate90": 14.8066
+          },
+          {
+            "period_start": "2025-11-11T17:00:00+11:00",
+            "pv_estimate": 8.7676,
+            "pv_estimate10": 5.0931,
+            "pv_estimate90": 12.3316
+          },
+          {
+            "period_start": "2025-11-11T17:30:00+11:00",
+            "pv_estimate": 6.3359,
+            "pv_estimate10": 3.3613,
+            "pv_estimate90": 9.6806
+          },
+          {
+            "period_start": "2025-11-11T18:00:00+11:00",
+            "pv_estimate": 4.0747,
+            "pv_estimate10": 1.7533,
+            "pv_estimate90": 7.1606
+          },
+          {
+            "period_start": "2025-11-11T18:30:00+11:00",
+            "pv_estimate": 1.6171,
+            "pv_estimate10": 0.4921,
+            "pv_estimate90": 4.3627
+          },
+          {
+            "period_start": "2025-11-11T19:00:00+11:00",
+            "pv_estimate": 0.2055,
+            "pv_estimate10": 0.0856,
+            "pv_estimate90": 0.7943
+          },
+          {
+            "period_start": "2025-11-11T19:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T20:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T20:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T21:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T21:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T22:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T22:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T23:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T23:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          }
+        ],
+        "detailedHourly": [
+          {
+            "period_start": "2025-11-11T00:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T01:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T02:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T03:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T04:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T05:00:00+11:00",
+            "pv_estimate": 0.0094,
+            "pv_estimate10": 0.0094,
+            "pv_estimate90": 0.0094
+          },
+          {
+            "period_start": "2025-11-11T06:00:00+11:00",
+            "pv_estimate": 2.3075,
+            "pv_estimate10": 1.3028,
+            "pv_estimate90": 2.9341
+          },
+          {
+            "period_start": "2025-11-11T07:00:00+11:00",
+            "pv_estimate": 8.1995,
+            "pv_estimate10": 6.7599,
+            "pv_estimate90": 8.4701
+          },
+          {
+            "period_start": "2025-11-11T08:00:00+11:00",
+            "pv_estimate": 14.6397,
+            "pv_estimate10": 12.3639,
+            "pv_estimate90": 14.7378
+          },
+          {
+            "period_start": "2025-11-11T09:00:00+11:00",
+            "pv_estimate": 20.017,
+            "pv_estimate10": 14.7946,
+            "pv_estimate90": 20.017
+          },
+          {
+            "period_start": "2025-11-11T10:00:00+11:00",
+            "pv_estimate": 24.002,
+            "pv_estimate10": 17.6341,
+            "pv_estimate90": 24.0742
+          },
+          {
+            "period_start": "2025-11-11T11:00:00+11:00",
+            "pv_estimate": 25.7992,
+            "pv_estimate10": 19.4507,
+            "pv_estimate90": 26.629
+          },
+          {
+            "period_start": "2025-11-11T12:00:00+11:00",
+            "pv_estimate": 25.8678,
+            "pv_estimate10": 19.2498,
+            "pv_estimate90": 27.3734
+          },
+          {
+            "period_start": "2025-11-11T13:00:00+11:00",
+            "pv_estimate": 24.1398,
+            "pv_estimate10": 17.803,
+            "pv_estimate90": 26.74
+          },
+          {
+            "period_start": "2025-11-11T14:00:00+11:00",
+            "pv_estimate": 21.9613,
+            "pv_estimate10": 15.4815,
+            "pv_estimate90": 24.57
+          },
+          {
+            "period_start": "2025-11-11T15:00:00+11:00",
+            "pv_estimate": 17.9747,
+            "pv_estimate10": 11.4373,
+            "pv_estimate90": 20.9124
+          },
+          {
+            "period_start": "2025-11-11T16:00:00+11:00",
+            "pv_estimate": 12.6944,
+            "pv_estimate10": 7.2106,
+            "pv_estimate90": 16.075
+          },
+          {
+            "period_start": "2025-11-11T17:00:00+11:00",
+            "pv_estimate": 7.5518,
+            "pv_estimate10": 4.2272,
+            "pv_estimate90": 11.0061
+          },
+          {
+            "period_start": "2025-11-11T18:00:00+11:00",
+            "pv_estimate": 2.8459,
+            "pv_estimate10": 1.1227,
+            "pv_estimate90": 5.7616
+          },
+          {
+            "period_start": "2025-11-11T19:00:00+11:00",
+            "pv_estimate": 0.1027,
+            "pv_estimate10": 0.0428,
+            "pv_estimate90": 0.3972
+          },
+          {
+            "period_start": "2025-11-11T20:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T21:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T22:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-11T23:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          }
+        ],
+        "unit_of_measurement": "kWh",
+        "attribution": "Data retrieved from Solcast",
+        "device_class": "energy",
+        "friendly_name": "Solcast PV Forecast Forecast Today"
+      },
+      "last_changed": "2025-11-10T18:46:33.624166+00:00",
+      "last_reported": "2025-11-11T00:00:00.413528+00:00",
+      "last_updated": "2025-11-10T18:46:33.624166+00:00",
+      "context": {
+        "id": "01K9QHEQCRD9GFMYQYHSPAX749",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "sensor.solcast_pv_forecast_forecast_tomorrow",
+      "state": "239.9989",
+      "attributes": {
+        "state_class": "total",
+        "26bd_9be8_a9e4_b300": 119.0862,
+        "estimate_26bd_9be8_a9e4_b300": 119.0862,
+        "estimate10_26bd_9be8_a9e4_b300": 105.4259,
+        "estimate90_26bd_9be8_a9e4_b300": 119.179,
+        "cfa5_a188_eb8e_f7af": 120.9127,
+        "estimate_cfa5_a188_eb8e_f7af": 120.9127,
+        "estimate10_cfa5_a188_eb8e_f7af": 110.7153,
+        "estimate90_cfa5_a188_eb8e_f7af": 121.4062,
+        "estimate": 239.9989,
+        "estimate10": 216.1412,
+        "estimate90": 240.5853,
+        "dayname": "Wednesday",
+        "dataCorrect": true,
+        "detailedForecast": [
+          {
+            "period_start": "2025-11-12T00:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T00:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T01:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T01:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T02:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T02:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T03:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T03:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T04:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T04:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T05:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T05:30:00+11:00",
+            "pv_estimate": 0.0753,
+            "pv_estimate10": 0.0283,
+            "pv_estimate90": 0.0753
+          },
+          {
+            "period_start": "2025-11-12T06:00:00+11:00",
+            "pv_estimate": 2.9234,
+            "pv_estimate10": 1.2791,
+            "pv_estimate90": 2.9234
+          },
+          {
+            "period_start": "2025-11-12T06:30:00+11:00",
+            "pv_estimate": 5.4042,
+            "pv_estimate10": 3.488,
+            "pv_estimate90": 5.4042
+          },
+          {
+            "period_start": "2025-11-12T07:00:00+11:00",
+            "pv_estimate": 7.544,
+            "pv_estimate10": 5.7234,
+            "pv_estimate90": 7.544
+          },
+          {
+            "period_start": "2025-11-12T07:30:00+11:00",
+            "pv_estimate": 10.75,
+            "pv_estimate10": 8.7961,
+            "pv_estimate90": 10.75
+          },
+          {
+            "period_start": "2025-11-12T08:00:00+11:00",
+            "pv_estimate": 13.9876,
+            "pv_estimate10": 12.161,
+            "pv_estimate90": 14.1647
+          },
+          {
+            "period_start": "2025-11-12T08:30:00+11:00",
+            "pv_estimate": 17.1077,
+            "pv_estimate10": 15.4462,
+            "pv_estimate90": 17.1077
+          },
+          {
+            "period_start": "2025-11-12T09:00:00+11:00",
+            "pv_estimate": 19.8151,
+            "pv_estimate10": 17.9041,
+            "pv_estimate90": 19.8151
+          },
+          {
+            "period_start": "2025-11-12T09:30:00+11:00",
+            "pv_estimate": 22.327,
+            "pv_estimate10": 20.2766,
+            "pv_estimate90": 22.327
+          },
+          {
+            "period_start": "2025-11-12T10:00:00+11:00",
+            "pv_estimate": 24.3394,
+            "pv_estimate10": 22.2293,
+            "pv_estimate90": 24.3394
+          },
+          {
+            "period_start": "2025-11-12T10:30:00+11:00",
+            "pv_estimate": 25.936,
+            "pv_estimate10": 23.2668,
+            "pv_estimate90": 25.936
+          },
+          {
+            "period_start": "2025-11-12T11:00:00+11:00",
+            "pv_estimate": 27.3095,
+            "pv_estimate10": 24.0769,
+            "pv_estimate90": 27.3095
+          },
+          {
+            "period_start": "2025-11-12T11:30:00+11:00",
+            "pv_estimate": 28.263,
+            "pv_estimate10": 25.1569,
+            "pv_estimate90": 28.263
+          },
+          {
+            "period_start": "2025-11-12T12:00:00+11:00",
+            "pv_estimate": 28.6368,
+            "pv_estimate10": 25.6976,
+            "pv_estimate90": 28.6368
+          },
+          {
+            "period_start": "2025-11-12T12:30:00+11:00",
+            "pv_estimate": 28.7402,
+            "pv_estimate10": 25.8252,
+            "pv_estimate90": 28.7402
+          },
+          {
+            "period_start": "2025-11-12T13:00:00+11:00",
+            "pv_estimate": 28.4016,
+            "pv_estimate10": 25.5501,
+            "pv_estimate90": 28.4016
+          },
+          {
+            "period_start": "2025-11-12T13:30:00+11:00",
+            "pv_estimate": 27.6382,
+            "pv_estimate10": 24.8766,
+            "pv_estimate90": 27.6382
+          },
+          {
+            "period_start": "2025-11-12T14:00:00+11:00",
+            "pv_estimate": 26.3979,
+            "pv_estimate10": 24.1043,
+            "pv_estimate90": 26.4722
+          },
+          {
+            "period_start": "2025-11-12T14:30:00+11:00",
+            "pv_estimate": 24.8841,
+            "pv_estimate10": 23.5314,
+            "pv_estimate90": 24.8841
+          },
+          {
+            "period_start": "2025-11-12T15:00:00+11:00",
+            "pv_estimate": 22.9628,
+            "pv_estimate10": 22.2239,
+            "pv_estimate90": 22.9628
+          },
+          {
+            "period_start": "2025-11-12T15:30:00+11:00",
+            "pv_estimate": 20.7784,
+            "pv_estimate10": 20.3111,
+            "pv_estimate90": 20.7784
+          },
+          {
+            "period_start": "2025-11-12T16:00:00+11:00",
+            "pv_estimate": 18.1864,
+            "pv_estimate10": 17.9605,
+            "pv_estimate90": 18.1864
+          },
+          {
+            "period_start": "2025-11-12T16:30:00+11:00",
+            "pv_estimate": 15.2928,
+            "pv_estimate10": 14.9329,
+            "pv_estimate90": 15.2928
+          },
+          {
+            "period_start": "2025-11-12T17:00:00+11:00",
+            "pv_estimate": 11.8491,
+            "pv_estimate10": 11.0447,
+            "pv_estimate90": 12.25
+          },
+          {
+            "period_start": "2025-11-12T17:30:00+11:00",
+            "pv_estimate": 8.5464,
+            "pv_estimate10": 7.8092,
+            "pv_estimate90": 9.0668
+          },
+          {
+            "period_start": "2025-11-12T18:00:00+11:00",
+            "pv_estimate": 6.6497,
+            "pv_estimate10": 5.3604,
+            "pv_estimate90": 6.6497
+          },
+          {
+            "period_start": "2025-11-12T18:30:00+11:00",
+            "pv_estimate": 4.3139,
+            "pv_estimate10": 2.8325,
+            "pv_estimate90": 4.3139
+          },
+          {
+            "period_start": "2025-11-12T19:00:00+11:00",
+            "pv_estimate": 0.9374,
+            "pv_estimate10": 0.3892,
+            "pv_estimate90": 0.9374
+          },
+          {
+            "period_start": "2025-11-12T19:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T20:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T20:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T21:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T21:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T22:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T22:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T23:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T23:30:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          }
+        ],
+        "detailedHourly": [
+          {
+            "period_start": "2025-11-12T00:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T01:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T02:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T03:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T04:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T05:00:00+11:00",
+            "pv_estimate": 0.0377,
+            "pv_estimate10": 0.0141,
+            "pv_estimate90": 0.0377
+          },
+          {
+            "period_start": "2025-11-12T06:00:00+11:00",
+            "pv_estimate": 4.1638,
+            "pv_estimate10": 2.3836,
+            "pv_estimate90": 4.1638
+          },
+          {
+            "period_start": "2025-11-12T07:00:00+11:00",
+            "pv_estimate": 9.147,
+            "pv_estimate10": 7.2597,
+            "pv_estimate90": 9.147
+          },
+          {
+            "period_start": "2025-11-12T08:00:00+11:00",
+            "pv_estimate": 15.5477,
+            "pv_estimate10": 13.8036,
+            "pv_estimate90": 15.6362
+          },
+          {
+            "period_start": "2025-11-12T09:00:00+11:00",
+            "pv_estimate": 21.071,
+            "pv_estimate10": 19.0904,
+            "pv_estimate90": 21.071
+          },
+          {
+            "period_start": "2025-11-12T10:00:00+11:00",
+            "pv_estimate": 25.1377,
+            "pv_estimate10": 22.748,
+            "pv_estimate90": 25.1377
+          },
+          {
+            "period_start": "2025-11-12T11:00:00+11:00",
+            "pv_estimate": 27.7863,
+            "pv_estimate10": 24.6169,
+            "pv_estimate90": 27.7863
+          },
+          {
+            "period_start": "2025-11-12T12:00:00+11:00",
+            "pv_estimate": 28.6885,
+            "pv_estimate10": 25.7614,
+            "pv_estimate90": 28.6885
+          },
+          {
+            "period_start": "2025-11-12T13:00:00+11:00",
+            "pv_estimate": 28.0199,
+            "pv_estimate10": 25.2133,
+            "pv_estimate90": 28.0199
+          },
+          {
+            "period_start": "2025-11-12T14:00:00+11:00",
+            "pv_estimate": 25.641,
+            "pv_estimate10": 23.8178,
+            "pv_estimate90": 25.6782
+          },
+          {
+            "period_start": "2025-11-12T15:00:00+11:00",
+            "pv_estimate": 21.8706,
+            "pv_estimate10": 21.2675,
+            "pv_estimate90": 21.8706
+          },
+          {
+            "period_start": "2025-11-12T16:00:00+11:00",
+            "pv_estimate": 16.7396,
+            "pv_estimate10": 16.4467,
+            "pv_estimate90": 16.7396
+          },
+          {
+            "period_start": "2025-11-12T17:00:00+11:00",
+            "pv_estimate": 10.1977,
+            "pv_estimate10": 9.4269,
+            "pv_estimate90": 10.6584
+          },
+          {
+            "period_start": "2025-11-12T18:00:00+11:00",
+            "pv_estimate": 5.4818,
+            "pv_estimate10": 4.0964,
+            "pv_estimate90": 5.4818
+          },
+          {
+            "period_start": "2025-11-12T19:00:00+11:00",
+            "pv_estimate": 0.4687,
+            "pv_estimate10": 0.1946,
+            "pv_estimate90": 0.4687
+          },
+          {
+            "period_start": "2025-11-12T20:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T21:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T22:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          },
+          {
+            "period_start": "2025-11-12T23:00:00+11:00",
+            "pv_estimate": 0.0,
+            "pv_estimate10": 0.0,
+            "pv_estimate90": 0.0
+          }
+        ],
+        "unit_of_measurement": "kWh",
+        "attribution": "Data retrieved from Solcast",
+        "device_class": "energy",
+        "friendly_name": "Solcast PV Forecast Forecast Tomorrow"
+      },
+      "last_changed": "2025-11-10T18:46:33.625698+00:00",
+      "last_reported": "2025-11-11T00:00:00.416475+00:00",
+      "last_updated": "2025-11-10T18:46:33.625698+00:00",
+      "context": {
+        "id": "01K9QHEQCS2WK969FK4JMK8RRQ",
+        "parent_id": null,
+        "user_id": null
+      }
+    },
+    {
+      "entity_id": "input_number.constant_load_power",
+      "state": "1.0",
+      "attributes": {
+        "unit_of_measurement": "kW",
+        "friendly_name": "Constant Load Power"
+      },
+      "last_changed": "2025-10-05T10:56:22.751147+00:00",
+      "last_reported": "2025-10-05T10:58:23.642691+00:00",
+      "last_updated": "2025-10-05T10:56:22.751147+00:00",
+      "context": {
+        "id": "01K6VZVQYQCXBVRW0SDXWYNJ33",
+        "parent_id": null,
+        "user_id": null
+      }
+    }
+  ],
+  "outputs": []
+}

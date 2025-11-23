@@ -18,54 +18,45 @@ def scenario_path(request: pytest.FixtureRequest) -> Path:
 def scenario_data(scenario_path: Path) -> dict[str, Any]:
     """Load scenario data from diagnostic format file.
 
-    Tries to load from scenario.json (new format) first, then falls back to
-    loading from separate config.json and states.json files (old format).
+    Loads from scenario.json which contains the complete diagnostic format
+    with config, environment, inputs, and outputs sections.
     """
-    # Try new single-file format first
     scenario_file = scenario_path / "scenario.json"
-    if scenario_file.exists():
-        with scenario_file.open() as f:
-            data = json.load(f)
-        if not isinstance(data, dict):
-            msg = f"Scenario file {scenario_file} must contain an object"
-            raise TypeError(msg)
-        # Validate required keys
-        if not all(key in data for key in ("config", "inputs", "environment")):
-            msg = f"Scenario file {scenario_file} must contain config, inputs, and environment keys"
-            raise ValueError(msg)
-        return data
+    if not scenario_file.exists():
+        msg = f"Scenario file not found: {scenario_file}"
+        raise FileNotFoundError(msg)
 
-    # Fall back to old format with separate files
-    config_path = scenario_path / "config.json"
-    states_path = scenario_path / "states.json"
+    with scenario_file.open() as f:
+        data = json.load(f)
 
-    with config_path.open() as f:
-        config = json.load(f)
-    with states_path.open() as f:
-        states = json.load(f)
+    if not isinstance(data, dict):
+        msg = f"Scenario file {scenario_file} must contain an object"
+        raise TypeError(msg)
 
-    # Convert old format to new format
-    return {
-        "config": config,
-        "environment": {"timestamp": None},  # Will be extracted from states
-        "inputs": states,
-        "outputs": [],
-    }
+    # Validate required keys
+    if not all(key in data for key in ("config", "inputs", "environment")):
+        msg = f"Scenario file {scenario_file} must contain config, inputs, and environment keys"
+        raise ValueError(msg)
+
+    return data
 
 
 @pytest.fixture
 def scenario_config(scenario_data: dict[str, Any]) -> dict[str, Any]:
     """Extract config from scenario data."""
-    return scenario_data["config"]
+    config: dict[str, Any] = scenario_data["config"]
+    return config
 
 
 @pytest.fixture
 def scenario_states(scenario_data: dict[str, Any]) -> Sequence[dict[str, Any]]:
     """Extract input states from scenario data."""
-    return scenario_data["inputs"]
+    states: Sequence[dict[str, Any]] = scenario_data["inputs"]
+    return states
 
 
 @pytest.fixture
 def scenario_outputs(scenario_data: dict[str, Any]) -> Sequence[dict[str, Any]]:
     """Extract output states from scenario data for snapshot comparison."""
-    return scenario_data.get("outputs", [])
+    outputs: Sequence[dict[str, Any]] = scenario_data.get("outputs", [])
+    return outputs
