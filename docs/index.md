@@ -96,11 +96,10 @@ For **contributors and developers**:
 
 ### :material-file-document: Reference
 
-Quick **reference tables and schemas**:
+Quick **reference tables**:
 
 - [Element Types](reference/elements.md) - Complete element reference
 - [Sensor Types](reference/sensors.md) - All sensor types and meanings
-- [Configuration Schema](reference/configuration-schema.md) - Full config options
 
 ## Getting Help
 

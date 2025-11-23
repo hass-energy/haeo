@@ -134,7 +134,7 @@ See [Connections](connections.md) for configuring the inverter connection.
 
     Use DC and AC nodes to represent hybrid inverter systems.
 
-    [:material-arrow-right: Connections guide](connections.md#hybrid-inverters)
+    [:material-arrow-right: Connections guide](connections.md)
 
 - :material-chart-line:{ .lg .middle } **Understand optimization**
 

@@ -270,13 +270,13 @@ uv run pytest tests/data/ --cov=custom_components.haeo.data
 - [Forecasts and Sensors guide](../user-guide/forecasts-and-sensors.md) - User-facing documentation
 - [Units](units.md) - Unit conversion system
 - [Coordinator](coordinator.md) - How coordinators use the loading system
-- [Configuration Schema](../reference/configuration-schema.md) - Field type reference
+- [Element Configuration Pages](../user-guide/elements/index.md) - Configuration field references
 
 ## Related Documentation
 
-- [User forecasts guide](../user-guide/forecasts-and-sensors.md) - User-facing forecast documentation
+- [Forecasts and Sensors Guide](../user-guide/forecasts-and-sensors.md) - Complete sensor behavior documentation
 
-- [Configuration schema](../reference/configuration-schema.md) - Field type reference
+- [Element Configuration Pages](../user-guide/elements/index.md) - Specific element field references
 
 - [Coordinator](coordinator.md) - How data loading integrates with updates
 

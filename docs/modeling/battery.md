@@ -525,8 +525,30 @@ The cost parameters create economic trade-offs rather than hard limits:
 
 ## Related Documentation
 
-- [Battery Configuration Guide](../user-guide/elements/battery.md) - User-facing configuration
-- [Modeling Overview](index.md) - Overall optimization formulation
-- [Units Documentation](../developer-guide/units.md) - Why we use kW/kWh
+<div class="grid cards" markdown>
 
-[:material-arrow-right: Continue to Grid Modeling](grid.md)
+- :material-file-document:{ .lg .middle } **User configuration guide**
+
+    ---
+
+    Configure batteries in your Home Assistant setup.
+
+    [:material-arrow-right: Battery configuration](../user-guide/elements/battery.md)
+
+- :material-network:{ .lg .middle } **Network modeling**
+
+    ---
+
+    Understand how elements interact in the network model.
+
+    [:material-arrow-right: Network modeling overview](index.md)
+
+- :material-code-braces:{ .lg .middle } **Implementation**
+
+    ---
+
+    View the source code for the battery element model.
+
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/battery.py)
+
+</div>

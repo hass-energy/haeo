@@ -6,4 +6,5 @@ Quick reference documentation for HAEO configuration and features.
 
 - [Element Types](elements.md) - Complete element reference
 - [Sensor Types](sensors.md) - All sensor types and meanings
-- [Configuration Schema](configuration-schema.md) - Full configuration options
+
+For element configuration options, see the [user guide element pages](../user-guide/elements/index.md).

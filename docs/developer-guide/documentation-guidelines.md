@@ -232,61 +232,109 @@ Keep snippets minimal and focused on the concept being explained.
 - Check that tables share consistent column ordering and naming.
 - Ensure screenshots, diagrams, or examples use the same element names throughout the docs.
 
+## Progressive disclosure
+
+Progressive disclosure organizes information from general concepts to specific details.
+It keeps high-level documentation stable while allowing implementation details to evolve.
+
+### Principles
+
+**High-level pages describe patterns, not implementations:**
+
+- Overview pages explain architectural concepts without enumerating every concrete type
+- Use generic terms: "elements" instead of listing "battery, grid, photovoltaics, loads, nodes"
+- Describe aggregation patterns: "elements contribute constraints" not "battery has SOC constraint, grid has power limit"
+- Point to detail pages rather than duplicating their content
+
+**Detail pages provide specifics:**
+
+- Element-specific pages enumerate their exact constraints, variables, and parameters
+- Implementation guides show concrete examples
+- API references list actual method signatures
+
+### Examples of progressive disclosure
+
+**❌ Bad: Enumeration in overview**
+
+> HAEO supports batteries, grids, photovoltaics, constant loads, forecast loads, and nodes.
+> Batteries have state of charge constraints.
+> Grids have import and export limits.
+> Photovoltaics have generation forecasts.
+
+This becomes outdated when element types change.
+
+**✅ Good: Pattern description in overview**
+
+> HAEO models energy systems as networks of elements connected by power flows.
+> Each element contributes decision variables, constraints, and costs to the optimization problem.
+> See the [element documentation](../user-guide/elements/index.md) for specific element types.
+
+This remains stable as implementations evolve.
+
+**❌ Bad: Implementation details in architecture**
+
+> The `Network` class has methods `add_battery()`, `add_grid()`, `add_photovoltaics()`, etc.
+
+This requires updates whenever element types change.
+
+**✅ Good: Pattern description in architecture**
+
+> The `Network` class aggregates constraints from all elements via their `constraints()` method.
+> Elements register themselves during the `add()` process.
+
+This explains the pattern without enumerating implementations.
+
+### When to use progressive disclosure
+
+**Use in:**
+
+- Index pages (`modeling/index.md`, `user-guide/elements/index.md`)
+- Architecture overviews
+- Getting started guides
+- High-level concept explanations
+
+**Don't use in:**
+
+- Element-specific pages (be concrete about battery behavior)
+- API references (list actual methods)
+- Troubleshooting guides (reference specific error messages)
+- Configuration examples (show real YAML)
+
 ## Templates
 
-Use these templates when creating new pages so readers encounter familiar structures.
-Adjust sections only when the content truly needs a different flow.
+HAEO provides living templates that can be copied and adapted when creating new documentation.
+These templates ensure consistent structure across element documentation.
 
-### Element user guide template
+### Available templates
 
-```markdown
-# [Element Name] Configuration
+**[Element user guide template](templates/element-user-guide-template.md)**
 
-Brief description (1-2 sentences).
+Use when documenting user-facing configuration for a new element type.
+Includes sections for configuration fields, examples, sensors created, and troubleshooting.
 
-## Configuration Fields
+**[Element modeling template](templates/element-modeling-template.md)**
 
-Table of fields with descriptions.
+Use when documenting the mathematical formulation of a new element type.
+Includes sections for decision variables, parameters, constraints, cost functions, and physical interpretation.
 
-## Configuration Example
+### Using templates
 
-Minimal example without detailed explanations.
+1. Copy the appropriate template file from `docs/developer-guide/templates/`
+2. Rename to match your element: `battery.md`, `grid.md`, etc.
+3. Replace all `[Element Name]` placeholders with the actual element name
+4. Fill in each section following the guidance provided in the template
+5. Remove any guidance comments before committing
 
-## Sensors Created
+### Template customization
 
-Table of sensors.
+Templates provide a consistent structure, but not every section is required for every element:
 
-## Troubleshooting
+- Skip sections that don't apply (some elements may not have troubleshooting issues)
+- Add subsections when needed for clarity
+- Reorder content within sections if it improves flow
+- Document intentional deviations in pull request descriptions
 
-Common issues and solutions.
-
-## Related Documentation
-
-Links only.
-```
-
-### Element modeling template
-
-```markdown
-# [Element Name] Modeling
-
-Brief description.
-
-## Model Formulation
-
-### Decision Variables
-### Parameters
-### Constraints
-### Cost Contribution
-
-## Physical Interpretation
-
-Conceptual explanation without worked examples.
-
-## Related Documentation
-
-Links only.
-```
+The goal is consistency where it helps readers, not rigid adherence to structure.
 
 ## Submission checklist
 

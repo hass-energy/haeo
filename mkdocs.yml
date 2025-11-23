@@ -178,5 +178,4 @@ nav:
       - reference/index.md
       - Element Types: reference/elements.md
       - Sensor Types: reference/sensors.md
-      - Configuration Schema: reference/configuration-schema.md
       - Known Limitations: reference/limitations.md

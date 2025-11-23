@@ -3,7 +3,7 @@
 The Load element uses forecast data to model power consumption.
 This unified approach handles both constant (fixed power) and time-varying consumption patterns.
 
-## Load Element
+## Model Formulation
 
 ### Decision Variables
 
@@ -11,7 +11,9 @@ None - follows forecast parameter.
 
 ### Parameters
 
-- $P_{\text{forecast}}(t)$: Forecasted power at time $t$ (kW) - from `forecast` sensors
+| Parameter                | Dimensions | Source | Description                                   |
+| ------------------------ | ---------- | ------ | --------------------------------------------- |
+| $P_{\text{forecast}}(t)$ | $T$        | Sensor | Forecasted power consumption at time $t$ (kW) |
 
 ### Constraints
 
@@ -21,7 +23,12 @@ $$
 
 Load follows forecast data exactly at each timestep.
 
-### Physical Interpretation
+### Cost Contribution
+
+Loads do not contribute directly to the objective function.
+Their cost impact is implicit through the energy required to satisfy their consumption.
+
+## Physical Interpretation
 
 Represents any power consumption pattern:
 
@@ -64,6 +71,31 @@ You can combine constant and variable loads by creating separate Load elements w
 
 ## Related Documentation
 
-- [Load Configuration](../user-guide/elements/load.md)
-- [Modeling Overview](index.md)
+<div class="grid cards" markdown>
+
+- :material-file-document:{ .lg .middle } **User configuration guide**
+
+    ---
+
+    Configure loads in your Home Assistant setup.
+
+    [:material-arrow-right: Load configuration](../user-guide/elements/load.md)
+
+- :material-network:{ .lg .middle } **Network modeling**
+
+    ---
+
+    Understand how elements interact in the network model.
+
+    [:material-arrow-right: Network modeling overview](index.md)
+
+- :material-code-braces:{ .lg .middle } **Implementation**
+
+    ---
+
+    View the source code for the load element model.
+
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/load.py)
+
+</div>
 - [Forecasts Guide](../user-guide/forecasts-and-sensors.md)

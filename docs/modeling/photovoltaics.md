@@ -72,6 +72,30 @@ Curtailment requires inverter with active power limiting.
 
 ## Related Documentation
 
-- [Photovoltaics Configuration](../user-guide/elements/photovoltaics.md)
-- [Grid Modeling](grid.md)
-- [Modeling Overview](index.md)
+<div class="grid cards" markdown>
+
+- :material-file-document:{ .lg .middle } **User configuration guide**
+
+    ---
+
+    Configure photovoltaics in your Home Assistant setup.
+
+    [:material-arrow-right: Photovoltaics configuration](../user-guide/elements/photovoltaics.md)
+
+- :material-network:{ .lg .middle } **Network modeling**
+
+    ---
+
+    Understand how elements interact in the network model.
+
+    [:material-arrow-right: Network modeling overview](index.md)
+
+- :material-code-braces:{ .lg .middle } **Implementation**
+
+    ---
+
+    View the source code for the photovoltaics element model.
+
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/photovoltaics.py)
+
+</div>
