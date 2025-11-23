@@ -48,7 +48,9 @@ Import is positive cost. Export is negative cost (revenue).
 
 **Export**: Grid absorbs excess power from solar or battery discharge.
 
-**Simultaneous import/export**: Optimizer won't do this - it increases cost without benefit.
+**Simultaneous import/export**: The optimizer will attempt this if arbitrage opportunities exist in the prices.
+Ensure export prices are always less than import prices to prevent this behavior.
+Even if both prices are zero, simultaneous flow can occur and cause poor optimization results.
 
 **Unlimited grid**: If no limits configured, grid can always balance power needs.
 

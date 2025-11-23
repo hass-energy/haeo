@@ -127,5 +127,22 @@ def add_battery(
 
 ## Related Documentation
 
-- [Battery Modeling](../modeling/battery.md) - See units in context
-- [Grid Modeling](../modeling/grid.md) - Price units
+<div class="grid cards" markdown>
+
+- :material-battery-charging:{ .lg .middle } **Battery Modeling**
+
+    ---
+
+    See units in context of battery formulation.
+
+    [:material-arrow-right: Battery modeling](../modeling/battery.md)
+
+- :material-transmission-tower:{ .lg .middle } **Grid Modeling**
+
+    ---
+
+    Price units and grid formulation.
+
+    [:material-arrow-right: Grid modeling](../modeling/grid.md)
+
+</div>

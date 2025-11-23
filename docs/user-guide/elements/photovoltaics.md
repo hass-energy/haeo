@@ -151,13 +151,6 @@ The `forecast` attribute contains future generation values for upcoming periods.
 - Verify forecast covers daytime hours
 - Review HAEO logs for format detection warnings
 
-## Related Documentation
-
-- [Forecasts and Sensors Guide](../forecasts-and-sensors.md) - Understanding sensor data loading
-- [Connections](connections.md) - Connecting photovoltaics to the network
-- [Grid Configuration](grid.md) - Exporting solar generation
-- [Battery Configuration](battery.md) - Storing solar generation
-
 ## Next Steps
 
 <div class="grid cards" markdown>

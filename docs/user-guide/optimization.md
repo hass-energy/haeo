@@ -113,33 +113,50 @@ HAEO re-optimizes periodically. Balance:
 The optimization cost represents the total forecasted cost over the full horizon, not just the immediate step.
 Track changes in this value when you adjust configuration parameters to confirm the optimiser is producing the expected behaviour.
 
-## Related Documentation
-
-- [Troubleshooting](troubleshooting.md)
-- [Mathematical Modeling](../modeling/index.md)
-
 ## Next Steps
 
 Explore these guides to act on the optimization outputs.
 
 <div class="grid cards" markdown>
 
-- :material-play-circle-outline:{ .lg .middle } __Review a complete example__
+- :material-play-circle-outline:{ .lg .middle } **Review a complete example**
+
+    ---
 
     See how the optimization outputs drive real-world decisions.
 
     [:material-arrow-right: Sigenergy example](examples/sigenergy-system.md)
 
-- :material-robot-outline:{ .lg .middle } __Build automations from the results__
+- :material-robot-outline:{ .lg .middle } **Build automations from the results**
+
+    ---
 
     Turn recommended power schedules into actionable automations.
 
     [:material-arrow-right: Automation patterns](automations.md)
 
-- :material-sync:{ .lg .middle } __Monitor data updates__
+- :material-sync:{ .lg .middle } **Monitor data updates**
+
+    ---
 
     Understand how new sensor data triggers optimizations.
 
     [:material-arrow-right: Data update guide](data-updates.md)
+
+- :material-math-integral:{ .lg .middle } **Mathematical Modeling**
+
+    ---
+
+    Understand the optimization formulation.
+
+    [:material-arrow-right: Modeling overview](../modeling/index.md)
+
+- :material-help-circle:{ .lg .middle } **Troubleshooting**
+
+    ---
+
+    Common issues and solutions.
+
+    [:material-arrow-right: Troubleshooting guide](troubleshooting.md)
 
 </div>

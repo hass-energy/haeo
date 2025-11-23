@@ -274,9 +274,40 @@ If your forecast includes optional or deferrable loads, the optimizer may schedu
 **Solution**: Only include loads that represent actual required consumption in the Load element.
 For controllable/deferrable loads, model them separately with appropriate constraints.
 
-## Related Documentation
+## Next Steps
 
-- [Forecasts and Sensors](../forecasts-and-sensors.md) - Understanding sensor data loading
-- [Configuration Guide](../configuration.md) - Adding elements to your network
-- [Battery Configuration](battery.md) - Pairing loads with storage
-- [Grid Configuration](grid.md) - Grid import/export with loads
+<div class="grid cards" markdown>
+
+- :material-connection:{ .lg .middle } **Connect to network**
+
+    ---
+
+    Learn how to connect your load to other elements using connections.
+
+    [:material-arrow-right: Connections guide](connections.md)
+
+- :material-chart-line:{ .lg .middle } **Configure forecast sensors**
+
+    ---
+
+    Deep dive into how HAEO loads and processes sensor data.
+
+    [:material-arrow-right: Forecasts and sensors](../forecasts-and-sensors.md)
+
+- :material-battery-charging:{ .lg .middle } **Add battery storage**
+
+    ---
+
+    Pair loads with battery storage to optimize energy usage.
+
+    [:material-arrow-right: Battery configuration](battery.md)
+
+- :material-transmission-tower:{ .lg .middle } **Add grid connection**
+
+    ---
+
+    Configure grid import/export to meet load requirements.
+
+    [:material-arrow-right: Grid configuration](grid.md)
+
+</div>

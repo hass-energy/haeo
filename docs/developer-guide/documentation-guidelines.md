@@ -138,11 +138,13 @@ Before committing documentation changes, verify:
 ## Next steps requirements
 
 All user-facing pages must end with a **Next Steps** section.
+This replaces the traditional "Related Documentation" pattern - use Next Steps with cards instead of separate Related Documentation bullet lists.
 
 ### Purpose
 
 Next Steps sections help users discover related topics and continue their learning journey.
 They prevent dead-ends and guide users toward completing common workflows.
+They also provide links to deeper technical resources (like modeling documentation) for readers who want more detail.
 
 ### Structure
 
@@ -166,7 +168,8 @@ Use Material for MkDocs grid cards format (match `docs/index.md`):
 
 ### Content guidelines
 
-- **3 cards maximum**: More creates choice paralysis
+- **3-4 cards recommended**: Provide logical next actions without overwhelming the reader
+- **Curated for context**: Choose the most relevant next actions for readers of this specific page, not generic links
 - **Logical progression**: Next steps should flow naturally from current page content
 - **Actionable descriptions**: Focus on what users will do or learn, not just topic names
 - **Appropriate icons**: Use Material icons that match the topic (`:material-battery-charging:`, `:material-chart-line:`, etc.)

@@ -75,6 +75,30 @@ For more technical details, see the [modeling documentation](../modeling/index.m
 
 ## Related Documentation
 
-- [Element Reference](elements.md)
-- [Battery Configuration](../user-guide/elements/battery.md)
-- [Troubleshooting](../user-guide/troubleshooting.md)
+<div class="grid cards" markdown>
+
+- :material-shape:{ .lg .middle } **Element Reference**
+
+    ---
+
+    Complete element type reference.
+
+    [:material-arrow-right: Elements](elements.md)
+
+- :material-battery-charging:{ .lg .middle } **Battery Configuration**
+
+    ---
+
+    Configure battery elements.
+
+    [:material-arrow-right: Battery guide](../user-guide/elements/battery.md)
+
+- :material-help-circle:{ .lg .middle } **Troubleshooting**
+
+    ---
+
+    Common issues and solutions.
+
+    [:material-arrow-right: Troubleshooting guide](../user-guide/troubleshooting.md)
+
+</div>

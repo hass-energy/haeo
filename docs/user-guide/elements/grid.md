@@ -178,12 +178,6 @@ The `forecast` attribute on each sensor contains future values for upcoming peri
 - Review connections in network configuration
 - Check grid import limit vs total load
 
-## Related Documentation
-
-- [Forecasts and Sensors Guide](../forecasts-and-sensors.md) - Understanding price sensors
-- [Connections](connections.md) - Connecting grid to the network
-- [Battery Configuration](battery.md) - Store cheap energy for later use
-
 ## Next Steps
 
 <div class="grid cards" markdown>
@@ -211,5 +205,13 @@ The `forecast` attribute on each sensor contains future values for upcoming peri
     Store cheap grid energy during off-peak hours for use during expensive periods.
 
     [:material-arrow-right: Battery configuration](battery.md)
+
+- :material-math-integral:{ .lg .middle } **Grid modeling**
+
+    ---
+
+    Understand the mathematical formulation of grid optimization.
+
+    [:material-arrow-right: Grid modeling](../../modeling/grid.md)
 
 </div>

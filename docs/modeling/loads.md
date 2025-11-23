@@ -30,10 +30,12 @@ Their cost impact is implicit through the energy required to satisfy their consu
 
 ## Physical Interpretation
 
-Represents any power consumption pattern:
+Represents forecasted power consumption:
 
-- **Constant loads**: Baseline consumption (refrigerators, network equipment, standby power, always-on devices)
-- **Variable loads**: Time-varying consumption (HVAC, cooking, EV charging, occupancy-based loads)
+- **Constant loads**: Fixed power draw (provided via constant sensor value like `input_number`)
+- **Forecasted loads**: Time-varying consumption predictions (whole-house historic average, scheduled loads, occupancy-based forecasts)
+
+Loads are not controllable by the optimizer—they represent consumption that will occur regardless of optimization decisions.
 
 Forecast accuracy directly impacts optimization quality.
 

@@ -8,16 +8,6 @@ Focus on what decisions the model makes regarding this element.
 This section describes the mathematical optimization model for this element.
 Present the formulation in standard optimization notation.
 
-### Decision Variables
-
-List all decision variables this element introduces to the optimization problem.
-Use consistent mathematical notation.
-
-| Variable | Dimensions | Domain                | Description                                  |
-| -------- | ---------- | --------------------- | -------------------------------------------- |
-| $x_{t}$  | $T$        | $\mathbb{R}_{\geq 0}$ | Description of what this variable represents |
-| $y_{t}$  | $T$        | $\{0, 1\}$            | Binary decision variable description         |
-
 ### Parameters
 
 List all parameters (inputs) required by this element's model.
@@ -27,6 +17,16 @@ Distinguish between user-configured parameters and sensor-derived data.
 | ---------------- | ---------- | ------------- | ------------------------------------- |
 | $p_{\text{max}}$ | scalar     | Configuration | Maximum power capacity                |
 | $f_{t}$          | $T$        | Sensor        | Forecasted values at each time period |
+
+### Decision Variables
+
+List all decision variables this element introduces to the optimization problem.
+Use consistent mathematical notation.
+
+| Variable | Dimensions | Domain                | Description                                  |
+| -------- | ---------- | --------------------- | -------------------------------------------- |
+| $x_{t}$  | $T$        | $\mathbb{R}_{\geq 0}$ | Description of what this variable represents |
+| $y_{t}$  | $T$        | $\{0, 1\}$            | Binary decision variable description         |
 
 ### Constraints
 
@@ -85,6 +85,8 @@ Note any real-world behaviors not captured by the model:
 
     1. Replace the element configuration link with the actual element page (e.g., `battery.md`)
     2. Replace `element.py` in the source code link with the actual model filename (e.g., `battery.py`)
+    3. Curate Next Steps cards to show 3-4 most relevant actions for readers of this page
+    4. Choose cards that flow naturally from this element's modeling concepts
 
 <div class="grid cards" markdown>
 

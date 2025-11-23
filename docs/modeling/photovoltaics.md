@@ -43,7 +43,9 @@ $$
 C_{\text{solar}} = \sum_{t=0}^{T-1} P_{\text{solar}}(t) \cdot c_{\text{production}} \cdot \Delta t
 $$
 
-Usually $c_{\text{production}} = 0$ (solar is free).
+Usually $c_{\text{production}} = 0$ (solar generation has no marginal cost).
+Production price can represent opportunity cost.
+Setting it negative encourages using all available solar generation.
 
 ## Physical Interpretation
 

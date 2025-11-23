@@ -55,30 +55,43 @@ Focus on actionable problems users are likely to encounter.
 
 ## Next Steps
 
+!!! note "Template Instructions"
+
+    Curate 3-4 Next Steps cards that are most relevant for users who just configured this element.
+    Below are example cards showing the structure—replace them with actual links and content.
+    Consider: connecting to other elements, understanding related concepts, related element types, or troubleshooting.
+
+    Example patterns for element configuration pages:
+
+    - **Connections**: Link to `connections.md` to explain network connectivity
+    - **Forecasts/Sensors**: Link to `../forecasts-and-sensors.md` for sensor field details
+    - **Related elements**: Link to complementary elements (battery→grid, solar→battery, etc.)
+    - **Optimization**: Link to `../optimization.md` to explain how this element affects results
+
 <div class="grid cards" markdown>
 
-- :material-connection:{ .lg .middle } **Connect to network**
+- :material-connection:{ .lg .middle } **[Card Title]**
 
     ---
 
-    Learn how to connect this element to other elements in the network.
+    Brief description of what the user will learn or accomplish.
 
-    [:material-arrow-right: Network connections](../../user-guide/elements/connections.md)
+    [:material-arrow-right: Link text](#)
 
-- :material-chart-line:{ .lg .middle } **Understand sensor loading**
-
-    ---
-
-    Deep dive into how HAEO loads and processes sensor data.
-
-    [:material-arrow-right: Forecasts and sensors](../../user-guide/forecasts-and-sensors.md)
-
-- :material-help-circle:{ .lg .middle } **Troubleshooting**
+- :material-chart-line:{ .lg .middle } **[Card Title]**
 
     ---
 
-    Common issues and solutions for HAEO configuration.
+    Brief description of what the user will learn or accomplish.
 
-    [:material-arrow-right: Troubleshooting guide](../../user-guide/troubleshooting.md)
+    [:material-arrow-right: Link text](#)
+
+- :material-battery-charging:{ .lg .middle } **[Card Title]**
+
+    ---
+
+    Brief description of what the user will learn or accomplish.
+
+    [:material-arrow-right: Link text](#)
 
 </div>

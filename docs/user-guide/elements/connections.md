@@ -131,12 +131,6 @@ Connections create the following sensors:
 
 See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly) for connection issues.
 
-## Related Documentation
-
-- [Connection Modeling](../../modeling/connections.md)
-- [Node Modeling](../../modeling/node.md)
-- [Forecasts and Sensors](../forecasts-and-sensors.md)
-
 ## Next Steps
 
 <div class="grid cards" markdown>
@@ -148,6 +142,22 @@ See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly)
     Review all configured elements and ensure proper connections.
 
     [:material-arrow-right: Elements overview](index.md)
+
+- :material-math-integral:{ .lg .middle } **Connection modeling**
+
+    ---
+
+    Understand the mathematical formulation of power flows.
+
+    [:material-arrow-right: Connection modeling](../../modeling/connections.md)
+
+- :material-circle-outline:{ .lg .middle } **Node modeling**
+
+    ---
+
+    Learn about power balance at network nodes.
+
+    [:material-arrow-right: Node modeling](../../modeling/node.md)
 
 - :material-chart-line:{ .lg .middle } **Understand optimization**
 

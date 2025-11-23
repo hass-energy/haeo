@@ -236,9 +236,54 @@ All PRs must pass:
 
 ## Related Documentation
 
-- [Architecture](architecture.md) - System design
-- [Energy Models](energy-models.md) - Model implementation
-- [Coordinator](coordinator.md) - Update cycle
-- [Data Loading](data-loading.md) - Loader testing
-- [Config Flow](config-flow.md) - Flow testing patterns
-- [Setup](setup.md) - Environment setup
+<div class="grid cards" markdown>
+
+- :material-sitemap:{ .lg .middle } **Architecture**
+
+    ---
+
+    System design overview.
+
+    [:material-arrow-right: Architecture guide](architecture.md)
+
+- :material-network:{ .lg .middle } **Energy Models**
+
+    ---
+
+    Model implementation details.
+
+    [:material-arrow-right: Energy models](energy-models.md)
+
+- :material-sync:{ .lg .middle } **Coordinator**
+
+    ---
+
+    Update cycle patterns.
+
+    [:material-arrow-right: Coordinator guide](coordinator.md)
+
+- :material-database:{ .lg .middle } **Data Loading**
+
+    ---
+
+    Loader testing approaches.
+
+    [:material-arrow-right: Data loading guide](data-loading.md)
+
+- :material-cog:{ .lg .middle } **Config Flow**
+
+    ---
+
+    Flow testing patterns.
+
+    [:material-arrow-right: Config flow guide](config-flow.md)
+
+- :material-hammer-wrench:{ .lg .middle } **Setup**
+
+    ---
+
+    Environment setup for development.
+
+    [:material-arrow-right: Setup guide](setup.md)
+
+</div>

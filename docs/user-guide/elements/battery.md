@@ -302,14 +302,6 @@ This allows HAEO to:
 - Optimize total system cost
 - Handle different battery characteristics
 
-## Related Documentation
-
-- [Forecasts & Sensors](../forecasts-and-sensors.md) - Creating SOC sensors
-- [Grid Configuration](grid.md) - Pricing that drives battery decisions
-- [Connections](connections.md) - Connect battery to network
-- [Battery Modeling](../../modeling/battery.md) - Mathematical details
-- [Units & Stability](../../developer-guide/units.md) - Why kW/kWh units
-
 ## Next Steps
 
 Build on your battery configuration with these guides.
@@ -318,11 +310,15 @@ Build on your battery configuration with these guides.
 
 - :material-power-plug:{ .lg .middle } **Add a grid connection**
 
+    ---
+
     Link your battery to grid pricing so HAEO can optimize imports and exports.
 
     [:material-arrow-right: Grid guide](grid.md)
 
 - :material-source-branch:{ .lg .middle } **Define connections**
+
+    ---
 
     Create power flow links between your battery and the rest of the network.
 
@@ -330,8 +326,18 @@ Build on your battery configuration with these guides.
 
 - :material-chart-line:{ .lg .middle } **View optimization results**
 
+    ---
+
     Verify the battery schedule and state of charge produced by HAEO.
 
     [:material-arrow-right: Optimization overview](../optimization.md)
+
+- :material-math-integral:{ .lg .middle } **Battery modeling**
+
+    ---
+
+    Understand the mathematical formulation and constraints.
+
+    [:material-arrow-right: Battery modeling](../../modeling/battery.md)
 
 </div>

@@ -76,7 +76,6 @@ The LP solver finds optimal values for all decision variables that minimize tota
 ### Solution Outcomes
 
 - **Optimal solution**: Satisfies all constraints with minimum total cost
-- **Feasible solution**: Satisfies all constraints but may not be optimal (intermediate solver state)
 - **Infeasible**: No solution exists that satisfies all constraints simultaneously
 
 ## Network Structure

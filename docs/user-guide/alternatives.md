@@ -263,13 +263,13 @@ Choose based on what matters most for your use case: discrete control and built-
 
     [:material-arrow-right: Forecasts and sensors](forecasts-and-sensors.md)
 
-- :material-frequently-asked-questions:{ .lg .middle } **Common questions**
+- :material-help-circle:{ .lg .middle } **Troubleshooting**
 
     ---
 
-    Find answers to frequently asked questions about HAEO's capabilities and use cases.
+    Find solutions to common issues and get help with HAEO configuration.
 
-    [:material-arrow-right: FAQ](faq.md)
+    [:material-arrow-right: Troubleshooting guide](troubleshooting.md)
 
 - :material-github:{ .lg .middle } **Join the community**
 

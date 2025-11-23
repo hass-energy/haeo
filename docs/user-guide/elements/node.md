@@ -110,17 +110,27 @@ Set connection power limits to match the inverter rating.
 
 See [Connections](connections.md) for configuring the inverter connection.
 
-## Related Documentation
-
-- [Node Modeling](../../modeling/node.md)
-- [Mathematical Modeling](../../modeling/index.md)
-- [Connections Guide](connections.md)
-
 ## Next Steps
 
 <div class="grid cards" markdown>
 
 - :material-connection:{ .lg .middle } **Configure connections**
+
+    ---
+
+    Learn how to connect elements using power flow connections.
+
+    [:material-arrow-right: Connections guide](connections.md)
+
+- :material-math-integral:{ .lg .middle } **Node modeling**
+
+    ---
+
+    Understand the power balance formulation at nodes.
+
+    [:material-arrow-right: Node modeling](../../modeling/node.md)
+
+- :material-network:{ .lg .middle } **Mathematical modeling**
 
     ---
 
