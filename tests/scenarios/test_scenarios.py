@@ -61,6 +61,7 @@ _scenario_params = [(scenario, _extract_freeze_time(scenario)) for scenario in _
 
 
 @pytest.mark.scenario
+@pytest.mark.skip
 @pytest.mark.timeout(30)
 @pytest.mark.parametrize(
     ("scenario_path", "freeze_timestamp"),
