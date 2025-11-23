@@ -51,10 +51,21 @@ INVALID_CASES: list[ElementTestCase] = [
         "description": "Load with forecast length mismatch",
         "factory": Load,
         "data": {
-            "name": "load",
+            "name": "load_mismatch",
             "period": 1.0,
             "n_periods": 3,
             "forecast": [1.0, 1.5],  # Only 2 instead of 3
+        },
+        "expected_error": "Sequence length .* must match n_periods",
+    },
+    {
+        "description": "Load with forecast length mismatch (single value broadcast)",
+        "factory": Load,
+        "data": {
+            "name": "load_broadcast_attempt",
+            "period": 1.0,
+            "n_periods": 3,
+            "forecast": [1.0],  # Length 1, not allowed
         },
         "expected_error": "Sequence length .* must match n_periods",
     },

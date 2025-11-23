@@ -47,6 +47,16 @@ class Grid(Element):
         """
         super().__init__(name=name, period=period, n_periods=n_periods)
 
+        # Validate import_price length strictly
+        if isinstance(import_price, Sequence) and len(import_price) != n_periods:
+            msg = f"Sequence length {len(import_price)} must match n_periods {n_periods}"
+            raise ValueError(msg)
+
+        # Validate export_price length strictly
+        if isinstance(export_price, Sequence) and len(export_price) != n_periods:
+            msg = f"Sequence length {len(export_price)} must match n_periods {n_periods}"
+            raise ValueError(msg)
+
         # Validate and store prices
         self.import_price = broadcast_to_sequence(import_price, n_periods)
         self.export_price = broadcast_to_sequence(export_price, n_periods)

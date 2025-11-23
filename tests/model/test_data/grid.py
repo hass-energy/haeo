@@ -94,7 +94,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "description": "Grid with import_price length mismatch",
         "factory": Grid,
         "data": {
-            "name": "grid",
+            "name": "grid_import_mismatch",
             "period": 1.0,
             "n_periods": 3,
             "import_limit": 5.0,
@@ -108,7 +108,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "description": "Grid with export_price length mismatch",
         "factory": Grid,
         "data": {
-            "name": "grid",
+            "name": "grid_export_mismatch",
             "period": 1.0,
             "n_periods": 3,
             "import_limit": 5.0,

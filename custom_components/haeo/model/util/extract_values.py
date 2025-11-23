@@ -15,7 +15,7 @@ def extract_values(sequence: Sequence[LpVariable | LpAffineExpression | float] |
     resolved: list[float] = []
     for item in sequence:
         if isinstance(item, (LpVariable, LpAffineExpression)):
-            resolved.append(pulp_value(item))
+            resolved.append(float(pulp_value(item)))
         else:
-            resolved.append(item)
+            resolved.append(float(item))
     return tuple(resolved)

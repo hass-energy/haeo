@@ -12,7 +12,7 @@ from .util import broadcast_to_sequence, extract_values
 class Load(Element):
     """Load entity for electrical system modeling."""
 
-    def __init__(self, name: str, period: float, n_periods: int, forecast: Sequence[float]) -> None:
+    def __init__(self, name: str, period: float, n_periods: int, forecast: Sequence[float] | float) -> None:
         """Initialize a load.
 
         Args:
@@ -23,6 +23,12 @@ class Load(Element):
 
         """
         super().__init__(name=name, period=period, n_periods=n_periods)
+
+        # Validate forecast length strictly before broadcasting
+        # Since input does not accept float, we require exactly n_periods
+        if isinstance(forecast, Sequence) and len(forecast) != n_periods:
+            msg = f"Sequence length {len(forecast)} must match n_periods {n_periods}"
+            raise ValueError(msg)
 
         # Validate forecast length and store as power consumption
         self.power_consumption: list[LpAffineExpression] = [

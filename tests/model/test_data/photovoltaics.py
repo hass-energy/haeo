@@ -96,11 +96,12 @@ INVALID_CASES: list[ElementTestCase] = [
         "description": "Photovoltaics with forecast length mismatch",
         "factory": Photovoltaics,
         "data": {
-            "name": "photovoltaics",
+            "name": "pv_forecast_mismatch",
             "period": 1.0,
             "n_periods": 3,
             "forecast": (1.2, 1.4),  # Only 2 instead of 3
             "price_production": (0.1, 0.2, 0.3),
+            "curtailment": False,
         },
         "expected_error": "Sequence length .* must match n_periods",
     },
@@ -108,11 +109,12 @@ INVALID_CASES: list[ElementTestCase] = [
         "description": "Photovoltaics with price_production length mismatch",
         "factory": Photovoltaics,
         "data": {
-            "name": "photovoltaics",
+            "name": "pv_price_mismatch",
             "period": 1.0,
             "n_periods": 3,
             "forecast": (1.2, 1.4, 1.6),
             "price_production": (0.1, 0.2),  # Only 2 instead of 3
+            "curtailment": False,
         },
         "expected_error": "Sequence length .* must match n_periods",
     },

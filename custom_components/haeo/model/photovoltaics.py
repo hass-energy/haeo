@@ -44,6 +44,16 @@ class Photovoltaics(Element):
         """
         super().__init__(name=name, period=period, n_periods=n_periods)
 
+        # Validate forecast length strictly
+        if len(forecast) != n_periods:
+            msg = f"Sequence length {len(forecast)} must match n_periods {n_periods}"
+            raise ValueError(msg)
+
+        # Validate price_production length strictly
+        if isinstance(price_production, Sequence) and len(price_production) != n_periods:
+            msg = f"Sequence length {len(price_production)} must match n_periods {n_periods}"
+            raise ValueError(msg)
+
         # Validate and store forecasts
         self.forecast = broadcast_to_sequence(forecast, n_periods)
         self.price_production = broadcast_to_sequence(price_production, n_periods)

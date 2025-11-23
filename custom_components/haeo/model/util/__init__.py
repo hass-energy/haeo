@@ -2,5 +2,6 @@
 
 from .broadcast_to_sequence import broadcast_to_sequence
 from .extract_values import extract_values
+from .percentage_to_ratio import percentage_to_ratio
 
-__all__ = ["broadcast_to_sequence", "extract_values"]
+__all__ = ["broadcast_to_sequence", "extract_values", "percentage_to_ratio"]
