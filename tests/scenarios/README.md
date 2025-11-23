@@ -14,15 +14,18 @@ import json
 with open('diagnostics.json') as f:
     diagnostics = json.load(f)
 
-scenario_format = diagnostics['scenario_format']
-
 # Save config
 with open('tests/scenarios/my_scenario/config.json', 'w') as f:
-    json.dump(scenario_format['config'], f, indent=2)
+    json.dump(diagnostics['config'], f, indent=2)
 
-# Save states  
+# Save input states  
 with open('tests/scenarios/my_scenario/states.json', 'w') as f:
-    json.dump(scenario_format['states'], f, indent=2)
+    json.dump(diagnostics['inputs'], f, indent=2)
+```
+
+Or use the extraction script:
+```bash
+python tests/scenarios/extract_from_diagnostics.py diagnostics.json tests/scenarios/my_scenario/
 ```
 
 ### Option 2: Direct from Home Assistant
@@ -56,13 +59,14 @@ scenario_name/
 All scenarios are automatically discovered and tested by `tests/scenarios/test_scenarios.py`.
 Snapshots are stored in `tests/scenarios/snapshots/test_scenarios.ambr`.
 
-## What's in Diagnostics Scenario Format
+## What's in Diagnostics Format
 
-The diagnostics `scenario_format` section includes:
+The diagnostics output now has a flat structure with four main keys:
 
-- **config**: Complete participant configurations, horizon_hours, period_minutes
-- **states**: All input sensor states with attributes and forecasts
-- **output_states** (optional): Output sensor states if optimization has run (useful for diagnostics)
+- **config**: HAEO configuration (participants, horizon_hours, period_minutes)
+- **inputs**: All input sensor states with attributes and forecasts
+- **outputs**: Output sensor states from optimization (when available, useful for diagnostics)
+- **environment**: HA version, HAEO version, timestamp, timezone
 
 This makes it easy to capture a problematic state and create a reproducible test scenario for debugging.
 

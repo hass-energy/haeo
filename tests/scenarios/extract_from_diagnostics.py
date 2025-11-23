@@ -19,12 +19,11 @@ def extract_scenario(diagnostics_path: Path, output_dir: Path) -> None:
     with diagnostics_path.open() as f:
         diagnostics = json.load(f)
 
-    if "scenario_format" not in diagnostics:
-        print("Error: diagnostics file does not contain 'scenario_format' section")
+    # Verify the new format with config, inputs, outputs, environment keys
+    if not all(key in diagnostics for key in ("config", "inputs", "environment")):
+        print("Error: diagnostics file does not contain expected keys (config, inputs, environment)")
         print("This might be from an older version of HAEO diagnostics")
         sys.exit(1)
-
-    scenario_format = diagnostics["scenario_format"]
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -32,22 +31,28 @@ def extract_scenario(diagnostics_path: Path, output_dir: Path) -> None:
     # Save config
     config_path = output_dir / "config.json"
     with config_path.open("w") as f:
-        json.dump(scenario_format["config"], f, indent=2)
+        json.dump(diagnostics["config"], f, indent=2)
     print(f"✓ Saved config to {config_path}")
 
-    # Save states
+    # Save input states
     states_path = output_dir / "states.json"
     with states_path.open("w") as f:
-        json.dump(scenario_format["states"], f, indent=2)
-    print(f"✓ Saved {len(scenario_format['states'])} sensor states to {states_path}")
+        json.dump(diagnostics["inputs"], f, indent=2)
+    print(f"✓ Saved {len(diagnostics['inputs'])} input states to {states_path}")
 
     # Optionally save output states for reference
-    if scenario_format.get("output_states"):
+    if diagnostics.get("outputs"):
         output_states_path = output_dir / "output_states.json"
         with output_states_path.open("w") as f:
-            json.dump(scenario_format["output_states"], f, indent=2)
-        print(f"✓ Saved {len(scenario_format['output_states'])} output states to {output_states_path}")
+            json.dump(diagnostics["outputs"], f, indent=2)
+        print(f"✓ Saved {len(diagnostics['outputs'])} output states to {output_states_path}")
         print("  (output_states.json is for reference only, not used by tests)")
+
+    # Save environment info for debugging
+    env_path = output_dir / "environment.json"
+    with env_path.open("w") as f:
+        json.dump(diagnostics["environment"], f, indent=2)
+    print(f"✓ Saved environment info to {env_path}")
 
     print("\nScenario files created successfully!")
     print(f"\nTo run this scenario:")
