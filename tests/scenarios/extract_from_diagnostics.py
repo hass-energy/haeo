@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: T201
 """Extract scenario test files from HAEO diagnostics JSON.
 
 Usage:

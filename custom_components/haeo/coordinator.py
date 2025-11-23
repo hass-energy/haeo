@@ -55,10 +55,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def collect_entity_ids(value: Any) -> set[str]:
-    """Recursively collect entity IDs from nested configuration values.
-
-    This is a public function that can be used by diagnostics and other modules.
-    """
+    """Recursively collect entity IDs from nested configuration values."""
     if isinstance(value, str):
         return {value}
 
@@ -78,10 +75,7 @@ def collect_entity_ids(value: Any) -> set[str]:
 
 
 def extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
-    """Extract entity IDs from a configuration using schema loaders.
-
-    This is a public function that can be used by diagnostics and other modules.
-    """
+    """Extract entity IDs from a configuration using schema loaders."""
     entity_ids: set[str] = set()
 
     element_type = config["element_type"]

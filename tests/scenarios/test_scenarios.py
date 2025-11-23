@@ -16,7 +16,6 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-from syrupy.assertion import SnapshotAssertion
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
@@ -27,6 +26,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.model import OUTPUT_NAME_OPTIMIZATION_STATUS
+from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ def _discover_scenarios() -> list[Path]:
 def _extract_freeze_time(scenario_path: Path) -> str:
     """Extract freeze time from scenario data.
 
-    Uses environment.timestamp from scenario.json.
+    Uses environment.timestamp from scenario.json (required).
     """
     scenario_file = scenario_path / "scenario.json"
     if not scenario_file.exists():
@@ -51,20 +51,12 @@ def _extract_freeze_time(scenario_path: Path) -> str:
     with scenario_file.open() as f:
         data = json.load(f)
 
-    # Use environment timestamp if available
-    if "environment" in data and data["environment"].get("timestamp"):
-        timestamp: str = data["environment"]["timestamp"]
-        return timestamp
+    if "environment" not in data or not data["environment"].get("timestamp"):
+        msg = f"Scenario {scenario_path} must have environment.timestamp"
+        raise ValueError(msg)
 
-    # Fall back to extracting from inputs if no timestamp in environment
-    if "inputs" in data:
-        timestamps = [state["last_updated"] for state in data["inputs"] if "last_updated" in state]
-        if timestamps:
-            max_timestamp: str = max(timestamps)
-            return max_timestamp
-
-    msg = f"No timestamp found in {scenario_path}"
-    raise ValueError(msg)
+    timestamp: str = data["environment"]["timestamp"]
+    return timestamp
 
 
 # Discover scenarios and create test parameters
@@ -85,24 +77,18 @@ async def test_scenarios(
     hass: HomeAssistant,
     scenario_path: Path,
     freeze_timestamp: str,
-    scenario_config: dict[str, Any],
-    scenario_states: Sequence[dict[str, Any]],
-    scenario_outputs: Sequence[dict[str, Any]],
-    snapshot: SnapshotAssertion,
+    scenario_data: ScenarioData,
 ) -> None:
-    """Test that scenario sets up correctly and optimization engine runs successfully.
-
-    If scenario_outputs is provided (from scenario.json outputs section), it will be used
-    for snapshot comparison. Otherwise, all HAEO sensors will be compared to snapshots.
-    """
+    """Test that scenario sets up correctly and optimization matches expected outputs."""
     # Apply freeze_time dynamically
     with freeze_time(freeze_timestamp):
         # Set up sensor states from scenario data and wait until they are loaded
-        for state_data in scenario_states:
+        for state_data in scenario_data["inputs"]:
             hass.states.async_set(state_data["entity_id"], state_data["state"], state_data.get("attributes", {}))
         await hass.async_block_till_done()
 
         # Create hub config entry and add to hass
+        scenario_config = scenario_data["config"]
         mock_config_entry = MockConfigEntry(
             domain=DOMAIN,
             data={
@@ -230,21 +216,31 @@ async def test_scenarios(
             scenario_path / "visualizations",
         )
 
-        # Check outputs against snapshots
-        # If scenario_outputs is provided, use it for comparison; otherwise use all haeo sensors
-        if scenario_outputs:
-            _LOGGER.info("Using scenario outputs for snapshot comparison")
-            # Convert output state dicts to match expected format
-            output_comparison = []
-            for output_state in scenario_outputs:
-                entity_id = output_state.get("entity_id")
-                if entity_id:
-                    state = hass.states.get(entity_id)
-                    if state:
-                        output_comparison.append(state)
-            assert snapshot == output_comparison
-        else:
-            _LOGGER.info("Using all HAEO sensors for snapshot comparison")
-            assert snapshot == haeo_sensors
+        # Compare actual outputs with expected outputs from scenario file
+        expected_outputs = scenario_data["outputs"]
+        _LOGGER.info("Comparing %d actual outputs with expected outputs", len(haeo_sensors))
 
-        _LOGGER.info("Test completed - integration setup and sensor creation verified")
+        # Build a dict of actual outputs by entity_id for easy lookup
+        actual_outputs_dict = {sensor.entity_id: sensor for sensor in haeo_sensors}
+
+        # Verify each expected output matches actual
+        for expected_output in expected_outputs:
+            entity_id = expected_output["entity_id"]
+            actual_sensor = actual_outputs_dict.get(entity_id)
+
+            assert actual_sensor is not None, f"Expected output sensor {entity_id} not found in actual outputs"
+
+            # Compare state and rounded attributes
+            actual_state = round_floats(actual_sensor.state)
+            expected_state = round_floats(expected_output["state"])
+            assert actual_state == expected_state, f"State mismatch for {entity_id}: {actual_state} != {expected_state}"
+
+            # Compare attributes if present
+            if "attributes" in expected_output:
+                actual_attrs = round_floats(actual_sensor.attributes)
+                expected_attrs = round_floats(expected_output["attributes"])
+                assert actual_attrs == expected_attrs, (
+                    f"Attributes mismatch for {entity_id}: {actual_attrs} != {expected_attrs}"
+                )
+
+        _LOGGER.info("Test completed - all outputs match expected values")

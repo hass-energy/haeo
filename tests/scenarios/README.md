@@ -4,45 +4,14 @@ Quick start guide for testing HAEO with real Home Assistant data.
 
 ## Quick Start
 
-### Option 1: From Diagnostics (Easiest - Recommended)
+### From Diagnostics (Recommended)
 
-Download diagnostics from Home Assistant UI and save as scenario:
+Download diagnostics from Home Assistant UI and save directly as a scenario:
 
-```bash
-# Use the extraction script (saves as single scenario.json file)
-python tests/scenarios/extract_from_diagnostics.py diagnostics.json tests/scenarios/my_scenario/
-```
+1. In Home Assistant: Settings → Devices & Services → HAEO → Download Diagnostics
+2. Save the downloaded file as `tests/scenarios/my_scenario/scenario.json`
 
-Or manually:
-
-```python
-import json
-
-with open("diagnostics.json") as f:
-    diagnostics = json.load(f)
-
-# Save as single scenario.json file (includes config, environment, inputs, outputs)
-with open("tests/scenarios/my_scenario/scenario.json", "w") as f:
-    json.dump(diagnostics, f, indent=2)
-```
-
-### Option 2: Direct from Home Assistant
-
-```bash
-# Fetches states and filters in one command (prompts for token)
-./tests/scenarios/filter_states.py http://homeassistant.local:8123 \
-    --output tests/scenarios/my_scenario/states.json \
-    sensor.battery sensor.solar sensor.grid
-```
-
-### Option 3: From existing file
-
-```bash
-# Filter existing states.json file
-./tests/scenarios/filter_states.py path/to/states.json \
-    --output tests/scenarios/my_scenario/states.json \
-    sensor.battery sensor.solar sensor.grid
-```
+The diagnostics output is directly usable as a scenario test - no additional processing needed.
 
 ## Test Structure
 
@@ -58,16 +27,14 @@ Snapshots are stored in `tests/scenarios/snapshots/test_scenarios.ambr`.
 
 ## What's in Diagnostics Format
 
-The diagnostics output has a flat structure with four main keys (in order):
+The diagnostics output has a flat structure with four main keys (alphabetically sorted):
 
 - **config**: HAEO configuration (participants, horizon_hours, period_minutes) - user editable
 - **environment**: HA version, HAEO version, timestamp, timezone - user editable for testing
 - **inputs**: All input sensor states with attributes and forecasts
-- **outputs**: Output sensor states from optimization (used for snapshot comparison)
+- **outputs**: Output sensor states from optimization (compared against actual results in tests)
 
-Keys are ordered so user-editable sections (config, environment) appear first, followed by data sections (inputs, outputs).
-
-The environment.timestamp is used as the freeze time for the test, and outputs are used for snapshot comparison.
+The environment.timestamp is used as the freeze time for the test, and outputs are compared with actual optimization results.
 
 ## Usage Examples
 

@@ -91,14 +91,6 @@ split-on-trailing-comma = false
     'BLE001',  # Do not catch blind exception - test code needs to handle various exception types
 ]
 
-"tests/scenarios/extract_from_diagnostics.py" = [
-    'T201',    # Print statements are intentional in CLI scripts
-]
-
-"tests/scenarios/filter_states.py" = [
-    'T201',    # Print statements are intentional in CLI scripts
-]
-
 
 [tool.pyright]
 stubPath = "stubs"

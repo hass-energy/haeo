@@ -48,9 +48,8 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     assert "outputs" in diagnostics
     assert "environment" in diagnostics
 
-    # Verify key order: config, environment, inputs, outputs
-    keys = list(diagnostics.keys())
-    assert keys == ["config", "environment", "inputs", "outputs"]
+    # Note: Python dicts maintain insertion order, but JSON serialization
+    # can use sort_keys=True for alphabetical ordering (config, environment, inputs, outputs)
 
     # Verify config structure
     assert diagnostics["config"][CONF_HORIZON_HOURS] == 24

@@ -1,11 +1,38 @@
 """Fixtures for centralized scenario tests."""
 
-from collections.abc import Sequence
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict, TypeGuard
 
 import pytest
+
+
+class ScenarioData(TypedDict):
+    """TypedDict for scenario data structure."""
+
+    config: dict[str, Any]
+    environment: dict[str, Any]
+    inputs: list[dict[str, Any]]
+    outputs: list[dict[str, Any]]
+
+
+def is_scenario_data(value: Any) -> TypeGuard[ScenarioData]:
+    """Type guard to validate scenario data structure."""
+    if not isinstance(value, dict):
+        return False
+
+    # Check required keys
+    if not all(key in value for key in ("config", "environment", "inputs", "outputs")):
+        return False
+
+    # Validate types
+    if not isinstance(value["config"], dict):
+        return False
+    if not isinstance(value["environment"], dict):
+        return False
+    if not isinstance(value["inputs"], list):
+        return False
+    return isinstance(value["outputs"], list)
 
 
 @pytest.fixture
@@ -15,7 +42,7 @@ def scenario_path(request: pytest.FixtureRequest) -> Path:
 
 
 @pytest.fixture
-def scenario_data(scenario_path: Path) -> dict[str, Any]:
+def scenario_data(scenario_path: Path) -> ScenarioData:
     """Load scenario data from diagnostic format file.
 
     Loads from scenario.json which contains the complete diagnostic format
@@ -29,34 +56,11 @@ def scenario_data(scenario_path: Path) -> dict[str, Any]:
     with scenario_file.open() as f:
         data = json.load(f)
 
-    if not isinstance(data, dict):
-        msg = f"Scenario file {scenario_file} must contain an object"
-        raise TypeError(msg)
-
-    # Validate required keys
-    if not all(key in data for key in ("config", "inputs", "environment")):
-        msg = f"Scenario file {scenario_file} must contain config, inputs, and environment keys"
+    if not is_scenario_data(data):
+        msg = (
+            f"Scenario file {scenario_file} must contain valid scenario data "
+            "with config, environment, inputs, and outputs keys"
+        )
         raise ValueError(msg)
 
     return data
-
-
-@pytest.fixture
-def scenario_config(scenario_data: dict[str, Any]) -> dict[str, Any]:
-    """Extract config from scenario data."""
-    config: dict[str, Any] = scenario_data["config"]
-    return config
-
-
-@pytest.fixture
-def scenario_states(scenario_data: dict[str, Any]) -> Sequence[dict[str, Any]]:
-    """Extract input states from scenario data."""
-    states: Sequence[dict[str, Any]] = scenario_data["inputs"]
-    return states
-
-
-@pytest.fixture
-def scenario_outputs(scenario_data: dict[str, Any]) -> Sequence[dict[str, Any]]:
-    """Extract output states from scenario data for snapshot comparison."""
-    outputs: Sequence[dict[str, Any]] = scenario_data.get("outputs", [])
-    return outputs
