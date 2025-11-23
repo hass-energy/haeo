@@ -1,256 +1,282 @@
-# HAEO vs Alternatives
+# HAEO vs EMHASS
 
-If you're considering energy optimization solutions for Home Assistant, you may have encountered other projects.
-This page compares HAEO with alternatives to help you make an informed choice.
+When exploring energy optimization solutions for Home Assistant, you'll likely encounter two actively maintained projects: HAEO and EMHASS.
+Both aim to optimize home energy usage but take fundamentally different architectural approaches.
+This page provides a fair, technical comparison to help you choose the solution that best fits your needs.
 
-## Quick Comparison
+## Quick comparison
 
-| Feature              | HAEO               | WattWise            | EMHASS                             |
-| -------------------- | ------------------ | ------------------- | ---------------------------------- |
-| **Type**             | Native Integration | AppDaemon App       | Add-on                             |
-| **Maintenance**      | Active             | Unmaintained        | Active                             |
-| **Configuration**    | UI-based           | Configuration files | Configuration files + UI           |
-| **Flexibility**      | High               | Medium              | Low                                |
-| **Dependencies**     | None (native HA)   | AppDaemon           | Docker add-on                      |
-| **Network Topology** | Flexible graph     | Fixed structure     | Fixed structure                    |
-| **Optimization**     | Linear Programming | Linear Programming  | Mixed Integer Linear Programming   |
-| **Integration**      | Native HA sensors  | Sensor publishing   | Sensor publishing + shell commands |
+| Feature                  | HAEO                          | EMHASS                                     |
+| ------------------------ | ----------------------------- | ------------------------------------------ |
+| **Type**                 | Native integration            | Add-on                                     |
+| **Maintenance**          | Active                        | Active                                     |
+| **Installation**         | HACS → Integration            | Add-on store                               |
+| **HA requirements**      | Any installation method       | Home Assistant OS or Supervised            |
+| **Configuration**        | UI-based                      | Web UI + Configuration files               |
+| **Network topology**     | Flexible graph                | Fixed structure                            |
+| **Optimization**         | Linear programming (LP)       | Mixed integer linear programming (MILP)    |
+| **Forecasting**          | Via other HA integrations     | Built-in ML and solar forecasting          |
+| **Primary use case**     | Battery/solar optimization    | Appliance scheduling + battery/solar       |
+| **Multi-element support** | Multiple batteries/arrays/grids | Limited                                   |
+| **Integration method**   | Native HA sensors             | Sensors + REST API + shell commands        |
 
-## HAEO
+## Philosophical differences
 
-**Home Assistant Energy Optimization**
+The core difference between HAEO and EMHASS reflects their origins and design philosophies:
 
-### Strengths
+**EMHASS** (developed by an electrical engineer) takes an integrated approach: it's purpose-built for energy management with forecasting, machine learning, and discrete load scheduling all included.
+It assumes a more standard system topology and provides comprehensive features in a single package.
 
-- ✅ **Native Integration**: Full Home Assistant integration
-- ✅ **UI Configuration**: Everything configurable through HA's UI
-- ✅ **Flexible Topology**: Model any network structure with connections
-- ✅ **Active Development**: Regular updates and bug fixes
-- ✅ **Modern Codebase**: Python 3.13+, type-safe, well-tested
-- ✅ **Extensible**: Easy to add new element types
-- ✅ **Sensors**: Rich sensor data with forecast attributes
-- ✅ **Multiple Elements**: Support for multiple batteries, grids, loads, etc.
+**HAEO** (developed by a software engineer) follows the Unix philosophy: do one thing well.
+It focuses purely on optimization with a flexible, graph-based network model, relying on other Home Assistant integrations to provide forecasting data.
+The flexibility to model any network topology through connections is its defining characteristic.
 
-### Best For
-
-- Users who want native HA integration
-- Complex systems with custom topologies
-- Users comfortable with UI configuration
-- Systems requiring multiple batteries or arrays
-- Users who value active maintenance
-
-### Installation
-
-Via HACS as a custom integration.
-
-## WattWise
-
-[GitHub](https://github.com/bullitt186/ha-wattwise/) • [Community Discussion](https://community.home-assistant.io/t/wattwise-energy-forecasting-and-battery-control-for-dynamic-energy-tariffs-like-tibber/790613)
-
-### Overview
-
-WattWise is an AppDaemon-based energy management system for Home Assistant.
-
-### Status
-
-⚠️ **No longer actively maintained** - Last significant update was over a year ago.
-
-### Strengths
-
-- ✅ AppDaemon-based (if you already use AppDaemon)
-- ✅ Designed for Tibber integration
-- ✅ Simpler for basic setups
-
-### Limitations
-
-- ❌ **Unmaintained**: No active development or bug fixes
-- ❌ **AppDaemon Dependency**: Requires AppDaemon installation and maintenance
-- ❌ **Fixed Structure**: Less flexible than HAEO for custom topologies
-- ❌ **Configuration**: File-based configuration only
-- ❌ **Limited Documentation**: Harder to get started
-
-### Best For
-
-- Users already running AppDaemon
-- Simple Tibber-based setups
-- Users comfortable with legacy software
-
-### Migration to HAEO
-
-If you're using WattWise, migrating to HAEO offers:
-
-- Active maintenance and bug fixes
-- More flexible system modeling
-- UI-based configuration
-- Better integration with Home Assistant
+You might think of it as: an electrical engineer building a software project versus a software engineer building an electrical project.
 
 ## EMHASS
 
-[GitHub](https://github.com/davidusb-geek/emhass) • [Community Discussion](https://community.home-assistant.io/t/emhass-an-energy-management-for-home-assistant/338126)
+[GitHub](https://github.com/davidusb-geek/emhass) • [Documentation](https://emhass.readthedocs.io/) • [Community discussion](https://community.home-assistant.io/t/emhass-an-energy-management-for-home-assistant/338126)
+
+**Status**: Actively maintained, mature project with established community
 
 ### Overview
 
-EMHASS (Energy Management for Home Assistant) is a Docker add-on for Home Assistant.
-
-### Status
-
-✅ **Actively maintained**
+EMHASS (Energy Management for Home Assistant) is a Python-based add-on that optimizes home energy management through day-ahead optimization.
+It excels at scheduling deferrable loads (washing machines, dishwashers, EV chargers, pool pumps) to minimize costs and maximize self-consumption of solar energy.
 
 ### Strengths
 
-- ✅ **Actively Developed**: Regular updates
-- ✅ **Mature Project**: Well-established in community
-- ✅ **Web UI**: Configuration through web interface
-- ✅ **Mixed Integer LP**: Can handle discrete decisions
+- **Mixed integer linear programming**: Can handle discrete decisions (on/off appliances), enabling true appliance scheduling optimization
+- **Built-in forecasting**: Includes machine learning-based load forecasting and integrates with solar forecasting services (Solcast, Forecast.Solar)
+- **Purpose-built for deferrable loads**: Designed specifically for appliance scheduling and load management
+- **Mature and proven**: Established project with large community, extensive real-world deployments, and comprehensive documentation
+- **Separate machine capability**: Can run on a different machine than Home Assistant, beneficial for resource-constrained systems
+- **Simple installation**: Direct installation from Home Assistant add-on store
+- **Thermal load support**: Can model and optimize thermal loads (hot water heaters, etc.)
 
 ### Limitations
 
-- ❌ **Add-on Only**: Requires Home Assistant OS or Supervised
-- ❌ **Rigid Configuration**: Less flexible than HAEO
-- ❌ **Fixed Topology**: Predefined system structure
-- ❌ **Complex Setup**: Configuration can be challenging
-- ❌ **Limited Multi-Element Support**: Harder to model multiple batteries/arrays
-- ❌ **External Integration**: Shell commands and REST calls vs native sensors
+- **Requires HA OS/Supervised**: Add-on limitation means it won't work with Container or Core installations
+- **Fixed network topology**: Less flexible for modeling custom or complex system architectures
+- **Configuration complexity**: Despite simpler architecture, configuration can be complex and requires understanding many parameters
+- **Limited multi-element support**: Harder to model multiple batteries, arrays, or custom grid configurations
+- **Integration overhead**: Uses combination of sensors, REST API, and shell commands rather than native integration
 
-### Best For
+### Best for
 
-- Home Assistant OS/Supervised users
+- Users needing discrete appliance/load scheduling
+- Those wanting built-in ML and solar forecasting
+- Home Assistant OS or Supervised installations
 - Standard solar + battery + grid setups
-- Users wanting discrete optimization (e.g., appliance scheduling)
-- Users comfortable with add-on management
+- Resource-constrained HA instances (can offload to separate machine)
+- Users preferring add-on installation model
+- Systems with thermal loads
 
-### HAEO vs EMHASS
+## HAEO
 
-**Choose HAEO if you want**:
+[GitHub](https://github.com/hass-energy/haeo) • [Documentation](../index.md) • [GitHub discussions](https://github.com/hass-energy/haeo/discussions)
 
-- Native Home Assistant integration
-- Flexible system topology (multiple batteries, complex connections)
-- UI-based element configuration
-- Custom network structures (AC/DC splits, multiple meters)
-- Pure Python implementation
+**Status**: Actively maintained, newer project
 
-**Choose EMHASS if you want**:
+### Overview
 
-- Add-on installation model
-- Mixed integer optimization for discrete decisions
-- Established project with large community
-- You're already using EMHASS-compatible hardware
+HAEO (Home Assistant Energy Optimization) is a native Home Assistant integration that optimizes energy networks through flexible topology modeling.
+Its key innovation is the ability to model any network structure through connections between elements, enabling custom system configurations that emerge from the graph structure itself.
 
-## Feature Comparison
+### Strengths
 
-### Network Modeling
+- **Flexible network topology**: Model any system structure through connections - the strongest differentiator. Graph-based approach enables emergent behavior for complex systems
+- **Native Home Assistant integration**: Works with any HA installation method (OS, Supervised, Container, Core)
+- **Full UI configuration**: Everything configurable through Home Assistant's UI with organized devices
+- **Multiple element support**: Easy support for multiple batteries, solar arrays, grids, and loads
+- **Modern codebase**: Python 3.13+, platinum-level code quality standards, strong typing, comprehensive testing
+- **Lower latency**: Runs alongside Home Assistant instance for minimal delay
+- **Native sensor integration**: Sensors organized into devices, persist between reboots, leverage native HA features
+- **Unique features**: Battery overcharge/undercharge protection, modeling of non-electric energy systems (hot water via connections)
+- **Extensibility**: Graph structure allows modeling diverse energy systems without code changes
 
-| Feature               | HAEO               | WattWise   | EMHASS        |
-| --------------------- | ------------------ | ---------- | ------------- |
-| Multiple Batteries    | ✅ Yes             | ⚠️ Limited | ⚠️ Limited    |
-| Multiple Solar Arrays | ✅ Yes             | ⚠️ Limited | ⚠️ Limited    |
-| Custom Topology       | ✅ Flexible graph  | ❌ Fixed   | ❌ Fixed      |
-| Hybrid Inverters      | ✅ Via connections | ❌ Limited | ⚠️ Via config |
-| Multiple Grids        | ✅ Yes             | ❌ No      | ❌ No         |
+### Limitations
+
+- **Continuous optimization only**: Linear programming (no MILP yet), so cannot optimize discrete appliance scheduling
+- **Graph complexity**: Requires understanding topology and connection concepts, which adds initial learning curve
+- **Newer project**: Smaller community, less proven track record compared to EMHASS
+- **Requires HACS**: Additional step before installation (though HACS is very common)
+- **Setup complexity**: Flexibility means more configuration options and decisions
+- **External forecasting dependency**: Relies entirely on other HA integrations for forecast data
+- **Missing features**: Does not yet have thermal loads or deferrable load scheduling (planned future additions)
+
+### Best for
+
+- Complex or custom system topologies
+- Users with multiple batteries, arrays, or grids
+- Home Assistant Container or Core installations
+- Those preferring native HA integration
+- Users valuing UI-based configuration
+- Systems needing modeling flexibility (AC/DC splits, hybrid inverters, multiple meters)
+- Users who prioritize modern code quality and software architecture
+- Specific feature needs like battery overcharge protection
+
+## Technical comparison
+
+### Network modeling
+
+| Feature                     | HAEO                           | EMHASS         |
+| --------------------------- | ------------------------------ | -------------- |
+| Multiple batteries          | Yes (unlimited)                | Limited        |
+| Multiple solar arrays       | Yes (unlimited)                | Limited        |
+| Custom topology             | Flexible graph                 | Fixed          |
+| Hybrid inverters            | Via connection configuration   | Via config     |
+| Multiple grids              | Yes                            | No             |
+| Non-electric energy systems | Yes (via connections)          | Thermal loads  |
+| AC/DC network splits        | Yes (via connections)          | No             |
 
 ### Optimization
 
-| Feature            | HAEO                    | WattWise           | EMHASS           |
-| ------------------ | ----------------------- | ------------------ | ---------------- |
-| Algorithm          | Linear Programming      | Linear Programming | Mixed Integer LP |
-| Solver             | HiGHS                   | Solver-dependent   | Solver-dependent |
-| Time Horizon       | Configurable            | Fixed              | Configurable     |
-| Time Resolution    | Configurable (1-60 min) | Fixed              | Configurable     |
-| Discrete Decisions | ❌ Continuous only      | ❌ Continuous only | ✅ Yes           |
+| Feature            | HAEO                    | EMHASS                |
+| ------------------ | ----------------------- | --------------------- |
+| Algorithm          | Linear programming (LP) | Mixed integer LP      |
+| Solver             | HiGHS                   | Configurable          |
+| Discrete decisions | No (continuous only)    | Yes (on/off control)  |
+| Time horizon       | Configurable            | Configurable          |
+| Time resolution    | Configurable (1-60 min) | Configurable          |
+| Battery management | Charge/discharge rates  | Charge/discharge      |
+| Overcharge/undercharge protection | Yes         | No                    |
 
-### Integration
+### Integration and setup
 
-| Feature       | HAEO              | WattWise          | EMHASS            |
-| ------------- | ----------------- | ----------------- | ----------------- |
-| Installation  | HACS Integration  | AppDaemon         | Docker Add-on     |
-| Configuration | HA UI             | YAML files        | Web UI + YAML     |
-| Sensors       | Native HA sensors | Published sensors | Published sensors |
-| Forecast Data | Sensor attributes | Sensor attributes | REST API          |
-| Control       | HA automations    | AppDaemon         | Shell commands    |
+| Feature              | HAEO                                    | EMHASS                              |
+| -------------------- | --------------------------------------- | ----------------------------------- |
+| Installation method  | HACS → Integration                      | Add-on store                        |
+| HA compatibility     | All (OS, Supervised, Container, Core)   | OS and Supervised only              |
+| Configuration        | Full UI-based                           | Web UI + YAML files                 |
+| Learning curve       | Moderate (graph/topology concepts)      | Moderate (many config parameters)   |
+| Setup complexity     | High flexibility = more decisions       | Simpler architecture, complex config |
+| Documentation        | Growing                                 | Extensive, mature                   |
+| Community size       | Smaller (newer)                         | Larger (established)                |
 
-## When to Choose HAEO
+### Features
 
-Choose HAEO if you:
+| Feature                | HAEO                           | EMHASS                              |
+| ---------------------- | ------------------------------ | ----------------------------------- |
+| Forecasting            | Via HA integrations (modular)  | Built-in ML + solar forecasting     |
+| Sensor integration     | Native HA devices and sensors  | Published sensors + REST API        |
+| Deferrable loads       | Not yet (planned)              | Yes (core feature)                  |
+| Thermal loads          | Via connections (experimental) | Yes (built-in)                      |
+| Appliance scheduling   | Not yet (planned)              | Yes (MILP-based)                    |
+| Battery optimization   | Yes (core feature)             | Yes (core feature)                  |
+| Solar optimization     | Yes (core feature)             | Yes (core feature)                  |
+| Control method         | HA automations with sensors    | Shell commands, REST, sensors       |
 
-- ✅ Want a native Home Assistant integration
-- ✅ Have or need a flexible network topology
-- ✅ Prefer UI configuration over YAML
-- ✅ Value active maintenance
-- ✅ Want to use existing HA integrations
-- ✅ Need multiple batteries or arrays
-- ✅ Have a custom or complex setup
+## When to choose each solution
 
-### When to Choose Alternatives
+### Choose EMHASS if you
 
-Consider alternatives if you:
+- Need discrete appliance or load scheduling (washing machine, EV charger timing)
+- Want built-in machine learning and solar forecasting without installing separate integrations
+- Prefer add-on installation model
+- Have a standard solar + battery + grid setup
+- Need to run optimization on a separate machine (resource-constrained HA)
+- Want an established project with proven track record and large community
+- Need thermal load optimization
+- Are running Home Assistant OS or Supervised
 
-- Need discrete optimization (appliance scheduling) → EMHASS
-- Already use AppDaemon heavily → WattWise (though consider migration)
-- Prefer add-on installation model → EMHASS
-- Have a very simple, standard setup → Any option works
+### Choose HAEO if you
 
-## Migration Guides
+- Have a complex or custom system topology that doesn't fit standard patterns
+- Need to model multiple batteries, solar arrays, or grid connections
+- Are running Home Assistant Container or Core (where add-ons aren't available)
+- Prefer native Home Assistant integration with lower latency
+- Want UI-based configuration for all settings
+- Value modern codebase with strong typing and comprehensive testing
+- Need specific features like battery overcharge/undercharge protection
+- Want to model non-standard systems (AC/DC splits, multiple meters, custom connections)
+- Prioritize software quality and maintainability
 
-### From WattWise to HAEO
+## Can you use both?
 
-1. Install HAEO via HACS
-2. Create network in HAEO UI
-3. Add elements (battery, grid, solar, loads)
-4. Define connections
-5. Map WattWise sensors to HAEO equivalents
-6. Update automations to use HAEO sensors
-7. Test optimization
-8. Disable WattWise
+Technically, yes.
+They have overlapping capabilities but could be complementary:
 
-### From EMHASS to HAEO
+- **HAEO** for battery and solar optimization with flexible topology
+- **EMHASS** for discrete appliance scheduling
 
-1. Document your EMHASS configuration
-2. Install HAEO via HACS
-3. Create equivalent network in HAEO
-4. Add elements matching your EMHASS setup
-5. Define connections between elements
-6. Update automations to use HAEO sensors
-7. Run both in parallel initially
-8. Verify HAEO optimization matches expectations
-9. Disable EMHASS
+However, in practice, most users will choose one or the other since both handle battery and solar optimization, which creates redundancy.
+The overlap is significant enough that running both adds complexity without major benefit for most systems.
 
-## Contributing
+## Making your choice
 
-All three projects welcome contributions:
+Consider these factors:
 
-- **HAEO**: [Contributing Guide](../developer-guide/contributing.md)
-- **WattWise**: See GitHub repository (note: unmaintained)
-- **EMHASS**: See GitHub repository
+1. **System complexity**: Simple standard setup → either works; complex topology → HAEO
+2. **Installation method**: HA OS/Supervised → either works; Container/Core → HAEO only
+3. **Optimization type**: Appliance scheduling → EMHASS; battery/solar only → either works
+4. **Configuration preference**: UI-based → HAEO; file-based acceptable → EMHASS
+5. **Forecasting**: Want built-in → EMHASS; happy using other integrations → HAEO
+6. **Project maturity**: Want established → EMHASS; modern codebase → HAEO
+7. **Resource constraints**: Need separate machine → EMHASS; prefer integrated → HAEO
 
-## Getting Help
+## Getting help
 
-### HAEO Support
+### HAEO support
 
-- [GitHub Issues](https://github.com/hass-energy/haeo/issues)
-- [GitHub Discussions](https://github.com/hass-energy/haeo/discussions)
-- [Documentation](../index.md)
+- [GitHub issues](https://github.com/hass-energy/haeo/issues) - Bug reports and feature requests
+- [GitHub discussions](https://github.com/hass-energy/haeo/discussions) - Questions and community support
+- [Documentation](../index.md) - Comprehensive guides
 
-### Community Forums
+### EMHASS support
 
-- [WattWise Community Thread](https://community.home-assistant.io/t/wattwise-energy-forecasting-and-battery-control-for-dynamic-energy-tariffs-like-tibber/790613)
-- [EMHASS Community Thread](https://community.home-assistant.io/t/emhass-an-energy-management-for-home-assistant/338126)
+- [GitHub repository](https://github.com/davidusb-geek/emhass) - Code and issues
+- [Documentation](https://emhass.readthedocs.io/) - Setup and configuration guides
+- [Community forum](https://community.home-assistant.io/t/emhass-an-energy-management-for-home-assistant/338126) - Active discussion thread
 
 ## Conclusion
 
-All three projects aim to optimize home energy usage, but take different approaches:
+Both HAEO and EMHASS are actively maintained, quality projects that solve real energy optimization problems for Home Assistant users.
+They represent different architectural philosophies:
 
-- **HAEO**: Native integration, flexible, UI-configured, actively maintained
-- **WattWise**: AppDaemon-based, simpler, unmaintained
-- **EMHASS**: Add-on, established, discrete optimization capable
+- **EMHASS**: Integrated solution with rigid structure, built-in forecasting, and discrete optimization capabilities
+- **HAEO**: Modular solution with flexible structure, external forecasting, and continuous optimization focus
 
-Choose based on your:
+Neither is objectively "better" - the right choice depends on your specific system, installation method, optimization needs, and preferences.
+EMHASS excels at appliance scheduling with its MILP solver and offers a comprehensive, proven solution.
+HAEO excels at flexible topology modeling and native integration with modern code quality.
 
-- Installation preferences (native vs AppDaemon vs add-on)
-- System complexity
-- Configuration preferences (UI vs files)
-- Need for active maintenance
-- Optimization requirements
+Choose based on what matters most for your use case: discrete control and built-in forecasting (EMHASS), or flexible topology and native integration (HAEO).
 
-For most users wanting a flexible, actively maintained solution with native Home Assistant integration, **HAEO is the recommended choice**.
+## Next steps
 
-[:material-arrow-right: Get Started with HAEO](installation.md)
+<div class="grid cards" markdown>
+
+-   :material-download:{ .lg .middle } **Install HAEO**
+
+    ---
+
+    Get started with HAEO by installing it through HACS and setting up your first energy network.
+
+    [:material-arrow-right: Installation guide](installation.md)
+
+-   :material-connection:{ .lg .middle } **Understand forecasting**
+
+    ---
+
+    Learn how HAEO uses forecast data from Home Assistant sensors to optimize your energy system.
+
+    [:material-arrow-right: Forecasts and sensors](forecasts-and-sensors.md)
+
+-   :material-frequently-asked-questions:{ .lg .middle } **Common questions**
+
+    ---
+
+    Find answers to frequently asked questions about HAEO's capabilities and use cases.
+
+    [:material-arrow-right: FAQ](faq.md)
+
+-   :material-github:{ .lg .middle } **Join the community**
+
+    ---
+
+    Connect with other HAEO users, ask questions, and share your experiences.
+
+    [:material-arrow-right: GitHub discussions](https://github.com/hass-energy/haeo/discussions)
+
+</div>
