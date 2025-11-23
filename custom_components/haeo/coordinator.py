@@ -54,29 +54,34 @@ from .schema import get_field_meta
 _LOGGER = logging.getLogger(__name__)
 
 
-def _collect_entity_ids(value: Any) -> set[str]:
-    """Recursively collect entity IDs from nested configuration values."""
+def collect_entity_ids(value: Any) -> set[str]:
+    """Recursively collect entity IDs from nested configuration values.
 
+    This is a public function that can be used by diagnostics and other modules.
+    """
     if isinstance(value, str):
         return {value}
 
     if isinstance(value, Mapping):
         mapping_ids: set[str] = set()
         for nested in value.values():
-            mapping_ids.update(_collect_entity_ids(nested))
+            mapping_ids.update(collect_entity_ids(nested))
         return mapping_ids
 
     if isinstance(value, Sequence):
         sequence_ids: set[str] = set()
         for nested in value:
-            sequence_ids.update(_collect_entity_ids(nested))
+            sequence_ids.update(collect_entity_ids(nested))
         return sequence_ids
 
     return set()
 
 
-def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
-    """Extract entity IDs from a configuration using schema loaders."""
+def extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
+    """Extract entity IDs from a configuration using schema loaders.
+
+    This is a public function that can be used by diagnostics and other modules.
+    """
     entity_ids: set[str] = set()
 
     element_type = config["element_type"]
@@ -101,7 +106,7 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
             continue
 
         try:
-            entity_ids.update(_collect_entity_ids(field_value))
+            entity_ids.update(collect_entity_ids(field_value))
         except TypeError:
             continue
 
@@ -243,7 +248,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Extract entity IDs from all participant configurations
         all_entity_ids: set[str] = set()
         for config in self._participant_configs.values():
-            all_entity_ids.update(_extract_entity_ids_from_config(config))
+            all_entity_ids.update(extract_entity_ids_from_config(config))
 
         # Set up state change listeners for all entity IDs in configuration
         if all_entity_ids:
