@@ -174,7 +174,6 @@ Its key innovation is the ability to model any network structure through connect
 - Need discrete appliance or load scheduling (washing machine, EV charger timing)
 - Want built-in machine learning and solar forecasting without installing separate integrations
 - Prefer add-on installation model
-- Have a standard solar + battery + grid setup
 - Need to run optimization on a separate machine (resource-constrained HA)
 - Want an established project with proven track record and large community
 - Need thermal load optimization
