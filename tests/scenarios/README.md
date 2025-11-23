@@ -4,7 +4,28 @@ Quick start guide for testing HAEO with real Home Assistant data.
 
 ## Quick Start
 
-### Option 1: Direct from Home Assistant (Recommended)
+### Option 1: From Diagnostics (Easiest - Recommended)
+
+Download diagnostics from Home Assistant UI and extract scenario data:
+
+```python
+import json
+
+with open('diagnostics.json') as f:
+    diagnostics = json.load(f)
+
+scenario_format = diagnostics['scenario_format']
+
+# Save config
+with open('tests/scenarios/my_scenario/config.json', 'w') as f:
+    json.dump(scenario_format['config'], f, indent=2)
+
+# Save states  
+with open('tests/scenarios/my_scenario/states.json', 'w') as f:
+    json.dump(scenario_format['states'], f, indent=2)
+```
+
+### Option 2: Direct from Home Assistant
 
 ```bash
 # Fetches states and filters in one command (prompts for token)
@@ -13,7 +34,7 @@ Quick start guide for testing HAEO with real Home Assistant data.
     sensor.battery sensor.solar sensor.grid
 ```
 
-### Option 2: From existing file
+### Option 3: From existing file
 
 ```bash
 # Filter existing states.json file
@@ -28,12 +49,22 @@ Each scenario needs:
 
 ```
 scenario_name/
-├── states.json     # Filtered HA states (from filter_states.py)
-└── config.json     # HAEO configuration
+├── states.json     # Filtered HA states (from diagnostics or filter_states.py)
+└── config.json     # HAEO configuration (from diagnostics or manual)
 ```
 
 All scenarios are automatically discovered and tested by `tests/scenarios/test_scenarios.py`.
 Snapshots are stored in `tests/scenarios/snapshots/test_scenarios.ambr`.
+
+## What's in Diagnostics Scenario Format
+
+The diagnostics `scenario_format` section includes:
+
+- **config**: Complete participant configurations, horizon_hours, period_minutes
+- **states**: All input sensor states with attributes and forecasts
+- **output_states** (optional): Output sensor states if optimization has run (useful for diagnostics)
+
+This makes it easy to capture a problematic state and create a reproducible test scenario for debugging.
 
 ## Usage Examples
 
