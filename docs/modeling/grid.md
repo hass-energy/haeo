@@ -50,7 +50,7 @@ Import is positive cost. Export is negative cost (revenue).
 
 **Simultaneous import/export**: The optimizer will attempt this if arbitrage opportunities exist in the prices.
 Ensure export prices are always less than import prices to prevent this behavior.
-Even if both prices are zero, simultaneous flow can occur and cause poor optimization results.
+Even if both prices are zero, simultaneous flow can occur and cause poor optimization results, because the optimizer has no economic incentive to prefer import or export, and may select any feasible solution.
 
 **Unlimited grid**: If no limits configured, grid can always balance power needs.
 

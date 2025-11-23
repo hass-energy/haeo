@@ -100,4 +100,3 @@ You can combine constant and variable loads by creating separate Load elements w
     [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/load.py)
 
 </div>
-- [Forecasts Guide](../user-guide/forecasts-and-sensors.md)

@@ -106,5 +106,3 @@ Separate buses with inverter connection between them.
     [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/node.py)
 
 </div>
-- [Connection Modeling](connections.md)
-- [Connections](connections.md)

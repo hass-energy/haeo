@@ -45,7 +45,7 @@ $$
 
 Usually $c_{\text{production}} = 0$ (solar generation has no marginal cost).
 Production price can represent opportunity cost.
-Setting it negative encourages using all available solar generation.
+Setting it negative discourages curtailment by making unused generation costly.
 
 ## Physical Interpretation
 

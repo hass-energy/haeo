@@ -138,7 +138,7 @@ Before committing documentation changes, verify:
 ## Next steps requirements
 
 All user-facing pages must end with a **Next Steps** section.
-This replaces the traditional "Related Documentation" pattern - use Next Steps with cards instead of separate Related Documentation bullet lists.
+This replaces the traditional "Related Documentation" bullet list pattern, use Next Steps cards instead.
 
 ### Purpose
 

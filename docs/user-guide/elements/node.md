@@ -134,9 +134,9 @@ See [Connections](connections.md) for configuring the inverter connection.
 
     ---
 
-    Learn how to connect nodes to other elements in your network.
+    Explore the mathematical formulation of nodes and power balance in the optimization model.
 
-    [:material-arrow-right: Connections guide](connections.md)
+    [:material-arrow-right: Modeling guide](../../modeling/index.md)
 
 - :material-flash:{ .lg .middle } **Model hybrid inverters**
 
