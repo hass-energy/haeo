@@ -52,7 +52,12 @@ def _get_output_state(
 
 
 def _collect_entity_ids(value: Any) -> set[str]:
-    """Recursively collect entity IDs from nested configuration values."""
+    """Recursively collect entity IDs from nested configuration values.
+
+    Note: This function is duplicated from coordinator.py to keep diagnostics
+    independent from coordinator internals. The coordinator version uses Sequence
+    while this uses list for simplicity, but they are functionally equivalent.
+    """
     if isinstance(value, str):
         return {value}
 
@@ -72,7 +77,11 @@ def _collect_entity_ids(value: Any) -> set[str]:
 
 
 def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
-    """Extract entity IDs from a configuration using schema loaders."""
+    """Extract entity IDs from a configuration using schema loaders.
+
+    Note: This function is duplicated from coordinator.py to keep diagnostics
+    independent from coordinator internals.
+    """
     entity_ids: set[str] = set()
 
     element_type = config["element_type"]
@@ -266,16 +275,18 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
     # Also collect output sensor states if coordinator has data (for diagnostics)
     output_states: list[dict[str, Any]] = []
     if coordinator and coordinator.data:
+        # Create lookup dict to avoid O(n*m*k) complexity
+        subentry_by_slug = {slugify(subentry.title): subentry for subentry in config_entry.subentries.values()}
+
         for element_key, outputs in coordinator.data.items():
-            for output_name in outputs:
-                for subentry in config_entry.subentries.values():
-                    if slugify(subentry.title) == element_key:
-                        unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{output_name}"
-                        entity_id = f"sensor.{config_entry.domain}_{unique_id}"
-                        state = _hass.states.get(entity_id)
-                        if state is not None:
-                            output_states.append(_state_to_dict(state))
-                        break
+            subentry = subentry_by_slug.get(element_key)
+            if subentry:
+                for output_name in outputs:
+                    unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{output_name}"
+                    entity_id = f"sensor.{config_entry.domain}_{unique_id}"
+                    state = _hass.states.get(entity_id)
+                    if state is not None:
+                        output_states.append(_state_to_dict(state))
 
     # Add the scenario format section
     diagnostics["scenario_format"] = {
