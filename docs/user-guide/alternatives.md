@@ -6,19 +6,19 @@ This page provides a fair, technical comparison to help you choose the solution 
 
 ## Quick comparison
 
-| Feature                  | HAEO                          | EMHASS                                     |
-| ------------------------ | ----------------------------- | ------------------------------------------ |
-| **Type**                 | Native integration            | Add-on                                     |
-| **Maintenance**          | Active                        | Active                                     |
-| **Installation**         | HACS → Integration            | Add-on store                               |
-| **HA requirements**      | Any installation method       | Home Assistant OS or Supervised            |
-| **Configuration**        | UI-based                      | Web UI + Configuration files               |
-| **Network topology**     | Flexible graph                | Fixed structure                            |
-| **Optimization**         | Linear programming (LP)       | Mixed integer linear programming (MILP)    |
-| **Forecasting**          | Via other HA integrations     | Built-in ML and solar forecasting          |
-| **Primary use case**     | Battery/solar optimization    | Appliance scheduling + battery/solar       |
-| **Multi-element support** | Multiple batteries/arrays/grids | Limited                                   |
-| **Integration method**   | Native HA sensors             | Sensors + REST API + shell commands        |
+| Feature                   | HAEO                            | EMHASS                                  |
+| ------------------------- | ------------------------------- | --------------------------------------- |
+| **Type**                  | Native integration              | Add-on                                  |
+| **Maintenance**           | Active                          | Active                                  |
+| **Installation**          | HACS → Integration              | Add-on store                            |
+| **HA requirements**       | Any installation method         | Home Assistant OS or Supervised         |
+| **Configuration**         | UI-based                        | Web UI + Configuration files            |
+| **Network topology**      | Flexible graph                  | Fixed structure                         |
+| **Optimization**          | Linear programming (LP)         | Mixed integer linear programming (MILP) |
+| **Forecasting**           | Via other HA integrations       | Built-in ML and solar forecasting       |
+| **Primary use case**      | Battery/solar optimization      | Appliance scheduling + battery/solar    |
+| **Multi-element support** | Multiple batteries/arrays/grids | Limited                                 |
+| **Integration method**    | Native HA sensors               | Sensors + REST API + shell commands     |
 
 ## Philosophical differences
 
@@ -120,52 +120,52 @@ Its key innovation is the ability to model any network structure through connect
 
 ### Network modeling
 
-| Feature                     | HAEO                           | EMHASS         |
-| --------------------------- | ------------------------------ | -------------- |
-| Multiple batteries          | Yes (unlimited)                | Limited        |
-| Multiple solar arrays       | Yes (unlimited)                | Limited        |
-| Custom topology             | Flexible graph                 | Fixed          |
-| Hybrid inverters            | Via connection configuration   | Via config     |
-| Multiple grids              | Yes                            | No             |
-| Non-electric energy systems | Yes (via connections)          | Thermal loads  |
-| AC/DC network splits        | Yes (via connections)          | No             |
+| Feature                     | HAEO                         | EMHASS        |
+| --------------------------- | ---------------------------- | ------------- |
+| Multiple batteries          | Yes (unlimited)              | Limited       |
+| Multiple solar arrays       | Yes (unlimited)              | Limited       |
+| Custom topology             | Flexible graph               | Fixed         |
+| Hybrid inverters            | Via connection configuration | Via config    |
+| Multiple grids              | Yes                          | No            |
+| Non-electric energy systems | Yes (via connections)        | Thermal loads |
+| AC/DC network splits        | Yes (via connections)        | No            |
 
 ### Optimization
 
-| Feature            | HAEO                    | EMHASS                |
-| ------------------ | ----------------------- | --------------------- |
-| Algorithm          | Linear programming (LP) | Mixed integer LP      |
-| Solver             | HiGHS                   | Configurable          |
-| Discrete decisions | No (continuous only)    | Yes (on/off control)  |
-| Time horizon       | Configurable            | Configurable          |
-| Time resolution    | Configurable (1-60 min) | Configurable          |
-| Battery management | Charge/discharge rates  | Charge/discharge      |
-| Overcharge/undercharge protection | Yes         | No                    |
+| Feature                           | HAEO                    | EMHASS               |
+| --------------------------------- | ----------------------- | -------------------- |
+| Algorithm                         | Linear programming (LP) | Mixed integer LP     |
+| Solver                            | HiGHS                   | Configurable         |
+| Discrete decisions                | No (continuous only)    | Yes (on/off control) |
+| Time horizon                      | Configurable            | Configurable         |
+| Time resolution                   | Configurable (1-60 min) | Configurable         |
+| Battery management                | Charge/discharge rates  | Charge/discharge     |
+| Overcharge/undercharge protection | Yes                     | No                   |
 
 ### Integration and setup
 
-| Feature              | HAEO                                    | EMHASS                              |
-| -------------------- | --------------------------------------- | ----------------------------------- |
-| Installation method  | HACS → Integration                      | Add-on store                        |
-| HA compatibility     | All (OS, Supervised, Container, Core)   | OS and Supervised only              |
-| Configuration        | Full UI-based                           | Web UI + YAML files                 |
-| Learning curve       | Moderate (graph/topology concepts)      | Moderate (many config parameters)   |
-| Setup complexity     | High flexibility = more decisions       | Simpler architecture, complex config |
-| Documentation        | Growing                                 | Extensive, mature                   |
-| Community size       | Smaller (newer)                         | Larger (established)                |
+| Feature             | HAEO                                  | EMHASS                               |
+| ------------------- | ------------------------------------- | ------------------------------------ |
+| Installation method | HACS → Integration                    | Add-on store                         |
+| HA compatibility    | All (OS, Supervised, Container, Core) | OS and Supervised only               |
+| Configuration       | Full UI-based                         | Web UI + YAML files                  |
+| Learning curve      | Moderate (graph/topology concepts)    | Moderate (many config parameters)    |
+| Setup complexity    | High flexibility = more decisions     | Simpler architecture, complex config |
+| Documentation       | Growing                               | Extensive, mature                    |
+| Community size      | Smaller (newer)                       | Larger (established)                 |
 
 ### Features
 
-| Feature                | HAEO                           | EMHASS                              |
-| ---------------------- | ------------------------------ | ----------------------------------- |
-| Forecasting            | Via HA integrations (modular)  | Built-in ML + solar forecasting     |
-| Sensor integration     | Native HA devices and sensors  | Published sensors + REST API        |
-| Deferrable loads       | Not yet (planned)              | Yes (core feature)                  |
-| Thermal loads          | Via connections (experimental) | Yes (built-in)                      |
-| Appliance scheduling   | Not yet (planned)              | Yes (MILP-based)                    |
-| Battery optimization   | Yes (core feature)             | Yes (core feature)                  |
-| Solar optimization     | Yes (core feature)             | Yes (core feature)                  |
-| Control method         | HA automations with sensors    | Shell commands, REST, sensors       |
+| Feature              | HAEO                           | EMHASS                          |
+| -------------------- | ------------------------------ | ------------------------------- |
+| Forecasting          | Via HA integrations (modular)  | Built-in ML + solar forecasting |
+| Sensor integration   | Native HA devices and sensors  | Published sensors + REST API    |
+| Deferrable loads     | Not yet (planned)              | Yes (core feature)              |
+| Thermal loads        | Via connections (experimental) | Yes (built-in)                  |
+| Appliance scheduling | Not yet (planned)              | Yes (MILP-based)                |
+| Battery optimization | Yes (core feature)             | Yes (core feature)              |
+| Solar optimization   | Yes (core feature)             | Yes (core feature)              |
+| Control method       | HA automations with sensors    | Shell commands, REST, sensors   |
 
 ## When to choose each solution
 
@@ -247,7 +247,7 @@ Choose based on what matters most for your use case: discrete control and built-
 
 <div class="grid cards" markdown>
 
--   :material-download:{ .lg .middle } **Install HAEO**
+- :material-download:{ .lg .middle } **Install HAEO**
 
     ---
 
@@ -255,7 +255,7 @@ Choose based on what matters most for your use case: discrete control and built-
 
     [:material-arrow-right: Installation guide](installation.md)
 
--   :material-connection:{ .lg .middle } **Understand forecasting**
+- :material-connection:{ .lg .middle } **Understand forecasting**
 
     ---
 
@@ -263,7 +263,7 @@ Choose based on what matters most for your use case: discrete control and built-
 
     [:material-arrow-right: Forecasts and sensors](forecasts-and-sensors.md)
 
--   :material-frequently-asked-questions:{ .lg .middle } **Common questions**
+- :material-frequently-asked-questions:{ .lg .middle } **Common questions**
 
     ---
 
@@ -271,7 +271,7 @@ Choose based on what matters most for your use case: discrete control and built-
 
     [:material-arrow-right: FAQ](faq.md)
 
--   :material-github:{ .lg .middle } **Join the community**
+- :material-github:{ .lg .middle } **Join the community**
 
     ---
 
