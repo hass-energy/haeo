@@ -1,10 +1,10 @@
 """Diagnostics support for HAEO integration."""
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, get_type_hints
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.util import slugify
 
 from .const import (
@@ -16,12 +16,14 @@ from .const import (
     OPTIMIZATION_STATUS_PENDING,
 )
 from .coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from .elements import ELEMENT_TYPES, ElementConfigSchema
 from .model import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
     OutputName,
 )
+from .schema import get_field_meta
 from .validation import collect_participant_configs, validate_network_topology
 
 
@@ -47,6 +49,74 @@ def _get_output_state(
 
     output = outputs.get(output_name)
     return output.state if output and output.state is not None else None
+
+
+def _collect_entity_ids(value: Any) -> set[str]:
+    """Recursively collect entity IDs from nested configuration values."""
+    if isinstance(value, str):
+        return {value}
+
+    if isinstance(value, Mapping):
+        mapping_ids: set[str] = set()
+        for nested in value.values():
+            mapping_ids.update(_collect_entity_ids(nested))
+        return mapping_ids
+
+    if isinstance(value, list):
+        sequence_ids: set[str] = set()
+        for nested in value:
+            sequence_ids.update(_collect_entity_ids(nested))
+        return sequence_ids
+
+    return set()
+
+
+def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
+    """Extract entity IDs from a configuration using schema loaders."""
+    entity_ids: set[str] = set()
+
+    element_type = config["element_type"]
+    data_config_class = ELEMENT_TYPES[element_type].data
+    hints = get_type_hints(data_config_class, include_extras=True)
+
+    for field_name in hints:
+        if field_name in ("element_type", "name"):
+            continue
+
+        field_value = config.get(field_name)
+        if field_value is None:
+            continue
+
+        field_meta = get_field_meta(field_name, data_config_class)
+        if field_meta is None:
+            continue
+
+        if field_meta.field_type == "constant":
+            continue
+
+        try:
+            entity_ids.update(_collect_entity_ids(field_value))
+        except TypeError:
+            continue
+
+    return entity_ids
+
+
+def _state_to_dict(state: State) -> dict[str, Any]:
+    """Convert a Home Assistant State object to a dictionary for scenario format."""
+    return {
+        "entity_id": state.entity_id,
+        "state": state.state,
+        "attributes": dict(state.attributes),
+        "last_changed": state.last_changed.isoformat(),
+        "last_reported": state.last_reported.isoformat(),
+        "last_updated": state.last_updated.isoformat(),
+        "context": {
+            "id": state.context.id,
+            "parent_id": state.context.parent_id,
+            "user_id": state.context.user_id,
+        },
+    }
 
 
 async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, Any]:
@@ -162,5 +232,56 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
             }
 
             diagnostics["network"] = network_info
+
+    # Add scenario-compatible format for easy test scenario creation
+    scenario_config: dict[str, Any] = {
+        "participants": {},
+        CONF_HORIZON_HOURS: config_entry.data.get(CONF_HORIZON_HOURS),
+        CONF_PERIOD_MINUTES: config_entry.data.get(CONF_PERIOD_MINUTES),
+    }
+
+    # Transform subentries into participants dict
+    for subentry in config_entry.subentries.values():
+        if subentry.subentry_type != "network":
+            raw_data = dict(subentry.data)
+            raw_data.setdefault("name", subentry.title)
+            raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
+            scenario_config["participants"][subentry.title] = raw_data
+
+    # Collect sensor states for all entities used in the configuration
+    all_entity_ids: set[str] = set()
+    for subentry in config_entry.subentries.values():
+        if subentry.subentry_type != "network":
+            config = dict(subentry.data)
+            config.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
+            all_entity_ids.update(_extract_entity_ids_from_config(config))
+
+    # Extract states for all collected entity IDs (input sensors)
+    scenario_states: list[dict[str, Any]] = []
+    for entity_id in sorted(all_entity_ids):
+        state = _hass.states.get(entity_id)
+        if state is not None:
+            scenario_states.append(_state_to_dict(state))
+
+    # Also collect output sensor states if coordinator has data (for diagnostics)
+    output_states: list[dict[str, Any]] = []
+    if coordinator and coordinator.data:
+        for element_key, outputs in coordinator.data.items():
+            for output_name in outputs:
+                for subentry in config_entry.subentries.values():
+                    if slugify(subentry.title) == element_key:
+                        unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{output_name}"
+                        entity_id = f"sensor.{config_entry.domain}_{unique_id}"
+                        state = _hass.states.get(entity_id)
+                        if state is not None:
+                            output_states.append(_state_to_dict(state))
+                        break
+
+    # Add the scenario format section
+    diagnostics["scenario_format"] = {
+        "config": scenario_config,
+        "states": scenario_states,
+        "output_states": output_states if output_states else None,
+    }
 
     return diagnostics
