@@ -125,7 +125,7 @@ module = "tests.*"
 
 [tool.pytest.ini_options]
 timeout = 5
-testpaths = ["tests"]
+testpaths = ["tests", "haeo_core/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
