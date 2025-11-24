@@ -6,7 +6,7 @@ from typing import cast
 from pulp import LpAffineExpression, LpVariable, value
 import pytest
 
-from custom_components.haeo.elements import (
+from haeo_core.model.const import (
     ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_GRID,
