@@ -7,6 +7,13 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.util import slugify
 
+from haeo_core.model import (
+    OUTPUT_NAME_OPTIMIZATION_COST,
+    OUTPUT_NAME_OPTIMIZATION_DURATION,
+    OUTPUT_NAME_OPTIMIZATION_STATUS,
+    OutputName,
+)
+
 from .const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
@@ -16,12 +23,6 @@ from .const import (
     OPTIMIZATION_STATUS_PENDING,
 )
 from .coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
-from haeo_core.model import (
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
-    OutputName,
-)
 from .validation import collect_participant_configs, validate_network_topology
 
 

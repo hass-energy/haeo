@@ -64,7 +64,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["haeo"]
+known-first-party = ["haeo", "haeo_core"]
 force-sort-within-sections = true
 split-on-trailing-comma = false
 
@@ -91,6 +91,21 @@ split-on-trailing-comma = false
     'BLE001',  # Do not catch blind exception - test code needs to handle various exception types
 ]
 
+"haeo_core/tests/**/*.py" = [
+    'S101',    # Assert is allowed in tests
+    'B011',    # Assert false is allowed in tests
+    'PT015',   # Assert that always fails is fine in a test
+    'SLF001',  # Accessing private methods is ok in testing
+    'ARG001',  # Unused function argument - test fixtures often provide unused parameters for setup
+    'PLR2004', # Magic value used in comparison - test assertions often use simple numeric values
+    'S110',    # Try-except-pass detected - test exception handling patterns differ from production code
+    'SIM105',  # Use contextlib.suppress instead of try-except-pass - test exception handling patterns differ
+    'BLE001',  # Do not catch blind exception - test code needs to handle various exception types
+]
+
+"haeo_core/__init__.py" = [
+    'D104',    # Missing docstring in public package - core root package
+]
 
 [tool.pyright]
 stubPath = "stubs"

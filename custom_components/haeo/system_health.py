@@ -7,8 +7,13 @@ from homeassistant.components import system_health
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import slugify
 
+from haeo_core.model import (
+    OUTPUT_NAME_OPTIMIZATION_COST,
+    OUTPUT_NAME_OPTIMIZATION_DURATION,
+    OUTPUT_NAME_OPTIMIZATION_STATUS,
+)
+
 from .const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES, DOMAIN, OPTIMIZATION_STATUS_PENDING
-from haeo_core.model import OUTPUT_NAME_OPTIMIZATION_COST, OUTPUT_NAME_OPTIMIZATION_DURATION, OUTPUT_NAME_OPTIMIZATION_STATUS
 
 
 @callback

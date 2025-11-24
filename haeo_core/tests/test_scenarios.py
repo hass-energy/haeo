@@ -6,6 +6,7 @@ from typing import cast
 from pulp import LpAffineExpression, LpVariable, value
 import pytest
 
+from haeo_core.model import Network
 from haeo_core.model.const import (
     ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
@@ -14,7 +15,6 @@ from haeo_core.model.const import (
     ELEMENT_TYPE_NODE,
     ELEMENT_TYPE_PHOTOVOLTAICS,
 )
-from haeo_core.model import Network
 from haeo_core.model.photovoltaics import Photovoltaics
 
 # Test constants

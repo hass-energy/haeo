@@ -9,6 +9,7 @@ import pytest
 
 from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES
 from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.system_health import async_register, async_system_health_info
 from haeo_core.model.const import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
@@ -17,7 +18,6 @@ from haeo_core.model.const import (
     OUTPUT_TYPE_DURATION,
     OUTPUT_TYPE_STATUS,
 )
-from custom_components.haeo.system_health import async_register, async_system_health_info
 
 
 async def test_async_register_callback(hass: HomeAssistant) -> None:

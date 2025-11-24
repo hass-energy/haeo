@@ -18,20 +18,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
-from . import data as data_module
-from .const import (
-    CONF_DEBOUNCE_SECONDS,
-    CONF_HORIZON_HOURS,
-    CONF_PERIOD_MINUTES,
-    CONF_UPDATE_INTERVAL_MINUTES,
-    DEFAULT_DEBOUNCE_SECONDS,
-    DEFAULT_UPDATE_INTERVAL_MINUTES,
-    DOMAIN,
-    OPTIMIZATION_STATUS_FAILED,
-    OPTIMIZATION_STATUS_PENDING,
-    OPTIMIZATION_STATUS_SUCCESS,
-)
-from .elements import ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
 from haeo_core.model import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
@@ -48,6 +34,21 @@ from haeo_core.model import (
     OutputName,
     OutputType,
 )
+
+from . import data as data_module
+from .const import (
+    CONF_DEBOUNCE_SECONDS,
+    CONF_HORIZON_HOURS,
+    CONF_PERIOD_MINUTES,
+    CONF_UPDATE_INTERVAL_MINUTES,
+    DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_UPDATE_INTERVAL_MINUTES,
+    DOMAIN,
+    OPTIMIZATION_STATUS_FAILED,
+    OPTIMIZATION_STATUS_PENDING,
+    OPTIMIZATION_STATUS_SUCCESS,
+)
+from .elements import ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
 from .repairs import dismiss_optimization_failure_issue
 from .schema import get_field_meta
 

@@ -18,6 +18,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
+from custom_components.haeo.sensors import async_setup_entry
+from custom_components.haeo.sensors.sensor import HaeoSensor
 from haeo_core.model import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
@@ -27,8 +29,6 @@ from haeo_core.model import (
     OUTPUT_TYPE_STATUS,
     OutputType,
 )
-from custom_components.haeo.sensors import async_setup_entry
-from custom_components.haeo.sensors.sensor import HaeoSensor
 
 
 class _DummyCoordinator:
