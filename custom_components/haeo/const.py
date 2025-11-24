@@ -1,4 +1,4 @@
-"""Constants for the Home Assistant Energy Optimization integration."""
+"""Constants for the Home Assistant Energy Optimizer integration."""
 
 from typing import Final
 

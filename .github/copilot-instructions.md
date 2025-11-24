@@ -1,6 +1,6 @@
 # GitHub Copilot & Claude Code Instructions
 
-This repository contains the HAEO (Home Assistant Energy Optimization) custom integration - a Python 3.13+ Home Assistant custom component for energy network optimization using linear programming.
+This repository contains the HAEO (Home Assistant Energy Optimizer) custom integration - a Python 3.13+ Home Assistant custom component for energy network optimization using linear programming.
 
 ## Project Overview
 

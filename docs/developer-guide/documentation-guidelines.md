@@ -109,6 +109,77 @@ When updating a primary reference:
 - Verify links still point to correct sections (especially after heading changes)
 - Update inline descriptions if the linked content's scope changed
 
+## Diagram standards
+
+All diagrams should use mermaid for consistency and version control.
+HAEO uses semantic styling that automatically adapts to light and dark modes.
+
+### When to use diagrams
+
+Diagrams are preferred over text descriptions for:
+
+- Network topology and element connections
+- Data flow and system architecture
+- Time series data (sensor combination, forecast cycling)
+- State machines and decision flows
+- SOC regions and cost structures
+
+### Chart type selection
+
+Choose the chart type that best represents the concept:
+
+- **Flowchart/Graph**: Network topology, element connections, system architecture
+- **XY/Line charts**: Time series data, sensor forecasts, power profiles
+- **State diagrams**: Battery SOC regions, operational modes
+- **Sequence diagrams**: Data flow, update cycles
+
+### Semantic color usage
+
+HAEO diagrams use consistent semantic colors configured in `docs/javascripts/mermaid-config.js`:
+
+- **Blue** (primary): General elements, neutral components, battery storage
+- **Green** (secondary): Generation sources (photovoltaics, renewable energy)
+- **Red** (tertiary): Consumption (loads, imported power)
+- **Yellow/Amber**: Grid connections, pricing, warnings
+
+These colors automatically adapt for light and dark modes via the mermaid configuration.
+
+### Styling guidelines
+
+- Use default mermaid styling when possible (avoid custom colors in diagram syntax)
+- Let the theme configuration handle color adaptation
+- Use semantic class names if mermaid supports them for the chart type
+- Keep diagrams simple: focus on concepts, not implementation details
+- Label all nodes, edges, and axes clearly
+- Include units on XY charts (kW, kWh, hours, %)
+
+### Example: Network topology
+
+```mermaid
+graph LR
+    Solar[Photovoltaics] --> DCBus[DC Bus]
+    Battery[Battery] --> DCBus
+    DCBus --> Inverter[Inverter]
+    Inverter --> ACBus[AC Bus]
+    Grid[Grid] --> ACBus
+    ACBus --> Load[Load]
+```
+
+### Example: Time series data
+
+```mermaid
+xychart-beta
+    title "Solar Forecast Cycling"
+    x-axis "Time (hours)" [0, 6, 12, 18, 24, 30, 36, 42, 48]
+    y-axis "Power (kW)" 0 --> 10
+    line [0, 2, 5, 8, 5, 2, 0, 2, 5]
+```
+
+### Configuration reference
+
+The mermaid theme configuration in `docs/javascripts/mermaid-config.js` ensures diagrams adapt to the user's selected theme.
+To modify diagram colors or add new semantic categories, update the `themeVariables` in that file.
+
 ## Technical accuracy checklist
 
 Before committing documentation changes, verify:

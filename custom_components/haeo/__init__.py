@@ -1,4 +1,4 @@
-"""The Home Assistant Energy Optimization integration."""
+"""The Home Assistant Energy Optimizer integration."""
 
 import logging
 from types import MappingProxyType
@@ -62,7 +62,7 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
-    """Set up Home Assistant Energy Optimization from a config entry."""
+    """Set up Home Assistant Energy Optimizer from a config entry."""
     _LOGGER.info("Setting up HAEO integration")
 
     # Ensure Network subentry exists (auto-create if missing)

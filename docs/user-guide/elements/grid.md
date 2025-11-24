@@ -1,63 +1,54 @@
-# Grid Configuration
+# Grid
 
 The grid represents your connection to the electricity network.
 It allows bidirectional power flow: importing (buying) and exporting (selling) electricity.
 
-## Configuration Fields
+## Configuration
 
-| Field            | Type                                     | Required | Default | Description                            |
-| ---------------- | ---------------------------------------- | -------- | ------- | -------------------------------------- |
-| **Name**         | String                                   | Yes      | -       | Unique identifier                      |
-| **Import Price** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Price per kWh for importing (\$/kWh)   |
-| **Export Price** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Revenue per kWh for exporting (\$/kWh) |
-| **Import Limit** | Number (kW)                              | No       | -       | Maximum import power                   |
-| **Export Limit** | Number (kW)                              | No       | -       | Maximum export power                   |
+| Field                             | Type                                     | Required | Default | Description                                                |
+| --------------------------------- | ---------------------------------------- | -------- | ------- | ---------------------------------------------------------- |
+| **[Name](#name)**                 | String                                   | Yes      | -       | Unique identifier for this grid connection                 |
+| **[Import Price](#import-price)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Price per kWh for importing electricity from grid (\$/kWh) |
+| **[Export Price](#export-price)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
+| **[Import Limit](#import-limit)** | Number (kW)                              | No       | -       | Maximum import power from grid                             |
+| **[Export Limit](#export-limit)** | Number (kW)                              | No       | -       | Maximum export power to grid                               |
+
+## Name
+
+Unique identifier for this grid connection within your HAEO configuration.
+Used to create sensor entity IDs and identify the grid in connections.
+
+**Examples**: "Main Grid", "Grid Connection", "Utility"
 
 ## Import Price
 
 Specify one or more Home Assistant sensors providing electricity import pricing.
 
-### Single Sensor
+**Sign convention**: Import prices should be positive numbers representing the cost you pay to buy electricity from the grid.
+For example, `0.25` means you pay \$0.25 per kWh imported.
+
+**Examples**:
 
 ```yaml
+# Single sensor
 Import Price: sensor.electricity_import_price
-```
 
-HAEO reads the sensor's current value and any forecast data.
-A single value repeats across the optimization horizon.
-Forecast data is interpolated for each optimization period.
-
-### Multiple Sensors
-
-Combine multiple price sources or time periods:
-
-```yaml
+# Multiple sensors (today and tomorrow forecasts)
 Import Price:
   - sensor.electricity_price_today
   - sensor.electricity_price_tomorrow
 ```
 
-HAEO combines multiple sensors by summing their values at each timestamp.
-This is useful for:
-
-- Splitting today and tomorrow forecasts
-- Combining wholesale and retail components
-- Adding time-of-use and demand charges
-
-### How It Works
-
-See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for complete details on:
-
-- How HAEO extracts present values and forecasts
-- Interpolation between forecast points
-- Combining multiple sensors
-- Creating custom price forecast sensors
+Provide all relevant price sensors (today, tomorrow, etc.) to ensure complete horizon coverage.
+See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.
 
 ## Export Price
 
 Specify one or more Home Assistant sensors providing electricity export pricing.
+Provide all relevant price sensors to ensure complete horizon coverage.
 
-Configuration works the same as Import Price (single or multiple sensors).
+**Sign convention**: Export prices should be positive numbers representing the revenue you receive for selling electricity to the grid.
+For example, `0.10` means you receive \$0.10 per kWh exported.
 
 **Typical relationship**: Export price is usually lower than import price.
 
@@ -66,7 +57,8 @@ Configuration works the same as Import Price (single or multiple sensors).
 
 This price difference incentivizes self-consumption and strategic battery usage.
 
-**Important**: Ensure export price < import price to prevent unrealistic arbitrage in optimization.
+**Negative export prices**: When the grid operator charges you to export use negative values.
+For example, `-0.05` means you pay \$0.05 per kWh to export.
 
 ## Import Limit
 
@@ -76,9 +68,10 @@ Maximum power that can be imported from the grid (kW).
 
 Use this to model:
 
-- Main breaker capacity
-- Grid connection limits
-- Fuse ratings
+- Main breaker capacity (e.g., 60A × 240V ÷ 1000 = 14.4 kW)
+- Grid connection agreement limits
+- Distribution network constraints
+- Regulatory import restrictions
 
 **Example**: `15` for 15 kW maximum import
 
@@ -90,51 +83,55 @@ Maximum power that can be exported to the grid (kW).
 
 Use this to model:
 
-- Inverter export limits
-- Grid connection agreements
+- Inverter export capacity
+- Grid connection agreement limits
 - Feed-in tariff restrictions
+- Regulatory export caps (zero-export requirements, etc.)
 
 **Example**: `10` for 10 kW maximum export
 
-## Configuration Example
+**Zero export**: Set to `0` to prevent any grid export (self-consumption only mode)
 
-Dynamic pricing with forecast sensors:
+## Configuration Examples
 
-```yaml
-Name: Main Grid
-Import Price:
-  - sensor.electricity_import_today
-  - sensor.electricity_import_tomorrow
-Export Price:
-  - sensor.electricity_export_today
-  - sensor.electricity_export_tomorrow
-Import Limit: 15
-Export Limit: 10
-```
+### Dynamic Pricing with Forecasts
 
-Fixed pricing configuration:
+Use multiple sensors for time-varying pricing:
 
-```yaml
-Name: Grid Connection
-Import Price: sensor.fixed_import_price  # Single sensor (e.g., input_number or template sensor)
-Export Price: sensor.fixed_export_price
-Import Limit: 20
-Export Limit: 5
-```
+| Field            | Value                                                               |
+| ---------------- | ------------------------------------------------------------------- |
+| **Name**         | Main Grid                                                           |
+| **Import Price** | sensor.electricity_import_today, sensor.electricity_import_tomorrow |
+| **Export Price** | sensor.electricity_export_today, sensor.electricity_export_tomorrow |
+| **Import Limit** | 15                                                                  |
+| **Export Limit** | 10                                                                  |
 
-For more examples, see the [Forecasts and Sensors guide](../forecasts-and-sensors.md).
+### Fixed Pricing
+
+Use single sensor or input_number for constant pricing:
+
+| Field            | Value                           |
+| ---------------- | ------------------------------- |
+| **Name**         | Grid Connection                 |
+| **Import Price** | input_number.fixed_import_price |
+| **Export Price** | input_number.fixed_export_price |
+| **Import Limit** | 20                              |
+| **Export Limit** | 5                               |
+
+For more examples and sensor creation, see the [Forecasts and Sensors guide](../forecasts-and-sensors.md).
 
 ## Sensors Created
 
-| Sensor                         | Unit   | Description                                |
-| ------------------------------ | ------ | ------------------------------------------ |
-| `sensor.{name}_power_imported` | kW     | Power imported from grid (positive values) |
-| `sensor.{name}_power_exported` | kW     | Power exported to grid (positive values)   |
-| `sensor.{name}_price_import`   | \$/kWh | Import price for current period            |
-| `sensor.{name}_price_export`   | \$/kWh | Export price for current period            |
+These sensors provide real-time visibility into grid interactions and costs.
 
-After optimization completes, sensors show values for the current optimization period.
-The `forecast` attribute on each sensor contains future values for upcoming periods.
+| Sensor                         | Unit   | Description                                                |
+| ------------------------------ | ------ | ---------------------------------------------------------- |
+| `sensor.{name}_power_imported` | kW     | Optimal power imported from grid (always positive or zero) |
+| `sensor.{name}_power_exported` | kW     | Optimal power exported to grid (always positive or zero)   |
+| `sensor.{name}_price_import`   | \$/kWh | Current import price                                       |
+| `sensor.{name}_price_export`   | \$/kWh | Current export price                                       |
+
+All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
 ## Troubleshooting
 

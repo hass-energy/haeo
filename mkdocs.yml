@@ -1,5 +1,5 @@
 site_name: HAEO Documentation
-site_description: Home Assistant Energy Optimization - Real-time energy management using linear programming
+site_description: Home Assistant Energy Optimizer - Real-time energy management using linear programming
 site_author: Trent Houliston
 site_url: https://hass-energy.github.io/haeo/
 repo_url: https://github.com/hass-energy/haeo
@@ -122,6 +122,7 @@ extra_javascript:
   - javascripts/katex.js
   - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js
   - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js
+  - javascripts/mermaid-config.js
 
 extra_css:
   - https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css
@@ -163,7 +164,10 @@ nav:
 
   - Developer Guide:
       - developer-guide/index.md
-      - Documentation Guidelines: developer-guide/documentation-guidelines.md
+      - Documentation Guidelines:
+          - developer-guide/documentation-guidelines.md
+          - Element Modeling Template: developer-guide/templates/element-modeling-template.md
+          - Element User Guide Template: developer-guide/templates/element-user-guide-template.md
       - Architecture: developer-guide/architecture.md
       - Setup: developer-guide/setup.md
       - Units & Stability: developer-guide/units.md
@@ -173,9 +177,3 @@ nav:
       - Config Flow: developer-guide/config-flow.md
       - Testing: developer-guide/testing.md
       - Contributing: developer-guide/contributing.md
-
-  - Reference:
-      - reference/index.md
-      - Element Types: reference/elements.md
-      - Sensor Types: reference/sensors.md
-      - Known Limitations: reference/limitations.md

@@ -80,7 +80,7 @@ It excels at scheduling deferrable loads (washing machines, dishwashers, EV char
 
 ### Overview
 
-HAEO (Home Assistant Energy Optimization) is a native Home Assistant integration that optimizes energy networks through flexible topology modeling.
+HAEO (Home Assistant Energy Optimizer) is a native Home Assistant integration that optimizes energy networks through flexible topology modeling.
 Its key innovation is the ability to model any network structure through connections between elements, enabling custom system configurations that emerge from the graph structure itself.
 
 ### Strengths
@@ -92,18 +92,21 @@ Its key innovation is the ability to model any network structure through connect
 - **Modern codebase**: Python 3.13+, platinum-level code quality standards, strong typing, comprehensive testing
 - **Lower latency**: Runs alongside Home Assistant instance for minimal delay
 - **Native sensor integration**: Sensors organized into devices, persist between reboots, leverage native HA features
-- **Unique features**: Battery overcharge/undercharge protection, modeling of non-electric energy systems (hot water via connections)
+- **Unique features**: Battery overcharge/undercharge pricing (economic incentives for extended SOC ranges), flexible network modeling via connections
 - **Extensibility**: Graph structure allows modeling diverse energy systems without code changes
 
 ### Limitations
 
-- **Continuous optimization only**: Linear programming (no MILP yet), so cannot optimize discrete appliance scheduling
+- **Continuous optimization**: Linear programming only (MILP intentionally avoided for simplicity and solve speed), cannot optimize discrete appliance on/off decisions
 - **Graph complexity**: Requires understanding topology and connection concepts, which adds initial learning curve
 - **Newer project**: Smaller community, less proven track record compared to EMHASS
 - **Requires HACS**: Additional step before installation (though HACS is very common)
 - **Setup complexity**: Flexibility means more configuration options and decisions
 - **External forecasting dependency**: Relies entirely on other HA integrations for forecast data
-- **Missing features**: Does not yet have thermal loads or deferrable load scheduling (planned future additions)
+- **Missing features**: Thermal loads and deferrable load scheduling are planned future additions
+
+**Tradeoffs**: HAEO trades appliance scheduling capability for simpler configuration, faster solve times, and more flexible network topology modeling.
+The linear programming approach ensures reliable sub-second optimization even on resource-constrained hardware.
 
 ### Best for
 
@@ -114,7 +117,7 @@ Its key innovation is the ability to model any network structure through connect
 - Users valuing UI-based configuration
 - Systems needing modeling flexibility (AC/DC splits, hybrid inverters, multiple meters)
 - Users who prioritize modern code quality and software architecture
-- Specific feature needs like battery overcharge protection
+- Systems requiring flexible battery SOC pricing strategies (overcharge/undercharge economics)
 
 ## Technical comparison
 
@@ -132,15 +135,15 @@ Its key innovation is the ability to model any network structure through connect
 
 ### Optimization
 
-| Feature                           | HAEO                    | EMHASS               |
-| --------------------------------- | ----------------------- | -------------------- |
-| Algorithm                         | Linear programming (LP) | Mixed integer LP     |
-| Solver                            | HiGHS                   | Configurable         |
-| Discrete decisions                | No (continuous only)    | Yes (on/off control) |
-| Time horizon                      | Configurable            | Configurable         |
-| Time resolution                   | Configurable (1-60 min) | Configurable         |
-| Battery management                | Charge/discharge rates  | Charge/discharge     |
-| Overcharge/undercharge protection | Yes                     | No                   |
+| Feature                        | HAEO                    | EMHASS               |
+| ------------------------------ | ----------------------- | -------------------- |
+| Algorithm                      | Linear programming (LP) | Mixed integer LP     |
+| Solver                         | HiGHS                   | Configurable         |
+| Discrete decisions             | No (continuous only)    | Yes (on/off control) |
+| Time horizon                   | Configurable            | Configurable         |
+| Time resolution                | Configurable (1-60 min) | Configurable         |
+| Battery management             | Charge/discharge rates  | Charge/discharge     |
+| Overcharge/undercharge pricing | Yes (economic)          | No                   |
 
 ### Integration and setup
 
@@ -156,16 +159,16 @@ Its key innovation is the ability to model any network structure through connect
 
 ### Features
 
-| Feature              | HAEO                           | EMHASS                          |
-| -------------------- | ------------------------------ | ------------------------------- |
-| Forecasting          | Via HA integrations (modular)  | Built-in ML + solar forecasting |
-| Sensor integration   | Native HA devices and sensors  | Published sensors + REST API    |
-| Deferrable loads     | Not yet (planned)              | Yes (core feature)              |
-| Thermal loads        | Via connections (experimental) | Yes (built-in)                  |
-| Appliance scheduling | Not yet (planned)              | Yes (MILP-based)                |
-| Battery optimization | Yes (core feature)             | Yes (core feature)              |
-| Solar optimization   | Yes (core feature)             | Yes (core feature)              |
-| Control method       | HA automations with sensors    | Shell commands, REST, sensors   |
+| Feature              | HAEO                          | EMHASS                          |
+| -------------------- | ----------------------------- | ------------------------------- |
+| Forecasting          | Via HA integrations (modular) | Built-in ML + solar forecasting |
+| Sensor integration   | Native HA devices and sensors | Published sensors + REST API    |
+| Deferrable loads     | Not yet (planned)             | Yes (core feature)              |
+| Thermal loads        | Planned                       | Yes (built-in)                  |
+| Appliance scheduling | Not yet (planned)             | Yes (MILP-based)                |
+| Battery optimization | Yes (core feature)            | Yes (core feature)              |
+| Solar optimization   | Yes (core feature)            | Yes (core feature)              |
+| Control method       | HA automations with sensors   | Shell commands, REST, sensors   |
 
 ## When to choose each solution
 
@@ -187,7 +190,7 @@ Its key innovation is the ability to model any network structure through connect
 - Prefer native Home Assistant integration with lower latency
 - Want UI-based configuration for all settings
 - Value modern codebase with strong typing and comprehensive testing
-- Need specific features like battery overcharge/undercharge protection
+- Need battery overcharge/undercharge economic modeling
 - Want to model non-standard systems (AC/DC splits, multiple meters, custom connections)
 - Prioritize software quality and maintainability
 

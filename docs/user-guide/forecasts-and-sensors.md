@@ -77,6 +77,25 @@ For the optimization horizon:
 
 This approach accurately represents energy consumption and costs over time.
 
+### Unit Conversion
+
+HAEO automatically converts sensor units to the internal representation used for optimization.
+You don't need to create template sensors for unit conversion.
+
+**Power conversions**:
+
+- W (watts) → kW (kilowatts)
+- MW (megawatts) → kW (kilowatts)
+
+**Energy conversions**:
+
+- Wh (watt-hours) → kWh (kilowatt-hours)
+- MWh (megawatt-hours) → kWh (kilowatt-hours)
+
+**Example**: If your battery sensor reports power in watts (`sensor.battery_power` = 5000 W), HAEO automatically converts this to 5 kW for optimization.
+
+All HAEO output sensors use kilowatts (kW) for power and kilowatt-hours (kWh) for energy, regardless of input sensor units.
+
 ## Multiple Sensors
 
 You can provide multiple sensors for any field that accepts sensor(s).
@@ -116,6 +135,38 @@ sensor_2: sensor.constant_load
 
 This makes it easy to model multiple solar arrays, price components, or load sources without manual calculation.
 
+### Visual Example: Combining Two Solar Arrays
+
+When you configure two solar arrays for a photovoltaics element, HAEO sums their forecasts at each timestamp.
+This example uses real data from an east-facing and west-facing array:
+
+```mermaid
+xychart-beta
+    title "East Array Forecast (Today)"
+    x-axis "Time" ["12am", "3am", "6am", "9am", "12pm", "3pm", "6pm", "9pm", "12am"]
+    y-axis "Power (kW)" 0 --> 3.5
+    line [0, 0, 0, 0, 0.15, 0.50, 0.88, 1.35, 1.81, 2.24, 2.74, 3.08, 2.99, 2.52, 1.96, 1.43, 0.96, 0.60, 0.32, 0.07, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+```mermaid
+xychart-beta
+    title "West Array Forecast (Today)"
+    x-axis "Time" ["12am", "3am", "6am", "9am", "12pm", "3pm", "6pm", "9pm", "12am"]
+    y-axis "Power (kW)" 0 --> 3.5
+    line [0, 0, 0, 0, 0.15, 0.50, 0.87, 1.31, 1.73, 2.20, 2.73, 3.09, 3.06, 3.07, 2.43, 1.74, 1.14, 0.65, 0.35, 0.07, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+```mermaid
+xychart-beta
+    title "Combined Forecast (East + West)"
+    x-axis "Time" ["12am", "3am", "6am", "9am", "12pm", "3pm", "6pm", "9pm", "12am"]
+    y-axis "Power (kW)" 0 --> 6.5
+    line [0, 0, 0, 0, 0.30, 1.00, 1.75, 2.66, 3.54, 4.44, 5.47, 6.17, 6.05, 5.59, 4.39, 3.17, 2.10, 1.25, 0.67, 0.14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+Note how the east array peaks in the morning while the west array peaks in the afternoon.
+The combined output provides more consistent generation throughout the day.
+
 ## Forecast Coverage and Cycling
 
 Forecasts don't always cover your entire optimization horizon.
@@ -144,6 +195,73 @@ If your optimization horizon is 48 hours but you only have a 24-hour forecast:
 - Hours 24-48: First 24 hours repeated with time-of-day alignment
 
 For multi-day forecasts (like a 7-day solar forecast), the full pattern cycles at its natural period.
+
+### Visual Example: 24-Hour Forecast Cycling to 48 Hours
+
+When your horizon is 48 hours but forecast data covers only 24 hours, HAEO cycles the pattern with time-of-day alignment.
+This example shows a single north-facing solar array forecast:
+
+```mermaid
+xychart-beta
+    title "Today's Forecast (24 hours)"
+    x-axis "Time" ["12am", "3am", "6am", "9am", "12pm", "3pm", "6pm", "9pm", "12am"]
+    y-axis "Power (kW)" 0 --> 2.5
+    line [0, 0, 0, 0.58, 1.05, 1.65, 2.09, 1.97, 1.09, 0.22, 0, 0, 0, 0, 0, 0, 0]
+```
+
+```mermaid
+xychart-beta
+    title "Cycled to 48-Hour Horizon"
+    x-axis "Time" ["Today 12am", "Today 6am", "Today 12pm", "Today 6pm", "Tomorrow 12am", "Tomorrow 6am", "Tomorrow 12pm", "Tomorrow 6pm", "Day 3 12am"]
+    y-axis "Power (kW)" 0 --> 2.5
+    line [0, 0, 0.58, 1.65, 0.22, 0, 0, 0.58, 1.65, 0.22, 0, 0, 0, 0, 0, 0, 0]
+```
+
+Note how the pattern repeats starting at tomorrow 6am, maintaining the same time-of-day profile (peak at midday both days).
+
+### Multiple Forecast Windows
+
+Many integrations provide separate forecasts for different time windows (today, tomorrow, day-after-tomorrow).
+Combine them using multiple sensors:
+
+| Field     | Value                                                       |
+| --------- | ----------------------------------------------------------- |
+| **Power** | sensor.solar_forecast_today, sensor.solar_forecast_tomorrow |
+
+HAEO merges all forecast series on shared timestamps and sums values.
+This gives you complete horizon coverage from multiple shorter forecast windows.
+
+### Visual Example: Combining Today and Tomorrow Forecasts
+
+When you provide both today's and tomorrow's forecasts, HAEO seamlessly combines them.
+This example shows the same north array with different weather conditions each day:
+
+```mermaid
+xychart-beta
+    title "Today's Forecast (Partly Cloudy)"
+    x-axis "Time" ["12am", "3am", "6am", "9am", "12pm", "3pm", "6pm", "9pm", "12am"]
+    y-axis "Power (kW)" 0 --> 4.5
+    line [0, 0, 0, 0, 0.10, 0.34, 0.58, 0.89, 1.19, 1.50, 1.84, 2.09, 2.10, 1.97, 1.53, 1.09, 0.71, 0.42, 0.22, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+```mermaid
+xychart-beta
+    title "Tomorrow's Forecast (Clear Sky)"
+    x-axis "Time" ["12am", "3am", "6am", "9am", "12pm", "3pm", "6pm", "9pm", "12am"]
+    y-axis "Power (kW)" 0 --> 4.5
+    line [0, 0, 0, 2.89, 3.72, 4.32, 4.28, 2.82, 1.81, 0.27, 0, 0, 0, 0, 0, 0, 0]
+```
+
+```mermaid
+xychart-beta
+    title "Combined 48-Hour Forecast"
+    x-axis "Time" ["Today 12am", "Today 6am", "Today 12pm", "Today 6pm", "Tomorrow 12am", "Tomorrow 6am", "Tomorrow 12pm", "Tomorrow 6pm", "Day 3 12am"]
+    y-axis "Power (kW)" 0 --> 4.5
+    line [0, 0, 0.58, 1.65, 0.22, 0, 0, 2.89, 4.32, 0.27, 0, 0, 0, 0, 0, 0, 0]
+```
+
+Notice how tomorrow's clear-sky forecast shows significantly higher generation than today's partly cloudy conditions.
+HAEO uses the actual forecast data for each day rather than assuming identical patterns.
 
 ## Supported Forecast Formats
 
@@ -190,6 +308,41 @@ template:
 - `forecast` attribute must contain timestamp/value pairs
 
 HAEO will detect this as a simple forecast format and extract the data.
+
+## Using Input Numbers for Constants
+
+For constant values that don't change over time (fixed prices, baseline loads, power limits), use [input_number helpers](https://www.home-assistant.io/integrations/input_number/) instead of creating custom sensors.
+
+**Creating an input_number**:
+
+1. Navigate to **Settings** → **Devices & Services** → **Helpers**
+2. Click **Create Helper** button
+3. Select **Number**
+4. Configure:
+    - **Name**: Descriptive name (e.g., "Base Load Power", "Fixed Import Price")
+    - **Unit of measurement**: Match the element's expected unit (kW, \$/kWh, %, etc.)
+    - **Minimum/Maximum**: Set reasonable bounds
+    - **Initial value**: Set your desired constant
+5. Click **Create**
+
+**Using in HAEO configuration**:
+
+Reference the input_number entity ID anywhere HAEO accepts a sensor:
+
+| Field                       | Value                           |
+| --------------------------- | ------------------------------- |
+| **Forecast**                | input_number.base_load_power    |
+| **Import Price**            | input_number.fixed_import_price |
+| **Max Power Source→Target** | input_number.inverter_rating    |
+
+HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
+
+**Benefits**:
+
+- Easy to adjust through Home Assistant UI
+- No template sensor configuration required
+- Clear, simple configuration
+- Can be controlled via automations or scripts
 
 ## Troubleshooting
 
@@ -252,12 +405,6 @@ However, higher resolution forecasts improve accuracy:
 - Validate forecast accuracy periodically against actual outcomes
 - Use reputable forecast providers with proven track records
 - Consider multiple forecast sources for critical elements
-
-### Sensor Organization
-
-- Group related sensors logically (e.g., all solar arrays together)
-- Use descriptive sensor names for easy identification
-- Document custom forecast templates for future maintenance
 
 ## Next Steps
 

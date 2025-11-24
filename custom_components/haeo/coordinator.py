@@ -1,4 +1,4 @@
-"""Data update coordinator for the Home Assistant Energy Optimization integration."""
+"""Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass

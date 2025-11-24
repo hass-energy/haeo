@@ -199,7 +199,7 @@ async def coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -
 
     Exposed sensor entities and their meanings.
 
-    [:material-arrow-right: Sensors](../reference/sensors.md)
+    [:material-arrow-right: Understanding Results](../user-guide/optimization.md)
 
 - :material-test-tube:{ .lg .middle } **Testing Guide**
 

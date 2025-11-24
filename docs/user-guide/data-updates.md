@@ -72,20 +72,19 @@ Use developer tools to inspect coordinator state:
 
 ### Monitor with automations
 
-Create automations to alert on update issues:
+Create automations to alert on persistent optimization failures:
 
 ```yaml
-# Alert on persistent update failures
 automation:
-  - alias: HAEO update failure alert
+  - alias: HAEO persistent failure alert
     trigger:
       - platform: state
-        entity_id: sensor.haeo_optimization_status
-        to: error
+        entity_id: sensor.{network_name}_optimization_status
+        to: failed
         for:
           minutes: 15
     action:
-      - service: notify.mobile_app
+      - service: notify.persistent_notification
         data:
           title: HAEO optimization failing
           message: >
@@ -93,93 +92,28 @@ automation:
             Check configuration and logs.
 ```
 
-## Integration with automations
+See the [Automations guide](automations.md) for more monitoring examples.
 
-### Using updated data
+## Using updated sensors in automations
 
-HAEO sensors update automatically, so automations just work:
+HAEO sensors update automatically when new optimizations complete.
+Automations can trigger on state changes to respond to updated recommendations.
 
-```yaml
-# Automation triggers on updated recommendations
-automation:
-  - alias: Follow HAEO battery recommendations
-    trigger:
-      - platform: state
-        entity_id: sensor.haeo_battery_recommended_power
-    condition:
-      # Only act on meaningful changes
-      - condition: template
-        value_template: >
-          {{
-            (trigger.to_state.state | float(0) - trigger.from_state.state | float(0))
-          | abs > 100
-          }}
-    action:
-      - service: number.set_value
-        target:
-          entity_id: number.battery_target_power
-        data:
-          value: "{{ states('sensor.haeo_battery_recommended_power') }}"
-```
+**See the [Automations guide](automations.md) for complete examples** of:
 
-**Best practices:**
+- Applying battery charge/discharge recommendations
+- Solar curtailment based on optimization
+- Notifications on optimization failure
+- Safety checks and override patterns
 
-- Add change thresholds to prevent minor fluctuations
-- Include safety checks and limits
-- Handle unavailable sensor states gracefully
-- Log actions for debugging
+**Key considerations when building automations**:
 
-### Coordination with other integrations
-
-When using HAEO with other control systems:
-
-**Priority:**
-
-1. Safety systems (BMS, inverter protection) - always highest priority
-2. Manual overrides - user control when needed
-3. HAEO recommendations - normal automated operation
-4. Fallback behavior - when HAEO unavailable
-
-**Implementation:**
-
-```yaml
-automation:
-  - alias: Battery control with safety and overrides
-    trigger:
-      - platform: state
-        entity_id: sensor.haeo_battery_recommended_power
-    condition:
-      # Check safety systems
-      - condition: state
-        entity_id: binary_sensor.battery_error
-        state: off
-      # Check manual override not active
-      - condition: state
-        entity_id: input_boolean.manual_battery_control
-        state: off
-      # Check HAEO data available
-      - condition: template
-        value_template: >
-          {{
-            states('sensor.haeo_battery_recommended_power') not in ['unavailable',
-          'unknown']
-          }}
-    action:
-      - service: number.set_value
-        target:
-          entity_id: number.battery_target_power
-        data:
-          value: "{{ states('sensor.haeo_battery_recommended_power') }}"
-```
+- Check sensor availability before using values
+- Add rate limiting to prevent rapid hardware changes
+- Include manual override mechanisms
+- Prioritize safety systems above optimization recommendations
 
 ## Frequently asked questions
-
-### Can I change the update interval?
-
-Yes. Open the HAEO integration options and adjust **Update interval (minutes)** to suit your system.
-Lower values run the optimizer more frequently, while higher values reduce background load.
-
-Remember that very short intervals can increase solver CPU usage, especially on larger networks.
 
 ### Why do sensors sometimes show "unavailable"?
 
