@@ -1,6 +1,6 @@
 """Test data and factories for Photovoltaics element."""
 
-from custom_components.haeo.model.photovoltaics import Photovoltaics
+from haeo_core.model.photovoltaics import Photovoltaics
 
 from .element_types import ElementTestCase
 

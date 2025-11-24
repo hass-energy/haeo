@@ -5,7 +5,7 @@ from typing import Any
 from pulp import LpAffineExpression, LpMinimize, LpProblem, LpVariable, getSolver, lpSum
 import pytest
 
-from custom_components.haeo.model.connection import Connection
+from haeo_core.model.connection import Connection
 
 from . import test_data
 from .test_data.connection_types import ConnectionTestCase, ConnectionTestCaseInputs

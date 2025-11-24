@@ -16,7 +16,7 @@ from .const import (
     OPTIMIZATION_STATUS_PENDING,
 )
 from .coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
-from .model import (
+from haeo_core.model import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,

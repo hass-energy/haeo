@@ -4,6 +4,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Final, Literal
 
+# Element types
+ELEMENT_TYPE_BATTERY: Final = "battery"
+ELEMENT_TYPE_PHOTOVOLTAICS: Final = "photovoltaics"
+ELEMENT_TYPE_LOAD: Final = "load"
+ELEMENT_TYPE_GRID: Final = "grid"
+ELEMENT_TYPE_NODE: Final = "node"
+ELEMENT_TYPE_CONNECTION: Final = "connection"
+
 # Output names
 OUTPUT_NAME_POWER_FLOW: Final = "power_flow"
 OUTPUT_NAME_POWER_FLOW_SOURCE_TARGET: Final = "power_flow_source_target"

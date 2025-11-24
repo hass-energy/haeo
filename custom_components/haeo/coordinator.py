@@ -32,7 +32,7 @@ from .const import (
     OPTIMIZATION_STATUS_SUCCESS,
 )
 from .elements import ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
-from .model import (
+from haeo_core.model import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,

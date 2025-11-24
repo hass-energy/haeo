@@ -14,8 +14,8 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPE_NODE,
     ELEMENT_TYPE_PHOTOVOLTAICS,
 )
-from custom_components.haeo.model import Network
-from custom_components.haeo.model.photovoltaics import Photovoltaics
+from haeo_core.model import Network
+from haeo_core.model.photovoltaics import Photovoltaics
 
 # Test constants
 SECONDS_PER_HOUR = 3600

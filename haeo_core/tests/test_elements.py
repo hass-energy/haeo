@@ -5,7 +5,7 @@ from typing import Any
 from pulp import LpAffineExpression, LpMinimize, LpProblem, LpVariable, getSolver, lpSum
 import pytest
 
-from custom_components.haeo.model.util import broadcast_to_sequence, extract_values
+from haeo_core.model.util import broadcast_to_sequence, extract_values
 
 from . import test_data
 from .test_data.element_types import ElementTestCase, ElementTestCaseInputs

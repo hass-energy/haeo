@@ -4,8 +4,8 @@ from unittest.mock import Mock
 
 from pulp import LpAffineExpression, LpConstraint, LpVariable
 
-from custom_components.haeo.model.connection import Connection
-from custom_components.haeo.model.node import Node
+from haeo_core.model.connection import Connection
+from haeo_core.model.node import Node
 
 
 def test_connection_power_with_target_end() -> None:

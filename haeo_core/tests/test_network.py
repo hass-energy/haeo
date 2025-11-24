@@ -5,15 +5,15 @@ from unittest.mock import Mock
 
 import pytest
 
-from custom_components.haeo.elements import (
+from haeo_core.model.const import (
     ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPE_NODE,
 )
-from custom_components.haeo.model import Network
-from custom_components.haeo.model.connection import Connection
-from custom_components.haeo.model.element import Element
+from haeo_core.model import Network
+from haeo_core.model.connection import Connection
+from haeo_core.model.element import Element
 
 # Test constants
 HOURS_PER_DAY = 24

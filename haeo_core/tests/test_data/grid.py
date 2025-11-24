@@ -1,6 +1,6 @@
 """Test data and factories for Grid element."""
 
-from custom_components.haeo.model.grid import Grid
+from haeo_core.model.grid import Grid
 
 from .element_types import ElementTestCase
 

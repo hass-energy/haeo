@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.haeo.elements import ElementConfigData, ElementConfigSchema
-from custom_components.haeo.model import Network
+from haeo_core.model import Network
 from custom_components.haeo.schema import available as config_available
 from custom_components.haeo.schema import load as config_load
 
