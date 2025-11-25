@@ -144,26 +144,69 @@ This example uses real data from an east-facing and west-facing array:
 
 ```mermaid
 xychart-beta
-    title "Separate Forecast"
-    x-axis "Hour" 0 --> 48
+    title "Separate East/West Forecasts (Today)"
+    x-axis "Hour" 0 --> 24
     y-axis "Power (W)"
     line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35, 195, 381, 556, 682, 722, 688, 625, 794, 1185, 1585, 1990, 2384, 2772, 3156, 3524, 3873, 4208, 4525, 4806, 5054, 5274, 5462, 5620, 5748, 5846, 5906, 5939, 5974, 5991, 5995, 5976, 5925, 5844, 5733, 5590, 5409, 5203, 4958, 4661, 4306, 3894, 3450, 2964, 2460, 1909, 1374, 887, 331, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ```
 
-
 ```mermaid
 xychart-beta
-    title "Combined Forecast"
-    x-axis "Hour" 0 --> 48
+    title "Combined East+West Forecast (Today)"
+    x-axis "Hour" 0 --> 24
     y-axis "Power (W)"
     line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 230, 1210, 2238, 3140, 3954, 4638, 5215, 5667, 6261, 6966, 7591, 8189, 8763, 9297, 9804, 10251, 10641, 10993, 11301, 11533, 11699, 11813, 11869, 11871, 11820, 11720, 11555, 11347, 11146, 10906, 10635, 10320, 9955, 9543, 9086, 8585, 8037, 7463, 6849, 6188, 5490, 4772, 4184, 3639, 3048, 2389, 1732, 1115, 407, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ```
 
 </div>
 
-Note how the east array peaks in the morning while the west array peaks in the afternoon.
+**Legend**: First chart shows east array (blue) and west array (orange) separately. East array peaks in the morning, west array peaks in the afternoon. Second chart shows their combined output summed at each timestamp.
+
 The combined output provides more consistent generation throughout the day.
+
+## Multiple Forecast Windows
+
+Many integrations provide separate forecasts for different time windows (today, tomorrow, day-after-tomorrow).
+Combine them using multiple sensors:
+
+| Field     | Value                                                       |
+| --------- | ----------------------------------------------------------- |
+| **Power** | sensor.solar_forecast_today, sensor.solar_forecast_tomorrow |
+
+HAEO merges all forecast series on shared timestamps and sums values.
+This gives you complete horizon coverage from multiple shorter forecast windows.
+
+### Visual Example: Combining Today and Tomorrow Forecasts
+
+When you provide both today's and tomorrow's forecasts, HAEO seamlessly combines them.
+This example shows the north array with different weather conditions each day:
+
+<div class="grid grid-cols-2 gap-4">
+
+```mermaid
+xychart-beta
+    title "Separate Today/Tomorrow Forecasts"
+    x-axis "Hour" 0 --> 48
+    y-axis "Power (W)"
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 352, 1016, 1332, 1564, 1713, 1793, 1809, 1824, 1930, 2081, 2261, 2460, 2683, 2944, 3222, 3479, 3677, 3831, 3957, 4036, 4103, 4125, 4122, 4121, 4129, 4159, 4178, 4127, 3970, 3736, 3449, 3150, 2865, 2557, 2265, 1985, 1746, 1529, 1322, 1150, 1009, 909, 820, 710, 557, 396, 243, 133, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+```mermaid
+xychart-beta
+    title "Combined 48-Hour Forecast"
+    x-axis "Hour" 0 --> 48
+    y-axis "Power (W)"
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 352, 1016, 1332, 1564, 1713, 1793, 1809, 1824, 1930, 2081, 2261, 2460, 2683, 2944, 3222, 3479, 3677, 3831, 3957, 4036, 4103, 4125, 4122, 4121, 4129, 4159, 4178, 4127, 3970, 3736, 3449, 3150, 2865, 2557, 2265, 1985, 1746, 1529, 1322, 1150, 1009, 909, 820, 710, 557, 396, 243, 133, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+</div>
+
+**Legend**: First chart shows today's forecast (blue) reaching ~6.8kW peak and tomorrow's forecast (orange) with lower ~4.2kW peak due to cloudier conditions. Second chart shows the seamless combined 48-hour coverage.
+
+Notice how tomorrow's partly cloudy forecast shows lower generation than today's clear-sky conditions.
+HAEO uses the actual forecast data for each day rather than assuming identical patterns.
 
 ## Forecast Coverage and Cycling
 
@@ -196,14 +239,14 @@ For multi-day forecasts (like a 7-day solar forecast), the full pattern cycles a
 
 ### Visual Example: 24-Hour Forecast Cycling to 72 Hours
 
-When your horizon is 48 hours but forecast data covers only 24 hours, HAEO cycles the pattern with time-of-day alignment.
-This example shows a single north-facing solar array forecast:
+When your horizon exceeds forecast coverage, HAEO cycles the pattern with time-of-day alignment.
+This example shows a single 48-hour north-facing solar array forecast extended to 72 hours:
 
 <div class="grid grid-cols-2 gap-4">
 
 ```mermaid
 xychart-beta
-    title "48 Hour Forecast"
+    title "48 Hour Forecast (Today + Tomorrow)"
     x-axis "Hour" 0 --> 48
     y-axis "Power (W)"
     line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 352, 1016, 1332, 1564, 1713, 1793, 1809, 1824, 1930, 2081, 2261, 2460, 2683, 2944, 3222, 3479, 3677, 3831, 3957, 4036, 4103, 4125, 4122, 4121, 4129, 4159, 4178, 4127, 3970, 3736, 3449, 3150, 2865, 2557, 2265, 1985, 1746, 1529, 1322, 1150, 1009, 909, 820, 710, 557, 396, 243, 133, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -219,48 +262,9 @@ xychart-beta
 
 </div>
 
-Note how the pattern repeats after 48 hours.
+**Legend**: First chart shows the combined 48-hour forecast from today and tomorrow. Second chart shows the same 48 hours repeated starting at hour 48 to fill the 72-hour horizon.
 
-### Multiple Forecast Windows
-
-Many integrations provide separate forecasts for different time windows (today, tomorrow, day-after-tomorrow).
-Combine them using multiple sensors:
-
-| Field     | Value                                                       |
-| --------- | ----------------------------------------------------------- |
-| **Power** | sensor.solar_forecast_today, sensor.solar_forecast_tomorrow |
-
-HAEO merges all forecast series on shared timestamps and sums values.
-This gives you complete horizon coverage from multiple shorter forecast windows.
-
-### Visual Example: Combining Today and Tomorrow Forecasts
-
-When you provide both today's and tomorrow's forecasts, HAEO seamlessly combines them.
-This example shows the same north array with different weather conditions each day:
-
-<div class="grid grid-cols-2 gap-4">
-
-```mermaid
-xychart-beta
-    title "Daily Forecasts"
-    x-axis "Hour" 0 --> 48
-    y-axis "Power (W)"
-    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 352, 1016, 1332, 1564, 1713, 1793, 1809, 1824, 1930, 2081, 2261, 2460, 2683, 2944, 3222, 3479, 3677, 3831, 3957, 4036, 4103, 4125, 4122, 4121, 4129, 4159, 4178, 4127, 3970, 3736, 3449, 3150, 2865, 2557, 2265, 1985, 1746, 1529, 1322, 1150, 1009, 909, 820, 710, 557, 396, 243, 133, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-```
-
-```mermaid
-xychart-beta
-    title "Combined 48-Hour Forecast"
-    x-axis "Hour" 0 --> 48
-    y-axis "Power (W)"
-    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 352, 1016, 1332, 1564, 1713, 1793, 1809, 1824, 1930, 2081, 2261, 2460, 2683, 2944, 3222, 3479, 3677, 3831, 3957, 4036, 4103, 4125, 4122, 4121, 4129, 4159, 4178, 4127, 3970, 3736, 3449, 3150, 2865, 2557, 2265, 1985, 1746, 1529, 1322, 1150, 1009, 909, 820, 710, 557, 396, 243, 133, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-```
-
-</div>
-
-Notice how today's clear-sky forecast shows significantly higher generation than tomorrow's partly cloudy conditions.
-HAEO uses the actual forecast data for each day rather than assuming identical patterns.
+Note how the 48-hour pattern repeats starting at hour 48, maintaining realistic time-of-day generation profiles.
 
 ## Supported Forecast Formats
 

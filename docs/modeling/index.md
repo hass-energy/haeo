@@ -93,7 +93,7 @@ graph LR
     Battery((Battery)) <-->|Connection| Node
     Node -->|Connection| Load((Load))
 
-    style Node fill:#90EE90
+    class Node emphasis
 ```
 
 ### Element Registration

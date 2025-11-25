@@ -54,10 +54,10 @@ block-beta
     inaccessible["Inaccessible (0-5%): 0.5 kWh"]
   end
 
-  style overcharge fill:#ffcccc,stroke:#cc0000
-  style normal fill:#ccffcc,stroke:#00cc00
-  style undercharge fill:#ffffcc,stroke:#cccc00
-  style inaccessible fill:#dddddd,stroke:#666666
+  class overcharge danger
+  class normal success
+  class undercharge warning
+  class inaccessible neutral
 ```
 
 **Cost multiplier notation**: The `×N` values multiply the `early_charge_incentive` parameter.

@@ -16,9 +16,6 @@ graph TD
     Model --> Optimizer[HiGHS Optimizer]
     Optimizer --> Results[Results]
     Results --> Sensors[Sensors]
-
-    style Coord fill:#FFE4B5
-    style Optimizer fill:#90EE90
 ```
 
 ## Core Components

@@ -41,7 +41,7 @@ graph LR
     Battery<-->Node
     Node-->Load
 
-    style Node fill:#90EE90
+    class Node emphasis
 ```
 
 Most residential systems use one node.
@@ -56,8 +56,8 @@ graph LR
     Grid<-->AC
     AC-->Load
 
-    style DC fill:#E1F5FF
-    style AC fill:#FFF5E1
+    class DC dc
+    class AC ac
 ```
 
 Hybrid inverter systems with separate buses.
