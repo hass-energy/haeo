@@ -77,6 +77,25 @@ For the optimization horizon:
 
 This approach accurately represents energy consumption and costs over time.
 
+### Unit Conversion
+
+HAEO automatically converts sensor units to the internal representation used for optimization.
+You don't need to create template sensors for unit conversion.
+
+**Power conversions**:
+
+- W (watts) → kW (kilowatts)
+- MW (megawatts) → kW (kilowatts)
+
+**Energy conversions**:
+
+- Wh (watt-hours) → kWh (kilowatt-hours)
+- MWh (megawatt-hours) → kWh (kilowatt-hours)
+
+**Example**: If your battery sensor reports power in watts (`sensor.battery_power` = 5000 W), HAEO automatically converts this to 5 kW for optimization.
+
+All HAEO output sensors use kilowatts (kW) for power and kilowatt-hours (kWh) for energy, regardless of input sensor units.
+
 ## Multiple Sensors
 
 You can provide multiple sensors for any field that accepts sensor(s).
@@ -116,6 +135,79 @@ sensor_2: sensor.constant_load
 
 This makes it easy to model multiple solar arrays, price components, or load sources without manual calculation.
 
+### Visual Example: Combining Two Solar Arrays
+
+When you configure two solar arrays for a photovoltaics element, HAEO sums their forecasts at each timestamp.
+This example uses real data from an east-facing and west-facing array:
+
+<div class="grid grid-cols-2 gap-4">
+
+```mermaid
+xychart-beta
+    title "Separate East/West Forecasts (Today)"
+    x-axis "Hour" 0 --> 24
+    y-axis "Power (W)"
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35, 195, 381, 556, 682, 722, 688, 625, 794, 1185, 1585, 1990, 2384, 2772, 3156, 3524, 3873, 4208, 4525, 4806, 5054, 5274, 5462, 5620, 5748, 5846, 5906, 5939, 5974, 5991, 5995, 5976, 5925, 5844, 5733, 5590, 5409, 5203, 4958, 4661, 4306, 3894, 3450, 2964, 2460, 1909, 1374, 887, 331, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+```mermaid
+xychart-beta
+    title "Combined East+West Forecast (Today)"
+    x-axis "Hour" 0 --> 24
+    y-axis "Power (W)"
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 230, 1210, 2238, 3140, 3954, 4638, 5215, 5667, 6261, 6966, 7591, 8189, 8763, 9297, 9804, 10251, 10641, 10993, 11301, 11533, 11699, 11813, 11869, 11871, 11820, 11720, 11555, 11347, 11146, 10906, 10635, 10320, 9955, 9543, 9086, 8585, 8037, 7463, 6849, 6188, 5490, 4772, 4184, 3639, 3048, 2389, 1732, 1115, 407, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+</div>
+
+**Legend**: First chart shows east array (blue) and west array (orange) separately. East array peaks in the morning, west array peaks in the afternoon. Second chart shows their combined output summed at each timestamp.
+
+The combined output provides more consistent generation throughout the day.
+
+## Multiple Forecast Windows
+
+Many integrations provide separate forecasts for different time windows (today, tomorrow, day-after-tomorrow).
+Combine them using multiple sensors:
+
+| Field     | Value                                                       |
+| --------- | ----------------------------------------------------------- |
+| **Power** | sensor.solar_forecast_today, sensor.solar_forecast_tomorrow |
+
+HAEO merges all forecast series on shared timestamps and sums values.
+This gives you complete horizon coverage from multiple shorter forecast windows.
+
+### Visual Example: Combining Today and Tomorrow Forecasts
+
+When you provide both today's and tomorrow's forecasts, HAEO seamlessly combines them.
+This example shows the north array with different weather conditions each day:
+
+<div class="grid grid-cols-2 gap-4">
+
+```mermaid
+xychart-beta
+    title "Separate Today/Tomorrow Forecasts"
+    x-axis "Hour" 0 --> 48
+    y-axis "Power (W)"
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 352, 1016, 1332, 1564, 1713, 1793, 1809, 1824, 1930, 2081, 2261, 2460, 2683, 2944, 3222, 3479, 3677, 3831, 3957, 4036, 4103, 4125, 4122, 4121, 4129, 4159, 4178, 4127, 3970, 3736, 3449, 3150, 2865, 2557, 2265, 1985, 1746, 1529, 1322, 1150, 1009, 909, 820, 710, 557, 396, 243, 133, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+```mermaid
+xychart-beta
+    title "Combined 48-Hour Forecast"
+    x-axis "Hour" 0 --> 48
+    y-axis "Power (W)"
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 352, 1016, 1332, 1564, 1713, 1793, 1809, 1824, 1930, 2081, 2261, 2460, 2683, 2944, 3222, 3479, 3677, 3831, 3957, 4036, 4103, 4125, 4122, 4121, 4129, 4159, 4178, 4127, 3970, 3736, 3449, 3150, 2865, 2557, 2265, 1985, 1746, 1529, 1322, 1150, 1009, 909, 820, 710, 557, 396, 243, 133, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+</div>
+
+**Legend**: First chart shows today's forecast (blue) reaching ~6.8kW peak and tomorrow's forecast (orange) with lower ~4.2kW peak due to cloudier conditions. Second chart shows the seamless combined 48-hour coverage.
+
+Notice how tomorrow's partly cloudy forecast shows lower generation than today's clear-sky conditions.
+HAEO uses the actual forecast data for each day rather than assuming identical patterns.
+
 ## Forecast Coverage and Cycling
 
 Forecasts don't always cover your entire optimization horizon.
@@ -144,6 +236,35 @@ If your optimization horizon is 48 hours but you only have a 24-hour forecast:
 - Hours 24-48: First 24 hours repeated with time-of-day alignment
 
 For multi-day forecasts (like a 7-day solar forecast), the full pattern cycles at its natural period.
+
+### Visual Example: 24-Hour Forecast Cycling to 72 Hours
+
+When your horizon exceeds forecast coverage, HAEO cycles the pattern with time-of-day alignment.
+This example shows a single 48-hour north-facing solar array forecast extended to 72 hours:
+
+<div class="grid grid-cols-2 gap-4">
+
+```mermaid
+xychart-beta
+    title "48 Hour Forecast (Today + Tomorrow)"
+    x-axis "Hour" 0 --> 48
+    y-axis "Power (W)"
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 352, 1016, 1332, 1564, 1713, 1793, 1809, 1824, 1930, 2081, 2261, 2460, 2683, 2944, 3222, 3479, 3677, 3831, 3957, 4036, 4103, 4125, 4122, 4121, 4129, 4159, 4178, 4127, 3970, 3736, 3449, 3150, 2865, 2557, 2265, 1985, 1746, 1529, 1322, 1150, 1009, 909, 820, 710, 557, 396, 243, 133, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+```mermaid
+xychart-beta
+    title "Cycled to 72-Hour Horizon"
+    x-axis "Hours" 0 --> 72
+    y-axis "Power (W)"
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 352, 1016, 1332, 1564, 1713, 1793, 1809, 1824, 1930, 2081, 2261, 2460, 2683, 2944, 3222, 3479, 3677, 3831, 3957, 4036, 4103, 4125, 4122, 4121, 4129, 4159, 4178, 4127, 3970, 3736, 3449, 3150, 2865, 2557, 2265, 1985, 1746, 1529, 1322, 1150, 1009, 909, 820, 710, 557, 396, 243, 133, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 195, 1015, 1857, 2584, 3272, 3916, 4527, 5042, 5467, 5781, 6006, 6199, 6379, 6525, 6648, 6727, 6768, 6785, 6776, 6727, 6645, 6539, 6407, 6251, 6072, 5874, 5649, 5408, 5172, 4915, 4640, 4344, 4030, 3699, 3353, 2995, 2628, 2260, 1891, 1527, 1184, 878, 734, 675, 588, 480, 358, 228, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+</div>
+
+**Legend**: First chart shows the combined 48-hour forecast from today and tomorrow. Second chart shows the same 48 hours repeated starting at hour 48 to fill the 72-hour horizon.
+
+Note how the 48-hour pattern repeats starting at hour 48, maintaining realistic time-of-day generation profiles.
 
 ## Supported Forecast Formats
 
@@ -190,6 +311,41 @@ template:
 - `forecast` attribute must contain timestamp/value pairs
 
 HAEO will detect this as a simple forecast format and extract the data.
+
+## Using Input Numbers for Constants
+
+For constant values that don't change over time (fixed prices, baseline loads, power limits), use [input_number helpers](https://www.home-assistant.io/integrations/input_number/) instead of creating custom sensors.
+
+**Creating an input_number**:
+
+1. Navigate to **Settings** → **Devices & Services** → **Helpers**
+2. Click **Create Helper** button
+3. Select **Number**
+4. Configure:
+    - **Name**: Descriptive name (e.g., "Base Load Power", "Fixed Import Price")
+    - **Unit of measurement**: Match the element's expected unit (kW, \$/kWh, %, etc.)
+    - **Minimum/Maximum**: Set reasonable bounds
+    - **Initial value**: Set your desired constant
+5. Click **Create**
+
+**Using in HAEO configuration**:
+
+Reference the input_number entity ID anywhere HAEO accepts a sensor:
+
+| Field                       | Value                           |
+| --------------------------- | ------------------------------- |
+| **Forecast**                | input_number.base_load_power    |
+| **Import Price**            | input_number.fixed_import_price |
+| **Max Power Source→Target** | input_number.inverter_rating    |
+
+HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
+
+**Benefits**:
+
+- Easy to adjust through Home Assistant UI
+- No template sensor configuration required
+- Clear, simple configuration
+- Can be controlled via automations or scripts
 
 ## Troubleshooting
 
@@ -252,12 +408,6 @@ However, higher resolution forecasts improve accuracy:
 - Validate forecast accuracy periodically against actual outcomes
 - Use reputable forecast providers with proven track records
 - Consider multiple forecast sources for critical elements
-
-### Sensor Organization
-
-- Group related sensors logically (e.g., all solar arrays together)
-- Use descriptive sensor names for easy identification
-- Document custom forecast templates for future maintenance
 
 ## Next Steps
 

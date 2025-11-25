@@ -201,10 +201,62 @@ async def test_hub_flow_success(hass: HomeAssistant) -> None:
 
 ## Related Documentation
 
-- [Architecture](architecture.md) - Overall system design
-- [Data Loading](data-loading.md) - Field types and data validation
-- [Energy Models](energy-models.md) - Element type implementations
-- [Testing](testing.md) - Testing patterns for config flows
-- [User Configuration Guide](../user-guide/configuration.md) - End-user configuration instructions
-- [Home Assistant Config Flow](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/) - Upstream pattern documentation
-- [Data Entry Flow](https://developers.home-assistant.io/docs/data_entry_flow_index/) - Flow framework reference
+<div class="grid cards" markdown>
+
+- :material-sitemap:{ .lg .middle } **Architecture**
+
+    ---
+
+    Overall system design.
+
+    [:material-arrow-right: Architecture guide](architecture.md)
+
+- :material-database:{ .lg .middle } **Data Loading**
+
+    ---
+
+    Field types and data validation.
+
+    [:material-arrow-right: Data loading guide](data-loading.md)
+
+- :material-network:{ .lg .middle } **Energy Models**
+
+    ---
+
+    Element type implementations.
+
+    [:material-arrow-right: Energy models](energy-models.md)
+
+- :material-test-tube:{ .lg .middle } **Testing**
+
+    ---
+
+    Testing patterns for config flows.
+
+    [:material-arrow-right: Testing guide](testing.md)
+
+- :material-file-document:{ .lg .middle } **User Configuration Guide**
+
+    ---
+
+    End-user configuration instructions.
+
+    [:material-arrow-right: Configuration guide](../user-guide/configuration.md)
+
+- :material-home-assistant:{ .lg .middle } **Home Assistant Config Flow**
+
+    ---
+
+    Upstream pattern documentation.
+
+    [:material-arrow-right: HA Config Flow](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/)
+
+- :material-home-assistant:{ .lg .middle } **Data Entry Flow**
+
+    ---
+
+    Flow framework reference.
+
+    [:material-arrow-right: Data Entry Flow](https://developers.home-assistant.io/docs/data_entry_flow_index/)
+
+</div>

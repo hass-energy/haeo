@@ -67,9 +67,40 @@ The current implementations are in `custom_components/haeo/model/connection.py` 
 Only add costs that reflect real trade-offs.
 If the element interacts with external tariffs or degradation models, expose the relevant coefficients through configuration and ensure the objective contribution uses the shared period length for scaling.
 
-## Related documentation
+## Related Documentation
 
-- [Architecture](architecture.md) – High-level system structure
-- [Data loading](data-loading.md) – Forecast and sensor ingestion
-- [Battery model](../modeling/battery.md) – Example of a storage formulation
-- [Testing](testing.md) – Expectations for unit and integration tests
+<div class="grid cards" markdown>
+
+- :material-sitemap:{ .lg .middle } **Architecture**
+
+    ---
+
+    High-level system structure.
+
+    [:material-arrow-right: Architecture guide](architecture.md)
+
+- :material-database:{ .lg .middle } **Data Loading**
+
+    ---
+
+    Forecast and sensor ingestion.
+
+    [:material-arrow-right: Data loading guide](data-loading.md)
+
+- :material-battery-charging:{ .lg .middle } **Battery Model**
+
+    ---
+
+    Example of a storage formulation.
+
+    [:material-arrow-right: Battery modeling](../modeling/battery.md)
+
+- :material-test-tube:{ .lg .middle } **Testing**
+
+    ---
+
+    Expectations for unit and integration tests.
+
+    [:material-arrow-right: Testing guide](testing.md)
+
+</div>

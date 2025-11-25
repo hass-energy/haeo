@@ -16,29 +16,14 @@ Each element represents a physical device or logical component in your energy sy
 
 HAEO supports several element types for modeling your energy system:
 
-### **[Battery](battery.md)**
-
-Energy storage with state of charge tracking, charge/discharge rates, and efficiency modeling.
-
-### **[Grid](grid.md)**
-
-Bi-directional grid connection for import/export with dynamic or fixed pricing.
-
-### **[Photovoltaics](photovoltaics.md)**
-
-Solar power generation with forecast integration and optional curtailment.
-
-### **[Load](load.md)**
-
-Power consumption with support for constant or variable forecast-based patterns.
-
-### **[Node](node.md)**
-
-Virtual power balance node for grouping connections and managing complex topologies.
-
-### **[Connections](connections.md)**
-
-Define how power flows between elements (technically connections are configuration, not elements, but grouped here for convenience).
+| Element Type                          | Description                                                               | Key Features                               |
+| ------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------ |
+| **[Battery](battery.md)**             | Energy storage with state of charge tracking                              | SOC tracking, efficiency, charge/discharge |
+| **[Grid](grid.md)**                   | Bi-directional grid connection                                            | Import/export, dynamic pricing             |
+| **[Photovoltaics](photovoltaics.md)** | Solar power generation                                                    | Forecast integration, curtailment          |
+| **[Load](load.md)**                   | Power consumption                                                         | Constant or forecast-based patterns        |
+| **[Node](node.md)**                   | Virtual power balance node                                                | Grouping connections, complex topologies   |
+| **[Connections](connections.md)**     | Power flow between elements (configuration, grouped here for convenience) | Directional flow limits                    |
 
 ## How Elements Work Together
 
@@ -48,12 +33,12 @@ In a typical home system, solar may feed a common node, the grid can import or e
 
 Example layout:
 
-```
-Solar → Net ← Grid
-         ↓
-      Battery
-         ↓
-       Load
+```mermaid
+graph TD
+    Solar[Photovoltaics] --> Net[Node]
+    Grid[Grid] <--> Net
+    Net --> Battery[Battery]
+    Battery --> Load[Load]
 ```
 
 This layout lets HAEO decide when to store solar, rely on the grid, or draw from a battery while keeping every connection within the limits you configured.

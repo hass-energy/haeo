@@ -1,62 +1,46 @@
-# Load Configuration
+# Load
 
 Loads represent power consumption in your system.
 The Load element uses forecast data to model any type of consumption pattern from fixed baseline loads to variable time-varying consumption.
 
-## Configuration Fields
+## Configuration
 
-| Field        | Type                                     | Required | Default | Description                      |
-| ------------ | ---------------------------------------- | -------- | ------- | -------------------------------- |
-| **Name**     | String                                   | Yes      | -       | Unique identifier                |
-| **Type**     | "Load"                                   | Yes      | -       | Element type                     |
-| **Forecast** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption sensor(s) (kW) |
+| Field                     | Type                                     | Required | Default | Description                               |
+| ------------------------- | ---------------------------------------- | -------- | ------- | ----------------------------------------- |
+| **[Name](#name)**         | String                                   | Yes      | -       | Unique identifier for this load           |
+| **[Forecast](#forecast)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW) |
+
+## Name
+
+Unique identifier for this load within your HAEO configuration.
+Used to create sensor entity IDs and identify the load in connections.
+
+**Examples**: "Base Load", "House Load", "Total Load", "EV Charger", "Pool Pump"
 
 ## Forecast
 
 Specify one or more Home Assistant sensor entities providing power consumption data.
 The Load element is flexible and works with both constant and time-varying patterns.
 
-### Single Sensor
+**Examples**:
 
 ```yaml
+# Single forecast
 Forecast: sensor.house_load_forecast
-```
 
-HAEO reads the sensor's current value and any forecast data.
-If the sensor only provides a current value, HAEO repeats it across the optimization horizon creating a constant load pattern.
-If the sensor includes forecast data, HAEO interpolates between forecast points for each optimization period.
-
-### Multiple Sensors
-
-Provide multiple sensors to combine different load sources:
-
-```yaml
+# Multiple load components
 Forecast:
   - sensor.base_load
   - sensor.ev_charger_schedule
   - sensor.hvac_forecast
 ```
 
-HAEO combines multiple sensors by:
-
-- Summing present values together
-- Merging forecast series on shared timestamps
-- Adding values at each timestamp
-
-This makes it easy to model separate load components without manual addition.
-
-### How It Works
-
-See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for complete details on:
-
-- How HAEO extracts present values and forecasts
-- Interpolation between forecast points
-- Combining multiple sensors
-- Forecast cycling when coverage is partial
+Provide all load forecasts to get accurate total consumption predictions.
+See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.
 
 ## Constant Load Pattern
 
-For fixed baseline consumption that doesn't vary over time, use an `input_number` helper providing a constant value.
+For fixed baseline consumption that doesn't vary over time, use an [input_number helper](https://www.home-assistant.io/integrations/input_number/) providing a constant value.
 
 ### Creating a Constant Load
 
@@ -163,7 +147,7 @@ This approach:
 - Improves optimization reliability
 - Makes it easier to adjust baseline without changing forecasts
 
-## Multiple Sensors
+## Combining Loads
 
 Combine multiple load sources in a single element:
 
@@ -183,51 +167,49 @@ HAEO automatically sums all sensors at each timestamp, allowing you to model com
 
 ### Simple Constant Load
 
-```yaml
-Name: Base Load
-Type: Load
-Forecast: input_number.constant_power  # 1.0 kW
-```
+Fixed baseline consumption:
+
+| Field        | Value                       |
+| ------------ | --------------------------- |
+| **Name**     | Base Load                   |
+| **Forecast** | input_number.constant_power |
 
 ### Variable Household Consumption
 
-```yaml
-Name: House Load
-Type: Load
-Forecast: sensor.house_consumption_forecast
-```
+Time-varying consumption with forecast:
+
+| Field        | Value                             |
+| ------------ | --------------------------------- |
+| **Name**     | House Load                        |
+| **Forecast** | sensor.house_consumption_forecast |
 
 ### Combined Constant and Variable
 
-```yaml
-Name: Total Load
-Type: Load
-Forecast:
-  - input_number.baseline_power   # 0.8 kW constant
-  - sensor.appliance_forecast     # Variable on top
-```
+Baseline plus variable components:
+
+| Field        | Value                                                  |
+| ------------ | ------------------------------------------------------ |
+| **Name**     | Total Load                                             |
+| **Forecast** | input_number.baseline_power, sensor.appliance_forecast |
 
 ### Multiple Variable Sources
 
-```yaml
-Name: All Loads
-Type: Load
-Forecast:
-  - sensor.base_consumption
-  - sensor.ev_charger
-  - sensor.pool_pump_schedule
-  - sensor.hvac_system
-```
+Combine multiple consumption sources:
+
+| Field        | Value                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------------- |
+| **Name**     | All Loads                                                                                 |
+| **Forecast** | sensor.base_consumption, sensor.ev_charger, sensor.pool_pump_schedule, sensor.hvac_system |
 
 ## Sensors Created
 
-| Sensor                | Unit | Description               |
-| --------------------- | ---- | ------------------------- |
-| `sensor.{name}_power` | kW   | Current period load power |
+These sensors provide real-time visibility into load power consumption.
 
-After optimization completes, the sensor shows the load value for the current optimization period.
-The `forecast` attribute contains future load values for upcoming periods.
+| Sensor                         | Unit | Description                                                                  |
+| ------------------------------ | ---- | ---------------------------------------------------------------------------- |
+| `sensor.{name}_power_consumed` | kW   | Optimal power consumed by load (matches forecast - load is not controllable) |
 
+The sensor includes a `forecast` attribute containing future load values for upcoming periods.
 For constant loads, the sensor shows the same value for all periods.
 For variable loads, the sensor reflects the forecast values for each period.
 
@@ -274,9 +256,40 @@ If your forecast includes optional or deferrable loads, the optimizer may schedu
 **Solution**: Only include loads that represent actual required consumption in the Load element.
 For controllable/deferrable loads, model them separately with appropriate constraints.
 
-## Related Documentation
+## Next Steps
 
-- [Forecasts and Sensors](../forecasts-and-sensors.md) - Understanding sensor data loading
-- [Configuration Guide](../configuration.md) - Adding elements to your network
-- [Battery Configuration](battery.md) - Pairing loads with storage
-- [Grid Configuration](grid.md) - Grid import/export with loads
+<div class="grid cards" markdown>
+
+- :material-connection:{ .lg .middle } **Connect to network**
+
+    ---
+
+    Learn how to connect your load to other elements using connections.
+
+    [:material-arrow-right: Connections guide](connections.md)
+
+- :material-chart-line:{ .lg .middle } **Configure forecast sensors**
+
+    ---
+
+    Deep dive into how HAEO loads and processes sensor data.
+
+    [:material-arrow-right: Forecasts and sensors](../forecasts-and-sensors.md)
+
+- :material-battery-charging:{ .lg .middle } **Add battery storage**
+
+    ---
+
+    Pair loads with battery storage to optimize energy usage.
+
+    [:material-arrow-right: Battery configuration](battery.md)
+
+- :material-transmission-tower:{ .lg .middle } **Add grid connection**
+
+    ---
+
+    Configure grid import/export to meet load requirements.
+
+    [:material-arrow-right: Grid configuration](grid.md)
+
+</div>

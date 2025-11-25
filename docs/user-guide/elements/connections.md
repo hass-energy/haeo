@@ -2,36 +2,39 @@
 
 Connections define how power flows between elements in your network with support for bidirectional flow, efficiency losses, and transmission costs.
 
-## Configuration Fields
+## Configuration
 
-| Field                        | Type                                                | Description                                                                                                               |
-| ---------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **Name**                     | text                                                | Unique name for this connection                                                                                           |
-| **Source**                   | element                                             | Element where power can flow from (in the source→target direction)                                                        |
-| **Target**                   | element                                             | Element where power can flow to (in the source→target direction)                                                          |
-| **Max Power Source→Target**  | [sensor](../forecasts-and-sensors.md) (optional)    | Maximum power flow from source to target (kW). If not set, flow is unlimited. Set to 0 to prevent flow in this direction. |
-| **Max Power Target→Source**  | [sensor](../forecasts-and-sensors.md) (optional)    | Maximum power flow from target to source (kW). If not set, flow is unlimited. Set to 0 to prevent flow in this direction. |
-| **Efficiency Source→Target** | [sensor](../forecasts-and-sensors.md) (optional)    | Efficiency percentage (0-100) for power transfer from source to target. Defaults to 100% (no losses) if not set.          |
-| **Efficiency Target→Source** | [sensor](../forecasts-and-sensors.md) (optional)    | Efficiency percentage (0-100) for power transfer from target to source. Defaults to 100% (no losses) if not set.          |
-| **Price Source→Target**      | [sensor(s)](../forecasts-and-sensors.md) (optional) | Price in \$/kWh for transferring power from source to target. If not set, no cost is applied.                             |
-| **Price Target→Source**      | [sensor(s)](../forecasts-and-sensors.md) (optional) | Price in \$/kWh for transferring power from target to source. If not set, no cost is applied.                             |
+| Field                        | Type                                     | Required | Default   | Description                                                            |
+| ---------------------------- | ---------------------------------------- | -------- | --------- | ---------------------------------------------------------------------- |
+| **Name**                     | String                                   | Yes      | -         | Unique identifier for this connection                                  |
+| **Source**                   | Element                                  | Yes      | -         | Element where power can flow from (in source→target direction)         |
+| **Target**                   | Element                                  | Yes      | -         | Element where power can flow to (in source→target direction)           |
+| **Max Power Source→Target**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from source to target (kW)                          |
+| **Max Power Target→Source**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from target to source (kW)                          |
+| **Efficiency Source→Target** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from source to target |
+| **Efficiency Target→Source** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from target to source |
+| **Price Source→Target**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from source to target            |
+| **Price Target→Source**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from target to source            |
 
-!!! tip "Using constant values"
+!!! tip "Configuration tips"
 
-    All sensor fields require sensor entities.
-    Use [input number helpers](https://www.home-assistant.io/integrations/input_number/) to configure constant values.
+    **Leaving fields unset**: When a direction should allow unlimited flow with no losses or costs, leave the corresponding fields empty rather than creating sensors with maximum or default values.
+
+    **Using constant values**: All sensor fields require sensor entities.
+
+Use [input number helpers](https://www.home-assistant.io/integrations/input_number/) to configure constant values.
 
 ## Configuration Example
 
 Bidirectional connection between grid and battery:
 
-```yaml
-Name: Grid to Battery
-Source: Grid
-Target: Battery
-Max Power Source→Target: input_number.grid_charge_limit
-Max Power Target→Source: input_number.grid_discharge_limit
-```
+| Field                       | Value                             |
+| --------------------------- | --------------------------------- |
+| **Name**                    | Grid to Battery                   |
+| **Source**                  | Grid                              |
+| **Target**                  | Battery                           |
+| **Max Power Source→Target** | input_number.grid_charge_limit    |
+| **Max Power Target→Source** | input_number.grid_discharge_limit |
 
 ## Physical Interpretation
 
@@ -56,36 +59,47 @@ Connection pricing models fees for using a power transfer path (wheeling charges
 
 Leave both power limits unset for unlimited flow in both directions:
 
-```yaml
-Source: Solar
-Target: Net
-# No power limits - unlimited bidirectional flow
-# Solar will only produce, so reverse flow won't occur naturally
-```
+| Field                       | Value           |
+| --------------------------- | --------------- |
+| **Name**                    | Solar to Main   |
+| **Source**                  | Solar           |
+| **Target**                  | Main Node       |
+| **Max Power Source→Target** | _(leave empty)_ |
+| **Max Power Target→Source** | _(leave empty)_ |
+
+!!! note
+
+    Solar will only produce, so reverse flow won't occur naturally.
 
 ### Unidirectional Connection
 
 Set one direction's limit to 0 to prevent flow:
 
-```yaml
-Source: Solar
-Target: Net
-Max Power Source→Target: input_number.solar_max
-Max Power Target→Source: input_number.zero  # Value = 0
-```
+| Field                       | Value                  |
+| --------------------------- | ---------------------- |
+| **Name**                    | Solar to Main          |
+| **Source**                  | Solar                  |
+| **Target**                  | Main Node              |
+| **Max Power Source→Target** | input_number.solar_max |
+| **Max Power Target→Source** | input_number.zero      |
+
+!!! note
+
+    Set `input_number.zero` value to `0` to prevent reverse flow.
 
 ### Hybrid Inverter
 
 Model AC-DC conversion with efficiency:
 
-```yaml
-Source: DC_Net
-Target: AC_Net
-Max Power Source→Target: input_number.inverter_rating
-Max Power Target→Source: input_number.inverter_rating
-Efficiency Source→Target: input_number.inverter_efficiency
-Efficiency Target→Source: input_number.inverter_efficiency
-```
+| Field                        | Value                            |
+| ---------------------------- | -------------------------------- |
+| **Name**                     | DC to AC Inverter                |
+| **Source**                   | DC_Node                          |
+| **Target**                   | AC_Node                          |
+| **Max Power Source→Target**  | input_number.inverter_rating     |
+| **Max Power Target→Source**  | input_number.inverter_rating     |
+| **Efficiency Source→Target** | input_number.inverter_efficiency |
+| **Efficiency Target→Source** | input_number.inverter_efficiency |
 
 ### Availability Windows
 
@@ -120,22 +134,18 @@ The optimizer will only schedule charging when the sensor value is non-zero.
 
 ## Sensors Created
 
-Connections create the following sensors:
+These sensors provide real-time visibility into power flow between elements.
 
-| Sensor                   | Unit | Description                         |
-| ------------------------ | ---- | ----------------------------------- |
-| Power Flow Source→Target | kW   | Power flowing from source to target |
-| Power Flow Target→Source | kW   | Power flowing from target to source |
+| Sensor                                   | Unit | Description                                 |
+| ---------------------------------------- | ---- | ------------------------------------------- |
+| `sensor.{name}_power_flow_source_target` | kW   | Optimal power flowing from source to target |
+| `sensor.{name}_power_flow_target_source` | kW   | Optimal power flowing from target to source |
+
+Both sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
 ## Troubleshooting
 
 See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly) for connection issues.
-
-## Related Documentation
-
-- [Connection Modeling](../../modeling/connections.md)
-- [Node Modeling](../../modeling/node.md)
-- [Forecasts and Sensors](../forecasts-and-sensors.md)
 
 ## Next Steps
 
@@ -148,6 +158,22 @@ See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly)
     Review all configured elements and ensure proper connections.
 
     [:material-arrow-right: Elements overview](index.md)
+
+- :material-math-integral:{ .lg .middle } **Connection modeling**
+
+    ---
+
+    Understand the mathematical formulation of power flows.
+
+    [:material-arrow-right: Connection modeling](../../modeling/connections.md)
+
+- :material-circle-outline:{ .lg .middle } **Node modeling**
+
+    ---
+
+    Learn about power balance at network nodes.
+
+    [:material-arrow-right: Node modeling](../../modeling/node.md)
 
 - :material-chart-line:{ .lg .middle } **Understand optimization**
 

@@ -24,7 +24,8 @@ For each time step $t$:
 
 **Default values:**
 
-- Missing power limits → unlimited (no constraint)
+- Missing power limits → unlimited flow (no constraint)
+- Zero power limit → no flow allowed in that direction
 - Missing efficiency → 100% (no loss)
 - Missing price → no cost
 
@@ -91,7 +92,13 @@ Independent pricing for each direction.
 
 Solar → Node (generation only):
 Set only `max_power_source_target`.
-Leave `max_power_target_source` unset (or set to 0).
+Leave `max_power_target_source` unset, or set to 0 to explicitly prevent reverse flow.
+
+!!! tip "Modeling Hybrid Inverters"
+
+    Connections are an effective way to model hybrid inverters.
+    A hybrid inverter connects DC (battery/solar) and AC (grid/loads) sides with bidirectional power flow.
+    Set power limits in both directions to the inverter's rating and apply appropriate efficiency losses.
 
 ### Bidirectional Connection
 
@@ -120,12 +127,37 @@ Prices can vary over time (peak/off-peak rates).
 | ------------------------------ | ------------------------------------ |
 | Only `max_power_source_target` | Unidirectional flow only             |
 | Both power limits set          | Bidirectional flow allowed           |
-| No power limits                | Unlimited flow in both directions    |
+| No power limits (unset)        | Unlimited flow in both directions    |
+| Power limit = 0                | No flow allowed in that direction    |
 | Efficiency < 100%              | Power losses during transmission     |
 | Price set                      | Cost added to optimization objective |
 
 ## Related Documentation
 
-- [Connections Guide](../user-guide/elements/connections.md)
-- [Node Modeling](node.md)
-- [Modeling Overview](index.md)
+<div class="grid cards" markdown>
+
+- :material-file-document:{ .lg .middle } **User configuration guide**
+
+    ---
+
+    Configure connections in your Home Assistant setup.
+
+    [:material-arrow-right: Connection configuration](../user-guide/elements/connections.md)
+
+- :material-network:{ .lg .middle } **Network modeling**
+
+    ---
+
+    Understand how elements interact in the network model.
+
+    [:material-arrow-right: Network modeling overview](index.md)
+
+- :material-code-braces:{ .lg .middle } **Implementation**
+
+    ---
+
+    View the source code for the connection model.
+
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/connection.py)
+
+</div>

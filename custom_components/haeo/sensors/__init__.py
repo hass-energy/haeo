@@ -1,4 +1,4 @@
-"""Sensor platform for Home Assistant Energy Optimization integration."""
+"""Sensor platform for Home Assistant Energy Optimizer integration."""
 
 import logging
 

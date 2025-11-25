@@ -16,9 +16,6 @@ graph TD
     Model --> Optimizer[HiGHS Optimizer]
     Optimizer --> Results[Results]
     Results --> Sensors[Sensors]
-
-    style Coord fill:#FFE4B5
-    style Optimizer fill:#90EE90
 ```
 
 ## Core Components
@@ -166,6 +163,30 @@ Extend `schema/fields.py`:
 
 ## Related Documentation
 
-- [Coordinator Guide](coordinator.md)
-- [Energy Models](energy-models.md)
-- [Testing](testing.md)
+<div class="grid cards" markdown>
+
+- :material-sync:{ .lg .middle } **Coordinator Guide**
+
+    ---
+
+    Data update coordination patterns.
+
+    [:material-arrow-right: Coordinator guide](coordinator.md)
+
+- :material-network:{ .lg .middle } **Energy Models**
+
+    ---
+
+    Network entities and constraints.
+
+    [:material-arrow-right: Energy models](energy-models.md)
+
+- :material-test-tube:{ .lg .middle } **Testing**
+
+    ---
+
+    Testing patterns and fixtures.
+
+    [:material-arrow-right: Testing guide](testing.md)
+
+</div>

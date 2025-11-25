@@ -267,62 +267,38 @@ uv run pytest tests/data/ --cov=custom_components.haeo.data
 
 ## Related Documentation
 
-- [Forecasts and Sensors guide](../user-guide/forecasts-and-sensors.md) - User-facing documentation
-- [Units](units.md) - Unit conversion system
-- [Coordinator](coordinator.md) - How coordinators use the loading system
-- [Configuration Schema](../reference/configuration-schema.md) - Field type reference
+<div class="grid cards" markdown>
 
-## Related Documentation
+- :material-file-document:{ .lg .middle } **Forecasts and Sensors guide**
 
-- [User forecasts guide](../user-guide/forecasts-and-sensors.md) - User-facing forecast documentation
+    ---
 
-- [Configuration schema](../reference/configuration-schema.md) - Field type reference
+    User-facing documentation for sensor behavior.
 
-- [Coordinator](coordinator.md) - How data loading integrates with updates
+    [:material-arrow-right: Forecasts and Sensors](../user-guide/forecasts-and-sensors.md)
 
-    hass.states.async_set("sensor.solar_1", "2500")
-    hass.states.async_set("sensor.solar_2", "1800")
+- :material-ruler:{ .lg .middle } **Units**
 
-    loader = TimeSeriesLoader()
-    values = await loader.load(
-    hass=hass,
-    value=["sensor.solar_1", "sensor.solar_2"],
-    forecast_times=[1730890800, 1730894400, 1730898000],
-    )
+    ---
 
-    assert len(values) == 3
-    assert all(isinstance(v, float) for v in values)
+    Unit conversion system and base units.
 
-````
+    [:material-arrow-right: Units guide](units.md)
 
-## Running Tests
+- :material-sync:{ .lg .middle } **Coordinator**
 
-To test the data loading system:
+    ---
 
-```bash
-# Test all loader modules
-uv run pytest tests/data/loader/ -v
+    How coordinators use the loading system.
 
-# Test specific modules
-uv run pytest tests/data/loader/test_sensor_loader.py -v
-uv run pytest tests/data/loader/test_fusion.py -v
-uv run pytest tests/data/loader/test_time_series_loader.py -v
+    [:material-arrow-right: Coordinator guide](coordinator.md)
 
-# Test extractors
-uv run pytest tests/data/loader/extractors/ -v
-````
+- :material-cog:{ .lg .middle } **Element Configuration**
 
-Complement with code quality checks:
+    ---
 
-```bash
-uv run ruff check custom_components/haeo/data/loader/
-uv run mypy custom_components/haeo/data/loader/
-```
+    Configuration field references for elements.
 
-## Related Documentation
+    [:material-arrow-right: Element pages](../user-guide/elements/index.md)
 
-- [Architecture](architecture.md) - System overview
-- [Coordinator](coordinator.md) - Data loading orchestration
-- [Energy Models](energy-models.md) - How data flows into models
-- [Config Flow](config-flow.md) - Field configuration UI
-- [Testing](testing.md) - Testing patterns for loaders
+</div>

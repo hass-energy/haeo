@@ -1,53 +1,42 @@
-# Photovoltaics Configuration
+# Photovoltaics
 
 Solar panels that generate electricity.
 HAEO optimizes how generated power flows through your energy network.
 
-## Configuration Fields
+## Configuration
 
-| Field                | Type                                     | Required | Default | Description                     |
-| -------------------- | ---------------------------------------- | -------- | ------- | ------------------------------- |
-| **Name**             | String                                   | Yes      | -       | Unique identifier               |
-| **Forecast**         | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Solar generation sensor(s) (kW) |
-| **Production Price** | Number (\$/kWh)                          | No       | 0       | Value per kWh generated         |
-| **Curtailment**      | Boolean                                  | No       | false   | Allow reducing generation       |
+| Field                                     | Type                                     | Required | Default | Description                                                     |
+| ----------------------------------------- | ---------------------------------------- | -------- | ------- | --------------------------------------------------------------- |
+| **[Name](#name)**                         | String                                   | Yes      | -       | Unique identifier for this photovoltaic system                  |
+| **[Forecast](#forecast)**                 | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Solar generation forecast sensor(s) providing power output (kW) |
+| **[Production Price](#production-price)** | Number (\$/kWh)                          | No       | 0       | Cost or value per kWh of electricity generated                  |
+| **[Curtailment](#curtailment)**           | Boolean                                  | No       | false   | Allow optimizer to reduce generation below forecast             |
+
+## Name
+
+Unique identifier for this photovoltaic system within your HAEO configuration.
+Used to create sensor entity IDs and identify the solar array in connections.
+
+**Examples**: "Rooftop Solar", "East Array", "West Array", "Combined Solar"
 
 ## Forecast
 
 Specify one or more Home Assistant sensors providing solar generation data.
 
-### Single Sensor
+**Examples**:
 
 ```yaml
+# Single array
 Forecast: sensor.solcast_pv_forecast
-```
 
-HAEO reads the sensor's current value and any forecast data.
-For solar forecasts, this typically means predicted generation based on weather conditions.
-
-### Multiple Sensors
-
-Combine multiple solar arrays or forecast sources:
-
-```yaml
+# Multiple arrays (e.g., different orientations)
 Forecast:
   - sensor.solar_east_forecast
   - sensor.solar_west_forecast
 ```
 
-HAEO combines multiple sensors by summing their values at each timestamp.
-This is useful for:
-
-- Multiple physical arrays (different orientations or locations)
-- Multiple forecast providers for redundancy
-- Separate tracking for different systems
-
-See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for complete details on:
-
-- How HAEO extracts present values and forecasts
-- Interpolation between forecast points
-- Combining multiple sensors
-- Forecast cycling when coverage is partial
+Provide all solar array forecasts to get accurate total generation predictions.
+See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.
 
 ## Production Price
 
@@ -61,8 +50,10 @@ Cost or value per kWh of electricity generated.
 - Accounting for maintenance costs per kWh
 - Rare specialized scenarios
 
-**Note**: Production price is NOT the same as export price.
-Export revenue is configured on the Grid element.
+!!! note
+
+    Production price is NOT the same as export price.
+    Export revenue is configured on the Grid element.
 
 ## Curtailment
 
@@ -81,36 +72,41 @@ Allow HAEO to reduce generation below the forecast level.
 - Inverter must support active power limiting
 - Control mechanism must be implemented separately (HAEO only optimizes)
 
-## Configuration Example
+## Configuration Examples
 
-Basic configuration:
+### Basic Configuration
 
-```yaml
-Name: Rooftop Solar
-Forecast: sensor.solcast_pv_forecast
-Production Price: 0
-Curtailment: false
-```
+Single solar array with forecast:
 
-Multiple arrays:
+| Field                | Value                      |
+| -------------------- | -------------------------- |
+| **Name**             | Rooftop Solar              |
+| **Forecast**         | sensor.solcast_pv_forecast |
+| **Production Price** | 0                          |
+| **Curtailment**      | false                      |
 
-```yaml
-Name: Combined Solar
-Forecast:
-  - sensor.east_array_forecast
-  - sensor.west_array_forecast
-Production Price: 0
-Curtailment: false
-```
+### Multiple Arrays
+
+Combine multiple solar arrays or forecast sources:
+
+| Field                | Value                                                  |
+| -------------------- | ------------------------------------------------------ |
+| **Name**             | Combined Solar                                         |
+| **Forecast**         | sensor.east_array_forecast, sensor.west_array_forecast |
+| **Production Price** | 0                                                      |
+| **Curtailment**      | false                                                  |
 
 ## Sensors Created
 
-| Sensor                | Unit | Description               |
-| --------------------- | ---- | ------------------------- |
-| `sensor.{name}_power` | kW   | Current period generation |
+These sensors provide real-time visibility into solar generation across all arrays.
 
-After optimization completes, the sensor shows the generation value for the current optimization period.
-The `forecast` attribute contains future generation values for upcoming periods.
+| Sensor                           | Unit   | Description                                                    |
+| -------------------------------- | ------ | -------------------------------------------------------------- |
+| `sensor.{name}_power_produced`   | kW     | Optimal power generated by solar array (after any curtailment) |
+| `sensor.{name}_power_available`  | kW     | Maximum available solar power before curtailment               |
+| `sensor.{name}_price_production` | \$/kWh | Current production price (if configured)                       |
+
+All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
 ## Troubleshooting
 
@@ -150,13 +146,6 @@ The `forecast` attribute contains future generation values for upcoming periods.
 - Check sensor forecast attribute in Developer Tools → States
 - Verify forecast covers daytime hours
 - Review HAEO logs for format detection warnings
-
-## Related Documentation
-
-- [Forecasts and Sensors Guide](../forecasts-and-sensors.md) - Understanding sensor data loading
-- [Connections](connections.md) - Connecting photovoltaics to the network
-- [Grid Configuration](grid.md) - Exporting solar generation
-- [Battery Configuration](battery.md) - Storing solar generation
 
 ## Next Steps
 
