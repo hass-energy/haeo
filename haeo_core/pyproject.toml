@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "haeo-core"
+version = "0.1.0"
+description = "Core modeling library for HAEO"
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.2.2",
+    "pulp[highs]>=3.3.0"
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
+
+[tool.setuptools]
+package-dir = {"haeo_core" = "."}
+packages = [
+    "haeo_core",
+    "haeo_core.model",
+    "haeo_core.model.util",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

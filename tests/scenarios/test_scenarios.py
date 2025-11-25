@@ -26,7 +26,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.model import OUTPUT_NAME_OPTIMIZATION_STATUS
+from haeo_core.model import OUTPUT_NAME_OPTIMIZATION_STATUS
 from tests.scenarios.visualization import visualize_scenario_results
 
 _LOGGER = logging.getLogger(__name__)

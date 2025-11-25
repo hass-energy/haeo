@@ -1,6 +1,6 @@
 """Test data and factories for Battery element."""
 
-from custom_components.haeo.model.battery import Battery
+from haeo_core.model.battery import Battery
 
 from .element_types import ElementTestCase
 

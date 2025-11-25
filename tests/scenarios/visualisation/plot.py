@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from custom_components.haeo.elements import ElementType
-from custom_components.haeo.model import (
+from haeo_core.model import (
     OUTPUT_NAME_BATTERY_STATE_OF_CHARGE,
     OUTPUT_NAME_POWER_AVAILABLE,
     OUTPUT_NAME_POWER_CONSUMED,

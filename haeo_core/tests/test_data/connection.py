@@ -1,6 +1,6 @@
 """Test data and factories for Connection element."""
 
-from custom_components.haeo.model.connection import Connection
+from haeo_core.model.connection import Connection
 
 from .connection_types import ConnectionTestCase
 

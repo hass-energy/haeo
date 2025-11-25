@@ -1,6 +1,6 @@
 """Test data and factories for Load element."""
 
-from custom_components.haeo.model.load import Load
+from haeo_core.model.load import Load
 
 from .element_types import ElementTestCase
 

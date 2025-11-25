@@ -1,7 +1,7 @@
 """Node for electrical system modeling."""
 
-from custom_components.haeo.model.const import CONSTRAINT_NAME_POWER_BALANCE
-from custom_components.haeo.model.element import Element
+from haeo_core.model.const import CONSTRAINT_NAME_POWER_BALANCE
+from haeo_core.model.element import Element
 
 
 class Node(Element):
