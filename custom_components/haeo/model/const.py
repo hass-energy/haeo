@@ -4,79 +4,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Final, Literal
 
-# Output names
-OUTPUT_NAME_POWER_FLOW: Final = "power_flow"
-OUTPUT_NAME_POWER_FLOW_SOURCE_TARGET: Final = "power_flow_source_target"
-OUTPUT_NAME_POWER_FLOW_TARGET_SOURCE: Final = "power_flow_target_source"
-OUTPUT_NAME_POWER_AVAILABLE: Final = "power_available"
-OUTPUT_NAME_POWER_CONSUMED: Final = "power_consumed"
-OUTPUT_NAME_POWER_PRODUCED: Final = "power_produced"
-OUTPUT_NAME_POWER_IMPORTED: Final = "power_imported"
-OUTPUT_NAME_POWER_EXPORTED: Final = "power_exported"
-
-OUTPUT_NAME_PRICE_CONSUMPTION: Final = "price_consumption"
-OUTPUT_NAME_PRICE_PRODUCTION: Final = "price_production"
-OUTPUT_NAME_PRICE_IMPORT: Final = "price_import"
-OUTPUT_NAME_PRICE_EXPORT: Final = "price_export"
-
-OUTPUT_NAME_ENERGY_STORED: Final = "energy_stored"
-OUTPUT_NAME_BATTERY_STATE_OF_CHARGE: Final = "battery_state_of_charge"
+# Network-level output names (created by coordinator, not individual elements)
 OUTPUT_NAME_OPTIMIZATION_COST: Final = "optimization_cost"
 OUTPUT_NAME_OPTIMIZATION_STATUS: Final = "optimization_status"
 OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "optimization_duration"
-OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE: Final = "shadow_price_node_balance"
-OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE: Final = "shadow_price_energy_balance"
-OUTPUT_NAME_SHADOW_PRICE_SOC_MIN: Final = "shadow_price_soc_min"
-OUTPUT_NAME_SHADOW_PRICE_SOC_MAX: Final = "shadow_price_soc_max"
-OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT: Final = "shadow_price_forecast_limit"
-OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX: Final = "shadow_price_power_consumption_max"
-OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX: Final = "shadow_price_power_production_max"
-OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX: Final = "shadow_price_power_export_max"
-OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX: Final = "shadow_price_power_import_max"
-OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN: Final = "shadow_price_power_flow_min"
-OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX: Final = "shadow_price_power_flow_max"
-
-# Constraint names (will become outputs in future PR)
-CONSTRAINT_NAME_ENERGY_BALANCE: Final = "energy_balance"
-CONSTRAINT_NAME_POWER_BALANCE: Final = "power_balance"
-CONSTRAINT_NAME_MAX_CHARGE_POWER: Final = "max_charge_power"
-CONSTRAINT_NAME_MAX_DISCHARGE_POWER: Final = "max_discharge_power"
-CONSTRAINT_NAME_MAX_POWER_SOURCE_TARGET: Final = "max_power_source_target"
-CONSTRAINT_NAME_MAX_POWER_TARGET_SOURCE: Final = "max_power_target_source"
-
-type OutputName = Literal[
-    "power_flow",
-    "power_flow_source_target",
-    "power_flow_target_source",
-    "power_available",
-    "power_consumed",
-    "power_produced",
-    "power_imported",
-    "power_exported",
-    "price_consumption",
-    "price_production",
-    "price_import",
-    "price_export",
-    "energy_stored",
-    "battery_state_of_charge",
-    "optimization_cost",
-    "optimization_status",
-    "optimization_duration",
-    "shadow_price_node_balance",
-    "shadow_price_energy_balance",
-    "shadow_price_soc_min",
-    "shadow_price_soc_max",
-    "shadow_price_forecast_limit",
-    "shadow_price_power_consumption_max",
-    "shadow_price_power_production_max",
-    "shadow_price_power_export_max",
-    "shadow_price_power_import_max",
-    "shadow_price_power_flow_min",
-    "shadow_price_power_flow_max",
-]
 
 # Output types
 OUTPUT_TYPE_POWER: Final = "power"
+OUTPUT_TYPE_POWER_FLOW: Final = "power_flow"
 OUTPUT_TYPE_ENERGY: Final = "energy"
 OUTPUT_TYPE_PRICE: Final = "price"
 OUTPUT_TYPE_SOC: Final = "soc"
@@ -87,6 +22,7 @@ OUTPUT_TYPE_SHADOW_PRICE: Final = "shadow_price"
 
 type OutputType = Literal[
     "power",
+    "power_flow",
     "energy",
     "price",
     "soc",

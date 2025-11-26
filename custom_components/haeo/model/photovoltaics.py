@@ -1,24 +1,47 @@
 """Photovoltaics entity for electrical system modeling."""
 
 from collections.abc import Mapping, Sequence
+from typing import Final, Literal
 
 from pulp import LpAffineExpression, LpVariable, lpSum
 
-from .const import (
-    CONSTRAINT_NAME_POWER_BALANCE,
-    OUTPUT_NAME_POWER_AVAILABLE,
-    OUTPUT_NAME_POWER_PRODUCED,
-    OUTPUT_NAME_PRICE_PRODUCTION,
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_PRICE,
-    OutputData,
-    OutputName,
-)
+from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE, OutputData
 from .element import Element
 from .util import broadcast_to_sequence, extract_values
 
+PHOTOVOLTAICS_POWER_PRODUCED: Final = "photovoltaics_power_produced"
+PHOTOVOLTAICS_POWER_AVAILABLE: Final = "photovoltaics_power_available"
+PHOTOVOLTAICS_PRICE_PRODUCTION: Final = "photovoltaics_price_production"
 
-class Photovoltaics(Element):
+PHOTOVOLTAICS_POWER_BALANCE: Final = "photovoltaics_power_balance"
+PHOTOVOLTAICS_FORECAST_LIMIT: Final = "photovoltaics_forecast_limit"
+
+type PhotovoltaicsConstraintName = Literal[
+    "photovoltaics_power_balance",
+    "photovoltaics_forecast_limit",
+]
+
+type PhotovoltaicsOutputName = (
+    Literal[
+        "photovoltaics_power_produced",
+        "photovoltaics_power_available",
+        "photovoltaics_price_production",
+    ]
+    | PhotovoltaicsConstraintName
+)
+
+PHOTOVOLTAICS_OUTPUT_NAMES: Final[frozenset[PhotovoltaicsOutputName]] = frozenset(
+    (
+        PHOTOVOLTAICS_POWER_PRODUCED,
+        PHOTOVOLTAICS_POWER_AVAILABLE,
+        PHOTOVOLTAICS_PRICE_PRODUCTION,
+        PHOTOVOLTAICS_POWER_BALANCE,
+        PHOTOVOLTAICS_FORECAST_LIMIT,
+    )
+)
+
+
+class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName]):
     """Photovoltaics (solar) entity for electrical system modeling."""
 
     def __init__(
@@ -57,20 +80,26 @@ class Photovoltaics(Element):
         # Validate and store forecasts
         self.forecast = broadcast_to_sequence(forecast, n_periods)
         self.price_production = broadcast_to_sequence(price_production, n_periods)
+        self.curtailment = curtailment
 
         # Power production variables or constants
-        self.power_production: list[LpVariable | LpAffineExpression] = (
-            [LpVariable(name=f"{name}_power_{i}", lowBound=0, upBound=v) for i, v in enumerate(self.forecast)]
-            if curtailment
-            else [LpAffineExpression(constant=v) for v in self.forecast]
-        )
+        if curtailment:
+            # Use explicit constraint instead of upBound to capture shadow price
+            self.power_production: list[LpVariable | LpAffineExpression] = [
+                LpVariable(name=f"{name}_power_{i}", lowBound=0) for i in range(n_periods)
+            ]
+            self._constraints[PHOTOVOLTAICS_FORECAST_LIMIT] = [
+                self.power_production[t] <= self.forecast[t] for t in range(n_periods)
+            ]
+        else:
+            self.power_production = [LpAffineExpression(constant=v) for v in self.forecast]
 
     def build_constraints(self) -> None:
         """Build network-dependent constraints for the photovoltaics.
 
         This includes power balance constraints using connection_power().
         """
-        self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
+        self._constraints[PHOTOVOLTAICS_POWER_BALANCE] = [
             self.connection_power(t) + self.power_production[t] == 0 for t in range(self.n_periods)
         ]
 
@@ -86,19 +115,30 @@ class Photovoltaics(Element):
             )
         ]
 
-    def outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[PhotovoltaicsOutputName, OutputData]:
         """Return photovoltaics output specifications."""
 
-        outputs: dict[OutputName, OutputData] = {
-            OUTPUT_NAME_POWER_PRODUCED: OutputData(
+        outputs: dict[PhotovoltaicsOutputName, OutputData] = {
+            PHOTOVOLTAICS_POWER_PRODUCED: OutputData(
                 type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_production)
             ),
-            OUTPUT_NAME_POWER_AVAILABLE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(self.forecast)),
+            PHOTOVOLTAICS_POWER_AVAILABLE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(self.forecast)),
         }
 
         if self.price_production is not None:
-            outputs[OUTPUT_NAME_PRICE_PRODUCTION] = OutputData(
+            outputs[PHOTOVOLTAICS_PRICE_PRODUCTION] = OutputData(
                 type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.price_production)
+            )
+
+        # Shadow prices
+        if shadow_prices := self._get_shadow_prices(PHOTOVOLTAICS_POWER_BALANCE):
+            outputs[PHOTOVOLTAICS_POWER_BALANCE] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
+            )
+
+        if self.curtailment and (shadow_prices := self._get_shadow_prices(PHOTOVOLTAICS_FORECAST_LIMIT)):
+            outputs[PHOTOVOLTAICS_FORECAST_LIMIT] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
             )
 
         return outputs

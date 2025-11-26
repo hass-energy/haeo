@@ -5,6 +5,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass, field
 import io
 import logging
+from typing import Any
 
 from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, getSolver, lpSum, value
 
@@ -35,10 +36,9 @@ class Network:
     name: str
     period: float  # Period in hours
     n_periods: int
-    elements: dict[str, Element | Connection] = field(default_factory=dict)
-    balance_constraints: dict[tuple[str, int], LpConstraint] = field(init=False, default_factory=dict)
+    elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
 
-    def add(self, element_type: str, name: str, **kwargs: object) -> Element | Connection:
+    def add(self, element_type: str, name: str, **kwargs: object) -> Element[Any, Any]:
         """Add an element to the network by type.
 
         Args:
@@ -50,7 +50,7 @@ class Network:
             The created element
 
         """
-        factories: dict[str, Callable[..., Element | Connection]] = {
+        factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
             "photovoltaics": Photovoltaics,
             "load": Load,

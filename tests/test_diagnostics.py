@@ -21,16 +21,16 @@ from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdate
 from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
 from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
-from custom_components.haeo.model.const import (
+from custom_components.haeo.model import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
-    OUTPUT_NAME_POWER_CONSUMED,
     OUTPUT_TYPE_COST,
     OUTPUT_TYPE_DURATION,
     OUTPUT_TYPE_POWER,
     OUTPUT_TYPE_STATUS,
 )
+from custom_components.haeo.model.battery import BATTERY_POWER_CHARGE
 
 
 async def test_diagnostics_without_coordinator(hass: HomeAssistant) -> None:
@@ -119,7 +119,7 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
             ),
         },
         "battery_one": {
-            OUTPUT_NAME_POWER_CONSUMED: CoordinatorOutput(
+            BATTERY_POWER_CHARGE: CoordinatorOutput(
                 type=OUTPUT_TYPE_POWER,
                 unit="kW",
                 state=3.0,
@@ -143,7 +143,7 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
     assert diagnostics["coordinator"]["optimization_status"] == "success"
     assert diagnostics["last_optimization"]["cost"] == 27.5
 
-    outputs = diagnostics["outputs"]["battery_one"][OUTPUT_NAME_POWER_CONSUMED]
+    outputs = diagnostics["outputs"]["battery_one"][BATTERY_POWER_CHARGE]
     assert outputs["type"] == OUTPUT_TYPE_POWER
     assert outputs["unit"] == "kW"
     assert outputs["value_count"] == 3

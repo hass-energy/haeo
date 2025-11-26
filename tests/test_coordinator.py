@@ -54,18 +54,19 @@ from custom_components.haeo.elements.grid import (
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
 )
-from custom_components.haeo.model.const import (
+from custom_components.haeo.model import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
-    OUTPUT_NAME_POWER_CONSUMED,
-    OUTPUT_NAME_POWER_PRODUCED,
     OUTPUT_TYPE_COST,
     OUTPUT_TYPE_DURATION,
     OUTPUT_TYPE_POWER,
     OUTPUT_TYPE_STATUS,
     OutputData,
 )
+from custom_components.haeo.model.battery import BATTERY_POWER_CHARGE
+from custom_components.haeo.model.load import LOAD_POWER_CONSUMED
+from custom_components.haeo.model.photovoltaics import PHOTOVOLTAICS_POWER_PRODUCED
 
 
 @pytest.fixture
@@ -215,7 +216,7 @@ async def test_async_update_data_returns_outputs(
     """Coordinator returns optimization results merged with element outputs."""
     fake_element = MagicMock()
     fake_element.outputs.return_value = {
-        OUTPUT_NAME_POWER_CONSUMED: OutputData(
+        LOAD_POWER_CONSUMED: OutputData(
             type=OUTPUT_TYPE_POWER,
             unit="kW",
             values=(1.0, 2.0),
@@ -281,7 +282,7 @@ async def test_async_update_data_returns_outputs(
     assert duration_output.forecast is None
 
     battery_outputs = result["test_battery"]
-    battery_output = battery_outputs[OUTPUT_NAME_POWER_CONSUMED]
+    battery_output = battery_outputs[BATTERY_POWER_CHARGE]
     assert battery_output.type == OUTPUT_TYPE_POWER
     assert battery_output.unit == "kW"
     assert battery_output.state == 1.0
@@ -422,7 +423,7 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
     base_time = datetime(2024, 6, 1, tzinfo=UTC)
     forecast_times = (int(base_time.timestamp()), int((base_time + timedelta(minutes=30)).timestamp()))
     output = _build_coordinator_output(
-        OUTPUT_NAME_POWER_PRODUCED,
+        PHOTOVOLTAICS_POWER_PRODUCED,
         OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.2, 3.4)),
         forecast_times=forecast_times,
     )
@@ -442,7 +443,7 @@ def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.M
     monkeypatch.setattr("custom_components.haeo.coordinator.datetime", _ErrorDatetime)
 
     output = _build_coordinator_output(
-        OUTPUT_NAME_POWER_PRODUCED,
+        PHOTOVOLTAICS_POWER_PRODUCED,
         OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0)),
         forecast_times=(1, 2),
     )

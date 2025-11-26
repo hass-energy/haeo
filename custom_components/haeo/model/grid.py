@@ -1,25 +1,53 @@
 """Grid entity for electrical system modeling with separate import/export pricing."""
 
 from collections.abc import Mapping, Sequence
+from typing import Final, Literal
 
 from pulp import LpAffineExpression, LpVariable, lpSum
 
-from .const import (
-    CONSTRAINT_NAME_POWER_BALANCE,
-    OUTPUT_NAME_POWER_EXPORTED,
-    OUTPUT_NAME_POWER_IMPORTED,
-    OUTPUT_NAME_PRICE_EXPORT,
-    OUTPUT_NAME_PRICE_IMPORT,
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_PRICE,
-    OutputData,
-    OutputName,
-)
+from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE, OutputData
 from .element import Element
 from .util import broadcast_to_sequence, extract_values
 
+GRID_POWER_IMPORTED: Final = "grid_power_imported"
+GRID_POWER_EXPORTED: Final = "grid_power_exported"
+GRID_PRICE_IMPORT: Final = "grid_price_import"
+GRID_PRICE_EXPORT: Final = "grid_price_export"
 
-class Grid(Element):
+GRID_POWER_BALANCE: Final = "grid_power_balance"
+GRID_MAX_IMPORT_POWER: Final = "grid_max_import_power"
+GRID_MAX_EXPORT_POWER: Final = "grid_max_export_power"
+
+type GridConstraintName = Literal[
+    "grid_power_balance",
+    "grid_max_import_power",
+    "grid_max_export_power",
+]
+
+type GridOutputName = (
+    Literal[
+        "grid_power_imported",
+        "grid_power_exported",
+        "grid_price_import",
+        "grid_price_export",
+    ]
+    | GridConstraintName
+)
+
+GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
+    (
+        GRID_POWER_IMPORTED,
+        GRID_POWER_EXPORTED,
+        GRID_PRICE_IMPORT,
+        GRID_PRICE_EXPORT,
+        GRID_POWER_BALANCE,
+        GRID_MAX_IMPORT_POWER,
+        GRID_MAX_EXPORT_POWER,
+    )
+)
+
+
+class Grid(Element[GridOutputName, GridConstraintName]):
     """Unified Grid entity for electrical system modeling with separate import/export pricing."""
 
     def __init__(
@@ -61,23 +89,24 @@ class Grid(Element):
         self.import_price = broadcast_to_sequence(import_price, n_periods)
         self.export_price = broadcast_to_sequence(export_price, n_periods)
 
-        # power_consumption: positive when exporting to grid (grid consuming our power)
-        self.power_consumption = [
-            LpVariable(name=f"{name}_export_{i}", lowBound=0, upBound=export_limit) for i in range(n_periods)
-        ]
-        # power_production: positive when importing from grid (grid producing power for us)
-        self.power_production = [
-            LpVariable(name=f"{name}_import_{i}", lowBound=0, upBound=import_limit) for i in range(n_periods)
-        ]
+        # power_export: positive when exporting to grid (grid consuming our power)
+        self.power_export = [LpVariable(name=f"{name}_export_{i}", lowBound=0) for i in range(n_periods)]
+        # power_import: positive when importing from grid (grid producing power for us)
+        self.power_import = [LpVariable(name=f"{name}_import_{i}", lowBound=0) for i in range(n_periods)]
+
+        # Add explicit constraints for limits to capture shadow prices
+        if export_limit is not None:
+            self._constraints[GRID_MAX_EXPORT_POWER] = [self.power_export[t] <= export_limit for t in range(n_periods)]
+        if import_limit is not None:
+            self._constraints[GRID_MAX_IMPORT_POWER] = [self.power_import[t] <= import_limit for t in range(n_periods)]
 
     def build_constraints(self) -> None:
         """Build network-dependent constraints for the grid.
 
         This includes power balance constraints using connection_power().
         """
-        self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
-            self.connection_power(t) - self.power_consumption[t] + self.power_production[t] == 0
-            for t in range(self.n_periods)
+        self._constraints[GRID_POWER_BALANCE] = [
+            self.connection_power(t) - self.power_export[t] + self.power_import[t] == 0 for t in range(self.n_periods)
         ]
 
     def cost(self) -> Sequence[LpAffineExpression]:
@@ -88,7 +117,7 @@ class Grid(Element):
             costs.append(
                 lpSum(
                     -price * power * self.period
-                    for price, power in zip(self.export_price, self.power_consumption, strict=True)
+                    for price, power in zip(self.export_price, self.power_export, strict=True)
                 )
             )
 
@@ -97,31 +126,47 @@ class Grid(Element):
             costs.append(
                 lpSum(
                     price * power * self.period
-                    for price, power in zip(self.import_price, self.power_production, strict=True)
+                    for price, power in zip(self.import_price, self.power_import, strict=True)
                 )
             )
 
         return costs
 
-    def outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[GridOutputName, OutputData]:
         """Return the outputs for the grid with import/export naming."""
 
-        outputs: dict[OutputName, OutputData] = {
-            OUTPUT_NAME_POWER_EXPORTED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_consumption)
+        outputs: dict[GridOutputName, OutputData] = {
+            GRID_POWER_EXPORTED: OutputData(
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_export)
             ),
-            OUTPUT_NAME_POWER_IMPORTED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_production)
+            GRID_POWER_IMPORTED: OutputData(
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_import)
             ),
         }
 
         if self.export_price is not None:
-            outputs[OUTPUT_NAME_PRICE_EXPORT] = OutputData(
+            outputs[GRID_PRICE_EXPORT] = OutputData(
                 type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.export_price)
             )
         if self.import_price is not None:
-            outputs[OUTPUT_NAME_PRICE_IMPORT] = OutputData(
+            outputs[GRID_PRICE_IMPORT] = OutputData(
                 type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.import_price)
+            )
+
+        # Shadow prices
+        if shadow_prices := self._get_shadow_prices(GRID_POWER_BALANCE):
+            outputs[GRID_POWER_BALANCE] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
+            )
+
+        if shadow_prices := self._get_shadow_prices(GRID_MAX_IMPORT_POWER):
+            outputs[GRID_MAX_IMPORT_POWER] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
+            )
+
+        if shadow_prices := self._get_shadow_prices(GRID_MAX_EXPORT_POWER):
+            outputs[GRID_MAX_EXPORT_POWER] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
             )
 
         return outputs

@@ -1,15 +1,31 @@
 """Load entity for electrical system modeling."""
 
 from collections.abc import Mapping, Sequence
+from typing import Final, Literal
 
 from pulp import LpAffineExpression
 
-from .const import CONSTRAINT_NAME_POWER_BALANCE, OUTPUT_NAME_POWER_CONSUMED, OUTPUT_TYPE_POWER, OutputData, OutputName
+from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE, OutputData
 from .element import Element
 from .util import broadcast_to_sequence, extract_values
 
+LOAD_POWER_CONSUMED: Final = "load_power_consumed"
 
-class Load(Element):
+LOAD_POWER_BALANCE: Final = "load_power_balance"
+
+type LoadConstraintName = Literal["load_power_balance"]
+
+type LoadOutputName = Literal["load_power_consumed"] | LoadConstraintName
+
+LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
+    (
+        LOAD_POWER_CONSUMED,
+        LOAD_POWER_BALANCE,
+    )
+)
+
+
+class Load(Element[LoadOutputName, LoadConstraintName]):
     """Load entity for electrical system modeling."""
 
     def __init__(self, name: str, period: float, n_periods: int, forecast: Sequence[float] | float) -> None:
@@ -40,15 +56,23 @@ class Load(Element):
 
         This includes power balance constraints using connection_power().
         """
-        self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
+        self._constraints[LOAD_POWER_BALANCE] = [
             self.connection_power(t) - self.power_consumption[t] == 0 for t in range(self.n_periods)
         ]
 
-    def outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[LoadOutputName, OutputData]:
         """Return load output specifications."""
 
-        return {
-            OUTPUT_NAME_POWER_CONSUMED: OutputData(
+        outputs: dict[LoadOutputName, OutputData] = {
+            LOAD_POWER_CONSUMED: OutputData(
                 type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_consumption)
             ),
         }
+
+        # Shadow prices
+        if shadow_prices := self._get_shadow_prices(LOAD_POWER_BALANCE):
+            outputs[LOAD_POWER_BALANCE] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
+            )
+
+        return outputs

@@ -21,6 +21,7 @@ VALID_CASES: list[ElementTestCase] = [
         "expected_outputs": {
             "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
             "power_produced": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
+            "photovoltaics_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -43,6 +44,8 @@ VALID_CASES: list[ElementTestCase] = [
             "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
             "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
             "price_production": {"type": "price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "photovoltaics_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)},
+            "photovoltaics_forecast_limit": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -65,6 +68,8 @@ VALID_CASES: list[ElementTestCase] = [
             "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
             "power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
             "price_production": {"type": "price", "unit": "$/kWh", "values": (0.5, 0.5, 0.5)},
+            "photovoltaics_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.1, 0.1, 0.1)},
+            "photovoltaics_forecast_limit": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -87,6 +92,8 @@ VALID_CASES: list[ElementTestCase] = [
             "power_available": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
             "power_produced": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
             "price_production": {"type": "price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "photovoltaics_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.2, 0.2, 0.2)},
+            "photovoltaics_forecast_limit": {"type": "shadow_price", "unit": "$/kW", "values": (-0.2, -0.2, -0.2)},
         },
     },
 ]

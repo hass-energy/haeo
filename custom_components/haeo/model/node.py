@@ -1,10 +1,21 @@
 """Node for electrical system modeling."""
 
-from .const import CONSTRAINT_NAME_POWER_BALANCE
+from collections.abc import Mapping
+from typing import Final, Literal
+
+from .const import OUTPUT_TYPE_SHADOW_PRICE, OutputData
 from .element import Element
 
+NODE_POWER_BALANCE: Final = "node_power_balance"
 
-class Node(Element):
+type NodeConstraintName = Literal["node_power_balance"]
+
+type NodeOutputName = NodeConstraintName
+
+NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
+
+
+class Node(Element[NodeOutputName, NodeConstraintName]):
     """Node for electrical system modeling."""
 
     def __init__(self, name: str, period: float, n_periods: int) -> None:
@@ -24,6 +35,16 @@ class Node(Element):
         This includes power balance constraints using connection_power().
         Nodes are pure junctions with no generation or consumption.
         """
-        self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
-            self.connection_power(t) == 0 for t in range(self.n_periods)
-        ]
+        self._constraints[NODE_POWER_BALANCE] = [self.connection_power(t) == 0 for t in range(self.n_periods)]
+
+    def outputs(self) -> Mapping[NodeOutputName, OutputData]:
+        """Return node output specifications."""
+        outputs: dict[NodeOutputName, OutputData] = {}
+
+        # Shadow prices
+        if shadow_prices := self._get_shadow_prices(NODE_POWER_BALANCE):
+            outputs[NODE_POWER_BALANCE] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
+            )
+
+        return outputs
