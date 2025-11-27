@@ -29,14 +29,14 @@ For example, `0.25` means you pay \$0.25 per kWh imported.
 
 **Single sensor example**:
 
-| Field            | Value                            |
-| ---------------- | -------------------------------- |
-| **Import Price** | sensor.electricity_import_price  |
+| Field            | Value                           |
+| ---------------- | ------------------------------- |
+| **Import Price** | sensor.electricity_import_price |
 
 **Multiple sensors example** (today and tomorrow forecasts):
 
-| Field            | Value                                                        |
-| ---------------- | ------------------------------------------------------------ |
+| Field            | Value                                                             |
+| ---------------- | ----------------------------------------------------------------- |
 | **Import Price** | sensor.electricity_price_today, sensor.electricity_price_tomorrow |
 
 Provide all relevant price sensors (today, tomorrow, etc.) to ensure complete horizon coverage.

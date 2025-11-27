@@ -24,9 +24,9 @@ The Load element is flexible and works with both constant and time-varying patte
 
 **Single forecast example**:
 
-| Field        | Value                       |
-| ------------ | --------------------------- |
-| **Forecast** | sensor.house_load_forecast  |
+| Field        | Value                      |
+| ------------ | -------------------------- |
+| **Forecast** | sensor.house_load_forecast |
 
 **Multiple load components example**:
 
