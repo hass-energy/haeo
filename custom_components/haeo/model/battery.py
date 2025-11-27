@@ -402,7 +402,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         for section in self._sections:
             for constraint_name, constraint in section.constraints.items():
                 # Cast to BatteryConstraintName since f-strings create str type
-                key: BatteryConstraintName = f"{section.name}_{constraint_name}"  # type: ignore[assignment]
+                key: BatteryConstraintName = f"battery_{section.name}_{constraint_name}"  # type: ignore[assignment]
                 self._constraints[key] = constraint
 
         # Pre-calculate power and energy expressions to avoid recomputing them
@@ -576,61 +576,12 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
                     direction="+",
                 )
 
-        # Shadow prices
-        if shadow_prices := self._get_shadow_prices(BATTERY_POWER_BALANCE):
-            outputs[BATTERY_POWER_BALANCE] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
+        for constraint_name in self._constraints:
+            outputs[constraint_name] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kW",
+                values=tuple(self._get_shadow_prices(constraint_name)),
             )
-
-        if shadow_prices := self._get_shadow_prices(BATTERY_MAX_CHARGE_POWER):
-            outputs[BATTERY_MAX_CHARGE_POWER] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
-            )
-
-        if shadow_prices := self._get_shadow_prices(BATTERY_MAX_DISCHARGE_POWER):
-            outputs[BATTERY_MAX_DISCHARGE_POWER] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
-            )
-
-        # Energy balance shadow price from normal section's monotonic_charge constraint
-        constraint_name: BatteryConstraintName = f"{BATTERY_SECTION_NORMAL}_monotonic_charge"  # type: ignore[assignment]
-        if shadow_prices := self._get_shadow_prices(constraint_name):
-            outputs[BATTERY_ENERGY_BALANCE] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=tuple(shadow_prices)
-            )
-
-        # SOC bounds from section capacity constraints
-        constraint_name = f"{BATTERY_SECTION_UNDERCHARGE}_{BATTERY_CAPACITY_LOWER}"  # type: ignore[assignment]
-        if shadow_prices := self._get_shadow_prices(constraint_name):
-            outputs[BATTERY_SOC_MIN] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=tuple(shadow_prices)
-            )
-
-        constraint_name = f"{BATTERY_SECTION_OVERCHARGE}_{BATTERY_CAPACITY_UPPER}"  # type: ignore[assignment]
-        if shadow_prices := self._get_shadow_prices(constraint_name):
-            outputs[BATTERY_SOC_MAX] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=tuple(shadow_prices)
-            )
-
-        # Time slice constraint shadow price
-        if shadow_prices := self._get_shadow_prices(BATTERY_TIME_SLICE):
-            outputs[BATTERY_TIME_SLICE] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
-            )
-
-        # Internal section constraints as shadow prices (for each section that exists)
-        for section in self._sections:
-            for constraint_suffix in [
-                BATTERY_MONOTONIC_CHARGE,
-                BATTERY_MONOTONIC_DISCHARGE,
-                BATTERY_CAPACITY_UPPER,
-                BATTERY_CAPACITY_LOWER,
-            ]:
-                constraint_name = f"{section.name}_{constraint_suffix}"  # type: ignore[assignment]
-                if shadow_prices := self._get_shadow_prices(constraint_name):
-                    outputs[constraint_name] = OutputData(
-                        type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=tuple(shadow_prices)
-                    )
 
         return outputs
 

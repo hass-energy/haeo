@@ -133,14 +133,11 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
             )
 
         # Shadow prices
-        if shadow_prices := self._get_shadow_prices(PHOTOVOLTAICS_POWER_BALANCE):
-            outputs[PHOTOVOLTAICS_POWER_BALANCE] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
-            )
-
-        if self.curtailment and (shadow_prices := self._get_shadow_prices(PHOTOVOLTAICS_FORECAST_LIMIT)):
-            outputs[PHOTOVOLTAICS_FORECAST_LIMIT] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
+        for constraint_name in self._constraints:
+            outputs[constraint_name] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kW",
+                values=self._get_shadow_prices(constraint_name),
             )
 
         return outputs

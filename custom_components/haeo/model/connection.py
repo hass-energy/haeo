@@ -144,15 +144,11 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
             ),
         }
 
-        # Shadow prices for power flow limits
-        if shadow_prices := self._get_shadow_prices(CONNECTION_MAX_POWER_SOURCE_TARGET):
-            outputs[CONNECTION_MAX_POWER_SOURCE_TARGET] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
-            )
-
-        if shadow_prices := self._get_shadow_prices(CONNECTION_MAX_POWER_TARGET_SOURCE):
-            outputs[CONNECTION_MAX_POWER_TARGET_SOURCE] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
+        for constraint_name in self._constraints:
+            outputs[constraint_name] = OutputData(
+                type=OUTPUT_TYPE_POWER_FLOW,
+                unit="kW",
+                values=self._get_shadow_prices(constraint_name),
             )
 
         return outputs

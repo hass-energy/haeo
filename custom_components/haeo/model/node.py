@@ -41,10 +41,11 @@ class Node(Element[NodeOutputName, NodeConstraintName]):
         """Return node output specifications."""
         outputs: dict[NodeOutputName, OutputData] = {}
 
-        # Shadow prices
-        if shadow_prices := self._get_shadow_prices(NODE_POWER_BALANCE):
-            outputs[NODE_POWER_BALANCE] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=tuple(shadow_prices)
+        for constraint_name in self._constraints:
+            outputs[constraint_name] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kW",
+                values=self._get_shadow_prices(constraint_name),
             )
 
         return outputs
