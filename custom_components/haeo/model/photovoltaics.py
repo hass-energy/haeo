@@ -5,7 +5,7 @@ from typing import Final, Literal
 
 from pulp import LpAffineExpression, LpVariable, lpSum
 
-from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE, OutputData
+from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_POWER_LIMIT, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE, OutputData
 from .element import Element
 from .util import broadcast_to_sequence, extract_values
 
@@ -120,9 +120,11 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
 
         outputs: dict[PhotovoltaicsOutputName, OutputData] = {
             PHOTOVOLTAICS_POWER_PRODUCED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_production)
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_production), direction="+"
             ),
-            PHOTOVOLTAICS_POWER_AVAILABLE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(self.forecast)),
+            PHOTOVOLTAICS_POWER_AVAILABLE: OutputData(
+                type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=tuple(self.forecast), direction="+"
+            ),
         }
 
         if self.price_production is not None:

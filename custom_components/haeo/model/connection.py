@@ -137,10 +137,10 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         """Return output specifications for the connection."""
         outputs: dict[ConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=extract_values(self.power_source_target)
+                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=extract_values(self.power_source_target), direction="+"
             ),
             CONNECTION_POWER_TARGET_SOURCE: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=extract_values(self.power_target_source)
+                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=extract_values(self.power_target_source), direction="-"
             ),
         }
 

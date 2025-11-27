@@ -137,20 +137,20 @@ class Grid(Element[GridOutputName, GridConstraintName]):
 
         outputs: dict[GridOutputName, OutputData] = {
             GRID_POWER_EXPORTED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_export)
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_export), direction="-"
             ),
             GRID_POWER_IMPORTED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_import)
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_import), direction="+"
             ),
         }
 
         if self.export_price is not None:
             outputs[GRID_PRICE_EXPORT] = OutputData(
-                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.export_price)
+                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.export_price), direction="-"
             )
         if self.import_price is not None:
             outputs[GRID_PRICE_IMPORT] = OutputData(
-                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.import_price)
+                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.import_price), direction="+"
             )
 
         # Shadow prices

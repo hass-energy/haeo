@@ -65,7 +65,7 @@ class Load(Element[LoadOutputName, LoadConstraintName]):
 
         outputs: dict[LoadOutputName, OutputData] = {
             LOAD_POWER_CONSUMED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_consumption)
+                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_consumption), direction="-"
             ),
         }
 

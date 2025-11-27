@@ -65,7 +65,6 @@ from custom_components.haeo.model import (
     OutputData,
 )
 from custom_components.haeo.model.battery import BATTERY_POWER_CHARGE
-from custom_components.haeo.model.load import LOAD_POWER_CONSUMED
 from custom_components.haeo.model.photovoltaics import PHOTOVOLTAICS_POWER_PRODUCED
 
 
@@ -216,7 +215,7 @@ async def test_async_update_data_returns_outputs(
     """Coordinator returns optimization results merged with element outputs."""
     fake_element = MagicMock()
     fake_element.outputs.return_value = {
-        LOAD_POWER_CONSUMED: OutputData(
+        BATTERY_POWER_CHARGE: OutputData(
             type=OUTPUT_TYPE_POWER,
             unit="kW",
             values=(1.0, 2.0),

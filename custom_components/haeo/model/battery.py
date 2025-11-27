@@ -475,10 +475,10 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
 
         outputs: dict[BatteryOutputName, OutputData] = {
             BATTERY_POWER_CHARGE: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(self.power_consumption))
+                type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(self.power_consumption)), direction="-"
             ),
             BATTERY_POWER_DISCHARGE: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(self.power_production))
+                type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(self.power_production)), direction="+"
             ),
             BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(total_energy_values)),
             BATTERY_STATE_OF_CHARGE: OutputData(
@@ -496,48 +496,84 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
                     type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(section_energy_values)
                 )
                 outputs[BATTERY_UNDERCHARGE_POWER_DISCHARGE] = OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_production))
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=tuple(extract_values(section.power_production)),
+                    direction="+",
                 )
                 outputs[BATTERY_UNDERCHARGE_POWER_CHARGE] = OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_consumption))
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=tuple(extract_values(section.power_consumption)),
+                    direction="-",
                 )
                 outputs[BATTERY_UNDERCHARGE_CHARGE_PRICE] = OutputData(
-                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.charge_cost))
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=tuple(extract_values(section.charge_cost)),
+                    direction="-",
                 )
                 outputs[BATTERY_UNDERCHARGE_DISCHARGE_PRICE] = OutputData(
-                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.discharge_cost))
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=tuple(extract_values(section.discharge_cost)),
+                    direction="+",
                 )
             elif section.name == BATTERY_SECTION_NORMAL:
                 outputs[BATTERY_NORMAL_ENERGY_STORED] = OutputData(
                     type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(section_energy_values)
                 )
                 outputs[BATTERY_NORMAL_POWER_DISCHARGE] = OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_production))
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=tuple(extract_values(section.power_production)),
+                    direction="+",
                 )
                 outputs[BATTERY_NORMAL_POWER_CHARGE] = OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_consumption))
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=tuple(extract_values(section.power_consumption)),
+                    direction="-",
                 )
                 outputs[BATTERY_NORMAL_CHARGE_PRICE] = OutputData(
-                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.charge_cost))
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=tuple(extract_values(section.charge_cost)),
+                    direction="-",
                 )
                 outputs[BATTERY_NORMAL_DISCHARGE_PRICE] = OutputData(
-                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.discharge_cost))
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=tuple(extract_values(section.discharge_cost)),
+                    direction="+",
                 )
             elif section.name == BATTERY_SECTION_OVERCHARGE:
                 outputs[BATTERY_OVERCHARGE_ENERGY_STORED] = OutputData(
                     type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(section_energy_values)
                 )
                 outputs[BATTERY_OVERCHARGE_POWER_DISCHARGE] = OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_production))
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=tuple(extract_values(section.power_production)),
+                    direction="+",
                 )
                 outputs[BATTERY_OVERCHARGE_POWER_CHARGE] = OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_consumption))
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=tuple(extract_values(section.power_consumption)),
+                    direction="-",
                 )
                 outputs[BATTERY_OVERCHARGE_CHARGE_PRICE] = OutputData(
-                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.charge_cost))
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=tuple(extract_values(section.charge_cost)),
+                    direction="-",
                 )
                 outputs[BATTERY_OVERCHARGE_DISCHARGE_PRICE] = OutputData(
-                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.discharge_cost))
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=tuple(extract_values(section.discharge_cost)),
+                    direction="+",
                 )
 
         # Shadow prices
@@ -592,7 +628,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
             ]:
                 constraint_name = f"{section.name}_{constraint_suffix}"  # type: ignore[assignment]
                 if shadow_prices := self._get_shadow_prices(constraint_name):
-                    outputs[constraint_name] = OutputData(  # type: ignore[literal-required]
+                    outputs[constraint_name] = OutputData(
                         type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=tuple(shadow_prices)
                     )
 

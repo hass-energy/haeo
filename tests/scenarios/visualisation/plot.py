@@ -8,36 +8,15 @@ from pathlib import Path
 from typing import Any, Final, Literal, Required, TypedDict, cast
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.translation import async_get_translations
 import matplotlib as mpl
 from matplotlib import dates
 from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 import numpy as np
 
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements import ElementType
-from custom_components.haeo.model import (
-    OUTPUT_NAME_BATTERY_STATE_OF_CHARGE,
-    OUTPUT_NAME_POWER_AVAILABLE,
-    OUTPUT_NAME_POWER_CONSUMED,
-    OUTPUT_NAME_POWER_EXPORTED,
-    OUTPUT_NAME_POWER_IMPORTED,
-    OUTPUT_NAME_POWER_PRODUCED,
-    OUTPUT_NAME_PRICE_CONSUMPTION,
-    OUTPUT_NAME_PRICE_EXPORT,
-    OUTPUT_NAME_PRICE_IMPORT,
-    OUTPUT_NAME_PRICE_PRODUCTION,
-    OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE,
-    OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT,
-    OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_SOC_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_SOC_MIN,
-)
 
 from .colors import ColorMapper
 
@@ -77,67 +56,22 @@ ForecastKey = Literal[
 STACKED_FORECAST_TYPES: Final = ("production", "consumption", "available")
 ACTIVITY_EPSILON: Final = 1e-6
 
-OUTPUTS_POWER_PRODUCTION: Final = (OUTPUT_NAME_POWER_PRODUCED, OUTPUT_NAME_POWER_IMPORTED)
-OUTPUTS_POWER_CONSUMPTION: Final = (OUTPUT_NAME_POWER_CONSUMED, OUTPUT_NAME_POWER_EXPORTED)
-OUTPUTS_POWER_AVAILABLE: Final = (OUTPUT_NAME_POWER_AVAILABLE,)
-OUTPUTS_BATTERY_STATE_OF_CHARGE: Final = (OUTPUT_NAME_BATTERY_STATE_OF_CHARGE,)
-OUTPUTS_PRICE_CONSUMPTION: Final = (OUTPUT_NAME_PRICE_CONSUMPTION, OUTPUT_NAME_PRICE_EXPORT)
-OUTPUTS_PRICE_PRODUCTION: Final = (OUTPUT_NAME_PRICE_PRODUCTION, OUTPUT_NAME_PRICE_IMPORT)
-OUTPUTS_SHADOW_PRICE: Final = (
-    OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE,
-    OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT,
-    OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_SOC_MAX,
-    OUTPUT_NAME_SHADOW_PRICE_SOC_MIN,
-)
 
-SHADOW_PRICE_LABELS: Final[dict[str, str]] = {
-    OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE: "energy balance",
-    OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT: "forecast limit",
-    OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE: "node balance",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX: "consumption limit",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX: "export limit",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX: "flow max limit",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN: "flow min limit",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX: "import limit",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX: "production limit",
-    OUTPUT_NAME_SHADOW_PRICE_SOC_MAX: "SOC max",
-    OUTPUT_NAME_SHADOW_PRICE_SOC_MIN: "SOC min",
-}
-
-SHADOW_PRICE_LINESTYLES: Final[dict[str, str]] = {
-    OUTPUT_NAME_SHADOW_PRICE_ENERGY_BALANCE: "-",
-    OUTPUT_NAME_SHADOW_PRICE_FORECAST_LIMIT: "--",
-    OUTPUT_NAME_SHADOW_PRICE_NODE_BALANCE: "-.",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_CONSUMPTION_MAX: "-.",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_EXPORT_MAX: "--",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MAX: "-",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_FLOW_MIN: "--",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_IMPORT_MAX: "-",
-    OUTPUT_NAME_SHADOW_PRICE_POWER_PRODUCTION_MAX: ":",
-    OUTPUT_NAME_SHADOW_PRICE_SOC_MAX: ":",
-    OUTPUT_NAME_SHADOW_PRICE_SOC_MIN: "--",
-}
-
-
-def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, ForecastData]:
-    """Extract forecast data from HAEO sensors for visualization."""
+async def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, ForecastData]:
+    """Extract forecast data from HAEO sensors for visualization using type+direction filtering."""
 
     # Get all the HAEO sensors with forecasts
     haeo_sensors = [
         s
         for s in hass.states.async_all("sensor")
-        if {"forecast", "element_name", "element_type"} <= s.attributes.keys()
+        if {"forecast", "element_name", "element_type", "output_type"} <= s.attributes.keys()
     ]
 
     # Create color mapper to assign consistent colors to elements
     color_mapper = ColorMapper()
+
+    # Fetch translations for sensor names
+    translations = await async_get_translations(hass, hass.config.language, "entity", {DOMAIN})
 
     # Extract forecasts and names
     forecast_data: dict[str, ForecastData] = {}

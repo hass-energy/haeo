@@ -12,6 +12,7 @@ OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "optimization_duration"
 # Output types
 OUTPUT_TYPE_POWER: Final = "power"
 OUTPUT_TYPE_POWER_FLOW: Final = "power_flow"
+OUTPUT_TYPE_POWER_LIMIT: Final = "power_limit"
 OUTPUT_TYPE_ENERGY: Final = "energy"
 OUTPUT_TYPE_PRICE: Final = "price"
 OUTPUT_TYPE_SOC: Final = "soc"
@@ -23,6 +24,7 @@ OUTPUT_TYPE_SHADOW_PRICE: Final = "shadow_price"
 type OutputType = Literal[
     "power",
     "power_flow",
+    "power_limit",
     "energy",
     "price",
     "soc",
@@ -35,8 +37,20 @@ type OutputType = Literal[
 
 @dataclass(frozen=True, slots=True)
 class OutputData:
-    """Specification for an output exposed by a model element."""
+    """Specification for an output exposed by a model element.
+
+    Attributes:
+        type: The output type (power, energy, SOC, etc.).
+        unit: The unit of measurement for the output values (e.g., "W", "Wh", "%").
+        values: The sequence of output values.
+        direction: Power flow direction relative to the element.
+            "+" = power flowing into element (charge, import, consumption) or toward target (connections).
+            "-" = power flowing out of element (discharge, export, production) or toward source (connections).
+            None = non-directional output (SOC, prices, energy, shadow prices).
+
+    """
 
     type: OutputType
     unit: str | None
     values: Sequence[Any]
+    direction: Literal["+", "-"] | None = None

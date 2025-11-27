@@ -82,16 +82,16 @@ def test_constraints_with_single_constraint() -> None:
     # Create a simple element
     element = Node(name="test_node", period=1.0, n_periods=3)
 
-    # Manually add a single constraint (not a list)
+    # Manually add a single constraint (not a list) for testing
     single_constraint = LpConstraint(name="test_constraint")
-    element._constraints["single"] = single_constraint
+    element._constraints["single"] = single_constraint  # type: ignore[index]
 
     # Also add a list of constraints
     list_constraints = [
         LpConstraint(name="test_constraint_0"),
         LpConstraint(name="test_constraint_1"),
     ]
-    element._constraints["list"] = list_constraints
+    element._constraints["list"] = list_constraints  # type: ignore[index]
 
     # Get all constraints
     result = element.constraints()
