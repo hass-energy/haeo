@@ -255,35 +255,32 @@ In this example:
 
 HAEO creates these sensors for each battery to provide visibility into power flows, energy storage, and optimization constraints.
 
-| Sensor                                                                           | Unit   | Description                                  |
-| -------------------------------------------------------------------------------- | ------ | -------------------------------------------- |
-| [`sensor.{name}_power_charge`](#power-charge)                                    | kW     | Charging power                               |
-| [`sensor.{name}_power_discharge`](#power-discharge)                              | kW     | Discharging power                            |
-| [`sensor.{name}_energy_stored`](#energy-stored)                                  | kWh    | Current energy level                         |
-| [`sensor.{name}_state_of_charge`](#state-of-charge)                              | %      | State of charge percentage                   |
-| [`sensor.{name}_charge_price`](#charge-price)                                    | \$/kWh | Current charging price                       |
-| [`sensor.{name}_discharge_price`](#discharge-price)                              | \$/kWh | Current discharging price                    |
-| [`sensor.{name}_undercharge_energy_stored`](#energy-stored-by-region) (\*)       | kWh    | Energy in undercharge region                 |
-| [`sensor.{name}_undercharge_power_charge`](#power-chargedischarge-by-region) (\*)       | kW     | Charging power in undercharge region         |
-| [`sensor.{name}_undercharge_power_discharge`](#power-chargedischarge-by-region) (\*)    | kW     | Discharging power in undercharge region      |
-| [`sensor.{name}_undercharge_charge_price`](#chargedischarge-price-by-region) (\*)       | \$/kWh | Charging price in undercharge region         |
-| [`sensor.{name}_undercharge_discharge_price`](#chargedischarge-price-by-region) (\*)    | \$/kWh | Discharging price in undercharge region      |
-| [`sensor.{name}_normal_energy_stored`](#energy-stored-by-region) (\*)           | kWh    | Energy in normal region                      |
-| [`sensor.{name}_normal_power_charge`](#power-chargedischarge-by-region) (\*)            | kW     | Charging power in normal region              |
-| [`sensor.{name}_normal_power_discharge`](#power-chargedischarge-by-region) (\*)         | kW     | Discharging power in normal region           |
-| [`sensor.{name}_normal_charge_price`](#chargedischarge-price-by-region) (\*)            | \$/kWh | Charging price in normal region              |
-| [`sensor.{name}_normal_discharge_price`](#chargedischarge-price-by-region) (\*)         | \$/kWh | Discharging price in normal region           |
-| [`sensor.{name}_overcharge_energy_stored`](#energy-stored-by-region) (\*)       | kWh    | Energy in overcharge region                  |
-| [`sensor.{name}_overcharge_power_charge`](#power-chargedischarge-by-region) (\*)        | kW     | Charging power in overcharge region          |
-| [`sensor.{name}_overcharge_power_discharge`](#power-chargedischarge-by-region) (\*)     | kW     | Discharging power in overcharge region       |
-| [`sensor.{name}_overcharge_charge_price`](#chargedischarge-price-by-region) (\*)        | \$/kWh | Charging price in overcharge region          |
-| [`sensor.{name}_overcharge_discharge_price`](#chargedischarge-price-by-region) (\*)     | \$/kWh | Discharging price in overcharge region       |
-| [`sensor.{name}_battery_power_balance`](#battery-power-balance)                  | \$/kW  | Marginal value of power at battery terminals |
-| [`sensor.{name}_battery_energy_balance`](#battery-energy-balance)                | \$/kWh | Value of stored energy across time           |
-| [`sensor.{name}_battery_max_charge_power`](#battery-max-charge-power)            | \$/kW  | Value of additional charging capacity        |
-| [`sensor.{name}_battery_max_discharge_power`](#battery-max-discharge-power)      | \$/kW  | Value of additional discharging capacity     |
-| [`sensor.{name}_battery_soc_min`](#battery-soc-min)                              | \$/kWh | Cost of min SOC constraint                   |
-| [`sensor.{name}_battery_soc_max`](#battery-soc-max)                              | \$/kWh | Cost of max SOC constraint                   |
+| Sensor                                                                               | Unit   | Description                                  |
+| ------------------------------------------------------------------------------------ | ------ | -------------------------------------------- |
+| [`sensor.{name}_power_charge`](#power-charge)                                        | kW     | Charging power                               |
+| [`sensor.{name}_power_discharge`](#power-discharge)                                  | kW     | Discharging power                            |
+| [`sensor.{name}_energy_stored`](#energy-stored)                                      | kWh    | Current energy level                         |
+| [`sensor.{name}_state_of_charge`](#state-of-charge)                                  | %      | State of charge percentage                   |
+| [`sensor.{name}_charge_price`](#charge-price)                                        | \$/kWh | Current charging price                       |
+| [`sensor.{name}_discharge_price`](#discharge-price)                                  | \$/kWh | Current discharging price                    |
+| [`sensor.{name}_undercharge_energy_stored`](#energy-stored-by-region) (\*)           | kWh    | Energy in undercharge region                 |
+| [`sensor.{name}_undercharge_power_charge`](#power-chargedischarge-by-region) (\*)    | kW     | Charging power in undercharge region         |
+| [`sensor.{name}_undercharge_power_discharge`](#power-chargedischarge-by-region) (\*) | kW     | Discharging power in undercharge region      |
+| [`sensor.{name}_undercharge_charge_price`](#chargedischarge-price-by-region) (\*)    | \$/kWh | Charging price in undercharge region         |
+| [`sensor.{name}_undercharge_discharge_price`](#chargedischarge-price-by-region) (\*) | \$/kWh | Discharging price in undercharge region      |
+| [`sensor.{name}_normal_energy_stored`](#energy-stored-by-region) (\*)                | kWh    | Energy in normal region                      |
+| [`sensor.{name}_normal_power_charge`](#power-chargedischarge-by-region) (\*)         | kW     | Charging power in normal region              |
+| [`sensor.{name}_normal_power_discharge`](#power-chargedischarge-by-region) (\*)      | kW     | Discharging power in normal region           |
+| [`sensor.{name}_normal_charge_price`](#chargedischarge-price-by-region) (\*)         | \$/kWh | Charging price in normal region              |
+| [`sensor.{name}_normal_discharge_price`](#chargedischarge-price-by-region) (\*)      | \$/kWh | Discharging price in normal region           |
+| [`sensor.{name}_overcharge_energy_stored`](#energy-stored-by-region) (\*)            | kWh    | Energy in overcharge region                  |
+| [`sensor.{name}_overcharge_power_charge`](#power-chargedischarge-by-region) (\*)     | kW     | Charging power in overcharge region          |
+| [`sensor.{name}_overcharge_power_discharge`](#power-chargedischarge-by-region) (\*)  | kW     | Discharging power in overcharge region       |
+| [`sensor.{name}_overcharge_charge_price`](#chargedischarge-price-by-region) (\*)     | \$/kWh | Charging price in overcharge region          |
+| [`sensor.{name}_overcharge_discharge_price`](#chargedischarge-price-by-region) (\*)  | \$/kWh | Discharging price in overcharge region       |
+| [`sensor.{name}_battery_power_balance`](#battery-power-balance)                      | \$/kW  | Marginal value of power at battery terminals |
+| [`sensor.{name}_battery_max_charge_power`](#battery-max-charge-power)                | \$/kW  | Value of additional charging capacity        |
+| [`sensor.{name}_battery_max_discharge_power`](#battery-max-discharge-power)          | \$/kW  | Value of additional discharging capacity     |
 
 (\*) Only created when SOC sections are configured (undercharge/overcharge percentages and costs)
 
@@ -315,15 +312,6 @@ This represents the absolute energy level in kWh.
 Multiply by 100 and divide by capacity to get state of charge percentage.
 
 **Example**: A value of 12.5 kWh in a 15 kWh battery means 83.3% state of charge.
-
-### State of Charge
-
-The battery's state of charge as a percentage (0-100%).
-
-This is calculated from the energy stored divided by the total capacity.
-It represents the same information as `energy_stored` but in percentage terms for easier interpretation.
-
-**Example**: A value of 45% means the battery is at 45% of its total capacity.
 
 ### Charge Price
 
@@ -367,22 +355,6 @@ Shows effective costs/revenue for each region.
 Undercharge discharge price includes the undercharge penalty (may be negative, meaning discharge costs money).
 Overcharge charge price includes the overcharge penalty.
 Normal region prices reflect base costs only.
-
-### Battery Power Balance
-
-The marginal value of power at the battery terminals at each time period.
-See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
-
-This shadow price represents the local energy price at the battery connection point.
-It reflects how much the total system cost would change if you could inject or extract 1 kW of power at the battery at this time.
-
-**Interpretation**:
-
-- **Positive value**: Represents the cost of drawing power from the system at the battery terminals
-- **Negative value**: Represents the value of injecting power into the system at the battery terminals
-- **Magnitude**: Shows how valuable power is at this location and time in the network
-
-**Example**: A value of 0.20 means power at the battery terminals is worth \$0.20 per kW at this time period.
 
 ### Battery Energy Balance
 
@@ -433,40 +405,6 @@ This shadow price shows how much the total system cost would decrease if the max
     - Suggests that more discharge capacity would be valuable at this time
 
 **Example**: A value of 0.18 means that if the battery could discharge 1 kW faster, the total system cost would decrease by \$0.18 at this time period.
-
-### Battery SOC Min
-
-The marginal cost of the minimum SOC constraint.
-See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
-
-This shadow price shows how much the total system cost would decrease if the minimum SOC limit were lowered by 1 kWh (allowing deeper discharge) at this time period.
-
-**Interpretation**:
-
-- **Zero value**: Battery is above minimum SOC (constraint is not limiting)
-- **Positive value**: Battery wants to discharge below minimum SOC but cannot
-    - The value shows how much system cost would decrease if deeper discharge were allowed
-    - Higher values indicate the minimum SOC constraint is preventing valuable discharge
-    - Suggests that lowering the minimum SOC limit would be beneficial at this time
-
-**Example**: A value of 0.25 means that if the battery could discharge 1 kWh deeper (below the current minimum), the total system cost would decrease by \$0.25 at this time period.
-
-### Battery SOC Max
-
-The marginal cost of the maximum SOC constraint.
-See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
-
-This shadow price shows how much the total system cost would decrease if the maximum SOC limit were raised by 1 kWh (allowing more charge) at this time period.
-
-**Interpretation**:
-
-- **Zero value**: Battery is below maximum SOC (constraint is not limiting)
-- **Positive value**: Battery wants to charge above maximum SOC but cannot
-    - The value shows how much system cost would decrease if higher charge were allowed
-    - Higher values indicate the maximum SOC constraint is preventing valuable charging
-    - Suggests that raising the maximum SOC limit would be beneficial at this time
-
-**Example**: A value of 0.10 means that if the battery could store 1 kWh more (above the current maximum), the total system cost would decrease by \$0.10 at this time period.
 
 ---
 
