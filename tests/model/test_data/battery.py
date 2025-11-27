@@ -59,14 +59,14 @@ VALID_CASES: list[ElementTestCase] = [
             },
             "battery_max_discharge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_monotonic_charge": {
+            "battery_normal_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.0042105263157894745),
             },
-            "battery_normal_monotonic_discharge": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_capacity_upper": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_normal_energy_out_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_normal_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_normal_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -123,14 +123,14 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_max_charge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_max_discharge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_monotonic_charge": {
+            "battery_normal_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.00010526315789473719, 0.0021578947368421056, 0.0042105263157894745),
             },
-            "battery_normal_monotonic_discharge": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_capacity_upper": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_normal_energy_out_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_normal_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_normal_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -166,14 +166,14 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_max_charge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_max_discharge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_monotonic_charge": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.002, 0.0)},
-            "battery_normal_monotonic_discharge": {
+            "battery_normal_energy_in_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.002, 0.0)},
+            "battery_normal_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.004),
             },
-            "battery_normal_capacity_upper": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_normal_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_normal_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -221,26 +221,26 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_max_charge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_max_discharge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_monotonic_charge": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.001, 0.002)},
-            "battery_normal_monotonic_discharge": {
+            "battery_normal_energy_in_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.001, 0.002)},
+            "battery_normal_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.001, 0.002),
             },
-            "battery_normal_capacity_upper": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, -0.102)},
-            "battery_normal_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_overcharge_monotonic_charge": {
+            "battery_normal_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, -0.102)},
+            "battery_normal_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_overcharge_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0005, 0.001),
             },
-            "battery_overcharge_monotonic_discharge": {
+            "battery_overcharge_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0015, 0.003),
             },
-            "battery_overcharge_capacity_upper": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_overcharge_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_overcharge_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_overcharge_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -281,30 +281,30 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
             "battery_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)},
             "battery_max_charge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_monotonic_charge": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.001)},
-            "battery_normal_monotonic_discharge": {
+            "battery_normal_energy_in_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.001)},
+            "battery_normal_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.002, 0.003),
             },
-            "battery_normal_capacity_upper": {"type": "shadow_price", "unit": "$/kWh", "values": (-0.001, 0.0, -0.101)},
-            "battery_normal_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_overcharge_monotonic_charge": {
+            "battery_normal_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (-0.001, 0.0, -0.101)},
+            "battery_normal_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_overcharge_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0005, 0.001),
             },
-            "battery_overcharge_monotonic_discharge": {
+            "battery_overcharge_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0015, 0.003),
             },
-            "battery_overcharge_capacity_upper": {
+            "battery_overcharge_soc_max": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, -0.091),
             },
-            "battery_overcharge_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_overcharge_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -352,38 +352,38 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_max_charge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_max_discharge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_monotonic_charge": {
+            "battery_normal_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.001, 0.002),
             },
-            "battery_normal_monotonic_discharge": {
+            "battery_normal_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.001, 0.002),
             },
-            "battery_normal_capacity_upper": {
+            "battery_normal_soc_max": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.0),
             },
-            "battery_normal_capacity_lower": {
+            "battery_normal_soc_min": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.098),
             },
-            "battery_undercharge_monotonic_charge": {
+            "battery_undercharge_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.097, 0.0985, 0.1),
             },
-            "battery_undercharge_monotonic_discharge": {
+            "battery_undercharge_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0005, 0.001),
             },
-            "battery_undercharge_capacity_upper": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_undercharge_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_undercharge_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_undercharge_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -427,42 +427,42 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_max_charge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_max_discharge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_monotonic_charge": {
+            "battery_normal_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.001, 0.002),
             },
-            "battery_normal_monotonic_discharge": {
+            "battery_normal_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.001, 0.002),
             },
-            "battery_normal_capacity_upper": {
+            "battery_normal_soc_max": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.0),
             },
-            "battery_normal_capacity_lower": {
+            "battery_normal_soc_min": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.098),
             },
-            "battery_undercharge_monotonic_charge": {
+            "battery_undercharge_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.008, 0.0095, 0.011),
             },
-            "battery_undercharge_monotonic_discharge": {
+            "battery_undercharge_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0005, 0.001),
             },
-            "battery_undercharge_capacity_upper": {
+            "battery_undercharge_soc_max": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.0),
             },
-            "battery_undercharge_capacity_lower": {
+            "battery_undercharge_soc_min": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.089),
@@ -518,62 +518,62 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_max_charge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_max_discharge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_monotonic_charge": {
+            "battery_normal_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.001, 0.002),
             },
-            "battery_normal_monotonic_discharge": {
+            "battery_normal_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.001, 0.002),
             },
-            "battery_normal_capacity_upper": {
+            "battery_normal_soc_max": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, -0.002),
             },
-            "battery_normal_capacity_lower": {
+            "battery_normal_soc_min": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.0),
             },
-            "battery_overcharge_monotonic_charge": {
+            "battery_overcharge_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0005, 0.001),
             },
-            "battery_overcharge_monotonic_discharge": {
+            "battery_overcharge_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0015, 0.003),
             },
-            "battery_overcharge_capacity_upper": {
+            "battery_overcharge_soc_max": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.0),
             },
-            "battery_overcharge_capacity_lower": {
+            "battery_overcharge_soc_min": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.0),
             },
-            "battery_undercharge_monotonic_charge": {
+            "battery_undercharge_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0015, 0.003),
             },
-            "battery_undercharge_monotonic_discharge": {
+            "battery_undercharge_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0005, 0.001),
             },
-            "battery_undercharge_capacity_upper": {
+            "battery_undercharge_soc_max": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, -0.003),
             },
-            "battery_undercharge_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_undercharge_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -617,30 +617,30 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_max_charge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_max_discharge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
             "battery_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_monotonic_charge": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.004)},
-            "battery_normal_monotonic_discharge": {
+            "battery_normal_energy_in_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.004)},
+            "battery_normal_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.002, 0.0),
             },
-            "battery_normal_capacity_upper": {
+            "battery_normal_soc_max": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (-0.0005, 0.0, -0.0505),
             },
-            "battery_normal_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_overcharge_monotonic_charge": {
+            "battery_normal_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_overcharge_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.0, 0.0035),
             },
-            "battery_overcharge_monotonic_discharge": {
+            "battery_overcharge_energy_out_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0, 0.002, 0.0005),
             },
-            "battery_overcharge_capacity_upper": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_overcharge_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_overcharge_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
+            "battery_overcharge_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -681,10 +681,10 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_max_charge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
             "battery_max_discharge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
             "battery_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
-            "battery_normal_monotonic_charge": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.008)},
-            "battery_normal_monotonic_discharge": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
-            "battery_normal_capacity_upper": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
-            "battery_normal_capacity_lower": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
+            "battery_normal_energy_in_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.008)},
+            "battery_normal_energy_out_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
+            "battery_normal_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
+            "battery_normal_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
         },
     },
 ]

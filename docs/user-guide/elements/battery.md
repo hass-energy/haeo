@@ -260,9 +260,7 @@ HAEO creates these sensors for each battery to provide visibility into power flo
 | [`sensor.{name}_power_charge`](#power-charge)                                        | kW     | Charging power                               |
 | [`sensor.{name}_power_discharge`](#power-discharge)                                  | kW     | Discharging power                            |
 | [`sensor.{name}_energy_stored`](#energy-stored)                                      | kWh    | Current energy level                         |
-| [`sensor.{name}_state_of_charge`](#state-of-charge)                                  | %      | State of charge percentage                   |
-| [`sensor.{name}_charge_price`](#charge-price)                                        | \$/kWh | Current charging price                       |
-| [`sensor.{name}_discharge_price`](#discharge-price)                                  | \$/kWh | Current discharging price                    |
+| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)                           | %      | State of charge percentage                   |
 | [`sensor.{name}_undercharge_energy_stored`](#energy-stored-by-region) (\*)           | kWh    | Energy in undercharge region                 |
 | [`sensor.{name}_undercharge_power_charge`](#power-chargedischarge-by-region) (\*)    | kW     | Charging power in undercharge region         |
 | [`sensor.{name}_undercharge_power_discharge`](#power-chargedischarge-by-region) (\*) | kW     | Discharging power in undercharge region      |
@@ -278,9 +276,10 @@ HAEO creates these sensors for each battery to provide visibility into power flo
 | [`sensor.{name}_overcharge_power_discharge`](#power-chargedischarge-by-region) (\*)  | kW     | Discharging power in overcharge region       |
 | [`sensor.{name}_overcharge_charge_price`](#chargedischarge-price-by-region) (\*)     | \$/kWh | Charging price in overcharge region          |
 | [`sensor.{name}_overcharge_discharge_price`](#chargedischarge-price-by-region) (\*)  | \$/kWh | Discharging price in overcharge region       |
-| [`sensor.{name}_battery_power_balance`](#battery-power-balance)                      | \$/kW  | Marginal value of power at battery terminals |
-| [`sensor.{name}_battery_max_charge_power`](#battery-max-charge-power)                | \$/kW  | Value of additional charging capacity        |
-| [`sensor.{name}_battery_max_discharge_power`](#battery-max-discharge-power)          | \$/kW  | Value of additional discharging capacity     |
+| [`sensor.{name}_power_balance`](#power-balance-shadow-price)                         | \$/kW  | Marginal value of power at battery terminals |
+| [`sensor.{name}_max_charge_power`](#max-charge-power-shadow-price)                   | \$/kW  | Value of additional charging capacity        |
+| [`sensor.{name}_max_discharge_power`](#max-discharge-power-shadow-price)             | \$/kW  | Value of additional discharging capacity     |
+| [`sensor.{name}_time_slice`](#time-slice-shadow-price)                               | \$/kW  | Time slice constraint shadow price           |
 
 (\*) Only created when SOC sections are configured (undercharge/overcharge percentages and costs)
 
@@ -313,23 +312,14 @@ Multiply by 100 and divide by capacity to get state of charge percentage.
 
 **Example**: A value of 12.5 kWh in a 15 kWh battery means 83.3% state of charge.
 
-### Charge Price
+### State of Charge Sensor
 
-The effective cost per kWh to charge the battery at each time period.
+The battery's state of charge as a percentage (0-100%).
 
-This includes the base energy cost plus any applicable penalties (such as overcharge cost when charging above max SOC).
-The price reflects all economic factors influencing charging decisions.
+This is calculated from the energy stored divided by total capacity.
+Provides a convenient percentage view of the battery level.
 
-**Example**: A value of 0.12 means it costs \$0.12 per kWh to charge the battery at this time, considering all factors.
-
-### Discharge Price
-
-The effective revenue per kWh from discharging the battery at each time period.
-
-This reflects the value of discharged energy minus any applicable costs (discharge cost for degradation, undercharge cost when discharging below min SOC).
-Negative values indicate it costs money to discharge (total costs exceed value of discharged energy).
-
-**Example**: A value of 0.25 means discharging 1 kWh provides \$0.25 of value at this time, after accounting for degradation costs.
+**Example**: A value of 75% means the battery has 75% of its capacity available.
 
 ### Region-Specific Sensors
 
@@ -356,23 +346,23 @@ Undercharge discharge price includes the undercharge penalty (may be negative, m
 Overcharge charge price includes the overcharge penalty.
 Normal region prices reflect base costs only.
 
-### Battery Energy Balance
+### Power Balance Shadow Price
 
-The marginal value of stored energy across the optimization horizon.
+The marginal value of power at the battery terminals.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
-This shadow price represents the value of having 1 kWh more energy stored at the end of the optimization horizon.
-It captures the forward-looking value of stored energy for future time periods beyond the current optimization window.
+This shadow price represents the economic value of 1 kW of additional power capacity at the battery.
+It reflects the cost of power flowing through the battery connection point.
 
 **Interpretation**:
 
-- **Positive value**: Having more energy stored at the end of the horizon would reduce future costs
-- **Zero value**: Energy at the end of the horizon has no marginal value (unusual, may indicate horizon extends beyond meaningful forecasts)
-- **Magnitude**: Higher values indicate stored energy is more valuable for future periods
+- **Positive value**: Power at the battery terminals has value (usually during discharge periods)
+- **Negative value**: Additional power would increase costs (usually during charging periods)
+- **Magnitude**: Higher absolute values indicate the battery connection is more valuable to the system
 
-**Example**: A value of 0.15 means having 1 kWh more stored energy at the end of the optimization horizon would save \$0.15 in future costs.
+**Example**: A value of 0.15 means 1 kW of additional power capacity at the battery would save \$0.15 per time period.
 
-### Battery Max Charge Power
+### Max Charge Power Shadow Price
 
 The marginal value of additional charging capacity.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -389,7 +379,7 @@ This shadow price shows how much the total system cost would decrease if the max
 
 **Example**: A value of 0.12 means that if the battery could charge 1 kW faster, the total system cost would decrease by \$0.12 at this time period.
 
-### Battery Max Discharge Power
+### Max Discharge Power Shadow Price
 
 The marginal value of additional discharging capacity.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -405,6 +395,21 @@ This shadow price shows how much the total system cost would decrease if the max
     - Suggests that more discharge capacity would be valuable at this time
 
 **Example**: A value of 0.18 means that if the battery could discharge 1 kW faster, the total system cost would decrease by \$0.18 at this time period.
+
+### Time Slice Shadow Price
+
+The marginal value of relaxing the time slice constraint.
+See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+This shadow price relates to the constraint that prevents simultaneous charging and discharging within a single time period.
+
+**Interpretation**:
+
+- **Zero value**: Battery is only charging or only discharging (no conflict)
+- **Non-zero value**: Indicates the constraint is preventing optimization from finding a better solution
+    - This is rare in practice as batteries naturally charge or discharge, not both
+
+**Example**: Typically zero; non-zero values may indicate unusual grid price patterns.
 
 ---
 

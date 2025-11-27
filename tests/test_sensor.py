@@ -306,6 +306,7 @@ def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry
         "output_name": LOAD_POWER_CONSUMED,
         "output_type": OUTPUT_TYPE_POWER,
         "direction": None,
+        "advanced": False,
     }
 
 
