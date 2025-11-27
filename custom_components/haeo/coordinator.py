@@ -124,6 +124,7 @@ class CoordinatorOutput:
     device_class: SensorDeviceClass | None = None
     state_class: SensorStateClass | None = None
     options: tuple[str, ...] | None = None
+    advanced: bool = False
 
 
 DEVICE_CLASS_MAP: dict[OutputType, SensorDeviceClass] = {
@@ -213,6 +214,7 @@ def _build_coordinator_output(
         device_class=DEVICE_CLASS_MAP.get(output_data.type),
         state_class=STATE_CLASS_MAP.get(output_data.type),
         options=(STATUS_OPTIONS if output_data.type == OUTPUT_TYPE_STATUS else None),
+        advanced=output_data.advanced,
     )
 
 

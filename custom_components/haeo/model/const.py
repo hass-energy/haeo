@@ -47,6 +47,7 @@ class OutputData:
             "+" = power flowing into element (charge, import, consumption) or toward target (connections).
             "-" = power flowing out of element (discharge, export, production) or toward source (connections).
             None = non-directional output (SOC, prices, energy, shadow prices).
+        advanced: Whether the output is intended for advanced diagnostics only.
 
     """
 
@@ -54,3 +55,4 @@ class OutputData:
     unit: str | None
     values: Sequence[Any]
     direction: Literal["+", "-"] | None = None
+    advanced: bool = False

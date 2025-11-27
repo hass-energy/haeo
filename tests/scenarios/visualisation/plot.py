@@ -77,46 +77,47 @@ async def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, F
     # Extract forecasts and names
     forecast_data: dict[str, ForecastData] = {}
     for sensor in haeo_sensors:
-        element_name = sensor.attributes["element_name"]
-        element_type = sensor.attributes["element_type"]
-        output_type = sensor.attributes["output_type"]
-        output_name = sensor.attributes["output_name"]
-        direction = sensor.attributes.get("direction")
+        if not sensor.attributes.get("advanced", True):
+            element_name = sensor.attributes["element_name"]
+            element_type = sensor.attributes["element_type"]
+            output_type = sensor.attributes["output_type"]
+            output_name = sensor.attributes["output_name"]
+            direction = sensor.attributes.get("direction")
 
-        # Get sensor display name from translations (output_name is the translation_key)
-        sensor_name = translations[f"component.{DOMAIN}.entity.sensor.{output_name}.name"]
+            # Get sensor display name from translations (output_name is the translation_key)
+            sensor_name = translations[f"component.{DOMAIN}.entity.sensor.{output_name}.name"]
 
-        forecast: Sequence[tuple[float, float]] = sorted(
-            (dt.timestamp(), value) for dt, value in sensor.attributes["forecast"].items()
-        )
+            forecast: Sequence[tuple[float, float]] = sorted(
+                (dt.timestamp(), value) for dt, value in sensor.attributes["forecast"].items()
+            )
 
-        entry = forecast_data.setdefault(
-            element_name,
-            {
-                "color": color_mapper.get_color(element_name, element_type),
-                "element_type": element_type,
-            },
-        )
+            entry = forecast_data.setdefault(
+                element_name,
+                {
+                    "color": color_mapper.get_color(element_name, element_type),
+                    "element_type": element_type,
+                },
+            )
 
-        # Use type+direction to categorize outputs
-        # "+" = adding power to graph (production/supply)
-        # "-" = taking power away (consumption)
-        if output_type == "power" and direction == "+":
-            entry["production"] = forecast
-        elif output_type == "power" and direction == "-":
-            entry["consumption"] = forecast
-        elif output_type == "power_limit" and direction == "+":
-            entry["available"] = forecast
-        elif output_type == "soc":
-            entry["soc"] = forecast
-        elif output_type == "price" and direction == "+":
-            entry["production_price"] = forecast
-        elif output_type == "price" and direction == "-":
-            entry["consumption_price"] = forecast
-        elif output_type == "shadow_price":
-            shadow_prices = entry.setdefault("shadow_prices", {})
-            # Use translated sensor name as the key for better display
-            shadow_prices[sensor_name] = forecast
+            # Use type+direction to categorize outputs
+            # "+" = adding power to graph (production/supply)
+            # "-" = taking power away (consumption)
+            if output_type == "power" and direction == "+":
+                entry["production"] = forecast
+            elif output_type == "power" and direction == "-":
+                entry["consumption"] = forecast
+            elif output_type == "power_limit" and direction == "+":
+                entry["available"] = forecast
+            elif output_type == "soc":
+                entry["soc"] = forecast
+            elif output_type == "price" and direction == "+":
+                entry["production_price"] = forecast
+            elif output_type == "price" and direction == "-":
+                entry["consumption_price"] = forecast
+            elif output_type == "shadow_price":
+                shadow_prices = entry.setdefault("shadow_prices", {})
+                # Use translated sensor name as the key for better display
+                shadow_prices[sensor_name] = forecast
 
     return forecast_data
 

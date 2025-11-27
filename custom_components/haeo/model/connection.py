@@ -146,9 +146,9 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
 
         for constraint_name in self._constraints:
             outputs[constraint_name] = OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW,
-                unit="kW",
-                values=self._get_shadow_prices(constraint_name),
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kW",
+                values=tuple(self._get_shadow_prices(constraint_name)),
             )
 
         return outputs
