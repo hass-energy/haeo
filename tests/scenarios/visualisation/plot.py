@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any, Final, Literal, Required, TypedDict, cast
 
+from cycler import cycler
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.translation import async_get_translations
 import matplotlib as mpl
@@ -76,35 +77,46 @@ async def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, F
     # Extract forecasts and names
     forecast_data: dict[str, ForecastData] = {}
     for sensor in haeo_sensors:
-        device_name = sensor.attributes["element_name"]
+        element_name = sensor.attributes["element_name"]
         element_type = sensor.attributes["element_type"]
+        output_type = sensor.attributes["output_type"]
         output_name = sensor.attributes["output_name"]
+        direction = sensor.attributes.get("direction")
+
+        # Get sensor display name from translations (output_name is the translation_key)
+        sensor_name = translations[f"component.{DOMAIN}.entity.sensor.{output_name}.name"]
+
         forecast: Sequence[tuple[float, float]] = sorted(
             (dt.timestamp(), value) for dt, value in sensor.attributes["forecast"].items()
         )
 
         entry = forecast_data.setdefault(
-            device_name,
+            element_name,
             {
-                "color": color_mapper.get_color(device_name, element_type),
+                "color": color_mapper.get_color(element_name, element_type),
                 "element_type": element_type,
             },
         )
-        if output_name in OUTPUTS_POWER_PRODUCTION:
+
+        # Use type+direction to categorize outputs
+        # "+" = adding power to graph (production/supply)
+        # "-" = taking power away (consumption)
+        if output_type == "power" and direction == "+":
             entry["production"] = forecast
-        elif output_name in OUTPUTS_POWER_CONSUMPTION:
+        elif output_type == "power" and direction == "-":
             entry["consumption"] = forecast
-        elif output_name in OUTPUTS_POWER_AVAILABLE:
+        elif output_type == "power_limit" and direction == "+":
             entry["available"] = forecast
-        elif output_name in OUTPUTS_BATTERY_STATE_OF_CHARGE:
+        elif output_type == "soc":
             entry["soc"] = forecast
-        elif output_name in OUTPUTS_PRICE_PRODUCTION:
+        elif output_type == "price" and direction == "+":
             entry["production_price"] = forecast
-        elif output_name in OUTPUTS_PRICE_CONSUMPTION:
+        elif output_type == "price" and direction == "-":
             entry["consumption_price"] = forecast
-        elif output_name in OUTPUTS_SHADOW_PRICE:
+        elif output_type == "shadow_price":
             shadow_prices = entry.setdefault("shadow_prices", {})
-            shadow_prices[output_name] = forecast
+            # Use translated sensor name as the key for better display
+            shadow_prices[sensor_name] = forecast
 
     return forecast_data
 
@@ -270,28 +282,28 @@ def get_from_sorted_data(
 
 def collect_shadow_price_series(
     sorted_data: Sequence[tuple[str, ForecastData]],
-) -> list[tuple[str, str, str, Sequence[tuple[float, float]]]]:
-    """Return labelled shadow price series for plotting."""
+) -> list[tuple[str, str, Sequence[tuple[float, float]]]]:
+    """Return labelled shadow price series for plotting with matplotlib cycling."""
 
-    series: list[tuple[str, str, str, Sequence[tuple[float, float]]]] = []
+    series: list[tuple[str, str, Sequence[tuple[float, float]]]] = []
 
     for element_name, data in sorted_data:
-        for output_name, values in sorted(data.get("shadow_prices", {}).items()):
+        for sensor_name, values in sorted(data.get("shadow_prices", {}).items()):
             if not values:
                 continue
 
-            label_suffix = SHADOW_PRICE_LABELS.get(output_name, output_name.replace("_", " "))
-            label = f"{element_name} {label_suffix}"
-            series.append((label, data["color"], SHADOW_PRICE_LINESTYLES.get(output_name, "-"), values))
+            # Use element name and translated sensor name for the label
+            label = f"{element_name} {sensor_name}"
+            series.append((label, data["color"], values))
 
     return series
 
 
-def create_stacked_visualization(hass: HomeAssistant, output_path: str, title: str) -> None:
+async def create_stacked_visualization(hass: HomeAssistant, output_path: str, title: str) -> None:
     """Create visualization of HAEO optimization results with stacked plots and price traces."""
 
     # Extract forecast data
-    forecast_data = extract_forecast_data_from_sensors(hass)
+    forecast_data = await extract_forecast_data_from_sensors(hass)
     activity_metrics = _compute_activity_metrics(forecast_data)
 
     def _availability_priority(item: tuple[str, ForecastData]) -> int:
@@ -396,10 +408,10 @@ def create_stacked_visualization(hass: HomeAssistant, output_path: str, title: s
     plt.close(fig)
 
 
-def create_shadow_price_visualization(hass: HomeAssistant, output_path: str, title: str) -> bool:
-    """Create a dedicated visualization for shadow price series."""
+async def create_shadow_price_visualization(hass: HomeAssistant, output_path: str, title: str) -> bool:
+    """Create a dedicated visualization for shadow price series using matplotlib cycling."""
 
-    forecast_data = extract_forecast_data_from_sensors(hass)
+    forecast_data = await extract_forecast_data_from_sensors(hass)
     sorted_data = sorted(forecast_data.items(), key=lambda item: item[0])
     series = collect_shadow_price_series(sorted_data)
 
@@ -417,15 +429,17 @@ def create_shadow_price_visualization(hass: HomeAssistant, output_path: str, tit
     ax.tick_params(axis="x", rotation=45, labelsize=9)
     ax.tick_params(axis="y", labelsize=9)
 
-    for label, color, linestyle, data in series:
+    # Set up property cycling for shadow prices (linestyle + linewidth)
+    shadow_price_cycler = cycler(linestyle=["-", "--", "-.", ":"]) * cycler(linewidth=[1.5, 2.0])
+    ax.set_prop_cycle(shadow_price_cycler)
+
+    for label, color, data in series:
         values = np.asarray(data, dtype=float)
         times_dt = np.asarray([datetime.fromtimestamp(t, tz=UTC) for t in values[:, 0]], dtype=object)
         ax.plot(
             times_dt,
             values[:, 1],
             color=color,
-            linestyle=linestyle,
-            linewidth=1.8,
             drawstyle="steps-post",
             label=label,
         )
@@ -446,7 +460,7 @@ def create_shadow_price_visualization(hass: HomeAssistant, output_path: str, tit
     return True
 
 
-def visualize_scenario_results(hass: HomeAssistant, scenario_name: str, output_dir: Path) -> None:
+async def visualize_scenario_results(hass: HomeAssistant, scenario_name: str, output_dir: Path) -> None:
     """Create comprehensive visualizations for HAEO scenario test results.
 
     Creates both detailed optimization results visualization and summary metrics
@@ -466,7 +480,7 @@ def visualize_scenario_results(hass: HomeAssistant, scenario_name: str, output_d
 
     # Create stacked area/line plots (SVG format for vector graphics)
     main_plot_path = output_dir_path / f"{scenario_name}_optimization.svg"
-    create_stacked_visualization(hass, str(main_plot_path), f"{scenario_name.title()} Optimization Results")
+    await create_stacked_visualization(hass, str(main_plot_path), f"{scenario_name.title()} Optimization Results")
 
     shadow_plot_path = output_dir_path / f"{scenario_name}_shadow_prices.svg"
-    create_shadow_price_visualization(hass, str(shadow_plot_path), f"{scenario_name.title()} Shadow Prices")
+    await create_shadow_price_visualization(hass, str(shadow_plot_path), f"{scenario_name.title()} Shadow Prices")
