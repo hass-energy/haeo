@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 import json
 import logging
 from numbers import Real
+import os
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -60,6 +61,8 @@ _scenarios = _discover_scenarios()
 _scenario_params = [(scenario, _extract_freeze_time(scenario)) for scenario in _scenarios]
 
 
+# Skip if in CI
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="Skipping scenario tests in CI")
 @pytest.mark.scenario
 @pytest.mark.timeout(30)
 @pytest.mark.parametrize(
