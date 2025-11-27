@@ -135,10 +135,10 @@ With $T$ periods, energy variables have $T+1$ values indexed as $t \in \{0, 1, \
 
 ```mermaid
 gantt
-    title A Gantt Diagram
+    title Power and Energy Variable Timing
     dateFormat X
     axisFormat %s
-    section Another
+    section Variables
         E0 :milestone, 0, 0s
         P0 :active, 1s
         E1 :milestone,

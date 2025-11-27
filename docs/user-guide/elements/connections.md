@@ -134,14 +134,72 @@ The optimizer will only schedule charging when the sensor value is non-zero.
 
 ## Sensors Created
 
-These sensors provide real-time visibility into power flow between elements.
+These sensors provide real-time visibility into power flow and capacity constraints between elements.
 
-| Sensor                                   | Unit | Description                                 |
-| ---------------------------------------- | ---- | ------------------------------------------- |
-| `sensor.{name}_power_flow_source_target` | kW   | Optimal power flowing from source to target |
-| `sensor.{name}_power_flow_target_source` | kW   | Optimal power flowing from target to source |
+| Sensor                                                                                    | Unit  | Description                          |
+| ----------------------------------------------------------------------------------------- | ----- | ------------------------------------ |
+| [`sensor.{name}_power_flow_source_target`](#power-flow-source-target)                     | kW    | Power flowing from source to target  |
+| [`sensor.{name}_power_flow_target_source`](#power-flow-target-source)                     | kW    | Power flowing from target to source  |
+| [`sensor.{name}_connection_max_power_source_target`](#connection-max-power-source-target) | \$/kW | Value of additional forward capacity |
+| [`sensor.{name}_connection_max_power_target_source`](#connection-max-power-target-source) | \$/kW | Value of additional reverse capacity |
 
-Both sensors include a `forecast` attribute containing future optimized values for upcoming periods.
+### Power Flow Source Target
+
+The optimal power flowing from the source element to the target element.
+
+Values are always positive or zero.
+A value of 0 means no power is flowing in the forward direction (may be flowing in reverse or not at all).
+The direction is determined by the connection configuration (source → target).
+
+**Example**: A value of 3.5 kW means 3.5 kW is flowing from the source element to the target element at this time period.
+
+### Power Flow Target Source
+
+The optimal power flowing from the target element to the source element.
+
+Values are always positive or zero.
+A value of 0 means no power is flowing in the reverse direction (may be flowing forward or not at all).
+This represents reverse flow through the connection (target → source).
+
+**Example**: A value of 2.0 kW means 2.0 kW is flowing from the target element back to the source element at this time period.
+
+### Connection Max Power Source Target
+
+The marginal value of additional forward capacity (source → target).
+See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+This shadow price shows how much the total system cost would decrease if the forward power limit were increased by 1 kW at this time period.
+
+**Interpretation**:
+
+- **Zero value**: Connection has spare capacity in the forward direction (not at limit)
+- **Positive value**: Connection is at maximum forward capacity and constraining power flow
+    - The value shows how much system cost would decrease per kW of additional forward capacity
+    - Higher values indicate the forward capacity limit is causing significant cost increases
+    - Helps identify bottlenecks where more forward capacity would be valuable
+
+**Example**: A value of 0.08 means that if the connection could transfer 1 kW more in the forward direction, the total system cost would decrease by \$0.08 at this time period.
+
+### Connection Max Power Target Source
+
+The marginal value of additional reverse capacity (target → source).
+See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+This shadow price shows how much the total system cost would decrease if the reverse power limit were increased by 1 kW at this time period.
+
+**Interpretation**:
+
+- **Zero value**: Connection has spare capacity in the reverse direction (not at limit)
+- **Positive value**: Connection is at maximum reverse capacity and constraining power flow
+    - The value shows how much system cost would decrease per kW of additional reverse capacity
+    - Higher values indicate the reverse capacity limit is causing significant cost increases
+    - Helps identify bottlenecks where more reverse capacity would be valuable
+
+**Example**: A value of 0.12 means that if the connection could transfer 1 kW more in the reverse direction, the total system cost would decrease by \$0.12 at this time period.
+
+---
+
+All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
 ## Troubleshooting
 
@@ -182,13 +240,5 @@ See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly)
     See how HAEO optimizes power flow through your network.
 
     [:material-arrow-right: Optimization results](../optimization.md)
-
-- :material-bug:{ .lg .middle } **Troubleshoot issues**
-
-    ---
-
-    Resolve connection errors and graph connectivity problems.
-
-    [:material-arrow-right: Troubleshooting guide](../troubleshooting.md)
 
 </div>

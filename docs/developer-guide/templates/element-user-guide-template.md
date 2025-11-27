@@ -15,32 +15,77 @@ Link to the [Forecasts and Sensors guide](../../user-guide/forecasts-and-sensors
 
 ### Field-Specific Notes
 
-Add subsections for any fields that need additional explanation.
+Add H3 subsections for fields that need additional explanation.
 Keep explanations focused on configuration, not mathematical modeling.
+
+For complex elements, you may group related fields under a descriptive H3 heading, then use H4 subheadings for individual field details.
+Link to the field name in the configuration table where appropriate.
 
 ## Configuration Example
 
-Provide a minimal working example without detailed explanations.
+Provide a minimal working example using a table format.
 Keep examples realistic and representative of typical use cases.
 
-```yaml
-haeo:
-  elements:
-    - type: element_type
-      name: example_element
-      field_one: value
-      field_two: sensor.example
-```
+| Field         | Value                |
+| ------------- | -------------------- |
+| **Name**      | Example Element      |
+| **Field One** | value                |
+| **Field Two** | sensor.example_value |
 
 ## Sensors Created
 
-List all sensors that this element creates, their units, and what they represent.
-Use a consistent table format.
+Brief overview paragraph explaining what sensors this element creates (optional).
 
-| Sensor Name               | Unit | Description               |
-| ------------------------- | ---- | ------------------------- |
-| `element_name_sensor_one` | Unit | What this sensor measures |
-| `element_name_sensor_two` | Unit | What this sensor measures |
+All sensors this element creates are listed in the table below.
+Regular operational sensors appear first, followed by shadow price sensors at the end.
+
+| Sensor                                                         | Unit  | Description                            |
+| -------------------------------------------------------------- | ----- | -------------------------------------- |
+| [`sensor.{name}_sensor_one`](#sensor-one)                      | kW    | Brief description (link to subsection) |
+| [`sensor.{name}_sensor_two`](#sensor-two)                      | kWh   | Brief description (link to subsection) |
+| [`sensor.{name}_conditional_sensor`](#conditional-sensor) (\*) | %     | Brief description (conditional sensor) |
+| [`sensor.{name}_shadow_price_one`](#shadow-price-one)          | \$/kW | Brief description (shadow price)       |
+| [`sensor.{name}_shadow_price_two`](#shadow-price-two)          | \$/kW | Brief description (shadow price)       |
+
+(\*) Only created when [specific condition is met]
+
+### Sensor One
+
+Plain-English explanation of what this sensor represents and what its values mean.
+Keep explanations focused on interpretation, not mathematical details.
+
+**Example interpretation**: "A value of 5.2 kW means..."
+
+### Sensor Two
+
+Plain-English explanation of what this sensor represents and what its values mean.
+
+### Conditional Sensor
+
+Plain-English explanation of when this sensor is created and what it represents.
+
+**Availability**: This sensor only appears when [specific condition].
+
+### Shadow Price One
+
+Brief explanation of what this specific shadow price represents.
+Reference the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+**Interpretation**:
+
+- **Zero value**: Constraint is not limiting (explain what this means for this element)
+- **Nonzero value**: Constraint is binding (explain what this means for this element)
+
+### Shadow Price Two
+
+Brief explanation of what this specific shadow price represents.
+Link to [Shadow Prices guide](../../modeling/shadow-prices.md) for general concepts.
+
+**Interpretation**: Element-specific interpretation guidance.
+
+---
+
+All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
 ## Troubleshooting
 

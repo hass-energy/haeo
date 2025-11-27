@@ -132,7 +132,7 @@ Prices can vary over time (peak/off-peak rates).
 | Efficiency < 100%              | Power losses during transmission     |
 | Price set                      | Cost added to optimization objective |
 
-## Related Documentation
+## Next Steps
 
 <div class="grid cards" markdown>
 

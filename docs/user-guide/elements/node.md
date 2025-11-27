@@ -77,9 +77,42 @@ Then connect elements to "Main Node" via connections.
     If you delete a node element, you must update all connections that reference it.
     Connections cannot have endpoints that don't exist.
 
-## No Sensors Created
+## Sensors Created
 
-Nodes are virtual - no physical measurements. Monitor connected entity sensors instead.
+Nodes are virtual balance points with one shadow price sensor.
+
+| Sensor                                                    | Unit  | Description                     |
+| --------------------------------------------------------- | ----- | ------------------------------- |
+| [`sensor.{name}_node_power_balance`](#node-power-balance) | \$/kW | Local energy price at this node |
+
+### Node Power Balance
+
+The marginal cost or value of power at this specific node in the network.
+See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+This shadow price represents the "local spot price" for energy at this connection point.
+It shows how much the total system cost would change if you could inject or extract 1 kW of power at this node.
+
+**Interpretation**:
+
+- **Positive value**: Represents the cost of power at this node
+    - Higher values indicate expensive power (e.g., importing during peak prices)
+    - Shows what you would save by reducing consumption or adding generation at this node
+- **Negative value**: Represents surplus power at this node (uncommon)
+    - Indicates more generation than consumption
+    - Shows the value that could be captured by adding loads or storage at this node
+- **Differences between nodes**: Reveal the economic value of power transfer between network locations
+    - Larger differences indicate stronger incentive for power flow between nodes
+    - Help identify valuable connection points in the network
+
+**Example**: A value of 0.22 means power at this node costs \$0.22 per kW at this time period, reflecting the marginal cost to supply this location in the network.
+
+**Note**: For physical power measurements, monitor connected entity sensors instead.
+Nodes only provide shadow prices, not physical power flow data.
+
+---
+
+All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
 ## Troubleshooting
 
@@ -141,22 +174,6 @@ See [Connections](connections.md) for detailed configuration guidance.
     Understand the power balance formulation at nodes.
 
     [:material-arrow-right: Node modeling](../../modeling/node.md)
-
-- :material-network:{ .lg .middle } **Mathematical modeling**
-
-    ---
-
-    Explore the mathematical formulation of nodes and power balance in the optimization model.
-
-    [:material-arrow-right: Modeling guide](../../modeling/index.md)
-
-- :material-flash:{ .lg .middle } **Model hybrid inverters**
-
-    ---
-
-    Use DC and AC nodes to represent hybrid inverter systems.
-
-    [:material-arrow-right: Connections guide](connections.md)
 
 - :material-chart-line:{ .lg .middle } **Understand optimization**
 

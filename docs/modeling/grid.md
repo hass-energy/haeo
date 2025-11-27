@@ -67,7 +67,7 @@ Even if both prices are zero, simultaneous flow can occur and cause poor optimiz
 
 **Flat pricing**: Limited optimization benefit - battery only useful for solar storage.
 
-## Related Documentation
+## Next Steps
 
 <div class="grid cards" markdown>
 

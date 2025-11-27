@@ -77,7 +77,7 @@ Separate buses with inverter connection between them.
 
 **Well-formed network**: All elements must connect to at least one node, directly or indirectly.
 
-## Related Documentation
+## Next Steps
 
 <div class="grid cards" markdown>
 

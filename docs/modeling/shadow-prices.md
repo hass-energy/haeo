@@ -52,3 +52,33 @@ Positive values indicate that relaxing the constraint would reduce the total cos
 - Complementary slackness: a binding constraint yields a non-zero shadow price, while a non-binding constraint yields exactly zero.
 - Sign convention: positive prices mean that loosening the constraint reduces total cost; negative prices mean tighter enforcement would help.
 - Diagnostics: all shadow price sensors expose time-indexed forecasts, matching the optimization horizon and allowing visual analysis.
+
+## Next Steps
+
+<div class="grid cards" markdown>
+
+- :material-battery-charging:{ .lg .middle } **Battery modeling**
+
+    ---
+
+    Understand how battery constraints generate shadow prices for SOC and energy balance.
+
+    [:material-arrow-right: Battery model](battery.md)
+
+- :material-network:{ .lg .middle } **Network modeling**
+
+    ---
+
+    Learn how node balance constraints produce marginal energy prices.
+
+    [:material-arrow-right: Network overview](index.md)
+
+- :material-transmission-tower:{ .lg .middle } **Grid modeling**
+
+    ---
+
+    See how import and export limits affect shadow prices.
+
+    [:material-arrow-right: Grid model](grid.md)
+
+</div>

@@ -523,7 +523,7 @@ The cost parameters create economic trade-offs rather than hard limits:
 - Higher efficiency directly reduces energy losses and operational costs
 - Creates natural economic disincentive for unnecessary cycling
 
-## Related Documentation
+## Next Steps
 
 <div class="grid cards" markdown>
 

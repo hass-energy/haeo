@@ -71,7 +71,7 @@ You can combine constant and variable loads by creating separate Load elements w
 
 **Underestimating load**: Real system may import more than optimized.
 
-## Related Documentation
+## Next Steps
 
 <div class="grid cards" markdown>
 

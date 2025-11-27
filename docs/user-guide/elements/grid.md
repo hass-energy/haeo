@@ -124,12 +124,104 @@ For more examples and sensor creation, see the [Forecasts and Sensors guide](../
 
 These sensors provide real-time visibility into grid interactions and costs.
 
-| Sensor                         | Unit   | Description                                                |
-| ------------------------------ | ------ | ---------------------------------------------------------- |
-| `sensor.{name}_power_imported` | kW     | Optimal power imported from grid (always positive or zero) |
-| `sensor.{name}_power_exported` | kW     | Optimal power exported to grid (always positive or zero)   |
-| `sensor.{name}_price_import`   | \$/kWh | Current import price                                       |
-| `sensor.{name}_price_export`   | \$/kWh | Current export price                                       |
+| Sensor                                                          | Unit   | Description                         |
+| --------------------------------------------------------------- | ------ | ----------------------------------- |
+| [`sensor.{name}_power_imported`](#power-imported)               | kW     | Power imported from grid            |
+| [`sensor.{name}_power_exported`](#power-exported)               | kW     | Power exported to grid              |
+| [`sensor.{name}_price_import`](#price-import)                   | \$/kWh | Current import price                |
+| [`sensor.{name}_price_export`](#price-export)                   | \$/kWh | Current export price                |
+| [`sensor.{name}_grid_power_balance`](#grid-power-balance)       | \$/kW  | Marginal cost of grid power         |
+| [`sensor.{name}_grid_max_import_power`](#grid-max-import-power) | \$/kW  | Value of additional import capacity |
+| [`sensor.{name}_grid_max_export_power`](#grid-max-export-power) | \$/kW  | Value of additional export capacity |
+
+### Power Imported
+
+The optimal power being imported from the grid at each time period.
+
+Values are always positive or zero.
+When importing, this represents electricity you're buying from the utility.
+A value of 0 means no import is occurring (either self-sufficient or exporting).
+
+**Example**: A value of 3.5 kW means the optimization determined that importing 3.5 kW from the grid at this time minimizes total system cost.
+
+### Power Exported
+
+The optimal power being exported to the grid at each time period.
+
+Values are always positive or zero.
+When exporting, this represents electricity you're selling back to the utility.
+A value of 0 means no export is occurring (either self-consuming all generation or importing).
+
+**Example**: A value of 2.1 kW means the optimization determined that exporting 2.1 kW to the grid at this time maximizes total system value (typically during high export prices or excess generation).
+
+### Price Import
+
+The current electricity import price from the configured import price sensor(s).
+
+This is the cost you pay per kWh to buy electricity from the grid.
+Higher prices incentivize reducing imports by using battery storage or shifting loads.
+
+**Example**: A value of 0.25 means you're currently paying \$0.25 per kWh for imported electricity.
+
+### Price Export
+
+The current electricity export price from the configured export price sensor(s).
+
+This is the revenue you receive per kWh for selling electricity to the grid.
+Higher prices incentivize increasing exports by discharging batteries or curtailing self-consumption.
+
+**Example**: A value of 0.10 means you're currently receiving \$0.10 per kWh for exported electricity.
+
+### Grid Power Balance
+
+The marginal cost or revenue of grid interaction at each time period.
+See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+This shadow price represents the marginal value of power flow at the grid connection point.
+When importing, it typically equals the import price.
+When exporting, it typically equals the negative export price (revenue).
+
+**Interpretation**:
+
+- **Positive value**: Represents cost of importing power (higher values mean importing is expensive)
+- **Negative value**: Represents revenue from exporting power (more negative means exporting is valuable)
+- **Zero value**: Grid interaction has no marginal cost/revenue (unusual, may indicate unconstrained optimization)
+
+### Grid Max Import Power
+
+The marginal value of additional import capacity.
+See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+This shadow price shows how much the total system cost would decrease if the import limit were increased by 1 kW at this time period.
+
+**Interpretation**:
+
+- **Zero value**: Import limit is not constraining (you're importing below the limit or not importing at all)
+- **Positive value**: Import limit is binding and constraining the optimization
+    - The value represents how much system cost would decrease per kW of additional import capacity
+    - Higher values indicate the import limit is causing significant cost increases
+    - Suggests that more import capacity would be valuable at this time
+
+**Example**: A value of 0.15 means that if you could import 1 kW more, the total system cost would decrease by \$0.15 at this time period.
+
+### Grid Max Export Power
+
+The marginal value of additional export capacity.
+See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+This shadow price shows how much the total system cost would decrease if the export limit were increased by 1 kW at this time period.
+
+**Interpretation**:
+
+- **Zero value**: Export limit is not constraining (you're exporting below the limit or not exporting at all)
+- **Positive value**: Export limit is binding and constraining the optimization
+    - The value represents how much system cost would decrease per kW of additional export capacity
+    - Higher values indicate the export limit is preventing valuable exports
+    - Suggests that more export capacity would be valuable at this time
+
+**Example**: A value of 0.08 means that if you could export 1 kW more, the total system cost would decrease by \$0.08 at this time period (you'd earn more revenue from exports).
+
+---
 
 All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 

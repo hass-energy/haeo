@@ -72,7 +72,7 @@ Curtailment requires inverter with active power limiting.
 
 **Forecast accuracy**: Directly affects optimization quality - inaccurate forecasts lead to sub-optimal decisions.
 
-## Related Documentation
+## Next Steps
 
 <div class="grid cards" markdown>
 
