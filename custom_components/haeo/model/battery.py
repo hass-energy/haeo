@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
 import numpy as np
-from pulp import LpAffineExpression, LpVariable
+from pulp import LpAffineExpression, LpConstraint, LpVariable
 from pulp.pulp import lpSum
 
 from .const import (
@@ -25,11 +25,8 @@ BATTERY_SECTION_OVERCHARGE: Final = "overcharge"
 
 # Battery constraint names (also used as shadow price output names)
 BATTERY_POWER_BALANCE: Final = "battery_power_balance"
-BATTERY_ENERGY_BALANCE: Final = "battery_energy_balance"
 BATTERY_MAX_CHARGE_POWER: Final = "battery_max_charge_power"
 BATTERY_MAX_DISCHARGE_POWER: Final = "battery_max_discharge_power"
-BATTERY_SOC_MIN: Final = "battery_soc_min"
-BATTERY_SOC_MAX: Final = "battery_soc_max"
 BATTERY_TIME_SLICE: Final = "battery_time_slice"
 
 # Internal section constraint name patterns (used to build shadow price outputs)
@@ -80,11 +77,8 @@ BATTERY_OVERCHARGE_CAPACITY_LOWER: Final = "battery_overcharge_capacity_lower"
 # Type for battery constraint names (includes all internal and external constraints)
 type BatteryConstraintName = Literal[
     "battery_power_balance",
-    "battery_energy_balance",
     "battery_max_charge_power",
     "battery_max_discharge_power",
-    "battery_soc_min",
-    "battery_soc_max",
     "battery_time_slice",
     "battery_undercharge_monotonic_charge",
     "battery_undercharge_monotonic_discharge",
@@ -154,11 +148,8 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
         BATTERY_OVERCHARGE_CHARGE_PRICE,
         BATTERY_OVERCHARGE_DISCHARGE_PRICE,
         BATTERY_POWER_BALANCE,
-        BATTERY_ENERGY_BALANCE,
         BATTERY_MAX_CHARGE_POWER,
         BATTERY_MAX_DISCHARGE_POWER,
-        BATTERY_SOC_MIN,
-        BATTERY_SOC_MAX,
         BATTERY_TIME_SLICE,
         BATTERY_UNDERCHARGE_MONOTONIC_CHARGE,
         BATTERY_UNDERCHARGE_MONOTONIC_DISCHARGE,
@@ -172,6 +163,36 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
         BATTERY_OVERCHARGE_MONOTONIC_DISCHARGE,
         BATTERY_OVERCHARGE_CAPACITY_UPPER,
         BATTERY_OVERCHARGE_CAPACITY_LOWER,
+    )
+)
+
+BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
+    (
+        BATTERY_POWER_BALANCE,
+        BATTERY_MAX_CHARGE_POWER,
+        BATTERY_MAX_DISCHARGE_POWER,
+        BATTERY_TIME_SLICE,
+        BATTERY_UNDERCHARGE_MONOTONIC_CHARGE,
+        BATTERY_UNDERCHARGE_MONOTONIC_DISCHARGE,
+        BATTERY_UNDERCHARGE_CAPACITY_UPPER,
+        BATTERY_UNDERCHARGE_CAPACITY_LOWER,
+        BATTERY_NORMAL_MONOTONIC_CHARGE,
+        BATTERY_NORMAL_MONOTONIC_DISCHARGE,
+        BATTERY_NORMAL_CAPACITY_UPPER,
+        BATTERY_NORMAL_CAPACITY_LOWER,
+        BATTERY_OVERCHARGE_MONOTONIC_CHARGE,
+        BATTERY_OVERCHARGE_MONOTONIC_DISCHARGE,
+        BATTERY_OVERCHARGE_CAPACITY_UPPER,
+        BATTERY_OVERCHARGE_CAPACITY_LOWER,
+    )
+)
+
+BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset(
+    (
+        BATTERY_POWER_BALANCE,
+        BATTERY_MAX_CHARGE_POWER,
+        BATTERY_MAX_DISCHARGE_POWER,
+        BATTERY_TIME_SLICE,
     )
 )
 
@@ -220,13 +241,19 @@ class BatterySection:
             *[LpVariable(f"{name}_energy_out_t{t}", lowBound=0.0) for t in range(1, n_periods + 1)],
         ]
 
-        self.constraints = {
-            BATTERY_MONOTONIC_CHARGE: [self.energy_in[t + 1] >= self.energy_in[t] for t in range(n_periods)],
-            BATTERY_MONOTONIC_DISCHARGE: [self.energy_out[t + 1] >= self.energy_out[t] for t in range(n_periods)],
-            BATTERY_CAPACITY_UPPER: [
+        self.constraints: dict[BatteryConstraintName, list[LpConstraint]] = {
+            self._section_constraint(BATTERY_MONOTONIC_CHARGE): [
+                self.energy_in[t + 1] >= self.energy_in[t] for t in range(n_periods)
+            ],
+            self._section_constraint(BATTERY_MONOTONIC_DISCHARGE): [
+                self.energy_out[t + 1] >= self.energy_out[t] for t in range(n_periods)
+            ],
+            self._section_constraint(BATTERY_CAPACITY_UPPER): [
                 self.energy_in[t + 1] - self.energy_out[t + 1] <= capacity[t + 1] for t in range(n_periods)
             ],
-            BATTERY_CAPACITY_LOWER: [self.energy_in[t + 1] - self.energy_out[t + 1] >= 0 for t in range(n_periods)],
+            self._section_constraint(BATTERY_CAPACITY_LOWER): [
+                self.energy_in[t + 1] - self.energy_out[t + 1] >= 0 for t in range(n_periods)
+            ],
         }
 
         # Pre-calculate power and energy expressions to avoid recomputing them
@@ -239,6 +266,13 @@ class BatterySection:
         self.stored_energy: Sequence[LpAffineExpression] = [
             self.energy_in[t] - self.energy_out[t] for t in range(self.n_periods + 1)
         ]
+
+    def _section_constraint(self, inner_name: str) -> BatteryConstraintName:
+        name = f"battery_{self.name}_{inner_name}"
+        if name not in BATTERY_CONSTRAINT_NAMES:
+            msg = f"Unknown battery constraint name '{name}'"
+            raise ValueError(msg)
+        return name
 
     def cost(self) -> Sequence[LpAffineExpression]:
         """Return the cost of the section."""
@@ -401,9 +435,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         # Add section constraints to battery constraints
         for section in self._sections:
             for constraint_name, constraint in section.constraints.items():
-                # Cast to BatteryConstraintName since f-strings create str type
-                key: BatteryConstraintName = f"battery_{section.name}_{constraint_name}"  # type: ignore[assignment]
-                self._constraints[key] = constraint
+                self._constraints[constraint_name] = constraint
 
         # Pre-calculate power and energy expressions to avoid recomputing them
         # power_consumption: external power drawn from network (more than stored due to efficiency loss)
@@ -598,9 +630,10 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
                 )
 
         for constraint_name in self._constraints:
+            unit = "$/kW" if constraint_name in BATTERY_POWER_CONSTRAINTS else "$/kWh"
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
-                unit="$/kW",
+                unit=unit,
                 values=tuple(self._get_shadow_prices(constraint_name)),
             )
 
