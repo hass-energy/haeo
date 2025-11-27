@@ -1,7 +1,7 @@
 """Battery entity for electrical system modeling."""
 
 from collections.abc import Mapping, Sequence
-from typing import Final, Literal
+from typing import Final, Literal, TypeGuard
 
 import numpy as np
 from pulp import LpAffineExpression, LpConstraint, LpVariable
@@ -191,6 +191,11 @@ BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset(
 )
 
 
+def _is_battery_constraint_name(name: str) -> TypeGuard[BatteryConstraintName]:
+    """Check if a string is a valid battery constraint name."""
+    return name in BATTERY_CONSTRAINT_NAMES
+
+
 class BatterySection:
     """Represents a battery SOC section with cumulative energy variables."""
 
@@ -263,7 +268,7 @@ class BatterySection:
 
     def _section_constraint(self, inner_name: str) -> BatteryConstraintName:
         name = f"battery_{self.name}_{inner_name}"
-        if name not in BATTERY_CONSTRAINT_NAMES:
+        if not _is_battery_constraint_name(name):
             msg = f"Unknown battery constraint name '{name}'"
             raise ValueError(msg)
         return name
