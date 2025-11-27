@@ -22,18 +22,17 @@ Used to create sensor entity IDs and identify the load in connections.
 Specify one or more Home Assistant sensor entities providing power consumption data.
 The Load element is flexible and works with both constant and time-varying patterns.
 
-**Examples**:
+**Single forecast example**:
 
-```yaml
-# Single forecast
-Forecast: sensor.house_load_forecast
+| Field        | Value                       |
+| ------------ | --------------------------- |
+| **Forecast** | sensor.house_load_forecast  |
 
-# Multiple load components
-Forecast:
-  - sensor.base_load
-  - sensor.ev_charger_schedule
-  - sensor.hvac_forecast
-```
+**Multiple load components example**:
+
+| Field        | Value                                                              |
+| ------------ | ------------------------------------------------------------------ |
+| **Forecast** | sensor.base_load, sensor.ev_charger_schedule, sensor.hvac_forecast |
 
 Provide all load forecasts to get accurate total consumption predictions.
 See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.

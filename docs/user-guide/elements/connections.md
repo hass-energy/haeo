@@ -124,11 +124,12 @@ template:
 
 Then configure the connection:
 
-```yaml
-Source: Grid
-Target: EV_Battery
-Max Power Source→Target: sensor.ev_charging_availability
-```
+| Field                       | Value                             |
+| --------------------------- | --------------------------------- |
+| **Name**                    | Grid to EV                        |
+| **Source**                  | Grid                              |
+| **Target**                  | EV_Battery                        |
+| **Max Power Source→Target** | sensor.ev_charging_availability   |
 
 The optimizer will only schedule charging when the sensor value is non-zero.
 

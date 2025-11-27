@@ -27,17 +27,17 @@ Specify one or more Home Assistant sensors providing electricity import pricing.
 **Sign convention**: Import prices should be positive numbers representing the cost you pay to buy electricity from the grid.
 For example, `0.25` means you pay \$0.25 per kWh imported.
 
-**Examples**:
+**Single sensor example**:
 
-```yaml
-# Single sensor
-Import Price: sensor.electricity_import_price
+| Field            | Value                            |
+| ---------------- | -------------------------------- |
+| **Import Price** | sensor.electricity_import_price  |
 
-# Multiple sensors (today and tomorrow forecasts)
-Import Price:
-  - sensor.electricity_price_today
-  - sensor.electricity_price_tomorrow
-```
+**Multiple sensors example** (today and tomorrow forecasts):
+
+| Field            | Value                                                        |
+| ---------------- | ------------------------------------------------------------ |
+| **Import Price** | sensor.electricity_price_today, sensor.electricity_price_tomorrow |
 
 Provide all relevant price sensors (today, tomorrow, etc.) to ensure complete horizon coverage.
 See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.
