@@ -16,14 +16,21 @@ VALID_CASES: list[ElementTestCase] = [
         "expected_outputs": {},
     },
     {
-        "description": "Node with multiple periods",
+        "description": "Node with shadow prices",
         "factory": Node,
         "data": {
             "name": "hub_node",
             "period": 1,
-            "n_periods": 24,
+            "n_periods": 3,
         },
-        "expected_outputs": {},
+        "inputs": {
+            "power": [0.0, 0.0, 0.0],  # Balanced power at node
+            "input_cost": 0.1,
+            "output_cost": 0.1,
+        },
+        "expected_outputs": {
+            "node_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
+        },
     },
 ]
 
