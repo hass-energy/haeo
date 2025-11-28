@@ -10,18 +10,14 @@ from .element import Element
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
-LOAD_POWER_CONSUMED: Final = "load_power_consumed"
-
-LOAD_POWER_BALANCE: Final = "load_power_balance"
-
 type LoadConstraintName = Literal["load_power_balance"]
 
 type LoadOutputName = Literal["load_power_consumed"] | LoadConstraintName
 
 LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     (
-        LOAD_POWER_CONSUMED,
-        LOAD_POWER_BALANCE,
+        LOAD_POWER_CONSUMED := "load_power_consumed",
+        LOAD_POWER_BALANCE := "load_power_balance",
     )
 )
 

@@ -10,13 +10,6 @@ from .element import Element
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
-PHOTOVOLTAICS_POWER_PRODUCED: Final = "photovoltaics_power_produced"
-PHOTOVOLTAICS_POWER_AVAILABLE: Final = "photovoltaics_power_available"
-PHOTOVOLTAICS_PRICE_PRODUCTION: Final = "photovoltaics_price_production"
-
-PHOTOVOLTAICS_POWER_BALANCE: Final = "photovoltaics_power_balance"
-PHOTOVOLTAICS_FORECAST_LIMIT: Final = "photovoltaics_forecast_limit"
-
 type PhotovoltaicsConstraintName = Literal[
     "photovoltaics_power_balance",
     "photovoltaics_forecast_limit",
@@ -33,11 +26,11 @@ type PhotovoltaicsOutputName = (
 
 PHOTOVOLTAICS_OUTPUT_NAMES: Final[frozenset[PhotovoltaicsOutputName]] = frozenset(
     (
-        PHOTOVOLTAICS_POWER_PRODUCED,
-        PHOTOVOLTAICS_POWER_AVAILABLE,
-        PHOTOVOLTAICS_PRICE_PRODUCTION,
-        PHOTOVOLTAICS_POWER_BALANCE,
-        PHOTOVOLTAICS_FORECAST_LIMIT,
+        PHOTOVOLTAICS_POWER_PRODUCED := "photovoltaics_power_produced",
+        PHOTOVOLTAICS_POWER_AVAILABLE := "photovoltaics_power_available",
+        PHOTOVOLTAICS_PRICE_PRODUCTION := "photovoltaics_price_production",
+        PHOTOVOLTAICS_POWER_BALANCE := "photovoltaics_power_balance",
+        PHOTOVOLTAICS_FORECAST_LIMIT := "photovoltaics_forecast_limit",
     )
 )
 

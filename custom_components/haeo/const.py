@@ -1,6 +1,6 @@
 """Constants for the Home Assistant Energy Optimizer integration."""
 
-from typing import Final
+from typing import Final, Literal
 
 # Integration domain
 DOMAIN: Final = "haeo"
@@ -26,6 +26,12 @@ DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default
 DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
 # Optimization statuses
-OPTIMIZATION_STATUS_SUCCESS: Final = "success"
-OPTIMIZATION_STATUS_FAILED: Final = "failed"
-OPTIMIZATION_STATUS_PENDING: Final = "pending"
+type OptimizationStatus = Literal["success", "failed", "pending"]
+
+OPTIMIZATION_STATUSES: Final[frozenset[OptimizationStatus]] = frozenset(
+    (
+        OPTIMIZATION_STATUS_SUCCESS := "success",
+        OPTIMIZATION_STATUS_FAILED := "failed",
+        OPTIMIZATION_STATUS_PENDING := "pending",
+    )
+)

@@ -10,12 +10,6 @@ from .element import Element
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
-CONNECTION_POWER_SOURCE_TARGET: Final = "connection_power_source_target"
-CONNECTION_POWER_TARGET_SOURCE: Final = "connection_power_target_source"
-
-CONNECTION_MAX_POWER_SOURCE_TARGET: Final = "connection_max_power_source_target"
-CONNECTION_MAX_POWER_TARGET_SOURCE: Final = "connection_max_power_target_source"
-
 type ConnectionConstraintName = Literal[
     "connection_max_power_source_target",
     "connection_max_power_target_source",
@@ -31,10 +25,10 @@ type ConnectionOutputName = (
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
-        CONNECTION_POWER_SOURCE_TARGET,
-        CONNECTION_POWER_TARGET_SOURCE,
-        CONNECTION_MAX_POWER_SOURCE_TARGET,
-        CONNECTION_MAX_POWER_TARGET_SOURCE,
+        CONNECTION_POWER_SOURCE_TARGET := "connection_power_source_target",
+        CONNECTION_POWER_TARGET_SOURCE := "connection_power_target_source",
+        CONNECTION_MAX_POWER_SOURCE_TARGET := "connection_max_power_source_target",
+        CONNECTION_MAX_POWER_TARGET_SOURCE := "connection_max_power_target_source",
     )
 )
 

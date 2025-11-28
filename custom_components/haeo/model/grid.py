@@ -10,15 +10,6 @@ from .element import Element
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
-GRID_POWER_IMPORTED: Final = "grid_power_imported"
-GRID_POWER_EXPORTED: Final = "grid_power_exported"
-GRID_PRICE_IMPORT: Final = "grid_price_import"
-GRID_PRICE_EXPORT: Final = "grid_price_export"
-
-GRID_POWER_BALANCE: Final = "grid_power_balance"
-GRID_MAX_IMPORT_POWER: Final = "grid_max_import_power"
-GRID_MAX_EXPORT_POWER: Final = "grid_max_export_power"
-
 type GridConstraintName = Literal[
     "grid_power_balance",
     "grid_max_import_power",
@@ -37,13 +28,13 @@ type GridOutputName = (
 
 GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
     (
-        GRID_POWER_IMPORTED,
-        GRID_POWER_EXPORTED,
-        GRID_PRICE_IMPORT,
-        GRID_PRICE_EXPORT,
-        GRID_POWER_BALANCE,
-        GRID_MAX_IMPORT_POWER,
-        GRID_MAX_EXPORT_POWER,
+        GRID_POWER_IMPORTED := "grid_power_imported",
+        GRID_POWER_EXPORTED := "grid_power_exported",
+        GRID_PRICE_IMPORT := "grid_price_import",
+        GRID_PRICE_EXPORT := "grid_price_export",
+        GRID_POWER_BALANCE := "grid_power_balance",
+        GRID_MAX_IMPORT_POWER := "grid_max_import_power",
+        GRID_MAX_EXPORT_POWER := "grid_max_export_power",
     )
 )
 
