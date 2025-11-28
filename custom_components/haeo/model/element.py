@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pulp import LpAffineExpression, LpConstraint, lpSum
 
-from .const import OutputData
+from .output_data import OutputData
 
 if TYPE_CHECKING:
     from .connection import Connection

@@ -3,8 +3,9 @@
 from collections.abc import Mapping
 from typing import Final, Literal
 
-from .const import OUTPUT_TYPE_SHADOW_PRICE, OutputData
+from .const import OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
+from .output_data import OutputData
 
 NODE_POWER_BALANCE: Final = "node_power_balance"
 

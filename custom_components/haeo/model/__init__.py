@@ -14,11 +14,11 @@ from .const import (
     OUTPUT_TYPE_SHADOW_PRICE,
     OUTPUT_TYPE_SOC,
     OUTPUT_TYPE_STATUS,
-    OutputData,
     OutputType,
 )
 from .element import Element as Element
 from .network import Network as Network
+from .output_data import OutputData
 from .output_names import OutputName
 
 __all__ = [

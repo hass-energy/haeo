@@ -7,15 +7,9 @@ import numpy as np
 from pulp import LpAffineExpression, LpConstraint, LpVariable
 from pulp.pulp import lpSum
 
-from .const import (
-    OUTPUT_TYPE_ENERGY,
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_PRICE,
-    OUTPUT_TYPE_SHADOW_PRICE,
-    OUTPUT_TYPE_SOC,
-    OutputData,
-)
+from .const import OUTPUT_TYPE_ENERGY, OUTPUT_TYPE_POWER, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE, OUTPUT_TYPE_SOC
 from .element import Element
+from .output_data import OutputData
 from .util import broadcast_to_sequence, extract_values, percentage_to_ratio
 
 # Battery section names

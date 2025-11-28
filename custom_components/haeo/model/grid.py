@@ -5,8 +5,9 @@ from typing import Final, Literal
 
 from pulp import LpAffineExpression, LpVariable, lpSum
 
-from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE, OutputData
+from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
+from .output_data import OutputData
 from .util import broadcast_to_sequence
 
 GRID_POWER_IMPORTED: Final = "grid_power_imported"

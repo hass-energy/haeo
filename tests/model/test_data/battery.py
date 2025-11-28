@@ -758,4 +758,42 @@ INVALID_CASES: list[ElementTestCase] = [
         },
         "expected_error": "Sequence cannot be empty",
     },
+    {
+        "description": "Battery undercharge_percentage without undercharge_cost",
+        "factory": Battery,
+        "data": {
+            "name": "test_battery",
+            "period": 1.0,
+            "n_periods": 3,
+            "capacity": 10.0,
+            "initial_charge_percentage": 50.0,
+            "min_charge_percentage": 20.0,
+            "max_charge_percentage": 80.0,
+            "undercharge_percentage": 10.0,  # Has undercharge but no cost
+            # undercharge_cost intentionally omitted
+            "max_charge_power": 5.0,
+            "max_discharge_power": 5.0,
+            "efficiency": 95.0,
+        },
+        "expected_error": "undercharge_cost must be provided if undercharge_percentage is not None",
+    },
+    {
+        "description": "Battery overcharge_percentage without overcharge_cost",
+        "factory": Battery,
+        "data": {
+            "name": "test_battery",
+            "period": 1.0,
+            "n_periods": 3,
+            "capacity": 10.0,
+            "initial_charge_percentage": 50.0,
+            "min_charge_percentage": 20.0,
+            "max_charge_percentage": 80.0,
+            "overcharge_percentage": 90.0,  # Has overcharge but no cost
+            # overcharge_cost intentionally omitted
+            "max_charge_power": 5.0,
+            "max_discharge_power": 5.0,
+            "efficiency": 95.0,
+        },
+        "expected_error": "overcharge_cost must be provided if overcharge_percentage is not None",
+    },
 ]
