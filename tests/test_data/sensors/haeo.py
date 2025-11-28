@@ -93,6 +93,20 @@ VALID: list[dict[str, Any]] = [
         "expected_count": 2,
         "description": "HAEO forecast with integer values (should be converted to float)",
     },
+    {
+        "entity_id": "sensor.haeo_invalid_device_class",
+        "state": "100.0",
+        "attributes": {
+            "forecast": {
+                "2025-10-06T00:00:00+11:00": 100.0,
+            },
+            "unit_of_measurement": "W",
+            "device_class": "invalid_device_class",
+        },
+        "expected_format": "haeo",
+        "expected_count": 1,
+        "description": "HAEO forecast with invalid device_class (should be ignored)",
+    },
 ]
 
 # Invalid HAEO sensor configurations
@@ -199,5 +213,17 @@ INVALID: list[dict[str, Any]] = [
         },
         "expected_format": None,
         "description": "HAEO sensor with non-string unit_of_measurement",
+    },
+    {
+        "entity_id": "sensor.haeo_empty_unit",
+        "state": "0",
+        "attributes": {
+            "forecast": {
+                "2025-10-06T00:00:00+11:00": 100.0,
+            },
+            "unit_of_measurement": "",
+        },
+        "expected_format": None,
+        "description": "HAEO sensor with empty string unit_of_measurement",
     },
 ]

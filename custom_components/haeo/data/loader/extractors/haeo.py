@@ -5,6 +5,7 @@ attribute containing a mapping of datetime keys to float values.
 """
 
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from datetime import datetime
 import logging
 from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
@@ -55,9 +56,7 @@ class Parser:
             return False
 
         # Validate all forecast entries have valid datetime keys and numeric values
-        if not all(
-            is_parsable_to_datetime(k) and isinstance(v, (int, float)) for k, v in forecast.items()
-        ):
+        if not all(is_parsable_to_datetime(k) and isinstance(v, (int, float)) for k, v in forecast.items()):
             return False
 
         # Check for required unit_of_measurement
@@ -86,8 +85,9 @@ class Parser:
         unit = state.attributes["unit_of_measurement"]
 
         device_class_attr = state.attributes.get("device_class")
-        device_class: SensorDeviceClass | None = (
-            SensorDeviceClass(device_class_attr) if device_class_attr else None
-        )
+        device_class: SensorDeviceClass | None = None
+        if device_class_attr:
+            with suppress(ValueError):
+                device_class = SensorDeviceClass(device_class_attr)
 
         return parsed, unit, device_class
