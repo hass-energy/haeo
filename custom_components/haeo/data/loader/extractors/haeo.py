@@ -62,7 +62,7 @@ class Parser:
 
         # Check for required unit_of_measurement
         unit = state.attributes.get("unit_of_measurement")
-        if not isinstance(unit, str):
+        if not isinstance(unit, str) or not unit:
             return False
 
         # device_class is optional, but if present must be a string
