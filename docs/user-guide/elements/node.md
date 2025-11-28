@@ -81,11 +81,11 @@ Then connect elements to "Main Node" via connections.
 
 Nodes are virtual balance points with one shadow price sensor.
 
-| Sensor                                                    | Unit  | Description                     |
-| --------------------------------------------------------- | ----- | ------------------------------- |
-| [`sensor.{name}_node_power_balance`](#node-power-balance) | \$/kW | Local energy price at this node |
+| Sensor                                          | Unit  | Description                     |
+| ----------------------------------------------- | ----- | ------------------------------- |
+| [`sensor.{name}_power_balance`](#power-balance) | \$/kW | Local energy price at this node |
 
-### Node Power Balance
+### Power Balance
 
 The marginal cost or value of power at this specific node in the network.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.

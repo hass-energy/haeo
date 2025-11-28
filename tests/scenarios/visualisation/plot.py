@@ -77,7 +77,7 @@ async def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, F
     # Extract forecasts and names
     forecast_data: dict[str, ForecastData] = {}
     for sensor in haeo_sensors:
-        if not sensor.attributes.get("advanced", True):
+        if not sensor.attributes.get("advanced", False):
             element_name = sensor.attributes["element_name"]
             element_type = sensor.attributes["element_type"]
             output_type = sensor.attributes["output_type"]

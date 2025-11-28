@@ -100,13 +100,13 @@ Combine multiple solar arrays or forecast sources:
 
 These sensors provide real-time visibility into solar generation and curtailment decisions.
 
-| Sensor                                                                             | Unit   | Description                             |
-| ---------------------------------------------------------------------------------- | ------ | --------------------------------------- |
-| [`sensor.{name}_power_produced`](#power-produced)                                  | kW     | Actual power generated                  |
-| [`sensor.{name}_power_available`](#power-available)                                | kW     | Maximum available solar power           |
-| [`sensor.{name}_price_production`](#price-production)                              | \$/kWh | Current production price                |
-| [`sensor.{name}_photovoltaics_power_balance`](#photovoltaics-power-balance)        | \$/kW  | Marginal value of solar power           |
-| [`sensor.{name}_photovoltaics_forecast_limit`](#photovoltaics-forecast-limit) (\*) | \$/kW  | Value of additional generation capacity |
+| Sensor                                                       | Unit   | Description                             |
+| ------------------------------------------------------------ | ------ | --------------------------------------- |
+| [`sensor.{name}_power_produced`](#power-produced)            | kW     | Actual power generated                  |
+| [`sensor.{name}_power_available`](#power-available)          | kW     | Maximum available solar power           |
+| [`sensor.{name}_price_production`](#price-production)        | \$/kWh | Current production price                |
+| [`sensor.{name}_power_balance`](#power-balance)              | \$/kW  | Marginal value of solar power           |
+| [`sensor.{name}_forecast_limit`](#forecast-limit) (\*)       | \$/kW  | Value of additional generation capacity |
 
 (\*) Only created when curtailment is enabled
 
@@ -141,7 +141,7 @@ When negative, it acts as a benefit of generation (uncommon).
 
 **Example**: A value of 0 means there is no explicit cost or value assigned to solar generation itself (most common configuration).
 
-### Photovoltaics Power Balance
+### Power Balance
 
 The marginal value of solar power at the array terminals.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -158,7 +158,7 @@ It reflects the value of solar power in the context of your entire energy system
 
 **Example**: A value of 0.25 means that each kW of solar generation is worth \$0.25 at this time period, either by offsetting grid imports or enabling exports.
 
-### Photovoltaics Forecast Limit
+### Forecast Limit
 
 The marginal value of additional generation capacity.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.

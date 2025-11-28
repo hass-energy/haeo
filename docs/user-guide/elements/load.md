@@ -197,10 +197,10 @@ Combine multiple consumption sources:
 
 These sensors provide visibility into load power consumption and the marginal cost of serving the load.
 
-| Sensor                                                    | Unit  | Description                        |
-| --------------------------------------------------------- | ----- | ---------------------------------- |
-| [`sensor.{name}_power_consumed`](#power-consumed)         | kW    | Power consumed by load             |
-| [`sensor.{name}_load_power_balance`](#load-power-balance) | \$/kW | Marginal cost of serving this load |
+| Sensor                                            | Unit  | Description                        |
+| ------------------------------------------------- | ----- | ---------------------------------- |
+| [`sensor.{name}_power_consumed`](#power-consumed) | kW    | Power consumed by load             |
+| [`sensor.{name}_power_balance`](#power-balance)   | \$/kW | Marginal cost of serving this load |
 
 ### Power Consumed
 
@@ -215,7 +215,7 @@ The optimization determines how to supply this power (from grid, battery, or sol
 
 **Example**: A value of 2.5 kW means this load requires 2.5 kW at this time period, which the optimization must supply from available sources.
 
-### Load Power Balance
+### Power Balance
 
 The marginal cost of supplying power to this load at each time period.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.

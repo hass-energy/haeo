@@ -137,12 +137,12 @@ The optimizer will only schedule charging when the sensor value is non-zero.
 
 These sensors provide real-time visibility into power flow and capacity constraints between elements.
 
-| Sensor                                                                                    | Unit  | Description                          |
-| ----------------------------------------------------------------------------------------- | ----- | ------------------------------------ |
-| [`sensor.{name}_power_flow_source_target`](#power-flow-source-target)                     | kW    | Power flowing from source to target  |
-| [`sensor.{name}_power_flow_target_source`](#power-flow-target-source)                     | kW    | Power flowing from target to source  |
-| [`sensor.{name}_connection_max_power_source_target`](#connection-max-power-source-target) | \$/kW | Value of additional forward capacity |
-| [`sensor.{name}_connection_max_power_target_source`](#connection-max-power-target-source) | \$/kW | Value of additional reverse capacity |
+| Sensor                                                                    | Unit  | Description                          |
+| ------------------------------------------------------------------------- | ----- | ------------------------------------ |
+| [`sensor.{name}_power_flow_source_target`](#power-flow-source-target)     | kW    | Power flowing from source to target  |
+| [`sensor.{name}_power_flow_target_source`](#power-flow-target-source)     | kW    | Power flowing from target to source  |
+| [`sensor.{name}_max_power_source_target`](#max-power-source-target)       | \$/kW | Value of additional forward capacity |
+| [`sensor.{name}_max_power_target_source`](#max-power-target-source)       | \$/kW | Value of additional reverse capacity |
 
 ### Power Flow Source Target
 
@@ -164,7 +164,7 @@ This represents reverse flow through the connection (target → source).
 
 **Example**: A value of 2.0 kW means 2.0 kW is flowing from the target element back to the source element at this time period.
 
-### Connection Max Power Source Target
+### Max Power Source Target
 
 The marginal value of additional forward capacity (source → target).
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -181,7 +181,7 @@ This shadow price shows how much the total system cost would decrease if the for
 
 **Example**: A value of 0.08 means that if the connection could transfer 1 kW more in the forward direction, the total system cost would decrease by \$0.08 at this time period.
 
-### Connection Max Power Target Source
+### Max Power Target Source
 
 The marginal value of additional reverse capacity (target → source).
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.

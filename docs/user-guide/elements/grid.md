@@ -124,15 +124,15 @@ For more examples and sensor creation, see the [Forecasts and Sensors guide](../
 
 These sensors provide real-time visibility into grid interactions and costs.
 
-| Sensor                                                          | Unit   | Description                         |
-| --------------------------------------------------------------- | ------ | ----------------------------------- |
-| [`sensor.{name}_power_imported`](#power-imported)               | kW     | Power imported from grid            |
-| [`sensor.{name}_power_exported`](#power-exported)               | kW     | Power exported to grid              |
-| [`sensor.{name}_price_import`](#price-import)                   | \$/kWh | Current import price                |
-| [`sensor.{name}_price_export`](#price-export)                   | \$/kWh | Current export price                |
-| [`sensor.{name}_grid_power_balance`](#grid-power-balance)       | \$/kW  | Marginal cost of grid power         |
-| [`sensor.{name}_grid_max_import_power`](#grid-max-import-power) | \$/kW  | Value of additional import capacity |
-| [`sensor.{name}_grid_max_export_power`](#grid-max-export-power) | \$/kW  | Value of additional export capacity |
+| Sensor                                                    | Unit   | Description                         |
+| --------------------------------------------------------- | ------ | ----------------------------------- |
+| [`sensor.{name}_power_imported`](#power-imported)         | kW     | Power imported from grid            |
+| [`sensor.{name}_power_exported`](#power-exported)         | kW     | Power exported to grid              |
+| [`sensor.{name}_price_import`](#price-import)             | \$/kWh | Current import price                |
+| [`sensor.{name}_price_export`](#price-export)             | \$/kWh | Current export price                |
+| [`sensor.{name}_power_balance`](#power-balance)           | \$/kW  | Marginal cost of grid power         |
+| [`sensor.{name}_max_import_power`](#max-import-power)     | \$/kW  | Value of additional import capacity |
+| [`sensor.{name}_max_export_power`](#max-export-power)     | \$/kW  | Value of additional export capacity |
 
 ### Power Imported
 
@@ -172,7 +172,7 @@ Higher prices incentivize increasing exports by discharging batteries or curtail
 
 **Example**: A value of 0.10 means you're currently receiving \$0.10 per kWh for exported electricity.
 
-### Grid Power Balance
+### Power Balance
 
 The marginal cost or revenue of grid interaction at each time period.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -187,7 +187,7 @@ When exporting, it typically equals the negative export price (revenue).
 - **Negative value**: Represents revenue from exporting power (more negative means exporting is valuable)
 - **Zero value**: Grid interaction has no marginal cost/revenue (unusual, may indicate unconstrained optimization)
 
-### Grid Max Import Power
+### Max Import Power
 
 The marginal value of additional import capacity.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -204,7 +204,7 @@ This shadow price shows how much the total system cost would decrease if the imp
 
 **Example**: A value of 0.15 means that if you could import 1 kW more, the total system cost would decrease by \$0.15 at this time period.
 
-### Grid Max Export Power
+### Max Export Power
 
 The marginal value of additional export capacity.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
