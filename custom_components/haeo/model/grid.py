@@ -7,7 +7,7 @@ from pulp import LpAffineExpression, LpVariable, lpSum
 
 from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE, OutputData
 from .element import Element
-from .util import broadcast_to_sequence, extract_values
+from .util import broadcast_to_sequence
 
 GRID_POWER_IMPORTED: Final = "grid_power_imported"
 GRID_POWER_EXPORTED: Final = "grid_power_exported"
@@ -136,28 +136,24 @@ class Grid(Element[GridOutputName, GridConstraintName]):
         """Return the outputs for the grid with import/export naming."""
 
         outputs: dict[GridOutputName, OutputData] = {
-            GRID_POWER_EXPORTED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_export), direction="-"
-            ),
-            GRID_POWER_IMPORTED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_import), direction="+"
-            ),
+            GRID_POWER_EXPORTED: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_export, direction="-"),
+            GRID_POWER_IMPORTED: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_import, direction="+"),
         }
 
         if self.export_price is not None:
             outputs[GRID_PRICE_EXPORT] = OutputData(
-                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.export_price), direction="-"
+                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=self.export_price, direction="-"
             )
         if self.import_price is not None:
             outputs[GRID_PRICE_IMPORT] = OutputData(
-                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.import_price), direction="+"
+                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=self.import_price, direction="+"
             )
 
         for constraint_name in self._constraints:
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit="$/kW",
-                values=self._get_shadow_prices(constraint_name),
+                values=self._constraints[constraint_name],
             )
 
         return outputs

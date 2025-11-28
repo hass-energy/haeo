@@ -7,7 +7,7 @@ from pulp import LpAffineExpression, LpVariable, lpSum
 
 from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_SHADOW_PRICE, OutputData
 from .element import Element
-from .util import broadcast_to_sequence, extract_values
+from .util import broadcast_to_sequence
 
 CONNECTION_POWER_SOURCE_TARGET: Final = "connection_power_source_target"
 CONNECTION_POWER_TARGET_SOURCE: Final = "connection_power_target_source"
@@ -137,10 +137,10 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         """Return output specifications for the connection."""
         outputs: dict[ConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=extract_values(self.power_source_target), direction="+"
+                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=self.power_source_target, direction="+"
             ),
             CONNECTION_POWER_TARGET_SOURCE: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=extract_values(self.power_target_source), direction="-"
+                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=self.power_target_source, direction="-"
             ),
         }
 
@@ -148,7 +148,7 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit="$/kW",
-                values=tuple(self._get_shadow_prices(constraint_name)),
+                values=self._constraints[constraint_name],
             )
 
         return outputs

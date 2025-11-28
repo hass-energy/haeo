@@ -121,17 +121,6 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         """
         return []
 
-    def _get_shadow_prices(self, constraint_name: ConstraintNameT) -> Sequence[float]:
-        """Extract shadow prices for a given constraint name."""
-        constraints = self._constraints.get(constraint_name)
-        if not constraints:
-            return []
-
-        if isinstance(constraints, LpConstraint):
-            constraints = [constraints]
-
-        return [c.pi if c.pi is not None else 0.0 for c in constraints]
-
     def outputs(self) -> Mapping[OutputNameT, OutputData]:
         """Return output specifications for the element.
 

@@ -7,7 +7,7 @@ from pulp import LpAffineExpression, LpVariable, lpSum
 
 from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_POWER_LIMIT, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE, OutputData
 from .element import Element
-from .util import broadcast_to_sequence, extract_values
+from .util import broadcast_to_sequence
 
 PHOTOVOLTAICS_POWER_PRODUCED: Final = "photovoltaics_power_produced"
 PHOTOVOLTAICS_POWER_AVAILABLE: Final = "photovoltaics_power_available"
@@ -120,16 +120,16 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
 
         outputs: dict[PhotovoltaicsOutputName, OutputData] = {
             PHOTOVOLTAICS_POWER_PRODUCED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_production), direction="+"
+                type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_production, direction="+"
             ),
             PHOTOVOLTAICS_POWER_AVAILABLE: OutputData(
-                type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=tuple(self.forecast), direction="+"
+                type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=self.forecast, direction="+"
             ),
         }
 
         if self.price_production is not None:
             outputs[PHOTOVOLTAICS_PRICE_PRODUCTION] = OutputData(
-                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=extract_values(self.price_production)
+                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=self.price_production
             )
 
         # Shadow prices
@@ -137,7 +137,7 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit="$/kW",
-                values=self._get_shadow_prices(constraint_name),
+                values=self._constraints[constraint_name],
             )
 
         return outputs

@@ -7,7 +7,7 @@ from pulp import LpAffineExpression
 
 from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE, OutputData
 from .element import Element
-from .util import broadcast_to_sequence, extract_values
+from .util import broadcast_to_sequence
 
 LOAD_POWER_CONSUMED: Final = "load_power_consumed"
 
@@ -65,7 +65,7 @@ class Load(Element[LoadOutputName, LoadConstraintName]):
 
         outputs: dict[LoadOutputName, OutputData] = {
             LOAD_POWER_CONSUMED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_consumption), direction="-"
+                type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_consumption, direction="-"
             ),
         }
 
@@ -73,7 +73,7 @@ class Load(Element[LoadOutputName, LoadConstraintName]):
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit="$/kW",
-                values=self._get_shadow_prices(constraint_name),
+                values=self._constraints[constraint_name],
             )
 
         return outputs

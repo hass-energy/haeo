@@ -45,7 +45,7 @@ class Node(Element[NodeOutputName, NodeConstraintName]):
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit="$/kW",
-                values=self._get_shadow_prices(constraint_name),
+                values=self._constraints[constraint_name],
             )
 
         return outputs

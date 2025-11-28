@@ -497,7 +497,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
 
     def outputs(self) -> Mapping[BatteryOutputName, OutputData]:
         """Return battery output specifications."""
-        # Get total energy stored values
+        # Get total energy stored values (needed for SOC calculation)
         total_energy_values = extract_values(self.stored_energy)
 
         # Convert to SOC percentage
@@ -506,54 +506,53 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
 
         outputs: dict[BatteryOutputName, OutputData] = {
             BATTERY_POWER_CHARGE: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(self.power_consumption)), direction="-"
+                type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_consumption, direction="-"
             ),
             BATTERY_POWER_DISCHARGE: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(self.power_production)), direction="+"
+                type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_production, direction="+"
             ),
-            BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(total_energy_values)),
+            BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=total_energy_values),
             BATTERY_STATE_OF_CHARGE: OutputData(
                 type=OUTPUT_TYPE_SOC,
                 unit="%",
-                values=tuple(soc_values),
+                values=soc_values,
             ),
         }
 
         # Add section-specific outputs
         for section in self._sections:
-            section_energy_values = extract_values(section.stored_energy)
             if section.name == BATTERY_SECTION_UNDERCHARGE:
                 outputs[BATTERY_UNDERCHARGE_ENERGY_STORED] = OutputData(
                     type=OUTPUT_TYPE_ENERGY,
                     unit="kWh",
-                    values=tuple(section_energy_values),
+                    values=section.stored_energy,
                     advanced=True,
                 )
                 outputs[BATTERY_UNDERCHARGE_POWER_DISCHARGE] = OutputData(
                     type=OUTPUT_TYPE_POWER,
                     unit="kW",
-                    values=tuple(extract_values(section.power_production)),
+                    values=section.power_production,
                     direction="+",
                     advanced=True,
                 )
                 outputs[BATTERY_UNDERCHARGE_POWER_CHARGE] = OutputData(
                     type=OUTPUT_TYPE_POWER,
                     unit="kW",
-                    values=tuple(extract_values(section.power_consumption)),
+                    values=section.power_consumption,
                     direction="-",
                     advanced=True,
                 )
                 outputs[BATTERY_UNDERCHARGE_CHARGE_PRICE] = OutputData(
                     type=OUTPUT_TYPE_PRICE,
                     unit="$/kWh",
-                    values=tuple(extract_values(section.charge_cost)),
+                    values=section.charge_cost,
                     direction="-",
                     advanced=True,
                 )
                 outputs[BATTERY_UNDERCHARGE_DISCHARGE_PRICE] = OutputData(
                     type=OUTPUT_TYPE_PRICE,
                     unit="$/kWh",
-                    values=tuple(extract_values(section.discharge_cost)),
+                    values=section.discharge_cost,
                     direction="+",
                     advanced=True,
                 )
@@ -561,34 +560,34 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
                 outputs[BATTERY_NORMAL_ENERGY_STORED] = OutputData(
                     type=OUTPUT_TYPE_ENERGY,
                     unit="kWh",
-                    values=tuple(section_energy_values),
+                    values=section.stored_energy,
                     advanced=True,
                 )
                 outputs[BATTERY_NORMAL_POWER_DISCHARGE] = OutputData(
                     type=OUTPUT_TYPE_POWER,
                     unit="kW",
-                    values=tuple(extract_values(section.power_production)),
+                    values=section.power_production,
                     direction="+",
                     advanced=True,
                 )
                 outputs[BATTERY_NORMAL_POWER_CHARGE] = OutputData(
                     type=OUTPUT_TYPE_POWER,
                     unit="kW",
-                    values=tuple(extract_values(section.power_consumption)),
+                    values=section.power_consumption,
                     direction="-",
                     advanced=True,
                 )
                 outputs[BATTERY_NORMAL_CHARGE_PRICE] = OutputData(
                     type=OUTPUT_TYPE_PRICE,
                     unit="$/kWh",
-                    values=tuple(extract_values(section.charge_cost)),
+                    values=section.charge_cost,
                     direction="-",
                     advanced=True,
                 )
                 outputs[BATTERY_NORMAL_DISCHARGE_PRICE] = OutputData(
                     type=OUTPUT_TYPE_PRICE,
                     unit="$/kWh",
-                    values=tuple(extract_values(section.discharge_cost)),
+                    values=section.discharge_cost,
                     direction="+",
                     advanced=True,
                 )
@@ -596,34 +595,34 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
                 outputs[BATTERY_OVERCHARGE_ENERGY_STORED] = OutputData(
                     type=OUTPUT_TYPE_ENERGY,
                     unit="kWh",
-                    values=tuple(section_energy_values),
+                    values=section.stored_energy,
                     advanced=True,
                 )
                 outputs[BATTERY_OVERCHARGE_POWER_DISCHARGE] = OutputData(
                     type=OUTPUT_TYPE_POWER,
                     unit="kW",
-                    values=tuple(extract_values(section.power_production)),
+                    values=section.power_production,
                     direction="+",
                     advanced=True,
                 )
                 outputs[BATTERY_OVERCHARGE_POWER_CHARGE] = OutputData(
                     type=OUTPUT_TYPE_POWER,
                     unit="kW",
-                    values=tuple(extract_values(section.power_consumption)),
+                    values=section.power_consumption,
                     direction="-",
                     advanced=True,
                 )
                 outputs[BATTERY_OVERCHARGE_CHARGE_PRICE] = OutputData(
                     type=OUTPUT_TYPE_PRICE,
                     unit="$/kWh",
-                    values=tuple(extract_values(section.charge_cost)),
+                    values=section.charge_cost,
                     direction="-",
                     advanced=True,
                 )
                 outputs[BATTERY_OVERCHARGE_DISCHARGE_PRICE] = OutputData(
                     type=OUTPUT_TYPE_PRICE,
                     unit="$/kWh",
-                    values=tuple(extract_values(section.discharge_cost)),
+                    values=section.discharge_cost,
                     direction="+",
                     advanced=True,
                 )
@@ -633,7 +632,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit=unit,
-                values=tuple(self._get_shadow_prices(constraint_name)),
+                values=self._constraints[constraint_name],
             )
 
         return outputs
