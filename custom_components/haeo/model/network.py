@@ -124,14 +124,8 @@ class Network:
         prob += lpSum(c for element in self.elements.values() for c in element.cost())
 
         # Add element constraints
-        for element_name, element in self.elements.items():
-            try:
-                constraints = element.constraints()
-            except Exception as exc:
-                msg = f"Failed to get constraints for element '{element_name}'"
-                raise ValueError(msg) from exc
-
-            for constraint in constraints:
+        for element in self.elements.values():
+            for constraint in element.constraints():
                 prob += constraint
 
         # Get the specified solver
