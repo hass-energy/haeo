@@ -103,12 +103,13 @@ The extractor system ([`extractors/`](https://github.com/hass-energy/haeo/tree/m
 
 ### Supported Integrations
 
-| Integration               | Use Case            | Parser Module                                                                                                                                              |
-| ------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Amber Electric            | Electricity pricing | [`amberelectric.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/amberelectric.py)                         |
-| AEMO NEM                  | Wholesale pricing   | [`aemo_nem.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/aemo_nem.py)                                   |
-| Solcast Solar             | Solar forecasting   | [`solcast_solar.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/solcast_solar.py)                         |
-| Open-Meteo Solar Forecast | Solar forecasting   | [`open_meteo_solar_forecast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/open_meteo_solar_forecast.py) |
+| Integration               | Use Case                     | Parser Module                                                                                                                                              |
+| ------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Amber Electric            | Electricity pricing          | [`amberelectric.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/amberelectric.py)                         |
+| AEMO NEM                  | Wholesale pricing            | [`aemo_nem.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/aemo_nem.py)                                   |
+| HAEO                      | Chaining HAEO sensor outputs | [`haeo.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/haeo.py)                                           |
+| Solcast Solar             | Solar forecasting            | [`solcast_solar.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/solcast_solar.py)                         |
+| Open-Meteo Solar Forecast | Solar forecasting            | [`open_meteo_solar_forecast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/loader/extractors/open_meteo_solar_forecast.py) |
 
 ### Parser Design
 
