@@ -23,7 +23,7 @@ DOMAIN: Format = "haeo"
 class HaeoForecastAttributes(TypedDict):
     """Type definition for HAEO forecast State attributes."""
 
-    forecast: Mapping[str | datetime, float]
+    forecast: Mapping[str | datetime, int | float]
     unit_of_measurement: str
     device_class: NotRequired[str]
 
