@@ -22,7 +22,8 @@ from custom_components.haeo.diagnostics import async_get_config_entry_diagnostic
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
 from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
 from custom_components.haeo.elements.grid import CONF_IMPORT_PRICE
-from custom_components.haeo.model.const import OUTPUT_NAME_POWER_CONSUMED, OUTPUT_TYPE_POWER
+from custom_components.haeo.model import OUTPUT_TYPE_POWER
+from custom_components.haeo.model.grid import GRID_POWER_IMPORTED
 
 
 async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
@@ -170,7 +171,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.data = {
         "grid": {
-            OUTPUT_NAME_POWER_CONSUMED: CoordinatorOutput(
+            GRID_POWER_IMPORTED: CoordinatorOutput(
                 type=OUTPUT_TYPE_POWER,
                 unit="kW",
                 state=5.5,
@@ -181,7 +182,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
 
     # Set up output sensor state
     hass.states.async_set(
-        f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{OUTPUT_NAME_POWER_CONSUMED}",
+        f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORTED}",
         "5.5",
         {
             "unit_of_measurement": "kW",
@@ -197,7 +198,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     outputs = diagnostics["outputs"]
     assert len(outputs) >= 1
     output_entity = next(
-        (s for s in outputs if OUTPUT_NAME_POWER_CONSUMED in s["entity_id"]),
+        (s for s in outputs if GRID_POWER_IMPORTED in s["entity_id"]),
         None,
     )
     assert output_entity is not None
