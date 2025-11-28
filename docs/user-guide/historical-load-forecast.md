@@ -72,15 +72,16 @@ sequence:
       num_prediction_days: 7
   - action: recorder.get_statistics
     data:
-      start_time: "{{ (now().replace(minute=0, second=0, microsecond=0) - timedelta(days=num_prediction_days)).isoformat() }}"
-      end_time: "{{ now().replace(minute=0, second=0, microsecond=0).isoformat() }}"
-      statistic_ids: "{{ consumed_power_sensor }}"
+      start_time: '{{ (now().replace(minute=0, second=0, microsecond=0) - timedelta(days=num_prediction_days)).isoformat()
+        }}'
+      end_time: '{{ now().replace(minute=0, second=0, microsecond=0).isoformat() }}'
+      statistic_ids: '{{ consumed_power_sensor }}'
       period: hour
       types: mean
     response_variable: history
     alias: Fetch Load History
   - variables:
-      start_of_hour: "{{ now().replace(minute=0, second=0, microsecond=0) }}"
+      start_of_hour: '{{ now().replace(minute=0, second=0, microsecond=0) }}'
       load_forecast_json: |-
         {% set ns = namespace(
           input=history.statistics[consumed_power_sensor],
