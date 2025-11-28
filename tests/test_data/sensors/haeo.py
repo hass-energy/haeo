@@ -177,4 +177,27 @@ INVALID: list[dict[str, Any]] = [
         "expected_format": None,
         "description": "HAEO forecast with mixed valid and invalid values",
     },
+    {
+        "entity_id": "sensor.haeo_missing_unit",
+        "state": "0",
+        "attributes": {
+            "forecast": {
+                "2025-10-06T00:00:00+11:00": 100.0,
+            },
+        },
+        "expected_format": None,
+        "description": "HAEO sensor missing unit_of_measurement attribute",
+    },
+    {
+        "entity_id": "sensor.haeo_non_string_unit",
+        "state": "0",
+        "attributes": {
+            "forecast": {
+                "2025-10-06T00:00:00+11:00": 100.0,
+            },
+            "unit_of_measurement": 123,
+        },
+        "expected_format": None,
+        "description": "HAEO sensor with non-string unit_of_measurement",
+    },
 ]
