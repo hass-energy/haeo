@@ -72,34 +72,39 @@ sequence:
       num_prediction_days: 7
   - action: recorder.get_statistics
     data:
-      start_time: '{{ (now() - timedelta(days=7)).isoformat() }}'
-      end_time: '{{ now().isoformat() }}'
-      statistic_ids: '{{ consumed_power_sensor }}'
+      start_time: "{{ (now().replace(minute=0, second=0, microsecond=0) - timedelta(days=num_prediction_days)).isoformat() }}"
+      end_time: "{{ now().replace(minute=0, second=0, microsecond=0).isoformat() }}"
+      statistic_ids: "{{ consumed_power_sensor }}"
       period: hour
       types: mean
     response_variable: history
     alias: Fetch Load History
   - variables:
+      start_of_hour: "{{ now().replace(minute=0, second=0, microsecond=0) }}"
       load_forecast_json: |-
         {% set ns = namespace(
           input=history.statistics[consumed_power_sensor],
           output={}
         ) %}
         {% for load in ns.input %}
-          {% set load_start = load.start | as_datetime | as_local + timedelta(days=7) %}
+          {% set load_start = load.start | as_datetime | as_local + timedelta(days=num_prediction_days) %}
           {% set load_value = load.mean | float(0) | round(3) %}
           {% set ns.output = ns.output | combine({ load_start.isoformat(): load_value }) %}
         {% endfor %}
         {{ ns.output }}
-      current_value: >-
-        {% set ns = namespace(input=history.statistics[consumed_power_sensor]) %}
+      current_value: |-
+        {% set start_of_hour = now().replace(minute=0, second=0, microsecond=0) %}
+        {% set ns = namespace(
+          input=history.statistics[consumed_power_sensor],
+          result=states(consumed_power_sensor) | float(0) | round(3)
+        ) %}
         {% for load in ns.input %}
-          {% set load_start = load.start | as_datetime | as_local + timedelta(days=7)
-        %}
-          {% if load_start <= now() < load_start + timedelta(hours=1) %}
-            {{ load.mean | float(0) | round(3) }}
+          {% set load_start = load.start | as_datetime | as_local + timedelta(days=num_prediction_days) %}
+          {% if load_start == start_of_hour %}
+            {% set ns.result = load.mean | float(0) | round(3) %}
           {% endif %}
         {% endfor %}
+        {{ ns.result }}
   - data:
       entity_id: '{{ forecast_sensor_entity }}'
       source_entity: '{{ consumed_power_sensor }}'
