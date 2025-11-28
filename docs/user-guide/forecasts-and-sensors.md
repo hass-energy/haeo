@@ -49,6 +49,7 @@ Custom template sensors that match these formats will also work.
 - [AEMO NEM](https://www.home-assistant.io/integrations/aemo/) (Australian electricity pricing)
 - [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar) (solar generation)
 - [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) (solar generation)
+- HAEO sensors (chain HAEO outputs as inputs to other elements)
 
 **Example**: Amber Electric sensor with pricing forecast:
 
@@ -274,6 +275,7 @@ HAEO automatically detects and parses these forecast formats:
 | -------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------- | ------------------- |
 | [Amber Electric](https://www.home-assistant.io/integrations/amberelectric/)                        | `amberelectric`             | Electricity pricing (Australia) | 30-minute intervals |
 | [AEMO NEM](https://www.home-assistant.io/integrations/aemo/)                                       | `aemo`                      | Wholesale pricing (Australia)   | 30-minute intervals |
+| HAEO                                                                                               | `haeo`                      | Chain HAEO outputs as inputs    | Variable intervals  |
 | [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar)                                      | `solcast_pv_forecast`       | Solar generation                | 30-minute intervals |
 | [Open-Meteo Solar Forecast](https://www.home-assistant.io/integrations/open_meteo_solar_forecast/) | `open_meteo_solar_forecast` | Solar generation                | Hourly intervals    |
 
