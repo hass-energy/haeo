@@ -413,6 +413,14 @@ However, higher resolution forecasts improve accuracy:
 
 <div class="grid cards" markdown>
 
+- :material-history: **Create a historical load forecast**
+
+    ---
+
+    Build a simple load forecast from past consumption data
+
+    [:material-arrow-right: Historical load forecast](historical-load-forecast.md)
+
 - :material-battery-charging: **Configure your elements**
 
     ---

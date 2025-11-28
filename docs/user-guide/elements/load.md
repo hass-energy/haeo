@@ -109,7 +109,7 @@ The forecast sensor should provide:
 
 - Template sensors combining multiple sources
 - Machine learning predictions
-- Historical pattern averaging
+- [Historical pattern averaging](../historical-load-forecast.md)
 
 **Scheduled Devices**:
 
@@ -284,6 +284,14 @@ For controllable/deferrable loads, model them separately with appropriate constr
 ## Next Steps
 
 <div class="grid cards" markdown>
+
+- :material-history:{ .lg .middle } **Create a historical load forecast**
+
+    ---
+
+    Build a simple load forecast from past consumption data.
+
+    [:material-arrow-right: Historical load forecast](../historical-load-forecast.md)
 
 - :material-connection:{ .lg .middle } **Connect to network**
 
