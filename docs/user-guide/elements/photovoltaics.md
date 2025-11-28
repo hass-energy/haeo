@@ -100,13 +100,13 @@ Combine multiple solar arrays or forecast sources:
 
 These sensors provide real-time visibility into solar generation and curtailment decisions.
 
-| Sensor                                                       | Unit   | Description                             |
-| ------------------------------------------------------------ | ------ | --------------------------------------- |
-| [`sensor.{name}_power_produced`](#power-produced)            | kW     | Actual power generated                  |
-| [`sensor.{name}_power_available`](#power-available)          | kW     | Maximum available solar power           |
-| [`sensor.{name}_price_production`](#price-production)        | \$/kWh | Current production price                |
-| [`sensor.{name}_power_balance`](#power-balance)              | \$/kW  | Marginal value of solar power           |
-| [`sensor.{name}_forecast_limit`](#forecast-limit) (\*)       | \$/kW  | Value of additional generation capacity |
+| Sensor                                                 | Unit   | Description                             |
+| ------------------------------------------------------ | ------ | --------------------------------------- |
+| [`sensor.{name}_power_produced`](#power-produced)      | kW     | Actual power generated                  |
+| [`sensor.{name}_power_available`](#power-available)    | kW     | Maximum available solar power           |
+| [`sensor.{name}_price_production`](#price-production)  | \$/kWh | Current production price                |
+| [`sensor.{name}_power_balance`](#power-balance)        | \$/kW  | Marginal value of solar power           |
+| [`sensor.{name}_forecast_limit`](#forecast-limit) (\*) | \$/kW  | Value of additional generation capacity |
 
 (\*) Only created when curtailment is enabled
 

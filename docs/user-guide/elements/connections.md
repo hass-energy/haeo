@@ -137,12 +137,12 @@ The optimizer will only schedule charging when the sensor value is non-zero.
 
 These sensors provide real-time visibility into power flow and capacity constraints between elements.
 
-| Sensor                                                                    | Unit  | Description                          |
-| ------------------------------------------------------------------------- | ----- | ------------------------------------ |
-| [`sensor.{name}_power_flow_source_target`](#power-flow-source-target)     | kW    | Power flowing from source to target  |
-| [`sensor.{name}_power_flow_target_source`](#power-flow-target-source)     | kW    | Power flowing from target to source  |
-| [`sensor.{name}_max_power_source_target`](#max-power-source-target)       | \$/kW | Value of additional forward capacity |
-| [`sensor.{name}_max_power_target_source`](#max-power-target-source)       | \$/kW | Value of additional reverse capacity |
+| Sensor                                                                | Unit  | Description                          |
+| --------------------------------------------------------------------- | ----- | ------------------------------------ |
+| [`sensor.{name}_power_flow_source_target`](#power-flow-source-target) | kW    | Power flowing from source to target  |
+| [`sensor.{name}_power_flow_target_source`](#power-flow-target-source) | kW    | Power flowing from target to source  |
+| [`sensor.{name}_max_power_source_target`](#max-power-source-target)   | \$/kW | Value of additional forward capacity |
+| [`sensor.{name}_max_power_target_source`](#max-power-target-source)   | \$/kW | Value of additional reverse capacity |
 
 ### Power Flow Source Target
 

@@ -1,57 +1,65 @@
 # Shadow Prices
 
-Shadow prices are the dual values associated with linear constraints in the optimization model.
-They quantify how much the total objective would change if the constraint were relaxed by one additional unit.
-In HAEO, shadow prices help explain why the optimizer schedules certain energy flows and highlight where additional flexibility creates the most value.
+Shadow prices are dual values from the linear programming optimization.
+They quantify how much the total objective would improve if a constraint were relaxed by one unit.
+In HAEO, shadow prices help explain why the optimizer makes certain decisions and highlight where additional flexibility creates the most value.
 
-## Available shadow prices
+## What shadow prices tell you
 
-HAEO publishes shadow prices for multiple constraint groups.
-Energy-coupled constraints report values in $/kWh, while instantaneous power limits use $/kW.
-Positive values indicate that relaxing the constraint would reduce the total cost, while negative values show that tightening the constraint would be beneficial.
+Every constraint in the optimization problem has an associated shadow price.
+This value represents the marginal benefit of loosening that constraint—essentially answering the question: "How much would I save if I could push this limit by one more unit?"
 
-### Node balance (`shadow_price_node_balance`)
+A key distinction: shadow prices show what you would pay for *additional* capacity, not what you are paying for resources already allocated.
+When a constraint is not limiting the solution (slack), its shadow price is zero.
+When a constraint is actively restricting the optimizer (binding), the shadow price becomes non-zero.
 
-- Meaning: marginal cost of supplying one more kilowatt-hour at a node and time step.
-- Interpretation: local spot price for energy at the node.
-- Typical behaviour: usually mirrors the cheapest available supply route; spikes when the grid price is high or supply is scarce.
-- Use cases: demand response weighting, virtual pricing signals, settlement benchmarking.
+## Example: Marginal cost of power
 
-### Battery energy balance (`shadow_price_energy_balance`)
+The node balance constraint ensures that power flowing into a node equals power flowing out.
+Its shadow price represents the marginal cost of power at that location and time.
 
-- Meaning: time-coupled value of stored energy between consecutive periods.
-- Interpretation: how much future value the battery preserves by retaining one more kilowatt-hour right now.
-- Typical behaviour: higher before expensive import periods, lower when surplus renewable energy is forecast.
-- Use cases: validating charge and discharge schedules, estimating opportunity cost of deploying stored energy early.
+This is not the price you pay for power currently consumed.
+It is the price you would pay to increase (or save by decreasing) consumption by one kilowatt at that node in that time step.
 
-### Battery state-of-charge bounds (`shadow_price_soc_min` and `shadow_price_soc_max`)
+When grid prices are high, the node balance shadow price rises because additional consumption would require expensive imports.
+When local generation exceeds demand, the shadow price may drop to zero or become negative, indicating that additional consumption would actually help by absorbing surplus.
 
-- Meaning: value of relaxing the minimum or maximum state-of-charge constraints.
-- Interpretation: how much the objective would improve if the battery could discharge deeper or charge beyond the current limit.
-- Typical behaviour: becomes non-zero only when the SOC bound is binding; zero when there is slack.
-- Use cases: tuning SOC limits, assessing whether capacity upgrades would yield benefits.
+## Example: Solar forecast limit
 
-### Power limits (`shadow_price_power_consumption_max`, `shadow_price_power_production_max`, `shadow_price_power_import_max`, `shadow_price_power_export_max`, `shadow_price_power_flow_min`, `shadow_price_power_flow_max`)
+The solar forecast limit constrains photovoltaic output to the predicted generation.
+Its shadow price reveals when this physical limit is restricting the optimizer.
 
-- Meaning: marginal benefit of increasing the instantaneous power cap on a device or grid tie.
-- Interpretation: price signal showing when additional charger, inverter, import, or export headroom would lower total cost.
-- Typical behaviour: activates during peak charge/discharge or when grid limits prevent the optimizer from following price incentives.
-- Use cases: sizing inverters and breakers, negotiating demand or export limits, prioritising flexible loads when multiple devices compete for the same headroom.
-- Connection limits (`shadow_price_power_flow_min` and `shadow_price_power_flow_max`) highlight when line ratings or contract minimums prevent energy from flowing between elements.
+During midday when prices are negative, curtailment may already be occurring.
+The optimizer cannot use all available solar, so more generation would not help.
+The shadow price is zero because the constraint is slack—the limit is not what's holding the system back.
 
-### Photovoltaic forecast limit (`shadow_price_forecast_limit`)
+At night, the situation reverses.
+The forecast limit binds at zero (no sun), but the optimizer would clearly benefit from more solar output to avoid expensive imports or to charge the battery.
+The shadow price rises, signaling: "More solar power here would reduce total cost."
+This is physically impossible, of course, but the shadow price makes the optimizer's preference visible.
 
-- Meaning: worth of an additional kilowatt-hour of solar generation at a specific time step.
-- Interpretation: price premium for more renewable energy relative to alternative supply.
-- Typical behaviour: increases when the model would prefer more solar to avoid imports or fuel usage.
-- Use cases: capacity planning, curtailment diagnostics, valuing forecast improvements.
+This pattern—zero when slack, non-zero when binding—applies to all shadow prices and makes them useful for identifying system bottlenecks.
 
-## Technical notes
+## Categories of shadow prices
 
-- Solver support: HiGHS (default) exposes dual values; other solvers must offer dual recovery for shadow prices to be non-zero.
-- Complementary slackness: a binding constraint yields a non-zero shadow price, while a non-binding constraint yields exactly zero.
-- Sign convention: positive prices mean that loosening the constraint reduces total cost; negative prices mean tighter enforcement would help.
-- Diagnostics: all shadow price sensors expose time-indexed forecasts, matching the optimization horizon and allowing visual analysis.
+HAEO exposes shadow prices for various constraint types:
+
+- **Energy-coupled constraints** (reported in \$/kWh): These involve stored energy over time, such as battery state-of-charge limits or energy balance between periods.
+- **Instantaneous power constraints** (reported in \$/kW): These limit power flow at a single moment, such as inverter capacity, grid import limits, or connection ratings.
+
+Individual elements document their specific shadow prices.
+The interpretation pattern remains consistent: the value shows the marginal benefit of relaxing that particular constraint.
+
+## Practical interpretation
+
+**Sign convention**: Positive shadow prices indicate that loosening the constraint would reduce total cost.
+Negative values suggest that tightening the constraint would help (less common in practice).
+
+**Zero values**: A shadow price of zero means the constraint is not currently limiting the solution.
+The optimizer has headroom, so relaxing the limit would not change its decisions.
+
+**Non-zero values**: When a shadow price is non-zero, the constraint is binding.
+The magnitude indicates how valuable additional capacity would be at that point.
 
 ## Next Steps
 
@@ -61,24 +69,24 @@ Positive values indicate that relaxing the constraint would reduce the total cos
 
     ---
 
-    Understand how battery constraints generate shadow prices for SOC and energy balance.
+    Understand how battery constraints generate shadow prices for state-of-charge and energy balance.
 
     [:material-arrow-right: Battery model](battery.md)
-
-- :material-network:{ .lg .middle } **Network modeling**
-
-    ---
-
-    Learn how node balance constraints produce marginal energy prices.
-
-    [:material-arrow-right: Network overview](index.md)
 
 - :material-transmission-tower:{ .lg .middle } **Grid modeling**
 
     ---
 
-    See how import and export limits affect shadow prices.
+    See how import and export limits affect shadow prices at the grid connection.
 
     [:material-arrow-right: Grid model](grid.md)
+
+- :material-network:{ .lg .middle } **Network overview**
+
+    ---
+
+    Learn how node balance constraints produce marginal energy prices across the network.
+
+    [:material-arrow-right: Network overview](index.md)
 
 </div>

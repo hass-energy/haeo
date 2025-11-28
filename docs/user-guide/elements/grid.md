@@ -124,15 +124,15 @@ For more examples and sensor creation, see the [Forecasts and Sensors guide](../
 
 These sensors provide real-time visibility into grid interactions and costs.
 
-| Sensor                                                    | Unit   | Description                         |
-| --------------------------------------------------------- | ------ | ----------------------------------- |
-| [`sensor.{name}_power_imported`](#power-imported)         | kW     | Power imported from grid            |
-| [`sensor.{name}_power_exported`](#power-exported)         | kW     | Power exported to grid              |
-| [`sensor.{name}_price_import`](#price-import)             | \$/kWh | Current import price                |
-| [`sensor.{name}_price_export`](#price-export)             | \$/kWh | Current export price                |
-| [`sensor.{name}_power_balance`](#power-balance)           | \$/kW  | Marginal cost of grid power         |
-| [`sensor.{name}_max_import_power`](#max-import-power)     | \$/kW  | Value of additional import capacity |
-| [`sensor.{name}_max_export_power`](#max-export-power)     | \$/kW  | Value of additional export capacity |
+| Sensor                                                | Unit   | Description                         |
+| ----------------------------------------------------- | ------ | ----------------------------------- |
+| [`sensor.{name}_power_imported`](#power-imported)     | kW     | Power imported from grid            |
+| [`sensor.{name}_power_exported`](#power-exported)     | kW     | Power exported to grid              |
+| [`sensor.{name}_price_import`](#price-import)         | \$/kWh | Current import price                |
+| [`sensor.{name}_price_export`](#price-export)         | \$/kWh | Current export price                |
+| [`sensor.{name}_power_balance`](#power-balance)       | \$/kW  | Marginal cost of grid power         |
+| [`sensor.{name}_max_import_power`](#max-import-power) | \$/kW  | Value of additional import capacity |
+| [`sensor.{name}_max_export_power`](#max-export-power) | \$/kW  | Value of additional export capacity |
 
 ### Power Imported
 
