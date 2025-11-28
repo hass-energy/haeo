@@ -1,10 +1,22 @@
 """Node for electrical system modeling."""
 
-from custom_components.haeo.model.const import CONSTRAINT_NAME_POWER_BALANCE
-from custom_components.haeo.model.element import Element
+from collections.abc import Mapping
+from typing import Final, Literal
+
+from .const import OUTPUT_TYPE_SHADOW_PRICE
+from .element import Element
+from .output_data import OutputData
+
+NODE_POWER_BALANCE: Final = "node_power_balance"
+
+type NodeConstraintName = Literal["node_power_balance"]
+
+type NodeOutputName = NodeConstraintName
+
+NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
 
 
-class Node(Element):
+class Node(Element[NodeOutputName, NodeConstraintName]):
     """Node for electrical system modeling."""
 
     def __init__(self, name: str, period: float, n_periods: int) -> None:
@@ -24,6 +36,17 @@ class Node(Element):
         This includes power balance constraints using connection_power().
         Nodes are pure junctions with no generation or consumption.
         """
-        self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
-            self.connection_power(t) == 0 for t in range(self.n_periods)
-        ]
+        self._constraints[NODE_POWER_BALANCE] = [self.connection_power(t) == 0 for t in range(self.n_periods)]
+
+    def outputs(self) -> Mapping[NodeOutputName, OutputData]:
+        """Return node output specifications."""
+        outputs: dict[NodeOutputName, OutputData] = {}
+
+        for constraint_name in self._constraints:
+            outputs[constraint_name] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kW",
+                values=self._constraints[constraint_name],
+            )
+
+        return outputs

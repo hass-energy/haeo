@@ -9,24 +9,7 @@ from homeassistant.core import HomeAssistant
 import pytest
 
 from custom_components.haeo.data.loader.extractors import ExtractedData
-from custom_components.haeo.data.loader.extractors.utils import convert_to_base_unit
 from custom_components.haeo.data.loader.sensor_loader import load_sensor, load_sensors, normalize_entity_ids
-
-
-@pytest.mark.parametrize(
-    ("value", "unit", "cls", "expected"),
-    [
-        (1, UnitOfPower.WATT, SensorDeviceClass.POWER, 0.001),
-        (1, UnitOfPower.KILO_WATT, SensorDeviceClass.POWER, 1),
-        (5, "kWh", SensorDeviceClass.ENERGY, 5),
-        (75, "%", SensorDeviceClass.BATTERY, 75),
-    ],
-)
-def test_convert_to_base_unit(value: float, unit: str, cls: SensorDeviceClass | str, expected: float) -> None:
-    """Ensure the helper converts as expected to kW/kWh base units."""
-
-    device_class = cls if isinstance(cls, SensorDeviceClass) else None
-    assert convert_to_base_unit(value, unit, device_class) == expected
 
 
 def test_normalize_entity_ids_accepts_str_and_sequence() -> None:

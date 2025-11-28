@@ -7,9 +7,14 @@ This is a compatibility shim that imports from the new modular visualization pac
 """
 
 # Import everything from the new modular structure
-from tests.scenarios.visualisation import create_stacked_visualization, visualize_scenario_results
+from tests.scenarios.visualisation import (
+    create_shadow_price_visualization,
+    create_stacked_visualization,
+    visualize_scenario_results,
+)
 
 __all__ = [
+    "create_shadow_price_visualization",
     "create_stacked_visualization",
     "visualize_scenario_results",
 ]

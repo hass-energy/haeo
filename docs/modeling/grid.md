@@ -48,7 +48,9 @@ Import is positive cost. Export is negative cost (revenue).
 
 **Export**: Grid absorbs excess power from solar or battery discharge.
 
-**Simultaneous import/export**: Optimizer won't do this - it increases cost without benefit.
+**Simultaneous import/export**: The optimizer will attempt this if arbitrage opportunities exist in the prices.
+Ensure export prices are always less than import prices to prevent this behavior.
+Even if both prices are zero, simultaneous flow can occur and cause poor optimization results, because the optimizer has no economic incentive to prefer import or export, and may select any feasible solution.
 
 **Unlimited grid**: If no limits configured, grid can always balance power needs.
 
@@ -65,8 +67,32 @@ Import is positive cost. Export is negative cost (revenue).
 
 **Flat pricing**: Limited optimization benefit - battery only useful for solar storage.
 
-## Related Documentation
+## Next Steps
 
-- [Grid Configuration](../user-guide/elements/grid.md)
-- [Modeling Overview](index.md)
-- [Battery Modeling](battery.md)
+<div class="grid cards" markdown>
+
+- :material-file-document:{ .lg .middle } **User configuration guide**
+
+    ---
+
+    Configure grids in your Home Assistant setup.
+
+    [:material-arrow-right: Grid configuration](../user-guide/elements/grid.md)
+
+- :material-network:{ .lg .middle } **Network modeling**
+
+    ---
+
+    Understand how elements interact in the network model.
+
+    [:material-arrow-right: Network modeling overview](index.md)
+
+- :material-code-braces:{ .lg .middle } **Implementation**
+
+    ---
+
+    View the source code for the grid element model.
+
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/grid.py)
+
+</div>

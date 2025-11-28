@@ -33,6 +33,11 @@ The typical workflow for setting up HAEO is:
 4. Define connections between elements
 5. View optimization results in sensors and build automations around them
 
+!!! tip "Troubleshooting and Support"
+
+    If you encounter issues, HAEO provides diagnostic information you can export for troubleshooting or when requesting help.
+    See the [troubleshooting guide](troubleshooting.md) for details on accessing diagnostic data.
+
 ## Project Philosophy
 
 HAEO follows a focused, Unix-like philosophy: **do one thing well**.

@@ -45,3 +45,134 @@ table {
   text-align: center;
   margin: 1.5em 0;
 }
+
+/* Custom semantic classes for HAEO diagrams */
+/* These provide additional styling beyond Material's default Mermaid theme */
+
+/* Light mode (default scheme) */
+.mermaid .emphasis rect,
+.mermaid .emphasis circle,
+.mermaid .emphasis ellipse,
+.mermaid .emphasis polygon,
+.mermaid .emphasis path {
+  fill: #90caf9 !important;
+  stroke: #1565c0 !important;
+}
+
+.mermaid .success rect,
+.mermaid .success circle,
+.mermaid .success ellipse,
+.mermaid .success polygon,
+.mermaid .success path {
+  fill: #a5d6a7 !important;
+  stroke: #388e3c !important;
+}
+
+.mermaid .warning rect,
+.mermaid .warning circle,
+.mermaid .warning ellipse,
+.mermaid .warning polygon,
+.mermaid .warning path {
+  fill: #ffe082 !important;
+  stroke: #f57c00 !important;
+}
+
+.mermaid .danger rect,
+.mermaid .danger circle,
+.mermaid .danger ellipse,
+.mermaid .danger polygon,
+.mermaid .danger path {
+  fill: #ef9a9a !important;
+  stroke: #c62828 !important;
+}
+
+.mermaid .neutral rect,
+.mermaid .neutral circle,
+.mermaid .neutral ellipse,
+.mermaid .neutral polygon,
+.mermaid .neutral path {
+  fill: #e0e0e0 !important;
+  stroke: #9e9e9e !important;
+}
+
+.mermaid .ac rect,
+.mermaid .ac circle,
+.mermaid .ac ellipse,
+.mermaid .ac polygon,
+.mermaid .ac path {
+  fill: #d1c4e9 !important;
+  stroke: #5e35b1 !important;
+}
+
+.mermaid .dc rect,
+.mermaid .dc circle,
+.mermaid .dc ellipse,
+.mermaid .dc polygon,
+.mermaid .dc path {
+  fill: #b2dfdb !important;
+  stroke: #00695c !important;
+}
+
+/* Dark mode overrides using Material for MkDocs theme attribute */
+[data-md-color-scheme="slate"] .mermaid .emphasis rect,
+[data-md-color-scheme="slate"] .mermaid .emphasis circle,
+[data-md-color-scheme="slate"] .mermaid .emphasis ellipse,
+[data-md-color-scheme="slate"] .mermaid .emphasis polygon,
+[data-md-color-scheme="slate"] .mermaid .emphasis path {
+  fill: #1565c0 !important;
+  stroke: #42a5f5 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .success rect,
+[data-md-color-scheme="slate"] .mermaid .success circle,
+[data-md-color-scheme="slate"] .mermaid .success ellipse,
+[data-md-color-scheme="slate"] .mermaid .success polygon,
+[data-md-color-scheme="slate"] .mermaid .success path {
+  fill: #2e7d32 !important;
+  stroke: #66bb6a !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .warning rect,
+[data-md-color-scheme="slate"] .mermaid .warning circle,
+[data-md-color-scheme="slate"] .mermaid .warning ellipse,
+[data-md-color-scheme="slate"] .mermaid .warning polygon,
+[data-md-color-scheme="slate"] .mermaid .warning path {
+  fill: #f57c00 !important;
+  stroke: #ffb74d !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .danger rect,
+[data-md-color-scheme="slate"] .mermaid .danger circle,
+[data-md-color-scheme="slate"] .mermaid .danger ellipse,
+[data-md-color-scheme="slate"] .mermaid .danger polygon,
+[data-md-color-scheme="slate"] .mermaid .danger path {
+  fill: #c62828 !important;
+  stroke: #e57373 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .neutral rect,
+[data-md-color-scheme="slate"] .mermaid .neutral circle,
+[data-md-color-scheme="slate"] .mermaid .neutral ellipse,
+[data-md-color-scheme="slate"] .mermaid .neutral polygon,
+[data-md-color-scheme="slate"] .mermaid .neutral path {
+  fill: #424242 !important;
+  stroke: #757575 !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .ac rect,
+[data-md-color-scheme="slate"] .mermaid .ac circle,
+[data-md-color-scheme="slate"] .mermaid .ac ellipse,
+[data-md-color-scheme="slate"] .mermaid .ac polygon,
+[data-md-color-scheme="slate"] .mermaid .ac path {
+  fill: #5e35b1 !important;
+  stroke: #9575cd !important;
+}
+
+[data-md-color-scheme="slate"] .mermaid .dc rect,
+[data-md-color-scheme="slate"] .mermaid .dc circle,
+[data-md-color-scheme="slate"] .mermaid .dc ellipse,
+[data-md-color-scheme="slate"] .mermaid .dc polygon,
+[data-md-color-scheme="slate"] .mermaid .dc path {
+  fill: #00695c !important;
+  stroke: #4db6ac !important;
+}

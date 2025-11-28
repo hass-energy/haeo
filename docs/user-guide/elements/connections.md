@@ -2,36 +2,39 @@
 
 Connections define how power flows between elements in your network with support for bidirectional flow, efficiency losses, and transmission costs.
 
-## Configuration Fields
+## Configuration
 
-| Field                        | Type                                                | Description                                                                                                               |
-| ---------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **Name**                     | text                                                | Unique name for this connection                                                                                           |
-| **Source**                   | element                                             | Element where power can flow from (in the source→target direction)                                                        |
-| **Target**                   | element                                             | Element where power can flow to (in the source→target direction)                                                          |
-| **Max Power Source→Target**  | [sensor](../forecasts-and-sensors.md) (optional)    | Maximum power flow from source to target (kW). If not set, flow is unlimited. Set to 0 to prevent flow in this direction. |
-| **Max Power Target→Source**  | [sensor](../forecasts-and-sensors.md) (optional)    | Maximum power flow from target to source (kW). If not set, flow is unlimited. Set to 0 to prevent flow in this direction. |
-| **Efficiency Source→Target** | [sensor](../forecasts-and-sensors.md) (optional)    | Efficiency percentage (0-100) for power transfer from source to target. Defaults to 100% (no losses) if not set.          |
-| **Efficiency Target→Source** | [sensor](../forecasts-and-sensors.md) (optional)    | Efficiency percentage (0-100) for power transfer from target to source. Defaults to 100% (no losses) if not set.          |
-| **Price Source→Target**      | [sensor(s)](../forecasts-and-sensors.md) (optional) | Price in \$/kWh for transferring power from source to target. If not set, no cost is applied.                             |
-| **Price Target→Source**      | [sensor(s)](../forecasts-and-sensors.md) (optional) | Price in \$/kWh for transferring power from target to source. If not set, no cost is applied.                             |
+| Field                        | Type                                     | Required | Default   | Description                                                            |
+| ---------------------------- | ---------------------------------------- | -------- | --------- | ---------------------------------------------------------------------- |
+| **Name**                     | String                                   | Yes      | -         | Unique identifier for this connection                                  |
+| **Source**                   | Element                                  | Yes      | -         | Element where power can flow from (in source→target direction)         |
+| **Target**                   | Element                                  | Yes      | -         | Element where power can flow to (in source→target direction)           |
+| **Max Power Source→Target**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from source to target (kW)                          |
+| **Max Power Target→Source**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power flow from target to source (kW)                          |
+| **Efficiency Source→Target** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from source to target |
+| **Efficiency Target→Source** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for power transfer from target to source |
+| **Price Source→Target**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from source to target            |
+| **Price Target→Source**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from target to source            |
 
-!!! tip "Using constant values"
+!!! tip "Configuration tips"
 
-    All sensor fields require sensor entities.
-    Use [input number helpers](https://www.home-assistant.io/integrations/input_number/) to configure constant values.
+    **Leaving fields unset**: When a direction should allow unlimited flow with no losses or costs, leave the corresponding fields empty rather than creating sensors with maximum or default values.
+
+    **Using constant values**: All sensor fields require sensor entities.
+
+Use [input number helpers](https://www.home-assistant.io/integrations/input_number/) to configure constant values.
 
 ## Configuration Example
 
 Bidirectional connection between grid and battery:
 
-```yaml
-Name: Grid to Battery
-Source: Grid
-Target: Battery
-Max Power Source→Target: input_number.grid_charge_limit
-Max Power Target→Source: input_number.grid_discharge_limit
-```
+| Field                       | Value                             |
+| --------------------------- | --------------------------------- |
+| **Name**                    | Grid to Battery                   |
+| **Source**                  | Grid                              |
+| **Target**                  | Battery                           |
+| **Max Power Source→Target** | input_number.grid_charge_limit    |
+| **Max Power Target→Source** | input_number.grid_discharge_limit |
 
 ## Physical Interpretation
 
@@ -56,36 +59,47 @@ Connection pricing models fees for using a power transfer path (wheeling charges
 
 Leave both power limits unset for unlimited flow in both directions:
 
-```yaml
-Source: Solar
-Target: Net
-# No power limits - unlimited bidirectional flow
-# Solar will only produce, so reverse flow won't occur naturally
-```
+| Field                       | Value           |
+| --------------------------- | --------------- |
+| **Name**                    | Solar to Main   |
+| **Source**                  | Solar           |
+| **Target**                  | Main Node       |
+| **Max Power Source→Target** | _(leave empty)_ |
+| **Max Power Target→Source** | _(leave empty)_ |
+
+!!! note
+
+    Solar will only produce, so reverse flow won't occur naturally.
 
 ### Unidirectional Connection
 
 Set one direction's limit to 0 to prevent flow:
 
-```yaml
-Source: Solar
-Target: Net
-Max Power Source→Target: input_number.solar_max
-Max Power Target→Source: input_number.zero  # Value = 0
-```
+| Field                       | Value                  |
+| --------------------------- | ---------------------- |
+| **Name**                    | Solar to Main          |
+| **Source**                  | Solar                  |
+| **Target**                  | Main Node              |
+| **Max Power Source→Target** | input_number.solar_max |
+| **Max Power Target→Source** | input_number.zero      |
+
+!!! note
+
+    Set `input_number.zero` value to `0` to prevent reverse flow.
 
 ### Hybrid Inverter
 
 Model AC-DC conversion with efficiency:
 
-```yaml
-Source: DC_Net
-Target: AC_Net
-Max Power Source→Target: input_number.inverter_rating
-Max Power Target→Source: input_number.inverter_rating
-Efficiency Source→Target: input_number.inverter_efficiency
-Efficiency Target→Source: input_number.inverter_efficiency
-```
+| Field                        | Value                            |
+| ---------------------------- | -------------------------------- |
+| **Name**                     | DC to AC Inverter                |
+| **Source**                   | DC_Node                          |
+| **Target**                   | AC_Node                          |
+| **Max Power Source→Target**  | input_number.inverter_rating     |
+| **Max Power Target→Source**  | input_number.inverter_rating     |
+| **Efficiency Source→Target** | input_number.inverter_efficiency |
+| **Efficiency Target→Source** | input_number.inverter_efficiency |
 
 ### Availability Windows
 
@@ -110,32 +124,87 @@ template:
 
 Then configure the connection:
 
-```yaml
-Source: Grid
-Target: EV_Battery
-Max Power Source→Target: sensor.ev_charging_availability
-```
+| Field                       | Value                           |
+| --------------------------- | ------------------------------- |
+| **Name**                    | Grid to EV                      |
+| **Source**                  | Grid                            |
+| **Target**                  | EV_Battery                      |
+| **Max Power Source→Target** | sensor.ev_charging_availability |
 
 The optimizer will only schedule charging when the sensor value is non-zero.
 
 ## Sensors Created
 
-Connections create the following sensors:
+These sensors provide real-time visibility into power flow and capacity constraints between elements.
 
-| Sensor                   | Unit | Description                         |
-| ------------------------ | ---- | ----------------------------------- |
-| Power Flow Source→Target | kW   | Power flowing from source to target |
-| Power Flow Target→Source | kW   | Power flowing from target to source |
+| Sensor                                                                | Unit  | Description                          |
+| --------------------------------------------------------------------- | ----- | ------------------------------------ |
+| [`sensor.{name}_power_flow_source_target`](#power-flow-source-target) | kW    | Power flowing from source to target  |
+| [`sensor.{name}_power_flow_target_source`](#power-flow-target-source) | kW    | Power flowing from target to source  |
+| [`sensor.{name}_max_power_source_target`](#max-power-source-target)   | \$/kW | Value of additional forward capacity |
+| [`sensor.{name}_max_power_target_source`](#max-power-target-source)   | \$/kW | Value of additional reverse capacity |
+
+### Power Flow Source Target
+
+The optimal power flowing from the source element to the target element.
+
+Values are always positive or zero.
+A value of 0 means no power is flowing in the forward direction (may be flowing in reverse or not at all).
+The direction is determined by the connection configuration (source → target).
+
+**Example**: A value of 3.5 kW means 3.5 kW is flowing from the source element to the target element at this time period.
+
+### Power Flow Target Source
+
+The optimal power flowing from the target element to the source element.
+
+Values are always positive or zero.
+A value of 0 means no power is flowing in the reverse direction (may be flowing forward or not at all).
+This represents reverse flow through the connection (target → source).
+
+**Example**: A value of 2.0 kW means 2.0 kW is flowing from the target element back to the source element at this time period.
+
+### Max Power Source Target
+
+The marginal value of additional forward capacity (source → target).
+See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+This shadow price shows how much the total system cost would decrease if the forward power limit were increased by 1 kW at this time period.
+
+**Interpretation**:
+
+- **Zero value**: Connection has spare capacity in the forward direction (not at limit)
+- **Positive value**: Connection is at maximum forward capacity and constraining power flow
+    - The value shows how much system cost would decrease per kW of additional forward capacity
+    - Higher values indicate the forward capacity limit is causing significant cost increases
+    - Helps identify bottlenecks where more forward capacity would be valuable
+
+**Example**: A value of 0.08 means that if the connection could transfer 1 kW more in the forward direction, the total system cost would decrease by \$0.08 at this time period.
+
+### Max Power Target Source
+
+The marginal value of additional reverse capacity (target → source).
+See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+This shadow price shows how much the total system cost would decrease if the reverse power limit were increased by 1 kW at this time period.
+
+**Interpretation**:
+
+- **Zero value**: Connection has spare capacity in the reverse direction (not at limit)
+- **Positive value**: Connection is at maximum reverse capacity and constraining power flow
+    - The value shows how much system cost would decrease per kW of additional reverse capacity
+    - Higher values indicate the reverse capacity limit is causing significant cost increases
+    - Helps identify bottlenecks where more reverse capacity would be valuable
+
+**Example**: A value of 0.12 means that if the connection could transfer 1 kW more in the reverse direction, the total system cost would decrease by \$0.12 at this time period.
+
+---
+
+All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
 ## Troubleshooting
 
 See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly) for connection issues.
-
-## Related Documentation
-
-- [Connection Modeling](../../modeling/connections.md)
-- [Node Modeling](../../modeling/node.md)
-- [Forecasts and Sensors](../forecasts-and-sensors.md)
 
 ## Next Steps
 
@@ -149,6 +218,22 @@ See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly)
 
     [:material-arrow-right: Elements overview](index.md)
 
+- :material-math-integral:{ .lg .middle } **Connection modeling**
+
+    ---
+
+    Understand the mathematical formulation of power flows.
+
+    [:material-arrow-right: Connection modeling](../../modeling/connections.md)
+
+- :material-circle-outline:{ .lg .middle } **Node modeling**
+
+    ---
+
+    Learn about power balance at network nodes.
+
+    [:material-arrow-right: Node modeling](../../modeling/node.md)
+
 - :material-chart-line:{ .lg .middle } **Understand optimization**
 
     ---
@@ -156,13 +241,5 @@ See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly)
     See how HAEO optimizes power flow through your network.
 
     [:material-arrow-right: Optimization results](../optimization.md)
-
-- :material-bug:{ .lg .middle } **Troubleshoot issues**
-
-    ---
-
-    Resolve connection errors and graph connectivity problems.
-
-    [:material-arrow-right: Troubleshooting guide](../troubleshooting.md)
 
 </div>

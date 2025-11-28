@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 import json
 import logging
 from numbers import Real
+import os
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -64,8 +65,9 @@ _scenarios = _discover_scenarios()
 _scenario_params = [(scenario, _extract_freeze_time(scenario)) for scenario in _scenarios]
 
 
+# Skip if in CI
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="Skipping scenario tests in CI")
 @pytest.mark.scenario
-@pytest.mark.skip
 @pytest.mark.timeout(30)
 @pytest.mark.parametrize(
     ("scenario_path", "freeze_timestamp"),
@@ -207,10 +209,8 @@ async def test_scenarios(
         await hass.async_block_till_done()
 
         # Create visualizations while data is still available
-        # Run in executor since visualization uses sync matplotlib/file I/O operations
         _LOGGER.info("Starting visualization process...")
-        await hass.async_add_executor_job(
-            visualize_scenario_results,
+        await visualize_scenario_results(
             hass,
             scenario_path.name,
             scenario_path / "visualizations",

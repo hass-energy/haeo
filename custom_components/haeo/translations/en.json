@@ -1,318 +1,286 @@
 {
   "config": {
     "flow_title": "HAEO Network Setup",
-    "entry_type": "HAEO Optimisation",
     "step": {
       "user": {
         "title": "HAEO Network Setup",
         "description": "Create a new HAEO optimization network. Configure the optimization horizon (how far into the future to optimize) and time period (how often to make optimization decisions). After creating the network, you can add individual devices like batteries, grid connections, loads, and photovoltaics through the network's configuration options.",
         "data": {
+          "debounce_seconds": "Debounce Window (seconds)",
+          "horizon_hours": "Optimization Horizon (hours)",
           "name": "Network Name",
-          "horizon_hours": "Optimization Horizon (hours)",
+          "optimizer": "Optimization Solver",
           "period_minutes": "Time Period (minutes)",
-          "update_interval_minutes": "Update Interval (minutes)",
-          "debounce_seconds": "Debounce Window (seconds)",
-          "optimizer": "Optimization Solver"
+          "update_interval_minutes": "Update Interval (minutes)"
         }
       }
     },
-    "error": {
-      "name_exists": "A network with this name already exists"
-    },
-    "abort": {
-      "already_configured": "Network already configured"
-    }
-  },
-  "device": {
-    "node": { "name": "{name}" },
-    "battery": { "name": "{name}" },
-    "grid": { "name": "{name}" },
-    "load": { "name": "{name}" },
-    "photovoltaics": { "name": "{name}" },
-    "connection": { "name": "{name}" },
-    "network": { "name": "{name}" }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Network Settings",
-        "description": "Configure optimization horizon, time period, and solver",
-        "data": {
-          "horizon_hours": "Optimization Horizon (hours)",
-          "period_minutes": "Time Period (minutes)",
-          "update_interval_minutes": "Update Interval (minutes)",
-          "debounce_seconds": "Debounce Window (seconds)",
-          "optimizer": "Optimization Solver"
-        }
-      }
-    },
-    "error": {
-      "name_exists": "A device with this name already exists",
-      "invalid_name": "Invalid device name",
-      "cannot_connect_to_self": "Cannot connect a device to itself",
-      "min_power_too_high": "Minimum power must be less than or equal to maximum power",
-      "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
-      "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections"
-    },
-    "abort": {
-      "no_participants": "No devices are currently connected to this network",
-      "reload_failed": "Failed to reload the integration after configuration changes. Please check your configuration and try again."
-    }
+    "error": { "name_exists": "A network with this name already exists" },
+    "abort": { "already_configured": "Network already configured" }
   },
   "config_subentries": {
     "battery": {
       "flow_title": "Battery",
       "entry_type": "Battery",
-      "initiate_flow": {
-        "user": "Battery",
-        "reconfigure": "Battery"
-      },
+      "initiate_flow": { "user": "Battery", "reconfigure": "Battery" },
       "step": {
-        "user": {
-          "title": "Add Battery",
-          "description": "Set up battery parameters for energy optimization",
-          "data": {
-            "name": "Battery Name",
-            "capacity": "Capacity",
-            "initial_charge_percentage": "Current Charge Sensor",
-            "min_charge_percentage": "Minimum Charge Level",
-            "max_charge_percentage": "Maximum Charge Level",
-            "max_charge_power": "Maximum Charge Power",
-            "max_discharge_power": "Maximum Discharge Power",
-            "efficiency": "Round-trip Efficiency",
-            "early_charge_incentive": "Early Charge Incentive",
-            "discharge_cost": "Discharge Cost (Optional)",
-            "undercharge_percentage": "Undercharge Percentage (Optional)",
-            "overcharge_percentage": "Overcharge Percentage (Optional)",
-            "undercharge_cost": "Undercharge Cost (Optional)",
-            "overcharge_cost": "Overcharge Cost (Optional)"
-          }
-        },
         "reconfigure": {
           "title": "Edit Battery",
           "description": "Update battery configuration",
           "data": {
-            "name": "Battery Name",
             "capacity": "Capacity",
+            "discharge_cost": "Discharge Cost (Optional)",
+            "early_charge_incentive": "Early Charge Incentive",
+            "efficiency": "One-way Efficiency",
             "initial_charge_percentage": "Current Charge Sensor",
-            "min_charge_percentage": "Minimum Charge Level",
             "max_charge_percentage": "Maximum Charge Level",
             "max_charge_power": "Maximum Charge Power",
             "max_discharge_power": "Maximum Discharge Power",
-            "efficiency": "One-way Efficiency",
-            "early_charge_incentive": "Early Charge Incentive",
-            "discharge_cost": "Discharge Cost (Optional)",
-            "undercharge_percentage": "Undercharge Percentage (Optional)",
+            "min_charge_percentage": "Minimum Charge Level",
+            "name": "Battery Name",
+            "overcharge_cost": "Overcharge Cost (Optional)",
             "overcharge_percentage": "Overcharge Percentage (Optional)",
             "undercharge_cost": "Undercharge Cost (Optional)",
-            "overcharge_cost": "Overcharge Cost (Optional)"
+            "undercharge_percentage": "Undercharge Percentage (Optional)"
+          }
+        },
+        "user": {
+          "title": "Add Battery",
+          "description": "Set up battery parameters for energy optimization",
+          "data": {
+            "capacity": "Capacity",
+            "discharge_cost": "Discharge Cost (Optional)",
+            "early_charge_incentive": "Early Charge Incentive",
+            "efficiency": "Round-trip Efficiency",
+            "initial_charge_percentage": "Current Charge Sensor",
+            "max_charge_percentage": "Maximum Charge Level",
+            "max_charge_power": "Maximum Charge Power",
+            "max_discharge_power": "Maximum Discharge Power",
+            "min_charge_percentage": "Minimum Charge Level",
+            "name": "Battery Name",
+            "overcharge_cost": "Overcharge Cost (Optional)",
+            "overcharge_percentage": "Overcharge Percentage (Optional)",
+            "undercharge_cost": "Undercharge Cost (Optional)",
+            "undercharge_percentage": "Undercharge Percentage (Optional)"
+          }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+    },
+    "connection": {
+      "flow_title": "Connection",
+      "entry_type": "Connection",
+      "initiate_flow": { "user": "Connection", "reconfigure": "Connection" },
+      "step": {
+        "reconfigure": {
+          "title": "Edit Connection",
+          "description": "Update connection configuration",
+          "data": {
+            "efficiency_source_target": "Efficiency Source→Target (%)",
+            "efficiency_target_source": "Efficiency Target→Source (%)",
+            "max_power_source_target": "Maximum Power Source→Target",
+            "max_power_target_source": "Maximum Power Target→Source",
+            "name": "Connection Name",
+            "price_source_target": "Price Source→Target",
+            "price_target_source": "Price Target→Source",
+            "source": "Source Device",
+            "target": "Target Device"
+          }
+        },
+        "user": {
+          "title": "Add Connection",
+          "description": "Set up connection parameters between devices",
+          "data": {
+            "efficiency_source_target": "Efficiency Source→Target (%)",
+            "efficiency_target_source": "Efficiency Target→Source (%)",
+            "max_power_source_target": "Maximum Power Source→Target",
+            "max_power_target_source": "Maximum Power Target→Source",
+            "name": "Connection Name",
+            "price_source_target": "Price Source→Target",
+            "price_target_source": "Price Target→Source",
+            "source": "Source Device",
+            "target": "Target Device"
           }
         }
       },
       "error": {
-        "name_exists": "A device with this name already exists",
-        "missing_name": "Name is required"
+        "cannot_connect_to_self": "Cannot connect a device to itself",
+        "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
+        "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections",
+        "min_power_too_high": "Minimum power must be less than or equal to maximum power",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
       }
     },
     "grid": {
       "flow_title": "Grid Connection",
       "entry_type": "Grid Connection",
-      "initiate_flow": {
-        "user": "Grid Connection",
-        "reconfigure": "Grid Connection"
-      },
+      "initiate_flow": { "user": "Grid Connection", "reconfigure": "Grid Connection" },
       "step": {
-        "user": {
-          "title": "Add Grid Connection",
-          "description": "Set up grid import/export parameters and pricing",
-          "data": {
-            "name": "Grid Connection Name",
-            "import_limit": "Import Limit (Optional)",
-            "export_limit": "Export Limit (Optional)",
-            "import_price": "Import Price Sensors",
-            "export_price": "Export Price Sensors"
-          }
-        },
         "reconfigure": {
           "title": "Edit Grid Connection",
           "description": "Update grid connection configuration",
           "data": {
-            "name": "Grid Connection Name",
-            "import_limit": "Import Limit (Optional)",
             "export_limit": "Export Limit (Optional)",
+            "export_price": "Export Price Sensors",
+            "import_limit": "Import Limit (Optional)",
             "import_price": "Import Price Sensors",
-            "export_price": "Export Price Sensors"
+            "name": "Grid Connection Name"
+          }
+        },
+        "user": {
+          "title": "Add Grid Connection",
+          "description": "Set up grid import/export parameters and pricing",
+          "data": {
+            "export_limit": "Export Limit (Optional)",
+            "export_price": "Export Price Sensors",
+            "import_limit": "Import Limit (Optional)",
+            "import_price": "Import Price Sensors",
+            "name": "Grid Connection Name"
           }
         }
       },
-      "error": {
-        "name_exists": "A device with this name already exists",
-        "missing_name": "Name is required"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     },
     "load": {
       "flow_title": "Load",
       "entry_type": "Load",
-      "initiate_flow": {
-        "user": "Load",
-        "reconfigure": "Load"
-      },
+      "initiate_flow": { "user": "Load", "reconfigure": "Load" },
       "step": {
-        "user": {
-          "title": "Add Load",
-          "description": "Set up a load with forecast or constant power",
-          "data": {
-            "name": "Load Name",
-            "forecast": "Forecast Sensors"
-          }
-        },
         "reconfigure": {
           "title": "Edit Load",
           "description": "Update load configuration",
-          "data": {
-            "name": "Load Name",
-            "forecast": "Forecast Sensors"
-          }
-        }
-      },
-      "error": {
-        "name_exists": "A device with this name already exists",
-        "missing_name": "Name is required"
-      }
-    },
-    "photovoltaics": {
-      "flow_title": "Photovoltaics",
-      "entry_type": "Photovoltaics",
-      "initiate_flow": {
-        "user": "Photovoltaics",
-        "reconfigure": "Photovoltaics"
-      },
-      "step": {
-        "user": {
-          "title": "Add Photovoltaics",
-          "description": "Set up photovoltaics forecasting and parameters",
-          "data": {
-            "name": "Photovoltaics Name",
-            "forecast": "Forecast Sensors",
-            "price_production": "Production Price (Optional)",
-            "curtailment": "Allow Curtailment (Optional)"
-          }
+          "data": { "forecast": "Forecast Sensors", "name": "Load Name" }
         },
-        "reconfigure": {
-          "title": "Edit Photovoltaics",
-          "description": "Update photovoltaics configuration",
-          "data": {
-            "name": "Photovoltaics Name",
-            "forecast": "Forecast Sensors",
-            "price_production": "Production Price (Optional)",
-            "curtailment": "Allow Curtailment (Optional)"
-          }
-        }
-      },
-      "error": {
-        "name_exists": "A device with this name already exists",
-        "missing_name": "Name is required"
-      }
-    },
-    "node": {
-      "flow_title": "Node",
-      "entry_type": "Node",
-      "initiate_flow": {
-        "user": "Node",
-        "reconfigure": "Node"
-      },
-      "step": {
         "user": {
-          "title": "Add Node",
-          "description": "Add a node for power balance calculations",
-          "data": {
-            "name": "Node Name"
-          }
-        },
-        "reconfigure": {
-          "title": "Edit Node",
-          "description": "Update node configuration",
-          "data": {
-            "name": "Node Name"
-          }
+          "title": "Add Load",
+          "description": "Set up a load with forecast or constant power",
+          "data": { "forecast": "Forecast Sensors", "name": "Load Name" }
         }
       },
-      "error": {
-        "name_exists": "A device with this name already exists",
-        "missing_name": "Name is required"
-      }
-    },
-    "connection": {
-      "flow_title": "Connection",
-      "entry_type": "Connection",
-      "initiate_flow": {
-        "user": "Connection",
-        "reconfigure": "Connection"
-      },
-      "step": {
-        "user": {
-          "title": "Add Connection",
-          "description": "Set up connection parameters between devices",
-          "data": {
-            "name": "Connection Name",
-            "source": "Source Device",
-            "target": "Target Device",
-            "max_power_source_target": "Maximum Power Source→Target",
-            "max_power_target_source": "Maximum Power Target→Source",
-            "efficiency_source_target": "Efficiency Source→Target (%)",
-            "efficiency_target_source": "Efficiency Target→Source (%)",
-            "price_source_target": "Price Source→Target",
-            "price_target_source": "Price Target→Source"
-          }
-        },
-        "reconfigure": {
-          "title": "Edit Connection",
-          "description": "Update connection configuration",
-          "data": {
-            "name": "Connection Name",
-            "source": "Source Device",
-            "target": "Target Device",
-            "max_power_source_target": "Maximum Power Source→Target",
-            "max_power_target_source": "Maximum Power Target→Source",
-            "efficiency_source_target": "Efficiency Source→Target (%)",
-            "efficiency_target_source": "Efficiency Target→Source (%)",
-            "price_source_target": "Price Source→Target",
-            "price_target_source": "Price Target→Source"
-          }
-        }
-      },
-      "error": {
-        "name_exists": "A device with this name already exists",
-        "missing_name": "Name is required",
-        "cannot_connect_to_self": "Cannot connect a device to itself",
-        "min_power_too_high": "Minimum power must be less than or equal to maximum power",
-        "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
-        "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     },
     "network": {
       "flow_title": "Network",
       "entry_type": "Network",
+      "initiate_flow": { "user": "Network", "reconfigure": "Network" },
       "step": {}
+    },
+    "node": {
+      "flow_title": "Node",
+      "entry_type": "Node",
+      "initiate_flow": { "user": "Node", "reconfigure": "Node" },
+      "step": {
+        "reconfigure": {
+          "title": "Edit Node",
+          "description": "Update node configuration",
+          "data": { "name": "Node Name" }
+        },
+        "user": {
+          "title": "Add Node",
+          "description": "Add a node for power balance calculations",
+          "data": { "name": "Node Name" }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+    },
+    "photovoltaics": {
+      "flow_title": "Photovoltaics",
+      "entry_type": "Photovoltaics",
+      "initiate_flow": { "user": "Photovoltaics", "reconfigure": "Photovoltaics" },
+      "step": {
+        "reconfigure": {
+          "title": "Edit Photovoltaics",
+          "description": "Update photovoltaics configuration",
+          "data": {
+            "curtailment": "Allow Curtailment (Optional)",
+            "forecast": "Forecast Sensors",
+            "name": "Photovoltaics Name",
+            "price_production": "Production Price (Optional)"
+          }
+        },
+        "user": {
+          "title": "Add Photovoltaics",
+          "description": "Set up photovoltaics forecasting and parameters",
+          "data": {
+            "curtailment": "Allow Curtailment (Optional)",
+            "forecast": "Forecast Sensors",
+            "name": "Photovoltaics Name",
+            "price_production": "Production Price (Optional)"
+          }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     }
+  },
+  "device": {
+    "battery": { "name": "{name}" },
+    "connection": { "name": "{name}" },
+    "grid": { "name": "{name}" },
+    "load": { "name": "{name}" },
+    "network": { "name": "{name}" },
+    "node": { "name": "{name}" },
+    "photovoltaics": { "name": "{name}" }
   },
   "entity": {
     "sensor": {
-      "power_flow": { "name": "Power Flow" },
-      "power_available": { "name": "Power Available" },
-      "power_consumed": { "name": "Power Consumed" },
-      "power_produced": { "name": "Power Produced" },
-      "power_imported": { "name": "Power Imported" },
-      "power_exported": { "name": "Power Exported" },
-      "price_consumption": { "name": "Consumption Price" },
-      "price_production": { "name": "Production Price" },
-      "price_import": { "name": "Import Price" },
-      "price_export": { "name": "Export Price" },
-      "energy_stored": { "name": "Energy Stored" },
-      "battery_state_of_charge": { "name": "Battery State of Charge" },
+      "battery_energy_stored": { "name": "Energy Stored" },
+      "battery_max_charge_power": { "name": "Max Charge Power Shadow Price" },
+      "battery_max_discharge_power": { "name": "Max Discharge Power Shadow Price" },
+      "battery_normal_charge_price": { "name": "Normal Charge Price" },
+      "battery_normal_discharge_price": { "name": "Normal Discharge Price" },
+      "battery_normal_energy_in_flow": { "name": "Normal Energy In Flow Shadow Price" },
+      "battery_normal_energy_out_flow": { "name": "Normal Energy Out Flow Shadow Price" },
+      "battery_normal_energy_stored": { "name": "Normal Energy Stored" },
+      "battery_normal_power_charge": { "name": "Normal Power Charge" },
+      "battery_normal_power_discharge": { "name": "Normal Power Discharge" },
+      "battery_normal_soc_max": { "name": "Normal SOC Max Shadow Price" },
+      "battery_normal_soc_min": { "name": "Normal SOC Min Shadow Price" },
+      "battery_overcharge_charge_price": { "name": "Overcharge Charge Price" },
+      "battery_overcharge_discharge_price": { "name": "Overcharge Discharge Price" },
+      "battery_overcharge_energy_in_flow": { "name": "Overcharge Energy In Flow Shadow Price" },
+      "battery_overcharge_energy_out_flow": { "name": "Overcharge Energy Out Flow Shadow Price" },
+      "battery_overcharge_energy_stored": { "name": "Overcharge Energy Stored" },
+      "battery_overcharge_power_charge": { "name": "Overcharge Power Charge" },
+      "battery_overcharge_power_discharge": { "name": "Overcharge Power Discharge" },
+      "battery_overcharge_soc_max": { "name": "Overcharge SOC Max Shadow Price" },
+      "battery_overcharge_soc_min": { "name": "Overcharge SOC Min Shadow Price" },
+      "battery_power_balance": { "name": "Power Balance Shadow Price" },
+      "battery_power_charge": { "name": "Power Charge" },
+      "battery_power_discharge": { "name": "Power Discharge" },
+      "battery_state_of_charge": { "name": "State of Charge" },
+      "battery_time_slice": { "name": "Time Slice Shadow Price" },
+      "battery_undercharge_charge_price": { "name": "Undercharge Charge Price" },
+      "battery_undercharge_discharge_price": { "name": "Undercharge Discharge Price" },
+      "battery_undercharge_energy_in_flow": { "name": "Undercharge Energy In Flow Shadow Price" },
+      "battery_undercharge_energy_out_flow": { "name": "Undercharge Energy Out Flow Shadow Price" },
+      "battery_undercharge_energy_stored": { "name": "Undercharge Energy Stored" },
+      "battery_undercharge_power_charge": { "name": "Undercharge Power Charge" },
+      "battery_undercharge_power_discharge": { "name": "Undercharge Power Discharge" },
+      "battery_undercharge_soc_max": { "name": "Undercharge SOC Max Shadow Price" },
+      "battery_undercharge_soc_min": { "name": "Undercharge SOC Min Shadow Price" },
+      "connection_max_power_source_target": { "name": "Max Power Source→Target Shadow Price" },
+      "connection_max_power_target_source": { "name": "Max Power Target→Source Shadow Price" },
+      "connection_power_source_target": { "name": "Power Flow Source→Target" },
+      "connection_power_target_source": { "name": "Power Flow Target→Source" },
+      "grid_max_export_power": { "name": "Max Export Power Shadow Price" },
+      "grid_max_import_power": { "name": "Max Import Power Shadow Price" },
+      "grid_power_balance": { "name": "Power Balance Shadow Price" },
+      "grid_power_exported": { "name": "Power Exported" },
+      "grid_power_imported": { "name": "Power Imported" },
+      "grid_price_export": { "name": "Export Price" },
+      "grid_price_import": { "name": "Import Price" },
+      "load_power_balance": { "name": "Power Balance Shadow Price" },
+      "load_power_consumed": { "name": "Power Consumed" },
+      "node_power_balance": { "name": "Power Balance Shadow Price" },
       "optimization_cost": { "name": "Optimization Cost" },
+      "optimization_duration": { "name": "Optimization Duration" },
       "optimization_status": { "name": "Optimization Status" },
-      "optimization_duration": { "name": "Optimization Duration" }
+      "photovoltaics_forecast_limit": { "name": "Forecast Limit Shadow Price" },
+      "photovoltaics_power_available": { "name": "Power Available" },
+      "photovoltaics_power_balance": { "name": "Power Balance Shadow Price" },
+      "photovoltaics_power_produced": { "name": "Power Produced" },
+      "photovoltaics_price_production": { "name": "Production Price" }
     }
   },
   "exceptions": {
@@ -321,6 +289,14 @@
     }
   },
   "issues": {
+    "disconnected_network": {
+      "title": "Network has disconnected components",
+      "description": "Your HAEO network has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the network is fully connected"
+    },
+    "invalid_config": {
+      "title": "Invalid configuration for {element_name}",
+      "description": "Element {element_name} has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the {element_name} element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
+    },
     "missing_sensor": {
       "title": "Missing sensor data for {element_name}",
       "description": "The HAEO integration cannot find sensor data for element {element_name}. The sensor entity {sensor_entity_id} may not exist or may be unavailable.\n\nTo fix this issue:\n1. Check that the sensor entity exists in Home Assistant\n2. Verify the sensor is available and reporting data\n3. If the sensor was removed, reconfigure the element to use a different sensor\n4. If the sensor is temporarily unavailable, this issue will automatically dismiss when the sensor becomes available again"
@@ -328,14 +304,33 @@
     "optimization_failure": {
       "title": "Optimization failed",
       "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. Issues with the selected solver\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your network configuration for conflicting constraints\n4. Try a different optimization solver in the integration settings\n5. This issue will automatically dismiss when optimization succeeds"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Network Settings",
+        "description": "Configure optimization horizon, time period, and solver",
+        "data": {
+          "debounce_seconds": "Debounce Window (seconds)",
+          "horizon_hours": "Optimization Horizon (hours)",
+          "optimizer": "Optimization Solver",
+          "period_minutes": "Time Period (minutes)",
+          "update_interval_minutes": "Update Interval (minutes)"
+        }
+      }
     },
-    "invalid_config": {
-      "title": "Invalid configuration for {element_name}",
-      "description": "Element {element_name} has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the {element_name} element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
+    "error": {
+      "cannot_connect_to_self": "Cannot connect a device to itself",
+      "invalid_name": "Invalid device name",
+      "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
+      "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections",
+      "min_power_too_high": "Minimum power must be less than or equal to maximum power",
+      "name_exists": "A device with this name already exists"
     },
-    "disconnected_network": {
-      "title": "Network has disconnected components",
-      "description": "Your HAEO network has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the network is fully connected"
+    "abort": {
+      "no_participants": "No devices are currently connected to this network",
+      "reload_failed": "Failed to reload the integration after configuration changes. Please check your configuration and try again."
     }
   }
 }

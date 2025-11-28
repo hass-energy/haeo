@@ -54,10 +54,10 @@ block-beta
     inaccessible["Inaccessible (0-5%): 0.5 kWh"]
   end
 
-  style overcharge fill:#ffcccc,stroke:#cc0000
-  style normal fill:#ccffcc,stroke:#00cc00
-  style undercharge fill:#ffffcc,stroke:#cccc00
-  style inaccessible fill:#dddddd,stroke:#666666
+  class overcharge danger
+  class normal success
+  class undercharge warning
+  class inaccessible neutral
 ```
 
 **Cost multiplier notation**: The `×N` values multiply the `early_charge_incentive` parameter.
@@ -137,7 +137,7 @@ For each section $n$ and time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time
 
 All constraints are applied independently per section unless otherwise noted.
 
-#### 1. Monotonicity Constraints
+#### 1. Energy Flow Constraints
 
 Cumulative energy variables can only increase over time (prevents energy flowing backward):
 
@@ -150,7 +150,9 @@ $$
 
 This ensures energy flows are unidirectional (charging increases $E_{\text{in}}$, discharging increases $E_{\text{out}}$).
 
-#### 2. Section Capacity Constraints
+**Shadow prices**: The `energy_in_flow` and `energy_out_flow` shadow prices represent the marginal value of relaxing these constraints. Non-zero values are rare in practice since batteries naturally flow energy in one direction at a time.
+
+#### 2. Section SOC Constraints
 
 Each section's net energy must stay within its virtual capacity:
 
@@ -169,6 +171,11 @@ $$
 - Undercharge: $C^{\text{undercharge}} = 10 \cdot (0.10 - 0.05) = 0.5$ kWh
 - Normal: $C^{\text{normal}} = 10 \cdot (0.90 - 0.10) = 8.0$ kWh
 - Overcharge: $C^{\text{overcharge}} = 10 \cdot (0.95 - 0.90) = 0.5$ kWh
+
+**Shadow prices**:
+
+- `soc_max`: Marginal value of additional storage capacity in the section. Negative values indicate the section is full and more capacity would reduce costs.
+- `soc_min`: Marginal value of deeper discharge in the section. Positive values indicate the section is empty and the ability to extract more energy would reduce costs.
 
 #### 3. Power Balance Constraint
 
@@ -523,10 +530,32 @@ The cost parameters create economic trade-offs rather than hard limits:
 - Higher efficiency directly reduces energy losses and operational costs
 - Creates natural economic disincentive for unnecessary cycling
 
-## Related Documentation
+## Next Steps
 
-- [Battery Configuration Guide](../user-guide/elements/battery.md) - User-facing configuration
-- [Modeling Overview](index.md) - Overall optimization formulation
-- [Units Documentation](../developer-guide/units.md) - Why we use kW/kWh
+<div class="grid cards" markdown>
 
-[:material-arrow-right: Continue to Grid Modeling](grid.md)
+- :material-file-document:{ .lg .middle } **User configuration guide**
+
+    ---
+
+    Configure batteries in your Home Assistant setup.
+
+    [:material-arrow-right: Battery configuration](../user-guide/elements/battery.md)
+
+- :material-network:{ .lg .middle } **Network modeling**
+
+    ---
+
+    Understand how elements interact in the network model.
+
+    [:material-arrow-right: Network modeling overview](index.md)
+
+- :material-code-braces:{ .lg .middle } **Implementation**
+
+    ---
+
+    View the source code for the battery element model.
+
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/battery.py)
+
+</div>

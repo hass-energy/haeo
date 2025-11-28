@@ -21,12 +21,12 @@ from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.model import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
-    OUTPUT_NAME_POWER_CONSUMED,
     OUTPUT_TYPE_DURATION,
     OUTPUT_TYPE_POWER,
     OUTPUT_TYPE_STATUS,
     OutputType,
 )
+from custom_components.haeo.model.load import LOAD_POWER_CONSUMED
 from custom_components.haeo.sensors import async_setup_entry
 from custom_components.haeo.sensors.sensor import HaeoSensor
 
@@ -143,7 +143,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
             ),
         },
         battery_key: {
-            OUTPUT_NAME_POWER_CONSUMED: _make_output(
+            LOAD_POWER_CONSUMED: _make_output(
                 type_=OUTPUT_TYPE_POWER,
                 unit="kW",
                 state=1.5,
@@ -175,7 +175,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
     assert duration_sensor.device_class is SensorDeviceClass.DURATION
     assert duration_sensor.state_class is SensorStateClass.MEASUREMENT
 
-    power_sensor = next(sensor for sensor in sensors if sensor.translation_key == OUTPUT_NAME_POWER_CONSUMED)
+    power_sensor = next(sensor for sensor in sensors if sensor.translation_key == LOAD_POWER_CONSUMED)
     assert power_sensor.native_unit_of_measurement == "kW"
     assert power_sensor.device_class is SensorDeviceClass.POWER
     assert power_sensor.state_class is SensorStateClass.MEASUREMENT
@@ -233,7 +233,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
         element_key="battery",
         element_title="Battery",
         element_type=BATTERY_TYPE,
-        output_name=OUTPUT_NAME_POWER_CONSUMED,
+        output_name=LOAD_POWER_CONSUMED,
         output_data=initial_output,
         unique_id="sensor-id",
     )
@@ -250,7 +250,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
         state_class=SensorStateClass.MEASUREMENT,
         options=None,
     )
-    coordinator.data = {"battery": {OUTPUT_NAME_POWER_CONSUMED: updated_output}}
+    coordinator.data = {"battery": {LOAD_POWER_CONSUMED: updated_output}}
 
     sensor._handle_coordinator_update()
 
@@ -289,7 +289,7 @@ def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry
         element_key="battery",
         element_title="Battery",
         element_type=BATTERY_TYPE,
-        output_name=OUTPUT_NAME_POWER_CONSUMED,
+        output_name=LOAD_POWER_CONSUMED,
         output_data=initial_output,
         unique_id="sensor-id",
     )
@@ -303,8 +303,10 @@ def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry
     assert attributes == {
         "element_name": "Battery",
         "element_type": BATTERY_TYPE,
-        "output_name": OUTPUT_NAME_POWER_CONSUMED,
+        "output_name": LOAD_POWER_CONSUMED,
         "output_type": OUTPUT_TYPE_POWER,
+        "direction": None,
+        "advanced": False,
     }
 
 
@@ -329,7 +331,7 @@ def test_sensor_availability_follows_coordinator(device_entry: DeviceEntry) -> N
         element_key="battery",
         element_title="Battery",
         element_type=BATTERY_TYPE,
-        output_name=OUTPUT_NAME_POWER_CONSUMED,
+        output_name=LOAD_POWER_CONSUMED,
         output_data=output,
         unique_id="sensor-id",
     )
@@ -355,7 +357,7 @@ async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: Devi
         state_class=SensorStateClass.MEASUREMENT,
         options=None,
     )
-    coordinator.data = {"battery": {OUTPUT_NAME_POWER_CONSUMED: output}}
+    coordinator.data = {"battery": {LOAD_POWER_CONSUMED: output}}
 
     sensor = HaeoSensor(
         cast("HaeoDataUpdateCoordinator", coordinator),
@@ -363,7 +365,7 @@ async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: Devi
         element_key="battery",
         element_title="Battery",
         element_type=BATTERY_TYPE,
-        output_name=OUTPUT_NAME_POWER_CONSUMED,
+        output_name=LOAD_POWER_CONSUMED,
         output_data=output,
         unique_id="sensor-id",
     )

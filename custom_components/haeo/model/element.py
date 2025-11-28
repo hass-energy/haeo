@@ -5,13 +5,13 @@ from typing import TYPE_CHECKING, Literal
 
 from pulp import LpAffineExpression, LpConstraint, lpSum
 
-from .const import OutputData, OutputName
+from .output_data import OutputData
 
 if TYPE_CHECKING:
     from .connection import Connection
 
 
-class Element:
+class Element[OutputNameT: str, ConstraintNameT: str]:
     """Base class for electrical entities in energy system modeling.
 
     All values use kW-based units:
@@ -35,7 +35,7 @@ class Element:
         self.n_periods = n_periods
 
         # Constraint storage - dictionary allows re-entrancy
-        self._constraints: dict[str, LpConstraint | Sequence[LpConstraint]] = {}
+        self._constraints: dict[ConstraintNameT, LpConstraint | Sequence[LpConstraint]] = {}
 
         # Track connections for power balance
         self._connections: list[tuple[Connection, Literal["source", "target"]]] = []
@@ -121,7 +121,7 @@ class Element:
         """
         return []
 
-    def outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[OutputNameT, OutputData]:
         """Return output specifications for the element.
 
         Each element should provide its own specific outputs.

@@ -14,8 +14,13 @@ VALID_CASES: list[ElementTestCase] = [
             "n_periods": 3,
             "forecast": [1.0, 1.5, 2.0],
         },
+        "inputs": {
+            "power": [1.0, 1.5, 2.0],  # Power flowing into load (consumption)
+            "input_cost": 0.1,
+        },
         "expected_outputs": {
-            "power_consumed": {"type": "power", "unit": "kW", "values": (1.0, 1.5, 2.0)},
+            "load_power_consumed": {"type": "power", "unit": "kW", "values": (1.0, 1.5, 2.0)},
+            "load_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
@@ -28,7 +33,7 @@ VALID_CASES: list[ElementTestCase] = [
             "forecast": [0.0, 0.0],
         },
         "expected_outputs": {
-            "power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
+            "load_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
         },
     },
     {
@@ -41,7 +46,7 @@ VALID_CASES: list[ElementTestCase] = [
             "forecast": [10.0, 15.0, 12.0, 8.0],
         },
         "expected_outputs": {
-            "power_consumed": {"type": "power", "unit": "kW", "values": (10.0, 15.0, 12.0, 8.0)},
+            "load_power_consumed": {"type": "power", "unit": "kW", "values": (10.0, 15.0, 12.0, 8.0)},
         },
     },
 ]

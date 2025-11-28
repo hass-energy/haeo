@@ -49,6 +49,8 @@ class LpAffineExpression:
     def __eq__(self, other: object) -> LpConstraint: ...  # type: ignore[override]
 
 class LpConstraint:
+    pi: float | None
+
     def __init__(
         self,
         e: LpAffineExpression | None = None,

@@ -1,23 +1,45 @@
 """Connection class for electrical system modeling."""
 
 from collections.abc import Mapping, Sequence
+from typing import Final, Literal
 
 from pulp import LpAffineExpression, LpVariable, lpSum
 
-from .const import (
-    CONSTRAINT_NAME_MAX_POWER_SOURCE_TARGET,
-    CONSTRAINT_NAME_MAX_POWER_TARGET_SOURCE,
-    OUTPUT_NAME_POWER_FLOW_SOURCE_TARGET,
-    OUTPUT_NAME_POWER_FLOW_TARGET_SOURCE,
-    OUTPUT_TYPE_POWER,
-    OutputData,
-    OutputName,
-)
+from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
-from .util import broadcast_to_sequence, extract_values
+from .output_data import OutputData
+from .util import broadcast_to_sequence
+
+CONNECTION_POWER_SOURCE_TARGET: Final = "connection_power_source_target"
+CONNECTION_POWER_TARGET_SOURCE: Final = "connection_power_target_source"
+
+CONNECTION_MAX_POWER_SOURCE_TARGET: Final = "connection_max_power_source_target"
+CONNECTION_MAX_POWER_TARGET_SOURCE: Final = "connection_max_power_target_source"
+
+type ConnectionConstraintName = Literal[
+    "connection_max_power_source_target",
+    "connection_max_power_target_source",
+]
+
+type ConnectionOutputName = (
+    Literal[
+        "connection_power_source_target",
+        "connection_power_target_source",
+    ]
+    | ConnectionConstraintName
+)
+
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
+    (
+        CONNECTION_POWER_SOURCE_TARGET,
+        CONNECTION_POWER_TARGET_SOURCE,
+        CONNECTION_MAX_POWER_SOURCE_TARGET,
+        CONNECTION_MAX_POWER_TARGET_SOURCE,
+    )
+)
 
 
-class Connection(Element):
+class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
     """Connection class for electrical system modeling."""
 
     def __init__(
@@ -69,11 +91,11 @@ class Connection(Element):
 
         # Add power bound constraints if specified
         if st_bounds is not None:
-            self._constraints[CONSTRAINT_NAME_MAX_POWER_SOURCE_TARGET] = [
+            self._constraints[CONNECTION_MAX_POWER_SOURCE_TARGET] = [
                 self.power_source_target[t] <= st_bounds[t] for t in range(n_periods)
             ]
         if ts_bounds is not None:
-            self._constraints[CONSTRAINT_NAME_MAX_POWER_TARGET_SOURCE] = [
+            self._constraints[CONNECTION_MAX_POWER_TARGET_SOURCE] = [
                 self.power_target_source[t] <= ts_bounds[t] for t in range(n_periods)
             ]
 
@@ -112,13 +134,22 @@ class Connection(Element):
 
         return costs
 
-    def outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[ConnectionOutputName, OutputData]:
         """Return output specifications for the connection."""
-        return {
-            OUTPUT_NAME_POWER_FLOW_SOURCE_TARGET: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_source_target)
+        outputs: dict[ConnectionOutputName, OutputData] = {
+            CONNECTION_POWER_SOURCE_TARGET: OutputData(
+                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=self.power_source_target, direction="+"
             ),
-            OUTPUT_NAME_POWER_FLOW_TARGET_SOURCE: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=extract_values(self.power_target_source)
+            CONNECTION_POWER_TARGET_SOURCE: OutputData(
+                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=self.power_target_source, direction="-"
             ),
         }
+
+        for constraint_name in self._constraints:
+            outputs[constraint_name] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kW",
+                values=self._constraints[constraint_name],
+            )
+
+        return outputs

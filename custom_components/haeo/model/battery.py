@@ -1,30 +1,193 @@
 """Battery entity for electrical system modeling."""
 
 from collections.abc import Mapping, Sequence
+from typing import Final, Literal, TypeGuard
 
 import numpy as np
-from pulp import LpAffineExpression, LpVariable
+from pulp import LpAffineExpression, LpConstraint, LpVariable
 from pulp.pulp import lpSum
 
-from .const import (
-    CONSTRAINT_NAME_MAX_CHARGE_POWER,
-    CONSTRAINT_NAME_MAX_DISCHARGE_POWER,
-    CONSTRAINT_NAME_POWER_BALANCE,
-    OUTPUT_NAME_BATTERY_STATE_OF_CHARGE,
-    OUTPUT_NAME_ENERGY_STORED,
-    OUTPUT_NAME_POWER_CONSUMED,
-    OUTPUT_NAME_POWER_PRODUCED,
-    OUTPUT_NAME_PRICE_CONSUMPTION,
-    OUTPUT_NAME_PRICE_PRODUCTION,
-    OUTPUT_TYPE_ENERGY,
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_PRICE,
-    OUTPUT_TYPE_SOC,
-    OutputData,
-    OutputName,
-)
+from .const import OUTPUT_TYPE_ENERGY, OUTPUT_TYPE_POWER, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE, OUTPUT_TYPE_SOC
 from .element import Element
+from .output_data import OutputData
 from .util import broadcast_to_sequence, extract_values, percentage_to_ratio
+
+# Battery section names
+BATTERY_SECTION_UNDERCHARGE: Final = "undercharge"
+BATTERY_SECTION_NORMAL: Final = "normal"
+BATTERY_SECTION_OVERCHARGE: Final = "overcharge"
+
+# Battery constraint names (also used as shadow price output names)
+BATTERY_POWER_BALANCE: Final = "battery_power_balance"
+BATTERY_MAX_CHARGE_POWER: Final = "battery_max_charge_power"
+BATTERY_MAX_DISCHARGE_POWER: Final = "battery_max_discharge_power"
+BATTERY_TIME_SLICE: Final = "battery_time_slice"
+
+# Internal section constraint name patterns (used to build shadow price outputs)
+BATTERY_ENERGY_IN_FLOW: Final = "energy_in_flow"
+BATTERY_ENERGY_OUT_FLOW: Final = "energy_out_flow"
+BATTERY_SOC_MAX: Final = "soc_max"
+BATTERY_SOC_MIN: Final = "soc_min"
+
+# Battery output names
+BATTERY_POWER_CHARGE: Final = "battery_power_charge"
+BATTERY_POWER_DISCHARGE: Final = "battery_power_discharge"
+BATTERY_ENERGY_STORED: Final = "battery_energy_stored"
+BATTERY_STATE_OF_CHARGE: Final = "battery_state_of_charge"
+
+# Section-specific output names
+BATTERY_UNDERCHARGE_ENERGY_STORED: Final = "battery_undercharge_energy_stored"
+BATTERY_UNDERCHARGE_POWER_CHARGE: Final = "battery_undercharge_power_charge"
+BATTERY_UNDERCHARGE_POWER_DISCHARGE: Final = "battery_undercharge_power_discharge"
+BATTERY_UNDERCHARGE_CHARGE_PRICE: Final = "battery_undercharge_charge_price"
+BATTERY_UNDERCHARGE_DISCHARGE_PRICE: Final = "battery_undercharge_discharge_price"
+BATTERY_UNDERCHARGE_ENERGY_IN_FLOW: Final = "battery_undercharge_energy_in_flow"
+BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW: Final = "battery_undercharge_energy_out_flow"
+BATTERY_UNDERCHARGE_SOC_MAX: Final = "battery_undercharge_soc_max"
+BATTERY_UNDERCHARGE_SOC_MIN: Final = "battery_undercharge_soc_min"
+
+BATTERY_NORMAL_ENERGY_STORED: Final = "battery_normal_energy_stored"
+BATTERY_NORMAL_POWER_CHARGE: Final = "battery_normal_power_charge"
+BATTERY_NORMAL_POWER_DISCHARGE: Final = "battery_normal_power_discharge"
+BATTERY_NORMAL_CHARGE_PRICE: Final = "battery_normal_charge_price"
+BATTERY_NORMAL_DISCHARGE_PRICE: Final = "battery_normal_discharge_price"
+BATTERY_NORMAL_ENERGY_IN_FLOW: Final = "battery_normal_energy_in_flow"
+BATTERY_NORMAL_ENERGY_OUT_FLOW: Final = "battery_normal_energy_out_flow"
+BATTERY_NORMAL_SOC_MAX: Final = "battery_normal_soc_max"
+BATTERY_NORMAL_SOC_MIN: Final = "battery_normal_soc_min"
+
+BATTERY_OVERCHARGE_ENERGY_STORED: Final = "battery_overcharge_energy_stored"
+BATTERY_OVERCHARGE_POWER_CHARGE: Final = "battery_overcharge_power_charge"
+BATTERY_OVERCHARGE_POWER_DISCHARGE: Final = "battery_overcharge_power_discharge"
+BATTERY_OVERCHARGE_CHARGE_PRICE: Final = "battery_overcharge_charge_price"
+BATTERY_OVERCHARGE_DISCHARGE_PRICE: Final = "battery_overcharge_discharge_price"
+BATTERY_OVERCHARGE_ENERGY_IN_FLOW: Final = "battery_overcharge_energy_in_flow"
+BATTERY_OVERCHARGE_ENERGY_OUT_FLOW: Final = "battery_overcharge_energy_out_flow"
+BATTERY_OVERCHARGE_SOC_MAX: Final = "battery_overcharge_soc_max"
+BATTERY_OVERCHARGE_SOC_MIN: Final = "battery_overcharge_soc_min"
+
+# Type for battery constraint names (includes all internal and external constraints)
+type BatteryConstraintName = Literal[
+    "battery_power_balance",
+    "battery_max_charge_power",
+    "battery_max_discharge_power",
+    "battery_time_slice",
+    "battery_undercharge_energy_in_flow",
+    "battery_undercharge_energy_out_flow",
+    "battery_undercharge_soc_max",
+    "battery_undercharge_soc_min",
+    "battery_normal_energy_in_flow",
+    "battery_normal_energy_out_flow",
+    "battery_normal_soc_max",
+    "battery_normal_soc_min",
+    "battery_overcharge_energy_in_flow",
+    "battery_overcharge_energy_out_flow",
+    "battery_overcharge_soc_max",
+    "battery_overcharge_soc_min",
+]
+
+# Type for all battery output names (union of base outputs and constraints)
+type BatteryOutputName = (
+    Literal[
+        "battery_power_charge",
+        "battery_power_discharge",
+        "battery_energy_stored",
+        "battery_state_of_charge",
+        "battery_undercharge_energy_stored",
+        "battery_undercharge_power_charge",
+        "battery_undercharge_power_discharge",
+        "battery_undercharge_charge_price",
+        "battery_undercharge_discharge_price",
+        "battery_normal_energy_stored",
+        "battery_normal_power_charge",
+        "battery_normal_power_discharge",
+        "battery_normal_charge_price",
+        "battery_normal_discharge_price",
+        "battery_overcharge_energy_stored",
+        "battery_overcharge_power_charge",
+        "battery_overcharge_power_discharge",
+        "battery_overcharge_charge_price",
+        "battery_overcharge_discharge_price",
+    ]
+    | BatteryConstraintName
+)
+
+# Set of battery output names for runtime validation and type narrowing
+# Note: Includes dynamic constraint names built from sections, so type is inferred
+BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
+    (
+        BATTERY_POWER_CHARGE,
+        BATTERY_POWER_DISCHARGE,
+        BATTERY_ENERGY_STORED,
+        BATTERY_STATE_OF_CHARGE,
+        BATTERY_UNDERCHARGE_ENERGY_STORED,
+        BATTERY_UNDERCHARGE_POWER_CHARGE,
+        BATTERY_UNDERCHARGE_POWER_DISCHARGE,
+        BATTERY_UNDERCHARGE_CHARGE_PRICE,
+        BATTERY_UNDERCHARGE_DISCHARGE_PRICE,
+        BATTERY_NORMAL_ENERGY_STORED,
+        BATTERY_NORMAL_POWER_CHARGE,
+        BATTERY_NORMAL_POWER_DISCHARGE,
+        BATTERY_NORMAL_CHARGE_PRICE,
+        BATTERY_NORMAL_DISCHARGE_PRICE,
+        BATTERY_OVERCHARGE_ENERGY_STORED,
+        BATTERY_OVERCHARGE_POWER_CHARGE,
+        BATTERY_OVERCHARGE_POWER_DISCHARGE,
+        BATTERY_OVERCHARGE_CHARGE_PRICE,
+        BATTERY_OVERCHARGE_DISCHARGE_PRICE,
+        BATTERY_POWER_BALANCE,
+        BATTERY_MAX_CHARGE_POWER,
+        BATTERY_MAX_DISCHARGE_POWER,
+        BATTERY_TIME_SLICE,
+        BATTERY_UNDERCHARGE_ENERGY_IN_FLOW,
+        BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW,
+        BATTERY_UNDERCHARGE_SOC_MAX,
+        BATTERY_UNDERCHARGE_SOC_MIN,
+        BATTERY_NORMAL_ENERGY_IN_FLOW,
+        BATTERY_NORMAL_ENERGY_OUT_FLOW,
+        BATTERY_NORMAL_SOC_MAX,
+        BATTERY_NORMAL_SOC_MIN,
+        BATTERY_OVERCHARGE_ENERGY_IN_FLOW,
+        BATTERY_OVERCHARGE_ENERGY_OUT_FLOW,
+        BATTERY_OVERCHARGE_SOC_MAX,
+        BATTERY_OVERCHARGE_SOC_MIN,
+    )
+)
+
+BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
+    (
+        BATTERY_POWER_BALANCE,
+        BATTERY_MAX_CHARGE_POWER,
+        BATTERY_MAX_DISCHARGE_POWER,
+        BATTERY_TIME_SLICE,
+        BATTERY_UNDERCHARGE_ENERGY_IN_FLOW,
+        BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW,
+        BATTERY_UNDERCHARGE_SOC_MAX,
+        BATTERY_UNDERCHARGE_SOC_MIN,
+        BATTERY_NORMAL_ENERGY_IN_FLOW,
+        BATTERY_NORMAL_ENERGY_OUT_FLOW,
+        BATTERY_NORMAL_SOC_MAX,
+        BATTERY_NORMAL_SOC_MIN,
+        BATTERY_OVERCHARGE_ENERGY_IN_FLOW,
+        BATTERY_OVERCHARGE_ENERGY_OUT_FLOW,
+        BATTERY_OVERCHARGE_SOC_MAX,
+        BATTERY_OVERCHARGE_SOC_MIN,
+    )
+)
+
+BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset(
+    (
+        BATTERY_POWER_BALANCE,
+        BATTERY_MAX_CHARGE_POWER,
+        BATTERY_MAX_DISCHARGE_POWER,
+        BATTERY_TIME_SLICE,
+    )
+)
+
+
+def _is_battery_constraint_name(name: str) -> TypeGuard[BatteryConstraintName]:
+    """Check if a string is a valid battery constraint name."""
+    return name in BATTERY_CONSTRAINT_NAMES
 
 
 class BatterySection:
@@ -71,13 +234,19 @@ class BatterySection:
             *[LpVariable(f"{name}_energy_out_t{t}", lowBound=0.0) for t in range(1, n_periods + 1)],
         ]
 
-        self.constraints = {
-            "monotonic_charge": [self.energy_in[t + 1] >= self.energy_in[t] for t in range(n_periods)],
-            "monotonic_discharge": [self.energy_out[t + 1] >= self.energy_out[t] for t in range(n_periods)],
-            "capacity_upper": [
+        self.constraints: dict[BatteryConstraintName, list[LpConstraint]] = {
+            self._section_constraint(BATTERY_ENERGY_IN_FLOW): [
+                self.energy_in[t + 1] >= self.energy_in[t] for t in range(n_periods)
+            ],
+            self._section_constraint(BATTERY_ENERGY_OUT_FLOW): [
+                self.energy_out[t + 1] >= self.energy_out[t] for t in range(n_periods)
+            ],
+            self._section_constraint(BATTERY_SOC_MAX): [
                 self.energy_in[t + 1] - self.energy_out[t + 1] <= capacity[t + 1] for t in range(n_periods)
             ],
-            "capacity_lower": [self.energy_in[t + 1] - self.energy_out[t + 1] >= 0 for t in range(n_periods)],
+            self._section_constraint(BATTERY_SOC_MIN): [
+                self.energy_in[t + 1] - self.energy_out[t + 1] >= 0 for t in range(n_periods)
+            ],
         }
 
         # Pre-calculate power and energy expressions to avoid recomputing them
@@ -91,6 +260,13 @@ class BatterySection:
             self.energy_in[t] - self.energy_out[t] for t in range(self.n_periods + 1)
         ]
 
+    def _section_constraint(self, inner_name: str) -> BatteryConstraintName:
+        name = f"battery_{self.name}_{inner_name}"
+        if not _is_battery_constraint_name(name):
+            msg = f"Unknown battery constraint name '{name}'"
+            raise ValueError(msg)
+        return name
+
     def cost(self) -> Sequence[LpAffineExpression]:
         """Return the cost of the section."""
         return [
@@ -99,7 +275,7 @@ class BatterySection:
         ]
 
 
-class Battery(Element):
+class Battery(Element[BatteryOutputName, BatteryConstraintName]):
     """Battery entity for electrical system modeling using multi-section approach."""
 
     def __init__(
@@ -204,7 +380,7 @@ class Battery(Element):
             section_initial_charge = min(initial_charge, undercharge_capacity[0])
             self._sections.append(
                 BatterySection(
-                    name="undercharge",
+                    name=BATTERY_SECTION_UNDERCHARGE,
                     capacity=undercharge_capacity,
                     charge_cost=(charge_early_incentive * 3).tolist(),
                     discharge_cost=((discharge_early_incentive * 1) + np.array(undercharge_cost)).tolist(),
@@ -221,7 +397,7 @@ class Battery(Element):
         section_initial_charge = min(initial_charge, normal_capacity[0])
         self._sections.append(
             BatterySection(
-                name="normal",
+                name=BATTERY_SECTION_NORMAL,
                 capacity=normal_capacity,
                 charge_cost=(charge_early_incentive * 2).tolist(),
                 discharge_cost=((discharge_early_incentive * 2) + np.array(discharge_cost)).tolist(),
@@ -239,7 +415,7 @@ class Battery(Element):
             section_initial_charge = min(initial_charge, overcharge_capacity[0])
             self._sections.append(
                 BatterySection(
-                    name="overcharge",
+                    name=BATTERY_SECTION_OVERCHARGE,
                     capacity=overcharge_capacity,
                     charge_cost=((charge_early_incentive * 1) + np.array(overcharge_cost)).tolist(),
                     discharge_cost=((discharge_early_incentive * 3) + np.array(discharge_cost)).tolist(),
@@ -252,7 +428,7 @@ class Battery(Element):
         # Add section constraints to battery constraints
         for section in self._sections:
             for constraint_name, constraint in section.constraints.items():
-                self._constraints[f"{section.name}_{constraint_name}"] = constraint
+                self._constraints[constraint_name] = constraint
 
         # Pre-calculate power and energy expressions to avoid recomputing them
         # power_consumption: external power drawn from network (more than stored due to efficiency loss)
@@ -270,18 +446,18 @@ class Battery(Element):
 
         # Power limits constrain external power (power_consumption/power_production already include efficiency)
         if self.max_charge_power is not None:
-            self._constraints[CONSTRAINT_NAME_MAX_CHARGE_POWER] = [
+            self._constraints[BATTERY_MAX_CHARGE_POWER] = [
                 self.power_consumption[t] <= self.max_charge_power[t] for t in range(self.n_periods)
             ]
         if self.max_discharge_power is not None:
-            self._constraints[CONSTRAINT_NAME_MAX_DISCHARGE_POWER] = [
+            self._constraints[BATTERY_MAX_DISCHARGE_POWER] = [
                 self.power_production[t] <= self.max_discharge_power[t] for t in range(self.n_periods)
             ]
 
         # Prevent simultaneous full charging and discharging using time-slicing constraint:
         # This allows cycling but on a time-sliced basis (e.g., charge 50% of time, discharge 50%)
         if self.max_charge_power is not None and self.max_discharge_power is not None:
-            self._constraints["time_slice_constraint"] = [
+            self._constraints[BATTERY_TIME_SLICE] = [
                 self.power_consumption[t] / self.max_charge_power[t]
                 + self.power_production[t] / self.max_discharge_power[t]
                 <= 1.0
@@ -298,7 +474,7 @@ class Battery(Element):
 
         # Power balance: connection_power equals net external power
         # power_consumption and power_production already include efficiency losses
-        self._constraints[CONSTRAINT_NAME_POWER_BALANCE] = [
+        self._constraints[BATTERY_POWER_BALANCE] = [
             self.connection_power(t) == self.power_consumption[t] - self.power_production[t]
             for t in range(self.n_periods)
         ]
@@ -313,52 +489,145 @@ class Battery(Element):
 
         return costs
 
-    def outputs(self) -> Mapping[OutputName, OutputData]:
+    def outputs(self) -> Mapping[BatteryOutputName, OutputData]:
         """Return battery output specifications."""
-        # Get total energy stored values
+        # Get total energy stored values (needed for SOC calculation)
         total_energy_values = extract_values(self.stored_energy)
 
         # Convert to SOC percentage
         capacity_array = np.array(self.capacity)
         soc_values = (np.array(total_energy_values) / capacity_array * 100.0).tolist()
 
-        outputs: dict[OutputName, OutputData] = {
-            OUTPUT_NAME_POWER_CONSUMED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(self.power_consumption))
+        outputs: dict[BatteryOutputName, OutputData] = {
+            BATTERY_POWER_CHARGE: OutputData(
+                type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_consumption, direction="-"
             ),
-            OUTPUT_NAME_POWER_PRODUCED: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(self.power_production))
+            BATTERY_POWER_DISCHARGE: OutputData(
+                type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_production, direction="+"
             ),
-            OUTPUT_NAME_ENERGY_STORED: OutputData(
-                type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(total_energy_values)
-            ),
-            OUTPUT_NAME_BATTERY_STATE_OF_CHARGE: OutputData(
+            BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=total_energy_values),
+            BATTERY_STATE_OF_CHARGE: OutputData(
                 type=OUTPUT_TYPE_SOC,
                 unit="%",
-                values=tuple(soc_values),
+                values=soc_values,
             ),
         }
 
+        # Add section-specific outputs
         for section in self._sections:
-            section_energy_values = extract_values(section.stored_energy)
-            section_outputs: dict[OutputName, OutputData] = {
-                f"{section.name}_{OUTPUT_NAME_ENERGY_STORED}": OutputData(  # type: ignore[dict-item]
-                    type=OUTPUT_TYPE_ENERGY, unit="kWh", values=tuple(section_energy_values)
-                ),
-                f"{section.name}_{OUTPUT_NAME_POWER_PRODUCED}": OutputData(  # type: ignore[dict-item]
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_production))
-                ),
-                f"{section.name}_{OUTPUT_NAME_POWER_CONSUMED}": OutputData(  # type: ignore[dict-item]
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=tuple(extract_values(section.power_consumption))
-                ),
-                f"{section.name}_{OUTPUT_NAME_PRICE_CONSUMPTION}": OutputData(  # type: ignore[dict-item]
-                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.charge_cost))
-                ),
-                f"{section.name}_{OUTPUT_NAME_PRICE_PRODUCTION}": OutputData(  # type: ignore[dict-item]
-                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=tuple(extract_values(section.discharge_cost))
-                ),
-            }
-            outputs.update(section_outputs)
+            if section.name == BATTERY_SECTION_UNDERCHARGE:
+                outputs[BATTERY_UNDERCHARGE_ENERGY_STORED] = OutputData(
+                    type=OUTPUT_TYPE_ENERGY,
+                    unit="kWh",
+                    values=section.stored_energy,
+                    advanced=True,
+                )
+                outputs[BATTERY_UNDERCHARGE_POWER_DISCHARGE] = OutputData(
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=section.power_production,
+                    direction="+",
+                    advanced=True,
+                )
+                outputs[BATTERY_UNDERCHARGE_POWER_CHARGE] = OutputData(
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=section.power_consumption,
+                    direction="-",
+                    advanced=True,
+                )
+                outputs[BATTERY_UNDERCHARGE_CHARGE_PRICE] = OutputData(
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=section.charge_cost,
+                    direction="-",
+                    advanced=True,
+                )
+                outputs[BATTERY_UNDERCHARGE_DISCHARGE_PRICE] = OutputData(
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=section.discharge_cost,
+                    direction="+",
+                    advanced=True,
+                )
+            elif section.name == BATTERY_SECTION_NORMAL:
+                outputs[BATTERY_NORMAL_ENERGY_STORED] = OutputData(
+                    type=OUTPUT_TYPE_ENERGY,
+                    unit="kWh",
+                    values=section.stored_energy,
+                    advanced=True,
+                )
+                outputs[BATTERY_NORMAL_POWER_DISCHARGE] = OutputData(
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=section.power_production,
+                    direction="+",
+                    advanced=True,
+                )
+                outputs[BATTERY_NORMAL_POWER_CHARGE] = OutputData(
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=section.power_consumption,
+                    direction="-",
+                    advanced=True,
+                )
+                outputs[BATTERY_NORMAL_CHARGE_PRICE] = OutputData(
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=section.charge_cost,
+                    direction="-",
+                    advanced=True,
+                )
+                outputs[BATTERY_NORMAL_DISCHARGE_PRICE] = OutputData(
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=section.discharge_cost,
+                    direction="+",
+                    advanced=True,
+                )
+            elif section.name == BATTERY_SECTION_OVERCHARGE:
+                outputs[BATTERY_OVERCHARGE_ENERGY_STORED] = OutputData(
+                    type=OUTPUT_TYPE_ENERGY,
+                    unit="kWh",
+                    values=section.stored_energy,
+                    advanced=True,
+                )
+                outputs[BATTERY_OVERCHARGE_POWER_DISCHARGE] = OutputData(
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=section.power_production,
+                    direction="+",
+                    advanced=True,
+                )
+                outputs[BATTERY_OVERCHARGE_POWER_CHARGE] = OutputData(
+                    type=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    values=section.power_consumption,
+                    direction="-",
+                    advanced=True,
+                )
+                outputs[BATTERY_OVERCHARGE_CHARGE_PRICE] = OutputData(
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=section.charge_cost,
+                    direction="-",
+                    advanced=True,
+                )
+                outputs[BATTERY_OVERCHARGE_DISCHARGE_PRICE] = OutputData(
+                    type=OUTPUT_TYPE_PRICE,
+                    unit="$/kWh",
+                    values=section.discharge_cost,
+                    direction="+",
+                    advanced=True,
+                )
+
+        for constraint_name in self._constraints:
+            unit = "$/kW" if constraint_name in BATTERY_POWER_CONSTRAINTS else "$/kWh"
+            outputs[constraint_name] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit=unit,
+                values=self._constraints[constraint_name],
+            )
 
         return outputs
 

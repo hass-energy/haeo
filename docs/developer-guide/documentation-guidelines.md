@@ -109,6 +109,77 @@ When updating a primary reference:
 - Verify links still point to correct sections (especially after heading changes)
 - Update inline descriptions if the linked content's scope changed
 
+## Diagram standards
+
+All diagrams should use mermaid for consistency and version control.
+HAEO uses semantic styling that automatically adapts to light and dark modes.
+
+### When to use diagrams
+
+Diagrams are preferred over text descriptions for:
+
+- Network topology and element connections
+- Data flow and system architecture
+- Time series data (sensor combination, forecast cycling)
+- State machines and decision flows
+- SOC regions and cost structures
+
+### Chart type selection
+
+Choose the chart type that best represents the concept:
+
+- **Flowchart/Graph**: Network topology, element connections, system architecture
+- **XY/Line charts**: Time series data, sensor forecasts, power profiles
+- **State diagrams**: Battery SOC regions, operational modes
+- **Sequence diagrams**: Data flow, update cycles
+
+### Semantic color usage
+
+HAEO diagrams use consistent semantic colors configured in `docs/javascripts/mermaid-config.js`:
+
+- **Blue** (primary): General elements, neutral components, battery storage
+- **Green** (secondary): Generation sources (photovoltaics, renewable energy)
+- **Red** (tertiary): Consumption (loads, imported power)
+- **Yellow/Amber**: Grid connections, pricing, warnings
+
+These colors automatically adapt for light and dark modes via the mermaid configuration.
+
+### Styling guidelines
+
+- Use default mermaid styling when possible (avoid custom colors in diagram syntax)
+- Let the theme configuration handle color adaptation
+- Use semantic class names if mermaid supports them for the chart type
+- Keep diagrams simple: focus on concepts, not implementation details
+- Label all nodes, edges, and axes clearly
+- Include units on XY charts (kW, kWh, hours, %)
+
+### Example: Network topology
+
+```mermaid
+graph LR
+    Solar[Photovoltaics] --> DCBus[DC Bus]
+    Battery[Battery] --> DCBus
+    DCBus --> Inverter[Inverter]
+    Inverter --> ACBus[AC Bus]
+    Grid[Grid] --> ACBus
+    ACBus --> Load[Load]
+```
+
+### Example: Time series data
+
+```mermaid
+xychart-beta
+    title "Solar Forecast Cycling"
+    x-axis "Time (hours)" [0, 6, 12, 18, 24, 30, 36, 42, 48]
+    y-axis "Power (kW)" 0 --> 10
+    line [0, 2, 5, 8, 5, 2, 0, 2, 5]
+```
+
+### Configuration reference
+
+The mermaid theme configuration in `docs/javascripts/mermaid-config.js` ensures diagrams adapt to the user's selected theme.
+To modify diagram colors or add new semantic categories, update the `themeVariables` in that file.
+
 ## Technical accuracy checklist
 
 Before committing documentation changes, verify:
@@ -138,11 +209,13 @@ Before committing documentation changes, verify:
 ## Next steps requirements
 
 All user-facing pages must end with a **Next Steps** section.
+This replaces the traditional "Related Documentation" bullet list pattern, use Next Steps cards instead.
 
 ### Purpose
 
 Next Steps sections help users discover related topics and continue their learning journey.
 They prevent dead-ends and guide users toward completing common workflows.
+They also provide links to deeper technical resources (like modeling documentation) for readers who want more detail.
 
 ### Structure
 
@@ -166,7 +239,8 @@ Use Material for MkDocs grid cards format (match `docs/index.md`):
 
 ### Content guidelines
 
-- **3 cards maximum**: More creates choice paralysis
+- **3-4 cards recommended**: Provide logical next actions without overwhelming the reader
+- **Curated for context**: Choose the most relevant next actions for readers of this specific page, not generic links
 - **Logical progression**: Next steps should flow naturally from current page content
 - **Actionable descriptions**: Focus on what users will do or learn, not just topic names
 - **Appropriate icons**: Use Material icons that match the topic (`:material-battery-charging:`, `:material-chart-line:`, etc.)
@@ -232,61 +306,109 @@ Keep snippets minimal and focused on the concept being explained.
 - Check that tables share consistent column ordering and naming.
 - Ensure screenshots, diagrams, or examples use the same element names throughout the docs.
 
+## Progressive disclosure
+
+Progressive disclosure organizes information from general concepts to specific details.
+It keeps high-level documentation stable while allowing implementation details to evolve.
+
+### Principles
+
+**High-level pages describe patterns, not implementations:**
+
+- Overview pages explain architectural concepts without enumerating every concrete type
+- Use generic terms: "elements" instead of listing "battery, grid, photovoltaics, loads, nodes"
+- Describe aggregation patterns: "elements contribute constraints" not "battery has SOC constraint, grid has power limit"
+- Point to detail pages rather than duplicating their content
+
+**Detail pages provide specifics:**
+
+- Element-specific pages enumerate their exact constraints, variables, and parameters
+- Implementation guides show concrete examples
+- API references list actual method signatures
+
+### Examples of progressive disclosure
+
+**❌ Bad: Enumeration in overview**
+
+> HAEO supports batteries, grids, photovoltaics, constant loads, forecast loads, and nodes.
+> Batteries have state of charge constraints.
+> Grids have import and export limits.
+> Photovoltaics have generation forecasts.
+
+This becomes outdated when element types change.
+
+**✅ Good: Pattern description in overview**
+
+> HAEO models energy systems as networks of elements connected by power flows.
+> Each element contributes decision variables, constraints, and costs to the optimization problem.
+> See the [element documentation](../user-guide/elements/index.md) for specific element types.
+
+This remains stable as implementations evolve.
+
+**❌ Bad: Implementation details in architecture**
+
+> The `Network` class has methods `add_battery()`, `add_grid()`, `add_photovoltaics()`, etc.
+
+This requires updates whenever element types change.
+
+**✅ Good: Pattern description in architecture**
+
+> The `Network` class aggregates constraints from all elements via their `constraints()` method.
+> Elements register themselves during the `add()` process.
+
+This explains the pattern without enumerating implementations.
+
+### When to use progressive disclosure
+
+**Use in:**
+
+- Index pages (`modeling/index.md`, `user-guide/elements/index.md`)
+- Architecture overviews
+- Getting started guides
+- High-level concept explanations
+
+**Don't use in:**
+
+- Element-specific pages (be concrete about battery behavior)
+- API references (list actual methods)
+- Troubleshooting guides (reference specific error messages)
+- Configuration examples (show real YAML)
+
 ## Templates
 
-Use these templates when creating new pages so readers encounter familiar structures.
-Adjust sections only when the content truly needs a different flow.
+HAEO provides living templates that can be copied and adapted when creating new documentation.
+These templates ensure consistent structure across element documentation.
 
-### Element user guide template
+### Available templates
 
-```markdown
-# [Element Name] Configuration
+**[Element user guide template](templates/element-user-guide-template.md)**
 
-Brief description (1-2 sentences).
+Use when documenting user-facing configuration for a new element type.
+Includes sections for configuration fields, examples, sensors created, and troubleshooting.
 
-## Configuration Fields
+**[Element modeling template](templates/element-modeling-template.md)**
 
-Table of fields with descriptions.
+Use when documenting the mathematical formulation of a new element type.
+Includes sections for decision variables, parameters, constraints, cost functions, and physical interpretation.
 
-## Configuration Example
+### Using templates
 
-Minimal example without detailed explanations.
+1. Copy the appropriate template file from `docs/developer-guide/templates/`
+2. Rename to match your element: `battery.md`, `grid.md`, etc.
+3. Replace all `[Element Name]` placeholders with the actual element name
+4. Fill in each section following the guidance provided in the template
+5. Remove any guidance comments before committing
 
-## Sensors Created
+### Template customization
 
-Table of sensors.
+Templates provide a consistent structure, but not every section is required for every element:
 
-## Troubleshooting
+- Skip sections that don't apply (some elements may not have troubleshooting issues)
+- Add subsections when needed for clarity
+- Reorder content within sections if it improves flow
+- Document intentional deviations in pull request descriptions
 
-Common issues and solutions.
-
-## Related Documentation
-
-Links only.
-```
-
-### Element modeling template
-
-```markdown
-# [Element Name] Modeling
-
-Brief description.
-
-## Model Formulation
-
-### Decision Variables
-### Parameters
-### Constraints
-### Cost Contribution
-
-## Physical Interpretation
-
-Conceptual explanation without worked examples.
-
-## Related Documentation
-
-Links only.
-```
+The goal is consistency where it helps readers, not rigid adherence to structure.
 
 ## Submission checklist
 
