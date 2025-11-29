@@ -75,6 +75,12 @@
       "target": "AC Net"
     }
   },
-  "horizon_hours": 72,
-  "period_minutes": 5
+  "tier_1_count": 5,
+  "tier_1_duration": 1,
+  "tier_2_count": 5,
+  "tier_2_duration": 5,
+  "tier_3_count": 46,
+  "tier_3_duration": 30,
+  "tier_4_count": 48,
+  "tier_4_duration": 60
 }

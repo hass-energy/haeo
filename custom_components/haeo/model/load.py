@@ -29,17 +29,17 @@ LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
 class Load(Element[LoadOutputName, LoadConstraintName]):
     """Load entity for electrical system modeling."""
 
-    def __init__(self, name: str, period: float, n_periods: int, forecast: Sequence[float] | float) -> None:
+    def __init__(self, name: str, periods: Sequence[float], forecast: Sequence[float] | float) -> None:
         """Initialize a load.
 
         Args:
             name: Name of the load
-            period: Time period in hours
-            n_periods: Number of periods
+            periods: Sequence of time period durations in hours (one per optimization interval)
             forecast: Sequence of forecasted power consumption values in kW
 
         """
-        super().__init__(name=name, period=period, n_periods=n_periods)
+        super().__init__(name=name, periods=periods)
+        n_periods = self.n_periods
 
         # Validate forecast length strictly before broadcasting
         # Since input does not accept float, we require exactly n_periods

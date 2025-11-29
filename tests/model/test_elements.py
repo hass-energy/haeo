@@ -23,9 +23,9 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
 
     """
     if inputs is not None:
-        # Get n_periods and period from element
+        # Get n_periods and periods from element
         n_periods = element.n_periods
-        period = element.period
+        periods = element.periods
 
         problem = LpProblem(f"test_{element.name}", LpMinimize)
 
@@ -57,15 +57,15 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         for constraint in element.constraints():
             problem += constraint
 
-        # Add costs for the injected power
+        # Add costs for the injected power - using variable period durations
         input_cost = broadcast_to_sequence(inputs.get("input_cost", 0.0), n_periods)
         output_cost = broadcast_to_sequence(inputs.get("output_cost", 0.0), n_periods)
 
         # Objective function
         cost_terms = [
             *element.cost(),
-            *[input_cost[i] * power_inputs[i] * period for i in range(n_periods) if input_cost[i] != 0.0],
-            *[output_cost[i] * power_outputs[i] * period for i in range(n_periods) if output_cost[i] != 0.0],
+            *[input_cost[i] * power_inputs[i] * periods[i] for i in range(n_periods) if input_cost[i] != 0.0],
+            *[output_cost[i] * power_outputs[i] * periods[i] for i in range(n_periods) if output_cost[i] != 0.0],
         ]
 
         problem += lpSum(cost_terms)

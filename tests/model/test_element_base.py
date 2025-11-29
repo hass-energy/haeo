@@ -14,7 +14,7 @@ def test_connection_power_with_target_end() -> None:
     This tests the elif end == "target" branch (line 74 in element.py).
     """
     # Create a simple node element
-    node = Node(name="test_node", period=1.0, n_periods=3)
+    node = Node(name="test_node", periods=[1.0] * 3)
 
     # Create a mock connection
     mock_connection = Mock(spec=Connection)
@@ -47,7 +47,7 @@ def test_connection_power_with_source_end() -> None:
     This tests the if end == "source" branch (line 69 in element.py).
     """
     # Create a simple node element
-    node = Node(name="test_node", period=1.0, n_periods=3)
+    node = Node(name="test_node", periods=[1.0] * 3)
 
     # Create a mock connection
     mock_connection = Mock(spec=Connection)
@@ -80,7 +80,7 @@ def test_constraints_with_single_constraint() -> None:
     This tests the else branch (line 106 in element.py).
     """
     # Create a simple element
-    element = Node(name="test_node", period=1.0, n_periods=3)
+    element = Node(name="test_node", periods=[1.0] * 3)
 
     # Manually add a single constraint (not a list) for testing
     single_constraint = LpConstraint(name="test_constraint")
@@ -106,7 +106,7 @@ def test_constraints_with_single_constraint() -> None:
 def test_connection_power_with_multiple_connections() -> None:
     """Test connection_power with multiple connections including both source and target ends."""
     # Create a simple node element
-    node = Node(name="test_node", period=1.0, n_periods=3)
+    node = Node(name="test_node", periods=[1.0] * 3)
 
     # Create first mock connection (node as source)
     mock_conn1 = Mock(spec=Connection)

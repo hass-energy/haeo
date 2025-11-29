@@ -9,9 +9,15 @@ from homeassistant.core import callback
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
-    CONF_HORIZON_HOURS,
     CONF_INTEGRATION_TYPE,
-    CONF_PERIOD_MINUTES,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
     CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
@@ -53,8 +59,19 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                     data={
                         CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
                         CONF_NAME: hub_name,
-                        CONF_HORIZON_HOURS: user_input[CONF_HORIZON_HOURS],
-                        CONF_PERIOD_MINUTES: user_input[CONF_PERIOD_MINUTES],
+                        # Tier 1: Fine-grained near-term intervals
+                        CONF_TIER_1_COUNT: user_input[CONF_TIER_1_COUNT],
+                        CONF_TIER_1_DURATION: user_input[CONF_TIER_1_DURATION],
+                        # Tier 2: Short-term intervals
+                        CONF_TIER_2_COUNT: user_input[CONF_TIER_2_COUNT],
+                        CONF_TIER_2_DURATION: user_input[CONF_TIER_2_DURATION],
+                        # Tier 3: Medium-term intervals
+                        CONF_TIER_3_COUNT: user_input[CONF_TIER_3_COUNT],
+                        CONF_TIER_3_DURATION: user_input[CONF_TIER_3_DURATION],
+                        # Tier 4: Long-term intervals
+                        CONF_TIER_4_COUNT: user_input[CONF_TIER_4_COUNT],
+                        CONF_TIER_4_DURATION: user_input[CONF_TIER_4_DURATION],
+                        # Update and debounce settings
                         CONF_UPDATE_INTERVAL_MINUTES: user_input[CONF_UPDATE_INTERVAL_MINUTES],
                         CONF_DEBOUNCE_SECONDS: user_input[CONF_DEBOUNCE_SECONDS],
                     },

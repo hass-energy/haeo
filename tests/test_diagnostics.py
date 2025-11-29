@@ -10,10 +10,24 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
-    CONF_HORIZON_HOURS,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
-    CONF_PERIOD_MINUTES,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
+    DEFAULT_TIER_1_COUNT,
+    DEFAULT_TIER_1_DURATION,
+    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
@@ -41,11 +55,16 @@ async def test_diagnostics_without_coordinator(hass: HomeAssistant) -> None:
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            CONF_HORIZON_HOURS: 24,
-            CONF_PERIOD_MINUTES: 15,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
-        entry_id="test_entry",
-    )
+        entry_id="test_entry")
     entry.add_to_hass(hass)
     entry.runtime_data = None
 
@@ -66,11 +85,16 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            CONF_HORIZON_HOURS: 24,
-            CONF_PERIOD_MINUTES: 15,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
-        entry_id="hub_entry",
-    )
+        entry_id="hub_entry")
     entry.add_to_hass(hass)
 
     battery_subentry = ConfigSubentry(
@@ -84,8 +108,7 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
-        unique_id=None,
-    )
+        unique_id=None)
     hass.config_entries.async_add_subentry(entry, battery_subentry)
 
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
@@ -103,28 +126,24 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
                 type=OUTPUT_TYPE_STATUS,
                 unit=None,
                 state="success",
-                forecast=None,
-            ),
+                forecast=None),
             OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
                 type=OUTPUT_TYPE_COST,
                 unit="$",
                 state=27.5,
-                forecast=None,
-            ),
+                forecast=None),
             OUTPUT_NAME_OPTIMIZATION_DURATION: CoordinatorOutput(
                 type=OUTPUT_TYPE_DURATION,
                 unit="s",
                 state=1.25,
-                forecast=None,
-            ),
+                forecast=None),
         },
         "battery_one": {
             BATTERY_POWER_CHARGE: CoordinatorOutput(
                 type=OUTPUT_TYPE_POWER,
                 unit="kW",
                 state=3.0,
-                forecast=forecast_map,
-            )
+                forecast=forecast_map)
         },
     }
 
@@ -164,8 +183,7 @@ async def test_diagnostics_handles_missing_outputs(hass: HomeAssistant) -> None:
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
         },
-        entry_id="hub_entry",
-    )
+        entry_id="hub_entry")
     entry.add_to_hass(hass)
 
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)

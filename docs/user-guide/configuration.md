@@ -34,34 +34,39 @@ A unique name for your energy hub (for example, "Home Energy System").
     You can create multiple separate hubs for distinct energy systems (separate buildings, testing configurations, different optimization strategies).
     Each hub manages its own set of element and connection entries independently.
 
-#### Horizon hours
+#### Interval Tiers
 
-The optimization time horizon in hours (1-168).
+HAEO uses dynamic interval sizing to balance precision and performance.
+Configure up to four tiers, each specifying how many intervals to create and their duration in minutes.
 
-**Recommended**: 48-72 hours for most residential systems.
+| Tier | Default Count | Default Duration | Purpose |
+|------|---------------|------------------|---------|
+| 1 | 5 | 1 minute | High-resolution near-term decisions |
+| 2 | 5 | 5 minutes | Short-term response |
+| 3 | 46 | 30 minutes | Day-ahead planning |
+| 4 | 48 | 60 minutes | Extended horizon |
+
+The defaults create approximately 104 intervals spanning roughly 72 hours:
+
+- 5 × 1 min = 5 minutes of fine-grained control
+- 5 × 5 min = 25 minutes of responsive planning
+- 46 × 30 min ≈ 23 hours of day-ahead optimization
+- 48 × 60 min = 48 hours of extended lookahead
+
+**Why variable intervals?**
+
+Near-term decisions benefit from high resolution because they directly influence immediate actions.
+Distant periods can use coarser resolution since forecasts become less reliable further out and battery decisions today rarely depend on hour-by-hour precision three days from now.
+
+**Tuning tips**:
+
+- Set tier counts to zero to disable a tier entirely
+- Increase tier 1 count for faster-responding systems (EV chargers, heat pumps)
+- Reduce tier 4 count if optimization takes too long
+- Match tier 1 duration to your fastest-updating price or forecast sensor
 
 HAEO uses intelligent forecast cycling to extend partial forecast data across the full horizon.
-This means a 24-hour solar forecast automatically cycles to cover 48+ hour horizons with time-of-day alignment preserved.
-You don't need forecast data covering your entire horizon.
-
-**Why 48-72 hours**:
-
-- Enables multi-day battery charge/discharge planning
-- Captures tomorrow's price patterns for today's decisions
-- Provides lookahead for optimal solar self-consumption vs export timing
-- Longer horizons add computational cost without practical benefit for typical battery capacities
-
-**Shorter horizons** (12-24 hours): Use only if optimization duration becomes excessive or battery capacity is very small.
-
-**Longer horizons** (72+ hours): Only beneficial for very large battery banks that can store multiple days of energy.
-
-#### Period minutes
-
-The time resolution for optimization in minutes (1-60).
-
-Set the period to match the resolution of your most important sensor or price input whenever possible.
-Shorter periods give finer control but increase solve time.
-If optimizations feel slow, increase the period before reducing the horizon.
+A 24-hour solar forecast automatically cycles to cover longer horizons with time-of-day alignment preserved.
 
 Click **Submit** to create your hub.
 
@@ -152,7 +157,7 @@ The hub automatically adjusts optimization for remaining elements.
 
 ### Editing hub settings
 
-Click **Configure** on the hub entry to modify horizon hours, period minutes, or optimizer.
+Click **Configure** on the hub entry to modify interval tiers or optimizer.
 Changes trigger immediate re-optimization with the new parameters.
 
 ## Best Practices
@@ -180,7 +185,7 @@ Choose descriptive element names using friendly, readable format:
 ### Monitor performance
 
 Watch optimization duration in the sensor.
-If it takes too long, increase period minutes or reduce horizon hours.
+If it takes too long, adjust interval tiers (increase durations or reduce counts).
 See [performance considerations](optimization.md#performance-considerations) for more details.
 
 ## Next Steps

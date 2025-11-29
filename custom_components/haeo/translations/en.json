@@ -4,13 +4,18 @@
     "step": {
       "user": {
         "title": "HAEO Network Setup",
-        "description": "Create a new HAEO optimization network. Configure the optimization horizon (how far into the future to optimize) and time period (how often to make optimization decisions). After creating the network, you can add individual devices like batteries, grid connections, loads, and photovoltaics through the network's configuration options.",
+        "description": "Create a new HAEO optimization network with dynamic interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity. Default: 104 periods covering ~72 hours.",
         "data": {
           "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_hours": "Optimization Horizon (hours)",
           "name": "Network Name",
-          "optimizer": "Optimization Solver",
-          "period_minutes": "Time Period (minutes)",
+          "tier_1_count": "Tier 1 Count (fine-grained)",
+          "tier_1_duration": "Tier 1 Duration (minutes)",
+          "tier_2_count": "Tier 2 Count (short-term)",
+          "tier_2_duration": "Tier 2 Duration (minutes)",
+          "tier_3_count": "Tier 3 Count (medium-term)",
+          "tier_3_duration": "Tier 3 Duration (minutes)",
+          "tier_4_count": "Tier 4 Count (long-term)",
+          "tier_4_duration": "Tier 4 Duration (minutes)",
           "update_interval_minutes": "Update Interval (minutes)"
         }
       }
@@ -310,12 +315,17 @@
     "step": {
       "init": {
         "title": "Network Settings",
-        "description": "Configure optimization horizon, time period, and solver",
+        "description": "Configure dynamic interval tiers and update settings. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
         "data": {
           "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_hours": "Optimization Horizon (hours)",
-          "optimizer": "Optimization Solver",
-          "period_minutes": "Time Period (minutes)",
+          "tier_1_count": "Tier 1 Count (fine-grained)",
+          "tier_1_duration": "Tier 1 Duration (minutes)",
+          "tier_2_count": "Tier 2 Count (short-term)",
+          "tier_2_duration": "Tier 2 Duration (minutes)",
+          "tier_3_count": "Tier 3 Count (medium-term)",
+          "tier_3_duration": "Tier 3 Duration (minutes)",
+          "tier_4_count": "Tier 4 Count (long-term)",
+          "tier_4_duration": "Tier 4 Duration (minutes)",
           "update_interval_minutes": "Update Interval (minutes)"
         }
       }

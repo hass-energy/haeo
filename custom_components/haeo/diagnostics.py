@@ -10,8 +10,14 @@ from homeassistant.util import slugify
 from .const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
-    CONF_HORIZON_HOURS,
-    CONF_PERIOD_MINUTES,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
     CONF_UPDATE_INTERVAL_MINUTES,
     OPTIMIZATION_STATUS_PENDING,
 )
@@ -61,8 +67,16 @@ async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry:
             "domain": config_entry.domain,
         },
         "hub_config": {
-            CONF_HORIZON_HOURS: config_entry.data.get(CONF_HORIZON_HOURS),
-            CONF_PERIOD_MINUTES: config_entry.data.get(CONF_PERIOD_MINUTES),
+            # Tier configuration
+            CONF_TIER_1_COUNT: config_entry.data.get(CONF_TIER_1_COUNT),
+            CONF_TIER_1_DURATION: config_entry.data.get(CONF_TIER_1_DURATION),
+            CONF_TIER_2_COUNT: config_entry.data.get(CONF_TIER_2_COUNT),
+            CONF_TIER_2_DURATION: config_entry.data.get(CONF_TIER_2_DURATION),
+            CONF_TIER_3_COUNT: config_entry.data.get(CONF_TIER_3_COUNT),
+            CONF_TIER_3_DURATION: config_entry.data.get(CONF_TIER_3_DURATION),
+            CONF_TIER_4_COUNT: config_entry.data.get(CONF_TIER_4_COUNT),
+            CONF_TIER_4_DURATION: config_entry.data.get(CONF_TIER_4_DURATION),
+            # Update settings
             CONF_UPDATE_INTERVAL_MINUTES: config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES),
             CONF_DEBOUNCE_SECONDS: config_entry.data.get(CONF_DEBOUNCE_SECONDS),
         },

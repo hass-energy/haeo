@@ -49,7 +49,7 @@ It works alongside other Home Assistant integrations that provide sensor data, a
 
 HAEO watches the sensors you configure and re-optimizes whenever inputs change.
 You choose the horizon and resolution through the UI to balance responsiveness with complexity.
-See the [configuration guide](user-guide/configuration.md#horizon-hours) for advice on selecting a horizon window.
+See the [configuration guide](user-guide/configuration.md#interval-tiers) for advice on selecting interval tiers.
 
 ### Built for the Home Assistant ecosystem
 

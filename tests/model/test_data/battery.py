@@ -10,8 +10,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_charging",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 20.0,
             "min_charge_percentage": 10.0,
@@ -74,8 +73,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_discharging",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 80.0,
             "min_charge_percentage": 10.0,
@@ -138,8 +136,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_fixed",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 50.0,
             "max_charge_power": 5.0,
@@ -181,8 +178,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_overcharge_expensive",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 50.0,  # Start in middle
             "min_charge_percentage": 20.0,
@@ -248,8 +244,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_overcharge_cheap",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 75.0,  # Start near max
             "min_charge_percentage": 20.0,
@@ -312,8 +307,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_undercharge_expensive",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 25.0,  # Start near min
             "min_charge_percentage": 20.0,
@@ -391,8 +385,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_undercharge_cheap",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 25.0,  # Start near min
             "min_charge_percentage": 20.0,
@@ -474,8 +467,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_both_sections",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 50.0,
             "min_charge_percentage": 20.0,
@@ -581,8 +573,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_threshold_change",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 75.0,
             "min_charge_percentage": 20.0,
@@ -648,8 +639,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "battery_efficiency_test",
-            "period": 1.0,
-            "n_periods": 2,
+            "periods": [1.0] * 2,
             "capacity": 10.0,
             "initial_charge_percentage": 50.0,
             "min_charge_percentage": 10.0,
@@ -695,8 +685,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "test_battery",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 50.0,
             "min_charge_percentage": 80.0,  # Greater than max
@@ -712,8 +701,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "test_battery",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 50.0,
             "min_charge_percentage": 20.0,
@@ -731,8 +719,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "test_battery",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 50.0,
             "min_charge_percentage": 20.0,
@@ -750,8 +737,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "test_battery",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 50.0,
             "max_charge_percentage": [],  # Empty list
@@ -763,8 +749,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "test_battery",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 50.0,
             "min_charge_percentage": 20.0,
@@ -782,8 +767,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "factory": Battery,
         "data": {
             "name": "test_battery",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "capacity": 10.0,
             "initial_charge_percentage": 50.0,
             "min_charge_percentage": 20.0,

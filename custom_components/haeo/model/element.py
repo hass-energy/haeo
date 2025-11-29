@@ -17,28 +17,31 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
     All values use kW-based units:
     - Power: kW
     - Energy: kWh
-    - Time (period): hours
+    - Time (periods): hours (variable-width intervals)
     - Price: $/kWh
     """
 
-    def __init__(self, name: str, period: float, n_periods: int) -> None:
+    def __init__(self, name: str, periods: Sequence[float]) -> None:
         """Initialize an element.
 
         Args:
             name: Name of the entity
-            period: Time period in hours
-            n_periods: Number of time periods
+            periods: Sequence of time period durations in hours (one per optimization interval)
 
         """
         self.name = name
-        self.period = period
-        self.n_periods = n_periods
+        self.periods = periods
 
         # Constraint storage - dictionary allows re-entrancy
         self._constraints: dict[ConstraintNameT, LpConstraint | Sequence[LpConstraint]] = {}
 
         # Track connections for power balance
         self._connections: list[tuple[Connection, Literal["source", "target"]]] = []
+
+    @property
+    def n_periods(self) -> int:
+        """Return the number of optimization periods."""
+        return len(self.periods)
 
     def register_connection(self, connection: "Connection", end: Literal["source", "target"]) -> None:
         """Register a connection to this element.

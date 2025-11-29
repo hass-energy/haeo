@@ -10,8 +10,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Node,
         "data": {
             "name": "node",
-            "period": 1,
-            "n_periods": 2,
+            "periods": [1.0] * 2,
         },
         "expected_outputs": {},
     },
@@ -20,8 +19,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Node,
         "data": {
             "name": "hub_node",
-            "period": 1,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
         },
         "inputs": {
             "power": [0.0, 0.0, 0.0],  # Balanced power at node

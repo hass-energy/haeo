@@ -21,9 +21,15 @@ from syrupy.assertion import SnapshotAssertion
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
-    CONF_HORIZON_HOURS,
     CONF_NAME,
-    CONF_PERIOD_MINUTES,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
@@ -69,16 +75,14 @@ _scenario_params = [(scenario, _extract_freeze_time(scenario)) for scenario in _
     ("scenario_path", "freeze_timestamp"),
     _scenario_params,
     ids=[scenario.name for scenario in _scenarios],
-    indirect=["scenario_path"],
-)
+    indirect=["scenario_path"])
 async def test_scenarios(
     hass: HomeAssistant,
     scenario_path: Path,
     freeze_timestamp: str,
     scenario_config: dict[str, Any],
     scenario_states: Sequence[dict[str, Any]],
-    snapshot: SnapshotAssertion,
-) -> None:
+    snapshot: SnapshotAssertion) -> None:
     """Test that scenario sets up correctly and optimization engine runs successfully."""
     # Apply freeze_time dynamically
     with freeze_time(freeze_timestamp):
@@ -93,10 +97,15 @@ async def test_scenarios(
             data={
                 "integration_type": INTEGRATION_TYPE_HUB,
                 CONF_NAME: "Test Hub",
-                CONF_HORIZON_HOURS: scenario_config[CONF_HORIZON_HOURS],
-                CONF_PERIOD_MINUTES: scenario_config[CONF_PERIOD_MINUTES],
-            },
-        )
+                CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
+                CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],
+                CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 0),
+                CONF_TIER_2_DURATION: scenario_config.get("tier_2_duration", 5),
+                CONF_TIER_3_COUNT: scenario_config.get("tier_3_count", 0),
+                CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
+                CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
+                CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
+            })
         mock_config_entry.add_to_hass(hass)
 
         # Create element subentries from the scenario config
@@ -146,8 +155,7 @@ async def test_scenarios(
                 for entry in er.async_entries_for_config_entry(entity_registry, mock_config_entry.entry_id)
                 if entry.unique_id.endswith(f"_{OUTPUT_NAME_OPTIMIZATION_STATUS}")
             ),
-            None,
-        )
+            None)
         assert status_entity_entry is not None, "Optimization status entity should be registered"
 
         optimization_status = await wait_for_sensor_change(hass, status_entity_entry.entity_id)
@@ -155,8 +163,7 @@ async def test_scenarios(
         _LOGGER.debug(
             "Optimization status after waiting: '%s' (type: %s)",
             optimization_status.state,
-            type(optimization_status.state),
-        )
+            type(optimization_status.state))
 
         # Verify optimization completed successfully
         _LOGGER.info("Optimization status: %s", optimization_status.state)
@@ -210,8 +217,7 @@ async def test_scenarios(
         await visualize_scenario_results(
             hass,
             scenario_path.name,
-            scenario_path / "visualizations",
-        )
+            scenario_path / "visualizations")
 
         # Check the sensors against snapshots
         assert snapshot == haeo_sensors

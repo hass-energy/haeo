@@ -26,8 +26,7 @@ async def load_network(
     hass: HomeAssistant,
     entry: ConfigEntry,
     *,
-    period_seconds: int,
-    n_periods: int,
+    periods_seconds: Sequence[int],
     participants: Mapping[str, ElementConfigSchema],
     forecast_times: Sequence[int],
 ) -> Network:
@@ -36,8 +35,7 @@ async def load_network(
     Args:
         hass: Home Assistant instance
         entry: Config entry
-        period_seconds: Optimization period in seconds
-        n_periods: Number of periods
+        periods_seconds: Sequence of optimization period durations in seconds
         participants: Mapping of validated element names to configurations
         forecast_times: Rounded timestamps for each optimization period (epoch seconds)
 
@@ -72,12 +70,12 @@ async def load_network(
     # ==================================================================================
     # The coordinator and data loading layers work in seconds (practical for timestamps).
     # The model/optimization layer works in hours (necessary for kW·h = kWh math).
-    # This is where we convert period from seconds to hours for the model layer.
+    # This is where we convert periods from seconds to hours for the model layer.
     # ==================================================================================
-    period_hours = period_seconds / 3600
+    periods_hours = [s / 3600 for s in periods_seconds]
 
-    # Build network with period in hours
-    net = Network(name=f"haeo_network_{entry.entry_id}", period=period_hours, n_periods=n_periods)
+    # Build network with periods in hours
+    net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
 
     # Get the data for each participant and add to the network
     # This converts from Schema mode (with entity IDs) to Data mode (with loaded values)
