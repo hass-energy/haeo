@@ -39,12 +39,12 @@ A unique name for your energy hub (for example, "Home Energy System").
 HAEO uses dynamic interval sizing to balance precision and performance.
 Configure up to four tiers, each specifying how many intervals to create and their duration in minutes.
 
-| Tier | Default Count | Default Duration | Purpose |
-|------|---------------|------------------|---------|
-| 1 | 5 | 1 minute | High-resolution near-term decisions |
-| 2 | 5 | 5 minutes | Short-term response |
-| 3 | 46 | 30 minutes | Day-ahead planning |
-| 4 | 48 | 60 minutes | Extended horizon |
+| Tier | Default Count | Default Duration | Purpose                             |
+| ---- | ------------- | ---------------- | ----------------------------------- |
+| 1    | 5             | 1 minute         | High-resolution near-term decisions |
+| 2    | 5             | 5 minutes        | Short-term response                 |
+| 3    | 46            | 30 minutes       | Day-ahead planning                  |
+| 4    | 48            | 60 minutes       | Extended horizon                    |
 
 The defaults create approximately 104 intervals spanning roughly 72 hours:
 
