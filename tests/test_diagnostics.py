@@ -6,6 +6,7 @@ from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
@@ -20,7 +21,13 @@ from custom_components.haeo.const import (
 from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
 from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
-from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
+from custom_components.haeo.elements.battery import (
+    CONF_CAPACITY,
+    CONF_EFFICIENCY,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MIN_CHARGE_PERCENTAGE,
+)
 from custom_components.haeo.elements.grid import CONF_IMPORT_PRICE
 from custom_components.haeo.model import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.grid import GRID_POWER_IMPORTED
@@ -86,6 +93,9 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
                 CONF_NAME: "Battery One",
                 CONF_CAPACITY: 5000.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -125,8 +135,8 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     assert "attributes" in inputs[0]
     assert "last_updated" in inputs[0]
 
-    # Verify outputs is empty when no coordinator
-    assert diagnostics["outputs"] == []
+    # Verify outputs is empty dict when no coordinator
+    assert diagnostics["outputs"] == {}
 
 
 async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
@@ -180,9 +190,19 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
         }
     }
 
+    # Register output sensor in entity registry (required for get_output_sensors)
+    entity_registry = er.async_get(hass)
+    output_entity_id = f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORTED}"
+    entity_registry.async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id=f"hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORTED}",
+        config_entry=entry,
+    )
+
     # Set up output sensor state
     hass.states.async_set(
-        f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORTED}",
+        output_entity_id,
         "5.5",
         {
             "unit_of_measurement": "kW",
@@ -194,11 +214,12 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    # Verify outputs are collected
+    # Verify outputs are collected as dict
     outputs = diagnostics["outputs"]
     assert len(outputs) >= 1
+    # Find the entity by checking entity_id in values
     output_entity = next(
-        (s for s in outputs if GRID_POWER_IMPORTED in s["entity_id"]),
+        (s for s in outputs.values() if GRID_POWER_IMPORTED in s["entity_id"]),
         None,
     )
     assert output_entity is not None

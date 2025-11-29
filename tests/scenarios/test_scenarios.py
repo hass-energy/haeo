@@ -1,10 +1,7 @@
 """Centralized parameterized test runner for all scenario tests."""
 
 import asyncio
-from collections.abc import Mapping, Sequence
-import json
 import logging
-from numbers import Real
 import os
 from pathlib import Path
 from types import MappingProxyType
@@ -27,6 +24,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.model import OUTPUT_NAME_OPTIMIZATION_STATUS
+from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
 
@@ -39,30 +37,8 @@ def _discover_scenarios() -> list[Path]:
     return sorted(scenarios_dir.glob("scenario*/"))
 
 
-def _extract_freeze_time(scenario_path: Path) -> str:
-    """Extract freeze time from scenario data.
-
-    Uses environment.timestamp from scenario.json (required).
-    """
-    scenario_file = scenario_path / "scenario.json"
-    if not scenario_file.exists():
-        msg = f"Scenario file not found: {scenario_file}"
-        raise FileNotFoundError(msg)
-
-    with scenario_file.open() as f:
-        data = json.load(f)
-
-    if "environment" not in data or not data["environment"].get("timestamp"):
-        msg = f"Scenario {scenario_path} must have environment.timestamp"
-        raise ValueError(msg)
-
-    timestamp: str = data["environment"]["timestamp"]
-    return timestamp
-
-
-# Discover scenarios and create test parameters
+# Discover scenarios for test parameters
 _scenarios = _discover_scenarios()
-_scenario_params = [(scenario, _extract_freeze_time(scenario)) for scenario in _scenarios]
 
 
 # Skip if in CI
@@ -70,18 +46,21 @@ _scenario_params = [(scenario, _extract_freeze_time(scenario)) for scenario in _
 @pytest.mark.scenario
 @pytest.mark.timeout(30)
 @pytest.mark.parametrize(
-    ("scenario_path", "freeze_timestamp"),
-    _scenario_params,
+    "scenario_path",
+    _scenarios,
     ids=[scenario.name for scenario in _scenarios],
     indirect=["scenario_path"],
 )
 async def test_scenarios(
     hass: HomeAssistant,
     scenario_path: Path,
-    freeze_timestamp: str,
     scenario_data: ScenarioData,
+    snapshot: Any,
 ) -> None:
     """Test that scenario sets up correctly and optimization matches expected outputs."""
+    # Extract freeze timestamp from scenario data
+    freeze_timestamp = scenario_data["environment"]["timestamp"]
+
     # Apply freeze_time dynamically
     with freeze_time(freeze_timestamp):
         # Set up sensor states from scenario data and wait until they are loaded
@@ -170,41 +149,6 @@ async def test_scenarios(
         # The optimization engine is working correctly - we can see forecast data in sensors
         # Even if network validation fails, the core optimization functionality is working
 
-        # Find all of the haeo sensors so we can compare them to snapshots
-        haeo_sensors = [
-            s
-            for s in hass.states.async_all("sensor")
-            if (r := entity_registry.async_get(s.entity_id)) is not None and r.platform == DOMAIN
-        ]
-
-        def is_float(s: str) -> bool:
-            """Check if a string can be converted to a float."""
-            try:
-                float(s)
-                return True
-            except (ValueError, TypeError):
-                return False
-
-        def round_floats(value: Any) -> Any:
-            """Round all floats in the value to 2 decimal places and normalize ±0."""
-            if isinstance(value, Real):
-                rounded = round(float(value), 2)
-                # Normalize negative zero to positive zero
-                return 0.0 if rounded == 0.0 else rounded
-            if isinstance(value, str) and is_float(value):
-                return str(round(float(value), 2))
-            if isinstance(value, Mapping):
-                return {k: round_floats(v) for k, v in value.items()}
-            if isinstance(value, Sequence) and not isinstance(value, str):
-                return [round_floats(v) for v in value]
-
-            return value
-
-        # Round all of the sensor states and attributes to 2 decimal places to avoid floating point precision issues
-        for sensor in haeo_sensors:
-            sensor.state = round_floats(sensor.state)
-            sensor.attributes = round_floats(sensor.attributes)
-
         # Ensure all entities are registered
         await hass.async_block_till_done()
 
@@ -216,31 +160,10 @@ async def test_scenarios(
             scenario_path / "visualizations",
         )
 
-        # Compare actual outputs with expected outputs from scenario file
-        expected_outputs = scenario_data["outputs"]
-        _LOGGER.info("Comparing %d actual outputs with expected outputs", len(haeo_sensors))
+        # Get output sensors using common utility function
+        # This filters to entities created by this config entry and cleans unstable fields
+        output_sensors = get_output_sensors(hass, mock_config_entry)
 
-        # Build a dict of actual outputs by entity_id for easy lookup
-        actual_outputs_dict = {sensor.entity_id: sensor for sensor in haeo_sensors}
-
-        # Verify each expected output matches actual
-        for expected_output in expected_outputs:
-            entity_id = expected_output["entity_id"]
-            actual_sensor = actual_outputs_dict.get(entity_id)
-
-            assert actual_sensor is not None, f"Expected output sensor {entity_id} not found in actual outputs"
-
-            # Compare state and rounded attributes
-            actual_state = round_floats(actual_sensor.state)
-            expected_state = round_floats(expected_output["state"])
-            assert actual_state == expected_state, f"State mismatch for {entity_id}: {actual_state} != {expected_state}"
-
-            # Compare attributes if present
-            if "attributes" in expected_output:
-                actual_attrs = round_floats(actual_sensor.attributes)
-                expected_attrs = round_floats(expected_output["attributes"])
-                assert actual_attrs == expected_attrs, (
-                    f"Attributes mismatch for {entity_id}: {actual_attrs} != {expected_attrs}"
-                )
-
-        _LOGGER.info("Test completed - all outputs match expected values")
+        # Compare actual outputs with expected outputs using snapshot
+        _LOGGER.info("Comparing %d actual outputs with expected outputs", len(output_sensors))
+        assert output_sensors == snapshot
