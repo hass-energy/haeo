@@ -34,23 +34,15 @@
     "Grid": {
       "element_type": "grid",
       "name": "Grid",
-      "import_price": [
-        "sensor.home_general_price",
-        "sensor.home_general_forecast"
-      ],
-      "export_price": [
-        "sensor.home_feed_in_price",
-        "sensor.home_feed_in_forecast"
-      ],
+      "import_price": ["sensor.home_general_price", "sensor.home_general_forecast"],
+      "export_price": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
       "import_limit": 55,
       "export_limit": 30
     },
     "Constant Load": {
       "element_type": "load",
       "name": "Constant Load",
-      "forecast": [
-        "input_number.constant_load_power"
-      ]
+      "forecast": ["input_number.constant_load_power"]
     },
     "DC Net->Battery": {
       "element_type": "connection",
