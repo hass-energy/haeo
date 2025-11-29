@@ -1,7 +1,6 @@
 """Custom syrupy extension to serialize sensor snapshots into outputs.json files."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
 import json
 from numbers import Real
 from pathlib import Path
@@ -9,7 +8,7 @@ from typing import Any
 
 from syrupy.extensions.json import JSONSnapshotExtension
 from syrupy.location import PyTestLocation
-from syrupy.types import PropertyFilter, PropertyMatcher, SerializableData, SerializedData, SnapshotIndex
+from syrupy.types import SerializableData, SerializedData, SnapshotIndex
 
 
 def approx_equal(a: Any, b: Any, rel_tol: float = 1e-5, abs_tol: float = 1e-9) -> bool:
@@ -54,36 +53,46 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
     - Stores sensor data as Python dicts (not JSON strings)
     - Writes directly to outputs.json in scenario directory
     - Uses approximate float comparison for robustness
-    - Preserves complete state information from State.as_dict()
+    - Expects sensor data from get_output_sensors() with datetime keys already converted to ISO strings
     """
 
     def serialize(
         self,
         data: SerializableData,
         *,
-        exclude: PropertyFilter | None = None,  # noqa: ARG002
-        include: PropertyFilter | None = None,  # noqa: ARG002
-        matcher: PropertyMatcher | None = None,  # noqa: ARG002
+        exclude: Any = None,
+        include: Any = None,
+        matcher: Any = None,
     ) -> SerializedData:
-        """Serialize data by converting datetime keys to ISO strings.
+        """Serialize sensor data to Python dict for JSON storage.
 
-        Returns: Python dict (not JSON string) for storage and comparison.
+        Unlike the parent class which returns a JSON string, we return a Python dict
+        directly so it can be written to outputs.json with consistent formatting.
+
+        The parent's _filter() method is now safe to use because datetime keys have
+        already been converted to ISO strings by get_output_sensors(), so they won't
+        be stripped out by the string key requirement.
+
+        Args:
+            data: Sensor data to serialize (already has ISO string keys for forecasts)
+            exclude: Property filter to exclude certain fields (passed to parent)
+            include: Property filter to include only certain fields (passed to parent)
+            matcher: Property matcher for custom transformations (passed to parent)
+
+        Returns:
+            Python dict (not JSON string) for direct storage in outputs.json.
+
         """
-        return self._convert_datetime_keys(data)
-
-    def _convert_datetime_keys(self, data: Any) -> Any:
-        """Recursively convert datetime dict keys to ISO format strings."""
-        if isinstance(data, Mapping):
-            converted = {}
-            for key, value in data.items():
-                # Convert datetime keys to ISO strings
-                new_key = key.isoformat() if isinstance(key, datetime) else key
-                # Recursively convert nested structures
-                converted[new_key] = self._convert_datetime_keys(value)
-            return converted
-        if isinstance(data, Sequence) and not isinstance(data, str):
-            return [self._convert_datetime_keys(item) for item in data]
-        return data
+        # Apply parent class filtering for property exclusion/inclusion/matching
+        # Return dict directly (parent's serialize() would convert to JSON string)
+        return self._filter(
+            data=data,
+            depth=0,
+            path=(),
+            exclude=exclude,
+            include=include,
+            matcher=matcher,
+        )
 
     @classmethod
     def _get_scenario_dir(cls, test_location: PyTestLocation) -> Path:
