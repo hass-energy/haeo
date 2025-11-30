@@ -10,8 +10,8 @@ from .syrupy_json_extension import ScenarioJSONExtension
 
 
 @pytest.fixture(autouse=True, scope="session")
-def migrate_unified_scenarios() -> None:
-    """Migrate any unified scenario.json files to split format.
+def expand_diagnostics_scenario() -> None:
+    """Migrate any unified diagnostics.json files to split format.
 
     This runs once per test session and splits scenario.json into:
     - config.json
@@ -32,17 +32,19 @@ def migrate_unified_scenarios() -> None:
             with scenario_file.open() as f:
                 data = json.load(f)
 
+            diagnostics = data["data"]
+
             # Validate structure
             required_keys = {"config", "environment", "inputs", "outputs"}
-            if not all(key in data for key in required_keys):
-                msg = f"Scenario file {scenario_file} missing required keys: {required_keys - data.keys()}"
+            if required_keys <= diagnostics.keys() is False:
+                msg = f"Scenario file {scenario_file} missing required keys: {required_keys - diagnostics.keys()}"
                 raise ValueError(msg)
 
             # Write split files with consistent formatting
             for key in required_keys:
                 split_file = scenario_path / f"{key}.json"
                 with split_file.open("w") as f:
-                    json.dump(data[key], f, indent=2)
+                    json.dump(diagnostics[key], f, indent=2)
                     f.write("\n")  # POSIX trailing newline
 
             # Delete the unified file after successful split
@@ -90,7 +92,7 @@ def scenario_data(scenario_path: Path) -> ScenarioData:
     """Load scenario data from split JSON files.
 
     Loads from config.json, environment.json, inputs.json, and outputs.json
-    which are created by the migrate_unified_scenarios fixture.
+    which are created by the expand_diagnostics_scenario fixture.
     """
     # Load all split files
     config_file = scenario_path / "config.json"

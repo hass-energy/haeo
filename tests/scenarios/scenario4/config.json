@@ -1,80 +1,59 @@
 {
+  "horizon_hours": 48,
+  "period_minutes": 5,
   "participants": {
-    "DC Net": {
-      "element_type": "node",
-      "name": "DC Net"
-    },
-    "AC Net": {
-      "element_type": "node",
-      "name": "AC Net"
-    },
+    "AC Net": { "name": "AC Net", "element_type": "node" },
+    "AC Net->DC Net": { "name": "Inverter", "element_type": "connection", "source": "DC Net", "target": "AC Net" },
     "Battery": {
-      "element_type": "battery",
       "name": "Battery",
+      "element_type": "battery",
       "capacity": "sensor.sigen_plant_rated_energy_capacity",
-      "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
-      "min_charge_percentage": 10.0,
-      "max_charge_percentage": 100.0,
+      "discharge_cost": 0.02,
+      "early_charge_incentive": 0.001,
       "efficiency": 99.0,
+      "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
+      "max_charge_percentage": 100.0,
       "max_charge_power": "sensor.sigen_plant_ess_rated_charging_power",
       "max_discharge_power": "sensor.sigen_plant_ess_rated_discharging_power",
-      "early_charge_incentive": 0.001,
-      "discharge_cost": 0.02
+      "min_charge_percentage": 10.0
+    },
+    "Constant Load": {
+      "name": "Constant Load",
+      "element_type": "load",
+      "forecast": ["input_number.constant_load_power"]
+    },
+    "DC Net": { "name": "DC Net", "element_type": "node" },
+    "DC Net->Battery": {
+      "name": "DC Net->Battery",
+      "element_type": "connection",
+      "source": "DC Net",
+      "target": "Battery"
+    },
+    "Grid": {
+      "name": "Grid",
+      "element_type": "grid",
+      "export_limit": 30,
+      "export_price": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
+      "import_limit": 55,
+      "import_price": ["sensor.home_general_price", "sensor.home_general_forecast"]
+    },
+    "Grid->AC Net": { "name": "Grid->AC Net", "element_type": "connection", "source": "Grid", "target": "AC Net" },
+    "Load->AC Net": {
+      "name": "Load->AC Net",
+      "element_type": "connection",
+      "source": "Constant Load",
+      "target": "AC Net"
     },
     "Solar": {
-      "element_type": "photovoltaics",
       "name": "Solar",
+      "element_type": "photovoltaics",
+      "curtailment": true,
       "forecast": [
         "sensor.solcast_pv_forecast_forecast_day_3",
         "sensor.solcast_pv_forecast_forecast_today",
         "sensor.solcast_pv_forecast_forecast_tomorrow"
-      ],
-      "curtailment": true
+      ]
     },
-    "Grid": {
-      "element_type": "grid",
-      "name": "Grid",
-      "import_price": ["sensor.home_general_price", "sensor.home_general_forecast"],
-      "export_price": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
-      "import_limit": 55,
-      "export_limit": 30
-    },
-    "Constant Load": {
-      "element_type": "load",
-      "name": "Constant Load",
-      "forecast": ["input_number.constant_load_power"]
-    },
-    "DC Net->Battery": {
-      "element_type": "connection",
-      "name": "DC Net->Battery",
-      "source": "DC Net",
-      "target": "Battery"
-    },
-    "Solar->DC Net": {
-      "element_type": "connection",
-      "name": "Solar->DC Net",
-      "source": "Solar",
-      "target": "DC Net"
-    },
-    "AC Net->DC Net": {
-      "element_type": "connection",
-      "name": "Inverter",
-      "source": "DC Net",
-      "target": "AC Net"
-    },
-    "Grid->AC Net": {
-      "element_type": "connection",
-      "name": "Grid->AC Net",
-      "source": "Grid",
-      "target": "AC Net"
-    },
-    "Load->AC Net": {
-      "element_type": "connection",
-      "name": "Load->AC Net",
-      "source": "Constant Load",
-      "target": "AC Net"
-    }
-  },
-  "horizon_hours": 48,
-  "period_minutes": 5
+    "Solar->DC Net": { "name": "Solar->DC Net", "element_type": "connection", "source": "Solar", "target": "DC Net" }
+  }
 }
