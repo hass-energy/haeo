@@ -77,7 +77,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
                     native_value = output_data.state
 
                 if output_data.forecast:
-                    attributes["forecast"] = dict(output_data.forecast)
+                    attributes["forecast"] = list(output_data.forecast)
 
         self._attr_native_value = native_value
         self._attr_extra_state_attributes = attributes
