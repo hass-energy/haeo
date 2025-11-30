@@ -168,11 +168,15 @@ async def test_scenarios(
         # Even if network validation fails, the core optimization functionality is working
 
         # Find all of the haeo sensors so we can compare them to snapshots
-        haeo_sensors = [
-            s
-            for s in hass.states.async_all("sensor")
-            if (r := entity_registry.async_get(s.entity_id)) is not None and r.platform == DOMAIN
-        ]
+        # Sort by entity_id to ensure order-independent comparison
+        haeo_sensors = sorted(
+            [
+                s
+                for s in hass.states.async_all("sensor")
+                if (r := entity_registry.async_get(s.entity_id)) is not None and r.platform == DOMAIN
+            ],
+            key=lambda s: s.entity_id,
+        )
 
         def is_float(s: str) -> bool:
             """Check if a string can be converted to a float."""
