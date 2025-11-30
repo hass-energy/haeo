@@ -72,15 +72,6 @@ jobs:
           git diff \
             | reviewdog -f=diff -name="mdformat" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
-      - name: Translation Sort
-        if: ${{ !cancelled() }}
-        run: |
-          git clean -d -f
-          uv run scripts/sort_translations.py
-          npx --yes prettier@3 --write custom_components/haeo/translations/en.json
-          git diff \
-            | reviewdog -f=diff -name="translation sort" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
-
   test:
     name: "Run Tests"
     runs-on: "ubuntu-latest"
