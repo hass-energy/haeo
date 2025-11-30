@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
 import time
-from typing import Any, Literal, get_type_hints
+from typing import Any, Literal, TypedDict, get_type_hints
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -110,6 +110,19 @@ def extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     return entity_ids
 
 
+class ForecastPoint(TypedDict):
+    """Single point in a forecast time series.
+
+    Attributes:
+        time: Timestamp as datetime object (timezone-aware)
+        value: Forecast value (numeric or other types depending on output type)
+
+    """
+
+    time: datetime
+    value: Any
+
+
 @dataclass(frozen=True, slots=True)
 class CoordinatorOutput:
     """Processed output ready for Home Assistant entities."""
@@ -117,7 +130,7 @@ class CoordinatorOutput:
     type: OutputType
     unit: str | None
     state: StateType | None
-    forecast: dict[datetime, Any] | None
+    forecast: list[ForecastPoint] | None
     direction: Literal["+", "-"] | None = None
     entity_category: EntityCategory | None = None
     device_class: SensorDeviceClass | None = None
@@ -188,7 +201,7 @@ def _build_coordinator_output(
 
     values = tuple(output_data.values)
     state: Any | None = values[0] if values else None
-    forecast: dict[datetime, Any] | None = None
+    forecast: list[ForecastPoint] | None = None
 
     if forecast_times and len(values) > 1:
         try:
@@ -196,10 +209,10 @@ def _build_coordinator_output(
             local_tz = dt_util.get_default_time_zone()
             # Zip values with available timestamps - interval values use n_periods timestamps,
             # boundary values use all n_periods+1 timestamps (strict=False handles both)
-            forecast = {
-                datetime.fromtimestamp(timestamp, tz=local_tz): value
+            forecast = [
+                ForecastPoint(time=datetime.fromtimestamp(timestamp, tz=local_tz), value=value)
                 for timestamp, value in zip(forecast_times, values, strict=False)
-            }
+            ]
         except ValueError:
             forecast = None
 

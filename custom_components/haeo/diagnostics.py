@@ -9,7 +9,7 @@ from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
 from .const import CONF_ELEMENT_TYPE, CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES
-from .coordinator import collect_entity_ids, extract_entity_ids_from_config
+from .coordinator import extract_entity_ids_from_config
 from .elements import is_element_config_schema
 from .sensor_utils import get_output_sensors
 
@@ -46,18 +46,10 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
         # Create config dict with element_type
         participant_config = dict(subentry.data)
         participant_config[CONF_ELEMENT_TYPE] = subentry.subentry_type
-        # Try to extract entity IDs - use type guard for safety
+        # Extract entity IDs from valid element configs only
         if is_element_config_schema(participant_config):
             extracted_ids = extract_entity_ids_from_config(participant_config)
             all_entity_ids.update(extracted_ids)
-        # Even if validation fails, try to extract entity IDs anyway for diagnostics
-        # This helps with incomplete or invalid configs
-        else:
-            try:
-                for value in participant_config.values():
-                    all_entity_ids.update(collect_entity_ids(value))
-            except Exception:  # noqa: S110
-                pass  # Skip on error
 
     # Extract input states as dicts
     inputs: list[dict[str, Any]] = [

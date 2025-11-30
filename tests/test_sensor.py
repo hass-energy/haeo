@@ -16,7 +16,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
-from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.model import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
@@ -52,7 +52,7 @@ def _make_output(
     type_: OutputType,
     unit: str | None,
     state: float | str | None,
-    forecast: dict[datetime, float] | None,
+    forecast: list[ForecastPoint] | None,
     entity_category: EntityCategory | None,
     device_class: SensorDeviceClass | None,
     state_class: SensorStateClass | None,
@@ -147,7 +147,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
                 type_=OUTPUT_TYPE_POWER,
                 unit="kW",
                 state=1.5,
-                forecast={datetime.now(tz=UTC): 1.5},
+                forecast=[ForecastPoint(time=datetime.now(tz=UTC), value=1.5)],
                 entity_category=None,
                 device_class=SensorDeviceClass.POWER,
                 state_class=SensorStateClass.MEASUREMENT,
@@ -244,7 +244,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
         type_=OUTPUT_TYPE_POWER,
         unit="W",
         state=750.0,
-        forecast={forecast_time: 750.0},
+        forecast=[ForecastPoint(time=forecast_time, value=750.0)],
         entity_category=EntityCategory.DIAGNOSTIC,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,

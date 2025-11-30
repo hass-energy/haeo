@@ -29,6 +29,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.coordinator import (
+    ForecastPoint,
     HaeoDataUpdateCoordinator,
     _build_coordinator_output,
     collect_entity_ids,
@@ -285,12 +286,12 @@ async def test_async_update_data_returns_outputs(
     assert battery_output.type == OUTPUT_TYPE_POWER
     assert battery_output.unit == "kW"
     assert battery_output.state == 1.0
-    # Forecast timestamps should be datetime objects in local timezone
+    # Forecast should be list of ForecastPoint with datetime objects in local timezone
     local_tz = dt_util.get_default_time_zone()
-    assert battery_output.forecast == {
-        datetime.fromtimestamp(expected_forecast_times[0], tz=local_tz): 1.0,
-        datetime.fromtimestamp(expected_forecast_times[1], tz=local_tz): 2.0,
-    }
+    assert battery_output.forecast == [
+        ForecastPoint(time=datetime.fromtimestamp(expected_forecast_times[0], tz=local_tz), value=1.0),
+        ForecastPoint(time=datetime.fromtimestamp(expected_forecast_times[1], tz=local_tz), value=2.0),
+    ]
 
     mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
 
@@ -423,7 +424,7 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
     )
 
     assert output.forecast is not None
-    assert list(output.forecast.values()) == [1.2, 3.4]
+    assert [item["value"] for item in output.forecast] == [1.2, 3.4]
 
 
 def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.MonkeyPatch) -> None:

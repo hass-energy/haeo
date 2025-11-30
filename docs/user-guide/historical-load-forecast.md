@@ -85,12 +85,12 @@ sequence:
       load_forecast_json: |-
         {% set ns = namespace(
           input=history.statistics[consumed_power_sensor],
-          output={}
+          output=[]
         ) %}
         {% for load in ns.input %}
           {% set load_start = load.start | as_datetime | as_local + timedelta(days=num_prediction_days) %}
           {% set load_value = load.mean | float(0) | round(3) %}
-          {% set ns.output = ns.output | combine({ load_start.isoformat(): load_value }) %}
+          {% set ns.output = ns.output + [{"time": load_start.isoformat(), "value": load_value}] %}
         {% endfor %}
         {{ ns.output }}
       current_value: |-
@@ -154,6 +154,22 @@ Configure your Load element to use the forecast sensor:
 | **Forecast** | sensor.load_power_forecast |
 
 HAEO reads the `forecast` attribute and uses the historical pattern for optimization.
+
+### Forecast Format
+
+The forecast attribute should be an array of time-value pairs:
+
+```json
+[
+  {"time": "2025-11-30T00:00:00+10:00", "value": 1.234},
+  {"time": "2025-11-30T01:00:00+10:00", "value": 1.456},
+  {"time": "2025-11-30T02:00:00+10:00", "value": 1.789}
+]
+```
+
+Each entry contains:
+- `time`: ISO 8601 timestamp string with timezone (e.g., `2025-11-30T00:00:00+10:00`)
+- `value`: Numeric forecast value in the sensor's unit of measurement
 
 !!! tip "Initial Setup"
 

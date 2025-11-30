@@ -18,7 +18,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
 from custom_components.haeo.elements.battery import (
@@ -91,7 +91,7 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 CONF_NAME: "Battery One",
-                CONF_CAPACITY: 5000.0,
+                CONF_CAPACITY: "sensor.battery_capacity",
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
@@ -104,7 +104,15 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     )
     hass.config_entries.async_add_subentry(entry, battery_subentry)
 
-    # Set up a sensor state that should be captured
+    # Set up sensor states that should be captured
+    hass.states.async_set(
+        "sensor.battery_capacity",
+        "5000",
+        {
+            "unit_of_measurement": "Wh",
+            "device_class": "energy",
+        },
+    )
     hass.states.async_set(
         "sensor.battery_soc",
         "75",
@@ -124,19 +132,86 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     battery_config = participants["Battery One"]
     assert battery_config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
     assert battery_config[CONF_NAME] == "Battery One"
-    assert battery_config[CONF_CAPACITY] == 5000.0
+    assert battery_config[CONF_CAPACITY] == "sensor.battery_capacity"
     assert battery_config[CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
 
     # Verify input states are collected using State.as_dict()
+    # Both sensor.battery_capacity and sensor.battery_soc should be collected
     inputs = diagnostics["inputs"]
-    assert len(inputs) == 1
-    assert inputs[0]["entity_id"] == "sensor.battery_soc"
-    assert inputs[0]["state"] == "75"
-    assert "attributes" in inputs[0]
-    assert "last_updated" in inputs[0]
+    assert len(inputs) == 2
+    entity_ids = [inp["entity_id"] for inp in inputs]
+    assert "sensor.battery_capacity" in entity_ids
+    assert "sensor.battery_soc" in entity_ids
+    # Verify structure of input states
+    for inp in inputs:
+        assert "attributes" in inp
+        assert "last_updated" in inp
 
     # Verify outputs is empty dict when no coordinator
     assert diagnostics["outputs"] == {}
+
+
+async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
+    """Diagnostics skips network subentries when collecting participants and inputs."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_HORIZON_HOURS: 24,
+            CONF_PERIOD_MINUTES: 15,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    # Add a network subentry (should be skipped)
+    network_subentry = ConfigSubentry(
+        data=MappingProxyType({"some_network_config": "value"}),
+        subentry_type="network",
+        title="Network Config",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, network_subentry)
+
+    # Add a battery subentry (should be included)
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery",
+                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Set up sensor states
+    hass.states.async_set("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
+    hass.states.async_set("sensor.battery_soc", "75", {"unit_of_measurement": "%"})
+
+    entry.runtime_data = None
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    # Verify network subentry is NOT in participants
+    participants = diagnostics["config"]["participants"]
+    assert "Network Config" not in participants
+    assert "Battery" in participants
+
+    # Verify inputs only include battery sensors (network subentry didn't add any)
+    inputs = diagnostics["inputs"]
+    entity_ids = [inp["entity_id"] for inp in inputs]
+    assert "sensor.battery_capacity" in entity_ids
+    assert "sensor.battery_soc" in entity_ids
 
 
 async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
@@ -185,7 +260,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
                 type=OUTPUT_TYPE_POWER,
                 unit="kW",
                 state=5.5,
-                forecast={datetime(2024, 1, 1, 12, 0, tzinfo=UTC): 5.5},
+                forecast=[ForecastPoint(time=datetime(2024, 1, 1, 12, 0, tzinfo=UTC), value=5.5)],
             )
         }
     }

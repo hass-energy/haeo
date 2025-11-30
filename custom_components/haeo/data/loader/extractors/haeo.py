@@ -21,10 +21,17 @@ Format = Literal["haeo"]
 DOMAIN: Format = "haeo"
 
 
+class HaeoForecastPoint(TypedDict):
+    """Single point in a HAEO forecast time series."""
+
+    time: str | datetime
+    value: int | float
+
+
 class HaeoForecastAttributes(TypedDict):
     """Type definition for HAEO forecast State attributes."""
 
-    forecast: Mapping[str | datetime, int | float]
+    forecast: Sequence[HaeoForecastPoint]
     unit_of_measurement: str
     device_class: NotRequired[str]
 
@@ -52,11 +59,23 @@ class Parser:
             return False
 
         forecast = state.attributes["forecast"]
-        if not isinstance(forecast, Mapping) or not forecast:
+        
+        # Only support list format: list of {"time": ..., "value": ...} dicts
+        if not isinstance(forecast, Sequence) or isinstance(forecast, str):
             return False
-
-        # Validate all forecast entries have valid datetime keys and numeric values
-        if not all(is_parsable_to_datetime(k) and isinstance(v, (int, float)) for k, v in forecast.items()):
+        
+        if not forecast:
+            return False
+        
+        # Validate all entries are dicts with time and value fields
+        if not all(
+            isinstance(item, Mapping)
+            and "time" in item
+            and "value" in item
+            and is_parsable_to_datetime(item["time"])
+            and isinstance(item["value"], (int, float))
+            for item in forecast
+        ):
             return False
 
         # Check for required unit_of_measurement
@@ -72,13 +91,19 @@ class Parser:
     def extract(state: HaeoForecastState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass | None]:
         """Extract forecast data from HAEO forecast format.
 
+        Expects list format: list of {"time": ..., "value": ...} dicts.
+
         Returns:
             Tuple of (forecast_data, unit, device_class) where unit and device_class
             are derived from the entity state attributes.
 
         """
-        parsed: list[tuple[int, float]] = [
-            (parse_datetime_to_timestamp(time), float(value)) for time, value in state.attributes["forecast"].items()
+        forecast = state.attributes["forecast"]
+        
+        # Parse list of {"time": ..., "value": ...} dicts
+        parsed = [
+            (parse_datetime_to_timestamp(item["time"]), float(item["value"]))
+            for item in forecast
         ]
         parsed.sort(key=lambda x: x[0])
 
