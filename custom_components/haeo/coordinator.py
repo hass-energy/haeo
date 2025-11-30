@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
 import time
-from typing import Any, Literal, get_type_hints
+from typing import Any, Literal, TypedDict, get_type_hints
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -56,28 +56,27 @@ from .schema import get_field_meta
 _LOGGER = logging.getLogger(__name__)
 
 
-def _collect_entity_ids(value: Any) -> set[str]:
+def collect_entity_ids(value: Any) -> set[str]:
     """Recursively collect entity IDs from nested configuration values."""
-
     if isinstance(value, str):
         return {value}
 
     if isinstance(value, Mapping):
         mapping_ids: set[str] = set()
-        for nested_value in value.values():
-            mapping_ids.update(_collect_entity_ids(nested_value))
+        for nested in value.values():
+            mapping_ids.update(collect_entity_ids(nested))
         return mapping_ids
 
     if isinstance(value, Sequence) and not isinstance(value, str):
         sequence_ids: set[str] = set()
-        for nested_value in value:
-            sequence_ids.update(_collect_entity_ids(nested_value))
+        for nested in value:
+            sequence_ids.update(collect_entity_ids(nested))
         return sequence_ids
 
     return set()
 
 
-def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
+def extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     """Extract entity IDs from a configuration using schema loaders."""
     entity_ids: set[str] = set()
 
@@ -103,11 +102,24 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
             continue
 
         try:
-            entity_ids.update(_collect_entity_ids(field_value))
+            entity_ids.update(collect_entity_ids(field_value))
         except TypeError:
             continue
 
     return entity_ids
+
+
+class ForecastPoint(TypedDict):
+    """Single point in a forecast time series.
+
+    Attributes:
+        time: Timestamp as datetime object (timezone-aware)
+        value: Forecast value (numeric or other types depending on output type)
+
+    """
+
+    time: datetime
+    value: Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,7 +129,7 @@ class CoordinatorOutput:
     type: OutputType
     unit: str | None
     state: StateType | None
-    forecast: dict[datetime, Any] | None
+    forecast: list[ForecastPoint] | None
     direction: Literal["+", "-"] | None = None
     entity_category: EntityCategory | None = None
     device_class: SensorDeviceClass | None = None
@@ -188,7 +200,7 @@ def _build_coordinator_output(
 
     values = tuple(output_data.values)
     state: Any | None = values[0] if values else None
-    forecast: dict[datetime, Any] | None = None
+    forecast: list[ForecastPoint] | None = None
 
     if forecast_times and len(values) > 1:
         try:
@@ -196,10 +208,10 @@ def _build_coordinator_output(
             local_tz = dt_util.get_default_time_zone()
             # Zip values with available timestamps - interval values use n_periods timestamps,
             # boundary values use all n_periods+1 timestamps (strict=False handles both)
-            forecast = {
-                datetime.fromtimestamp(timestamp, tz=local_tz): value
+            forecast = [
+                ForecastPoint(time=datetime.fromtimestamp(timestamp, tz=local_tz), value=value)
                 for timestamp, value in zip(forecast_times, values, strict=False)
-            }
+            ]
         except ValueError:
             forecast = None
 
@@ -254,7 +266,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Extract entity IDs from all participant configurations
         all_entity_ids: set[str] = set()
         for config in self._participant_configs.values():
-            all_entity_ids.update(_extract_entity_ids_from_config(config))
+            all_entity_ids.update(extract_entity_ids_from_config(config))
 
         # Set up state change listeners for all entity IDs in configuration
         if all_entity_ids:

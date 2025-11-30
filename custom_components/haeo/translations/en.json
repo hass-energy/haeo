@@ -29,14 +29,14 @@
       "entry_type": "Battery",
       "initiate_flow": { "user": "Battery", "reconfigure": "Battery" },
       "step": {
-        "reconfigure": {
-          "title": "Edit Battery",
-          "description": "Update battery configuration",
+        "user": {
+          "title": "Add Battery",
+          "description": "Set up battery parameters for energy optimization",
           "data": {
             "capacity": "Capacity",
             "discharge_cost": "Discharge Cost (Optional)",
             "early_charge_incentive": "Early Charge Incentive",
-            "efficiency": "One-way Efficiency",
+            "efficiency": "Round-trip Efficiency",
             "initial_charge_percentage": "Current Charge Sensor",
             "max_charge_percentage": "Maximum Charge Level",
             "max_charge_power": "Maximum Charge Power",
@@ -49,14 +49,14 @@
             "undercharge_percentage": "Undercharge Percentage (Optional)"
           }
         },
-        "user": {
-          "title": "Add Battery",
-          "description": "Set up battery parameters for energy optimization",
+        "reconfigure": {
+          "title": "Edit Battery",
+          "description": "Update battery configuration",
           "data": {
             "capacity": "Capacity",
             "discharge_cost": "Discharge Cost (Optional)",
             "early_charge_incentive": "Early Charge Incentive",
-            "efficiency": "Round-trip Efficiency",
+            "efficiency": "One-way Efficiency",
             "initial_charge_percentage": "Current Charge Sensor",
             "max_charge_percentage": "Maximum Charge Level",
             "max_charge_power": "Maximum Charge Power",
@@ -77,9 +77,9 @@
       "entry_type": "Connection",
       "initiate_flow": { "user": "Connection", "reconfigure": "Connection" },
       "step": {
-        "reconfigure": {
-          "title": "Edit Connection",
-          "description": "Update connection configuration",
+        "user": {
+          "title": "Add Connection",
+          "description": "Set up connection parameters between devices",
           "data": {
             "efficiency_source_target": "Efficiency Source→Target (%)",
             "efficiency_target_source": "Efficiency Target→Source (%)",
@@ -92,9 +92,9 @@
             "target": "Target Device"
           }
         },
-        "user": {
-          "title": "Add Connection",
-          "description": "Set up connection parameters between devices",
+        "reconfigure": {
+          "title": "Edit Connection",
+          "description": "Update connection configuration",
           "data": {
             "efficiency_source_target": "Efficiency Source→Target (%)",
             "efficiency_target_source": "Efficiency Target→Source (%)",
@@ -122,9 +122,9 @@
       "entry_type": "Grid Connection",
       "initiate_flow": { "user": "Grid Connection", "reconfigure": "Grid Connection" },
       "step": {
-        "reconfigure": {
-          "title": "Edit Grid Connection",
-          "description": "Update grid connection configuration",
+        "user": {
+          "title": "Add Grid Connection",
+          "description": "Set up grid import/export parameters and pricing",
           "data": {
             "export_limit": "Export Limit (Optional)",
             "export_price": "Export Price Sensors",
@@ -133,9 +133,9 @@
             "name": "Grid Connection Name"
           }
         },
-        "user": {
-          "title": "Add Grid Connection",
-          "description": "Set up grid import/export parameters and pricing",
+        "reconfigure": {
+          "title": "Edit Grid Connection",
+          "description": "Update grid connection configuration",
           "data": {
             "export_limit": "Export Limit (Optional)",
             "export_price": "Export Price Sensors",
@@ -152,14 +152,14 @@
       "entry_type": "Load",
       "initiate_flow": { "user": "Load", "reconfigure": "Load" },
       "step": {
-        "reconfigure": {
-          "title": "Edit Load",
-          "description": "Update load configuration",
-          "data": { "forecast": "Forecast Sensors", "name": "Load Name" }
-        },
         "user": {
           "title": "Add Load",
           "description": "Set up a load with forecast or constant power",
+          "data": { "forecast": "Forecast Sensors", "name": "Load Name" }
+        },
+        "reconfigure": {
+          "title": "Edit Load",
+          "description": "Update load configuration",
           "data": { "forecast": "Forecast Sensors", "name": "Load Name" }
         }
       },
@@ -176,14 +176,14 @@
       "entry_type": "Node",
       "initiate_flow": { "user": "Node", "reconfigure": "Node" },
       "step": {
-        "reconfigure": {
-          "title": "Edit Node",
-          "description": "Update node configuration",
-          "data": { "name": "Node Name" }
-        },
         "user": {
           "title": "Add Node",
           "description": "Add a node for power balance calculations",
+          "data": { "name": "Node Name" }
+        },
+        "reconfigure": {
+          "title": "Edit Node",
+          "description": "Update node configuration",
           "data": { "name": "Node Name" }
         }
       },
@@ -194,9 +194,9 @@
       "entry_type": "Photovoltaics",
       "initiate_flow": { "user": "Photovoltaics", "reconfigure": "Photovoltaics" },
       "step": {
-        "reconfigure": {
-          "title": "Edit Photovoltaics",
-          "description": "Update photovoltaics configuration",
+        "user": {
+          "title": "Add Photovoltaics",
+          "description": "Set up photovoltaics forecasting and parameters",
           "data": {
             "curtailment": "Allow Curtailment (Optional)",
             "forecast": "Forecast Sensors",
@@ -204,9 +204,9 @@
             "price_production": "Production Price (Optional)"
           }
         },
-        "user": {
-          "title": "Add Photovoltaics",
-          "description": "Set up photovoltaics forecasting and parameters",
+        "reconfigure": {
+          "title": "Edit Photovoltaics",
+          "description": "Update photovoltaics configuration",
           "data": {
             "curtailment": "Allow Curtailment (Optional)",
             "forecast": "Forecast Sensors",

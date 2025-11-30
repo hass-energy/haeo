@@ -1,18 +1,9 @@
 {
   "entity_id": "sensor.sigen_plant_max_active_power",
   "state": "29.999",
-  "attributes": {
-    "state_class": "measurement",
-    "unit_of_measurement": "kW",
-    "device_class": "power",
-    "friendly_name": "Sigen Plant Max Active Power"
-  },
   "last_changed": "2025-09-25T03:22:40.489630+00:00",
   "last_reported": "2025-09-25T08:01:12.991763+00:00",
   "last_updated": "2025-09-25T03:22:40.489630+00:00",
-  "context": {
-    "id": "01K5ZE9ZF9G6FMFZQRNX3JSJ98",
-    "parent_id": null,
-    "user_id": null
-  }
+  "context": { "id": "01K5ZE9ZF9G6FMFZQRNX3JSJ98", "parent_id": null, "user_id": null },
+  "attributes": { "device_class": "power", "friendly_name": "Sigen Plant Max Active Power", "state_class": "measurement", "unit_of_measurement": "kW" }
 }

@@ -1,19 +1,9 @@
 {
   "entity_id": "sensor.sigen_plant_consumed_power",
   "state": "0.493000",
-  "attributes": {
-    "state_class": "measurement",
-    "unit_of_measurement": "kW",
-    "device_class": "power",
-    "icon": "mdi:home-lightning-bolt",
-    "friendly_name": "Sigen Plant Consumed Power"
-  },
   "last_changed": "2025-10-05T10:59:21.998507+00:00",
   "last_reported": "2025-10-05T10:59:21.998507+00:00",
   "last_updated": "2025-10-05T10:59:21.998507+00:00",
-  "context": {
-    "id": "01K6T0DCREW9G6W1PK55NZ6FS4",
-    "parent_id": null,
-    "user_id": null
-  }
+  "context": { "id": "01K6T0DCREW9G6W1PK55NZ6FS4", "parent_id": null, "user_id": null },
+  "attributes": { "device_class": "power", "friendly_name": "Sigen Plant Consumed Power", "icon": "mdi:home-lightning-bolt", "state_class": "measurement", "unit_of_measurement": "kW" }
 }

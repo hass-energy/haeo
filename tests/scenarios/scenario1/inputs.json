@@ -2,7 +2,14 @@
   {
     "entity_id": "sensor.energy_production_d2_east",
     "state": "20.07175",
+    "last_changed": "2025-10-05T10:32:39.003155+00:00",
+    "last_reported": "2025-10-05T10:59:00.204935+00:00",
+    "last_updated": "2025-10-05T10:32:39.003155+00:00",
+    "context": { "id": "01K6SYWFAV8A0DP0Y7PTWVR06Q", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "East solar production forecast Estimated energy production - day after tomorrow",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-07T00:00:00+11:00": 0,
         "2025-10-07T00:15:00+11:00": 0,
@@ -126,24 +133,20 @@
         "2025-10-07T21:00:00+11:00": 0.0,
         "2025-10-07T22:00:00+11:00": 0.0,
         "2025-10-07T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "East solar production forecast Estimated energy production - day after tomorrow"
-    },
-    "last_changed": "2025-10-05T10:32:39.003155+00:00",
-    "last_reported": "2025-10-05T10:59:00.204935+00:00",
-    "last_updated": "2025-10-05T10:32:39.003155+00:00",
-    "context": {
-      "id": "01K6SYWFAV8A0DP0Y7PTWVR06Q",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d2_north",
     "state": "13.9875",
+    "last_changed": "2025-10-05T10:33:00.176113+00:00",
+    "last_reported": "2025-10-05T10:59:00.290716+00:00",
+    "last_updated": "2025-10-05T10:33:00.176113+00:00",
+    "context": { "id": "01K6SYX40GM7PWD5E79B9NJ1G5", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "North solar production forecast Estimated energy production - day after tomorrow",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-07T00:00:00+11:00": 0,
         "2025-10-07T00:15:00+11:00": 0,
@@ -267,24 +270,20 @@
         "2025-10-07T21:00:00+11:00": 0.0,
         "2025-10-07T22:00:00+11:00": 0.0,
         "2025-10-07T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "North solar production forecast Estimated energy production - day after tomorrow"
-    },
-    "last_changed": "2025-10-05T10:33:00.176113+00:00",
-    "last_reported": "2025-10-05T10:59:00.290716+00:00",
-    "last_updated": "2025-10-05T10:33:00.176113+00:00",
-    "context": {
-      "id": "01K6SYX40GM7PWD5E79B9NJ1G5",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d2_south",
     "state": "16.319",
+    "last_changed": "2025-10-05T10:32:51.891388+00:00",
+    "last_reported": "2025-10-05T10:59:00.775932+00:00",
+    "last_updated": "2025-10-05T10:32:51.891388+00:00",
+    "context": { "id": "01K6SYWVXKQAV7TBCRSYXX17MG", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "South solar prediction forecast Estimated energy production - day after tomorrow",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-07T00:00:00+11:00": 0,
         "2025-10-07T00:15:00+11:00": 0,
@@ -408,24 +407,20 @@
         "2025-10-07T21:00:00+11:00": 0.0,
         "2025-10-07T22:00:00+11:00": 0.0,
         "2025-10-07T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "South solar prediction forecast Estimated energy production - day after tomorrow"
-    },
-    "last_changed": "2025-10-05T10:32:51.891388+00:00",
-    "last_reported": "2025-10-05T10:59:00.775932+00:00",
-    "last_updated": "2025-10-05T10:32:51.891388+00:00",
-    "context": {
-      "id": "01K6SYWVXKQAV7TBCRSYXX17MG",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d2_west",
     "state": "21.05475",
+    "last_changed": "2025-10-05T10:32:37.809286+00:00",
+    "last_reported": "2025-10-05T10:59:00.813639+00:00",
+    "last_updated": "2025-10-05T10:32:37.809286+00:00",
+    "context": { "id": "01K6SYWE5H694A7DFF6WMKNH2M", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "West solar production forecast Estimated energy production - day after tomorrow",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-07T00:00:00+11:00": 0,
         "2025-10-07T00:15:00+11:00": 0,
@@ -549,24 +544,20 @@
         "2025-10-07T21:00:00+11:00": 0.0,
         "2025-10-07T22:00:00+11:00": 0.0,
         "2025-10-07T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "West solar production forecast Estimated energy production - day after tomorrow"
-    },
-    "last_changed": "2025-10-05T10:32:37.809286+00:00",
-    "last_reported": "2025-10-05T10:59:00.813639+00:00",
-    "last_updated": "2025-10-05T10:32:37.809286+00:00",
-    "context": {
-      "id": "01K6SYWE5H694A7DFF6WMKNH2M",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d3_east",
     "state": "47.143",
+    "last_changed": "2025-10-05T10:32:39.007537+00:00",
+    "last_reported": "2025-10-05T10:59:00.807167+00:00",
+    "last_updated": "2025-10-05T10:32:39.007537+00:00",
+    "context": { "id": "01K6SYWFAZF0DGTNXDH8BABDJQ", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "East solar production forecast Estimated energy production - 3 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-08T00:00:00+11:00": 0,
         "2025-10-08T00:15:00+11:00": 0,
@@ -690,24 +681,20 @@
         "2025-10-08T21:00:00+11:00": 0.0,
         "2025-10-08T22:00:00+11:00": 0.0,
         "2025-10-08T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "East solar production forecast Estimated energy production - 3 days from now"
-    },
-    "last_changed": "2025-10-05T10:32:39.007537+00:00",
-    "last_reported": "2025-10-05T10:59:00.807167+00:00",
-    "last_updated": "2025-10-05T10:32:39.007537+00:00",
-    "context": {
-      "id": "01K6SYWFAZF0DGTNXDH8BABDJQ",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d3_north",
     "state": "31.81025",
+    "last_changed": "2025-10-05T10:33:00.180476+00:00",
+    "last_reported": "2025-10-05T10:59:00.214264+00:00",
+    "last_updated": "2025-10-05T10:33:00.180476+00:00",
+    "context": { "id": "01K6SYX40MQC4E5TH07KMX8PM7", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "North solar production forecast Estimated energy production - 3 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-08T00:00:00+11:00": 0,
         "2025-10-08T00:15:00+11:00": 0,
@@ -831,24 +818,20 @@
         "2025-10-08T21:00:00+11:00": 0.0,
         "2025-10-08T22:00:00+11:00": 0.0,
         "2025-10-08T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "North solar production forecast Estimated energy production - 3 days from now"
-    },
-    "last_changed": "2025-10-05T10:33:00.180476+00:00",
-    "last_reported": "2025-10-05T10:59:00.214264+00:00",
-    "last_updated": "2025-10-05T10:33:00.180476+00:00",
-    "context": {
-      "id": "01K6SYX40MQC4E5TH07KMX8PM7",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d3_south",
     "state": "37.112",
+    "last_changed": "2025-10-05T10:32:51.896199+00:00",
+    "last_reported": "2025-10-05T10:59:00.802132+00:00",
+    "last_updated": "2025-10-05T10:32:51.896199+00:00",
+    "context": { "id": "01K6SYWVXR95BVV39JTPE60VVB", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "South solar prediction forecast Estimated energy production - 3 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-08T00:00:00+11:00": 0,
         "2025-10-08T00:15:00+11:00": 0,
@@ -972,24 +955,20 @@
         "2025-10-08T21:00:00+11:00": 0.0,
         "2025-10-08T22:00:00+11:00": 0.0,
         "2025-10-08T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "South solar prediction forecast Estimated energy production - 3 days from now"
-    },
-    "last_changed": "2025-10-05T10:32:51.896199+00:00",
-    "last_reported": "2025-10-05T10:59:00.802132+00:00",
-    "last_updated": "2025-10-05T10:32:51.896199+00:00",
-    "context": {
-      "id": "01K6SYWVXR95BVV39JTPE60VVB",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d3_west",
     "state": "37.88275",
+    "last_changed": "2025-10-05T10:32:37.811993+00:00",
+    "last_reported": "2025-10-05T10:59:00.820609+00:00",
+    "last_updated": "2025-10-05T10:32:37.811993+00:00",
+    "context": { "id": "01K6SYWE5KCSPFKASVYQG6B03G", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "West solar production forecast Estimated energy production - 3 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-08T00:00:00+11:00": 0,
         "2025-10-08T00:15:00+11:00": 0,
@@ -1113,24 +1092,20 @@
         "2025-10-08T21:00:00+11:00": 0.0,
         "2025-10-08T22:00:00+11:00": 0.0,
         "2025-10-08T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "West solar production forecast Estimated energy production - 3 days from now"
-    },
-    "last_changed": "2025-10-05T10:32:37.811993+00:00",
-    "last_reported": "2025-10-05T10:59:00.820609+00:00",
-    "last_updated": "2025-10-05T10:32:37.811993+00:00",
-    "context": {
-      "id": "01K6SYWE5KCSPFKASVYQG6B03G",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d4_east",
     "state": "25.35175",
+    "last_changed": "2025-10-05T10:32:39.010871+00:00",
+    "last_reported": "2025-10-05T10:59:00.851010+00:00",
+    "last_updated": "2025-10-05T10:32:39.010871+00:00",
+    "context": { "id": "01K6SYWFB2HJYY55ZHY1C4JWDR", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "East solar production forecast Estimated energy production - 4 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-09T00:00:00+11:00": 0,
         "2025-10-09T00:15:00+11:00": 0,
@@ -1254,24 +1229,20 @@
         "2025-10-09T21:00:00+11:00": 0.0,
         "2025-10-09T22:00:00+11:00": 0.0,
         "2025-10-09T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "East solar production forecast Estimated energy production - 4 days from now"
-    },
-    "last_changed": "2025-10-05T10:32:39.010871+00:00",
-    "last_reported": "2025-10-05T10:59:00.851010+00:00",
-    "last_updated": "2025-10-05T10:32:39.010871+00:00",
-    "context": {
-      "id": "01K6SYWFB2HJYY55ZHY1C4JWDR",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d4_north",
     "state": "16.34175",
+    "last_changed": "2025-10-05T10:33:00.184778+00:00",
+    "last_reported": "2025-10-05T10:59:00.785575+00:00",
+    "last_updated": "2025-10-05T10:33:00.184778+00:00",
+    "context": { "id": "01K6SYX40RG5MSTEY6AERGSNF2", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "North solar production forecast Estimated energy production - 4 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-09T00:00:00+11:00": 0,
         "2025-10-09T00:15:00+11:00": 0,
@@ -1395,24 +1366,20 @@
         "2025-10-09T21:00:00+11:00": 0.0,
         "2025-10-09T22:00:00+11:00": 0.0,
         "2025-10-09T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "North solar production forecast Estimated energy production - 4 days from now"
-    },
-    "last_changed": "2025-10-05T10:33:00.184778+00:00",
-    "last_reported": "2025-10-05T10:59:00.785575+00:00",
-    "last_updated": "2025-10-05T10:33:00.184778+00:00",
-    "context": {
-      "id": "01K6SYX40RG5MSTEY6AERGSNF2",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d4_south",
     "state": "19.06625",
+    "last_changed": "2025-10-05T10:32:51.901036+00:00",
+    "last_reported": "2025-10-05T10:59:00.197705+00:00",
+    "last_updated": "2025-10-05T10:32:51.901036+00:00",
+    "context": { "id": "01K6SYWVXX5V9WGJ38PNQ6A840", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "South solar prediction forecast Estimated energy production - 4 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-09T00:00:00+11:00": 0,
         "2025-10-09T00:15:00+11:00": 0,
@@ -1536,24 +1503,20 @@
         "2025-10-09T21:00:00+11:00": 0.0,
         "2025-10-09T22:00:00+11:00": 0.0,
         "2025-10-09T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "South solar prediction forecast Estimated energy production - 4 days from now"
-    },
-    "last_changed": "2025-10-05T10:32:51.901036+00:00",
-    "last_reported": "2025-10-05T10:59:00.197705+00:00",
-    "last_updated": "2025-10-05T10:32:51.901036+00:00",
-    "context": {
-      "id": "01K6SYWVXX5V9WGJ38PNQ6A840",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d4_west",
     "state": "22.19575",
+    "last_changed": "2025-10-05T10:32:37.815264+00:00",
+    "last_reported": "2025-10-05T10:59:00.788382+00:00",
+    "last_updated": "2025-10-05T10:32:37.815264+00:00",
+    "context": { "id": "01K6SYWE5QZRKEH9KESGFFA7FA", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "West solar production forecast Estimated energy production - 4 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-09T00:00:00+11:00": 0,
         "2025-10-09T00:15:00+11:00": 0,
@@ -1677,24 +1640,20 @@
         "2025-10-09T21:00:00+11:00": 0.0,
         "2025-10-09T22:00:00+11:00": 0.0,
         "2025-10-09T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "West solar production forecast Estimated energy production - 4 days from now"
-    },
-    "last_changed": "2025-10-05T10:32:37.815264+00:00",
-    "last_reported": "2025-10-05T10:59:00.788382+00:00",
-    "last_updated": "2025-10-05T10:32:37.815264+00:00",
-    "context": {
-      "id": "01K6SYWE5QZRKEH9KESGFFA7FA",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d5_east",
     "state": "47.75",
+    "last_changed": "2025-10-05T10:32:39.015563+00:00",
+    "last_reported": "2025-10-05T10:59:00.145429+00:00",
+    "last_updated": "2025-10-05T10:32:39.015563+00:00",
+    "context": { "id": "01K6SYWFB7A7TNS4NX57SGA35S", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "East solar production forecast Estimated energy production - 5 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-10T00:00:00+11:00": 0,
         "2025-10-10T00:15:00+11:00": 0,
@@ -1818,24 +1777,20 @@
         "2025-10-10T21:00:00+11:00": 0.0,
         "2025-10-10T22:00:00+11:00": 0.0,
         "2025-10-10T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "East solar production forecast Estimated energy production - 5 days from now"
-    },
-    "last_changed": "2025-10-05T10:32:39.015563+00:00",
-    "last_reported": "2025-10-05T10:59:00.145429+00:00",
-    "last_updated": "2025-10-05T10:32:39.015563+00:00",
-    "context": {
-      "id": "01K6SYWFB7A7TNS4NX57SGA35S",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d5_north",
     "state": "35.36725",
+    "last_changed": "2025-10-05T10:33:00.189006+00:00",
+    "last_reported": "2025-10-05T10:59:00.286081+00:00",
+    "last_updated": "2025-10-05T10:33:00.189006+00:00",
+    "context": { "id": "01K6SYX40XDQS7T6CTV2MVECP5", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "North solar production forecast Estimated energy production - 5 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-10T00:00:00+11:00": 0,
         "2025-10-10T00:15:00+11:00": 0,
@@ -1959,24 +1914,20 @@
         "2025-10-10T21:00:00+11:00": 0.0,
         "2025-10-10T22:00:00+11:00": 0.0,
         "2025-10-10T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "North solar production forecast Estimated energy production - 5 days from now"
-    },
-    "last_changed": "2025-10-05T10:33:00.189006+00:00",
-    "last_reported": "2025-10-05T10:59:00.286081+00:00",
-    "last_updated": "2025-10-05T10:33:00.189006+00:00",
-    "context": {
-      "id": "01K6SYX40XDQS7T6CTV2MVECP5",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d5_south",
     "state": "41.2615",
+    "last_changed": "2025-10-05T10:32:51.905346+00:00",
+    "last_reported": "2025-10-05T10:59:00.259561+00:00",
+    "last_updated": "2025-10-05T10:32:51.905346+00:00",
+    "context": { "id": "01K6SYWVY1GSWW741YQXN4F9F2", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "South solar prediction forecast Estimated energy production - 5 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-10T00:00:00+11:00": 0,
         "2025-10-10T00:15:00+11:00": 0,
@@ -2100,24 +2051,20 @@
         "2025-10-10T21:00:00+11:00": 0.0,
         "2025-10-10T22:00:00+11:00": 0.0,
         "2025-10-10T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "South solar prediction forecast Estimated energy production - 5 days from now"
-    },
-    "last_changed": "2025-10-05T10:32:51.905346+00:00",
-    "last_reported": "2025-10-05T10:59:00.259561+00:00",
-    "last_updated": "2025-10-05T10:32:51.905346+00:00",
-    "context": {
-      "id": "01K6SYWVY1GSWW741YQXN4F9F2",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d5_west",
     "state": "47.95975",
+    "last_changed": "2025-10-05T10:32:37.818477+00:00",
+    "last_reported": "2025-10-05T10:59:00.185575+00:00",
+    "last_updated": "2025-10-05T10:32:37.818477+00:00",
+    "context": { "id": "01K6SYWE5T8MRBPA5VJRM6VC50", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "West solar production forecast Estimated energy production - 5 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-10T00:00:00+11:00": 0,
         "2025-10-10T00:15:00+11:00": 0,
@@ -2241,24 +2188,20 @@
         "2025-10-10T21:00:00+11:00": 0.0,
         "2025-10-10T22:00:00+11:00": 0.0,
         "2025-10-10T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "West solar production forecast Estimated energy production - 5 days from now"
-    },
-    "last_changed": "2025-10-05T10:32:37.818477+00:00",
-    "last_reported": "2025-10-05T10:59:00.185575+00:00",
-    "last_updated": "2025-10-05T10:32:37.818477+00:00",
-    "context": {
-      "id": "01K6SYWE5T8MRBPA5VJRM6VC50",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d6_east",
     "state": "41.7625",
+    "last_changed": "2025-10-05T06:02:28.987325+00:00",
+    "last_reported": "2025-10-05T10:59:00.121672+00:00",
+    "last_updated": "2025-10-05T06:02:28.987325+00:00",
+    "context": { "id": "01K6SFDS7V2XGB6V18F9Z30R99", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "East solar production forecast Estimated energy production - 6 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-11T00:00:00+11:00": 0,
         "2025-10-11T00:15:00+11:00": 0,
@@ -2382,24 +2325,20 @@
         "2025-10-11T21:00:00+11:00": 0.0,
         "2025-10-11T22:00:00+11:00": 0.0,
         "2025-10-11T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "East solar production forecast Estimated energy production - 6 days from now"
-    },
-    "last_changed": "2025-10-05T06:02:28.987325+00:00",
-    "last_reported": "2025-10-05T10:59:00.121672+00:00",
-    "last_updated": "2025-10-05T06:02:28.987325+00:00",
-    "context": {
-      "id": "01K6SFDS7V2XGB6V18F9Z30R99",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d6_north",
     "state": "33.1075",
+    "last_changed": "2025-10-05T06:02:51.116178+00:00",
+    "last_reported": "2025-10-05T10:59:00.829150+00:00",
+    "last_updated": "2025-10-05T06:02:51.116178+00:00",
+    "context": { "id": "01K6SFEEVCAR2J8R7RBM86FWMA", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "North solar production forecast Estimated energy production - 6 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-11T00:00:00+11:00": 0,
         "2025-10-11T00:15:00+11:00": 0,
@@ -2523,24 +2462,20 @@
         "2025-10-11T21:00:00+11:00": 0.0,
         "2025-10-11T22:00:00+11:00": 0.0,
         "2025-10-11T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "North solar production forecast Estimated energy production - 6 days from now"
-    },
-    "last_changed": "2025-10-05T06:02:51.116178+00:00",
-    "last_reported": "2025-10-05T10:59:00.829150+00:00",
-    "last_updated": "2025-10-05T06:02:51.116178+00:00",
-    "context": {
-      "id": "01K6SFEEVCAR2J8R7RBM86FWMA",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d6_south",
     "state": "38.625",
+    "last_changed": "2025-10-05T06:02:45.696467+00:00",
+    "last_reported": "2025-10-05T10:59:00.188784+00:00",
+    "last_updated": "2025-10-05T06:02:45.696467+00:00",
+    "context": { "id": "01K6SFE9J0A86SX4XYA0VQ72NR", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "South solar prediction forecast Estimated energy production - 6 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-11T00:00:00+11:00": 0,
         "2025-10-11T00:15:00+11:00": 0,
@@ -2664,24 +2599,20 @@
         "2025-10-11T21:00:00+11:00": 0.0,
         "2025-10-11T22:00:00+11:00": 0.0,
         "2025-10-11T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "South solar prediction forecast Estimated energy production - 6 days from now"
-    },
-    "last_changed": "2025-10-05T06:02:45.696467+00:00",
-    "last_reported": "2025-10-05T10:59:00.188784+00:00",
-    "last_updated": "2025-10-05T06:02:45.696467+00:00",
-    "context": {
-      "id": "01K6SFE9J0A86SX4XYA0VQ72NR",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d6_west",
     "state": "48.74575",
+    "last_changed": "2025-10-05T06:02:28.011141+00:00",
+    "last_reported": "2025-10-05T10:59:00.841887+00:00",
+    "last_updated": "2025-10-05T06:02:28.011141+00:00",
+    "context": { "id": "01K6SFDR9BJH486J5WFH21V4CC", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "West solar production forecast Estimated energy production - 6 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-11T00:00:00+11:00": 0,
         "2025-10-11T00:15:00+11:00": 0,
@@ -2805,24 +2736,20 @@
         "2025-10-11T21:00:00+11:00": 0.0,
         "2025-10-11T22:00:00+11:00": 0.0,
         "2025-10-11T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "West solar production forecast Estimated energy production - 6 days from now"
-    },
-    "last_changed": "2025-10-05T06:02:28.011141+00:00",
-    "last_reported": "2025-10-05T10:59:00.841887+00:00",
-    "last_updated": "2025-10-05T06:02:28.011141+00:00",
-    "context": {
-      "id": "01K6SFDR9BJH486J5WFH21V4CC",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d7_east",
     "state": "42.584",
+    "last_changed": "2025-10-05T06:02:28.990277+00:00",
+    "last_reported": "2025-10-05T10:59:00.817526+00:00",
+    "last_updated": "2025-10-05T06:02:28.990277+00:00",
+    "context": { "id": "01K6SFDS7YB7PPQYCJMQQWANQC", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "East solar production forecast Estimated energy production - 7 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-12T00:00:00+11:00": 0,
         "2025-10-12T00:15:00+11:00": 0,
@@ -2946,24 +2873,20 @@
         "2025-10-12T21:00:00+11:00": 0.0,
         "2025-10-12T22:00:00+11:00": 0.0,
         "2025-10-12T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "East solar production forecast Estimated energy production - 7 days from now"
-    },
-    "last_changed": "2025-10-05T06:02:28.990277+00:00",
-    "last_reported": "2025-10-05T10:59:00.817526+00:00",
-    "last_updated": "2025-10-05T06:02:28.990277+00:00",
-    "context": {
-      "id": "01K6SFDS7YB7PPQYCJMQQWANQC",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d7_north",
     "state": "25.465",
+    "last_changed": "2025-10-05T06:02:51.118850+00:00",
+    "last_reported": "2025-10-05T10:59:00.826347+00:00",
+    "last_updated": "2025-10-05T06:02:51.118850+00:00",
+    "context": { "id": "01K6SFEEVEW3CC3F1MXM1H1TBM", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "North solar production forecast Estimated energy production - 7 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-12T00:00:00+11:00": 0,
         "2025-10-12T00:15:00+11:00": 0,
@@ -3087,24 +3010,20 @@
         "2025-10-12T21:00:00+11:00": 0.0,
         "2025-10-12T22:00:00+11:00": 0.0,
         "2025-10-12T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "North solar production forecast Estimated energy production - 7 days from now"
-    },
-    "last_changed": "2025-10-05T06:02:51.118850+00:00",
-    "last_reported": "2025-10-05T10:59:00.826347+00:00",
-    "last_updated": "2025-10-05T06:02:51.118850+00:00",
-    "context": {
-      "id": "01K6SFEEVEW3CC3F1MXM1H1TBM",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d7_south",
     "state": "29.709",
+    "last_changed": "2025-10-05T06:02:45.699202+00:00",
+    "last_reported": "2025-10-05T10:59:00.181830+00:00",
+    "last_updated": "2025-10-05T06:02:45.699202+00:00",
+    "context": { "id": "01K6SFE9J30MFFEHJ3TP7VYA7N", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "South solar prediction forecast Estimated energy production - 7 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-12T00:00:00+11:00": 0,
         "2025-10-12T00:15:00+11:00": 0,
@@ -3228,24 +3147,20 @@
         "2025-10-12T21:00:00+11:00": 0.0,
         "2025-10-12T22:00:00+11:00": 0.0,
         "2025-10-12T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "South solar prediction forecast Estimated energy production - 7 days from now"
-    },
-    "last_changed": "2025-10-05T06:02:45.699202+00:00",
-    "last_reported": "2025-10-05T10:59:00.181830+00:00",
-    "last_updated": "2025-10-05T06:02:45.699202+00:00",
-    "context": {
-      "id": "01K6SFE9J30MFFEHJ3TP7VYA7N",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_d7_west",
     "state": "30.3905",
+    "last_changed": "2025-10-05T06:02:28.016057+00:00",
+    "last_reported": "2025-10-05T10:59:00.248104+00:00",
+    "last_updated": "2025-10-05T06:02:28.016057+00:00",
+    "context": { "id": "01K6SFDR9GKGV5XC2MABWHERPX", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "West solar production forecast Estimated energy production - 7 days from now",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-12T00:00:00+11:00": 0,
         "2025-10-12T00:15:00+11:00": 0,
@@ -3369,24 +3284,20 @@
         "2025-10-12T21:00:00+11:00": 0.0,
         "2025-10-12T22:00:00+11:00": 0.0,
         "2025-10-12T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "West solar production forecast Estimated energy production - 7 days from now"
-    },
-    "last_changed": "2025-10-05T06:02:28.016057+00:00",
-    "last_reported": "2025-10-05T10:59:00.248104+00:00",
-    "last_updated": "2025-10-05T06:02:28.016057+00:00",
-    "context": {
-      "id": "01K6SFDR9GKGV5XC2MABWHERPX",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_today_east",
     "state": "48.0245",
+    "last_changed": "2025-10-05T10:32:38.993268+00:00",
+    "last_reported": "2025-10-05T10:59:00.094744+00:00",
+    "last_updated": "2025-10-05T10:32:38.993268+00:00",
+    "context": { "id": "01K6SYWFAH7GAW073X17VR3BS0", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "East solar production forecast Estimated energy production - today",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-05T00:00:00+11:00": 0,
         "2025-10-05T00:15:00+11:00": 0,
@@ -3510,24 +3421,20 @@
         "2025-10-05T21:00:00+11:00": 0.0,
         "2025-10-05T22:00:00+11:00": 0.0,
         "2025-10-05T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "East solar production forecast Estimated energy production - today"
-    },
-    "last_changed": "2025-10-05T10:32:38.993268+00:00",
-    "last_reported": "2025-10-05T10:59:00.094744+00:00",
-    "last_updated": "2025-10-05T10:32:38.993268+00:00",
-    "context": {
-      "id": "01K6SYWFAH7GAW073X17VR3BS0",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_today_north",
     "state": "35.165",
+    "last_changed": "2025-10-05T10:33:00.161812+00:00",
+    "last_reported": "2025-10-05T10:59:00.151995+00:00",
+    "last_updated": "2025-10-05T10:33:00.161812+00:00",
+    "context": { "id": "01K6SYX401DRHMRCBBDZ1P1TD7", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "North solar production forecast Estimated energy production - today",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-05T00:00:00+11:00": 0,
         "2025-10-05T00:15:00+11:00": 0,
@@ -3651,24 +3558,20 @@
         "2025-10-05T21:00:00+11:00": 0.0,
         "2025-10-05T22:00:00+11:00": 0.0,
         "2025-10-05T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "North solar production forecast Estimated energy production - today"
-    },
-    "last_changed": "2025-10-05T10:33:00.161812+00:00",
-    "last_reported": "2025-10-05T10:59:00.151995+00:00",
-    "last_updated": "2025-10-05T10:33:00.161812+00:00",
-    "context": {
-      "id": "01K6SYX401DRHMRCBBDZ1P1TD7",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_today_south",
     "state": "41.0255",
+    "last_changed": "2025-10-05T10:32:51.876635+00:00",
+    "last_reported": "2025-10-05T10:59:00.102268+00:00",
+    "last_updated": "2025-10-05T10:32:51.876635+00:00",
+    "context": { "id": "01K6SYWVX4KGX60F2YT4BYCSQW", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "South solar prediction forecast Estimated energy production - today",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-05T00:00:00+11:00": 0,
         "2025-10-05T00:15:00+11:00": 0,
@@ -3792,24 +3695,20 @@
         "2025-10-05T21:00:00+11:00": 0.0,
         "2025-10-05T22:00:00+11:00": 0.0,
         "2025-10-05T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "South solar prediction forecast Estimated energy production - today"
-    },
-    "last_changed": "2025-10-05T10:32:51.876635+00:00",
-    "last_reported": "2025-10-05T10:59:00.102268+00:00",
-    "last_updated": "2025-10-05T10:32:51.876635+00:00",
-    "context": {
-      "id": "01K6SYWVX4KGX60F2YT4BYCSQW",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_today_west",
     "state": "43.7265",
+    "last_changed": "2025-10-05T10:32:37.800965+00:00",
+    "last_reported": "2025-10-05T10:59:00.217794+00:00",
+    "last_updated": "2025-10-05T10:32:37.800965+00:00",
+    "context": { "id": "01K6SYWE585PD0CCNWFS57YBFG", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "West solar production forecast Estimated energy production - today",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-05T00:00:00+11:00": 0,
         "2025-10-05T00:15:00+11:00": 0,
@@ -3933,24 +3832,20 @@
         "2025-10-05T21:00:00+11:00": 0.0,
         "2025-10-05T22:00:00+11:00": 0.0,
         "2025-10-05T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "West solar production forecast Estimated energy production - today"
-    },
-    "last_changed": "2025-10-05T10:32:37.800965+00:00",
-    "last_reported": "2025-10-05T10:59:00.217794+00:00",
-    "last_updated": "2025-10-05T10:32:37.800965+00:00",
-    "context": {
-      "id": "01K6SYWE585PD0CCNWFS57YBFG",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_tomorrow_east",
     "state": "28.65475",
+    "last_changed": "2025-10-05T10:32:39.000046+00:00",
+    "last_reported": "2025-10-05T10:59:00.855374+00:00",
+    "last_updated": "2025-10-05T10:32:39.000046+00:00",
+    "context": { "id": "01K6SYWFARS121NV1PX0ZMQ4YH", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "East solar production forecast Estimated energy production - tomorrow",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-06T00:00:00+11:00": 0,
         "2025-10-06T00:15:00+11:00": 0,
@@ -4074,24 +3969,20 @@
         "2025-10-06T21:00:00+11:00": 0.0,
         "2025-10-06T22:00:00+11:00": 0.0,
         "2025-10-06T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "East solar production forecast Estimated energy production - tomorrow"
-    },
-    "last_changed": "2025-10-05T10:32:39.000046+00:00",
-    "last_reported": "2025-10-05T10:59:00.855374+00:00",
-    "last_updated": "2025-10-05T10:32:39.000046+00:00",
-    "context": {
-      "id": "01K6SYWFARS121NV1PX0ZMQ4YH",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_tomorrow_north",
     "state": "18.97725",
+    "last_changed": "2025-10-05T10:33:00.169744+00:00",
+    "last_reported": "2025-10-05T10:59:00.211232+00:00",
+    "last_updated": "2025-10-05T10:33:00.169744+00:00",
+    "context": { "id": "01K6SYX409MPP9W7N8VZ9BR0CX", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "North solar production forecast Estimated energy production - tomorrow",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-06T00:00:00+11:00": 0,
         "2025-10-06T00:15:00+11:00": 0,
@@ -4215,24 +4106,20 @@
         "2025-10-06T21:00:00+11:00": 0.0,
         "2025-10-06T22:00:00+11:00": 0.0,
         "2025-10-06T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "North solar production forecast Estimated energy production - tomorrow"
-    },
-    "last_changed": "2025-10-05T10:33:00.169744+00:00",
-    "last_reported": "2025-10-05T10:59:00.211232+00:00",
-    "last_updated": "2025-10-05T10:33:00.169744+00:00",
-    "context": {
-      "id": "01K6SYX409MPP9W7N8VZ9BR0CX",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_tomorrow_south",
     "state": "22.14",
+    "last_changed": "2025-10-05T10:32:51.885288+00:00",
+    "last_reported": "2025-10-05T10:59:00.796193+00:00",
+    "last_updated": "2025-10-05T10:32:51.885288+00:00",
+    "context": { "id": "01K6SYWVXDRE94ZZBWC7WH3QRY", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "South solar prediction forecast Estimated energy production - tomorrow",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-06T00:00:00+11:00": 0,
         "2025-10-06T00:15:00+11:00": 0,
@@ -4356,24 +4243,20 @@
         "2025-10-06T21:00:00+11:00": 0.0,
         "2025-10-06T22:00:00+11:00": 0.0,
         "2025-10-06T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "South solar prediction forecast Estimated energy production - tomorrow"
-    },
-    "last_changed": "2025-10-05T10:32:51.885288+00:00",
-    "last_reported": "2025-10-05T10:59:00.796193+00:00",
-    "last_updated": "2025-10-05T10:32:51.885288+00:00",
-    "context": {
-      "id": "01K6SYWVXDRE94ZZBWC7WH3QRY",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.energy_production_tomorrow_west",
     "state": "26.75525",
+    "last_changed": "2025-10-05T10:32:37.806398+00:00",
+    "last_reported": "2025-10-05T10:59:00.273108+00:00",
+    "last_updated": "2025-10-05T10:32:37.806398+00:00",
+    "context": { "id": "01K6SYWE5E2Q06V9P8WT14PJ6T", "parent_id": null, "user_id": null },
     "attributes": {
+      "device_class": "energy",
+      "friendly_name": "West solar production forecast Estimated energy production - tomorrow",
+      "unit_of_measurement": "kWh",
       "watts": {
         "2025-10-06T00:00:00+11:00": 0,
         "2025-10-06T00:15:00+11:00": 0,
@@ -4497,1655 +4380,271 @@
         "2025-10-06T21:00:00+11:00": 0.0,
         "2025-10-06T22:00:00+11:00": 0.0,
         "2025-10-06T23:00:00+11:00": 0.0
-      },
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "West solar production forecast Estimated energy production - tomorrow"
-    },
-    "last_changed": "2025-10-05T10:32:37.806398+00:00",
-    "last_reported": "2025-10-05T10:59:00.273108+00:00",
-    "last_updated": "2025-10-05T10:32:37.806398+00:00",
-    "context": {
-      "id": "01K6SYWE5E2Q06V9P8WT14PJ6T",
-      "parent_id": null,
-      "user_id": null
+      }
     }
   },
   {
     "entity_id": "sensor.home_feed_in_forecast",
     "state": "0.04",
-    "attributes": {
-      "state_class": "measurement",
-      "forecasts": [
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:05:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:00:01+00:00",
-          "end_time": "2025-10-05T11:05:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:10:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:05:01+00:00",
-          "end_time": "2025-10-05T11:10:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:15:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:10:01+00:00",
-          "end_time": "2025-10-05T11:15:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:20:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:15:01+00:00",
-          "end_time": "2025-10-05T11:20:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:25:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:20:01+00:00",
-          "end_time": "2025-10-05T11:25:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:30:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:25:01+00:00",
-          "end_time": "2025-10-05T11:30:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:35:00+10:00",
-          "per_kwh": 0.07,
-          "spot_per_kwh": 0.07,
-          "start_time": "2025-10-05T11:30:01+00:00",
-          "end_time": "2025-10-05T11:35:00+00:00",
-          "renewables": 23,
-          "spike_status": "none",
-          "descriptor": "high"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:40:00+10:00",
-          "per_kwh": 0.06,
-          "spot_per_kwh": 0.07,
-          "start_time": "2025-10-05T11:35:01+00:00",
-          "end_time": "2025-10-05T11:40:00+00:00",
-          "renewables": 23,
-          "spike_status": "none",
-          "descriptor": "high"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:45:00+10:00",
-          "per_kwh": 0.06,
-          "spot_per_kwh": 0.06,
-          "start_time": "2025-10-05T11:40:01+00:00",
-          "end_time": "2025-10-05T11:45:00+00:00",
-          "renewables": 23,
-          "spike_status": "none",
-          "descriptor": "high"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:50:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:45:01+00:00",
-          "end_time": "2025-10-05T11:50:00+00:00",
-          "renewables": 23,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:55:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:50:01+00:00",
-          "end_time": "2025-10-05T11:55:00+00:00",
-          "renewables": 23,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T22:00:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:55:01+00:00",
-          "end_time": "2025-10-05T12:00:00+00:00",
-          "renewables": 24,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T22:30:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T12:00:01+00:00",
-          "end_time": "2025-10-05T12:30:00+00:00",
-          "renewables": 25,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T23:00:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T12:30:01+00:00",
-          "end_time": "2025-10-05T13:00:00+00:00",
-          "renewables": 26,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T23:30:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T13:00:01+00:00",
-          "end_time": "2025-10-05T13:30:00+00:00",
-          "renewables": 27,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-06T00:00:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T13:30:01+00:00",
-          "end_time": "2025-10-05T14:00:00+00:00",
-          "renewables": 28,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T00:30:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T14:00:01+00:00",
-          "end_time": "2025-10-05T14:30:00+00:00",
-          "renewables": 29,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T01:00:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T14:30:01+00:00",
-          "end_time": "2025-10-05T15:00:00+00:00",
-          "renewables": 30,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T01:30:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T15:00:01+00:00",
-          "end_time": "2025-10-05T15:30:00+00:00",
-          "renewables": 31,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T02:00:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T15:30:01+00:00",
-          "end_time": "2025-10-05T16:00:00+00:00",
-          "renewables": 32,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T02:30:00+10:00",
-          "per_kwh": 0.01,
-          "spot_per_kwh": 0.01,
-          "start_time": "2025-10-05T16:00:01+00:00",
-          "end_time": "2025-10-05T16:30:00+00:00",
-          "renewables": 33,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T03:00:00+10:00",
-          "per_kwh": 0.01,
-          "spot_per_kwh": 0.01,
-          "start_time": "2025-10-05T16:30:01+00:00",
-          "end_time": "2025-10-05T17:00:00+00:00",
-          "renewables": 33,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T03:30:00+10:00",
-          "per_kwh": 0.01,
-          "spot_per_kwh": 0.01,
-          "start_time": "2025-10-05T17:00:01+00:00",
-          "end_time": "2025-10-05T17:30:00+00:00",
-          "renewables": 34,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T04:00:00+10:00",
-          "per_kwh": 0.01,
-          "spot_per_kwh": 0.01,
-          "start_time": "2025-10-05T17:30:01+00:00",
-          "end_time": "2025-10-05T18:00:00+00:00",
-          "renewables": 34,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T04:30:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T18:00:01+00:00",
-          "end_time": "2025-10-05T18:30:00+00:00",
-          "renewables": 33,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T05:00:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T18:30:01+00:00",
-          "end_time": "2025-10-05T19:00:00+00:00",
-          "renewables": 33,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T05:30:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T19:00:01+00:00",
-          "end_time": "2025-10-05T19:30:00+00:00",
-          "renewables": 32,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T06:00:00+10:00",
-          "per_kwh": 0.06,
-          "spot_per_kwh": 0.06,
-          "start_time": "2025-10-05T19:30:01+00:00",
-          "end_time": "2025-10-05T20:00:00+00:00",
-          "renewables": 34,
-          "spike_status": "none",
-          "descriptor": "high"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T06:30:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T20:00:01+00:00",
-          "end_time": "2025-10-05T20:30:00+00:00",
-          "renewables": 47,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T07:00:00+10:00",
-          "per_kwh": -0.01,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-05T20:30:01+00:00",
-          "end_time": "2025-10-05T21:00:00+00:00",
-          "renewables": 63,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T07:30:00+10:00",
-          "per_kwh": -0.01,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-05T21:00:01+00:00",
-          "end_time": "2025-10-05T21:30:00+00:00",
-          "renewables": 75,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T08:00:00+10:00",
-          "per_kwh": -0.01,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-05T21:30:01+00:00",
-          "end_time": "2025-10-05T22:00:00+00:00",
-          "renewables": 82,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T08:30:00+10:00",
-          "per_kwh": 0.01,
-          "spot_per_kwh": 0.01,
-          "start_time": "2025-10-05T22:00:01+00:00",
-          "end_time": "2025-10-05T22:30:00+00:00",
-          "renewables": 86,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T09:00:00+10:00",
-          "per_kwh": 0.0,
-          "spot_per_kwh": 0.0,
-          "start_time": "2025-10-05T22:30:01+00:00",
-          "end_time": "2025-10-05T23:00:00+00:00",
-          "renewables": 88,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T09:30:00+10:00",
-          "per_kwh": -0.01,
-          "spot_per_kwh": 0.0,
-          "start_time": "2025-10-05T23:00:01+00:00",
-          "end_time": "2025-10-05T23:30:00+00:00",
-          "renewables": 89,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T10:00:00+10:00",
-          "per_kwh": -0.01,
-          "spot_per_kwh": 0.0,
-          "start_time": "2025-10-05T23:30:01+00:00",
-          "end_time": "2025-10-06T00:00:00+00:00",
-          "renewables": 91,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T10:30:00+10:00",
-          "per_kwh": -0.01,
-          "spot_per_kwh": 0.0,
-          "start_time": "2025-10-06T00:00:01+00:00",
-          "end_time": "2025-10-06T00:30:00+00:00",
-          "renewables": 93,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T11:00:00+10:00",
-          "per_kwh": -0.02,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T00:30:01+00:00",
-          "end_time": "2025-10-06T01:00:00+00:00",
-          "renewables": 93,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T11:30:00+10:00",
-          "per_kwh": -0.02,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T01:00:01+00:00",
-          "end_time": "2025-10-06T01:30:00+00:00",
-          "renewables": 95,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T12:00:00+10:00",
-          "per_kwh": -0.02,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T01:30:01+00:00",
-          "end_time": "2025-10-06T02:00:00+00:00",
-          "renewables": 94,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T12:30:00+10:00",
-          "per_kwh": -0.02,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T02:00:01+00:00",
-          "end_time": "2025-10-06T02:30:00+00:00",
-          "renewables": 93,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T13:00:00+10:00",
-          "per_kwh": -0.02,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T02:30:01+00:00",
-          "end_time": "2025-10-06T03:00:00+00:00",
-          "renewables": 91,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T13:30:00+10:00",
-          "per_kwh": -0.02,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T03:00:01+00:00",
-          "end_time": "2025-10-06T03:30:00+00:00",
-          "renewables": 89,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T14:00:00+10:00",
-          "per_kwh": -0.02,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T03:30:01+00:00",
-          "end_time": "2025-10-06T04:00:00+00:00",
-          "renewables": 86,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T14:30:00+10:00",
-          "per_kwh": -0.01,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T04:00:01+00:00",
-          "end_time": "2025-10-06T04:30:00+00:00",
-          "renewables": 82,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T15:00:00+10:00",
-          "per_kwh": -0.01,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T04:30:01+00:00",
-          "end_time": "2025-10-06T05:00:00+00:00",
-          "renewables": 76,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T15:30:00+10:00",
-          "per_kwh": 0.03,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T05:00:01+00:00",
-          "end_time": "2025-10-06T05:30:00+00:00",
-          "renewables": 69,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T16:00:00+10:00",
-          "per_kwh": 0.03,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T05:30:01+00:00",
-          "end_time": "2025-10-06T06:00:00+00:00",
-          "renewables": 60,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T16:30:00+10:00",
-          "per_kwh": 0.03,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T06:00:01+00:00",
-          "end_time": "2025-10-06T06:30:00+00:00",
-          "renewables": 50,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T17:00:00+10:00",
-          "per_kwh": 0.04,
-          "spot_per_kwh": 0.0,
-          "start_time": "2025-10-06T06:30:01+00:00",
-          "end_time": "2025-10-06T07:00:00+00:00",
-          "renewables": 39,
-          "spike_status": "none",
-          "descriptor": "low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T17:30:00+10:00",
-          "per_kwh": 0.12,
-          "spot_per_kwh": 0.09,
-          "start_time": "2025-10-06T07:00:01+00:00",
-          "end_time": "2025-10-06T07:30:00+00:00",
-          "renewables": 28,
-          "spike_status": "none",
-          "descriptor": "high"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T18:00:00+10:00",
-          "per_kwh": 0.2,
-          "spot_per_kwh": 0.17,
-          "start_time": "2025-10-06T07:30:01+00:00",
-          "end_time": "2025-10-06T08:00:00+00:00",
-          "renewables": 16,
-          "spike_status": "none",
-          "descriptor": "high"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T18:30:00+10:00",
-          "per_kwh": 0.19,
-          "spot_per_kwh": 0.16,
-          "start_time": "2025-10-06T08:00:01+00:00",
-          "end_time": "2025-10-06T08:30:00+00:00",
-          "renewables": 13,
-          "spike_status": "none",
-          "descriptor": "high"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T19:00:00+10:00",
-          "per_kwh": 0.19,
-          "spot_per_kwh": 0.16,
-          "start_time": "2025-10-06T08:30:01+00:00",
-          "end_time": "2025-10-06T09:00:00+00:00",
-          "renewables": 13,
-          "spike_status": "none",
-          "descriptor": "high"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T19:30:00+10:00",
-          "per_kwh": 0.22,
-          "spot_per_kwh": 0.2,
-          "start_time": "2025-10-06T09:00:01+00:00",
-          "end_time": "2025-10-06T09:30:00+00:00",
-          "renewables": 13,
-          "spike_status": "none",
-          "descriptor": "high"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T20:00:00+10:00",
-          "per_kwh": 0.19,
-          "spot_per_kwh": 0.16,
-          "start_time": "2025-10-06T09:30:01+00:00",
-          "end_time": "2025-10-06T10:00:00+00:00",
-          "renewables": 12,
-          "spike_status": "none",
-          "descriptor": "high"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T20:30:00+10:00",
-          "per_kwh": 0.16,
-          "spot_per_kwh": 0.16,
-          "start_time": "2025-10-06T10:00:01+00:00",
-          "end_time": "2025-10-06T10:30:00+00:00",
-          "renewables": 12,
-          "spike_status": "none",
-          "descriptor": "high"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T21:00:00+10:00",
-          "per_kwh": 0.19,
-          "spot_per_kwh": 0.2,
-          "start_time": "2025-10-06T10:30:01+00:00",
-          "end_time": "2025-10-06T11:00:00+00:00",
-          "renewables": 12,
-          "spike_status": "none",
-          "descriptor": "high"
-        }
-      ],
-      "channel_type": "feedIn",
-      "unit_of_measurement": "$/kWh",
-      "attribution": "Data provided by Amber Electric",
-      "friendly_name": "Home - Feed In Forecast"
-    },
     "last_changed": "2025-10-05T10:57:22.799176+00:00",
     "last_reported": "2025-10-05T10:58:23.645350+00:00",
     "last_updated": "2025-10-05T10:57:22.799176+00:00",
-    "context": {
-      "id": "01K6T09RBF38DYHY4E5TYVTJE7",
-      "parent_id": null,
-      "user_id": null
+    "context": { "id": "01K6T09RBF38DYHY4E5TYVTJE7", "parent_id": null, "user_id": null },
+    "attributes": {
+      "attribution": "Data provided by Amber Electric",
+      "channel_type": "feedIn",
+      "forecasts": [
+        { "date": "2025-10-05", "descriptor": "low", "duration": 5, "end_time": "2025-10-05T11:05:00+00:00", "nem_date": "2025-10-05T21:05:00+10:00", "per_kwh": 0.04, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:00:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 5, "end_time": "2025-10-05T11:10:00+00:00", "nem_date": "2025-10-05T21:10:00+10:00", "per_kwh": 0.04, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:05:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 5, "end_time": "2025-10-05T11:15:00+00:00", "nem_date": "2025-10-05T21:15:00+10:00", "per_kwh": 0.04, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:10:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 5, "end_time": "2025-10-05T11:20:00+00:00", "nem_date": "2025-10-05T21:20:00+10:00", "per_kwh": 0.04, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:15:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 5, "end_time": "2025-10-05T11:25:00+00:00", "nem_date": "2025-10-05T21:25:00+10:00", "per_kwh": 0.04, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:20:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 5, "end_time": "2025-10-05T11:30:00+00:00", "nem_date": "2025-10-05T21:30:00+10:00", "per_kwh": 0.04, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:25:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "high", "duration": 5, "end_time": "2025-10-05T11:35:00+00:00", "nem_date": "2025-10-05T21:35:00+10:00", "per_kwh": 0.07, "renewables": 23, "spike_status": "none", "spot_per_kwh": 0.07, "start_time": "2025-10-05T11:30:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "high", "duration": 5, "end_time": "2025-10-05T11:40:00+00:00", "nem_date": "2025-10-05T21:40:00+10:00", "per_kwh": 0.06, "renewables": 23, "spike_status": "none", "spot_per_kwh": 0.07, "start_time": "2025-10-05T11:35:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "high", "duration": 5, "end_time": "2025-10-05T11:45:00+00:00", "nem_date": "2025-10-05T21:45:00+10:00", "per_kwh": 0.06, "renewables": 23, "spike_status": "none", "spot_per_kwh": 0.06, "start_time": "2025-10-05T11:40:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 5, "end_time": "2025-10-05T11:50:00+00:00", "nem_date": "2025-10-05T21:50:00+10:00", "per_kwh": 0.04, "renewables": 23, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:45:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 5, "end_time": "2025-10-05T11:55:00+00:00", "nem_date": "2025-10-05T21:55:00+10:00", "per_kwh": 0.04, "renewables": 23, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:50:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 5, "end_time": "2025-10-05T12:00:00+00:00", "nem_date": "2025-10-05T22:00:00+10:00", "per_kwh": 0.04, "renewables": 24, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:55:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T12:30:00+00:00", "nem_date": "2025-10-05T22:30:00+10:00", "per_kwh": 0.04, "renewables": 25, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T12:00:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T13:00:00+00:00", "nem_date": "2025-10-05T23:00:00+10:00", "per_kwh": 0.04, "renewables": 26, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T12:30:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T13:30:00+00:00", "nem_date": "2025-10-05T23:30:00+10:00", "per_kwh": 0.04, "renewables": 27, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T13:00:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T14:00:00+00:00", "nem_date": "2025-10-06T00:00:00+10:00", "per_kwh": 0.04, "renewables": 28, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T13:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T14:30:00+00:00", "nem_date": "2025-10-06T00:30:00+10:00", "per_kwh": 0.04, "renewables": 29, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T14:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T15:00:00+00:00", "nem_date": "2025-10-06T01:00:00+10:00", "per_kwh": 0.04, "renewables": 30, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T14:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T15:30:00+00:00", "nem_date": "2025-10-06T01:30:00+10:00", "per_kwh": 0.04, "renewables": 31, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T15:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T16:00:00+00:00", "nem_date": "2025-10-06T02:00:00+10:00", "per_kwh": 0.04, "renewables": 32, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T15:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T16:30:00+00:00", "nem_date": "2025-10-06T02:30:00+10:00", "per_kwh": 0.01, "renewables": 33, "spike_status": "none", "spot_per_kwh": 0.01, "start_time": "2025-10-05T16:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T17:00:00+00:00", "nem_date": "2025-10-06T03:00:00+10:00", "per_kwh": 0.01, "renewables": 33, "spike_status": "none", "spot_per_kwh": 0.01, "start_time": "2025-10-05T16:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T17:30:00+00:00", "nem_date": "2025-10-06T03:30:00+10:00", "per_kwh": 0.01, "renewables": 34, "spike_status": "none", "spot_per_kwh": 0.01, "start_time": "2025-10-05T17:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T18:00:00+00:00", "nem_date": "2025-10-06T04:00:00+10:00", "per_kwh": 0.01, "renewables": 34, "spike_status": "none", "spot_per_kwh": 0.01, "start_time": "2025-10-05T17:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T18:30:00+00:00", "nem_date": "2025-10-06T04:30:00+10:00", "per_kwh": 0.04, "renewables": 33, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T18:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T19:00:00+00:00", "nem_date": "2025-10-06T05:00:00+10:00", "per_kwh": 0.04, "renewables": 33, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T18:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T19:30:00+00:00", "nem_date": "2025-10-06T05:30:00+10:00", "per_kwh": 0.04, "renewables": 32, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T19:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "high", "duration": 30, "end_time": "2025-10-05T20:00:00+00:00", "nem_date": "2025-10-06T06:00:00+10:00", "per_kwh": 0.06, "renewables": 34, "spike_status": "none", "spot_per_kwh": 0.06, "start_time": "2025-10-05T19:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T20:30:00+00:00", "nem_date": "2025-10-06T06:30:00+10:00", "per_kwh": 0.04, "renewables": 47, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T20:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T21:00:00+00:00", "nem_date": "2025-10-06T07:00:00+10:00", "per_kwh": -0.01, "renewables": 63, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-05T20:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T21:30:00+00:00", "nem_date": "2025-10-06T07:30:00+10:00", "per_kwh": -0.01, "renewables": 75, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-05T21:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T22:00:00+00:00", "nem_date": "2025-10-06T08:00:00+10:00", "per_kwh": -0.01, "renewables": 82, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-05T21:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T22:30:00+00:00", "nem_date": "2025-10-06T08:30:00+10:00", "per_kwh": 0.01, "renewables": 86, "spike_status": "none", "spot_per_kwh": 0.01, "start_time": "2025-10-05T22:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-05T23:00:00+00:00", "nem_date": "2025-10-06T09:00:00+10:00", "per_kwh": 0.0, "renewables": 88, "spike_status": "none", "spot_per_kwh": 0.0, "start_time": "2025-10-05T22:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T23:30:00+00:00", "nem_date": "2025-10-06T09:30:00+10:00", "per_kwh": -0.01, "renewables": 89, "spike_status": "none", "spot_per_kwh": 0.0, "start_time": "2025-10-05T23:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T00:00:00+00:00", "nem_date": "2025-10-06T10:00:00+10:00", "per_kwh": -0.01, "renewables": 91, "spike_status": "none", "spot_per_kwh": 0.0, "start_time": "2025-10-05T23:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T00:30:00+00:00", "nem_date": "2025-10-06T10:30:00+10:00", "per_kwh": -0.01, "renewables": 93, "spike_status": "none", "spot_per_kwh": 0.0, "start_time": "2025-10-06T00:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T01:00:00+00:00", "nem_date": "2025-10-06T11:00:00+10:00", "per_kwh": -0.02, "renewables": 93, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T00:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T01:30:00+00:00", "nem_date": "2025-10-06T11:30:00+10:00", "per_kwh": -0.02, "renewables": 95, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T01:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T02:00:00+00:00", "nem_date": "2025-10-06T12:00:00+10:00", "per_kwh": -0.02, "renewables": 94, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T01:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T02:30:00+00:00", "nem_date": "2025-10-06T12:30:00+10:00", "per_kwh": -0.02, "renewables": 93, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T02:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T03:00:00+00:00", "nem_date": "2025-10-06T13:00:00+10:00", "per_kwh": -0.02, "renewables": 91, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T02:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T03:30:00+00:00", "nem_date": "2025-10-06T13:30:00+10:00", "per_kwh": -0.02, "renewables": 89, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T03:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T04:00:00+00:00", "nem_date": "2025-10-06T14:00:00+10:00", "per_kwh": -0.02, "renewables": 86, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T03:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T04:30:00+00:00", "nem_date": "2025-10-06T14:30:00+10:00", "per_kwh": -0.01, "renewables": 82, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T04:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T05:00:00+00:00", "nem_date": "2025-10-06T15:00:00+10:00", "per_kwh": -0.01, "renewables": 76, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T04:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-06T05:30:00+00:00", "nem_date": "2025-10-06T15:30:00+10:00", "per_kwh": 0.03, "renewables": 69, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T05:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-06T06:00:00+00:00", "nem_date": "2025-10-06T16:00:00+10:00", "per_kwh": 0.03, "renewables": 60, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T05:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-06T06:30:00+00:00", "nem_date": "2025-10-06T16:30:00+10:00", "per_kwh": 0.03, "renewables": 50, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T06:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "low", "duration": 30, "end_time": "2025-10-06T07:00:00+00:00", "nem_date": "2025-10-06T17:00:00+10:00", "per_kwh": 0.04, "renewables": 39, "spike_status": "none", "spot_per_kwh": 0.0, "start_time": "2025-10-06T06:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "high", "duration": 30, "end_time": "2025-10-06T07:30:00+00:00", "nem_date": "2025-10-06T17:30:00+10:00", "per_kwh": 0.12, "renewables": 28, "spike_status": "none", "spot_per_kwh": 0.09, "start_time": "2025-10-06T07:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "high", "duration": 30, "end_time": "2025-10-06T08:00:00+00:00", "nem_date": "2025-10-06T18:00:00+10:00", "per_kwh": 0.2, "renewables": 16, "spike_status": "none", "spot_per_kwh": 0.17, "start_time": "2025-10-06T07:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "high", "duration": 30, "end_time": "2025-10-06T08:30:00+00:00", "nem_date": "2025-10-06T18:30:00+10:00", "per_kwh": 0.19, "renewables": 13, "spike_status": "none", "spot_per_kwh": 0.16, "start_time": "2025-10-06T08:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "high", "duration": 30, "end_time": "2025-10-06T09:00:00+00:00", "nem_date": "2025-10-06T19:00:00+10:00", "per_kwh": 0.19, "renewables": 13, "spike_status": "none", "spot_per_kwh": 0.16, "start_time": "2025-10-06T08:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "high", "duration": 30, "end_time": "2025-10-06T09:30:00+00:00", "nem_date": "2025-10-06T19:30:00+10:00", "per_kwh": 0.22, "renewables": 13, "spike_status": "none", "spot_per_kwh": 0.2, "start_time": "2025-10-06T09:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "high", "duration": 30, "end_time": "2025-10-06T10:00:00+00:00", "nem_date": "2025-10-06T20:00:00+10:00", "per_kwh": 0.19, "renewables": 12, "spike_status": "none", "spot_per_kwh": 0.16, "start_time": "2025-10-06T09:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "high", "duration": 30, "end_time": "2025-10-06T10:30:00+00:00", "nem_date": "2025-10-06T20:30:00+10:00", "per_kwh": 0.16, "renewables": 12, "spike_status": "none", "spot_per_kwh": 0.16, "start_time": "2025-10-06T10:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "high", "duration": 30, "end_time": "2025-10-06T11:00:00+00:00", "nem_date": "2025-10-06T21:00:00+10:00", "per_kwh": 0.19, "renewables": 12, "spike_status": "none", "spot_per_kwh": 0.2, "start_time": "2025-10-06T10:30:01+00:00" }
+      ],
+      "friendly_name": "Home - Feed In Forecast",
+      "state_class": "measurement",
+      "unit_of_measurement": "$/kWh"
     }
   },
   {
     "entity_id": "sensor.home_feed_in_price",
     "state": "0.06",
-    "attributes": {
-      "state_class": "measurement",
-      "duration": 5,
-      "date": "2025-10-05",
-      "per_kwh": 0.06,
-      "nem_date": "2025-10-05T21:00:00+10:00",
-      "spot_per_kwh": 0.06,
-      "start_time": "2025-10-05T10:55:01+00:00",
-      "end_time": "2025-10-05T11:00:00+00:00",
-      "renewables": 22,
-      "estimate": false,
-      "spike_status": "none",
-      "channel_type": "feedIn",
-      "unit_of_measurement": "$/kWh",
-      "attribution": "Data provided by Amber Electric",
-      "friendly_name": "Home - Feed In Price"
-    },
     "last_changed": "2025-10-05T10:56:22.751246+00:00",
     "last_reported": "2025-10-05T10:58:23.642826+00:00",
     "last_updated": "2025-10-05T10:56:22.751246+00:00",
-    "context": {
-      "id": "01K6T07XPZMD0QQYSTS3E9BH5D",
-      "parent_id": null,
-      "user_id": null
+    "context": { "id": "01K6T07XPZMD0QQYSTS3E9BH5D", "parent_id": null, "user_id": null },
+    "attributes": {
+      "attribution": "Data provided by Amber Electric",
+      "channel_type": "feedIn",
+      "date": "2025-10-05",
+      "duration": 5,
+      "end_time": "2025-10-05T11:00:00+00:00",
+      "estimate": false,
+      "friendly_name": "Home - Feed In Price",
+      "nem_date": "2025-10-05T21:00:00+10:00",
+      "per_kwh": 0.06,
+      "renewables": 22,
+      "spike_status": "none",
+      "spot_per_kwh": 0.06,
+      "start_time": "2025-10-05T10:55:01+00:00",
+      "state_class": "measurement",
+      "unit_of_measurement": "$/kWh"
     }
   },
   {
     "entity_id": "sensor.home_general_forecast",
     "state": "0.13",
-    "attributes": {
-      "state_class": "measurement",
-      "forecasts": [
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:05:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:00:01+00:00",
-          "end_time": "2025-10-05T11:05:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:10:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:05:01+00:00",
-          "end_time": "2025-10-05T11:10:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:15:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:10:01+00:00",
-          "end_time": "2025-10-05T11:15:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:20:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:15:01+00:00",
-          "end_time": "2025-10-05T11:20:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:25:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:20:01+00:00",
-          "end_time": "2025-10-05T11:25:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:30:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:25:01+00:00",
-          "end_time": "2025-10-05T11:30:00+00:00",
-          "renewables": 22,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:35:00+10:00",
-          "per_kwh": 0.17,
-          "spot_per_kwh": 0.07,
-          "start_time": "2025-10-05T11:30:01+00:00",
-          "end_time": "2025-10-05T11:35:00+00:00",
-          "renewables": 23,
-          "spike_status": "none",
-          "descriptor": "very_low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:40:00+10:00",
-          "per_kwh": 0.16,
-          "spot_per_kwh": 0.07,
-          "start_time": "2025-10-05T11:35:01+00:00",
-          "end_time": "2025-10-05T11:40:00+00:00",
-          "renewables": 23,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:45:00+10:00",
-          "per_kwh": 0.16,
-          "spot_per_kwh": 0.06,
-          "start_time": "2025-10-05T11:40:01+00:00",
-          "end_time": "2025-10-05T11:45:00+00:00",
-          "renewables": 23,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:50:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:45:01+00:00",
-          "end_time": "2025-10-05T11:50:00+00:00",
-          "renewables": 23,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T21:55:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:50:01+00:00",
-          "end_time": "2025-10-05T11:55:00+00:00",
-          "renewables": 23,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 5,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T22:00:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T11:55:01+00:00",
-          "end_time": "2025-10-05T12:00:00+00:00",
-          "renewables": 24,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T22:30:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T12:00:01+00:00",
-          "end_time": "2025-10-05T12:30:00+00:00",
-          "renewables": 25,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T23:00:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T12:30:01+00:00",
-          "end_time": "2025-10-05T13:00:00+00:00",
-          "renewables": 26,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-05T23:30:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T13:00:01+00:00",
-          "end_time": "2025-10-05T13:30:00+00:00",
-          "renewables": 27,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-05",
-          "nem_date": "2025-10-06T00:00:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T13:30:01+00:00",
-          "end_time": "2025-10-05T14:00:00+00:00",
-          "renewables": 28,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T00:30:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T14:00:01+00:00",
-          "end_time": "2025-10-05T14:30:00+00:00",
-          "renewables": 29,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T01:00:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T14:30:01+00:00",
-          "end_time": "2025-10-05T15:00:00+00:00",
-          "renewables": 30,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T01:30:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T15:00:01+00:00",
-          "end_time": "2025-10-05T15:30:00+00:00",
-          "renewables": 31,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T02:00:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T15:30:01+00:00",
-          "end_time": "2025-10-05T16:00:00+00:00",
-          "renewables": 32,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T02:30:00+10:00",
-          "per_kwh": 0.11,
-          "spot_per_kwh": 0.01,
-          "start_time": "2025-10-05T16:00:01+00:00",
-          "end_time": "2025-10-05T16:30:00+00:00",
-          "renewables": 33,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T03:00:00+10:00",
-          "per_kwh": 0.11,
-          "spot_per_kwh": 0.01,
-          "start_time": "2025-10-05T16:30:01+00:00",
-          "end_time": "2025-10-05T17:00:00+00:00",
-          "renewables": 33,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T03:30:00+10:00",
-          "per_kwh": 0.11,
-          "spot_per_kwh": 0.01,
-          "start_time": "2025-10-05T17:00:01+00:00",
-          "end_time": "2025-10-05T17:30:00+00:00",
-          "renewables": 34,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T04:00:00+10:00",
-          "per_kwh": 0.11,
-          "spot_per_kwh": 0.01,
-          "start_time": "2025-10-05T17:30:01+00:00",
-          "end_time": "2025-10-05T18:00:00+00:00",
-          "renewables": 34,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T04:30:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T18:00:01+00:00",
-          "end_time": "2025-10-05T18:30:00+00:00",
-          "renewables": 33,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T05:00:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T18:30:01+00:00",
-          "end_time": "2025-10-05T19:00:00+00:00",
-          "renewables": 33,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T05:30:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T19:00:01+00:00",
-          "end_time": "2025-10-05T19:30:00+00:00",
-          "renewables": 32,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T06:00:00+10:00",
-          "per_kwh": 0.15,
-          "spot_per_kwh": 0.06,
-          "start_time": "2025-10-05T19:30:01+00:00",
-          "end_time": "2025-10-05T20:00:00+00:00",
-          "renewables": 34,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T06:30:00+10:00",
-          "per_kwh": 0.13,
-          "spot_per_kwh": 0.04,
-          "start_time": "2025-10-05T20:00:01+00:00",
-          "end_time": "2025-10-05T20:30:00+00:00",
-          "renewables": 47,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T07:00:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-05T20:30:01+00:00",
-          "end_time": "2025-10-05T21:00:00+00:00",
-          "renewables": 63,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T07:30:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-05T21:00:01+00:00",
-          "end_time": "2025-10-05T21:30:00+00:00",
-          "renewables": 75,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T08:00:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-05T21:30:01+00:00",
-          "end_time": "2025-10-05T22:00:00+00:00",
-          "renewables": 82,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T08:30:00+10:00",
-          "per_kwh": 0.1,
-          "spot_per_kwh": 0.01,
-          "start_time": "2025-10-05T22:00:01+00:00",
-          "end_time": "2025-10-05T22:30:00+00:00",
-          "renewables": 86,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T09:00:00+10:00",
-          "per_kwh": 0.09,
-          "spot_per_kwh": 0.0,
-          "start_time": "2025-10-05T22:30:01+00:00",
-          "end_time": "2025-10-05T23:00:00+00:00",
-          "renewables": 88,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T09:30:00+10:00",
-          "per_kwh": 0.09,
-          "spot_per_kwh": 0.0,
-          "start_time": "2025-10-05T23:00:01+00:00",
-          "end_time": "2025-10-05T23:30:00+00:00",
-          "renewables": 89,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T10:00:00+10:00",
-          "per_kwh": 0.09,
-          "spot_per_kwh": 0.0,
-          "start_time": "2025-10-05T23:30:01+00:00",
-          "end_time": "2025-10-06T00:00:00+00:00",
-          "renewables": 91,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T10:30:00+10:00",
-          "per_kwh": 0.09,
-          "spot_per_kwh": 0.0,
-          "start_time": "2025-10-06T00:00:01+00:00",
-          "end_time": "2025-10-06T00:30:00+00:00",
-          "renewables": 93,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T11:00:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T00:30:01+00:00",
-          "end_time": "2025-10-06T01:00:00+00:00",
-          "renewables": 93,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T11:30:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T01:00:01+00:00",
-          "end_time": "2025-10-06T01:30:00+00:00",
-          "renewables": 95,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T12:00:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T01:30:01+00:00",
-          "end_time": "2025-10-06T02:00:00+00:00",
-          "renewables": 94,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T12:30:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T02:00:01+00:00",
-          "end_time": "2025-10-06T02:30:00+00:00",
-          "renewables": 93,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T13:00:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T02:30:01+00:00",
-          "end_time": "2025-10-06T03:00:00+00:00",
-          "renewables": 91,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T13:30:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T03:00:01+00:00",
-          "end_time": "2025-10-06T03:30:00+00:00",
-          "renewables": 89,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T14:00:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T03:30:01+00:00",
-          "end_time": "2025-10-06T04:00:00+00:00",
-          "renewables": 86,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T14:30:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T04:00:01+00:00",
-          "end_time": "2025-10-06T04:30:00+00:00",
-          "renewables": 82,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T15:00:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T04:30:01+00:00",
-          "end_time": "2025-10-06T05:00:00+00:00",
-          "renewables": 76,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T15:30:00+10:00",
-          "per_kwh": 0.08,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T05:00:01+00:00",
-          "end_time": "2025-10-06T05:30:00+00:00",
-          "renewables": 69,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T16:00:00+10:00",
-          "per_kwh": 0.09,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T05:30:01+00:00",
-          "end_time": "2025-10-06T06:00:00+00:00",
-          "renewables": 60,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T16:30:00+10:00",
-          "per_kwh": 0.09,
-          "spot_per_kwh": -0.01,
-          "start_time": "2025-10-06T06:00:01+00:00",
-          "end_time": "2025-10-06T06:30:00+00:00",
-          "renewables": 50,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T17:00:00+10:00",
-          "per_kwh": 0.09,
-          "spot_per_kwh": 0.0,
-          "start_time": "2025-10-06T06:30:01+00:00",
-          "end_time": "2025-10-06T07:00:00+00:00",
-          "renewables": 39,
-          "spike_status": "none",
-          "descriptor": "extremely_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T17:30:00+10:00",
-          "per_kwh": 0.18,
-          "spot_per_kwh": 0.09,
-          "start_time": "2025-10-06T07:00:01+00:00",
-          "end_time": "2025-10-06T07:30:00+00:00",
-          "renewables": 28,
-          "spike_status": "none",
-          "descriptor": "very_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T18:00:00+10:00",
-          "per_kwh": 0.27,
-          "spot_per_kwh": 0.17,
-          "start_time": "2025-10-06T07:30:01+00:00",
-          "end_time": "2025-10-06T08:00:00+00:00",
-          "renewables": 16,
-          "spike_status": "none",
-          "descriptor": "very_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T18:30:00+10:00",
-          "per_kwh": 0.26,
-          "spot_per_kwh": 0.16,
-          "start_time": "2025-10-06T08:00:01+00:00",
-          "end_time": "2025-10-06T08:30:00+00:00",
-          "renewables": 13,
-          "spike_status": "none",
-          "descriptor": "very_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T19:00:00+10:00",
-          "per_kwh": 0.26,
-          "spot_per_kwh": 0.16,
-          "start_time": "2025-10-06T08:30:01+00:00",
-          "end_time": "2025-10-06T09:00:00+00:00",
-          "renewables": 13,
-          "spike_status": "none",
-          "descriptor": "very_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T19:30:00+10:00",
-          "per_kwh": 0.3,
-          "spot_per_kwh": 0.2,
-          "start_time": "2025-10-06T09:00:01+00:00",
-          "end_time": "2025-10-06T09:30:00+00:00",
-          "renewables": 13,
-          "spike_status": "none",
-          "descriptor": "very_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T20:00:00+10:00",
-          "per_kwh": 0.26,
-          "spot_per_kwh": 0.16,
-          "start_time": "2025-10-06T09:30:01+00:00",
-          "end_time": "2025-10-06T10:00:00+00:00",
-          "renewables": 12,
-          "spike_status": "none",
-          "descriptor": "very_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T20:30:00+10:00",
-          "per_kwh": 0.26,
-          "spot_per_kwh": 0.16,
-          "start_time": "2025-10-06T10:00:01+00:00",
-          "end_time": "2025-10-06T10:30:00+00:00",
-          "renewables": 12,
-          "spike_status": "none",
-          "descriptor": "very_low"
-        },
-        {
-          "duration": 30,
-          "date": "2025-10-06",
-          "nem_date": "2025-10-06T21:00:00+10:00",
-          "per_kwh": 0.3,
-          "spot_per_kwh": 0.2,
-          "start_time": "2025-10-06T10:30:01+00:00",
-          "end_time": "2025-10-06T11:00:00+00:00",
-          "renewables": 12,
-          "spike_status": "none",
-          "descriptor": "very_low"
-        }
-      ],
-      "channel_type": "general",
-      "unit_of_measurement": "$/kWh",
-      "attribution": "Data provided by Amber Electric",
-      "friendly_name": "Home - General Forecast"
-    },
     "last_changed": "2025-10-05T10:57:22.797756+00:00",
     "last_reported": "2025-10-05T10:58:23.644364+00:00",
     "last_updated": "2025-10-05T10:57:22.797756+00:00",
-    "context": {
-      "id": "01K6T09RBDFFV77CK8C66WGQJ1",
-      "parent_id": null,
-      "user_id": null
+    "context": { "id": "01K6T09RBDFFV77CK8C66WGQJ1", "parent_id": null, "user_id": null },
+    "attributes": {
+      "attribution": "Data provided by Amber Electric",
+      "channel_type": "general",
+      "forecasts": [
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 5, "end_time": "2025-10-05T11:05:00+00:00", "nem_date": "2025-10-05T21:05:00+10:00", "per_kwh": 0.13, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:00:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 5, "end_time": "2025-10-05T11:10:00+00:00", "nem_date": "2025-10-05T21:10:00+10:00", "per_kwh": 0.13, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:05:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 5, "end_time": "2025-10-05T11:15:00+00:00", "nem_date": "2025-10-05T21:15:00+10:00", "per_kwh": 0.13, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:10:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 5, "end_time": "2025-10-05T11:20:00+00:00", "nem_date": "2025-10-05T21:20:00+10:00", "per_kwh": 0.13, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:15:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 5, "end_time": "2025-10-05T11:25:00+00:00", "nem_date": "2025-10-05T21:25:00+10:00", "per_kwh": 0.13, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:20:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 5, "end_time": "2025-10-05T11:30:00+00:00", "nem_date": "2025-10-05T21:30:00+10:00", "per_kwh": 0.13, "renewables": 22, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:25:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "very_low", "duration": 5, "end_time": "2025-10-05T11:35:00+00:00", "nem_date": "2025-10-05T21:35:00+10:00", "per_kwh": 0.17, "renewables": 23, "spike_status": "none", "spot_per_kwh": 0.07, "start_time": "2025-10-05T11:30:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 5, "end_time": "2025-10-05T11:40:00+00:00", "nem_date": "2025-10-05T21:40:00+10:00", "per_kwh": 0.16, "renewables": 23, "spike_status": "none", "spot_per_kwh": 0.07, "start_time": "2025-10-05T11:35:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 5, "end_time": "2025-10-05T11:45:00+00:00", "nem_date": "2025-10-05T21:45:00+10:00", "per_kwh": 0.16, "renewables": 23, "spike_status": "none", "spot_per_kwh": 0.06, "start_time": "2025-10-05T11:40:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 5, "end_time": "2025-10-05T11:50:00+00:00", "nem_date": "2025-10-05T21:50:00+10:00", "per_kwh": 0.13, "renewables": 23, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:45:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 5, "end_time": "2025-10-05T11:55:00+00:00", "nem_date": "2025-10-05T21:55:00+10:00", "per_kwh": 0.13, "renewables": 23, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:50:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 5, "end_time": "2025-10-05T12:00:00+00:00", "nem_date": "2025-10-05T22:00:00+10:00", "per_kwh": 0.13, "renewables": 24, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T11:55:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T12:30:00+00:00", "nem_date": "2025-10-05T22:30:00+10:00", "per_kwh": 0.13, "renewables": 25, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T12:00:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T13:00:00+00:00", "nem_date": "2025-10-05T23:00:00+10:00", "per_kwh": 0.13, "renewables": 26, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T12:30:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T13:30:00+00:00", "nem_date": "2025-10-05T23:30:00+10:00", "per_kwh": 0.13, "renewables": 27, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T13:00:01+00:00" },
+        { "date": "2025-10-05", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T14:00:00+00:00", "nem_date": "2025-10-06T00:00:00+10:00", "per_kwh": 0.13, "renewables": 28, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T13:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T14:30:00+00:00", "nem_date": "2025-10-06T00:30:00+10:00", "per_kwh": 0.13, "renewables": 29, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T14:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T15:00:00+00:00", "nem_date": "2025-10-06T01:00:00+10:00", "per_kwh": 0.13, "renewables": 30, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T14:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T15:30:00+00:00", "nem_date": "2025-10-06T01:30:00+10:00", "per_kwh": 0.13, "renewables": 31, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T15:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T16:00:00+00:00", "nem_date": "2025-10-06T02:00:00+10:00", "per_kwh": 0.13, "renewables": 32, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T15:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T16:30:00+00:00", "nem_date": "2025-10-06T02:30:00+10:00", "per_kwh": 0.11, "renewables": 33, "spike_status": "none", "spot_per_kwh": 0.01, "start_time": "2025-10-05T16:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T17:00:00+00:00", "nem_date": "2025-10-06T03:00:00+10:00", "per_kwh": 0.11, "renewables": 33, "spike_status": "none", "spot_per_kwh": 0.01, "start_time": "2025-10-05T16:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T17:30:00+00:00", "nem_date": "2025-10-06T03:30:00+10:00", "per_kwh": 0.11, "renewables": 34, "spike_status": "none", "spot_per_kwh": 0.01, "start_time": "2025-10-05T17:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T18:00:00+00:00", "nem_date": "2025-10-06T04:00:00+10:00", "per_kwh": 0.11, "renewables": 34, "spike_status": "none", "spot_per_kwh": 0.01, "start_time": "2025-10-05T17:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T18:30:00+00:00", "nem_date": "2025-10-06T04:30:00+10:00", "per_kwh": 0.13, "renewables": 33, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T18:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T19:00:00+00:00", "nem_date": "2025-10-06T05:00:00+10:00", "per_kwh": 0.13, "renewables": 33, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T18:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T19:30:00+00:00", "nem_date": "2025-10-06T05:30:00+10:00", "per_kwh": 0.13, "renewables": 32, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T19:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T20:00:00+00:00", "nem_date": "2025-10-06T06:00:00+10:00", "per_kwh": 0.15, "renewables": 34, "spike_status": "none", "spot_per_kwh": 0.06, "start_time": "2025-10-05T19:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T20:30:00+00:00", "nem_date": "2025-10-06T06:30:00+10:00", "per_kwh": 0.13, "renewables": 47, "spike_status": "none", "spot_per_kwh": 0.04, "start_time": "2025-10-05T20:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T21:00:00+00:00", "nem_date": "2025-10-06T07:00:00+10:00", "per_kwh": 0.08, "renewables": 63, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-05T20:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T21:30:00+00:00", "nem_date": "2025-10-06T07:30:00+10:00", "per_kwh": 0.08, "renewables": 75, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-05T21:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T22:00:00+00:00", "nem_date": "2025-10-06T08:00:00+10:00", "per_kwh": 0.08, "renewables": 82, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-05T21:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T22:30:00+00:00", "nem_date": "2025-10-06T08:30:00+10:00", "per_kwh": 0.1, "renewables": 86, "spike_status": "none", "spot_per_kwh": 0.01, "start_time": "2025-10-05T22:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T23:00:00+00:00", "nem_date": "2025-10-06T09:00:00+10:00", "per_kwh": 0.09, "renewables": 88, "spike_status": "none", "spot_per_kwh": 0.0, "start_time": "2025-10-05T22:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-05T23:30:00+00:00", "nem_date": "2025-10-06T09:30:00+10:00", "per_kwh": 0.09, "renewables": 89, "spike_status": "none", "spot_per_kwh": 0.0, "start_time": "2025-10-05T23:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T00:00:00+00:00", "nem_date": "2025-10-06T10:00:00+10:00", "per_kwh": 0.09, "renewables": 91, "spike_status": "none", "spot_per_kwh": 0.0, "start_time": "2025-10-05T23:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T00:30:00+00:00", "nem_date": "2025-10-06T10:30:00+10:00", "per_kwh": 0.09, "renewables": 93, "spike_status": "none", "spot_per_kwh": 0.0, "start_time": "2025-10-06T00:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T01:00:00+00:00", "nem_date": "2025-10-06T11:00:00+10:00", "per_kwh": 0.08, "renewables": 93, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T00:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T01:30:00+00:00", "nem_date": "2025-10-06T11:30:00+10:00", "per_kwh": 0.08, "renewables": 95, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T01:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T02:00:00+00:00", "nem_date": "2025-10-06T12:00:00+10:00", "per_kwh": 0.08, "renewables": 94, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T01:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T02:30:00+00:00", "nem_date": "2025-10-06T12:30:00+10:00", "per_kwh": 0.08, "renewables": 93, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T02:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T03:00:00+00:00", "nem_date": "2025-10-06T13:00:00+10:00", "per_kwh": 0.08, "renewables": 91, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T02:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T03:30:00+00:00", "nem_date": "2025-10-06T13:30:00+10:00", "per_kwh": 0.08, "renewables": 89, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T03:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T04:00:00+00:00", "nem_date": "2025-10-06T14:00:00+10:00", "per_kwh": 0.08, "renewables": 86, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T03:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T04:30:00+00:00", "nem_date": "2025-10-06T14:30:00+10:00", "per_kwh": 0.08, "renewables": 82, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T04:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T05:00:00+00:00", "nem_date": "2025-10-06T15:00:00+10:00", "per_kwh": 0.08, "renewables": 76, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T04:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T05:30:00+00:00", "nem_date": "2025-10-06T15:30:00+10:00", "per_kwh": 0.08, "renewables": 69, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T05:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T06:00:00+00:00", "nem_date": "2025-10-06T16:00:00+10:00", "per_kwh": 0.09, "renewables": 60, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T05:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T06:30:00+00:00", "nem_date": "2025-10-06T16:30:00+10:00", "per_kwh": 0.09, "renewables": 50, "spike_status": "none", "spot_per_kwh": -0.01, "start_time": "2025-10-06T06:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "extremely_low", "duration": 30, "end_time": "2025-10-06T07:00:00+00:00", "nem_date": "2025-10-06T17:00:00+10:00", "per_kwh": 0.09, "renewables": 39, "spike_status": "none", "spot_per_kwh": 0.0, "start_time": "2025-10-06T06:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "very_low", "duration": 30, "end_time": "2025-10-06T07:30:00+00:00", "nem_date": "2025-10-06T17:30:00+10:00", "per_kwh": 0.18, "renewables": 28, "spike_status": "none", "spot_per_kwh": 0.09, "start_time": "2025-10-06T07:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "very_low", "duration": 30, "end_time": "2025-10-06T08:00:00+00:00", "nem_date": "2025-10-06T18:00:00+10:00", "per_kwh": 0.27, "renewables": 16, "spike_status": "none", "spot_per_kwh": 0.17, "start_time": "2025-10-06T07:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "very_low", "duration": 30, "end_time": "2025-10-06T08:30:00+00:00", "nem_date": "2025-10-06T18:30:00+10:00", "per_kwh": 0.26, "renewables": 13, "spike_status": "none", "spot_per_kwh": 0.16, "start_time": "2025-10-06T08:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "very_low", "duration": 30, "end_time": "2025-10-06T09:00:00+00:00", "nem_date": "2025-10-06T19:00:00+10:00", "per_kwh": 0.26, "renewables": 13, "spike_status": "none", "spot_per_kwh": 0.16, "start_time": "2025-10-06T08:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "very_low", "duration": 30, "end_time": "2025-10-06T09:30:00+00:00", "nem_date": "2025-10-06T19:30:00+10:00", "per_kwh": 0.3, "renewables": 13, "spike_status": "none", "spot_per_kwh": 0.2, "start_time": "2025-10-06T09:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "very_low", "duration": 30, "end_time": "2025-10-06T10:00:00+00:00", "nem_date": "2025-10-06T20:00:00+10:00", "per_kwh": 0.26, "renewables": 12, "spike_status": "none", "spot_per_kwh": 0.16, "start_time": "2025-10-06T09:30:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "very_low", "duration": 30, "end_time": "2025-10-06T10:30:00+00:00", "nem_date": "2025-10-06T20:30:00+10:00", "per_kwh": 0.26, "renewables": 12, "spike_status": "none", "spot_per_kwh": 0.16, "start_time": "2025-10-06T10:00:01+00:00" },
+        { "date": "2025-10-06", "descriptor": "very_low", "duration": 30, "end_time": "2025-10-06T11:00:00+00:00", "nem_date": "2025-10-06T21:00:00+10:00", "per_kwh": 0.3, "renewables": 12, "spike_status": "none", "spot_per_kwh": 0.2, "start_time": "2025-10-06T10:30:01+00:00" }
+      ],
+      "friendly_name": "Home - General Forecast",
+      "state_class": "measurement",
+      "unit_of_measurement": "$/kWh"
     }
   },
   {
     "entity_id": "sensor.home_general_price",
     "state": "0.15",
-    "attributes": {
-      "state_class": "measurement",
-      "duration": 5,
-      "date": "2025-10-05",
-      "per_kwh": 0.15,
-      "nem_date": "2025-10-05T21:00:00+10:00",
-      "spot_per_kwh": 0.06,
-      "start_time": "2025-10-05T10:55:01+00:00",
-      "end_time": "2025-10-05T11:00:00+00:00",
-      "renewables": 22,
-      "estimate": false,
-      "spike_status": "none",
-      "channel_type": "general",
-      "unit_of_measurement": "$/kWh",
-      "attribution": "Data provided by Amber Electric",
-      "friendly_name": "Home - General Price"
-    },
     "last_changed": "2025-10-05T10:56:22.751147+00:00",
     "last_reported": "2025-10-05T10:58:23.642691+00:00",
     "last_updated": "2025-10-05T10:56:22.751147+00:00",
-    "context": {
-      "id": "01K6T07XPZF04CQQ23VSV70XRF",
-      "parent_id": null,
-      "user_id": null
+    "context": { "id": "01K6T07XPZF04CQQ23VSV70XRF", "parent_id": null, "user_id": null },
+    "attributes": {
+      "attribution": "Data provided by Amber Electric",
+      "channel_type": "general",
+      "date": "2025-10-05",
+      "duration": 5,
+      "end_time": "2025-10-05T11:00:00+00:00",
+      "estimate": false,
+      "friendly_name": "Home - General Price",
+      "nem_date": "2025-10-05T21:00:00+10:00",
+      "per_kwh": 0.15,
+      "renewables": 22,
+      "spike_status": "none",
+      "spot_per_kwh": 0.06,
+      "start_time": "2025-10-05T10:55:01+00:00",
+      "state_class": "measurement",
+      "unit_of_measurement": "$/kWh"
     }
   },
   {
     "entity_id": "sensor.sigen_plant_battery_state_of_charge",
     "state": "85.2",
-    "attributes": {
-      "state_class": "measurement",
-      "unit_of_measurement": "%",
-      "device_class": "battery",
-      "icon": "mdi:battery",
-      "friendly_name": "Sigen Plant Battery State of Charge"
-    },
     "last_changed": "2025-10-05T10:58:12.997274+00:00",
     "last_reported": "2025-10-05T10:59:21.995466+00:00",
     "last_updated": "2025-10-05T10:58:12.997274+00:00",
-    "context": {
-      "id": "01K6T0B9C5MVZ7W5T2P6RK40KG",
-      "parent_id": null,
-      "user_id": null
-    }
+    "context": { "id": "01K6T0B9C5MVZ7W5T2P6RK40KG", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "battery", "friendly_name": "Sigen Plant Battery State of Charge", "icon": "mdi:battery", "state_class": "measurement", "unit_of_measurement": "%" }
   },
   {
     "entity_id": "sensor.sigen_plant_consumed_power",
     "state": "0.493000",
-    "attributes": {
-      "state_class": "measurement",
-      "unit_of_measurement": "kW",
-      "device_class": "power",
-      "icon": "mdi:home-lightning-bolt",
-      "friendly_name": "Sigen Plant Consumed Power"
-    },
     "last_changed": "2025-10-05T10:59:21.998507+00:00",
     "last_reported": "2025-10-05T10:59:21.998507+00:00",
     "last_updated": "2025-10-05T10:59:21.998507+00:00",
-    "context": {
-      "id": "01K6T0DCREW9G6W1PK55NZ6FS4",
-      "parent_id": null,
-      "user_id": null
-    }
+    "context": { "id": "01K6T0DCREW9G6W1PK55NZ6FS4", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "power", "friendly_name": "Sigen Plant Consumed Power", "icon": "mdi:home-lightning-bolt", "state_class": "measurement", "unit_of_measurement": "kW" }
   },
   {
     "entity_id": "sensor.sigen_plant_ess_rated_charging_power",
     "state": "16.8",
-    "attributes": {
-      "state_class": "measurement",
-      "unit_of_measurement": "kW",
-      "device_class": "power",
-      "friendly_name": "Sigen Plant ESS Rated Charging Power"
-    },
     "last_changed": "2025-09-25T03:22:40.495616+00:00",
     "last_reported": "2025-09-25T08:01:12.992684+00:00",
     "last_updated": "2025-09-25T03:22:40.495616+00:00",
-    "context": {
-      "id": "01K5ZE9ZFFH9S7JG2Q061FKGTV",
-      "parent_id": null,
-      "user_id": null
-    }
+    "context": { "id": "01K5ZE9ZFFH9S7JG2Q061FKGTV", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "power", "friendly_name": "Sigen Plant ESS Rated Charging Power", "state_class": "measurement", "unit_of_measurement": "kW" }
   },
   {
     "entity_id": "sensor.sigen_plant_ess_rated_discharging_power",
     "state": "19.2",
-    "attributes": {
-      "state_class": "measurement",
-      "unit_of_measurement": "kW",
-      "device_class": "power",
-      "friendly_name": "Sigen Plant ESS Rated Discharging Power"
-    },
     "last_changed": "2025-09-25T03:22:40.495818+00:00",
     "last_reported": "2025-09-25T08:01:12.992714+00:00",
     "last_updated": "2025-09-25T03:22:40.495818+00:00",
-    "context": {
-      "id": "01K5ZE9ZFFJDNN8RPXMKZZYWFX",
-      "parent_id": null,
-      "user_id": null
-    }
+    "context": { "id": "01K5ZE9ZFFJDNN8RPXMKZZYWFX", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "power", "friendly_name": "Sigen Plant ESS Rated Discharging Power", "state_class": "measurement", "unit_of_measurement": "kW" }
   },
   {
     "entity_id": "sensor.sigen_plant_max_active_power",
     "state": "29.999",
-    "attributes": {
-      "state_class": "measurement",
-      "unit_of_measurement": "kW",
-      "device_class": "power",
-      "friendly_name": "Sigen Plant Max Active Power"
-    },
     "last_changed": "2025-09-25T03:22:40.489630+00:00",
     "last_reported": "2025-09-25T08:01:12.991763+00:00",
     "last_updated": "2025-09-25T03:22:40.489630+00:00",
-    "context": {
-      "id": "01K5ZE9ZF9G6FMFZQRNX3JSJ98",
-      "parent_id": null,
-      "user_id": null
-    }
+    "context": { "id": "01K5ZE9ZF9G6FMFZQRNX3JSJ98", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "power", "friendly_name": "Sigen Plant Max Active Power", "state_class": "measurement", "unit_of_measurement": "kW" }
   },
   {
     "entity_id": "sensor.sigen_plant_pv_power",
     "state": "0.000000",
-    "attributes": {
-      "state_class": "measurement",
-      "unit_of_measurement": "kW",
-      "device_class": "power",
-      "icon": "mdi:solar-power",
-      "friendly_name": "Sigen Plant PV Power"
-    },
     "last_changed": "2025-09-25T03:22:40.502809+00:00",
     "last_reported": "2025-09-25T08:01:12.993221+00:00",
     "last_updated": "2025-09-25T03:22:40.502809+00:00",
-    "context": {
-      "id": "01K5ZE9ZFPESJT0BEJDMFZ32NP",
-      "parent_id": null,
-      "user_id": null
-    }
+    "context": { "id": "01K5ZE9ZFPESJT0BEJDMFZ32NP", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "power", "friendly_name": "Sigen Plant PV Power", "icon": "mdi:solar-power", "state_class": "measurement", "unit_of_measurement": "kW" }
   },
   {
     "entity_id": "sensor.sigen_plant_rated_energy_capacity",
     "state": "32.24",
-    "attributes": {
-      "state_class": "total",
-      "unit_of_measurement": "kWh",
-      "device_class": "energy",
-      "friendly_name": "Sigen Plant Rated Energy Capacity"
-    },
     "last_changed": "2025-09-25T03:22:40.496424+00:00",
     "last_reported": "2025-09-25T08:01:12.992801+00:00",
     "last_updated": "2025-09-25T03:22:40.496424+00:00",
-    "context": {
-      "id": "01K5ZE9ZFG9F0R89MX9ETND7MM",
-      "parent_id": null,
-      "user_id": null
-    }
+    "context": { "id": "01K5ZE9ZFG9F0R89MX9ETND7MM", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "energy", "friendly_name": "Sigen Plant Rated Energy Capacity", "state_class": "total", "unit_of_measurement": "kWh" }
   },
-  {
-    "entity_id": "input_number.constant_load_power",
-    "state": "1.0",
-    "attributes": {
-      "unit_of_measurement": "kW",
-      "friendly_name": "Constant Load Power"
-    },
-    "last_changed": "2025-10-05T10:56:22.751147+00:00",
-    "last_reported": "2025-10-05T10:58:23.642691+00:00",
-    "last_updated": "2025-10-05T10:56:22.751147+00:00",
-    "context": {
-      "id": "01K5ZE9ZFG9F0R89MX9ETND7MN",
-      "parent_id": null,
-      "user_id": null
-    }
-  }
+  { "entity_id": "input_number.constant_load_power", "state": "1.0", "last_changed": "2025-10-05T10:56:22.751147+00:00", "last_reported": "2025-10-05T10:58:23.642691+00:00", "last_updated": "2025-10-05T10:56:22.751147+00:00", "context": { "id": "01K5ZE9ZFG9F0R89MX9ETND7MN", "parent_id": null, "user_id": null }, "attributes": { "friendly_name": "Constant Load Power", "unit_of_measurement": "kW" } }
 ]

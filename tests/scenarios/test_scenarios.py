@@ -19,6 +19,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from syrupy.assertion import SnapshotAssertion
 
+from .conftest import ScenarioData
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_NAME,
@@ -46,16 +47,16 @@ def _discover_scenarios() -> list[Path]:
 
 
 def _extract_freeze_time(scenario_path: Path) -> str:
-    """Extract the most recent last_updated timestamp from states.json."""
-    states_path = scenario_path / "states.json"
-    with states_path.open() as f:
+    """Extract the most recent last_updated timestamp from inputs.json."""
+    inputs_path = scenario_path / "inputs.json"
+    with inputs_path.open() as f:
         states = json.load(f)
 
     # Extract all last_updated timestamps
     timestamps: list[str] = [state["last_updated"] for state in states if "last_updated" in state]
 
     if not timestamps:
-        msg = f"No last_updated timestamps found in {states_path}"
+        msg = f"No last_updated timestamps found in {inputs_path}"
         raise ValueError(msg)
 
     # Return the most recent timestamp
@@ -80,18 +81,18 @@ async def test_scenarios(
     hass: HomeAssistant,
     scenario_path: Path,
     freeze_timestamp: str,
-    scenario_config: dict[str, Any],
-    scenario_states: Sequence[dict[str, Any]],
+    scenario_data: ScenarioData,
     snapshot: SnapshotAssertion) -> None:
     """Test that scenario sets up correctly and optimization engine runs successfully."""
     # Apply freeze_time dynamically
     with freeze_time(freeze_timestamp):
         # Set up sensor states from scenario data and wait until they are loaded
-        for state_data in scenario_states:
+        for state_data in scenario_data["inputs"]:
             hass.states.async_set(state_data["entity_id"], state_data["state"], state_data.get("attributes", {}))
         await hass.async_block_till_done()
 
         # Create hub config entry and add to hass
+        scenario_config = scenario_data["config"]
         mock_config_entry = MockConfigEntry(
             domain=DOMAIN,
             data={

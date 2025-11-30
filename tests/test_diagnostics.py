@@ -1,11 +1,12 @@
 """Tests for HAEO diagnostics utilities."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from types import MappingProxyType
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
@@ -31,25 +32,23 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
-from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
-from custom_components.haeo.model import (
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
-    OUTPUT_TYPE_COST,
-    OUTPUT_TYPE_DURATION,
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_STATUS,
+from custom_components.haeo.elements.battery import (
+    CONF_CAPACITY,
+    CONF_EFFICIENCY,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MIN_CHARGE_PERCENTAGE,
 )
-from custom_components.haeo.model.battery import BATTERY_POWER_CHARGE
+from custom_components.haeo.elements.grid import CONF_IMPORT_PRICE
+from custom_components.haeo.model import OUTPUT_TYPE_POWER
+from custom_components.haeo.model.grid import GRID_POWER_IMPORTED
 
 
-async def test_diagnostics_without_coordinator(hass: HomeAssistant) -> None:
-    """Diagnostics return basic configuration when runtime data is absent."""
-
+async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
+    """Diagnostics returns correct structure with four main keys in the right order."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -70,15 +69,29 @@ async def test_diagnostics_without_coordinator(hass: HomeAssistant) -> None:
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert diagnostics["config_entry"]["entry_id"] == "test_entry"
-    assert "hub_config" in diagnostics
-    assert "subentries" in diagnostics
-    assert "coordinator" not in diagnostics
+    # Verify the four main keys
+    assert "config" in diagnostics
+    assert "inputs" in diagnostics
+    assert "outputs" in diagnostics
+    assert "environment" in diagnostics
+
+    # Note: Python dicts maintain insertion order, but JSON serialization
+    # can use sort_keys=True for alphabetical ordering (config, environment, inputs, outputs)
+
+    # Verify config structure
+    assert diagnostics["config"][CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
+    assert diagnostics["config"][CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
+    assert "participants" in diagnostics["config"]
+
+    # Verify environment
+    assert "ha_version" in diagnostics["environment"]
+    assert "haeo_version" in diagnostics["environment"]
+    assert "timestamp" in diagnostics["environment"]
+    assert "timezone" in diagnostics["environment"]
 
 
-async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
-    """Diagnostics include coordinator metadata and output summaries."""
-
+async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
+    """Diagnostics includes participant configs."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
@@ -102,8 +115,11 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 CONF_NAME: "Battery One",
-                CONF_CAPACITY: 5000.0,
+                CONF_CAPACITY: "sensor.battery_capacity",
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -111,92 +127,209 @@ async def test_diagnostics_summarise_outputs(hass: HomeAssistant) -> None:
         unique_id=None)
     hass.config_entries.async_add_subentry(entry, battery_subentry)
 
-    coordinator = Mock(spec=HaeoDataUpdateCoordinator)
-    coordinator.last_update_success = True
-    coordinator.update_interval = timedelta(minutes=5)
-    coordinator.last_update_success_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
-    forecast_map = {
-        datetime(2024, 1, 1, 12, 0, tzinfo=UTC): 3.0,
-        datetime(2024, 1, 1, 12, 15, tzinfo=UTC): 2.5,
-        datetime(2024, 1, 1, 12, 30, tzinfo=UTC): 2.0,
-    }
-    coordinator.data = {
-        "test_hub": {
-            OUTPUT_NAME_OPTIMIZATION_STATUS: CoordinatorOutput(
-                type=OUTPUT_TYPE_STATUS,
-                unit=None,
-                state="success",
-                forecast=None),
-            OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
-                type=OUTPUT_TYPE_COST,
-                unit="$",
-                state=27.5,
-                forecast=None),
-            OUTPUT_NAME_OPTIMIZATION_DURATION: CoordinatorOutput(
-                type=OUTPUT_TYPE_DURATION,
-                unit="s",
-                state=1.25,
-                forecast=None),
+    # Set up sensor states that should be captured
+    hass.states.async_set(
+        "sensor.battery_capacity",
+        "5000",
+        {
+            "unit_of_measurement": "Wh",
+            "device_class": "energy",
         },
-        "battery_one": {
-            BATTERY_POWER_CHARGE: CoordinatorOutput(
-                type=OUTPUT_TYPE_POWER,
-                unit="kW",
-                state=3.0,
-                forecast=forecast_map)
+    )
+    hass.states.async_set(
+        "sensor.battery_soc",
+        "75",
+        {
+            "unit_of_measurement": "%",
+            "device_class": "battery",
         },
-    }
+    )
 
-    # Provide a lightweight network structure for diagnostics
-    network = Mock()
-    network.elements = {
-        "battery_one": Mock(name="battery_one"),
-        "connection_grid": Mock(name="connection_grid", source="battery_one", target="grid"),
-    }
-    coordinator.network = network
-
-    entry.runtime_data = coordinator
+    entry.runtime_data = None
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert diagnostics["coordinator"]["optimization_status"] == "success"
-    assert diagnostics["last_optimization"]["cost"] == 27.5
+    # Verify config has participants
+    participants = diagnostics["config"]["participants"]
+    assert "Battery One" in participants
+    battery_config = participants["Battery One"]
+    assert battery_config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
+    assert battery_config[CONF_NAME] == "Battery One"
+    assert battery_config[CONF_CAPACITY] == "sensor.battery_capacity"
+    assert battery_config[CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
 
-    outputs = diagnostics["outputs"]["battery_one"][BATTERY_POWER_CHARGE]
-    assert outputs["type"] == OUTPUT_TYPE_POWER
-    assert outputs["unit"] == "kW"
-    assert outputs["value_count"] == 3
-    assert outputs["first_value"] == 3.0
-    assert outputs["has_forecast"] is True
+    # Verify input states are collected using State.as_dict()
+    # Both sensor.battery_capacity and sensor.battery_soc should be collected
+    inputs = diagnostics["inputs"]
+    assert len(inputs) == 2
+    entity_ids = [inp["entity_id"] for inp in inputs]
+    assert "sensor.battery_capacity" in entity_ids
+    assert "sensor.battery_soc" in entity_ids
+    # Verify structure of input states
+    for inp in inputs:
+        assert "attributes" in inp
+        assert "last_updated" in inp
 
-    assert diagnostics["network"]["num_elements"] == 2
-    assert diagnostics["network"]["connections"] == [{"from": "battery_one", "to": "grid"}]
+    # Verify outputs is empty dict when no coordinator
+    assert diagnostics["outputs"] == {}
 
 
-async def test_diagnostics_handles_missing_outputs(hass: HomeAssistant) -> None:
-    """When coordinator has no data, diagnostics omit the outputs section."""
-
+async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
+    """Diagnostics skips network subentries when collecting participants and inputs."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Hub",
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         entry_id="hub_entry")
     entry.add_to_hass(hass)
 
+    # Add a network subentry (should be skipped)
+    network_subentry = ConfigSubentry(
+        data=MappingProxyType({"some_network_config": "value"}),
+        subentry_type="network",
+        title="Network Config",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, network_subentry)
+
+    # Add a battery subentry (should be included)
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery",
+                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Set up sensor states
+    hass.states.async_set("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
+    hass.states.async_set("sensor.battery_soc", "75", {"unit_of_measurement": "%"})
+
+    entry.runtime_data = None
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    # Verify network subentry is NOT in participants
+    participants = diagnostics["config"]["participants"]
+    assert "Network Config" not in participants
+    assert "Battery" in participants
+
+    # Verify inputs only include battery sensors (network subentry didn't add any)
+    inputs = diagnostics["inputs"]
+    entity_ids = [inp["entity_id"] for inp in inputs]
+    assert "sensor.battery_capacity" in entity_ids
+    assert "sensor.battery_soc" in entity_ids
+
+
+async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
+    """Diagnostics includes output sensor states when coordinator available."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    grid_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: "grid",
+                CONF_NAME: "Grid",
+                CONF_IMPORT_PRICE: ["sensor.grid_import_price"],
+            }
+        ),
+        subentry_type="grid",
+        title="Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, grid_subentry)
+
+    # Set up input sensor states
+    hass.states.async_set(
+        "sensor.grid_import_price",
+        "0.25",
+        {
+            "unit_of_measurement": "$/kWh",
+        },
+    )
+
+    # Create a mock coordinator with outputs
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
-    coordinator.last_update_success = False
-    coordinator.update_interval = None
-    coordinator.last_update_success_time = None
-    coordinator.data = {}
-    coordinator.network = None
+    coordinator.data = {
+        "grid": {
+            GRID_POWER_IMPORTED: CoordinatorOutput(
+                type=OUTPUT_TYPE_POWER,
+                unit="kW",
+                state=5.5,
+                forecast=[ForecastPoint(time=datetime(2024, 1, 1, 12, 0, tzinfo=UTC), value=5.5)],
+            )
+        }
+    }
+
+    # Register output sensor in entity registry (required for get_output_sensors)
+    entity_registry = er.async_get(hass)
+    output_entity_id = f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORTED}"
+    entity_registry.async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id=f"hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORTED}",
+        config_entry=entry,
+    )
+
+    # Set up output sensor state
+    hass.states.async_set(
+        output_entity_id,
+        "5.5",
+        {
+            "unit_of_measurement": "kW",
+            "element_name": "Grid",
+        },
+    )
 
     entry.runtime_data = coordinator
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert diagnostics["coordinator"]["optimization_status"] == "pending"
-    assert "outputs" not in diagnostics
-    assert "network" not in diagnostics
+    # Verify outputs are collected as dict
+    outputs = diagnostics["outputs"]
+    assert len(outputs) >= 1
+    # Find the entity by checking entity_id in values
+    output_entity = next(
+        (s for s in outputs.values() if GRID_POWER_IMPORTED in s["entity_id"]),
+        None,
+    )
+    assert output_entity is not None
+    assert output_entity["state"] == "5.5"

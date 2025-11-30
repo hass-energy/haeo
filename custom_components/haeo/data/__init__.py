@@ -14,7 +14,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from custom_components.haeo.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ElementConfigData, ElementConfigSchema
 from custom_components.haeo.model import Network
 from custom_components.haeo.schema import available as config_available
 from custom_components.haeo.schema import load as config_load
@@ -79,8 +80,13 @@ async def load_network(
 
     # Get the data for each participant and add to the network
     # This converts from Schema mode (with entity IDs) to Data mode (with loaded values)
+    # Sort so connections are added last - they need their source/target elements to exist
     forecast_times_list = list(forecast_times)
-    for element_config in participants.values():
+    sorted_participants = sorted(
+        participants.values(),
+        key=lambda c: c[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_CONNECTION,
+    )
+    for element_config in sorted_participants:
         # Load all fields using the high-level config_load function
         loaded_params: ElementConfigData = await config_load(
             element_config,
