@@ -37,9 +37,6 @@ jobs:
       - name: Install python dependencies
         run: uv sync --locked --all-extras --dev
 
-      - name: Install javascript dependencies
-        run: npm ci
-
       - name: Format
         if: ${{ !cancelled() }}
         run: |
@@ -61,7 +58,8 @@ jobs:
       - name: Prettier
         if: ${{ !cancelled() }}
         run: |
-          git clean -d -f
+          git clean -d -f -x
+          npm ci
           npx --yes prettier@3 --write .
           git diff \
             | reviewdog -f=diff -name="prettier" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
@@ -69,7 +67,7 @@ jobs:
       - name: Markdown Format
         if: ${{ !cancelled() }}
         run: |
-          git clean -d -f
+          git clean -d -f -x
           uv run mdformat .
           git diff \
             | reviewdog -f=diff -name="mdformat" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
