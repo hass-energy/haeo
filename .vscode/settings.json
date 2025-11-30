@@ -2,25 +2,6 @@
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff"
   },
-  "cSpell.words": [
-    "beautysh",
-    "freezegun",
-    "frontmatter",
-    "fuser",
-    "haeo",
-    "hass",
-    "homeassistant",
-    "isort",
-    "kwargs",
-    "matplotlib",
-    "mdformat",
-    "meteo",
-    "mkdocs",
-    "numpy",
-    "pyproject",
-    "pytest",
-    "setuptools"
-  ],
   "editor.detectIndentation": true,
   "editor.formatOnSave": true,
   "editor.insertSpaces": true,
@@ -31,7 +12,6 @@
   "files.insertFinalNewline": true,
   "files.trimFinalNewlines": true,
   "files.trimTrailingWhitespace": true,
-  "prettier.configPath": ".prettierrc.js",
   "python.testing.pytestArgs": ["tests"],
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false
