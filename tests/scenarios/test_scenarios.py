@@ -19,7 +19,6 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from syrupy.assertion import SnapshotAssertion
 
-from .conftest import ScenarioData
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_NAME,
@@ -36,6 +35,8 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.model import OUTPUT_NAME_OPTIMIZATION_STATUS
 from tests.scenarios.visualization import visualize_scenario_results
+
+from .conftest import ScenarioData
 
 _LOGGER = logging.getLogger(__name__)
 
