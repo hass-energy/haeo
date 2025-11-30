@@ -69,7 +69,31 @@
       "unit_of_measurement": "$/kWh"
     }
   },
-  { "entity_id": "sensor.home_feed_in_price", "state": "0.11", "last_changed": "2025-11-11T11:25:42.284005+00:00", "last_reported": "2025-11-11T11:25:42.284005+00:00", "last_updated": "2025-11-11T11:25:42.284005+00:00", "context": { "id": "01K9SAM70CRG9T3HM2J2CBKDPB", "parent_id": null, "user_id": null }, "attributes": { "attribution": "Data provided by Amber Electric", "channel_type": "feedIn", "date": "2025-11-11", "duration": 5, "end_time": "2025-11-11T11:30:00+00:00", "estimate": false, "friendly_name": "Home - Feed In Price", "nem_date": "2025-11-11T21:30:00+10:00", "per_kwh": 0.11, "renewables": 13, "spike_status": "none", "spot_per_kwh": 0.12, "start_time": "2025-11-11T11:25:01+00:00", "state_class": "measurement", "unit_of_measurement": "$/kWh" } },
+  {
+    "entity_id": "sensor.home_feed_in_price",
+    "state": "0.11",
+    "last_changed": "2025-11-11T11:25:42.284005+00:00",
+    "last_reported": "2025-11-11T11:25:42.284005+00:00",
+    "last_updated": "2025-11-11T11:25:42.284005+00:00",
+    "context": { "id": "01K9SAM70CRG9T3HM2J2CBKDPB", "parent_id": null, "user_id": null },
+    "attributes": {
+      "attribution": "Data provided by Amber Electric",
+      "channel_type": "feedIn",
+      "date": "2025-11-11",
+      "duration": 5,
+      "end_time": "2025-11-11T11:30:00+00:00",
+      "estimate": false,
+      "friendly_name": "Home - Feed In Price",
+      "nem_date": "2025-11-11T21:30:00+10:00",
+      "per_kwh": 0.11,
+      "renewables": 13,
+      "spike_status": "none",
+      "spot_per_kwh": 0.12,
+      "start_time": "2025-11-11T11:25:01+00:00",
+      "state_class": "measurement",
+      "unit_of_measurement": "$/kWh"
+    }
+  },
   {
     "entity_id": "sensor.home_general_forecast",
     "state": "0.22",
@@ -140,14 +164,94 @@
       "unit_of_measurement": "$/kWh"
     }
   },
-  { "entity_id": "sensor.home_general_price", "state": "0.21", "last_changed": "2025-11-11T11:25:42.283821+00:00", "last_reported": "2025-11-11T11:25:42.283821+00:00", "last_updated": "2025-11-11T11:25:42.283821+00:00", "context": { "id": "01K9SAM70BNFRV5NXK0RXRCPQ9", "parent_id": null, "user_id": null }, "attributes": { "attribution": "Data provided by Amber Electric", "channel_type": "general", "date": "2025-11-11", "duration": 5, "end_time": "2025-11-11T11:30:00+00:00", "estimate": false, "friendly_name": "Home - General Price", "nem_date": "2025-11-11T21:30:00+10:00", "per_kwh": 0.21, "renewables": 13, "spike_status": "none", "spot_per_kwh": 0.12, "start_time": "2025-11-11T11:25:01+00:00", "state_class": "measurement", "unit_of_measurement": "$/kWh" } },
-  { "entity_id": "sensor.sigen_plant_battery_state_of_charge", "state": "37.5", "last_changed": "2025-11-11T11:26:32.831594+00:00", "last_reported": "2025-11-11T11:26:37.832501+00:00", "last_updated": "2025-11-11T11:26:32.831594+00:00", "context": { "id": "01K9SANRBZ2QKZ9QXV2HG3XAPY", "parent_id": null, "user_id": null }, "attributes": { "device_class": "battery", "friendly_name": "Sigen Plant Battery State of Charge", "icon": "mdi:battery", "state_class": "measurement", "unit_of_measurement": "%" } },
-  { "entity_id": "sensor.sigen_plant_consumed_power", "state": "3.171000", "last_changed": "2025-11-11T11:26:37.833545+00:00", "last_reported": "2025-11-11T11:26:37.833545+00:00", "last_updated": "2025-11-11T11:26:37.833545+00:00", "context": { "id": "01K9SANX89QNZNZKM6T6AGVRFX", "parent_id": null, "user_id": null }, "attributes": { "device_class": "power", "friendly_name": "Sigen Plant Consumed Power", "icon": "mdi:home-lightning-bolt", "state_class": "measurement", "unit_of_measurement": "kW" } },
-  { "entity_id": "sensor.sigen_plant_ess_rated_charging_power", "state": "46.2", "last_changed": "2025-11-08T04:11:30.832977+00:00", "last_reported": "2025-11-11T11:26:37.832847+00:00", "last_updated": "2025-11-08T04:11:30.832977+00:00", "context": { "id": "01K9GTK14G2AASM4QY9G99HY9X", "parent_id": null, "user_id": null }, "attributes": { "device_class": "power", "friendly_name": "Sigen Plant ESS Rated Charging Power", "state_class": "measurement", "unit_of_measurement": "kW" } },
-  { "entity_id": "sensor.sigen_plant_ess_rated_discharging_power", "state": "52.8", "last_changed": "2025-11-08T04:11:30.833071+00:00", "last_reported": "2025-11-11T11:26:37.832884+00:00", "last_updated": "2025-11-08T04:11:30.833071+00:00", "context": { "id": "01K9GTK14HVZCF5C6DD369524N", "parent_id": null, "user_id": null }, "attributes": { "device_class": "power", "friendly_name": "Sigen Plant ESS Rated Discharging Power", "state_class": "measurement", "unit_of_measurement": "kW" } },
-  { "entity_id": "sensor.sigen_plant_max_active_power", "state": "59.998", "last_changed": "2025-11-08T04:11:30.831406+00:00", "last_reported": "2025-11-11T11:26:37.832457+00:00", "last_updated": "2025-11-08T04:11:30.831406+00:00", "context": { "id": "01K9GTK14F4N3C8ZQSQ6716QSN", "parent_id": null, "user_id": null }, "attributes": { "device_class": "power", "friendly_name": "Sigen Plant Max Active Power", "state_class": "measurement", "unit_of_measurement": "kW" } },
-  { "entity_id": "sensor.sigen_plant_pv_power", "state": "0.000000", "last_changed": "2025-11-11T08:11:35.831871+00:00", "last_reported": "2025-11-11T11:26:37.833417+00:00", "last_updated": "2025-11-11T08:11:35.831871+00:00", "context": { "id": "01K9RZGSGQWP1H7M6CQ813FK4E", "parent_id": null, "user_id": null }, "attributes": { "device_class": "power", "friendly_name": "Sigen Plant PV Power", "icon": "mdi:solar-power", "state_class": "measurement", "unit_of_measurement": "kW" } },
-  { "entity_id": "sensor.sigen_plant_rated_energy_capacity", "state": "88.66", "last_changed": "2025-11-08T04:11:30.833226+00:00", "last_reported": "2025-11-11T11:26:37.832922+00:00", "last_updated": "2025-11-08T04:11:30.833226+00:00", "context": { "id": "01K9GTK14HNN3YG9GSQ8E08AYD", "parent_id": null, "user_id": null }, "attributes": { "device_class": "energy", "friendly_name": "Sigen Plant Rated Energy Capacity", "state_class": "total", "unit_of_measurement": "kWh" } },
+  {
+    "entity_id": "sensor.home_general_price",
+    "state": "0.21",
+    "last_changed": "2025-11-11T11:25:42.283821+00:00",
+    "last_reported": "2025-11-11T11:25:42.283821+00:00",
+    "last_updated": "2025-11-11T11:25:42.283821+00:00",
+    "context": { "id": "01K9SAM70BNFRV5NXK0RXRCPQ9", "parent_id": null, "user_id": null },
+    "attributes": {
+      "attribution": "Data provided by Amber Electric",
+      "channel_type": "general",
+      "date": "2025-11-11",
+      "duration": 5,
+      "end_time": "2025-11-11T11:30:00+00:00",
+      "estimate": false,
+      "friendly_name": "Home - General Price",
+      "nem_date": "2025-11-11T21:30:00+10:00",
+      "per_kwh": 0.21,
+      "renewables": 13,
+      "spike_status": "none",
+      "spot_per_kwh": 0.12,
+      "start_time": "2025-11-11T11:25:01+00:00",
+      "state_class": "measurement",
+      "unit_of_measurement": "$/kWh"
+    }
+  },
+  {
+    "entity_id": "sensor.sigen_plant_battery_state_of_charge",
+    "state": "37.5",
+    "last_changed": "2025-11-11T11:26:32.831594+00:00",
+    "last_reported": "2025-11-11T11:26:37.832501+00:00",
+    "last_updated": "2025-11-11T11:26:32.831594+00:00",
+    "context": { "id": "01K9SANRBZ2QKZ9QXV2HG3XAPY", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "battery", "friendly_name": "Sigen Plant Battery State of Charge", "icon": "mdi:battery", "state_class": "measurement", "unit_of_measurement": "%" }
+  },
+  {
+    "entity_id": "sensor.sigen_plant_consumed_power",
+    "state": "3.171000",
+    "last_changed": "2025-11-11T11:26:37.833545+00:00",
+    "last_reported": "2025-11-11T11:26:37.833545+00:00",
+    "last_updated": "2025-11-11T11:26:37.833545+00:00",
+    "context": { "id": "01K9SANX89QNZNZKM6T6AGVRFX", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "power", "friendly_name": "Sigen Plant Consumed Power", "icon": "mdi:home-lightning-bolt", "state_class": "measurement", "unit_of_measurement": "kW" }
+  },
+  {
+    "entity_id": "sensor.sigen_plant_ess_rated_charging_power",
+    "state": "46.2",
+    "last_changed": "2025-11-08T04:11:30.832977+00:00",
+    "last_reported": "2025-11-11T11:26:37.832847+00:00",
+    "last_updated": "2025-11-08T04:11:30.832977+00:00",
+    "context": { "id": "01K9GTK14G2AASM4QY9G99HY9X", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "power", "friendly_name": "Sigen Plant ESS Rated Charging Power", "state_class": "measurement", "unit_of_measurement": "kW" }
+  },
+  {
+    "entity_id": "sensor.sigen_plant_ess_rated_discharging_power",
+    "state": "52.8",
+    "last_changed": "2025-11-08T04:11:30.833071+00:00",
+    "last_reported": "2025-11-11T11:26:37.832884+00:00",
+    "last_updated": "2025-11-08T04:11:30.833071+00:00",
+    "context": { "id": "01K9GTK14HVZCF5C6DD369524N", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "power", "friendly_name": "Sigen Plant ESS Rated Discharging Power", "state_class": "measurement", "unit_of_measurement": "kW" }
+  },
+  {
+    "entity_id": "sensor.sigen_plant_max_active_power",
+    "state": "59.998",
+    "last_changed": "2025-11-08T04:11:30.831406+00:00",
+    "last_reported": "2025-11-11T11:26:37.832457+00:00",
+    "last_updated": "2025-11-08T04:11:30.831406+00:00",
+    "context": { "id": "01K9GTK14F4N3C8ZQSQ6716QSN", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "power", "friendly_name": "Sigen Plant Max Active Power", "state_class": "measurement", "unit_of_measurement": "kW" }
+  },
+  {
+    "entity_id": "sensor.sigen_plant_pv_power",
+    "state": "0.000000",
+    "last_changed": "2025-11-11T08:11:35.831871+00:00",
+    "last_reported": "2025-11-11T11:26:37.833417+00:00",
+    "last_updated": "2025-11-11T08:11:35.831871+00:00",
+    "context": { "id": "01K9RZGSGQWP1H7M6CQ813FK4E", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "power", "friendly_name": "Sigen Plant PV Power", "icon": "mdi:solar-power", "state_class": "measurement", "unit_of_measurement": "kW" }
+  },
+  {
+    "entity_id": "sensor.sigen_plant_rated_energy_capacity",
+    "state": "88.66",
+    "last_changed": "2025-11-08T04:11:30.833226+00:00",
+    "last_reported": "2025-11-11T11:26:37.832922+00:00",
+    "last_updated": "2025-11-08T04:11:30.833226+00:00",
+    "context": { "id": "01K9GTK14HNN3YG9GSQ8E08AYD", "parent_id": null, "user_id": null },
+    "attributes": { "device_class": "energy", "friendly_name": "Sigen Plant Rated Energy Capacity", "state_class": "total", "unit_of_measurement": "kWh" }
+  },
   {
     "entity_id": "sensor.solcast_pv_forecast_forecast_day_3",
     "state": "228.8214",

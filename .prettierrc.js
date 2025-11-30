@@ -74,7 +74,7 @@ module.exports = {
     {
       // State files - scenario inputs/outputs and config state files
       // Uses collapsed formatting with entity metadata first, attributes last
-      files: ["tests/scenarios/**/states.json", "config/packages/**/*.json"],
+      files: ["tests/scenarios/**/inputs.json", "tests/scenarios/**/outputs.json", "config/packages/**/*.json"],
       options: {
         objectWrap: "collapse",
         printWidth: 400,
