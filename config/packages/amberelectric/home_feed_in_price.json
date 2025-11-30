@@ -1,29 +1,25 @@
 {
   "entity_id": "sensor.home_feed_in_price",
   "state": "0.06",
-  "attributes": {
-    "state_class": "measurement",
-    "duration": 5,
-    "date": "2025-10-05",
-    "per_kwh": 0.06,
-    "nem_date": "2025-10-05T21:00:00+10:00",
-    "spot_per_kwh": 0.06,
-    "start_time": "2025-10-05T10:55:01+00:00",
-    "end_time": "2025-10-05T11:00:00+00:00",
-    "renewables": 22,
-    "estimate": false,
-    "spike_status": "none",
-    "channel_type": "feedIn",
-    "unit_of_measurement": "$/kWh",
-    "attribution": "Data provided by Amber Electric",
-    "friendly_name": "Home - Feed In Price"
-  },
   "last_changed": "2025-10-05T10:56:22.751246+00:00",
   "last_reported": "2025-10-05T10:58:23.642826+00:00",
   "last_updated": "2025-10-05T10:56:22.751246+00:00",
-  "context": {
-    "id": "01K6T07XPZMD0QQYSTS3E9BH5D",
-    "parent_id": null,
-    "user_id": null
+  "context": { "id": "01K6T07XPZMD0QQYSTS3E9BH5D", "parent_id": null, "user_id": null },
+  "attributes": {
+    "attribution": "Data provided by Amber Electric",
+    "channel_type": "feedIn",
+    "date": "2025-10-05",
+    "duration": 5,
+    "end_time": "2025-10-05T11:00:00+00:00",
+    "estimate": false,
+    "friendly_name": "Home - Feed In Price",
+    "nem_date": "2025-10-05T21:00:00+10:00",
+    "per_kwh": 0.06,
+    "renewables": 22,
+    "spike_status": "none",
+    "spot_per_kwh": 0.06,
+    "start_time": "2025-10-05T10:55:01+00:00",
+    "state_class": "measurement",
+    "unit_of_measurement": "$/kWh"
   }
 }

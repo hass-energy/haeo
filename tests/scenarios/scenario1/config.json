@@ -2,14 +2,22 @@
   "horizon_hours": 24,
   "period_minutes": 5,
   "participants": {
-    "AC Net": { "name": "AC Net", "element_type": "node" },
-    "AC Net->DC Net": { "name": "Inverter", "element_type": "connection", "source": "DC Net", "target": "AC Net" },
+    "AC Net": {
+      "name": "AC Net",
+      "element_type": "node"
+    },
+    "AC Net->DC Net": {
+      "name": "Inverter",
+      "element_type": "connection",
+      "source": "DC Net",
+      "target": "AC Net"
+    },
     "Battery": {
       "name": "Battery",
       "element_type": "battery",
       "capacity": "sensor.sigen_plant_rated_energy_capacity",
       "discharge_cost": 0.02,
-      "early_charge_incentive": 0.001,
+      "early_charge_incentive": 1e-3,
       "efficiency": 99.0,
       "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
       "max_charge_percentage": 100.0,
@@ -22,7 +30,10 @@
       "element_type": "load",
       "forecast": ["input_number.constant_load_power"]
     },
-    "DC Net": { "name": "DC Net", "element_type": "node" },
+    "DC Net": {
+      "name": "DC Net",
+      "element_type": "node"
+    },
     "DC Net->Battery": {
       "name": "DC Net->Battery",
       "element_type": "connection",
@@ -37,7 +48,12 @@
       "import_limit": 55,
       "import_price": ["sensor.home_general_price", "sensor.home_general_forecast"]
     },
-    "Grid->AC Net": { "name": "Grid->AC Net", "element_type": "connection", "source": "Grid", "target": "AC Net" },
+    "Grid->AC Net": {
+      "name": "Grid->AC Net",
+      "element_type": "connection",
+      "source": "Grid",
+      "target": "AC Net"
+    },
     "Load->AC Net": {
       "name": "Load->AC Net",
       "element_type": "connection",
@@ -83,6 +99,11 @@
         "sensor.energy_production_d7_west"
       ]
     },
-    "Solar->DC Net": { "name": "Solar->DC Net", "element_type": "connection", "source": "Solar", "target": "DC Net" }
+    "Solar->DC Net": {
+      "name": "Solar->DC Net",
+      "element_type": "connection",
+      "source": "Solar",
+      "target": "DC Net"
+    }
   }
 }
