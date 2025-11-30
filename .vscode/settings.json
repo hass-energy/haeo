@@ -1,18 +1,38 @@
 {
-  "editor.formatOnSave": true,
-  "editor.insertSpaces": true,
-  "editor.detectIndentation": true,
-  "files.insertFinalNewline": true,
-  "files.trimFinalNewlines": true,
-  "files.trimTrailingWhitespace": true,
-  "files.eol": "\n",
-  "files.associations": {
-    "*.yaml": "home-assistant"
-  },
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff"
   },
+  "cSpell.words": [
+    "beautysh",
+    "freezegun",
+    "frontmatter",
+    "fuser",
+    "haeo",
+    "hass",
+    "homeassistant",
+    "isort",
+    "kwargs",
+    "matplotlib",
+    "mdformat",
+    "meteo",
+    "mkdocs",
+    "numpy",
+    "pyproject",
+    "pytest",
+    "setuptools"
+  ],
+  "editor.detectIndentation": true,
+  "editor.formatOnSave": true,
+  "editor.insertSpaces": true,
+  "files.associations": {
+    "*.yaml": "home-assistant"
+  },
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+  "prettier.configPath": ".prettierrc.js",
   "python.testing.pytestArgs": ["tests"],
-  "python.testing.unittestEnabled": false,
-  "python.testing.pytestEnabled": true
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false
 }

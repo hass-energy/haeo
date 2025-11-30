@@ -27,6 +27,18 @@ module.exports = {
       },
     },
     {
+      // HACS json files
+      files: "hacs.json",
+      options: {
+        jsonSortOrder: JSON.stringify({
+          name: null,
+          hacs: null,
+          homeassistant: null,
+          "/.*/": "lexical",
+        }),
+      },
+    },
+    {
       // Home Assistant translation files - semantic ordering for config flows
       files: "custom_components/haeo/translations/*.json",
       options: {
