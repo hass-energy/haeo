@@ -43,7 +43,8 @@ def approx_equal(a: Any, b: Any, rel_tol: float = 1e-5, abs_tol: float = 1e-9) -
         return all(approx_equal(a_item, b_item, rel_tol, abs_tol) for a_item, b_item in zip(a, b, strict=True))
 
     # For all other types, use exact equality
-    return a == b
+    result: bool = a == b
+    return result
 
 
 class ScenarioJSONExtension(JSONSnapshotExtension):
@@ -85,7 +86,8 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
         """
         # Apply parent class filtering for property exclusion/inclusion/matching
         # Return dict directly (parent's serialize() would convert to JSON string)
-        return self._filter(
+        # Note: We intentionally return a dict instead of str|bytes for direct JSON storage
+        filtered: SerializedData = self._filter(
             data=data,
             depth=0,
             path=(),
@@ -93,6 +95,7 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
             include=include,
             matcher=matcher,
         )
+        return filtered
 
     @classmethod
     def _get_scenario_dir(cls, test_location: PyTestLocation) -> Path:
