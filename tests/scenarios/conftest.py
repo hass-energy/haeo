@@ -1,11 +1,84 @@
 """Fixtures for centralized scenario tests."""
 
-from collections.abc import Sequence
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict, TypeGuard
 
 import pytest
+
+from .syrupy_json_extension import ScenarioJSONExtension
+
+
+@pytest.fixture(autouse=True, scope="session")
+def expand_diagnostics_scenario() -> None:
+    """Migrate any unified diagnostics.json files to split format.
+
+    This runs once per test session and splits scenario.json into:
+    - config.json
+    - environment.json
+    - inputs.json
+    - outputs.json
+
+    After splitting, the original scenario.json is deleted.
+    """
+    scenarios_dir = Path(__file__).parent
+    scenario_folders = sorted(scenarios_dir.glob("scenario*/"))
+
+    for scenario_path in scenario_folders:
+        scenario_file = scenario_path / "scenario.json"
+
+        if scenario_file.exists():
+            # Load the unified file
+            with scenario_file.open() as f:
+                data = json.load(f)
+
+            diagnostics = data["data"]
+
+            # Validate structure
+            required_keys = {"config", "environment", "inputs", "outputs"}
+            if required_keys <= diagnostics.keys() is False:
+                msg = f"Scenario file {scenario_file} missing required keys: {required_keys - diagnostics.keys()}"
+                raise ValueError(msg)
+
+            # Write split files with consistent formatting
+            for key in required_keys:
+                split_file = scenario_path / f"{key}.json"
+                with split_file.open("w") as f:
+                    json.dump(diagnostics[key], f, indent=2)
+                    f.write("\n")  # POSIX trailing newline
+
+            # Delete the unified file after successful split
+            scenario_file.unlink()
+
+            print(f"Migrated {scenario_file.name} to split format in {scenario_path.name}")  # noqa: T201
+
+
+class ScenarioData(TypedDict):
+    """TypedDict for scenario data structure."""
+
+    config: dict[str, Any]
+    environment: dict[str, Any]
+    inputs: list[dict[str, Any]]
+    outputs: dict[str, dict[str, Any]]  # Dict with entity_id keys
+
+
+def is_scenario_data(value: Any) -> TypeGuard[ScenarioData]:
+    """Type guard to validate scenario data structure."""
+    if not isinstance(value, dict):
+        return False
+
+    # Check required keys
+    if not all(key in value for key in ("config", "environment", "inputs", "outputs")):
+        return False
+
+    # Validate types
+    if not isinstance(value["config"], dict):
+        return False
+    if not isinstance(value["environment"], dict):
+        return False
+    if not isinstance(value["inputs"], list):
+        return False
+    return isinstance(value["outputs"], dict)
 
 
 @pytest.fixture
@@ -15,27 +88,50 @@ def scenario_path(request: pytest.FixtureRequest) -> Path:
 
 
 @pytest.fixture
-def scenario_config(scenario_path: Path) -> dict[str, Any]:
-    """Load scenario configuration for the current test scenario."""
-    config_path = scenario_path / "config.json"
-    with config_path.open() as f:
-        data = json.load(f)
-    if not isinstance(data, dict):
-        msg = f"Scenario config {config_path} must contain an object"
-        raise TypeError(msg)
+def scenario_data(scenario_path: Path) -> ScenarioData:
+    """Load scenario data from split JSON files.
+
+    Loads from config.json, environment.json, inputs.json, and outputs.json
+    which are created by the expand_diagnostics_scenario fixture.
+    """
+    # Load all split files
+    config_file = scenario_path / "config.json"
+    environment_file = scenario_path / "environment.json"
+    inputs_file = scenario_path / "inputs.json"
+    outputs_file = scenario_path / "outputs.json"
+
+    # Check all required files exist
+    for file in [config_file, environment_file, inputs_file, outputs_file]:
+        if not file.exists():
+            msg = f"Required scenario file not found: {file}"
+            raise FileNotFoundError(msg)
+
+    # Load all files
+    with config_file.open() as f:
+        config = json.load(f)
+    with environment_file.open() as f:
+        environment = json.load(f)
+    with inputs_file.open() as f:
+        inputs = json.load(f)
+    with outputs_file.open() as f:
+        outputs = json.load(f)
+
+    # Reconstruct ScenarioData
+    data: ScenarioData = {
+        "config": config,
+        "environment": environment,
+        "inputs": inputs,
+        "outputs": outputs,
+    }
+
+    if not is_scenario_data(data):
+        msg = f"Loaded data from {scenario_path} is not valid ScenarioData"
+        raise ValueError(msg)
+
     return data
 
 
 @pytest.fixture
-def scenario_states(scenario_path: Path) -> Sequence[dict[str, Any]]:
-    """Load scenario states data for the current test scenario."""
-    states_path = scenario_path / "states.json"
-    with states_path.open() as f:
-        data = json.load(f)
-    if not isinstance(data, Sequence) or isinstance(data, (str, bytes, bytearray)):
-        msg = f"Scenario states {states_path} must contain an array"
-        raise TypeError(msg)
-    if not all(isinstance(item, dict) for item in data):
-        msg = f"Scenario states {states_path} must contain an array of objects"
-        raise TypeError(msg)
-    return data
+def snapshot(snapshot):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN201
+    """Override the default snapshot fixture with custom ScenarioJSONExtension."""
+    return snapshot.use_extension(ScenarioJSONExtension)

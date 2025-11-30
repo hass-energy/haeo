@@ -29,10 +29,11 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.coordinator import (
+    ForecastPoint,
     HaeoDataUpdateCoordinator,
     _build_coordinator_output,
-    _collect_entity_ids,
-    _extract_entity_ids_from_config,
+    collect_entity_ids,
+    extract_entity_ids_from_config,
 )
 from custom_components.haeo.elements import (
     ELEMENT_TYPE_BATTERY,
@@ -285,12 +286,12 @@ async def test_async_update_data_returns_outputs(
     assert battery_output.type == OUTPUT_TYPE_POWER
     assert battery_output.unit == "kW"
     assert battery_output.state == 1.0
-    # Forecast timestamps should be datetime objects in local timezone
+    # Forecast should be list of ForecastPoint with datetime objects in local timezone
     local_tz = dt_util.get_default_time_zone()
-    assert battery_output.forecast == {
-        datetime.fromtimestamp(expected_forecast_times[0], tz=local_tz): 1.0,
-        datetime.fromtimestamp(expected_forecast_times[1], tz=local_tz): 2.0,
-    }
+    assert battery_output.forecast == [
+        ForecastPoint(time=datetime.fromtimestamp(expected_forecast_times[0], tz=local_tz), value=1.0),
+        ForecastPoint(time=datetime.fromtimestamp(expected_forecast_times[1], tz=local_tz), value=2.0),
+    ]
 
     mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
 
@@ -328,8 +329,7 @@ async def test_async_update_data_propagates_value_error(
 
 
 def test_collect_entity_ids_handles_nested_structures() -> None:
-    """_collect_entity_ids should traverse mappings and sequences recursively."""
-
+    """collect_entity_ids should traverse mappings and sequences recursively."""
     value = {
         "single": "sensor.solo",
         "group": ["sensor.one", "sensor.two"],
@@ -338,18 +338,16 @@ def test_collect_entity_ids_handles_nested_structures() -> None:
         },
     }
 
-    assert _collect_entity_ids(value) == {"sensor.solo", "sensor.one", "sensor.two", "sensor.three"}
+    assert collect_entity_ids(value) == {"sensor.solo", "sensor.one", "sensor.two", "sensor.three"}
 
 
 def test_collect_entity_ids_returns_empty_for_unknown_types() -> None:
     """Non-iterable values should yield an empty set of entity identifiers."""
-
-    assert _collect_entity_ids(123) == set()
+    assert collect_entity_ids(123) == set()
 
 
 def test_extract_entity_ids_skips_constant_fields() -> None:
-    """_extract_entity_ids_from_config should ignore constant-only fields."""
-
+    """extract_entity_ids_from_config should ignore constant-only fields."""
     config: ElementConfigSchema = {
         CONF_NAME: "Battery",
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
@@ -360,14 +358,13 @@ def test_extract_entity_ids_skips_constant_fields() -> None:
         CONF_EFFICIENCY: 95.0,
     }
 
-    extracted = _extract_entity_ids_from_config(config)
+    extracted = extract_entity_ids_from_config(config)
 
     assert extracted == {"sensor.capacity", "sensor.soc"}
 
 
 def test_extract_entity_ids_skips_missing_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fields without schema metadata should be ignored when collecting entity identifiers."""
-
     config: ElementConfigSchema = {
         CONF_NAME: "Battery",
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
@@ -378,7 +375,7 @@ def test_extract_entity_ids_skips_missing_metadata(monkeypatch: pytest.MonkeyPat
         CONF_EFFICIENCY: 95.0,
     }
 
-    original_get_field_meta = _extract_entity_ids_from_config.__globals__["get_field_meta"]
+    original_get_field_meta = extract_entity_ids_from_config.__globals__["get_field_meta"]
 
     def fake_get_field_meta(field_name: str, config_class: type) -> Any:
         if field_name == CONF_CAPACITY:
@@ -387,14 +384,13 @@ def test_extract_entity_ids_skips_missing_metadata(monkeypatch: pytest.MonkeyPat
 
     monkeypatch.setattr("custom_components.haeo.coordinator.get_field_meta", fake_get_field_meta)
 
-    extracted = _extract_entity_ids_from_config(config)
+    extracted = extract_entity_ids_from_config(config)
 
     assert extracted == {"sensor.soc"}
 
 
 def test_extract_entity_ids_catches_type_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     """Unexpected type errors should fall back to an empty identifier set."""
-
     config: ElementConfigSchema = {
         CONF_NAME: "Battery",
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
@@ -409,9 +405,9 @@ def test_extract_entity_ids_catches_type_errors(monkeypatch: pytest.MonkeyPatch)
         msg = "boom"
         raise TypeError(msg)
 
-    monkeypatch.setattr("custom_components.haeo.coordinator._collect_entity_ids", broken_collect)
+    monkeypatch.setattr("custom_components.haeo.coordinator.collect_entity_ids", broken_collect)
 
-    extracted = _extract_entity_ids_from_config(config)
+    extracted = extract_entity_ids_from_config(config)
 
     assert extracted == set()
 
@@ -428,7 +424,7 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
     )
 
     assert output.forecast is not None
-    assert list(output.forecast.values()) == [1.2, 3.4]
+    assert [item["value"] for item in output.forecast] == [1.2, 3.4]
 
 
 def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.MonkeyPatch) -> None:
