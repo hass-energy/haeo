@@ -1,6 +1,5 @@
 """Utility functions for extracting and processing sensor data."""
 
-from datetime import datetime
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -20,9 +19,6 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
     Unstable fields that are removed:
     - friendly_name (can vary based on runtime conditions)
     - last_changed, last_updated, context (timestamp-based, not relevant for snapshot comparison)
-
-    DateTime keys in nested dicts (e.g., forecast attributes) are converted to ISO
-    strings for JSON compatibility.
     """
     entity_registry = er.async_get(hass)
 
