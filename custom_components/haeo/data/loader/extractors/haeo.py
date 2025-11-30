@@ -59,14 +59,14 @@ class Parser:
             return False
 
         forecast = state.attributes["forecast"]
-        
+
         # Only support list format: list of {"time": ..., "value": ...} dicts
         if not isinstance(forecast, Sequence) or isinstance(forecast, str):
             return False
-        
+
         if not forecast:
             return False
-        
+
         # Validate all entries are dicts with time and value fields
         if not all(
             isinstance(item, Mapping)
@@ -99,7 +99,7 @@ class Parser:
 
         """
         forecast = state.attributes["forecast"]
-        
+
         # Parse list of {"time": ..., "value": ...} dicts
         parsed = [
             (parse_datetime_to_timestamp(item["time"]), float(item["value"]))
