@@ -201,8 +201,7 @@ class BatterySection:
         charge_cost: Sequence[float],
         discharge_cost: Sequence[float],
         initial_charge: float,
-        period: float,
-        n_periods: int,
+        periods: Sequence[float],
     ) -> None:
         """Initialize a battery section.
 
@@ -212,16 +211,15 @@ class BatterySection:
             charge_cost: Cost in $/kWh for charging per period
             discharge_cost: Cost in $/kWh for discharging per period
             initial_charge: Initial charge in kWh
-            period: Time period in hours
-            n_periods: Number of time periods
+            periods: Sequence of time period durations in hours
 
         """
         self.name = name
         self.capacity = capacity
         self.charge_cost = [LpAffineExpression(constant=float(c)) for c in charge_cost]
         self.discharge_cost = [LpAffineExpression(constant=float(c)) for c in discharge_cost]
-        self.period = period
-        self.n_periods = n_periods
+        self.periods = periods
+        n_periods = len(periods)
 
         # Initial charge is set as constant, not variable
         self.energy_in: list[LpAffineExpression | LpVariable] = [
@@ -250,15 +248,21 @@ class BatterySection:
         }
 
         # Pre-calculate power and energy expressions to avoid recomputing them
+        # Power = Energy / Time, using variable period durations
         self.power_consumption: Sequence[LpAffineExpression] = [
-            (self.energy_in[t + 1] - self.energy_in[t]) / self.period for t in range(self.n_periods)
+            (self.energy_in[t + 1] - self.energy_in[t]) / self.periods[t] for t in range(n_periods)
         ]
         self.power_production: Sequence[LpAffineExpression] = [
-            (self.energy_out[t + 1] - self.energy_out[t]) / self.period for t in range(self.n_periods)
+            (self.energy_out[t + 1] - self.energy_out[t]) / self.periods[t] for t in range(n_periods)
         ]
         self.stored_energy: Sequence[LpAffineExpression] = [
-            self.energy_in[t] - self.energy_out[t] for t in range(self.n_periods + 1)
+            self.energy_in[t] - self.energy_out[t] for t in range(n_periods + 1)
         ]
+
+    @property
+    def n_periods(self) -> int:
+        """Return the number of optimization periods."""
+        return len(self.periods)
 
     def _section_constraint(self, inner_name: str) -> BatteryConstraintName:
         name = f"battery_{self.name}_{inner_name}"
@@ -281,8 +285,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
     def __init__(
         self,
         name: str,
-        period: float,
-        n_periods: int,
+        periods: Sequence[float],
         *,
         capacity: Sequence[float] | float,
         initial_charge_percentage: Sequence[float] | float,
@@ -302,8 +305,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
 
         Args:
             name: Name of the battery
-            period: Time period in hours
-            n_periods: Number of time periods
+            periods: Sequence of time period durations in hours (one per optimization interval)
             capacity: Battery capacity in kWh per period
             initial_charge_percentage: Initial charge percentage 0-100
             min_charge_percentage: Preferred minimum charge percentage (inner bound) 0-100
@@ -326,7 +328,8 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
             ValueError: If percentage parameters violate ordering constraints
 
         """
-        super().__init__(name=name, period=period, n_periods=n_periods)
+        super().__init__(name=name, periods=periods)
+        n_periods = self.n_periods
 
         # Convert round-trip efficiency to one-way efficiency (applied symmetrically to charge/discharge)
         # Round-trip efficiency = (one-way efficiency)^2, so one-way = sqrt(round-trip)
@@ -385,8 +388,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
                     charge_cost=(charge_early_incentive * 3).tolist(),
                     discharge_cost=((discharge_early_incentive * 1) + np.array(undercharge_cost)).tolist(),
                     initial_charge=section_initial_charge,
-                    period=period,
-                    n_periods=n_periods,
+                    periods=periods,
                 )
             )
             initial_charge = max(initial_charge - section_initial_charge, 0.0)
@@ -402,8 +404,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
                 charge_cost=(charge_early_incentive * 2).tolist(),
                 discharge_cost=((discharge_early_incentive * 2) + np.array(discharge_cost)).tolist(),
                 initial_charge=section_initial_charge,
-                period=period,
-                n_periods=n_periods,
+                periods=periods,
             )
         )
         initial_charge = max(initial_charge - section_initial_charge, 0.0)
@@ -420,8 +421,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
                     charge_cost=((charge_early_incentive * 1) + np.array(overcharge_cost)).tolist(),
                     discharge_cost=((discharge_early_incentive * 3) + np.array(discharge_cost)).tolist(),
                     initial_charge=section_initial_charge,
-                    period=period,
-                    n_periods=n_periods,
+                    periods=periods,
                 )
             )
 

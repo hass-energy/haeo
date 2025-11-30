@@ -98,14 +98,23 @@ module.exports = {
       },
     },
     {
-      // Scenario config files - name and element_type first, participants last
+      // Scenario config files - tier config first, then participants last
       files: "tests/scenarios/**/config.json",
       options: {
         jsonSortOrder: JSON.stringify({
-          name: null,
-          element_type: null,
-          "/^(?!participants$).*/": "lexical", // Everything except participants
+          // Tier configuration fields come first
+          tier_1_count: null,
+          tier_1_duration: null,
+          tier_2_count: null,
+          tier_2_duration: null,
+          tier_3_count: null,
+          tier_3_duration: null,
+          tier_4_count: null,
+          tier_4_duration: null,
+          // Participants come last
           participants: null,
+          // Everything else lexically sorted in between
+          "/.*/": "lexical",
         }),
       },
     },

@@ -27,16 +27,20 @@ class Network:
     All values use kW-based units for numerical stability:
     - Power: kW
     - Energy: kWh
-    - Time: hours
+    - Time: hours (variable-width intervals)
     - Price: $/kWh
 
-    Note: Period should be provided in hours (conversion from seconds happens at the data loading boundary layer).
+    Note: Periods should be provided in hours (conversion from seconds happens at the data loading boundary layer).
     """
 
     name: str
-    period: float  # Period in hours
-    n_periods: int
+    periods: Sequence[float]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
+
+    @property
+    def n_periods(self) -> int:
+        """Return the number of optimization periods."""
+        return len(self.periods)
 
     def add(self, element_type: str, name: str, **kwargs: object) -> Element[Any, Any]:
         """Add an element to the network by type.
@@ -60,7 +64,7 @@ class Network:
         }
 
         factory = factories[element_type.lower()]
-        element = factory(name=name, period=self.period, n_periods=self.n_periods, **kwargs)
+        element = factory(name=name, periods=self.periods, **kwargs)
         self.elements[name] = element
 
         # Register connections immediately when adding Connection elements

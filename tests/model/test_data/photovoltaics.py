@@ -10,8 +10,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Photovoltaics,
         "data": {
             "name": "pv_no_curtailment",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "forecast": [5.0, 10.0, 8.0],
             "curtailment": False,
         },
@@ -29,8 +28,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Photovoltaics,
         "data": {
             "name": "pv_curtailment",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "forecast": [5.0, 10.0, 8.0],
             "curtailment": True,
             "price_production": [0.0, 0.0, 0.0],
@@ -53,8 +51,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Photovoltaics,
         "data": {
             "name": "pv_cost",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "forecast": [5.0, 10.0, 8.0],
             "curtailment": True,
             "price_production": [0.5, 0.5, 0.5],  # High production cost
@@ -77,8 +74,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Photovoltaics,
         "data": {
             "name": "pv_beneficial",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "forecast": [5.0, 10.0, 8.0],
             "curtailment": True,
             "price_production": [0.0, 0.0, 0.0],
@@ -104,8 +100,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "factory": Photovoltaics,
         "data": {
             "name": "pv_forecast_mismatch",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "forecast": (1.2, 1.4),  # Only 2 instead of 3
             "price_production": (0.1, 0.2, 0.3),
             "curtailment": False,
@@ -117,8 +112,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "factory": Photovoltaics,
         "data": {
             "name": "pv_price_mismatch",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "forecast": (1.2, 1.4, 1.6),
             "price_production": (0.1, 0.2),  # Only 2 instead of 3
             "curtailment": False,

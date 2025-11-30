@@ -65,7 +65,7 @@ The current implementations are in `custom_components/haeo/model/connection.py` 
 ## Cost modelling
 
 Only add costs that reflect real trade-offs.
-If the element interacts with external tariffs or degradation models, expose the relevant coefficients through configuration and ensure the objective contribution uses the shared period length for scaling.
+If the element interacts with external tariffs or degradation models, expose the relevant coefficients through configuration and ensure the objective contribution uses each period's duration for scaling (available via `self.periods[t]`).
 
 ## Related Documentation
 

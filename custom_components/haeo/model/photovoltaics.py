@@ -48,8 +48,7 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
     def __init__(
         self,
         name: str,
-        period: float,
-        n_periods: int,
+        periods: Sequence[float],
         *,
         forecast: Sequence[float],
         curtailment: bool = True,
@@ -59,14 +58,14 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
 
         Args:
             name: Name of the photovoltaics system
-            period: Time period in hours
-            n_periods: Number of time periods
+            periods: Sequence of time period durations in hours (one per optimization interval)
             forecast: Forecasted power generation in kW per period
             price_production: Price in $/kWh for production per period (e.g., maintenance cost)
             curtailment: Whether generation can be curtailed below forecast
 
         """
-        super().__init__(name=name, period=period, n_periods=n_periods)
+        super().__init__(name=name, periods=periods)
+        n_periods = self.n_periods
 
         # Validate forecast length strictly
         if len(forecast) != n_periods:
@@ -109,10 +108,11 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
         if self.price_production is None:
             return []
 
+        # Using variable period durations
         return [
             lpSum(
-                price * power * self.period
-                for price, power in zip(self.price_production, self.power_production, strict=True)
+                price * power * period
+                for price, power, period in zip(self.price_production, self.power_production, self.periods, strict=True)
             )
         ]
 

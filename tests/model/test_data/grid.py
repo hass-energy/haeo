@@ -10,8 +10,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Grid,
         "data": {
             "name": "grid_import",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "import_limit": 10.0,
             "export_limit": 5.0,
             "import_price": [0.1, 0.2, 0.15],
@@ -35,8 +34,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Grid,
         "data": {
             "name": "grid_export",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "import_limit": 10.0,
             "export_limit": 5.0,
             "import_price": [0.1, 0.2, 0.15],
@@ -60,8 +58,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Grid,
         "data": {
             "name": "grid_import_limit",
-            "period": 1.0,
-            "n_periods": 2,
+            "periods": [1.0] * 2,
             "import_limit": 5.0,
             "import_price": [0.1, 0.2],
         },
@@ -81,8 +78,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": Grid,
         "data": {
             "name": "grid_export_limit",
-            "period": 1.0,
-            "n_periods": 2,
+            "periods": [1.0] * 2,
             "export_limit": 4.0,
             "export_price": [0.05, 0.08],
         },
@@ -105,8 +101,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "factory": Grid,
         "data": {
             "name": "grid_import_mismatch",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "import_limit": 5.0,
             "export_limit": 4.0,
             "import_price": (0.3, 0.4),  # Only 2 instead of 3
@@ -119,8 +114,7 @@ INVALID_CASES: list[ElementTestCase] = [
         "factory": Grid,
         "data": {
             "name": "grid_export_mismatch",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "import_limit": 5.0,
             "export_limit": 4.0,
             "import_price": (0.3, 0.4, 0.5),

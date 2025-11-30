@@ -398,11 +398,12 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 ### Data Resolution
 
-Data resolution is less critical than you might expect because HAEO interpolates all data to match your optimization period.
+Data resolution is less critical than you might expect because HAEO interpolates all data to match your optimization intervals.
 However, higher resolution forecasts improve accuracy:
 
-- Use forecasts with resolution matching or finer than your optimization period
-- 5-minute optimization periods work well with 30-minute forecast intervals
+- Use forecasts with resolution matching or finer than your shortest tier duration
+- 1-minute tier 1 intervals work well with 5-minute or finer forecast data
+- Longer tier durations (30-60 minutes) can use coarser forecast intervals
 - Finer forecast data provides more accurate interpolation results
 
 ### Data Quality

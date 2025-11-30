@@ -25,12 +25,11 @@ def test_network_initialization() -> None:
     """Test network initialization."""
     network = Network(
         name="test_network",
-        period=1.0,  # Network expects period in hours
-        n_periods=HOURS_PER_DAY,
+        periods=[1.0] * HOURS_PER_DAY,
     )
 
     assert network.name == "test_network"
-    assert network.period == 1.0  # Period in hours
+    assert network.periods == [1.0] * DEFAULT_PERIODS  # Periods in hours
     assert network.n_periods == DEFAULT_PERIODS
     assert len(network.elements) == 0
 
@@ -39,8 +38,7 @@ def test_network_add_duplicate_element() -> None:
     """Test adding duplicate element to network."""
     network = Network(
         name="test_network",
-        period=1.0,  # Period in hours
-        n_periods=3,
+        periods=[1.0] * 3,
     )
 
     # Add first battery
@@ -58,8 +56,7 @@ def test_connect_entities() -> None:
     """Test connecting entities in the network."""
     network = Network(
         name="test_network",
-        period=1.0,  # Period in hours
-        n_periods=3,
+        periods=[1.0] * 3,
     )
 
     # Add entities
@@ -103,8 +100,7 @@ def test_connect_nonexistent_entities() -> None:
     """Test connecting nonexistent entities."""
     network = Network(
         name="test_network",
-        period=1.0,  # Period in hours
-        n_periods=3,
+        periods=[1.0] * 3,
     )
     network.add(ELEMENT_TYPE_CONNECTION, "bad_connection", source="nonexistent", target="also_nonexistent")
 
@@ -116,8 +112,7 @@ def test_connect_nonexistent_target_entity() -> None:
     """Test connecting to nonexistent target entity."""
     network = Network(
         name="test_network",
-        period=1.0,  # Period in hours
-        n_periods=3,
+        periods=[1.0] * 3,
     )
     # Add only source entity
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
@@ -132,8 +127,7 @@ def test_connect_source_is_connection() -> None:
     """Test connecting when source is a connection element."""
     network = Network(
         name="test_network",
-        period=1.0,  # Period in hours
-        n_periods=3,
+        periods=[1.0] * 3,
     )
     # Add entities and a connection
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
@@ -158,8 +152,7 @@ def test_connect_target_is_connection() -> None:
     """Test connecting when target is a connection element."""
     network = Network(
         name="test_network",
-        period=1.0,  # Period in hours
-        n_periods=3,
+        periods=[1.0] * 3,
     )
     # Add entities and a connection
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
@@ -184,8 +177,7 @@ def test_network_constraint_generation_error() -> None:
     """Test that constraint generation errors are caught and wrapped with context."""
     network = Network(
         name="test_network",
-        period=1.0,  # Period in hours
-        n_periods=3,
+        periods=[1.0] * 3,
     )
 
     # Add a regular battery
@@ -211,8 +203,7 @@ def test_network_invalid_solver() -> None:
     """Test that invalid solver names raise clear errors."""
     network = Network(
         name="test_network",
-        period=1.0,  # Period in hours
-        n_periods=3,
+        periods=[1.0] * 3,
     )
 
     # Add simple network
@@ -229,8 +220,7 @@ def test_network_optimize_validates_before_running() -> None:
     """Test that optimize() calls validate() and catches validation errors."""
     network = Network(
         name="test_network",
-        period=1.0,
-        n_periods=3,
+        periods=[1.0] * 3,
     )
 
     # Add elements but create an invalid connection
@@ -246,8 +236,7 @@ def test_network_optimize_build_constraints_error() -> None:
     """Test that optimize() catches and wraps build_constraints errors."""
     network = Network(
         name="test_network",
-        period=1.0,
-        n_periods=3,
+        periods=[1.0] * 3,
     )
 
     # Add a regular element

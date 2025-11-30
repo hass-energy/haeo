@@ -34,7 +34,7 @@ def safe_value(var: LpVariable | LpAffineExpression | float | None) -> float:
 
 def test_simple_optimization() -> None:
     """Test a simple optimization scenario."""
-    network = Network(name="test_network", period=1.0, n_periods=3)
+    network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add a simple grid and load
     network.add(
@@ -64,7 +64,7 @@ def test_battery_solar_grid_storage_cycle() -> None:
     Uses square wave patterns to force energy storage during high generation
     and discharge during high demand periods.
     """
-    network = Network(name="storage_cycle_test", period=1.0, n_periods=8)
+    network = Network(name="storage_cycle_test", periods=[1.0] * 8)
 
     # Solar generation with square wave pattern: high generation for 4 hours, then none
     solar_forecast = [5000, 5000, 5000, 5000, 0, 0, 0, 0]
@@ -126,7 +126,7 @@ def test_battery_solar_grid_storage_cycle() -> None:
 
 def test_optimization_failure() -> None:
     """Test optimization failure handling."""
-    network = Network(name="test_network", period=1.0, n_periods=3)
+    network = Network(name="test_network", periods=[1.0] * 3)
 
     # Create an infeasible optimization problem with conflicting constraints
     # Add a load that must be met
@@ -156,7 +156,7 @@ def test_optimization_failure() -> None:
 
 def test_connection_power_balance_with_bidirectional_flow() -> None:
     """Test that power balance works correctly with bidirectional power flows."""
-    network = Network(name="test_network", period=1.0, n_periods=3)
+    network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add entities
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
@@ -195,7 +195,7 @@ def test_solar_curtailment_negative_pricing() -> None:
     This scenario tests the system's ability to curtail solar generation
     when export prices are negative (grid operator pays to take power).
     """
-    network = Network(name="curtailment_test", period=1.0, n_periods=6)
+    network = Network(name="curtailment_test", periods=[1.0] * 6)
 
     # High solar generation throughout the test period
     solar_forecast = [6000, 6000, 6000, 6000, 6000, 6000]

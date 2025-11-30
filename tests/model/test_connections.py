@@ -36,9 +36,9 @@ def _solve_connection_scenario(
             for name, output_data in outputs.items()
         }
 
-    # Get n_periods and period from element
+    # Get n_periods and periods from element
     n_periods = element.n_periods
-    period = element.period
+    periods = element.periods
 
     problem = LpProblem(f"test_{element.name}", LpMinimize)
 
@@ -69,9 +69,9 @@ def _solve_connection_scenario(
     # Objective function
     cost_terms = list(element.cost())
     if source_cost != 0.0:
-        cost_terms.append(lpSum(source_vars[i] * source_cost * period for i in range(n_periods)))
+        cost_terms.append(lpSum(source_vars[i] * source_cost * periods[i] for i in range(n_periods)))
     if target_cost != 0.0:
-        cost_terms.append(lpSum(target_vars[i] * target_cost * period for i in range(n_periods)))
+        cost_terms.append(lpSum(target_vars[i] * target_cost * periods[i] for i in range(n_periods)))
     problem += lpSum(cost_terms)
 
     # Solve

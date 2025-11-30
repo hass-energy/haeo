@@ -1,6 +1,6 @@
 """Node for electrical system modeling."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
 from .const import OUTPUT_TYPE_SHADOW_PRICE
@@ -19,16 +19,15 @@ NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALA
 class Node(Element[NodeOutputName, NodeConstraintName]):
     """Node for electrical system modeling."""
 
-    def __init__(self, name: str, period: float, n_periods: int) -> None:
+    def __init__(self, name: str, periods: Sequence[float]) -> None:
         """Initialize a node.
 
         Args:
             name: Name of the node
-            period: Time period in hours (model units)
-            n_periods: Number of time periods
+            periods: Sequence of time period durations in hours (one per optimization interval)
 
         """
-        super().__init__(name=name, period=period, n_periods=n_periods)
+        super().__init__(name=name, periods=periods)
 
     def build_constraints(self) -> None:
         """Build network-dependent constraints for the node.

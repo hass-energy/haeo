@@ -54,8 +54,7 @@ class Grid(Element[GridOutputName, GridConstraintName]):
     def __init__(
         self,
         name: str,
-        period: float,
-        n_periods: int,
+        periods: Sequence[float],
         *,
         import_limit: float | None = None,
         export_limit: float | None = None,
@@ -66,15 +65,15 @@ class Grid(Element[GridOutputName, GridConstraintName]):
 
         Args:
             name: Name of the grid connection
-            period: Time period in hours
-            n_periods: Number of time periods
+            periods: Sequence of time period durations in hours (one per optimization interval)
             import_limit: Maximum import power in kW
             export_limit: Maximum export power in kW
             import_price: Price in $/kWh when importing
             export_price: Price in $/kWh when exporting
 
         """
-        super().__init__(name=name, period=period, n_periods=n_periods)
+        super().__init__(name=name, periods=periods)
+        n_periods = self.n_periods
 
         # Validate import_price length strictly
         if isinstance(import_price, Sequence) and len(import_price) != n_periods:
@@ -113,21 +112,21 @@ class Grid(Element[GridOutputName, GridConstraintName]):
     def cost(self) -> Sequence[LpAffineExpression]:
         """Return the cost expressions of the grid connection."""
         costs: list[LpAffineExpression] = []
-        # Export pricing (revenue when exporting)
+        # Export pricing (revenue when exporting) - using variable period durations
         if self.export_price is not None:
             costs.append(
                 lpSum(
-                    -price * power * self.period
-                    for price, power in zip(self.export_price, self.power_export, strict=True)
+                    -price * power * period
+                    for price, power, period in zip(self.export_price, self.power_export, self.periods, strict=True)
                 )
             )
 
-        # Import pricing (cost when importing)
+        # Import pricing (cost when importing) - using variable period durations
         if self.import_price is not None:
             costs.append(
                 lpSum(
-                    price * power * self.period
-                    for price, power in zip(self.import_price, self.power_import, strict=True)
+                    price * power * period
+                    for price, power, period in zip(self.import_price, self.power_import, self.periods, strict=True)
                 )
             )
 

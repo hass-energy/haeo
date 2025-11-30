@@ -43,13 +43,12 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
     result = await load_network(
         hass,
         entry,
-        period_seconds=1800,
-        n_periods=4,
+        periods_seconds=[1800, 1800, 1800, 1800],
         participants=participants,
         forecast_times=[0, 1800, 3600, 5400, 7200],
     )
 
-    assert result.period == pytest.approx(0.5)
+    assert result.periods == [0.5, 0.5, 0.5, 0.5]  # 1800 seconds = 0.5 hours
     assert "Baseload" in result.elements
 
 
@@ -80,8 +79,7 @@ async def test_load_network_with_missing_sensors(hass: HomeAssistant) -> None:
         await load_network(
             hass,
             entry,
-            period_seconds=1800,
-            n_periods=3,
+            periods_seconds=[1800, 1800, 1800],
             participants=participants,
             forecast_times=forecast_times,
         )
@@ -122,8 +120,7 @@ async def test_load_network_with_unavailable_sensor_state(hass: HomeAssistant) -
         await load_network(
             hass,
             entry,
-            period_seconds=1800,
-            n_periods=3,
+            periods_seconds=[1800, 1800, 1800],
             participants=participants,
             forecast_times=forecast_times,
         )
