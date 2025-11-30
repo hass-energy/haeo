@@ -65,7 +65,7 @@ module.exports = {
       files: ["tests/scenarios/**/states.json", "config/packages/**/*.json"],
       options: {
         objectWrap: "collapse",
-        printWidth: 500,
+        printWidth: 400,
         jsonSortOrder: JSON.stringify({
           // Entity identification and state come first
           entity_id: null,
