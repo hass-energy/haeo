@@ -144,6 +144,7 @@ omit = [
 [tool.mdformat]
 number = true      # Renumber ordered lists
 end_of_line = "lf"
+exclude = ["node_modules/**"]
 
 [tool.setuptools]
 package-dir = { "" = "." }
