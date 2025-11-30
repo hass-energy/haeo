@@ -1,5 +1,5 @@
 {
-  "name": "Home Assistant Energy Optimizer",
   "hacs": "2.0.5",
-  "homeassistant": "2025.4.4"
+  "homeassistant": "2025.4.4",
+  "name": "Home Assistant Energy Optimizer"
 }

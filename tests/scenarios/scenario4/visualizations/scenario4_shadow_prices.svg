@@ -493,12 +493,12 @@ L -3.5 0
 " style="stroke: #000000; stroke-width: 0.8"/>
       </defs>
       <g>
-       <use xlink:href="#me5179b328b" x="70.826719" y="350.221265" style="stroke: #000000; stroke-width: 0.8"/>
+       <use xlink:href="#me5179b328b" x="70.826719" y="319.336245" style="stroke: #000000; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_11">
-      <!-- −0.04 -->
-      <g transform="translate(36.245937 353.640562) scale(0.09 -0.09)">
+      <!-- −0.02 -->
+      <g transform="translate(36.245937 322.755542) scale(0.09 -0.09)">
        <defs>
         <path id="DejaVuSans-2212" d="M 678 2272
 L 4684 2272
@@ -572,6 +572,28 @@ L 1073.066719 311.172457
       </g>
      </g>
     </g>
+    <g id="ytick_2">
+     <g id="line2d_21">
+      <path d="M 70.826719 262.159299
+L 1073.066719 262.159299
+" clip-path="url(#p4ef3301467)" style="fill: none; stroke-dasharray: 0.5,0.825; stroke-dashoffset: 0; stroke: #b0b0b0; stroke-opacity: 0.3; stroke-width: 0.5"/>
+     </g>
+     <g id="line2d_22">
+      <g>
+       <use xlink:href="#me5179b328b" x="70.826719" y="262.159299" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_12">
+      <!-- −0.01 -->
+      <g transform="translate(36.245937 265.578596) scale(0.09 -0.09)">
+       <use xlink:href="#DejaVuSans-2212"/>
+       <use xlink:href="#DejaVuSans-30" transform="translate(83.789062 0)"/>
+       <use xlink:href="#DejaVuSans-2e" transform="translate(147.412109 0)"/>
+       <use xlink:href="#DejaVuSans-30" transform="translate(179.199219 0)"/>
+       <use xlink:href="#DejaVuSans-31" transform="translate(242.822266 0)"/>
+      </g>
+     </g>
+    </g>
     <g id="ytick_3">
      <g id="line2d_23">
       <path d="M 70.826719 272.123649
@@ -580,12 +602,12 @@ L 1073.066719 272.123649
      </g>
      <g id="line2d_24">
       <g>
-       <use xlink:href="#me5179b328b" x="70.826719" y="272.123649" style="stroke: #000000; stroke-width: 0.8"/>
+       <use xlink:href="#me5179b328b" x="70.826719" y="204.982353" style="stroke: #000000; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_13">
       <!-- 0.00 -->
-      <g transform="translate(43.787656 275.542945) scale(0.09 -0.09)">
+      <g transform="translate(43.787656 208.40165) scale(0.09 -0.09)">
        <use xlink:href="#DejaVuSans-30"/>
        <use xlink:href="#DejaVuSans-2e" transform="translate(63.623047 0)"/>
        <use xlink:href="#DejaVuSans-30" transform="translate(95.410156 0)"/>
@@ -602,12 +624,33 @@ L 1073.066719 233.07484
      </g>
      <g id="line2d_26">
       <g>
-       <use xlink:href="#me5179b328b" x="70.826719" y="233.07484" style="stroke: #000000; stroke-width: 0.8"/>
+       <use xlink:href="#me5179b328b" x="70.826719" y="147.805407" style="stroke: #000000; stroke-width: 0.8"/>
       </g>
      </g>
      <g id="text_14">
+      <!-- 0.01 -->
+      <g transform="translate(43.787656 151.224704) scale(0.09 -0.09)">
+       <use xlink:href="#DejaVuSans-30"/>
+       <use xlink:href="#DejaVuSans-2e" transform="translate(63.623047 0)"/>
+       <use xlink:href="#DejaVuSans-30" transform="translate(95.410156 0)"/>
+       <use xlink:href="#DejaVuSans-31" transform="translate(159.033203 0)"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_27">
+      <path d="M 70.826719 90.628461
+L 1073.066719 90.628461
+" clip-path="url(#p4ef3301467)" style="fill: none; stroke-dasharray: 0.5,0.825; stroke-dashoffset: 0; stroke: #b0b0b0; stroke-opacity: 0.3; stroke-width: 0.5"/>
+     </g>
+     <g id="line2d_28">
+      <g>
+       <use xlink:href="#me5179b328b" x="70.826719" y="90.628461" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_15">
       <!-- 0.02 -->
-      <g transform="translate(43.787656 236.494137) scale(0.09 -0.09)">
+      <g transform="translate(43.787656 94.047758) scale(0.09 -0.09)">
        <use xlink:href="#DejaVuSans-30"/>
        <use xlink:href="#DejaVuSans-2e" transform="translate(63.623047 0)"/>
        <use xlink:href="#DejaVuSans-30" transform="translate(95.410156 0)"/>

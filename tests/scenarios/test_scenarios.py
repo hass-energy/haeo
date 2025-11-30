@@ -81,8 +81,13 @@ async def test_scenarios(
         )
         mock_config_entry.add_to_hass(hass)
 
+        # Sort the participants to ensure that connections are always added last
+        participant_items = sorted(
+            scenario_config["participants"].items(),
+            key=lambda item: item[1][CONF_ELEMENT_TYPE] == "connection",
+        )
         # Create element subentries from the scenario config
-        for name, config in scenario_config["participants"].items():
+        for name, config in participant_items:
             subentry = ConfigSubentry(
                 data=MappingProxyType(config), subentry_type=config[CONF_ELEMENT_TYPE], title=name, unique_id=None
             )
