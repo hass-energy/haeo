@@ -161,13 +161,23 @@ The forecast attribute should be an array of time-value pairs:
 
 ```json
 [
-  {"time": "2025-11-30T00:00:00+10:00", "value": 1.234},
-  {"time": "2025-11-30T01:00:00+10:00", "value": 1.456},
-  {"time": "2025-11-30T02:00:00+10:00", "value": 1.789}
+  {
+    "time": "2025-11-30T00:00:00+10:00",
+    "value": 1.234
+  },
+  {
+    "time": "2025-11-30T01:00:00+10:00",
+    "value": 1.456
+  },
+  {
+    "time": "2025-11-30T02:00:00+10:00",
+    "value": 1.789
+  }
 ]
 ```
 
 Each entry contains:
+
 - `time`: ISO 8601 timestamp string with timezone (e.g., `2025-11-30T00:00:00+10:00`)
 - `value`: Numeric forecast value in the sensor's unit of measurement
 
