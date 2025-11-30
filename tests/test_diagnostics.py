@@ -63,7 +63,8 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
             CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
-        entry_id="test_entry")
+        entry_id="test_entry",
+    )
     entry.add_to_hass(hass)
     entry.runtime_data = None
 
@@ -107,7 +108,8 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
             CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
-        entry_id="hub_entry")
+        entry_id="hub_entry",
+    )
     entry.add_to_hass(hass)
 
     battery_subentry = ConfigSubentry(
@@ -124,7 +126,8 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
         title="Battery One",
-        unique_id=None)
+        unique_id=None,
+    )
     hass.config_entries.async_add_subentry(entry, battery_subentry)
 
     # Set up sensor states that should be captured
@@ -191,7 +194,8 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
             CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
-        entry_id="hub_entry")
+        entry_id="hub_entry",
+    )
     entry.add_to_hass(hass)
 
     # Add a network subentry (should be skipped)
