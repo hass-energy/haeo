@@ -101,10 +101,7 @@ class Parser:
         forecast = state.attributes["forecast"]
 
         # Parse list of {"time": ..., "value": ...} dicts
-        parsed = [
-            (parse_datetime_to_timestamp(item["time"]), float(item["value"]))
-            for item in forecast
-        ]
+        parsed = [(parse_datetime_to_timestamp(item["time"]), float(item["value"])) for item in forecast]
         parsed.sort(key=lambda x: x[0])
 
         unit = state.attributes["unit_of_measurement"]
