@@ -87,8 +87,10 @@ async def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, F
             # Get sensor display name from translations (output_name is the translation_key)
             sensor_name = translations[f"component.{DOMAIN}.entity.sensor.{output_name}.name"]
 
+            # Parse list format: list of {"time": datetime, "value": number}
+            forecast_attr = sensor.attributes["forecast"]
             forecast: Sequence[tuple[float, float]] = sorted(
-                (dt.timestamp(), value) for dt, value in sensor.attributes["forecast"].items()
+                (item["time"].timestamp(), item["value"]) for item in forecast_attr
             )
 
             entry = forecast_data.setdefault(
