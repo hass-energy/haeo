@@ -47,12 +47,12 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_power_balance": {
                 "type": "shadow_price",
                 "unit": "$/kW",
-                "values": (0.0, 0.001, 0.004),
+                "values": (0.002, 0.001, 0.0),
             },
             "battery_normal_energy_in_flow": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.004),
+                "values": (0.0, 0.0, 0.0),
             },
             "battery_normal_energy_out_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
             "battery_normal_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
