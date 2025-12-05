@@ -7,7 +7,7 @@ from pulp import LpVariable
 
 from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
 from .output_data import OutputData
-from .source_sink import SOURCE_SINK_POWER_BALANCE, SourceSink
+from .source_sink import SourceSink
 
 GRID_POWER_IMPORTED: Final = "grid_power_imported"
 GRID_POWER_EXPORTED: Final = "grid_power_exported"
@@ -37,10 +37,10 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
 
 class Grid(SourceSink[GridOutputName, GridConstraintName]):
     """Unified Grid entity for electrical system modeling.
-    
+
     Grid acts as an infinite source/sink. Power limits and pricing are configured
     on the Connection to the grid.
-    
+
     Inherits from SourceSink but provides grid-specific output names for translations.
     """
 

@@ -7,7 +7,7 @@ from pulp import LpVariable
 
 from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
 from .output_data import OutputData
-from .source_sink import SOURCE_SINK_POWER_BALANCE, SourceSink
+from .source_sink import SourceSink
 
 PHOTOVOLTAICS_POWER_PRODUCED: Final = "photovoltaics_power_produced"
 
@@ -34,10 +34,10 @@ PHOTOVOLTAICS_OUTPUT_NAMES: Final[frozenset[PhotovoltaicsOutputName]] = frozense
 
 class Photovoltaics(SourceSink[PhotovoltaicsOutputName, PhotovoltaicsConstraintName]):
     """Photovoltaics (solar) entity for electrical system modeling.
-    
+
     Photovoltaics acts as an infinite power source. Power limits (forecast), curtailment,
     and pricing are configured on the Connection from the photovoltaics.
-    
+
     Inherits from SourceSink but provides photovoltaics-specific output names for translations.
     """
 

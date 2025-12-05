@@ -1,11 +1,11 @@
 """Base SourceSink entity for electrical system modeling."""
 
 from collections.abc import Mapping
-from typing import Final, Generic, Literal, TypeVar
+from typing import Final, Literal, TypeVar
 
 from pulp import LpVariable
 
-from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
+from .const import OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
 from .output_data import OutputData
 
@@ -20,12 +20,12 @@ TOutputName = TypeVar("TOutputName", bound=str)
 TConstraintName = TypeVar("TConstraintName", bound=str)
 
 
-class SourceSink(Element[TOutputName, TConstraintName], Generic[TOutputName, TConstraintName]):
+class SourceSink(Element[TOutputName, TConstraintName]):
     """Base SourceSink entity for electrical system modeling.
-    
+
     SourceSink acts as an infinite source or sink. Power limits and pricing are configured
     on the Connection to/from the source/sink.
-    
+
     This is a base class for Grid, Load, and Photovoltaics which all behave as
     infinite sources or sinks with no internal logic beyond power balance.
     """
@@ -54,20 +54,22 @@ class SourceSink(Element[TOutputName, TConstraintName], Generic[TOutputName, TCo
 
         This includes power balance constraints using connection_power().
         Power limits and pricing are handled by the Connection to/from the source/sink.
+
+        Note: Subclasses should override this to use their specific constraint names.
         """
-        self._constraints[SOURCE_SINK_POWER_BALANCE] = [
-            self.connection_power(t) + self.power[t] == 0 for t in range(self.n_periods)
-        ]
+        # Don't set constraints here - subclasses will override and use their own names
 
     def outputs(self) -> Mapping[TOutputName, OutputData]:
-        """Return the outputs for the source/sink."""
+        """Return the outputs for the source/sink.
 
+        Subclasses must override this to provide element-specific output names.
+        """
         # Subclasses should override this to provide element-specific output names
         outputs: dict[TOutputName, OutputData] = {}
 
         for constraint_name in self._constraints:
-            # Type ignore because constraint_name is str but we need TOutputName
-            outputs[constraint_name] = OutputData(  # type: ignore[misc]
+            # Constraint names are strings that subclasses ensure match TOutputName
+            outputs[constraint_name] = OutputData(  # type: ignore[index]
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit="$/kW",
                 values=self._constraints[constraint_name],

@@ -7,7 +7,7 @@ from pulp import LpVariable
 
 from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
 from .output_data import OutputData
-from .source_sink import SOURCE_SINK_POWER_BALANCE, SourceSink
+from .source_sink import SourceSink
 
 LOAD_POWER_CONSUMED: Final = "load_power_consumed"
 
@@ -27,10 +27,10 @@ LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
 
 class Load(SourceSink[LoadOutputName, LoadConstraintName]):
     """Load entity for electrical system modeling.
-    
+
     Load acts as an infinite sink. Power limits and pricing are configured
     on the Connection to the load.
-    
+
     Inherits from SourceSink but provides load-specific output names for translations.
     """
 
