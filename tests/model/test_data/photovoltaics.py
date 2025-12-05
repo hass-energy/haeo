@@ -33,7 +33,6 @@ VALID_CASES: list[ElementTestCase] = [
             "n_periods": 3,
             "forecast": [5.0, 10.0, 8.0],
             "curtailment": True,
-            "price_production": [0.0, 0.0, 0.0],
         },
         "inputs": {
             "power": [None, None, None],  # Infinite
@@ -43,13 +42,12 @@ VALID_CASES: list[ElementTestCase] = [
         "expected_outputs": {
             "photovoltaics_power_available": {"type": "power_limit", "unit": "kW", "values": (5.0, 10.0, 8.0)},
             "photovoltaics_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "photovoltaics_price_production": {"type": "price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
             "photovoltaics_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)},
             "photovoltaics_forecast_limit": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
         },
     },
     {
-        "description": "Photovoltaics with production cost outweighing benefit",
+        "description": "Photovoltaics with external cost structure",
         "factory": Photovoltaics,
         "data": {
             "name": "pv_cost",
@@ -57,19 +55,17 @@ VALID_CASES: list[ElementTestCase] = [
             "n_periods": 3,
             "forecast": [5.0, 10.0, 8.0],
             "curtailment": True,
-            "price_production": [0.5, 0.5, 0.5],  # High production cost
         },
         "inputs": {
             "power": [None, None, None],
-            "input_cost": 0.1,  # Low benefit for consuming
+            "input_cost": 0.1,  # External benefit for consuming PV power
             "output_cost": -0.1,
         },
         "expected_outputs": {
             "photovoltaics_power_available": {"type": "power_limit", "unit": "kW", "values": (5.0, 10.0, 8.0)},
-            "photovoltaics_power_produced": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "photovoltaics_price_production": {"type": "price", "unit": "$/kWh", "values": (0.5, 0.5, 0.5)},
+            "photovoltaics_power_produced": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
             "photovoltaics_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.1, 0.1, 0.1)},
-            "photovoltaics_forecast_limit": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
+            "photovoltaics_forecast_limit": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)},
         },
     },
     {
@@ -81,7 +77,6 @@ VALID_CASES: list[ElementTestCase] = [
             "n_periods": 3,
             "forecast": [5.0, 10.0, 8.0],
             "curtailment": True,
-            "price_production": [0.0, 0.0, 0.0],
         },
         "inputs": {
             "power": [None, None, None],
@@ -91,7 +86,6 @@ VALID_CASES: list[ElementTestCase] = [
         "expected_outputs": {
             "photovoltaics_power_available": {"type": "power_limit", "unit": "kW", "values": (5.0, 10.0, 8.0)},
             "photovoltaics_power_produced": {"type": "power", "unit": "kW", "values": (5.0, 10.0, 8.0)},
-            "photovoltaics_price_production": {"type": "price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
             "photovoltaics_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.2, 0.2, 0.2)},
             "photovoltaics_forecast_limit": {"type": "shadow_price", "unit": "$/kW", "values": (-0.2, -0.2, -0.2)},
         },
@@ -107,20 +101,6 @@ INVALID_CASES: list[ElementTestCase] = [
             "period": 1.0,
             "n_periods": 3,
             "forecast": (1.2, 1.4),  # Only 2 instead of 3
-            "price_production": (0.1, 0.2, 0.3),
-            "curtailment": False,
-        },
-        "expected_error": "Sequence length .* must match n_periods",
-    },
-    {
-        "description": "Photovoltaics with price_production length mismatch",
-        "factory": Photovoltaics,
-        "data": {
-            "name": "pv_price_mismatch",
-            "period": 1.0,
-            "n_periods": 3,
-            "forecast": (1.2, 1.4, 1.6),
-            "price_production": (0.1, 0.2),  # Only 2 instead of 3
             "curtailment": False,
         },
         "expected_error": "Sequence length .* must match n_periods",
