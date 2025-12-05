@@ -12,7 +12,6 @@ from .util import broadcast_to_sequence
 
 PHOTOVOLTAICS_POWER_PRODUCED: Final = "photovoltaics_power_produced"
 PHOTOVOLTAICS_POWER_AVAILABLE: Final = "photovoltaics_power_available"
-PHOTOVOLTAICS_PRICE_PRODUCTION: Final = "photovoltaics_price_production"
 
 PHOTOVOLTAICS_POWER_BALANCE: Final = "photovoltaics_power_balance"
 PHOTOVOLTAICS_FORECAST_LIMIT: Final = "photovoltaics_forecast_limit"
@@ -26,7 +25,6 @@ type PhotovoltaicsOutputName = (
     Literal[
         "photovoltaics_power_produced",
         "photovoltaics_power_available",
-        "photovoltaics_price_production",
     ]
     | PhotovoltaicsConstraintName
 )
@@ -35,7 +33,6 @@ PHOTOVOLTAICS_OUTPUT_NAMES: Final[frozenset[PhotovoltaicsOutputName]] = frozense
     (
         PHOTOVOLTAICS_POWER_PRODUCED,
         PHOTOVOLTAICS_POWER_AVAILABLE,
-        PHOTOVOLTAICS_PRICE_PRODUCTION,
         PHOTOVOLTAICS_POWER_BALANCE,
         PHOTOVOLTAICS_FORECAST_LIMIT,
     )
@@ -43,7 +40,11 @@ PHOTOVOLTAICS_OUTPUT_NAMES: Final[frozenset[PhotovoltaicsOutputName]] = frozense
 
 
 class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName]):
-    """Photovoltaics (solar) entity for electrical system modeling."""
+    """Photovoltaics (solar) entity for electrical system modeling.
+    
+    Photovoltaics acts as a power source with optional curtailment.
+    Pricing is configured on the Connection from the photovoltaics.
+    """
 
     def __init__(
         self,
@@ -53,7 +54,6 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
         *,
         forecast: Sequence[float],
         curtailment: bool = True,
-        price_production: Sequence[float] | None = None,
     ) -> None:
         """Initialize a photovoltaics entity.
 
@@ -62,7 +62,6 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
             period: Time period in hours
             n_periods: Number of time periods
             forecast: Forecasted power generation in kW per period
-            price_production: Price in $/kWh for production per period (e.g., maintenance cost)
             curtailment: Whether generation can be curtailed below forecast
 
         """
@@ -73,14 +72,8 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
             msg = f"Sequence length {len(forecast)} must match n_periods {n_periods}"
             raise ValueError(msg)
 
-        # Validate price_production length strictly
-        if isinstance(price_production, Sequence) and len(price_production) != n_periods:
-            msg = f"Sequence length {len(price_production)} must match n_periods {n_periods}"
-            raise ValueError(msg)
-
         # Validate and store forecasts
         self.forecast = broadcast_to_sequence(forecast, n_periods)
-        self.price_production = broadcast_to_sequence(price_production, n_periods)
         self.curtailment = curtailment
 
         # Power production variables or constants
@@ -99,21 +92,10 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
         """Build network-dependent constraints for the photovoltaics.
 
         This includes power balance constraints using connection_power().
+        Pricing is handled by the Connection from the photovoltaics.
         """
         self._constraints[PHOTOVOLTAICS_POWER_BALANCE] = [
             self.connection_power(t) + self.power_production[t] == 0 for t in range(self.n_periods)
-        ]
-
-    def cost(self) -> Sequence[LpAffineExpression]:
-        """Return the cost expressions of the photovoltaics."""
-        if self.price_production is None:
-            return []
-
-        return [
-            lpSum(
-                price * power * self.period
-                for price, power in zip(self.price_production, self.power_production, strict=True)
-            )
         ]
 
     def outputs(self) -> Mapping[PhotovoltaicsOutputName, OutputData]:
@@ -127,11 +109,6 @@ class Photovoltaics(Element[PhotovoltaicsOutputName, PhotovoltaicsConstraintName
                 type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=self.forecast, direction="+"
             ),
         }
-
-        if self.price_production is not None:
-            outputs[PHOTOVOLTAICS_PRICE_PRODUCTION] = OutputData(
-                type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=self.price_production
-            )
 
         # Shadow prices
         for constraint_name in self._constraints:

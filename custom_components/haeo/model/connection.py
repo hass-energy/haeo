@@ -15,10 +15,12 @@ CONNECTION_POWER_TARGET_SOURCE: Final = "connection_power_target_source"
 
 CONNECTION_MAX_POWER_SOURCE_TARGET: Final = "connection_max_power_source_target"
 CONNECTION_MAX_POWER_TARGET_SOURCE: Final = "connection_max_power_target_source"
+CONNECTION_TIME_SLICE: Final = "connection_time_slice"
 
 type ConnectionConstraintName = Literal[
     "connection_max_power_source_target",
     "connection_max_power_target_source",
+    "connection_time_slice",
 ]
 
 type ConnectionOutputName = (
@@ -35,6 +37,7 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
         CONNECTION_POWER_TARGET_SOURCE,
         CONNECTION_MAX_POWER_SOURCE_TARGET,
         CONNECTION_MAX_POWER_TARGET_SOURCE,
+        CONNECTION_TIME_SLICE,
     )
 )
 
@@ -109,6 +112,15 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         # Store prices (None means no cost)
         self.price_source_target = price_source_target
         self.price_target_source = price_target_source
+
+        # Time slicing constraint: prevent simultaneous full bidirectional power flow
+        # This allows cycling but on a time-sliced basis (e.g., 50% forward, 50% backward)
+        if st_bounds is not None and ts_bounds is not None:
+            self._constraints[CONNECTION_TIME_SLICE] = [
+                self.power_source_target[t] / st_bounds[t] + self.power_target_source[t] / ts_bounds[t] <= 1.0
+                for t in range(n_periods)
+                if st_bounds[t] > 0 and ts_bounds[t] > 0
+            ]
 
     def cost(self) -> Sequence[LpAffineExpression]:
         """Return the cost expressions of the connection with transfer pricing.
