@@ -1,14 +1,13 @@
 """Grid entity for electrical system modeling with separate import/export pricing."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Final, Literal
 
-from pulp import LpAffineExpression, LpVariable, lpSum
+from pulp import LpVariable
 
-from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE
-from .element import Element
+from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
 from .output_data import OutputData
-from .util import broadcast_to_sequence
+from .source_sink import SOURCE_SINK_POWER_BALANCE, SourceSink
 
 GRID_POWER_IMPORTED: Final = "grid_power_imported"
 GRID_POWER_EXPORTED: Final = "grid_power_exported"
@@ -36,11 +35,13 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
 )
 
 
-class Grid(Element[GridOutputName, GridConstraintName]):
+class Grid(SourceSink[GridOutputName, GridConstraintName]):
     """Unified Grid entity for electrical system modeling.
     
     Grid acts as an infinite source/sink. Power limits and pricing are configured
     on the Connection to the grid.
+    
+    Inherits from SourceSink but provides grid-specific output names for translations.
     """
 
     def __init__(
@@ -70,6 +71,7 @@ class Grid(Element[GridOutputName, GridConstraintName]):
         This includes power balance constraints using connection_power().
         Power limits and pricing are handled by the Connection to the grid.
         """
+        # Use grid-specific constraint name for translations
         self._constraints[GRID_POWER_BALANCE] = [
             self.connection_power(t) - self.power_export[t] + self.power_import[t] == 0 for t in range(self.n_periods)
         ]

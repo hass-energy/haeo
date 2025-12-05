@@ -12,7 +12,6 @@ VALID_CASES: list[ElementTestCase] = [
             "name": "load",
             "period": 1.0,
             "n_periods": 3,
-            "forecast": [1.0, 1.5, 2.0],
         },
         "inputs": {
             "power": [1.0, 1.5, 2.0],  # Power flowing into load (consumption)
@@ -30,10 +29,14 @@ VALID_CASES: list[ElementTestCase] = [
             "name": "load_zero",
             "period": 1.0,
             "n_periods": 2,
-            "forecast": [0.0, 0.0],
+        },
+        "inputs": {
+            "power": [0.0, 0.0],
+            "input_cost": 0.0,
         },
         "expected_outputs": {
             "load_power_consumed": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
+            "load_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
         },
     },
     {
@@ -43,35 +46,16 @@ VALID_CASES: list[ElementTestCase] = [
             "name": "load_high",
             "period": 1.0,
             "n_periods": 4,
-            "forecast": [10.0, 15.0, 12.0, 8.0],
+        },
+        "inputs": {
+            "power": [10.0, 15.0, 12.0, 8.0],
+            "input_cost": 0.0,
         },
         "expected_outputs": {
             "load_power_consumed": {"type": "power", "unit": "kW", "values": (10.0, 15.0, 12.0, 8.0)},
+            "load_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0, 0.0)},
         },
     },
 ]
 
-INVALID_CASES: list[ElementTestCase] = [
-    {
-        "description": "Load with forecast length mismatch",
-        "factory": Load,
-        "data": {
-            "name": "load_mismatch",
-            "period": 1.0,
-            "n_periods": 3,
-            "forecast": [1.0, 1.5],  # Only 2 instead of 3
-        },
-        "expected_error": "Sequence length .* must match n_periods",
-    },
-    {
-        "description": "Load with forecast length mismatch (single value broadcast)",
-        "factory": Load,
-        "data": {
-            "name": "load_broadcast_attempt",
-            "period": 1.0,
-            "n_periods": 3,
-            "forecast": [1.0],  # Length 1, not allowed
-        },
-        "expected_error": "Sequence length .* must match n_periods",
-    },
-]
+INVALID_CASES: list[ElementTestCase] = []
