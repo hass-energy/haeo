@@ -203,6 +203,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 3.0)},
             "connection_max_power_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
             "connection_max_power_target_source": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
+            "connection_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
         },
     },
 ]
