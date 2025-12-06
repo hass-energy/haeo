@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.13.2, <3.14"
 
 [[package]]
@@ -919,15 +919,6 @@ wheels = [
 ]
 
 [[package]]
-name = "graphviz"
-version = "0.21"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f8/b3/3ac91e9be6b761a4b30d66ff165e54439dcd48b83f4e20d644867215f6ca/graphviz-0.21.tar.gz", hash = "sha256:20743e7183be82aaaa8ad6c93f8893c923bd6658a04c32ee115edb3c8a835f78", size = 200434, upload-time = "2025-06-15T09:35:05.824Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/4c/e0ce1ef95d4000ebc1c11801f9b944fa5910ecc15b5e351865763d8657f8/graphviz-0.21-py3-none-any.whl", hash = "sha256:54f33de9f4f911d7e84e4191749cac8cc5653f815b06738c54db9a15ab8b1e42", size = 47300, upload-time = "2025-06-15T09:35:04.433Z" },
-]
-
-[[package]]
 name = "greenlet"
 version = "3.2.4"
 source = { registry = "https://pypi.org/simple" }
@@ -997,7 +988,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "freezegun" },
-    { name = "graphviz" },
     { name = "matplotlib" },
     { name = "mdformat" },
     { name = "mdformat-beautysh" },
@@ -1014,6 +1004,7 @@ dev = [
     { name = "mkdocs-git-revision-date-localized-plugin" },
     { name = "mkdocs-material" },
     { name = "mypy" },
+    { name = "networkx" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-homeassistant-custom-component" },
@@ -1032,7 +1023,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "freezegun", specifier = "==1.5.2" },
-    { name = "graphviz", specifier = ">=0.21" },
     { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "mdformat", specifier = ">=0.7.22" },
     { name = "mdformat-beautysh", specifier = ">=1.0.0" },
@@ -1049,6 +1039,7 @@ dev = [
     { name = "mkdocs-git-revision-date-localized-plugin", specifier = ">=1.3.0" },
     { name = "mkdocs-material", specifier = ">=9.5.47" },
     { name = "mypy", specifier = ">=1.18.2" },
+    { name = "networkx", specifier = ">=3.4.2" },
     { name = "pytest", specifier = ">=8.3.5,<=9.0.1" },
     { name = "pytest-cov", specifier = ">=6.1.1,<=6.2.1" },
     { name = "pytest-homeassistant-custom-component", specifier = ">=0.13.260,<=0.13.294" },
@@ -1774,6 +1765,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8dac321cda606860fa4548858c0cc45d9d1d4ca2628b/mypy_extensions-1.1.0.tar.gz", hash = "sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558", size = 6343, upload-time = "2025-04-22T14:54:24.164Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505", size = 4963, upload-time = "2025-04-22T14:54:22.983Z" },
+]
+
+[[package]]
+name = "networkx"
+version = "3.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/fc/7b6fd4d22c8c4dc5704430140d8b3f520531d4fe7328b8f8d03f5a7950e8/networkx-3.6.tar.gz", hash = "sha256:285276002ad1f7f7da0f7b42f004bcba70d381e936559166363707fdad3d72ad", size = 2511464, upload-time = "2025-11-24T03:03:47.158Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/c7/d64168da60332c17d24c0d2f08bdf3987e8d1ae9d84b5bbd0eec2eb26a55/networkx-3.6-py3-none-any.whl", hash = "sha256:cdb395b105806062473d3be36458d8f1459a4e4b98e236a66c3a48996e07684f", size = 2063713, upload-time = "2025-11-24T03:03:45.21Z" },
 ]
 
 [[package]]

@@ -5,61 +5,46 @@ with current and maximum power flows.
 """
 
 import logging
+import math
 from pathlib import Path
 from typing import Any
 
-from graphviz import Digraph
 from homeassistant.core import HomeAssistant
+import matplotlib.pyplot as plt
+import networkx as nx
+
+from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _format_power_label(current_kw: float | None, max_kw: float | None) -> str:
-    """Format power label for display."""
-    if current_kw is None or current_kw == 0:
-        return ""
-
-    if max_kw is None:
-        return f"{current_kw:.1f}kW"
-
-    return f"{current_kw:.1f}kW/{max_kw:.1f}kW"
+def _format_power_label(current_kw: float, min_kw: float, max_kw: float) -> str:
+    """Format power label for display with min/max range."""
+    return "".join(
+        [
+            f"{f'{min_kw:.1f} < ' if math.isfinite(min_kw) else ''}",
+            f"{current_kw:.1f}kW",
+            f"{f' < {max_kw:.1f}' if math.isfinite(max_kw) else ''}",
+        ]
+    )
 
 
 def _get_connection_power_flows(
     connection_name: str, forecast_data: dict[str, Any], connection_config: dict[str, Any]
-) -> tuple[tuple[float | None, float | None], tuple[float | None, float | None]]:
-    """Get power flows for both directions of a connection.
-
-    Returns:
-        Tuple of ((source_to_target_power, source_to_target_max), (target_to_source_power, target_to_source_max))
-
-    """
+) -> tuple[float, float, float]:
+    """Get the power flow and bounds for a connection."""
     # Get data from forecast_data if available
     connection_data = forecast_data.get(connection_name, {})
 
-    # Get current power from forecasts
-    st_power = None
-    ts_power = None
+    # Get the forward and reverse power flows defaulting to 0.0 if not available
+    fwd = connection_data.get("connection_flow_forward", [[0, 0.0]])[0][1]
+    rev = connection_data.get("connection_flow_reverse", [[0, 0.0]])[0][1]
 
-    production = connection_data.get("production")
-    consumption = connection_data.get("consumption")
+    # Get max power from config, default to inf if not available
+    max_fwd = connection_config.get("max_power_source_target", float("inf"))
+    max_rev = connection_config.get("max_power_target_source", float("inf"))
 
-    if production and len(production) > 0:
-        # Production means power flowing in positive direction
-        st_power = production[0][1]
-
-    if consumption and len(consumption) > 0:
-        # Consumption means power flowing in negative direction
-        ts_power = abs(consumption[0][1])
-
-    # Get max power from config
-    st_max = connection_config.get("max_power_source_target")
-    ts_max = connection_config.get("max_power_target_source")
-
-    st_max = float(st_max) if st_max is not None else None
-    ts_max = float(ts_max) if ts_max is not None else None
-
-    return (st_power, st_max), (ts_power, ts_max)
+    return fwd - rev, -max_rev, max_fwd
 
 
 async def create_graph_visualization(
@@ -73,117 +58,113 @@ async def create_graph_visualization(
 ) -> None:
     """Create a graph visualization of the network topology."""
 
-    # Create a new directed graph with deterministic settings
-    dot = Digraph(comment=title, format="svg")
-
-    # Use dot layout engine with fixed seed for deterministic output
-    dot.engine = "dot"
-    dot.graph_attr.update(
-        {
-            "rankdir": "LR",  # Left to right layout
-            "ranksep": "1.5",  # Space between ranks
-            "nodesep": "0.8",  # Space between nodes
-            "concentrate": "false",  # Don't merge edges - show both directions
-            "bgcolor": "white",
-            "fontname": "Arial",
-            "fontsize": "14",
-            "label": title,
-            "labelloc": "t",  # Title at top
-        }
-    )
-
-    dot.node_attr.update(
-        {
-            "shape": "box",
-            "style": "rounded,filled",
-            "fillcolor": "lightblue",
-            "fontname": "Arial",
-            "fontsize": "12",
-            "margin": "0.3,0.2",
-        }
-    )
-
-    dot.edge_attr.update(
-        {
-            "fontname": "Arial",
-            "fontsize": "10",
-            "color": "gray30",
-        }
-    )
-
-    # Track which elements we've added
-    added_nodes: set[str] = set()
+    # Create directed graph
+    graph: nx.DiGraph[str] = nx.DiGraph()
 
     # Get participants from config
     participants = config.get("participants", {})
+
+    # Color map for element types
+    color_map = {
+        "battery": "#98df8a",  # Light green
+        "photovoltaics": "#ffbb78",  # Light orange
+        "grid": "#aec7e8",  # Light blue
+        "load": "#d3d3d3",  # Light gray
+        "node": "#f0f0f0",  # Very light gray
+    }
 
     # First pass: add all non-connection elements as nodes
     for name, element_config in participants.items():
         element_type = element_config.get("element_type", "")
 
-        if element_type == "connection":
-            continue
+        if element_type != ELEMENT_TYPE_CONNECTION:
+            fillcolor = color_map.get(element_type, "lightgray")
+            graph.add_node(name, color=fillcolor, element_type=element_type)
 
-        # Determine node color based on element type
-        color_map = {
-            "battery": "#98df8a",  # Light green
-            "photovoltaics": "#ffbb78",  # Light orange
-            "grid": "#aec7e8",  # Light blue
-            "load": "#d3d3d3",  # Light gray
-            "node": "#f0f0f0",  # Very light gray
-        }
-        fillcolor = color_map.get(element_type, "lightgray")
-
-        # Create node label with element type
-        label = f"{name}\\n({element_type})"
-
-        dot.node(name, label=label, fillcolor=fillcolor)
-        added_nodes.add(name)
-
-    # Second pass: add connections as edges (separate edge for each direction)
+    # Second pass: add connections as edges
     for name, element_config in participants.items():
         element_type = element_config.get("element_type", "")
 
-        if element_type != "connection":
-            continue
+        if element_type == ELEMENT_TYPE_CONNECTION:
+            source = element_config.get("source")
+            target = element_config.get("target")
 
-        source = element_config.get("source")
-        target = element_config.get("target")
+            # Get power flows for both directions
+            (net_flow, min_flow, max_flow) = _get_connection_power_flows(name, forecast_data, element_config)
+            label = _format_power_label(net_flow, min_flow, max_flow)
+            graph.add_edge(source, target, label=label)
 
-        if not source or not target:
-            _LOGGER.warning("Connection %s missing source or target", name)
-            continue
+    # Use spectral layout for deterministic positioning
+    pos = nx.spectral_layout(graph)
 
-        if source not in added_nodes or target not in added_nodes:
-            _LOGGER.warning("Connection %s references unknown element: %s -> %s", name, source, target)
-            continue
+    # Create figure
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.set_title(title, fontsize=14, pad=20)
 
-        # Get power flows for both directions
-        (st_power, st_max), (ts_power, ts_max) = _get_connection_power_flows(name, forecast_data, element_config)
+    # Draw nodes with type-specific colors
+    for node in graph.nodes():
+        node_color = graph.nodes[node].get("color", "lightgray")
+        element_type = graph.nodes[node].get("element_type", "")
 
-        # Add edge from source to target if there's power flow or max limit
-        st_label = _format_power_label(st_power, st_max)
-        if st_label:
-            dot.edge(source, target, label=st_label)
+        nx.draw_networkx_nodes(
+            graph,
+            pos,
+            nodelist=[node],
+            node_color=node_color,
+            node_size=3000,
+            node_shape="o",
+            edgecolors="black",
+            linewidths=1.5,
+            ax=ax,
+        )
 
-        # Add edge from target to source if there's power flow or max limit
-        ts_label = _format_power_label(ts_power, ts_max)
-        if ts_label:
-            dot.edge(target, source, label=ts_label)
+        # Draw node label with element name and type
+        label_text = f"{node}\n({element_type})"
+        nx.draw_networkx_labels(graph, pos, labels={node: label_text}, font_size=10, font_family="sans-serif", ax=ax)
+
+    # Draw edges with arrows
+    nx.draw_networkx_edges(
+        graph,
+        pos,
+        edge_color="#666666",
+        arrows=True,
+        arrowsize=25,
+        arrowstyle="->",
+        width=2.5,
+        node_size=3000,
+        min_source_margin=15,
+        min_target_margin=15,
+        ax=ax,
+    )
+
+    # Draw edge labels on curved edges
+    edge_labels = nx.get_edge_attributes(graph, "label")
+    nx.draw_networkx_edge_labels(
+        graph,
+        pos,
+        edge_labels=edge_labels,
+        font_size=8,
+        bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "edgecolor": "none", "alpha": 0.8},
+        font_color="#333333",
+        ax=ax,
+    )
+
+    # Remove axis
+    ax.axis("off")
+    plt.tight_layout()
 
     # Save the graph
     output_dir = Path(output_path).parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Render to SVG
-    output_file = Path(output_path).with_suffix("")  # Remove .svg suffix
-    dot.render(str(output_file), cleanup=True)  # cleanup removes the intermediate .gv file
-
+    # Save as SVG
+    plt.savefig(output_path, format="svg", bbox_inches="tight", dpi=300)
     _LOGGER.info("Graph visualization saved to %s", output_path)
 
-    # Optionally save as PNG for easier viewing
+    # Optionally save as PNG
     if generate_png:
         png_path = str(output_path).replace(".svg", ".png")
-        dot.format = "png"
-        dot.render(str(Path(png_path).with_suffix("")), cleanup=True)
+        plt.savefig(png_path, format="png", bbox_inches="tight", dpi=300)
         _LOGGER.info("Graph visualization saved to %s", png_path)
+
+    plt.close(fig)

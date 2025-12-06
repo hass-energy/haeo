@@ -109,6 +109,10 @@ async def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, F
                 entry["production"] = forecast
             elif output_type == "power" and direction == "-":
                 entry["consumption"] = forecast
+            elif output_type == "power_flow" and direction == "+":
+                entry["connection_flow_forward"] = forecast
+            elif output_type == "power_flow" and direction == "-":
+                entry["connection_flow_reverse"] = forecast
             elif output_type == "power_limit" and direction == "+":
                 entry["available"] = forecast
             elif output_type == "soc":

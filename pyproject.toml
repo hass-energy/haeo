@@ -10,8 +10,8 @@ dependencies = ["homeassistant>=2025.4.4", "numpy>=2.2.2", "pulp[highs]>=3.3.0"]
 [dependency-groups]
 dev = [
     "freezegun==1.5.2",
-    "graphviz>=0.21",
     "matplotlib>=3.10.7",
+    "networkx>=3.4.2",
     "mdformat-beautysh>=1.0.0",
     "mdformat-config>=0.2.1",
     "mdformat-footnote>=0.1.1",
