@@ -4614,5 +4614,22 @@
     "context": { "id": "01K8PGJ1W2F86QC81SMAV21180", "parent_id": null, "user_id": null },
     "attributes": { "device_class": "energy", "friendly_name": "Sigen Plant Rated Energy Capacity", "state_class": "total", "unit_of_measurement": "kWh" }
   },
-  { "entity_id": "input_number.constant_load_power", "state": "1.0", "last_changed": "2025-10-05T10:56:22.751147+00:00", "last_reported": "2025-10-05T10:58:23.642691+00:00", "last_updated": "2025-10-05T10:56:22.751147+00:00", "context": { "id": "01K8PGJ1W2F86QC81SMAV21181", "parent_id": null, "user_id": null }, "attributes": { "friendly_name": "Constant Load Power", "unit_of_measurement": "kW" } }
+  {
+    "entity_id": "input_number.constant_load_power",
+    "state": "1.0",
+    "last_changed": "2025-10-05T10:56:22.751147+00:00",
+    "last_reported": "2025-10-05T10:58:23.642691+00:00",
+    "last_updated": "2025-10-05T10:56:22.751147+00:00",
+    "context": { "id": "01K8PGJ1W2F86QC81SMAV21181", "parent_id": null, "user_id": null },
+    "attributes": { "friendly_name": "Constant Load Power", "unit_of_measurement": "kW" }
+  },
+  {
+    "entity_id": "input_number.battery_discharge_cost",
+    "state": "0.02",
+    "last_changed": "2025-10-05T10:56:22.751147+00:00",
+    "last_reported": "2025-10-05T10:58:23.642691+00:00",
+    "last_updated": "2025-10-05T10:56:22.751147+00:00",
+    "context": { "id": "01K8PGJ1W2F86QC81SMAV21182", "parent_id": null, "user_id": null },
+    "attributes": { "friendly_name": "Battery Discharge Cost", "unit_of_measurement": "$/kWh" }
+  }
 ]

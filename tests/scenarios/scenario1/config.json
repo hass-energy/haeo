@@ -48,6 +48,7 @@
     "Solar": {
       "name": "Solar",
       "element_type": "photovoltaics",
+      "connection": "DC Net",
       "curtailment": true,
       "forecast": [
         "sensor.energy_production_today_east",
@@ -82,8 +83,7 @@
         "sensor.energy_production_d7_north",
         "sensor.energy_production_d7_south",
         "sensor.energy_production_d7_west"
-      ],
-      "node": "DC Net"
+      ]
     }
   }
 }

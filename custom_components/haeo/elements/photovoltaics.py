@@ -23,7 +23,7 @@ CONF_FORECAST: Final = "forecast"
 CONF_PRICE_PRODUCTION: Final = "price_production"
 CONF_PRICE_CONSUMPTION: Final = "price_consumption"
 CONF_CURTAILMENT: Final = "curtailment"
-CONF_NODE: Final = "node"
+CONF_CONNECTION: Final = "connection"
 
 # Photovoltaics-specific sensor names (for translation/output mapping)
 PHOTOVOLTAICS_POWER_PRODUCED: Final = "photovoltaics_power_produced"
@@ -35,7 +35,7 @@ class PhotovoltaicsConfigSchema(TypedDict):
 
     element_type: Literal["photovoltaics"]
     name: NameFieldSchema
-    node: NameFieldSchema  # Node to connect to
+    connection: NameFieldSchema  # Node to connect to
     forecast: PowerSensorsFieldSchema
 
     # Optional fields
@@ -48,7 +48,7 @@ class PhotovoltaicsConfigData(TypedDict):
 
     element_type: Literal["photovoltaics"]
     name: NameFieldData
-    node: NameFieldData  # Node to connect to
+    connection: NameFieldData  # Node to connect to
     forecast: PowerSensorsFieldData
 
     # Optional fields
@@ -96,7 +96,7 @@ def create_model_elements(
         "element_type": "connection",
         "name": f"{config['name']}_connection",
         "source": config["name"],
-        "target": config["node"],
+        "target": config["connection"],
         "max_power_source_target": config["forecast"],  # Forecast becomes power limit
     }
 
