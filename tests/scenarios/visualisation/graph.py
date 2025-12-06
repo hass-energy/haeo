@@ -82,6 +82,8 @@ async def create_graph_visualization(
     config: dict[str, Any],
     output_path: str,
     title: str,
+    *,
+    generate_png: bool = True,
 ) -> None:
     """Create a graph visualization of the network topology.
 
@@ -90,6 +92,7 @@ async def create_graph_visualization(
         config: Scenario configuration with participants
         output_path: Path to save the SVG file
         title: Title for the graph
+        generate_png: Whether to also generate a PNG version (default: True)
 
     """
     # Create a new directed graph with deterministic settings
@@ -198,8 +201,9 @@ async def create_graph_visualization(
 
     _LOGGER.info("Graph visualization saved to %s", output_path)
 
-    # Also save as PNG for easier viewing
-    png_path = str(output_path).replace(".svg", ".png")
-    dot.format = "png"
-    dot.render(str(Path(png_path).with_suffix("")), cleanup=True)
-    _LOGGER.info("Graph visualization saved to %s", png_path)
+    # Optionally save as PNG for easier viewing
+    if generate_png:
+        png_path = str(output_path).replace(".svg", ".png")
+        dot.format = "png"
+        dot.render(str(Path(png_path).with_suffix("")), cleanup=True)
+        _LOGGER.info("Graph visualization saved to %s", png_path)
