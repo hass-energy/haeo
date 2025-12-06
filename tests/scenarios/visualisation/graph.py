@@ -95,7 +95,7 @@ async def create_graph_visualization(
             graph.add_edge(source, target, label=label)
 
     # Use spectral layout for deterministic positioning
-    pos = nx.spectral_layout(graph)
+    pos = nx.spectral_layout(graph)  # type: ignore[no-untyped-call]
 
     # Create figure
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -106,7 +106,7 @@ async def create_graph_visualization(
         node_color = graph.nodes[node].get("color", "lightgray")
         element_type = graph.nodes[node].get("element_type", "")
 
-        nx.draw_networkx_nodes(
+        nx.draw_networkx_nodes(  # type: ignore[no-untyped-call]
             graph,
             pos,
             nodelist=[node],
@@ -120,10 +120,12 @@ async def create_graph_visualization(
 
         # Draw node label with element name and type
         label_text = f"{node}\n({element_type})"
-        nx.draw_networkx_labels(graph, pos, labels={node: label_text}, font_size=10, font_family="sans-serif", ax=ax)
+        nx.draw_networkx_labels(  # type: ignore[no-untyped-call]
+            graph, pos, labels={node: label_text}, font_size=10, font_family="sans-serif", ax=ax
+        )
 
     # Draw edges with arrows
-    nx.draw_networkx_edges(
+    nx.draw_networkx_edges(  # type: ignore[no-untyped-call]
         graph,
         pos,
         edge_color="#666666",
@@ -139,7 +141,7 @@ async def create_graph_visualization(
 
     # Draw edge labels on curved edges
     edge_labels = nx.get_edge_attributes(graph, "label")
-    nx.draw_networkx_edge_labels(
+    nx.draw_networkx_edge_labels(  # type: ignore[no-untyped-call]
         graph,
         pos,
         edge_labels=edge_labels,

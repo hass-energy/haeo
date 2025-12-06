@@ -140,13 +140,13 @@ Each scenario test automatically generates three types of visualizations in the 
 Shows the network structure with:
 
 - **Nodes**: Elements (battery, photovoltaics, grid, load, node) with type-specific colors
-- **Edges**: Connections showing power flow with labels in format `current_kW/max_kW`
-- **Layout**: Left-to-right deterministic layout using graphviz dot engine
+- **Edges**: Connections showing power flow with labels showing current power and min/max bounds
+- **Layout**: Deterministic spectral layout using NetworkX (arrangement based on graph structure)
 
 Example power labels:
 
-- `19.2kW` - Current power of 19.2kW, no max limit configured
-- `5.0kW/10.0kW` - Current power of 5.0kW, max limit of 10.0kW
+- `19.2kW` - Current power of 19.2kW, no limits configured
+- `-5.0 < 5.0kW < 10.0` - Current power of 5.0kW with min/max bounds
 
 All SVG files are deterministic and can be committed to version control.
 PNG files are auto-generated but ignored by git (see `.gitignore`).
