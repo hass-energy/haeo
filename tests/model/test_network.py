@@ -5,12 +5,6 @@ from unittest.mock import Mock
 
 import pytest
 
-from custom_components.haeo.elements import (
-    ELEMENT_TYPE_BATTERY,
-    ELEMENT_TYPE_CONNECTION,
-    ELEMENT_TYPE_GRID,
-    ELEMENT_TYPE_NODE,
-)
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.connection import Connection
 from custom_components.haeo.model.element import Element
@@ -19,6 +13,11 @@ from custom_components.haeo.model.element import Element
 HOURS_PER_DAY = 24
 DEFAULT_PERIODS = 24
 CONNECTION_PERIODS = 3
+
+# Model element type strings
+ELEMENT_TYPE_BATTERY = "battery"
+ELEMENT_TYPE_CONNECTION = "connection"
+ELEMENT_TYPE_SOURCE_SINK = "source_sink"
 
 
 def test_network_initialization() -> None:
@@ -64,14 +63,7 @@ def test_connect_entities() -> None:
 
     # Add entities
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
-    network.add(
-        ELEMENT_TYPE_GRID,
-        "grid1",
-        import_limit=10000,
-        export_limit=5000,
-        import_price=[0.1, 0.2, 0.15],
-        export_price=[0.05, 0.08, 0.06],
-    )
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
 
     # Connect them
     connection = cast(
@@ -137,14 +129,7 @@ def test_connect_source_is_connection() -> None:
     )
     # Add entities and a connection
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
-    network.add(
-        ELEMENT_TYPE_GRID,
-        "grid1",
-        import_limit=10000,
-        export_limit=5000,
-        import_price=[0.1, 0.2, 0.15],
-        export_price=[0.05, 0.08, 0.06],
-    )
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="battery1", target="grid1")
 
     # Try to create another connection using the connection as source
@@ -163,14 +148,7 @@ def test_connect_target_is_connection() -> None:
     )
     # Add entities and a connection
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
-    network.add(
-        ELEMENT_TYPE_GRID,
-        "grid1",
-        import_limit=10000,
-        export_limit=5000,
-        import_price=[0.1, 0.2, 0.15],
-        export_price=[0.05, 0.08, 0.06],
-    )
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="battery1", target="grid1")
 
     # Try to create another connection using the connection as target
@@ -217,7 +195,7 @@ def test_network_invalid_solver() -> None:
 
     # Add simple network
     network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge_percentage=50)
-    network.add(ELEMENT_TYPE_NODE, "net")
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "net", is_sink=True, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "battery_to_net", source="battery", target="net")
 
     # Try to use non-existent solver
@@ -234,7 +212,7 @@ def test_network_optimize_validates_before_running() -> None:
     )
 
     # Add elements but create an invalid connection
-    network.add(ELEMENT_TYPE_NODE, "node1")
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "node1", is_sink=True, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "bad_conn", source="node1", target="nonexistent_node")
 
     # Should raise validation error when trying to optimize
@@ -251,7 +229,7 @@ def test_network_optimize_build_constraints_error() -> None:
     )
 
     # Add a regular element
-    network.add(ELEMENT_TYPE_NODE, "node1")
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "node1", is_sink=True, is_source=True)
 
     # Mock an element that raises an exception during build_constraints
     mock_element = Mock(spec=Element)

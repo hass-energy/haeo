@@ -55,6 +55,8 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         target: str,
         max_power_source_target: float | Sequence[float] | None = None,
         max_power_target_source: float | Sequence[float] | None = None,
+        fixed_power_source_target: Sequence[float] | None = None,
+        fixed_power_target_source: Sequence[float] | None = None,
         efficiency_source_target: float | Sequence[float] | None = None,
         efficiency_target_source: float | Sequence[float] | None = None,
         price_source_target: Sequence[float] | None = None,
@@ -70,6 +72,8 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
             target: Name of the target element
             max_power_source_target: Maximum power flow from source to target in kW (per period)
             max_power_target_source: Maximum power flow from target to source in kW (per period)
+            fixed_power_source_target: Fixed power flow from source to target in kW (per period)
+            fixed_power_target_source: Fixed power flow from target to source in kW (per period)
             efficiency_source_target: Efficiency percentage (0-100) for source to target flow
             efficiency_target_source: Efficiency percentage (0-100) for target to source flow
             price_source_target: Price in $/kWh for source to target flow (per period)
@@ -88,16 +92,29 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         st_bounds = broadcast_to_sequence(max_power_source_target, n_periods)
         ts_bounds = broadcast_to_sequence(max_power_target_source, n_periods)
 
+        # Broadcast fixed power to n_periods
+        st_fixed = broadcast_to_sequence(fixed_power_source_target, n_periods) if fixed_power_source_target else None
+        ts_fixed = broadcast_to_sequence(fixed_power_target_source, n_periods) if fixed_power_target_source else None
+
         # Initialize separate power variables for each direction (both positive, bounds as constraints)
         self.power_source_target = [LpVariable(name=f"{name}_power_st_{i}", lowBound=0) for i in range(n_periods)]
         self.power_target_source = [LpVariable(name=f"{name}_power_ts_{i}", lowBound=0) for i in range(n_periods)]
 
-        # Add power bound constraints if specified
-        if st_bounds is not None:
+        # Add power constraints - use equality for fixed power, inequality for max bounds
+        if st_fixed is not None:
+            self._constraints[CONNECTION_MAX_POWER_SOURCE_TARGET] = [
+                self.power_source_target[t] == st_fixed[t] for t in range(n_periods)
+            ]
+        elif st_bounds is not None:
             self._constraints[CONNECTION_MAX_POWER_SOURCE_TARGET] = [
                 self.power_source_target[t] <= st_bounds[t] for t in range(n_periods)
             ]
-        if ts_bounds is not None:
+
+        if ts_fixed is not None:
+            self._constraints[CONNECTION_MAX_POWER_TARGET_SOURCE] = [
+                self.power_target_source[t] == ts_fixed[t] for t in range(n_periods)
+            ]
+        elif ts_bounds is not None:
             self._constraints[CONNECTION_MAX_POWER_TARGET_SOURCE] = [
                 self.power_target_source[t] <= ts_bounds[t] for t in range(n_periods)
             ]

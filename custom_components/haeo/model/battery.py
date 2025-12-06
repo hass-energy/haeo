@@ -163,11 +163,7 @@ BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
     )
 )
 
-BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset(
-    (
-        BATTERY_POWER_BALANCE,
-    )
-)
+BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset((BATTERY_POWER_BALANCE,))
 
 
 def _is_battery_constraint_name(name: str) -> TypeGuard[BatteryConstraintName]:

@@ -1,7 +1,10 @@
 """Photovoltaics element configuration for HAEO integration."""
 
+from collections.abc import Mapping
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE, SOURCE_SINK_POWER_OUT
 from custom_components.haeo.schema.fields import (
     BooleanFieldData,
     BooleanFieldSchema,
@@ -15,11 +18,16 @@ from custom_components.haeo.schema.fields import (
 
 ELEMENT_TYPE: Final = "photovoltaics"
 
+# Configuration field names
 CONF_FORECAST: Final = "forecast"
 CONF_PRICE_PRODUCTION: Final = "price_production"
 CONF_PRICE_CONSUMPTION: Final = "price_consumption"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_NODE: Final = "node"
+
+# Photovoltaics-specific sensor names (for translation/output mapping)
+PHOTOVOLTAICS_POWER_PRODUCED: Final = "photovoltaics_power_produced"
+PHOTOVOLTAICS_POWER_BALANCE: Final = "photovoltaics_power_balance"
 
 
 class PhotovoltaicsConfigSchema(TypedDict):
@@ -76,10 +84,12 @@ def create_model_elements(
     elements: list[dict[str, Any]] = []
 
     # Create SourceSink for the photovoltaics
-    elements.append({
-        "element_type": "source_sink",
-        "name": config["name"],
-    })
+    elements.append(
+        {
+            "element_type": "source_sink",
+            "name": config["name"],
+        }
+    )
 
     # Create Connection from photovoltaics to node (PV produces power)
     connection_config: dict[str, Any] = {
@@ -99,10 +109,10 @@ def create_model_elements(
     return elements
 
 
-def map_outputs(
-    element_name: str,  # noqa: ARG001
-    model_outputs: dict[str, Any],  # noqa: ARG001
-) -> dict[str, Any]:
+def outputs(
+    element_name: str,
+    model_outputs: Mapping[str, OutputData],
+) -> dict[str, dict[str, OutputData]]:
     """Map model outputs to photovoltaics-specific output names.
 
     Args:
@@ -110,9 +120,17 @@ def map_outputs(
         model_outputs: Outputs from the model SourceSink and Connection
 
     Returns:
-        Dict mapping photovoltaics-specific output names to values
+        Nested dict mapping {element_name: {sensor_name: OutputData}}
 
     """
-    # Placeholder for future output mapping implementation
-    # Will map SourceSink/Connection outputs to photovoltaics_power_produced
-    return {}
+    pv_outputs: dict[str, OutputData] = {}
+
+    # Map SourceSink power_out to photovoltaics_power_produced (PV producing power TO network)
+    if SOURCE_SINK_POWER_OUT in model_outputs:
+        pv_outputs[PHOTOVOLTAICS_POWER_PRODUCED] = model_outputs[SOURCE_SINK_POWER_OUT]
+
+    # Map power balance shadow price
+    if SOURCE_SINK_POWER_BALANCE in model_outputs:
+        pv_outputs[PHOTOVOLTAICS_POWER_BALANCE] = model_outputs[SOURCE_SINK_POWER_BALANCE]
+
+    return {element_name: pv_outputs}

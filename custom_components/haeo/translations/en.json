@@ -36,6 +36,7 @@
           "description": "Set up battery parameters for energy optimization",
           "data": {
             "capacity": "Capacity",
+            "connection": "Connection",
             "discharge_cost": "Discharge Cost (Optional)",
             "early_charge_incentive": "Early Charge Incentive",
             "efficiency": "Round-trip Efficiency",
@@ -56,6 +57,7 @@
           "description": "Update battery configuration",
           "data": {
             "capacity": "Capacity",
+            "connection": "Connection",
             "discharge_cost": "Discharge Cost (Optional)",
             "early_charge_incentive": "Early Charge Incentive",
             "efficiency": "One-way Efficiency",
@@ -137,6 +139,7 @@
           "title": "Add Grid Connection",
           "description": "Set up grid import/export parameters and pricing",
           "data": {
+            "connection": "Connection",
             "export_limit": "Export Limit (Optional)",
             "export_price": "Export Price Sensors",
             "import_limit": "Import Limit (Optional)",
@@ -148,6 +151,7 @@
           "title": "Edit Grid Connection",
           "description": "Update grid connection configuration",
           "data": {
+            "connection": "Connection",
             "export_limit": "Export Limit (Optional)",
             "export_price": "Export Price Sensors",
             "import_limit": "Import Limit (Optional)",
@@ -173,6 +177,7 @@
           "title": "Add Load",
           "description": "Set up a load with forecast or constant power",
           "data": {
+            "connection": "Connection",
             "forecast": "Forecast Sensors",
             "name": "Load Name"
           }
@@ -181,6 +186,7 @@
           "title": "Edit Load",
           "description": "Update load configuration",
           "data": {
+            "connection": "Connection",
             "forecast": "Forecast Sensors",
             "name": "Load Name"
           }
@@ -243,6 +249,7 @@
             "curtailment": "Allow Curtailment (Optional)",
             "forecast": "Forecast Sensors",
             "name": "Photovoltaics Name",
+            "node": "Node",
             "price_production": "Production Price (Optional)"
           }
         },
@@ -253,6 +260,7 @@
             "curtailment": "Allow Curtailment (Optional)",
             "forecast": "Forecast Sensors",
             "name": "Photovoltaics Name",
+            "node": "Node",
             "price_production": "Production Price (Optional)"
           }
         }
@@ -396,14 +404,17 @@
       "connection_power_target_source": {
         "name": "Power Flow Target\u2192Source"
       },
+      "connection_time_slice": {
+        "name": "Time Slice Shadow Price"
+      },
       "grid_power_balance": {
         "name": "Power Balance Shadow Price"
       },
-      "grid_power_exported": {
-        "name": "Power Exported"
+      "grid_power_export": {
+        "name": "Power Export"
       },
-      "grid_power_imported": {
-        "name": "Power Imported"
+      "grid_power_import": {
+        "name": "Power Import"
       },
       "load_power_balance": {
         "name": "Power Balance Shadow Price"
@@ -428,9 +439,6 @@
       },
       "photovoltaics_power_produced": {
         "name": "Power Produced"
-      },
-      "connection_time_slice": {
-        "name": "Time Slice Shadow Price"
       }
     }
   },

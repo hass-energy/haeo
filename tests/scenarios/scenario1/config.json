@@ -16,8 +16,9 @@
       "name": "Battery",
       "element_type": "battery",
       "capacity": "sensor.sigen_plant_rated_energy_capacity",
-      "discharge_cost": 0.02,
-      "early_charge_incentive": 1e-3,
+      "connection": "DC Net",
+      "discharge_cost": ["input_number.battery_discharge_cost"],
+      "early_charge_incentive": 0.001,
       "efficiency": 99.0,
       "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
       "max_charge_percentage": 100.0,
@@ -28,37 +29,21 @@
     "Constant Load": {
       "name": "Constant Load",
       "element_type": "load",
+      "connection": "AC Net",
       "forecast": ["input_number.constant_load_power"]
     },
     "DC Net": {
       "name": "DC Net",
       "element_type": "node"
     },
-    "DC Net->Battery": {
-      "name": "DC Net->Battery",
-      "element_type": "connection",
-      "source": "DC Net",
-      "target": "Battery"
-    },
     "Grid": {
       "name": "Grid",
       "element_type": "grid",
+      "connection": "AC Net",
       "export_limit": 30,
       "export_price": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
       "import_limit": 55,
       "import_price": ["sensor.home_general_price", "sensor.home_general_forecast"]
-    },
-    "Grid->AC Net": {
-      "name": "Grid->AC Net",
-      "element_type": "connection",
-      "source": "Grid",
-      "target": "AC Net"
-    },
-    "Load->AC Net": {
-      "name": "Load->AC Net",
-      "element_type": "connection",
-      "source": "Constant Load",
-      "target": "AC Net"
     },
     "Solar": {
       "name": "Solar",
@@ -97,13 +82,8 @@
         "sensor.energy_production_d7_north",
         "sensor.energy_production_d7_south",
         "sensor.energy_production_d7_west"
-      ]
-    },
-    "Solar->DC Net": {
-      "name": "Solar->DC Net",
-      "element_type": "connection",
-      "source": "Solar",
-      "target": "DC Net"
+      ],
+      "node": "DC Net"
     }
   }
 }

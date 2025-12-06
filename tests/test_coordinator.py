@@ -42,19 +42,23 @@ from custom_components.haeo.elements import (
     ElementConfigSchema,
 )
 from custom_components.haeo.elements.battery import (
+    BATTERY_POWER_CHARGE,
     CONF_CAPACITY,
+    CONF_CONNECTION,
     CONF_EFFICIENCY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
+from custom_components.haeo.elements.grid import CONF_CONNECTION as CONF_CONNECTION_GRID
 from custom_components.haeo.elements.grid import (
     CONF_EXPORT_LIMIT,
     CONF_EXPORT_PRICE,
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
 )
+from custom_components.haeo.elements.photovoltaics import PHOTOVOLTAICS_POWER_PRODUCED
 from custom_components.haeo.model import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
@@ -65,8 +69,6 @@ from custom_components.haeo.model import (
     OUTPUT_TYPE_STATUS,
     OutputData,
 )
-from custom_components.haeo.model.battery import BATTERY_POWER_CHARGE
-from custom_components.haeo.model.photovoltaics import PHOTOVOLTAICS_POWER_PRODUCED
 
 
 @pytest.fixture
@@ -101,6 +103,7 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                 CONF_NAME: "test_battery",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CONNECTION: "DC Bus",
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
                 CONF_MIN_CHARGE_PERCENTAGE: 20.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 80.0,
@@ -123,6 +126,7 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
             {
                 CONF_NAME: "test_grid",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
+                CONF_CONNECTION_GRID: "AC Bus",
                 CONF_IMPORT_LIMIT: 10000,
                 CONF_EXPORT_LIMIT: 5000,
                 CONF_IMPORT_PRICE: ["sensor.import_price"],
@@ -231,6 +235,12 @@ async def test_async_update_data_returns_outputs(
         "empty": empty_element,
     }
 
+    # Create NetworkWithAdapters mock
+    fake_network_with_adapters = MagicMock()
+    fake_network_with_adapters.network = fake_network
+    fake_network_with_adapters.adapters = {"test_battery": None, "empty": None}
+    fake_network_with_adapters.adapter_model_elements = {"test_battery": ["test_battery"], "empty": ["empty"]}
+
     generated_at = datetime(2024, 1, 1, 0, 15, tzinfo=UTC)
     expected_forecast_times = (
         int(datetime(2024, 1, 1, 0, 0, tzinfo=UTC).timestamp()),
@@ -247,7 +257,7 @@ async def test_async_update_data_returns_outputs(
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.dt_util.utcnow", return_value=generated_at),
     ):
-        mock_load.return_value = fake_network
+        mock_load.return_value = fake_network_with_adapters
         mock_executor.return_value = 123.45
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         result = await coordinator._async_update_data()

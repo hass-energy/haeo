@@ -319,8 +319,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             n_periods=n_periods,
         )
 
-        # Try to load the data into a network object
-        network = await data_module.load_network(
+        # Try to load the data into a network object (with adapter mappings)
+        network_with_adapters = await data_module.load_network(
             self.hass,
             self.config_entry,
             period_seconds=period_seconds,
@@ -328,6 +328,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             participants=self._participant_configs,
             forecast_times=forecast_timestamps,
         )
+        network = network_with_adapters.network
 
         # Perform the optimization
         cost = await self.hass.async_add_executor_job(network.optimize)
@@ -360,22 +361,65 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             }
         }
 
-        # Add element outputs from each network element keyed by element name
-        for element_name, element in network.elements.items():
-            element_outputs = element.outputs()
-            if not element_outputs:
+        # Add element outputs by processing each config element (which may have created multiple model elements)
+        for config_element_name, adapter_module in network_with_adapters.adapters.items():
+            # Get all model elements created by this config element
+            model_element_names = network_with_adapters.adapter_model_elements.get(config_element_name, [])
+
+            # Collect outputs from all model elements created by this adapter
+            combined_model_outputs: dict[str, OutputData] = {}
+            for model_element_name in model_element_names:
+                element = network.elements.get(model_element_name)
+                if element:
+                    element_outputs = element.outputs()
+                    combined_model_outputs.update(element_outputs)
+
+            if not combined_model_outputs:
                 continue
 
-            processed_outputs: dict[OutputName, CoordinatorOutput] = {
-                output_name: _build_coordinator_output(
-                    output_name,
-                    output_data,
-                    forecast_times=forecast_timestamps,
+            # If this config element has an adapter, use it to map outputs to element-specific names
+            if adapter_module and hasattr(adapter_module, "outputs"):
+                # Adapter returns {device_name: {entity_name: OutputData}}
+                # This allows adapters to create multiple devices in the future
+                adapter_outputs = adapter_module.outputs(config_element_name, combined_model_outputs)
+                _LOGGER.debug(
+                    "Adapter outputs for config element %r: %s",
+                    config_element_name,
+                    list(adapter_outputs.keys()),
                 )
-                for output_name, output_data in element_outputs.items()
-            }
 
-            if processed_outputs:
-                result[slugify(element_name)] = processed_outputs
+                # Process each device's outputs
+                for device_name, device_outputs in adapter_outputs.items():
+                    processed_outputs: dict[OutputName, CoordinatorOutput] = {
+                        output_name: _build_coordinator_output(
+                            output_name,
+                            output_data,
+                            forecast_times=forecast_timestamps,
+                        )
+                        for output_name, output_data in device_outputs.items()
+                    }
+
+                    if processed_outputs:
+                        slugified_key = slugify(device_name)
+                        _LOGGER.debug(
+                            "Storing %d outputs under key %r (from device_name %r)",
+                            len(processed_outputs),
+                            slugified_key,
+                            device_name,
+                        )
+                        result[slugified_key] = processed_outputs
+            else:
+                # No adapter - use raw model outputs
+                processed_outputs: dict[OutputName, CoordinatorOutput] = {
+                    output_name: _build_coordinator_output(
+                        output_name,
+                        output_data,
+                        forecast_times=forecast_timestamps,
+                    )
+                    for output_name, output_data in combined_model_outputs.items()
+                }
+
+                if processed_outputs:
+                    result[slugify(config_element_name)] = processed_outputs
 
         return result

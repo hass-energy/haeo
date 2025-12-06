@@ -32,11 +32,16 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
     participants = cast(
         "dict[str, ElementConfigSchema]",
         {
+            "node": {
+                CONF_ELEMENT_TYPE: "node",
+                CONF_NAME: "main_bus",
+            },
             "load": {
                 CONF_ELEMENT_TYPE: "load",
                 CONF_NAME: "Baseload",
+                "connection": "main_bus",
                 CONF_FORECAST: ["sensor.baseload"],
-            }
+            },
         },
     )
 
@@ -49,8 +54,8 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
         forecast_times=[0, 1800, 3600, 5400, 7200],
     )
 
-    assert result.period == pytest.approx(0.5)
-    assert "Baseload" in result.elements
+    assert result.network.period == pytest.approx(0.5)
+    assert "Baseload" in result.network.elements
 
 
 async def test_load_network_with_missing_sensors(hass: HomeAssistant) -> None:

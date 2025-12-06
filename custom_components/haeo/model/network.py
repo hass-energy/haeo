@@ -12,10 +12,6 @@ from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, getSolver, lpSum
 from .battery import Battery
 from .connection import Connection
 from .element import Element
-from .grid import Grid
-from .load import Load
-from .node import Node
-from .photovoltaics import Photovoltaics
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,10 +51,6 @@ class Network:
 
         factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
-            "photovoltaics": Photovoltaics,
-            "load": Load,
-            "grid": Grid,
-            "node": Node,
             "connection": Connection,
             "source_sink": SourceSink,
         }
