@@ -6,12 +6,6 @@
       "name": "AC Net",
       "element_type": "node"
     },
-    "AC Net->DC Net": {
-      "name": "Inverter",
-      "element_type": "connection",
-      "source": "DC Net",
-      "target": "AC Net"
-    },
     "Battery": {
       "name": "Battery",
       "element_type": "battery",
@@ -39,6 +33,12 @@
       "connection": "AC Net",
       "export_price": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
       "import_price": ["sensor.home_general_price", "sensor.home_general_forecast"]
+    },
+    "Inverter": {
+      "name": "Inverter",
+      "element_type": "connection",
+      "source": "DC Net",
+      "target": "AC Net"
     },
     "Solar": {
       "name": "Solar",
