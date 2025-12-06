@@ -14,87 +14,65 @@ from homeassistant.core import HomeAssistant
 _LOGGER = logging.getLogger(__name__)
 
 
-def _format_power(power_kw: float | None) -> str:
-    """Format power value in kW for display.
+def _format_power_label(current_kw: float | None, max_kw: float | None) -> str:
+    """Format power label for display."""
+    if current_kw is None or current_kw == 0:
+        return ""
 
-    Args:
-        power_kw: Power value in kW (can be None)
+    if max_kw is None:
+        return f"{current_kw:.1f}kW"
 
-    Returns:
-        Formatted string like "5.2kW" or "N/A" if None
-
-    """
-    if power_kw is None:
-        return "N/A"
-    return f"{power_kw:.1f}kW"
+    return f"{current_kw:.1f}kW/{max_kw:.1f}kW"
 
 
-def _get_connection_power_flow(
-    hass: HomeAssistant, connection_name: str, connection_config: dict[str, Any]
-) -> tuple[float | None, float | None]:
-    """Get current and max power flow for a connection from sensors and config.
-
-    Args:
-        hass: Home Assistant instance
-        connection_name: Name of the connection element
-        connection_config: Configuration for the connection
+def _get_connection_power_flows(
+    connection_name: str, forecast_data: dict[str, Any], connection_config: dict[str, Any]
+) -> tuple[tuple[float | None, float | None], tuple[float | None, float | None]]:
+    """Get power flows for both directions of a connection.
 
     Returns:
-        Tuple of (current_power_kw, max_power_kw) or (None, None) if not found
+        Tuple of ((source_to_target_power, source_to_target_max), (target_to_source_power, target_to_source_max))
 
     """
-    # Look for power flow sensors for this connection
-    # Format: sensor.{connection_name}_power_source_target or power_target_source
-    connection_sensors = [
-        s
-        for s in hass.states.async_all("sensor")
-        if s.attributes.get("element_name") == connection_name and s.attributes.get("output_type") == "power_flow"
-    ]
+    # Get data from forecast_data if available
+    connection_data = forecast_data.get(connection_name, {})
 
-    # Get the total power flow (sum of both directions)
-    total_current = 0.0
-    if connection_sensors:
-        for sensor in connection_sensors:
-            forecast = sensor.attributes.get("forecast", [])
-            if forecast:
-                # Use first forecast value as representative current power
-                total_current += abs(forecast[0].get("value", 0.0))
+    # Get current power from forecasts
+    st_power = None
+    ts_power = None
+
+    production = connection_data.get("production")
+    consumption = connection_data.get("consumption")
+
+    if production:
+        # Production means power flowing in positive direction
+        st_power = production[0][1] if production else None
+
+    if consumption:
+        # Consumption means power flowing in negative direction
+        ts_power = abs(consumption[0][1]) if consumption else None
 
     # Get max power from config
-    max_power_st = connection_config.get("max_power_source_target")
-    max_power_ts = connection_config.get("max_power_target_source")
+    st_max = connection_config.get("max_power_source_target")
+    ts_max = connection_config.get("max_power_target_source")
 
-    # Calculate total max power (sum of both directions if both exist, otherwise take the one that exists)
-    max_power = None
-    if max_power_st is not None and max_power_ts is not None:
-        # Both directions have limits
-        max_power = float(max_power_st) + float(max_power_ts)
-    elif max_power_st is not None:
-        max_power = float(max_power_st)
-    elif max_power_ts is not None:
-        max_power = float(max_power_ts)
+    st_max = float(st_max) if st_max is not None else None
+    ts_max = float(ts_max) if ts_max is not None else None
 
-    return total_current if total_current > 0 else None, max_power
+    return (st_power, st_max), (ts_power, ts_max)
 
 
 async def create_graph_visualization(
     hass: HomeAssistant,
     config: dict[str, Any],
+    forecast_data: dict[str, Any],
     output_path: str,
     title: str,
     *,
     generate_png: bool = True,
 ) -> None:
-    """Create a graph visualization of the network topology.
+    """Create a graph visualization of the network topology."""
 
-    Args:
-        hass: Home Assistant instance containing sensor data
-        config: Scenario configuration with participants
-        output_path: Path to save the SVG file
-        title: Title for the graph
-        generate_png: Whether to also generate a PNG version (default: True)
-
-    """
     # Create a new directed graph with deterministic settings
     dot = Digraph(comment=title, format="svg")
 
@@ -105,7 +83,7 @@ async def create_graph_visualization(
             "rankdir": "LR",  # Left to right layout
             "ranksep": "1.5",  # Space between ranks
             "nodesep": "0.8",  # Space between nodes
-            "concentrate": "true",  # Merge edges when possible
+            "concentrate": "false",  # Don't merge edges - show both directions
             "bgcolor": "white",
             "fontname": "Arial",
             "fontsize": "14",
@@ -162,7 +140,7 @@ async def create_graph_visualization(
         dot.node(name, label=label, fillcolor=fillcolor)
         added_nodes.add(name)
 
-    # Second pass: add connections as edges
+    # Second pass: add connections as edges (separate edge for each direction)
     for name, element_config in participants.items():
         element_type = element_config.get("element_type", "")
 
@@ -180,16 +158,18 @@ async def create_graph_visualization(
             _LOGGER.warning("Connection %s references unknown element: %s -> %s", name, source, target)
             continue
 
-        # Get power flow information from Home Assistant sensors and config
-        current_power, max_power = _get_connection_power_flow(hass, name, element_config)
+        # Get power flows for both directions
+        (st_power, st_max), (ts_power, ts_max) = _get_connection_power_flows(name, forecast_data, element_config)
 
-        # Create edge label with power information
-        current_str = _format_power(current_power)
-        max_str = _format_power(max_power)
-        edge_label = f"{current_str}/{max_str}"
+        # Add edge from source to target if there's power flow or max limit
+        st_label = _format_power_label(st_power, st_max)
+        if st_label:
+            dot.edge(source, target, label=st_label)
 
-        # Add edge from source to target
-        dot.edge(source, target, label=edge_label)
+        # Add edge from target to source if there's power flow or max limit
+        ts_label = _format_power_label(ts_power, ts_max)
+        if ts_label:
+            dot.edge(target, source, label=ts_label)
 
     # Save the graph
     output_dir = Path(output_path).parent

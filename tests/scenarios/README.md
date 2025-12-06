@@ -145,8 +145,11 @@ Shows the network structure with:
 
 Example power labels:
 
-- `19.2kW/N/A` - Current power of 19.2kW, no max limit configured
+- `19.2kW` - Current power of 19.2kW, no max limit configured
 - `5.0kW/10.0kW` - Current power of 5.0kW, max limit of 10.0kW
+
+All SVG files are deterministic and can be committed to version control.
+PNG files are auto-generated but ignored by git (see `.gitignore`).
 
 ### Optimization Results
 
@@ -166,9 +169,6 @@ Line chart showing optimization shadow prices:
 
 - Constraint shadow prices indicate where the optimization is constrained
 - Helps identify bottlenecks in the energy network
-
-All SVG files are deterministic and can be committed to version control.
-PNG files are auto-generated but ignored by git (see `.gitignore`).
 
 ## Common Issues
 

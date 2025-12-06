@@ -465,7 +465,7 @@ async def create_shadow_price_visualization(hass: HomeAssistant, output_path: st
 
 
 async def visualize_scenario_results(
-    hass: HomeAssistant, scenario_name: str, output_dir: Path, config: dict[str, Any] | None = None
+    hass: HomeAssistant, scenario_name: str, output_dir: Path, config: dict[str, Any]
 ) -> None:
     """Create comprehensive visualizations for HAEO scenario test results.
 
@@ -476,7 +476,7 @@ async def visualize_scenario_results(
         hass: Home Assistant instance containing HAEO sensor data
         scenario_name: Name identifier for the scenario (used in output filenames)
         output_dir: Directory path where visualization files will be saved
-        config: Optional scenario configuration for graph visualization
+        config: Scenario configuration for graph visualization
 
     Raises:
         Prints error messages if visualization creation fails
@@ -485,6 +485,9 @@ async def visualize_scenario_results(
     output_dir_path = Path(output_dir)
     output_dir_path.mkdir(parents=True, exist_ok=True)
 
+    # Extract forecast data once for all visualizations
+    forecast_data = await extract_forecast_data_from_sensors(hass)
+
     # Create stacked area/line plots (SVG format for vector graphics)
     main_plot_path = output_dir_path / f"{scenario_name}_optimization.svg"
     await create_stacked_visualization(hass, str(main_plot_path), f"{scenario_name.title()} Optimization Results")
@@ -492,9 +495,8 @@ async def visualize_scenario_results(
     shadow_plot_path = output_dir_path / f"{scenario_name}_shadow_prices.svg"
     await create_shadow_price_visualization(hass, str(shadow_plot_path), f"{scenario_name.title()} Shadow Prices")
 
-    # Create network topology graph if config is provided
-    if config is not None:
-        graph_plot_path = output_dir_path / f"{scenario_name}_graph.svg"
-        await create_graph_visualization(
-            hass, config, str(graph_plot_path), f"{scenario_name.title()} Network Topology"
-        )
+    # Create network topology graph
+    graph_plot_path = output_dir_path / f"{scenario_name}_graph.svg"
+    await create_graph_visualization(
+        hass, config, forecast_data, str(graph_plot_path), f"{scenario_name.title()} Network Topology"
+    )
