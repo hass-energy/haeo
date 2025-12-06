@@ -20,6 +20,7 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements import ElementType
 
 from .colors import ColorMapper
+from .graph import create_graph_visualization
 
 # Use non-GUI backend
 mpl.use("Agg")
@@ -463,7 +464,9 @@ async def create_shadow_price_visualization(hass: HomeAssistant, output_path: st
     return True
 
 
-async def visualize_scenario_results(hass: HomeAssistant, scenario_name: str, output_dir: Path) -> None:
+async def visualize_scenario_results(
+    hass: HomeAssistant, scenario_name: str, output_dir: Path, config: dict[str, Any] | None = None
+) -> None:
     """Create comprehensive visualizations for HAEO scenario test results.
 
     Creates both detailed optimization results visualization and summary metrics
@@ -473,6 +476,7 @@ async def visualize_scenario_results(hass: HomeAssistant, scenario_name: str, ou
         hass: Home Assistant instance containing HAEO sensor data
         scenario_name: Name identifier for the scenario (used in output filenames)
         output_dir: Directory path where visualization files will be saved
+        config: Optional scenario configuration for graph visualization
 
     Raises:
         Prints error messages if visualization creation fails
@@ -487,3 +491,10 @@ async def visualize_scenario_results(hass: HomeAssistant, scenario_name: str, ou
 
     shadow_plot_path = output_dir_path / f"{scenario_name}_shadow_prices.svg"
     await create_shadow_price_visualization(hass, str(shadow_plot_path), f"{scenario_name.title()} Shadow Prices")
+
+    # Create network topology graph if config is provided
+    if config is not None:
+        graph_plot_path = output_dir_path / f"{scenario_name}_graph.svg"
+        await create_graph_visualization(
+            hass, config, str(graph_plot_path), f"{scenario_name.title()} Network Topology"
+        )

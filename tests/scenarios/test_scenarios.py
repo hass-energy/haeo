@@ -163,6 +163,7 @@ async def test_scenarios(
             hass,
             scenario_path.name,
             scenario_path / "visualizations",
+            scenario_config,
         )
 
         # Get output sensors using common utility function
