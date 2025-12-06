@@ -45,6 +45,8 @@ class ForecastData(TypedDict, total=False):
     consumption_price: Sequence[tuple[float, float]]
     soc: Sequence[tuple[float, float]]
     shadow_prices: dict[str, Sequence[tuple[float, float]]]
+    connection_flow_forward: Sequence[tuple[float, float]]
+    connection_flow_reverse: Sequence[tuple[float, float]]
 
 
 ForecastKey = Literal[
