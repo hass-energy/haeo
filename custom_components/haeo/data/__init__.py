@@ -15,7 +15,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ElementConfigData, ElementConfigSchema
+from custom_components.haeo.elements import (
+    ELEMENT_TYPE_CONNECTION,
+    ElementConfigData,
+    ElementConfigSchema,
+    battery,
+    grid,
+    load,
+    photovoltaics,
+)
 from custom_components.haeo.model import Network
 from custom_components.haeo.schema import available as config_available
 from custom_components.haeo.schema import load as config_load
@@ -96,8 +104,31 @@ async def load_network(
             forecast_times=forecast_times_list,
         )
 
-        # net.add expects ElementConfigData with loaded values
-        loaded_kwargs: dict[str, Any] = dict(loaded_params)
-        net.add(**loaded_kwargs)
+        # Use adapter layer to convert config to model elements
+        # The adapter returns a list of element configs (e.g., SourceSink + Connection)
+        element_type = loaded_params[CONF_ELEMENT_TYPE]
+
+        # Try to use element adapter if available
+        adapter_module = None
+        if element_type == "battery":
+            adapter_module = battery
+        elif element_type == "grid":
+            adapter_module = grid
+        elif element_type == "load":
+            adapter_module = load
+        elif element_type == "photovoltaics":
+            adapter_module = photovoltaics
+
+        if adapter_module and hasattr(adapter_module, "create_model_elements"):
+            # Use adapter to create model elements
+            model_elements = adapter_module.create_model_elements(
+                loaded_params, period_hours, n_periods
+            )
+            for model_element_config in model_elements:
+                net.add(**model_element_config)
+        else:
+            # Fallback for elements without adapters (like node, connection)
+            loaded_kwargs: dict[str, Any] = dict(loaded_params)
+            net.add(**loaded_kwargs)
 
     return net
