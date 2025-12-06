@@ -50,6 +50,9 @@ class Network:
             The created element
 
         """
+        # Import SourceSink here to avoid circular imports
+        from .source_sink import SourceSink  # noqa: PLC0415
+
         factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
             "photovoltaics": Photovoltaics,
@@ -57,6 +60,7 @@ class Network:
             "grid": Grid,
             "node": Node,
             "connection": Connection,
+            "source_sink": SourceSink,
         }
 
         factory = factories[element_type.lower()]

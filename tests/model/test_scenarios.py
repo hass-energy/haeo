@@ -243,8 +243,8 @@ def test_solar_curtailment_negative_pricing() -> None:
     # Access optimization results directly from elements
     solar = cast("Photovoltaics", network.elements["solar"])
 
-    assert solar.power_production is not None
-    solar_production = [safe_value(power) for power in solar.power_production]
+    assert solar.power_produced is not None
+    solar_production = [safe_value(power) for power in solar.power_produced]
 
     # During negative pricing periods (indices 2-3), solar should be curtailed
     normal_periods = [0, 1, 4, 5]  # Positive export pricing
