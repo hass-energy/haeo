@@ -44,13 +44,13 @@ def _get_connection_power_flows(
     production = connection_data.get("production")
     consumption = connection_data.get("consumption")
 
-    if production:
+    if production and len(production) > 0:
         # Production means power flowing in positive direction
-        st_power = production[0][1] if production else None
+        st_power = production[0][1]
 
-    if consumption:
+    if consumption and len(consumption) > 0:
         # Consumption means power flowing in negative direction
-        ts_power = abs(consumption[0][1]) if consumption else None
+        ts_power = abs(consumption[0][1])
 
     # Get max power from config
     st_max = connection_config.get("max_power_source_target")
