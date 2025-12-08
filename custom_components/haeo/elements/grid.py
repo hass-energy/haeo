@@ -123,11 +123,11 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    element_name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
 ) -> dict[str, dict[GridOutputName, OutputData]]:
     """Map model outputs to grid-specific output names."""
 
-    connection = model_outputs[f"{element_name}:connection"]
+    connection = model_outputs[f"{name}:connection"]
 
     grid_outputs: dict[GridOutputName, OutputData] = {}
 
@@ -146,4 +146,4 @@ def outputs(
     grid_outputs[GRID_PRICE_EXPORT] = connection[CONNECTION_PRICE_TARGET_SOURCE]
     grid_outputs[GRID_PRICE_IMPORT] = connection[CONNECTION_PRICE_SOURCE_TARGET]
 
-    return {element_name: grid_outputs}
+    return {name: grid_outputs}
