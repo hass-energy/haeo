@@ -98,78 +98,34 @@ CONFIG_DEFAULTS: dict[str, Any] = {
 }
 
 
-def create_model_elements(
-    config: BatteryConfigData,
-    period: float,
-    n_periods: int,
-) -> list[dict[str, Any]]:
-    """Create model elements for Battery configuration.
-
-    Returns a list of element configurations that should be added to the network:
-    - A Battery element with all SOC/pricing configuration
-    - A Connection to/from the battery with power limits and efficiency
-
-    Args:
-        config: Battery configuration data
-        period: Time period in hours
-        n_periods: Number of periods
-
-    Returns:
-        List of element configs to add to network
-
-    """
-    elements: list[dict[str, Any]] = []
-
-    # Create Battery element (handles SOC tracking, ordering costs)
-    battery_config: dict[str, Any] = {
-        "element_type": "battery",
-        "name": config["name"],
-        "capacity": config["capacity"],
-        "initial_charge_percentage": config["initial_charge_percentage"],
-        "min_charge_percentage": config["min_charge_percentage"],
-        "max_charge_percentage": config["max_charge_percentage"],
-    }
-
-    # Add optional ordering cost parameters (handled by Battery model)
-    if "early_charge_incentive" in config:
-        battery_config["early_charge_incentive"] = config["early_charge_incentive"]
-    if "undercharge_percentage" in config:
-        battery_config["undercharge_percentage"] = config["undercharge_percentage"]
-    if "overcharge_percentage" in config:
-        battery_config["overcharge_percentage"] = config["overcharge_percentage"]
-    if "undercharge_cost" in config:
-        battery_config["undercharge_cost"] = config["undercharge_cost"]
-    if "overcharge_cost" in config:
-        battery_config["overcharge_cost"] = config["overcharge_cost"]
-
-    elements.append(battery_config)
-
-    # Create Connection from battery to node (bidirectional for charge/discharge)
-    efficiency_ratio = config["efficiency"] / 100.0  # Convert percentage to ratio
-    connection_config: dict[str, Any] = {
-        "element_type": "connection",
-        "name": f"{config['name']}_connection",
-        "source": config["name"],
-        "target": config["connection"],
-        "efficiency_source_target": efficiency_ratio,  # Battery to network (discharge)
-        "efficiency_target_source": efficiency_ratio,  # Network to battery (charge)
-    }
-
-    # Add discharge limit (source->target: battery TO network)
-    if "max_discharge_power" in config:
-        connection_config["max_power_source_target"] = config["max_discharge_power"]
-
-    # Add charge limit (target->source: network TO battery)
-    if "max_charge_power" in config:
-        connection_config["max_power_target_source"] = config["max_charge_power"]
-
-    # Add discharge cost (source->target: battery TO network)
-    if "discharge_cost" in config:
-        connection_config["price_source_target"] = config["discharge_cost"]
-
-    elements.append(connection_config)
-
-    return elements
+def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
+    """Create model elements for Battery configuration."""
+    return [
+        {
+            "element_type": "battery",
+            "name": config["name"],
+            "capacity": config["capacity"],
+            "initial_charge_percentage": config["initial_charge_percentage"],
+            "min_charge_percentage": config["min_charge_percentage"],
+            "max_charge_percentage": config["max_charge_percentage"],
+            "early_charge_incentive": config.get("early_charge_incentive"),
+            "undercharge_percentage": config.get("undercharge_percentage"),
+            "overcharge_percentage": config.get("overcharge_percentage"),
+            "undercharge_cost": config.get("undercharge_cost"),
+            "overcharge_cost": config.get("overcharge_cost"),
+        },
+        {
+            "element_type": "connection",
+            "name": f"{config['name']}_connection",
+            "source": config["name"],
+            "target": config["connection"],
+            "efficiency_source_target": config["efficiency"],  # Battery to network (discharge)
+            "efficiency_target_source": config["efficiency"],  # Network to battery (charge)
+            "max_power_source_target": config.get("max_discharge_power"),
+            "max_power_target_source": config.get("max_charge_power"),
+            "price_source_target": config.get("discharge_cost"),  # Battery to network (discharge)
+        },
+    ]
 
 
 def outputs(

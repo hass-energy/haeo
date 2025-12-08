@@ -5,21 +5,25 @@ from typing import Final, Literal
 
 from pulp import LpAffineExpression, LpVariable, lpSum
 
-from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_SHADOW_PRICE
+from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
 CONNECTION_POWER_SOURCE_TARGET: Final = "connection_power_source_target"
 CONNECTION_POWER_TARGET_SOURCE: Final = "connection_power_target_source"
+CONNECTION_POWER_MAX_SOURCE_TARGET: Final = "connection_power_max_source_target"
+CONNECTION_POWER_MAX_TARGET_SOURCE: Final = "connection_power_max_target_source"
+CONNECTION_PRICE_SOURCE_TARGET: Final = "connection_price_source_target"
+CONNECTION_PRICE_TARGET_SOURCE: Final = "connection_price_target_source"
 
-CONNECTION_MAX_POWER_SOURCE_TARGET: Final = "connection_max_power_source_target"
-CONNECTION_MAX_POWER_TARGET_SOURCE: Final = "connection_max_power_target_source"
+CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: Final = "connection_shadow_power_max_source_target"
+CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: Final = "connection_shadow_power_max_target_source"
 CONNECTION_TIME_SLICE: Final = "connection_time_slice"
 
 type ConnectionConstraintName = Literal[
-    "connection_max_power_source_target",
-    "connection_max_power_target_source",
+    "connection_shadow_power_max_source_target",
+    "connection_shadow_power_max_target_source",
     "connection_time_slice",
 ]
 
@@ -27,6 +31,10 @@ type ConnectionOutputName = (
     Literal[
         "connection_power_source_target",
         "connection_power_target_source",
+        "connection_power_max_source_target",
+        "connection_power_max_target_source",
+        "connection_price_source_target",
+        "connection_price_target_source",
     ]
     | ConnectionConstraintName
 )
@@ -35,8 +43,13 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
         CONNECTION_POWER_SOURCE_TARGET,
         CONNECTION_POWER_TARGET_SOURCE,
-        CONNECTION_MAX_POWER_SOURCE_TARGET,
-        CONNECTION_MAX_POWER_TARGET_SOURCE,
+        CONNECTION_POWER_MAX_SOURCE_TARGET,
+        CONNECTION_POWER_MAX_TARGET_SOURCE,
+        CONNECTION_PRICE_SOURCE_TARGET,
+        CONNECTION_PRICE_TARGET_SOURCE,
+        # Constraints
+        CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+        CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
         CONNECTION_TIME_SLICE,
     )
 )
@@ -55,12 +68,11 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         target: str,
         max_power_source_target: float | Sequence[float] | None = None,
         max_power_target_source: float | Sequence[float] | None = None,
-        fixed_power_source_target: Sequence[float] | None = None,
-        fixed_power_target_source: Sequence[float] | None = None,
+        fixed_power: bool = False,
         efficiency_source_target: float | Sequence[float] | None = None,
         efficiency_target_source: float | Sequence[float] | None = None,
-        price_source_target: Sequence[float] | None = None,
-        price_target_source: Sequence[float] | None = None,
+        price_source_target: float | Sequence[float] | None = None,
+        price_target_source: float | Sequence[float] | None = None,
     ) -> None:
         """Initialize a connection between two elements.
 
@@ -72,8 +84,7 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
             target: Name of the target element
             max_power_source_target: Maximum power flow from source to target in kW (per period)
             max_power_target_source: Maximum power flow from target to source in kW (per period)
-            fixed_power_source_target: Fixed power flow from source to target in kW (per period)
-            fixed_power_target_source: Fixed power flow from target to source in kW (per period)
+            fixed_power: If True, power flow is fixed to max_power values
             efficiency_source_target: Efficiency percentage (0-100) for source to target flow
             efficiency_target_source: Efficiency percentage (0-100) for target to source flow
             price_source_target: Price in $/kWh for source to target flow (per period)
@@ -92,32 +103,9 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         st_bounds = broadcast_to_sequence(max_power_source_target, n_periods)
         ts_bounds = broadcast_to_sequence(max_power_target_source, n_periods)
 
-        # Broadcast fixed power to n_periods
-        st_fixed = broadcast_to_sequence(fixed_power_source_target, n_periods) if fixed_power_source_target else None
-        ts_fixed = broadcast_to_sequence(fixed_power_target_source, n_periods) if fixed_power_target_source else None
-
         # Initialize separate power variables for each direction (both positive, bounds as constraints)
         self.power_source_target = [LpVariable(name=f"{name}_power_st_{i}", lowBound=0) for i in range(n_periods)]
         self.power_target_source = [LpVariable(name=f"{name}_power_ts_{i}", lowBound=0) for i in range(n_periods)]
-
-        # Add power constraints - use equality for fixed power, inequality for max bounds
-        if st_fixed is not None:
-            self._constraints[CONNECTION_MAX_POWER_SOURCE_TARGET] = [
-                self.power_source_target[t] == st_fixed[t] for t in range(n_periods)
-            ]
-        elif st_bounds is not None:
-            self._constraints[CONNECTION_MAX_POWER_SOURCE_TARGET] = [
-                self.power_source_target[t] <= st_bounds[t] for t in range(n_periods)
-            ]
-
-        if ts_fixed is not None:
-            self._constraints[CONNECTION_MAX_POWER_TARGET_SOURCE] = [
-                self.power_target_source[t] == ts_fixed[t] for t in range(n_periods)
-            ]
-        elif ts_bounds is not None:
-            self._constraints[CONNECTION_MAX_POWER_TARGET_SOURCE] = [
-                self.power_target_source[t] <= ts_bounds[t] for t in range(n_periods)
-            ]
 
         # Broadcast and convert efficiency to fraction (default 100% = 1.0)
         st_eff_values = broadcast_to_sequence(efficiency_source_target, n_periods)
@@ -127,8 +115,29 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         self.efficiency_target_source = [e / 100.0 for e in ts_eff_values] if ts_eff_values else [1.0] * n_periods
 
         # Store prices (None means no cost)
-        self.price_source_target = price_source_target
-        self.price_target_source = price_target_source
+        self.price_source_target = broadcast_to_sequence(price_source_target, n_periods)
+        self.price_target_source = broadcast_to_sequence(price_target_source, n_periods)
+
+        # Add power constraints - equality if the power is fixed, inequality if only max bounds are provided
+        if st_bounds is not None:
+            if fixed_power:
+                self._constraints[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = [
+                    self.power_source_target[t] == st_bounds[t] for t in range(n_periods)
+                ]
+            else:
+                self._constraints[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = [
+                    self.power_source_target[t] <= st_bounds[t] for t in range(n_periods)
+                ]
+
+        if ts_bounds is not None:
+            if fixed_power:
+                self._constraints[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = [
+                    self.power_target_source[t] == ts_bounds[t] for t in range(n_periods)
+                ]
+            else:
+                self._constraints[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = [
+                    self.power_target_source[t] <= ts_bounds[t] for t in range(n_periods)
+                ]
 
         # Time slicing constraint: prevent simultaneous full bidirectional power flow
         # This allows cycling but on a time-sliced basis (e.g., 50% forward, 50% backward)
@@ -140,10 +149,7 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
             ]
 
     def cost(self) -> Sequence[LpAffineExpression]:
-        """Return the cost expressions of the connection with transfer pricing.
-
-        Returns a sequence of cost expressions for aggregation at the network level.
-        """
+        """Return the cost expressions of the connection with transfer pricing."""
         costs: list[LpAffineExpression] = []
         if self.price_source_target is not None:
             costs.append(
@@ -165,6 +171,7 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
 
     def outputs(self) -> Mapping[ConnectionOutputName, OutputData]:
         """Return output specifications for the connection."""
+
         outputs: dict[ConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: OutputData(
                 type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=self.power_source_target, direction="+"
@@ -174,6 +181,22 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
             ),
         }
 
+        # Output price data if provided
+        if self.price_source_target is not None:
+            outputs[CONNECTION_PRICE_SOURCE_TARGET] = OutputData(
+                type=OUTPUT_TYPE_PRICE,
+                unit="$/kWh",
+                values=self.price_source_target,
+            )
+
+        if self.price_target_source is not None:
+            outputs[CONNECTION_PRICE_TARGET_SOURCE] = OutputData(
+                type=OUTPUT_TYPE_PRICE,
+                unit="$/kWh",
+                values=self.price_target_source,
+            )
+
+        # Output constraint shadow prices
         for constraint_name in self._constraints:
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,

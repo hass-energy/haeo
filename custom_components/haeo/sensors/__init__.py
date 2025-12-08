@@ -34,13 +34,9 @@ async def async_setup_entry(
     dr = device_registry.async_get(hass)
 
     if coordinator.data:
-        print("\n=== SENSOR SETUP DEBUG ===")
-        print(f"Coordinator data keys: {list(coordinator.data.keys())}")
-        print(f"Subentry titles: {[subentry.title for subentry in config_entry.subentries.values()]}")
         for subentry in config_entry.subentries.values():
             slugified = slugify(subentry.title)
             outputs = coordinator.data.get(slugified, {})
-            print(f"Looking for {subentry.title!r} -> {slugified!r}: found {len(outputs)} outputs")
 
             # Get or create the device for this element
             device_entry = dr.async_get_or_create(

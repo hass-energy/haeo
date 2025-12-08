@@ -15,21 +15,14 @@
         }
       }
     },
-    "error": {
-      "name_exists": "A network with this name already exists"
-    },
-    "abort": {
-      "already_configured": "Network already configured"
-    }
+    "error": { "name_exists": "A network with this name already exists" },
+    "abort": { "already_configured": "Network already configured" }
   },
   "config_subentries": {
     "battery": {
       "flow_title": "Battery",
       "entry_type": "Battery",
-      "initiate_flow": {
-        "user": "Battery",
-        "reconfigure": "Battery"
-      },
+      "initiate_flow": { "user": "Battery", "reconfigure": "Battery" },
       "step": {
         "user": {
           "title": "Add Battery",
@@ -74,18 +67,12 @@
           }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     },
     "connection": {
       "flow_title": "Connection",
       "entry_type": "Connection",
-      "initiate_flow": {
-        "user": "Connection",
-        "reconfigure": "Connection"
-      },
+      "initiate_flow": { "user": "Connection", "reconfigure": "Connection" },
       "step": {
         "user": {
           "title": "Add Connection",
@@ -130,10 +117,7 @@
     "grid": {
       "flow_title": "Grid Connection",
       "entry_type": "Grid Connection",
-      "initiate_flow": {
-        "user": "Grid Connection",
-        "reconfigure": "Grid Connection"
-      },
+      "initiate_flow": { "user": "Grid Connection", "reconfigure": "Grid Connection" },
       "step": {
         "user": {
           "title": "Add Grid Connection",
@@ -160,87 +144,54 @@
           }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     },
     "load": {
       "flow_title": "Load",
       "entry_type": "Load",
-      "initiate_flow": {
-        "user": "Load",
-        "reconfigure": "Load"
-      },
+      "initiate_flow": { "user": "Load", "reconfigure": "Load" },
       "step": {
         "user": {
           "title": "Add Load",
           "description": "Set up a load with forecast or constant power",
-          "data": {
-            "connection": "Connection",
-            "forecast": "Forecast Sensors",
-            "name": "Load Name"
-          }
+          "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
         },
         "reconfigure": {
           "title": "Edit Load",
           "description": "Update load configuration",
-          "data": {
-            "connection": "Connection",
-            "forecast": "Forecast Sensors",
-            "name": "Load Name"
-          }
+          "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     },
     "network": {
       "flow_title": "Network",
       "entry_type": "Network",
-      "initiate_flow": {
-        "user": "Network",
-        "reconfigure": "Network"
-      },
+      "initiate_flow": { "user": "Network", "reconfigure": "Network" },
       "step": {}
     },
     "node": {
       "flow_title": "Node",
       "entry_type": "Node",
-      "initiate_flow": {
-        "user": "Node",
-        "reconfigure": "Node"
-      },
+      "initiate_flow": { "user": "Node", "reconfigure": "Node" },
       "step": {
         "user": {
           "title": "Add Node",
           "description": "Add a node for power balance calculations",
-          "data": {
-            "name": "Node Name"
-          }
+          "data": { "name": "Node Name" }
         },
         "reconfigure": {
           "title": "Edit Node",
           "description": "Update node configuration",
-          "data": {
-            "name": "Node Name"
-          }
+          "data": { "name": "Node Name" }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     },
     "photovoltaics": {
       "flow_title": "Photovoltaics",
       "entry_type": "Photovoltaics",
-      "initiate_flow": {
-        "user": "Photovoltaics",
-        "reconfigure": "Photovoltaics"
-      },
+      "initiate_flow": { "user": "Photovoltaics", "reconfigure": "Photovoltaics" },
       "step": {
         "user": {
           "title": "Add Photovoltaics",
@@ -265,181 +216,71 @@
           }
         }
       },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
-      }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     }
   },
   "device": {
-    "battery": {
-      "name": "{name}"
-    },
-    "connection": {
-      "name": "{name}"
-    },
-    "grid": {
-      "name": "{name}"
-    },
-    "load": {
-      "name": "{name}"
-    },
-    "network": {
-      "name": "{name}"
-    },
-    "node": {
-      "name": "{name}"
-    },
-    "photovoltaics": {
-      "name": "{name}"
-    }
+    "battery": { "name": "{name}" },
+    "connection": { "name": "{name}" },
+    "grid": { "name": "{name}" },
+    "load": { "name": "{name}" },
+    "network": { "name": "{name}" },
+    "node": { "name": "{name}" },
+    "photovoltaics": { "name": "{name}" }
   },
   "entity": {
     "sensor": {
-      "battery_energy_stored": {
-        "name": "Energy Stored"
-      },
-      "battery_normal_charge_price": {
-        "name": "Normal Charge Price"
-      },
-      "battery_normal_discharge_price": {
-        "name": "Normal Discharge Price"
-      },
-      "battery_normal_energy_in_flow": {
-        "name": "Normal Energy In Flow Shadow Price"
-      },
-      "battery_normal_energy_out_flow": {
-        "name": "Normal Energy Out Flow Shadow Price"
-      },
-      "battery_normal_energy_stored": {
-        "name": "Normal Energy Stored"
-      },
-      "battery_normal_power_charge": {
-        "name": "Normal Power Charge"
-      },
-      "battery_normal_power_discharge": {
-        "name": "Normal Power Discharge"
-      },
-      "battery_normal_soc_max": {
-        "name": "Normal SOC Max Shadow Price"
-      },
-      "battery_normal_soc_min": {
-        "name": "Normal SOC Min Shadow Price"
-      },
-      "battery_overcharge_charge_price": {
-        "name": "Overcharge Charge Price"
-      },
-      "battery_overcharge_discharge_price": {
-        "name": "Overcharge Discharge Price"
-      },
-      "battery_overcharge_energy_in_flow": {
-        "name": "Overcharge Energy In Flow Shadow Price"
-      },
-      "battery_overcharge_energy_out_flow": {
-        "name": "Overcharge Energy Out Flow Shadow Price"
-      },
-      "battery_overcharge_energy_stored": {
-        "name": "Overcharge Energy Stored"
-      },
-      "battery_overcharge_power_charge": {
-        "name": "Overcharge Power Charge"
-      },
-      "battery_overcharge_power_discharge": {
-        "name": "Overcharge Power Discharge"
-      },
-      "battery_overcharge_soc_max": {
-        "name": "Overcharge SOC Max Shadow Price"
-      },
-      "battery_overcharge_soc_min": {
-        "name": "Overcharge SOC Min Shadow Price"
-      },
-      "battery_power_balance": {
-        "name": "Power Balance Shadow Price"
-      },
-      "battery_power_charge": {
-        "name": "Power Charge"
-      },
-      "battery_power_discharge": {
-        "name": "Power Discharge"
-      },
-      "battery_state_of_charge": {
-        "name": "State of Charge"
-      },
-      "battery_undercharge_charge_price": {
-        "name": "Undercharge Charge Price"
-      },
-      "battery_undercharge_discharge_price": {
-        "name": "Undercharge Discharge Price"
-      },
-      "battery_undercharge_energy_in_flow": {
-        "name": "Undercharge Energy In Flow Shadow Price"
-      },
-      "battery_undercharge_energy_out_flow": {
-        "name": "Undercharge Energy Out Flow Shadow Price"
-      },
-      "battery_undercharge_energy_stored": {
-        "name": "Undercharge Energy Stored"
-      },
-      "battery_undercharge_power_charge": {
-        "name": "Undercharge Power Charge"
-      },
-      "battery_undercharge_power_discharge": {
-        "name": "Undercharge Power Discharge"
-      },
-      "battery_undercharge_soc_max": {
-        "name": "Undercharge SOC Max Shadow Price"
-      },
-      "battery_undercharge_soc_min": {
-        "name": "Undercharge SOC Min Shadow Price"
-      },
-      "connection_max_power_source_target": {
-        "name": "Max Power Source\u2192Target Shadow Price"
-      },
-      "connection_max_power_target_source": {
-        "name": "Max Power Target\u2192Source Shadow Price"
-      },
-      "connection_power_source_target": {
-        "name": "Power Flow Source\u2192Target"
-      },
-      "connection_power_target_source": {
-        "name": "Power Flow Target\u2192Source"
-      },
-      "connection_time_slice": {
-        "name": "Time Slice Shadow Price"
-      },
-      "grid_power_balance": {
-        "name": "Power Balance Shadow Price"
-      },
-      "grid_power_export": {
-        "name": "Power Export"
-      },
-      "grid_power_import": {
-        "name": "Power Import"
-      },
-      "load_power_balance": {
-        "name": "Power Balance Shadow Price"
-      },
-      "load_power_consumed": {
-        "name": "Power Consumed"
-      },
-      "node_power_balance": {
-        "name": "Power Balance Shadow Price"
-      },
-      "optimization_cost": {
-        "name": "Optimization Cost"
-      },
-      "optimization_duration": {
-        "name": "Optimization Duration"
-      },
-      "optimization_status": {
-        "name": "Optimization Status"
-      },
-      "photovoltaics_power_balance": {
-        "name": "Power Balance Shadow Price"
-      },
-      "photovoltaics_power_produced": {
-        "name": "Power Produced"
-      }
+      "battery_energy_stored": { "name": "Energy Stored" },
+      "battery_normal_charge_price": { "name": "Normal Charge Price" },
+      "battery_normal_discharge_price": { "name": "Normal Discharge Price" },
+      "battery_normal_energy_in_flow": { "name": "Normal Energy In Flow Shadow Price" },
+      "battery_normal_energy_out_flow": { "name": "Normal Energy Out Flow Shadow Price" },
+      "battery_normal_energy_stored": { "name": "Normal Energy Stored" },
+      "battery_normal_power_charge": { "name": "Normal Power Charge" },
+      "battery_normal_power_discharge": { "name": "Normal Power Discharge" },
+      "battery_normal_soc_max": { "name": "Normal SOC Max Shadow Price" },
+      "battery_normal_soc_min": { "name": "Normal SOC Min Shadow Price" },
+      "battery_overcharge_charge_price": { "name": "Overcharge Charge Price" },
+      "battery_overcharge_discharge_price": { "name": "Overcharge Discharge Price" },
+      "battery_overcharge_energy_in_flow": { "name": "Overcharge Energy In Flow Shadow Price" },
+      "battery_overcharge_energy_out_flow": { "name": "Overcharge Energy Out Flow Shadow Price" },
+      "battery_overcharge_energy_stored": { "name": "Overcharge Energy Stored" },
+      "battery_overcharge_power_charge": { "name": "Overcharge Power Charge" },
+      "battery_overcharge_power_discharge": { "name": "Overcharge Power Discharge" },
+      "battery_overcharge_soc_max": { "name": "Overcharge SOC Max Shadow Price" },
+      "battery_overcharge_soc_min": { "name": "Overcharge SOC Min Shadow Price" },
+      "battery_power_balance": { "name": "Power Balance Shadow Price" },
+      "battery_power_charge": { "name": "Power Charge" },
+      "battery_power_discharge": { "name": "Power Discharge" },
+      "battery_state_of_charge": { "name": "State of Charge" },
+      "battery_undercharge_charge_price": { "name": "Undercharge Charge Price" },
+      "battery_undercharge_discharge_price": { "name": "Undercharge Discharge Price" },
+      "battery_undercharge_energy_in_flow": { "name": "Undercharge Energy In Flow Shadow Price" },
+      "battery_undercharge_energy_out_flow": { "name": "Undercharge Energy Out Flow Shadow Price" },
+      "battery_undercharge_energy_stored": { "name": "Undercharge Energy Stored" },
+      "battery_undercharge_power_charge": { "name": "Undercharge Power Charge" },
+      "battery_undercharge_power_discharge": { "name": "Undercharge Power Discharge" },
+      "battery_undercharge_soc_max": { "name": "Undercharge SOC Max Shadow Price" },
+      "battery_undercharge_soc_min": { "name": "Undercharge SOC Min Shadow Price" },
+      "connection_max_power_source_target": { "name": "Max Power Source\u2192Target Shadow Price" },
+      "connection_max_power_target_source": { "name": "Max Power Target\u2192Source Shadow Price" },
+      "connection_power_source_target": { "name": "Power Flow Source\u2192Target" },
+      "connection_power_target_source": { "name": "Power Flow Target\u2192Source" },
+      "connection_time_slice": { "name": "Time Slice Shadow Price" },
+      "grid_export_price": { "name": "Export Price" },
+      "grid_import_price": { "name": "Import Price" },
+      "grid_power_balance": { "name": "Power Balance Shadow Price" },
+      "grid_power_exported": { "name": "Power Exported" },
+      "grid_power_imported": { "name": "Power Imported" },
+      "load_power_balance": { "name": "Power Balance Shadow Price" },
+      "load_power_consumed": { "name": "Power Consumed" },
+      "node_power_balance": { "name": "Power Balance Shadow Price" },
+      "optimization_cost": { "name": "Optimization Cost" },
+      "optimization_duration": { "name": "Optimization Duration" },
+      "optimization_status": { "name": "Optimization Status" },
+      "photovoltaics_power_available": { "name": "Power Available" },
+      "photovoltaics_power_balance": { "name": "Power Balance Shadow Price" },
+      "photovoltaics_power_produced": { "name": "Power Produced" }
     }
   },
   "exceptions": {

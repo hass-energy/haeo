@@ -6,15 +6,9 @@ translations, and other integration code that needs to reference all possible ou
 
 from typing import Final, Literal
 
-# Import element-specific output names and types
-from custom_components.haeo.elements.grid import GRID_POWER_BALANCE, GRID_POWER_EXPORT, GRID_POWER_IMPORT
-from custom_components.haeo.elements.load import LOAD_POWER_BALANCE, LOAD_POWER_CONSUMED
-from custom_components.haeo.elements.photovoltaics import PHOTOVOLTAICS_POWER_BALANCE, PHOTOVOLTAICS_POWER_PRODUCED
-
 from .battery import BATTERY_OUTPUT_NAMES, BatteryOutputName
 from .connection import CONNECTION_OUTPUT_NAMES, ConnectionOutputName
-from .const import OUTPUT_NAME_OPTIMIZATION_COST, OUTPUT_NAME_OPTIMIZATION_DURATION, OUTPUT_NAME_OPTIMIZATION_STATUS
-from .node import NODE_OUTPUT_NAMES, NodeOutputName
+from .source_sink import SOURCE_SINK_OUTPUT_NAMES, SourceSinkOutputName
 
 # Network-level output names (not from elements)
 type NetworkOutputName = Literal[
@@ -22,6 +16,10 @@ type NetworkOutputName = Literal[
     "optimization_status",
     "optimization_duration",
 ]
+
+OUTPUT_NAME_OPTIMIZATION_COST: Final = "optimization_cost"
+OUTPUT_NAME_OPTIMIZATION_STATUS: Final = "optimization_status"
+OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "optimization_duration"
 
 NETWORK_OUTPUT_NAMES: Final[frozenset[NetworkOutputName]] = frozenset(
     [
@@ -33,23 +31,15 @@ NETWORK_OUTPUT_NAMES: Final[frozenset[NetworkOutputName]] = frozenset(
 
 # Combined type for all possible output names
 # Note: Grid/Load/Photovoltaics outputs are now provided by adapter layer in elements/
-type OutputName = BatteryOutputName | NodeOutputName | ConnectionOutputName | NetworkOutputName
+type OutputName = BatteryOutputName | ConnectionOutputName | NetworkOutputName | SourceSinkOutputName
 
 # Aggregated set of all output names from model and adapter elements
 ALL_OUTPUT_NAMES: Final[frozenset[str]] = frozenset(
     {
         *BATTERY_OUTPUT_NAMES,
-        *NODE_OUTPUT_NAMES,
         *CONNECTION_OUTPUT_NAMES,
         *NETWORK_OUTPUT_NAMES,
-        # Adapter layer output names
-        GRID_POWER_IMPORT,
-        GRID_POWER_EXPORT,
-        GRID_POWER_BALANCE,
-        LOAD_POWER_CONSUMED,
-        LOAD_POWER_BALANCE,
-        PHOTOVOLTAICS_POWER_PRODUCED,
-        PHOTOVOLTAICS_POWER_BALANCE,
+        *SOURCE_SINK_OUTPUT_NAMES,
     }
 )
 
@@ -58,10 +48,10 @@ __all__ = [
     "BATTERY_OUTPUT_NAMES",
     "CONNECTION_OUTPUT_NAMES",
     "NETWORK_OUTPUT_NAMES",
-    "NODE_OUTPUT_NAMES",
+    "SOURCE_SINK_OUTPUT_NAMES",
     "BatteryOutputName",
     "ConnectionOutputName",
     "NetworkOutputName",
-    "NodeOutputName",
     "OutputName",
+    "SourceSinkOutputName",
 ]

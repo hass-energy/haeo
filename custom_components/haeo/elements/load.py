@@ -3,8 +3,13 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal, TypedDict
 
+from custom_components.haeo.model import OutputName as ModelOutputName
+from custom_components.haeo.model.connection import (
+    CONNECTION_POWER_MAX_SOURCE_TARGET,
+    CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+)
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE, SOURCE_SINK_POWER_IN
 from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
     NameFieldData,
@@ -20,8 +25,23 @@ CONF_FORECAST: Final = "forecast"
 CONF_CONNECTION: Final = "connection"
 
 # Load-specific sensor names (for translation/output mapping)
-LOAD_POWER_CONSUMED: Final = "load_power_consumed"
-LOAD_POWER_BALANCE: Final = "load_power_balance"
+LOAD_POWER: Final = "load_power"
+LOAD_POWER_POSSIBLE: Final = "load_power_possible"
+LOAD_FORECAST_LIMIT_PRICE: Final = "load_forecast_limit_price"
+
+type LoadOutputName = Literal[
+    "load_power",
+    "load_power_possible",
+    "load_forecast_limit_price",
+]
+LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
+    (
+        LOAD_POWER,
+        LOAD_POWER_POSSIBLE,
+        # Shadow prices
+        LOAD_FORECAST_LIMIT_PRICE,
+    )
+)
 
 
 class LoadConfigSchema(TypedDict):
@@ -45,70 +65,39 @@ class LoadConfigData(TypedDict):
 CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
-def create_model_elements(
-    config: LoadConfigData,
-    period: float,  # noqa: ARG001
-    n_periods: int,  # noqa: ARG001
-) -> list[dict[str, Any]]:
-    """Create model elements for Load configuration.
+def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
+    """Create model elements for Load configuration."""
 
-    Returns a list of element configurations that should be added to the network:
-    - A SourceSink element for the load
-    - A Connection to the load from the specified node
-
-    Args:
-        config: Load configuration data
-        period: Time period in hours (unused - for signature compatibility)
-        n_periods: Number of periods (unused - for signature compatibility)
-
-    Returns:
-        List of element configs to add to network
-
-    """
-    elements: list[dict[str, Any]] = []
-
-    # Create SourceSink for the load
-    elements.append({"element_type": "source_sink", "name": config["name"]})
-
-    # Create Connection from node to load
-    # Load only consumes power (source->target flow: network TO load)
-    connection_config: dict[str, Any] = {
-        "element_type": "connection",
-        "name": f"{config['name']}_connection",
-        "source": config["connection"],
-        "target": config["name"],
-    }
-
-    # Add forecast as power limit (source->target: maximum load consumption)
-    connection_config["max_power_source_target"] = config["forecast"]
-
-    elements.append(connection_config)
+    elements: list[dict[str, Any]] = [
+        # Create SourceSink for the load (sink only - consumes power)
+        {"element_type": "source_sink", "name": config["name"], "is_source": False, "is_sink": True},
+        # Create Connection from node to load
+        {
+            "element_type": "connection",
+            "name": f"{config['name']}:connection",
+            "source": config["name"],
+            "target": config["connection"],
+            "power_source_target": config["forecast"],
+            "power_source_target_fixed": True,
+        },
+    ]
 
     return elements
 
 
 def outputs(
-    element_name: str,
-    model_outputs: Mapping[str, OutputData],
-) -> dict[str, dict[str, OutputData]]:
-    """Map model outputs to load-specific output names.
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+) -> dict[str, dict[LoadOutputName, OutputData]]:
+    """Map model outputs to load-specific output names."""
 
-    Args:
-        element_name: Name of the load element
-        model_outputs: Outputs from the model SourceSink and Connection
+    connection = outputs[f"{name}:connection"]
 
-    Returns:
-        Nested dict mapping {element_name: {sensor_name: OutputData}}
+    load_outputs: dict[LoadOutputName, OutputData] = {}
 
-    """
-    load_outputs: dict[str, OutputData] = {}
+    load_outputs[LOAD_POWER] = connection[CONNECTION_POWER_TARGET_SOURCE]
+    load_outputs[LOAD_POWER_POSSIBLE] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
 
-    # Map SourceSink power_in to load_power_consumed (load consuming power FROM network)
-    if SOURCE_SINK_POWER_IN in model_outputs:
-        load_outputs[LOAD_POWER_CONSUMED] = model_outputs[SOURCE_SINK_POWER_IN]
+    # Only the max limit has meaning, the source sink power balance is always zero as it will never influence cost
+    load_outputs[LOAD_FORECAST_LIMIT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
 
-    # Map power balance shadow price
-    if SOURCE_SINK_POWER_BALANCE in model_outputs:
-        load_outputs[LOAD_POWER_BALANCE] = model_outputs[SOURCE_SINK_POWER_BALANCE]
-
-    return {element_name: load_outputs}
+    return {name: load_outputs}

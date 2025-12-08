@@ -3,12 +3,18 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.source_sink import (
-    SOURCE_SINK_POWER_BALANCE,
-    SOURCE_SINK_POWER_IN,
-    SOURCE_SINK_POWER_OUT,
+from custom_components.haeo.model import OutputName as ModelOutputName
+from custom_components.haeo.model.connection import (
+    CONNECTION_POWER_MAX_SOURCE_TARGET,
+    CONNECTION_POWER_MAX_TARGET_SOURCE,
+    CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_PRICE_SOURCE_TARGET,
+    CONNECTION_PRICE_TARGET_SOURCE,
+    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+    CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
+from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
     NameFieldData,
@@ -31,9 +37,38 @@ CONF_EXPORT_PRICE_FORECAST: Final = "export_price_forecast"
 CONF_CONNECTION: Final = "connection"
 
 # Grid-specific sensor names (for translation/output mapping)
+type GridOutputName = Literal[
+    "grid_power_import",
+    "grid_power_export",
+    "grid_power_max_import",
+    "grid_power_max_export",
+    "grid_price_import",
+    "grid_price_export",
+    "grid_power_max_import_price",
+    "grid_power_max_export_price",
+]
 GRID_POWER_IMPORT: Final = "grid_power_import"
 GRID_POWER_EXPORT: Final = "grid_power_export"
-GRID_POWER_BALANCE: Final = "grid_power_balance"
+GRID_POWER_MAX_IMPORT: Final = "grid_power_max_import"
+GRID_POWER_MAX_EXPORT: Final = "grid_power_max_export"
+GRID_PRICE_IMPORT: Final = "grid_price_import"
+GRID_PRICE_EXPORT: Final = "grid_price_export"
+GRID_POWER_MAX_IMPORT_PRICE: Final = "grid_power_max_import_price"
+GRID_POWER_MAX_EXPORT_PRICE: Final = "grid_power_max_export_price"
+
+GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
+    (
+        GRID_POWER_IMPORT,
+        GRID_POWER_EXPORT,
+        GRID_POWER_MAX_IMPORT,
+        GRID_POWER_MAX_EXPORT,
+        GRID_PRICE_IMPORT,
+        GRID_PRICE_EXPORT,
+        # Shadow prices
+        GRID_POWER_MAX_IMPORT_PRICE,
+        GRID_POWER_MAX_EXPORT_PRICE,
+    )
+)
 
 
 class GridConfigSchema(TypedDict):
@@ -67,88 +102,48 @@ class GridConfigData(TypedDict):
 CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
-def create_model_elements(
-    config: GridConfigData,
-    period: float,  # noqa: ARG001
-    n_periods: int,  # noqa: ARG001
-) -> list[dict[str, Any]]:
-    """Create model elements for Grid configuration.
+def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
+    """Create model elements for Grid configuration."""
 
-    Returns a list of element configurations that should be added to the network:
-    - A SourceSink element for the grid
-    - A Connection from the grid to the specified node
-
-    Args:
-        config: Grid configuration data
-        period: Time period in hours (unused - for signature compatibility)
-        n_periods: Number of periods (unused - for signature compatibility)
-
-    Returns:
-        List of element configs to add to network
-
-    """
-    elements: list[dict[str, Any]] = []
-
-    # Create SourceSink for the grid
-    elements.append({"element_type": "source_sink", "name": config["name"]})
-
-    # Create Connection from grid to node
-    # Grid can both import (target->source flow) and export (source->target flow)
-    connection_config: dict[str, Any] = {
-        "element_type": "connection",
-        "name": f"{config['name']}_connection",
-        "source": config["name"],
-        "target": config["connection"],
-    }
-
-    # Add import limit (target->source: grid provides power TO network)
-    if "import_limit" in config:
-        connection_config["max_power_target_source"] = config["import_limit"]
-
-    # Add export limit (source->target: network provides power TO grid)
-    if "export_limit" in config:
-        connection_config["max_power_source_target"] = config["export_limit"]
-
-    # Add import pricing (target->source: cost of grid providing power)
-    if "import_price" in config:
-        connection_config["price_target_source"] = config["import_price"]
-
-    # Add export pricing (source->target: revenue from exporting to grid)
-    # Export price should be negative of the cost (revenue = negative cost)
-    if "export_price" in config:
-        connection_config["price_source_target"] = config["export_price"]
-
-    elements.append(connection_config)
-
-    return elements
+    return [
+        # Create SourceSink for the grid (both source and sink - can import and export)
+        {"element_type": "source_sink", "name": config["name"], "is_source": True, "is_sink": True},
+        # Create a connection from the grid to the specified node
+        {
+            "element_type": "connection",
+            "name": f"{config['name']}:connection",
+            "source": config["name"],
+            "target": config["connection"],
+            "max_power_source_target": config.get("import_limit"),
+            "max_power_target_source": config.get("export_limit"),
+            "price_source_target": config.get("import_price"),
+            "price_target_source": config.get("export_price"),
+        },
+    ]
 
 
 def outputs(
-    element_name: str,
-    model_outputs: Mapping[str, OutputData],
-) -> dict[str, dict[str, OutputData]]:
-    """Map model outputs to grid-specific output names.
+    element_name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+) -> dict[str, dict[GridOutputName, OutputData]]:
+    """Map model outputs to grid-specific output names."""
 
-    Args:
-        element_name: Name of the grid element
-        model_outputs: Outputs from the model SourceSink and Connection
+    connection = model_outputs[f"{element_name}:connection"]
 
-    Returns:
-        Nested dict mapping {element_name: {sensor_name: OutputData}}
+    grid_outputs: dict[GridOutputName, OutputData] = {}
 
-    """
-    grid_outputs: dict[str, OutputData] = {}
+    # This will be identical to the source/sink power in/out outputs
+    grid_outputs[GRID_POWER_EXPORT] = connection[CONNECTION_POWER_TARGET_SOURCE]
+    grid_outputs[GRID_POWER_IMPORT] = connection[CONNECTION_POWER_SOURCE_TARGET]
 
-    # Map SourceSink power_in to grid_power_import (grid supplying power TO network)
-    if SOURCE_SINK_POWER_IN in model_outputs:
-        grid_outputs[GRID_POWER_IMPORT] = model_outputs[SOURCE_SINK_POWER_IN]
+    # Output the given inputs if they exist
+    if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
+        grid_outputs[GRID_POWER_MAX_IMPORT] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+        grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+    if CONNECTION_POWER_MAX_TARGET_SOURCE in connection:
+        grid_outputs[GRID_POWER_MAX_EXPORT] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
+        grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 
-    # Map SourceSink power_out to grid_power_export (network supplying power TO grid)
-    if SOURCE_SINK_POWER_OUT in model_outputs:
-        grid_outputs[GRID_POWER_EXPORT] = model_outputs[SOURCE_SINK_POWER_OUT]
-
-    # Map power balance shadow price
-    if SOURCE_SINK_POWER_BALANCE in model_outputs:
-        grid_outputs[GRID_POWER_BALANCE] = model_outputs[SOURCE_SINK_POWER_BALANCE]
+    grid_outputs[GRID_PRICE_EXPORT] = connection[CONNECTION_PRICE_TARGET_SOURCE]
+    grid_outputs[GRID_PRICE_IMPORT] = connection[CONNECTION_PRICE_SOURCE_TARGET]
 
     return {element_name: grid_outputs}

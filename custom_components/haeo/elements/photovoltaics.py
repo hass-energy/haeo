@@ -3,8 +3,13 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
+from custom_components.haeo.model import OutputName as ModelOutputName
+from custom_components.haeo.model.connection import (
+    CONNECTION_POWER_MAX_SOURCE_TARGET,
+    CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+)
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE, SOURCE_SINK_POWER_OUT
 from custom_components.haeo.schema.fields import (
     BooleanFieldData,
     BooleanFieldSchema,
@@ -26,8 +31,27 @@ CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
 
 # Photovoltaics-specific sensor names (for translation/output mapping)
-PHOTOVOLTAICS_POWER_PRODUCED: Final = "photovoltaics_power_produced"
+PHOTOVOLTAICS_POWER: Final = "photovoltaics_power"
 PHOTOVOLTAICS_POWER_BALANCE: Final = "photovoltaics_power_balance"
+PHOTOVOLTAICS_POWER_AVAILABLE: Final = "photovoltaics_power_available"
+PHOTOVOLTAICS_FORECAST_LIMIT: Final = "photovoltaics_forecast_limit"
+
+type PhotovoltaicsOutputName = Literal[
+    "photovoltaics_power",
+    "photovoltaics_power_available",
+    # Shadow prices
+    "photovoltaics_power_balance",
+    "photovoltaics_forecast_limit",
+]
+
+PHOTOVOLTAIC_OUTPUT_NAMES: Final[frozenset[PhotovoltaicsOutputName]] = frozenset(
+    (
+        PHOTOVOLTAICS_POWER,
+        PHOTOVOLTAICS_POWER_AVAILABLE,
+        # Shadow prices
+        PHOTOVOLTAICS_FORECAST_LIMIT,
+    )
+)
 
 
 class PhotovoltaicsConfigSchema(TypedDict):
@@ -57,80 +81,41 @@ class PhotovoltaicsConfigData(TypedDict):
 
 
 CONFIG_DEFAULTS: dict[str, Any] = {
-    CONF_CURTAILMENT: False,
+    CONF_CURTAILMENT: True,
 }
 
 
-def create_model_elements(
-    config: PhotovoltaicsConfigData,
-    period: float,  # noqa: ARG001
-    n_periods: int,  # noqa: ARG001
-) -> list[dict[str, Any]]:
-    """Create model elements for Photovoltaics configuration.
+def create_model_elements(config: PhotovoltaicsConfigData) -> list[dict[str, Any]]:
+    """Create model elements for Photovoltaics configuration."""
 
-    Returns a list of element configurations that should be added to the network:
-    - A SourceSink element for the photovoltaics
-    - A Connection from the photovoltaics to the specified node
-
-    Args:
-        config: Photovoltaics configuration data
-        period: Time period in hours
-        n_periods: Number of periods
-
-    Returns:
-        List of element configs to add to network
-
-    """
-    elements: list[dict[str, Any]] = []
-
-    # Create SourceSink for the photovoltaics
-    elements.append(
+    return [
+        {"element_type": "source_sink", "name": config["name"], "is_source": True, "is_sink": False},
         {
-            "element_type": "source_sink",
-            "name": config["name"],
-        }
-    )
-
-    # Create Connection from photovoltaics to node (PV produces power)
-    connection_config: dict[str, Any] = {
-        "element_type": "connection",
-        "name": f"{config['name']}_connection",
-        "source": config["name"],
-        "target": config["connection"],
-        "max_power_source_target": config["forecast"],  # Forecast becomes power limit
-    }
-
-    # Add production pricing if provided
-    if "price_production" in config:
-        connection_config["price_source_target"] = config["price_production"]
-
-    elements.append(connection_config)
-
-    return elements
+            "element_type": "connection",
+            "name": f"{config['name']}:connection",
+            "source": config["name"],
+            "target": config["connection"],
+            "power_source_target": config["forecast"],
+            "power_fixed": True,
+            "price_source_target": config.get("price_production"),
+        },
+    ]
 
 
 def outputs(
-    element_name: str,
-    model_outputs: Mapping[str, OutputData],
-) -> dict[str, dict[str, OutputData]]:
-    """Map model outputs to photovoltaics-specific output names.
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+) -> dict[str, dict[PhotovoltaicsOutputName, OutputData]]:
+    """Map model outputs to photovoltaics-specific output names."""
 
-    Args:
-        element_name: Name of the photovoltaics element
-        model_outputs: Outputs from the model SourceSink and Connection
+    connection = outputs[f"{name}:connection"]
 
-    Returns:
-        Nested dict mapping {element_name: {sensor_name: OutputData}}
+    pv_outputs: dict[PhotovoltaicsOutputName, OutputData] = {}
 
-    """
-    pv_outputs: dict[str, OutputData] = {}
+    # Both the connection and source_sink will have the same power flow values, so just use one
+    pv_outputs[PHOTOVOLTAICS_POWER] = connection[CONNECTION_POWER_SOURCE_TARGET]
+    pv_outputs[PHOTOVOLTAICS_POWER_AVAILABLE] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
 
-    # Map SourceSink power_out to photovoltaics_power_produced (PV producing power TO network)
-    if SOURCE_SINK_POWER_OUT in model_outputs:
-        pv_outputs[PHOTOVOLTAICS_POWER_PRODUCED] = model_outputs[SOURCE_SINK_POWER_OUT]
+    # Forecast limit shadow price is on the connection (the "I want more solar power" constraint)
+    pv_outputs[PHOTOVOLTAICS_FORECAST_LIMIT] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
 
-    # Map power balance shadow price
-    if SOURCE_SINK_POWER_BALANCE in model_outputs:
-        pv_outputs[PHOTOVOLTAICS_POWER_BALANCE] = model_outputs[SOURCE_SINK_POWER_BALANCE]
-
-    return {element_name: pv_outputs}
+    return {name: pv_outputs}

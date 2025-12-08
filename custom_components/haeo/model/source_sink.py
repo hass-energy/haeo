@@ -10,13 +10,21 @@ from .element import Element
 from .output_data import OutputData
 
 # Element-agnostic output names
-SOURCE_SINK_POWER_IN: Final = "power_in"
-SOURCE_SINK_POWER_OUT: Final = "power_out"
-SOURCE_SINK_POWER_BALANCE: Final = "power_balance"
+SOURCE_SINK_POWER_IN: Final = "source_sink_power_in"
+SOURCE_SINK_POWER_OUT: Final = "source_sink_power_out"
+SOURCE_SINK_POWER_BALANCE: Final = "source_sink_power_balance"
 
-type SourceSinkConstraintName = Literal["power_balance"]
+type SourceSinkConstraintName = Literal["source_sink_power_balance"]
 
-type SourceSinkOutputName = Literal["power_in", "power_out"] | SourceSinkConstraintName
+type SourceSinkOutputName = Literal["source_sink_power_in", "source_sink_power_out"] | SourceSinkConstraintName
+
+SOURCE_SINK_OUTPUT_NAMES: Final[frozenset[SourceSinkOutputName]] = frozenset(
+    (
+        SOURCE_SINK_POWER_IN,
+        SOURCE_SINK_POWER_OUT,
+        SOURCE_SINK_POWER_BALANCE,
+    )
+)
 
 # Type variables for subclass customization (for adapter layer mapping)
 TOutputName = TypeVar("TOutputName", bound=str)
