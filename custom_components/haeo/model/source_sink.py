@@ -1,7 +1,7 @@
 """Base SourceSink entity for electrical system modeling."""
 
 from collections.abc import Mapping
-from typing import Final, Literal, TypeVar
+from typing import Final, Literal
 
 from pulp import LpVariable
 
@@ -26,12 +26,8 @@ SOURCE_SINK_OUTPUT_NAMES: Final[frozenset[SourceSinkOutputName]] = frozenset(
     )
 )
 
-# Type variables for subclass customization (for adapter layer mapping)
-TOutputName = TypeVar("TOutputName", bound=str)
-TConstraintName = TypeVar("TConstraintName", bound=str)
 
-
-class SourceSink(Element[TOutputName, TConstraintName]):
+class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
     """Base SourceSink entity for electrical system modeling.
 
     SourceSink acts as an infinite source and/or sink. Power limits and pricing are configured
@@ -131,12 +127,11 @@ class SourceSink(Element[TOutputName, TConstraintName]):
                 type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_out, direction="+"
             )
 
-        for constraint_name in self._constraints:
-            # All constraints are power balance for SourceSink
-            outputs[SOURCE_SINK_POWER_BALANCE] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE,
-                unit="$/kW",
-                values=self._constraints[constraint_name],
-            )
+        # All constraints are power balance for SourceSink
+        outputs[SOURCE_SINK_POWER_BALANCE] = OutputData(
+            type=OUTPUT_TYPE_SHADOW_PRICE,
+            unit="$/kW",
+            values=self._constraints[SOURCE_SINK_POWER_BALANCE],
+        )
 
         return outputs

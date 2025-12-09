@@ -197,10 +197,10 @@
           "title": "Add Photovoltaics",
           "description": "Set up photovoltaics forecasting and parameters",
           "data": {
+            "connection": "Connection",
             "curtailment": "Allow Curtailment (Optional)",
             "forecast": "Forecast Sensors",
             "name": "Photovoltaics Name",
-            "node": "Node",
             "price_production": "Production Price (Optional)"
           }
         },
@@ -208,10 +208,10 @@
           "title": "Edit Photovoltaics",
           "description": "Update photovoltaics configuration",
           "data": {
+            "connection": "Connection",
             "curtailment": "Allow Curtailment (Optional)",
             "forecast": "Forecast Sensors",
             "name": "Photovoltaics Name",
-            "node": "Node",
             "price_production": "Production Price (Optional)"
           }
         }

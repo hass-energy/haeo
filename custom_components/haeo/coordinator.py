@@ -319,8 +319,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             n_periods=n_periods,
         )
 
-        # Try to load the data into a network object (with adapter mappings)
-        network_with_adapters = await data_module.load_network(
+        # Try to load the data into a network object
+        network = await data_module.load_network(
             self.hass,
             self.config_entry,
             period_seconds=period_seconds,
@@ -328,7 +328,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             participants=self._participant_configs,
             forecast_times=forecast_timestamps,
         )
-        network = network_with_adapters.network
 
         # Perform the optimization
         cost = await self.hass.async_add_executor_job(network.optimize)
@@ -361,27 +360,35 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             }
         }
 
-        # Add element outputs by processing each config element (which may have created multiple model elements)
-        for config_element_name, adapter_module in network_with_adapters.adapters.items():
-            # Get all model elements created by this config element
-            model_element_names = network_with_adapters.adapter_model_elements.get(config_element_name, [])
+        # Build nested outputs structure from all network model elements
+        nested_outputs: dict[str, Mapping[OutputName, OutputData]] = {
+            element_name: element.outputs() for element_name, element in network.elements.items()
+        }
 
-            # Collect outputs from all model elements created by this adapter
-            combined_model_outputs: dict[str, OutputData] = {}
-            for model_element_name in model_element_names:
-                element = network.elements.get(model_element_name)
-                if element:
-                    element_outputs = element.outputs()
-                    combined_model_outputs.update(element_outputs)
+        # Process each config element using its adapter module
+        for config_element_name, element_config in self._participant_configs.items():
+            element_type = element_config["element_type"]
 
-            if not combined_model_outputs:
-                continue
+            # Get adapter module for element type
+            from . import elements  # noqa: PLC0415
 
-            # If this config element has an adapter, use it to map outputs to element-specific names
+            adapter_module = None
+            if element_type == "battery":
+                adapter_module = elements.battery
+            elif element_type == "grid":
+                adapter_module = elements.grid
+            elif element_type == "load":
+                adapter_module = elements.load
+            elif element_type == "photovoltaics":
+                adapter_module = elements.photovoltaics
+            elif element_type == "node":
+                adapter_module = elements.node
+            elif element_type == "connection":
+                adapter_module = elements.connection
+
             if adapter_module and hasattr(adapter_module, "outputs"):
                 # Adapter returns {device_name: {entity_name: OutputData}}
-                # This allows adapters to create multiple devices in the future
-                adapter_outputs = adapter_module.outputs(config_element_name, combined_model_outputs)
+                adapter_outputs = adapter_module.outputs(config_element_name, nested_outputs)
                 _LOGGER.debug(
                     "Adapter outputs for config element %r: %s",
                     config_element_name,
@@ -408,18 +415,5 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                             device_name,
                         )
                         result[slugified_key] = processed_outputs
-            else:
-                # No adapter - use raw model outputs
-                processed_outputs: dict[OutputName, CoordinatorOutput] = {
-                    output_name: _build_coordinator_output(
-                        output_name,
-                        output_data,
-                        forecast_times=forecast_timestamps,
-                    )
-                    for output_name, output_data in combined_model_outputs.items()
-                }
-
-                if processed_outputs:
-                    result[slugify(config_element_name)] = processed_outputs
 
         return result
