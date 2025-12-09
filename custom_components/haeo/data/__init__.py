@@ -4,11 +4,15 @@ This module exposes `load_network()` which converts a saved configuration
 (`ConfigEntry.data`) into a fully populated `Network` instance ready for
 optimization.  All field handling is delegated to specialised Loader
 implementations found in sibling modules.
+
+The adapter layer transforms configuration elements into model elements:
+    Configuration Element (with entity IDs) →
+    Adapter.create_model_elements() →
+    Model Elements (pure optimization)
 """
 
 from collections.abc import Mapping, Sequence
 import logging
-from types import ModuleType
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -18,14 +22,9 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.elements import (
     ELEMENT_TYPE_CONNECTION,
+    ELEMENT_TYPES,
     ElementConfigData,
     ElementConfigSchema,
-    battery,
-    connection,
-    grid,
-    load,
-    node,
-    photovoltaics,
 )
 from custom_components.haeo.model import Network
 from custom_components.haeo.schema import available as config_available
@@ -109,30 +108,11 @@ async def load_network(
 
         # Use adapter layer to convert config to model elements
         element_type = loaded_params[CONF_ELEMENT_TYPE]
+        adapter = ELEMENT_TYPES[element_type].adapter
 
-        # Get adapter module for element type
-        adapter_module: ModuleType | None = None
-        if element_type == "battery":
-            adapter_module = battery
-        elif element_type == "grid":
-            adapter_module = grid
-        elif element_type == "load":
-            adapter_module = load
-        elif element_type == "photovoltaics":
-            adapter_module = photovoltaics
-        elif element_type == "node":
-            adapter_module = node
-        elif element_type == "connection":
-            adapter_module = connection
-
-        if adapter_module and hasattr(adapter_module, "create_model_elements"):
-            # Use adapter to create model elements (adapter signature: config only)
-            model_elements = adapter_module.create_model_elements(loaded_params)
-            for model_element_config in model_elements:
-                net.add(**model_element_config)
-        else:
-            # Fallback for elements without adapters
-            loaded_kwargs: dict[str, Any] = dict(loaded_params)
-            net.add(**loaded_kwargs)
+        # Transform config element into one or more model elements via adapter
+        model_elements = adapter.create_model_elements(loaded_params)
+        for model_element_config in model_elements:
+            net.add(**model_element_config)
 
     return net

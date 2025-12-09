@@ -95,8 +95,8 @@ def create_model_elements(config: PhotovoltaicsConfigData) -> list[dict[str, Any
             "name": f"{config['name']}:connection",
             "source": config["name"],
             "target": config["connection"],
-            "power_source_target": config["forecast"],
-            "power_fixed": True,
+            "max_power_source_target": config["forecast"],
+            "fixed_power": True,
             "price_source_target": config.get("price_production"),
         },
     ]
@@ -109,13 +109,15 @@ def outputs(
 
     connection = outputs[f"{name}:connection"]
 
-    pv_outputs: dict[PhotovoltaicsOutputName, OutputData] = {}
+    pv_outputs: dict[PhotovoltaicsOutputName, OutputData] = {
+        PHOTOVOLTAICS_POWER: connection[CONNECTION_POWER_SOURCE_TARGET],
+    }
 
-    # Both the connection and source_sink will have the same power flow values, so just use one
-    pv_outputs[PHOTOVOLTAICS_POWER] = connection[CONNECTION_POWER_SOURCE_TARGET]
-    pv_outputs[PHOTOVOLTAICS_POWER_AVAILABLE] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+    if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
+        pv_outputs[PHOTOVOLTAICS_POWER_AVAILABLE] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
 
     # Forecast limit shadow price is on the connection (the "I want more solar power" constraint)
-    pv_outputs[PHOTOVOLTAICS_FORECAST_LIMIT] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+    if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
+        pv_outputs[PHOTOVOLTAICS_FORECAST_LIMIT] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
 
     return {name: pv_outputs}

@@ -77,8 +77,8 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
             "name": f"{config['name']}:connection",
             "source": config["name"],
             "target": config["connection"],
-            "power_source_target": config["forecast"],
-            "power_source_target_fixed": True,
+            "max_power_source_target": config["forecast"],
+            "fixed_power": True,
         },
     ]
 
@@ -92,10 +92,12 @@ def outputs(
 
     connection = outputs[f"{name}:connection"]
 
-    load_outputs: dict[LoadOutputName, OutputData] = {}
+    load_outputs: dict[LoadOutputName, OutputData] = {
+        LOAD_POWER: connection[CONNECTION_POWER_TARGET_SOURCE],
+    }
 
-    load_outputs[LOAD_POWER] = connection[CONNECTION_POWER_TARGET_SOURCE]
-    load_outputs[LOAD_POWER_POSSIBLE] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+    if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
+        load_outputs[LOAD_POWER_POSSIBLE] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
 
     # Only the max limit has meaning, the source sink power balance is always zero as it will never influence cost
     load_outputs[LOAD_FORECAST_LIMIT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
