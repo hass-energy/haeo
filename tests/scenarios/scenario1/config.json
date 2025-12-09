@@ -42,6 +42,8 @@
     "Inverter": {
       "name": "Inverter",
       "element_type": "connection",
+      "max_power_source_target": "sensor.sigen_plant_max_active_power",
+      "max_power_target_source": "sensor.sigen_plant_max_active_power",
       "source": "DC Net",
       "target": "AC Net"
     },
