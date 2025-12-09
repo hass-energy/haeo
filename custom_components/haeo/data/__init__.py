@@ -106,12 +106,10 @@ async def load_network(
             forecast_times=forecast_times_list,
         )
 
-        # Use adapter layer to convert config to model elements
+        # Use registry entry to create model elements from configuration element
         element_type = loaded_params[CONF_ELEMENT_TYPE]
-        adapter = ELEMENT_TYPES[element_type].adapter
-
-        # Transform config element into one or more model elements via adapter
-        model_elements = adapter.create_model_elements(loaded_params)
+        create_model_elements = ELEMENT_TYPES[element_type].create_model_elements
+        model_elements = create_model_elements(loaded_params)
         for model_element_config in model_elements:
             net.add(**model_element_config)
 

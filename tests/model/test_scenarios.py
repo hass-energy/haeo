@@ -46,7 +46,8 @@ def test_simple_optimization() -> None:
         "load_connection",
         source="net",
         target="load",
-        fixed_power_source_target=[1000, 1500, 2000],  # load must consume exactly these amounts
+        max_power_source_target=[1000, 1500, 2000],  # load must consume exactly these amounts
+        fixed_power=True,
     )
 
     # Run optimization
@@ -121,7 +122,8 @@ def test_battery_solar_grid_storage_cycle() -> None:
         "net_to_load",
         source="net",
         target="load",
-        fixed_power_source_target=load_forecast,  # load must consume exactly these amounts
+        max_power_source_target=load_forecast,  # fixed load consumption
+        fixed_power=True,
     )
 
     # Run optimization

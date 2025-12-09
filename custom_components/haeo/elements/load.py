@@ -71,12 +71,12 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
     elements: list[dict[str, Any]] = [
         # Create SourceSink for the load (sink only - consumes power)
         {"element_type": "source_sink", "name": config["name"], "is_source": False, "is_sink": True},
-        # Create Connection from node to load
+        # Create Connection from node to load (power flows TO the load)
         {
             "element_type": "connection",
             "name": f"{config['name']}:connection",
-            "source": config["name"],
-            "target": config["connection"],
+            "source": config["connection"],
+            "target": config["name"],
             "max_power_source_target": config["forecast"],
             "fixed_power": True,
         },
