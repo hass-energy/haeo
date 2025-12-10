@@ -1,8 +1,6 @@
 # Grid Modeling
 
-The Grid element models bidirectional utility connection with time-varying pricing for import and export.
-
-Grid creates a [SourceSink](../model-layer/source-sink.md) model (`is_source=true, is_sink=true`) plus an implicit [Connection](../model-layer/connection.md) that carries the import/export limits and pricing.
+The Grid device composes a [SourceSink](../model-layer/source-sink.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connection.md) to model utility grid connections with time-varying import/export pricing.
 
 ## Model Elements Created
 
@@ -24,72 +22,90 @@ graph LR
 | [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=true, is_sink=true               |
 | [Connection](../model-layer/connection.md)  | `{name}:connection` | import/export limits, import/export prices |
 
-## Model Formulation
+## Devices Created
 
-Grid creates a SourceSink with `is_source=true, is_sink=true` (can both import and export) plus a Connection with the following parameters:
+Grid creates 1 device in Home Assistant:
 
-### Decision Variables
+| Device  | Name     | Created When | Purpose                                   |
+| ------- | -------- | ------------ | ----------------------------------------- |
+| Primary | `{name}` | Always       | Bidirectional grid connection and pricing |
 
-For each time step $t$:
+## Parameter Mapping
 
-- $P_{\text{import}}(t)$: Power imported from grid (kW)
-- $P_{\text{export}}(t)$: Power exported to grid (kW)
+The adapter transforms user configuration into model parameters:
 
-### Parameters
+| User Configuration | Model Element | Model Parameter           | Notes                           |
+| ------------------ | ------------- | ------------------------- | ------------------------------- |
+| `import_price`     | Connection    | `price_target_source`     | Cost per kWh imported           |
+| `export_price`     | Connection    | `price_source_target`     | Revenue per kWh exported        |
+| `import_limit`     | Connection    | `max_power_target_source` | Maximum import power (optional) |
+| `export_limit`     | Connection    | `max_power_source_target` | Maximum export power (optional) |
+| `connection`       | Connection    | `target`                  | Node to connect to              |
+| —                  | SourceSink    | `is_source=true`          | Grid can supply power           |
+| —                  | SourceSink    | `is_sink=true`            | Grid can absorb power           |
 
-- $p_{\text{import}}(t)$: Import price (\$/kWh) - from `import_price` sensors
-- $p_{\text{export}}(t)$: Export price (\$/kWh) - from `export_price` sensors
-- $P_{\text{import}}^{\max}$: Max import (kW) - from `import_limit` config (optional)
-- $P_{\text{export}}^{\max}$: Max export (kW) - from `export_limit` config (optional)
+## Sensors Created
 
-### Constraints
+### Grid Device
 
-#### Non-negativity
+| Sensor                   | Unit   | Update    | Description                         |
+| ------------------------ | ------ | --------- | ----------------------------------- |
+| `power_imported`         | kW     | Real-time | Power imported from grid            |
+| `power_exported`         | kW     | Real-time | Power exported to grid              |
+| `price_import`           | \$/kWh | Real-time | Current import price                |
+| `price_export`           | \$/kWh | Real-time | Current export price                |
+| `power_max_import`       | kW     | Real-time | Maximum import power (when limited) |
+| `power_max_export`       | kW     | Real-time | Maximum export power (when limited) |
+| `power_max_import_price` | \$/kW  | Real-time | Value of additional import capacity |
+| `power_max_export_price` | \$/kW  | Real-time | Value of additional export capacity |
 
-$$
-P_{\text{import}}(t) \geq 0, \quad P_{\text{export}}(t) \geq 0
-$$
+The `power_max_*` sensors are only created when the corresponding limit is configured.
 
-#### Power Limits
+See [Grid Configuration](../../user-guide/elements/grid.md#sensors-created) for detailed sensor documentation.
 
-If configured:
+## Configuration Examples
 
-$$
-P_{\text{import}}(t) \leq P_{\text{import}}^{\max}, \quad P_{\text{export}}(t) \leq P_{\text{export}}^{\max}
-$$
+### Time-of-Use Pricing
 
-### Cost Contribution
+| Field            | Value                           |
+| ---------------- | ------------------------------- |
+| **Name**         | Main Grid                       |
+| **Import Price** | sensor.electricity_import_price |
+| **Export Price** | sensor.electricity_export_price |
+| **Connection**   | Home Bus                        |
 
-$$
-C_{\text{grid}} = \sum_{t=0}^{T-1} \left( P_{\text{import}}(t) \cdot p_{\text{import}}(t) - P_{\text{export}}(t) \cdot p_{\text{export}}(t) \right) \cdot \Delta t
-$$
+### With Capacity Limits
 
-Import is positive cost. Export is negative cost (revenue).
+| Field            | Value                           |
+| ---------------- | ------------------------------- |
+| **Name**         | Limited Grid                    |
+| **Import Price** | sensor.electricity_import_price |
+| **Export Price** | sensor.electricity_export_price |
+| **Import Limit** | 10.0                            |
+| **Export Limit** | 5.0                             |
+| **Connection**   | Home Bus                        |
+
+## Typical Use Cases
+
+**Time-of-Use Optimization**:
+Grid with time-varying prices enables battery arbitrage—charge during low prices, discharge during high prices.
+
+**Feed-in Tariff Systems**:
+Configure export pricing to model solar export revenue and optimize when to export vs. store in battery.
+
+**Demand-Limited Connections**:
+Use import/export limits to model connection capacity constraints and prevent exceeding utility limits.
 
 ## Physical Interpretation
 
-**Import**: Grid supplies power when generation (solar, battery) is insufficient.
+Grid represents the utility connection that can supply power (import) when local generation is insufficient, or absorb excess power (export) from solar or battery discharge.
 
-**Export**: Grid absorbs excess power from solar or battery discharge.
+### Configuration Guidelines
 
-**Simultaneous import/export**: The optimizer will attempt this if arbitrage opportunities exist in the prices.
-Ensure export prices are always less than import prices to prevent this behavior.
-Even if both prices are zero, simultaneous flow can occur and cause poor optimization results, because the optimizer has no economic incentive to prefer import or export, and may select any feasible solution.
-
-**Unlimited grid**: If no limits configured, grid can always balance power needs.
-
-## Configuration Impact
-
-| Parameter    | Lower Value                     | Higher Value                            |
-| ------------ | ------------------------------- | --------------------------------------- |
-| Import limit | Risk infeasibility if too low   | More flexibility, higher potential cost |
-| Export limit | Wasted solar/battery if too low | More revenue potential                  |
-| Import price | Lower grid costs                | Incentivizes self-consumption           |
-| Export price | Less incentive to export        | More revenue from exports               |
-
-**Time-varying prices**: Enable optimization value through time-shifting with battery.
-
-**Flat pricing**: Limited optimization benefit - battery only useful for solar storage.
+- **Import/Export Pricing**: Use [sensor](../../user-guide/forecasts-and-sensors.md) or [forecast](../../user-guide/forecasts-and-sensors.md) for time-varying prices. Ensure export prices are always less than import prices to prevent unrealistic arbitrage.
+- **Power Limits**: Configure limits to model connection capacity constraints. If omitted, grid has unlimited capacity.
+- **Pricing Strategy**: Flat pricing provides limited optimization value (battery only useful for solar storage). Time-varying pricing enables full optimization benefits.
+- **Zero Prices**: Avoid setting both import and export prices to zero simultaneously—optimizer has no economic preference and may produce unexpected results.
 
 ## Next Steps
 

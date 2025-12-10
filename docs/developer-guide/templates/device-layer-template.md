@@ -3,11 +3,6 @@
 Brief description of this device element's purpose and what it models (1-2 sentences).
 Focus on the user-facing functionality and the physical system being represented.
 
-!!! note "Device Layer element"
-
-    This page documents a **Device Layer** element—components that users configure in Home Assistant.
-    Device Layer elements compose Model Layer elements through the adapter layer to participate in optimization.
-
 ## Model Elements Created
 
 ```mermaid
@@ -76,17 +71,16 @@ List all sensors this device creates, organized by device.
 
 ## Configuration Example
 
-Provide a realistic YAML configuration example showing common use cases.
+Provide realistic configuration examples using table format showing common use cases.
 
-```yaml
-# Example configuration
-device_name:
-  name: Example Name
-  required_field: value
-  optional_field: value
-  connection:
-    target: node_name
-```
+### Basic Configuration
+
+| Field              | Value        |
+| ------------------ | ------------ |
+| **Name**           | Example Name |
+| **Required Field** | value        |
+| **Optional Field** | value        |
+| **Connection**     | node_name    |
 
 ## Typical Use Cases
 

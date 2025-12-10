@@ -1,9 +1,6 @@
 # Node Modeling
 
-Virtual balance nodes that enforce power conservation (Kirchhoff's law).
-
-Node creates a [SourceSink](../model-layer/source-sink.md) model (`is_source=false, is_sink=false`) which acts as a pure junction point.
-Unlike other Device Layer elements, Node does not create an implicit Connection.
+The Node device composes a [SourceSink](../model-layer/source-sink.md) (junction point) to represent an electrical bus where multiple elements connect and power must balance.
 
 ## Model Elements Created
 
@@ -20,82 +17,78 @@ graph LR
 
 Node is unique among Device Layer elements: it creates only a SourceSink with no implicit Connection.
 
-## Model Formulation
+## Devices Created
 
-Node creates a SourceSink with `is_source=false, is_sink=false` which enforces power balance (Kirchhoff's law):
+Node creates 1 device in Home Assistant:
 
-### Decision Variables
+| Device  | Name     | Created When | Purpose                          |
+| ------- | -------- | ------------ | -------------------------------- |
+| Primary | `{name}` | Always       | Junction point for power balance |
 
-None - nodes only enforce constraints.
+## Parameter Mapping
 
-### Parameters
+The adapter transforms user configuration into model parameters:
 
-None - nodes operate purely on connection power flows.
+| User Configuration | Model Element | Model Parameter   | Notes                      |
+| ------------------ | ------------- | ----------------- | -------------------------- |
+| —                  | SourceSink    | `is_source=false` | Node cannot generate power |
+| —                  | SourceSink    | `is_sink=false`   | Node cannot consume power  |
 
-### Constraints
+Node has no user-configurable parameters other than its name.
 
-#### Power Balance
+## Sensors Created
 
-At each node and time step:
+### Node Device
 
-$$
-\sum_{c \in \mathcal{C}_{\text{in}}} P_c(t) = \sum_{c \in \mathcal{C}_{\text{out}}} P_c(t)
-$$
+| Sensor          | Unit  | Update    | Description                        |
+| --------------- | ----- | --------- | ---------------------------------- |
+| `power_balance` | \$/kW | Real-time | Shadow price of power at this node |
 
-Where:
+See [Node Configuration](../../user-guide/elements/node.md#sensors-created) for detailed sensor documentation.
 
-- $\mathcal{C}_{\text{in}}$: Inbound connections to node
-- $\mathcal{C}_{\text{out}}$: Outbound connections from node
-- $P_c(t)$: Power on connection $c$
+## Configuration Examples
 
-### Cost Contribution
+### Single Bus (Most Common)
 
-Nodes do not contribute to the objective function.
-They exist solely to enforce power balance constraints.
+| Field    | Value    |
+| -------- | -------- |
+| **Name** | Home Bus |
+
+### Multi-Bus Topology
+
+**DC Bus:**
+
+| Field    | Value  |
+| -------- | ------ |
+| **Name** | DC Bus |
+
+**AC Bus:**
+
+| Field    | Value  |
+| -------- | ------ |
+| **Name** | AC Bus |
+
+## Typical Use Cases
+
+**Single-Bus System**:
+Most residential installations use one node as the central connection point for all elements (grid, battery, solar, loads).
+
+**DC/AC Separation**:
+Systems with DC-coupled batteries and AC-coupled solar may use separate DC and AC buses connected by a converter.
+
+**Multi-Site Systems**:
+Large installations may use multiple nodes to represent different physical locations or voltage levels.
 
 ## Physical Interpretation
 
-**Virtual node**: Not a physical device, represents electrical junction.
+Node represents an electrical bus where Kirchhoff's current law applies—total power flowing in must equal total power flowing out at every instant.
 
-**Kirchhoff's law**: Current in equals current out (applied to power).
+### Configuration Guidelines
 
-**No storage**: Energy cannot accumulate at a node (unlike battery).
-
-## Use Cases
-
-**Single net (simple)**:
-
-```mermaid
-graph LR
-    Grid-->Net
-    Solar-->Net
-    Battery<-->Net
-    Net-->Load
-```
-
-Central hub where all elements connect.
-
-**Dual node (AC/DC)**:
-
-```mermaid
-graph LR
-    Solar-->DC[DC Node]
-    Battery<-->DC
-    DC<-->|Inverter|AC[AC Node]
-    Grid<-->AC
-    AC-->Load
-```
-
-Separate buses with inverter connection between them.
-
-## Configuration Impact
-
-| Topology       | Complexity | Use When                         |
-| -------------- | ---------- | -------------------------------- |
-| Single node    | Simple     | Standard residential             |
-| Multiple nodes | Complex    | Hybrid inverters, multi-building |
-
-**Well-formed network**: All elements must connect to at least one node, directly or indirectly.
+- **Name Clearly**: Use descriptive names like `home_bus`, `dc_bus`, `ac_bus` to clarify system topology.
+- **Single Node Sufficient**: Most home systems only need one node. Don't create multiple nodes unless you have a specific need (DC/AC separation, etc.).
+- **No Storage**: Nodes have no capacity—power balance is instantaneous. Use Battery elements for energy storage.
+- **Connection Target**: All other elements (Grid, Battery, Solar, Loads) specify which node they connect to via their `connection.target` field.
 
 ## Next Steps
 

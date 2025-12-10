@@ -27,16 +27,27 @@ Keep explanations focused on configuration, not mathematical modeling.
 For complex elements, you may group related fields under a descriptive H3 heading, then use H4 subheadings for individual field details.
 Link to the field name in the configuration table where appropriate.
 
-## Configuration Example
+## Configuration Examples
 
-Provide a minimal working example using a table format.
+Provide minimal working examples using table format.
 Keep examples realistic and representative of typical use cases.
+For complex elements, provide multiple examples showing different configuration patterns.
+
+### Basic Configuration
 
 | Field         | Value                |
 | ------------- | -------------------- |
 | **Name**      | Example Element      |
 | **Field One** | value                |
 | **Field Two** | sensor.example_value |
+
+### Alternative Configuration
+
+| Field         | Value                     |
+| ------------- | ------------------------- |
+| **Name**      | Alternative Example       |
+| **Field One** | different_value           |
+| **Field Two** | sensor.alternative_sensor |
 
 ## Sensors Created
 

@@ -1,8 +1,6 @@
 # Photovoltaics Modeling
 
-Solar generation with optional curtailment for negative export price scenarios.
-
-Photovoltaics creates a [SourceSink](../model-layer/source-sink.md) model (`is_source=true, is_sink=false`) plus an implicit [Connection](../model-layer/connection.md) that carries the generation forecast as a power limit.
+The Photovoltaics device composes a [SourceSink](../model-layer/source-sink.md) (power source only) with an implicit [Connection](../model-layer/connection.md) to model solar generation with optional curtailment.
 
 ## Model Elements Created
 
@@ -24,77 +22,93 @@ graph LR
 | [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=true, is_sink=false           |
 | [Connection](../model-layer/connection.md)  | `{name}:connection` | forecast as max_power, production price |
 
-## Model Formulation
+## Devices Created
 
-Photovoltaics creates a SourceSink with `is_source=true, is_sink=false` (generation only) plus a Connection with the forecast as the power limit:
+Photovoltaics creates 1 device in Home Assistant:
 
-### Decision Variables
+| Device  | Name     | Created When | Purpose                              |
+| ------- | -------- | ------------ | ------------------------------------ |
+| Primary | `{name}` | Always       | Solar generation tracking and limits |
 
-**Without curtailment** (default):
+## Parameter Mapping
 
-- $P_{\text{solar}}(t)$: Actual generation (kW) - constrained to equal forecast
+The adapter transforms user configuration into model parameters:
 
-**With curtailment enabled**:
+| User Configuration   | Model Element | Model Parameter           | Notes                                        |
+| -------------------- | ------------- | ------------------------- | -------------------------------------------- |
+| `forecast`           | Connection    | `max_power_source_target` | Upper bound on generation                    |
+| `production_price`   | Connection    | `price_source_target`     | Cost/revenue per kWh generated (default: 0)  |
+| `enable_curtailment` | Connection    | `fixed_power`             | false if curtailment enabled, true otherwise |
+| `connection`         | Connection    | `target`                  | Node to connect to                           |
+| —                    | SourceSink    | `is_source=true`          | PV provides power                            |
+| —                    | SourceSink    | `is_sink=false`           | PV cannot consume power                      |
 
-- $P_{\text{solar}}(t)$: Actual generation (kW) - constrained to not exceed forecast
+## Sensors Created
 
-### Parameters
+### Photovoltaics Device
 
-- $P_{\text{forecast}}(t)$: Solar forecast (kW) - from `forecast` sensors
-- $c_{\text{production}}$: Production price (\$/kWh) - from `production_price` config (optional, default 0)
+| Sensor            | Unit  | Update    | Description                             |
+| ----------------- | ----- | --------- | --------------------------------------- |
+| `power`           | kW    | Real-time | Actual power generated                  |
+| `power_available` | kW    | Real-time | Maximum available solar power           |
+| `forecast_limit`  | \$/kW | Real-time | Value of additional generation capacity |
 
-### Constraints
+See [Photovoltaics Configuration](../../user-guide/elements/photovoltaics.md#sensors-created) for detailed sensor documentation.
 
-#### Without Curtailment
+## Configuration Examples
 
-$$
-P_{\text{solar}}(t) = P_{\text{forecast}}(t) \quad \forall t
-$$
+### Standard Solar (No Curtailment)
 
-Generation exactly matches forecast.
+| Field           | Value                                |
+| --------------- | ------------------------------------ |
+| **Name**        | Rooftop Solar                        |
+| **Forecast**    | sensor.solcast_pv_forecast_power_now |
+| **Curtailment** | false                                |
+| **Connection**  | Home Bus                             |
 
-#### With Curtailment
+### With Curtailment Enabled
 
-$$
-0 \leq P_{\text{solar}}(t) \leq P_{\text{forecast}}(t) \quad \forall t
-$$
+| Field                | Value                                |
+| -------------------- | ------------------------------------ |
+| **Name**             | Curtailable Solar                    |
+| **Forecast**         | sensor.solcast_pv_forecast_power_now |
+| **Curtailment**      | true                                 |
+| **Price Production** | 0.0                                  |
+| **Connection**       | Home Bus                             |
 
-Generation can be reduced below forecast.
+## Typical Use Cases
 
-### Cost Contribution
+**Standard Solar**:
+Disable curtailment (default) and use all available solar generation.
+Simplest configuration for most installations.
 
-$$
-C_{\text{solar}} = \sum_{t=0}^{T-1} P_{\text{solar}}(t) \cdot c_{\text{production}} \cdot \Delta t
-$$
+**Negative Export Pricing**:
+Enable curtailment when export prices can be negative.
+Optimizer will curtail generation when it's economically beneficial to avoid paying to export.
 
-Usually $c_{\text{production}} = 0$ (solar generation has no marginal cost).
-Production price can represent opportunity cost.
-Setting it negative discourages curtailment by making unused generation costly.
+**Export-Limited Systems**:
+Curtailment allows optimizer to stay within export limits while managing battery and load efficiently.
 
 ## Physical Interpretation
 
-**No curtailment**: Standard operation - use all available solar.
+Photovoltaics represents a solar generation system that produces power based on weather forecasts and system capacity.
 
-**Curtailment**: Reduce generation when:
+### Configuration Guidelines
 
-- Export prices are negative (you pay to export)
-- Export limits prevent sending power to grid
-- Battery full and load satisfied
-
-Curtailment requires inverter with active power limiting.
-
-## Configuration Impact
-
-| Parameter            | Impact                                           |
-| -------------------- | ------------------------------------------------ |
-| Curtailment disabled | Solar always at forecast, simplest               |
-| Curtailment enabled  | Can reduce generation, needs compatible inverter |
-| Production price > 0 | Models feed-in tariff (rare)                     |
-| Production price < 0 | Models solar contract costs (very rare)          |
-
-**Negative export prices**: Curtailment becomes economically beneficial.
-
-**Forecast accuracy**: Directly affects optimization quality - inaccurate forecasts lead to sub-optimal decisions.
+- **Forecast Accuracy**:
+    Critical for optimization quality.
+    Use high-quality forecast services like Solcast for best results.
+    See [Forecasts and Sensors](../../user-guide/forecasts-and-sensors.md).
+- **Curtailment**:
+    Only enable if your inverter supports active power limiting.
+- **Production Price**:
+    Usually 0 (solar has no marginal cost).
+    Set negative only if you have solar lease/contract costs that make generation costly.
+    Set positive only for feed-in tariff modeling (rare).
+- **Fixed Power**:
+    When curtailment is disabled,
+    generation equals forecast exactly.
+    When enabled, generation can be reduced below forecast.
 
 ## Next Steps
 

@@ -1,9 +1,6 @@
 # Load Modeling
 
-The Load element uses forecast data to model power consumption.
-This unified approach handles both constant (fixed power) and time-varying consumption patterns.
-
-Load creates a [SourceSink](../model-layer/source-sink.md) model (`is_source=false, is_sink=true`) plus an implicit [Connection](../model-layer/connection.md) that carries the consumption forecast as a fixed power requirement.
+The Load device composes a [SourceSink](../model-layer/source-sink.md) (power sink only) with an implicit [Connection](../model-layer/connection.md) to model power consumption based on forecast data.
 
 ## Model Elements Created
 
@@ -25,75 +22,87 @@ graph LR
 | [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=false, is_sink=true       |
 | [Connection](../model-layer/connection.md)  | `{name}:connection` | forecast as fixed power requirement |
 
-## Model Formulation
+## Devices Created
 
-Load creates a SourceSink with `is_source=false, is_sink=true` (consumption only) plus a Connection with `fixed_power=true` that enforces the forecast:
+Load creates 1 device in Home Assistant:
 
-### Decision Variables
+| Device  | Name     | Created When | Purpose                   |
+| ------- | -------- | ------------ | ------------------------- |
+| Primary | `{name}` | Always       | Load consumption tracking |
 
-None - follows forecast parameter.
+## Parameter Mapping
 
-### Parameters
+The adapter transforms user configuration into model parameters:
 
-| Parameter                | Dimensions | Source | Description                                   |
-| ------------------------ | ---------- | ------ | --------------------------------------------- |
-| $P_{\text{forecast}}(t)$ | $T$        | Sensor | Forecasted power consumption at time $t$ (kW) |
+| User Configuration | Model Element | Model Parameter           | Notes                             |
+| ------------------ | ------------- | ------------------------- | --------------------------------- |
+| `forecast`         | Connection    | `max_power_target_source` | Required consumption at each time |
+| `connection`       | Connection    | `source`                  | Node to connect from              |
+| —                  | Connection    | `fixed_power=true`        | Consumption must equal forecast   |
+| —                  | SourceSink    | `is_source=false`         | Load cannot provide power         |
+| —                  | SourceSink    | `is_sink=true`            | Load consumes power               |
 
-### Constraints
+## Sensors Created
 
-$$
-P_{\text{load}}(t) = P_{\text{forecast}}(t) \quad \forall t
-$$
+### Load Device
 
-Load follows forecast data exactly at each timestep.
+| Sensor                 | Unit  | Update    | Description                        |
+| ---------------------- | ----- | --------- | ---------------------------------- |
+| `power`                | kW    | Real-time | Power consumed by load             |
+| `power_possible`       | kW    | Real-time | Maximum possible load (forecast)   |
+| `forecast_limit_price` | \$/kW | Real-time | Marginal cost of serving this load |
 
-### Cost Contribution
+See [Load Configuration](../../user-guide/elements/load.md#sensors-created) for detailed sensor documentation.
 
-Loads do not contribute directly to the objective function.
-Their cost impact is implicit through the energy required to satisfy their consumption.
+## Configuration Examples
+
+### Variable Load (Forecast)
+
+| Field          | Value                      |
+| -------------- | -------------------------- |
+| **Name**       | House Load                 |
+| **Forecast**   | sensor.home_power_forecast |
+| **Connection** | Home Bus                   |
+
+### Constant Load
+
+| Field          | Value     |
+| -------------- | --------- |
+| **Name**       | Base Load |
+| **Forecast**   | 2.5       |
+| **Connection** | Home Bus  |
+
+## Typical Use Cases
+
+**Whole-House Consumption**:
+Use historical data or forecasting services to predict total home power consumption.
+Enables optimizer to time battery discharge and grid import optimally.
+
+**Constant Base Load**:
+Model always-on consumption (refrigerator, networking equipment) with a fixed power value.
+
+**Scheduled Loads**:
+Model predictable loads like pool pumps, HVAC, or EV charging with time-varying forecasts.
 
 ## Physical Interpretation
 
-Represents forecasted power consumption:
+Load represents power consumption that must be satisfied by the system—either from grid, battery discharge, or solar generation.
 
-- **Constant loads**: Fixed power draw (provided via constant forecast value)
-- **Time-varying loads**: Consumption predictions (historical averages, scheduled loads, occupancy-based forecasts)
+### Configuration Guidelines
 
-Loads are not controllable by the optimizer—they represent consumption that will occur regardless of optimization decisions.
-
-Forecast accuracy directly impacts optimization quality.
-
-## Constant Behavior
-
-When the forecast provides a constant value, the load exhibits constant behavior:
-
-$$
-P_{\text{load}}(t) = P_{\text{constant}} \quad \forall t
-$$
-
-This is achieved by providing a forecast that reports the same value for all periods, not through special model handling.
-
-## Multiple Loads
-
-Total load at a balancing node equals the sum of all connected Load elements.
-This allows modeling separate consumption components:
-
-$$
-P_{\text{total}}(t) = \sum_{i=1}^{N} P_{\text{load},i}(t)
-$$
-
-You can combine constant and variable loads by creating separate Load elements with different sensors.
-
-## Configuration Impact
-
-| Pattern  | Accuracy Needed | Best For                           |
-| -------- | --------------- | ---------------------------------- |
-| Constant | Rough estimate  | Simple setup, stable consumption   |
-| Variable | High accuracy   | Time-varying loads, optimal timing |
-
-**Overestimating load**: May cause infeasibility if supply can't meet demand.
-
-**Underestimating load**: Real system may import more than optimized.
+- **Forecast Accuracy**:
+    Critical for optimization quality.
+    Underestimating causes real system to import more than planned.
+    Overestimating may cause infeasibility.
+    See [Forecasts and Sensors](../../user-guide/forecasts-and-sensors.md).
+- **Constant vs Variable**:
+    Use constant values for stable always-on loads.
+    Use forecast sensors for time-varying consumption patterns.
+- **Multiple Loads**:
+    Create separate Load elements for different consumption categories (base load, HVAC, EV charging) to track them independently.
+- **Fixed Power**:
+    Loads are NOT controllable—they represent consumption that will occur regardless of optimization decisions.
+    The optimizer determines how to supply the power, not whether to supply it.
 
 ## Next Steps
 
