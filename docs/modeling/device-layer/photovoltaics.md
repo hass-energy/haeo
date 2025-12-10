@@ -2,17 +2,41 @@
 
 Solar generation with optional curtailment for negative export price scenarios.
 
+Photovoltaics creates a [SourceSink](../model-layer/source-sink.md) model (`is_source=true, is_sink=false`) plus an implicit [Connection](../model-layer/connection.md) that carries the generation forecast as a power limit.
+
+## Model Elements Created
+
+```mermaid
+graph LR
+    subgraph "Device"
+        SS["SourceSink<br/>(is_source=true, is_sink=false)"]
+        Conn["Connection<br/>{name}:connection"]
+    end
+
+    Node[Connection Target]
+
+    SS -->|linked via| Conn
+    Conn -->|connects to| Node
+```
+
+| Model Element                               | Name                | Parameters From Configuration           |
+| ------------------------------------------- | ------------------- | --------------------------------------- |
+| [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=true, is_sink=false           |
+| [Connection](../model-layer/connection.md)  | `{name}:connection` | forecast as max_power, production price |
+
 ## Model Formulation
+
+Photovoltaics creates a SourceSink with `is_source=true, is_sink=false` (generation only) plus a Connection with the forecast as the power limit:
 
 ### Decision Variables
 
 **Without curtailment** (default):
 
-None - generation follows forecast.
+- $P_{\text{solar}}(t)$: Actual generation (kW) - constrained to equal forecast
 
 **With curtailment enabled**:
 
-- $P_{\text{solar}}(t)$: Actual generation (kW)
+- $P_{\text{solar}}(t)$: Actual generation (kW) - constrained to not exceed forecast
 
 ### Parameters
 
@@ -76,28 +100,28 @@ Curtailment requires inverter with active power limiting.
 
 <div class="grid cards" markdown>
 
-- :material-file-document:{ .lg .middle } **User configuration guide**
+- :material-file-document:{ .lg .middle } **Photovoltaics configuration**
 
     ---
 
-    Configure photovoltaics in your Home Assistant setup.
+    Configure solar generation in your Home Assistant setup.
 
-    [:material-arrow-right: Photovoltaics configuration](../user-guide/elements/photovoltaics.md)
+    [:material-arrow-right: Photovoltaics configuration](../../user-guide/elements/photovoltaics.md)
 
-- :material-network:{ .lg .middle } **Network modeling**
-
-    ---
-
-    Understand how elements interact in the network model.
-
-    [:material-arrow-right: Network modeling overview](index.md)
-
-- :material-code-braces:{ .lg .middle } **Implementation**
+- :material-power-plug:{ .lg .middle } **SourceSink model**
 
     ---
 
-    View the source code for the photovoltaics element model.
+    Underlying model element for Photovoltaics.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/photovoltaics.py)
+    [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
+
+- :material-connection:{ .lg .middle } **Connection model**
+
+    ---
+
+    How generation limits are applied.
+
+    [:material-arrow-right: Connection formulation](../model-layer/connection.md)
 
 </div>

@@ -1,8 +1,32 @@
 # Grid Modeling
 
-The grid element models bidirectional utility connection with time-varying pricing for import and export.
+The Grid element models bidirectional utility connection with time-varying pricing for import and export.
+
+Grid creates a [SourceSink](../model-layer/source-sink.md) model (`is_source=true, is_sink=true`) plus an implicit [Connection](../model-layer/connection.md) that carries the import/export limits and pricing.
+
+## Model Elements Created
+
+```mermaid
+graph LR
+    subgraph "Device"
+        SS["SourceSink<br/>(is_source=true, is_sink=true)"]
+        Conn["Connection<br/>{name}:connection"]
+    end
+
+    Node[Connection Target]
+
+    SS <-->|linked via| Conn
+    Conn <-->|connects to| Node
+```
+
+| Model Element                               | Name                | Parameters From Configuration              |
+| ------------------------------------------- | ------------------- | ------------------------------------------ |
+| [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=true, is_sink=true               |
+| [Connection](../model-layer/connection.md)  | `{name}:connection` | import/export limits, import/export prices |
 
 ## Model Formulation
+
+Grid creates a SourceSink with `is_source=true, is_sink=true` (can both import and export) plus a Connection with the following parameters:
 
 ### Decision Variables
 
@@ -71,28 +95,28 @@ Even if both prices are zero, simultaneous flow can occur and cause poor optimiz
 
 <div class="grid cards" markdown>
 
-- :material-file-document:{ .lg .middle } **User configuration guide**
+- :material-file-document:{ .lg .middle } **Grid configuration**
 
     ---
 
     Configure grids in your Home Assistant setup.
 
-    [:material-arrow-right: Grid configuration](../user-guide/elements/grid.md)
+    [:material-arrow-right: Grid configuration](../../user-guide/elements/grid.md)
 
-- :material-network:{ .lg .middle } **Network modeling**
-
-    ---
-
-    Understand how elements interact in the network model.
-
-    [:material-arrow-right: Network modeling overview](index.md)
-
-- :material-code-braces:{ .lg .middle } **Implementation**
+- :material-power-plug:{ .lg .middle } **SourceSink model**
 
     ---
 
-    View the source code for the grid element model.
+    Underlying model element for Grid.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/grid.py)
+    [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
+
+- :material-connection:{ .lg .middle } **Connection model**
+
+    ---
+
+    How power limits and pricing are applied.
+
+    [:material-arrow-right: Connection formulation](../model-layer/connection.md)
 
 </div>

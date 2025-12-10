@@ -3,7 +3,31 @@
 The Load element uses forecast data to model power consumption.
 This unified approach handles both constant (fixed power) and time-varying consumption patterns.
 
+Load creates a [SourceSink](../model-layer/source-sink.md) model (`is_source=false, is_sink=true`) plus an implicit [Connection](../model-layer/connection.md) that carries the consumption forecast as a fixed power requirement.
+
+## Model Elements Created
+
+```mermaid
+graph LR
+    subgraph "Device"
+        SS["SourceSink<br/>(is_source=false, is_sink=true)"]
+        Conn["Connection<br/>{name}:connection<br/>(fixed_power=true)"]
+    end
+
+    Node[Connection Target]
+
+    SS <--|linked via| Conn
+    Conn <--|connects to| Node
+```
+
+| Model Element                               | Name                | Parameters From Configuration       |
+| ------------------------------------------- | ------------------- | ----------------------------------- |
+| [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=false, is_sink=true       |
+| [Connection](../model-layer/connection.md)  | `{name}:connection` | forecast as fixed power requirement |
+
 ## Model Formulation
+
+Load creates a SourceSink with `is_source=false, is_sink=true` (consumption only) plus a Connection with `fixed_power=true` that enforces the forecast:
 
 ### Decision Variables
 
@@ -32,8 +56,8 @@ Their cost impact is implicit through the energy required to satisfy their consu
 
 Represents forecasted power consumption:
 
-- **Constant loads**: Fixed power draw (provided via constant sensor value like `input_number`)
-- **Forecasted loads**: Time-varying consumption predictions (whole-house historic average, scheduled loads, occupancy-based forecasts)
+- **Constant loads**: Fixed power draw (provided via constant forecast value)
+- **Time-varying loads**: Consumption predictions (historical averages, scheduled loads, occupancy-based forecasts)
 
 Loads are not controllable by the optimizer—they represent consumption that will occur regardless of optimization decisions.
 
@@ -41,13 +65,13 @@ Forecast accuracy directly impacts optimization quality.
 
 ## Constant Behavior
 
-When a sensor provides a constant value (e.g., an `input_number` helper), the load exhibits constant behavior:
+When the forecast provides a constant value, the load exhibits constant behavior:
 
 $$
 P_{\text{load}}(t) = P_{\text{constant}} \quad \forall t
 $$
 
-This is achieved by providing a sensor that reports the same value for all periods, not through special model handling.
+This is achieved by providing a forecast that reports the same value for all periods, not through special model handling.
 
 ## Multiple Loads
 
@@ -75,28 +99,28 @@ You can combine constant and variable loads by creating separate Load elements w
 
 <div class="grid cards" markdown>
 
-- :material-file-document:{ .lg .middle } **User configuration guide**
+- :material-file-document:{ .lg .middle } **Load configuration**
 
     ---
 
     Configure loads in your Home Assistant setup.
 
-    [:material-arrow-right: Load configuration](../user-guide/elements/load.md)
+    [:material-arrow-right: Load configuration](../../user-guide/elements/load.md)
 
-- :material-network:{ .lg .middle } **Network modeling**
-
-    ---
-
-    Understand how elements interact in the network model.
-
-    [:material-arrow-right: Network modeling overview](index.md)
-
-- :material-code-braces:{ .lg .middle } **Implementation**
+- :material-power-plug:{ .lg .middle } **SourceSink model**
 
     ---
 
-    View the source code for the load element model.
+    Underlying model element for Load.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/load.py)
+    [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
+
+- :material-connection:{ .lg .middle } **Connection model**
+
+    ---
+
+    How consumption constraints are applied.
+
+    [:material-arrow-right: Connection formulation](../model-layer/connection.md)
 
 </div>

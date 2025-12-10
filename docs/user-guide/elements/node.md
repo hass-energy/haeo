@@ -79,7 +79,7 @@ Then connect elements to "Main Node" via connections.
 
 ## Sensors Created
 
-Nodes are virtual balance points with one shadow price sensor.
+A Node element creates 1 device in Home Assistant with the following sensors.
 
 | Sensor                                          | Unit  | Description                     |
 | ----------------------------------------------- | ----- | ------------------------------- |
@@ -173,7 +173,7 @@ See [Connections](connections.md) for detailed configuration guidance.
 
     Understand the power balance formulation at nodes.
 
-    [:material-arrow-right: Node modeling](../../modeling/node.md)
+    [:material-arrow-right: Node modeling](../../modeling/device-layer/node.md)
 
 - :material-chart-line:{ .lg .middle } **Understand optimization**
 

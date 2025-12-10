@@ -2,7 +2,48 @@
 
 HAEO uses linear programming to optimize energy flows across your network.
 This page explains the high-level architecture and mathematical foundations.
-For element-specific formulations, see the individual element pages.
+
+## Two-Layer Architecture
+
+HAEO separates user configuration from mathematical modeling through a two-layer architecture:
+
+**Device Layer** (user-configured): Elements like Battery, Grid, Photovoltaics, and Load that users configure through Home Assistant.
+Each Device Layer element may create multiple Model Layer elements and multiple devices with sensors.
+See [Elements Configuration](../user-guide/elements/index.md) for user documentation.
+
+**Model Layer** (optimization): The mathematical building blocks that form the linear programming problem.
+Three model element types—[Battery](model-layer/battery.md), [SourceSink](model-layer/source-sink.md), and [Connection](model-layer/connection.md)—combine to represent all Device Layer elements.
+
+```mermaid
+graph TD
+    subgraph "Device Layer (User Configured)"
+        Bat[Battery]
+        Grid[Grid]
+        PV[Photovoltaics]
+        Load[Load]
+        Node[Node]
+        Conn[Connection]
+    end
+
+    subgraph "Model Layer (Optimization)"
+        MB[Battery Model]
+        MSS[SourceSink Model]
+        MC[Connection Model]
+    end
+
+    Bat -->|creates| MB
+    Bat -->|creates| MC
+    Grid -->|creates| MSS
+    Grid -->|creates| MC
+    PV -->|creates| MSS
+    PV -->|creates| MC
+    Load -->|creates| MSS
+    Load -->|creates| MC
+    Node -->|creates| MSS
+    Conn -->|creates| MC
+```
+
+This separation enables composition flexibility—a single Device Layer element can create multiple Model Layer elements to achieve complex behavior (e.g., Battery creates both a battery model for SOC tracking and a connection model for power flow).
 
 ## Linear Programming Overview
 
@@ -233,45 +274,32 @@ HAEO uses consistent units for numerical stability:
 This keeps values in similar numerical ranges, improving solver performance.
 See [units documentation](../developer-guide/units.md) for details.
 
-## Element Formulations
-
-This overview describes the mathematical framework and aggregation process.
-Each element type has detailed formulation documentation covering:
-
-- Decision variables introduced
-- Parameters from configuration or sensors
-- Constraints contributed to the optimization
-- Cost terms in the objective function
-- Physical interpretation
-
-The following pages provide complete mathematical models for each element type:
-
 ## Next Steps
 
 <div class="grid cards" markdown>
 
-- :material-battery-charging:{ .lg .middle } **Battery modeling**
+- :material-cube-outline:{ .lg .middle } **Model Layer**
 
     ---
 
-    Understand energy storage formulation with SOC dynamics and efficiency.
+    Mathematical building blocks for optimization.
 
-    [:material-arrow-right: Battery model](battery.md)
+    [:material-arrow-right: Model Layer elements](model-layer/index.md)
 
-- :material-transmission-tower:{ .lg .middle } **Grid modeling**
-
-    ---
-
-    Learn how bidirectional power flow and pricing work.
-
-    [:material-arrow-right: Grid model](grid.md)
-
-- :material-network:{ .lg .middle } **Connection modeling**
+- :material-devices:{ .lg .middle } **Device Layer**
 
     ---
 
-    Explore how power flows between elements with directional limits.
+    How user-configured elements compose models.
 
-    [:material-arrow-right: Connection model](connections.md)
+    [:material-arrow-right: Device Layer elements](device-layer/index.md)
+
+- :material-currency-usd:{ .lg .middle } **Shadow Prices**
+
+    ---
+
+    Interpret marginal values of constraints.
+
+    [:material-arrow-right: Shadow prices guide](shadow-prices.md)
 
 </div>

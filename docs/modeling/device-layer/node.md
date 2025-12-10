@@ -2,7 +2,27 @@
 
 Virtual balance nodes that enforce power conservation (Kirchhoff's law).
 
+Node creates a [SourceSink](../model-layer/source-sink.md) model (`is_source=false, is_sink=false`) which acts as a pure junction point.
+Unlike other Device Layer elements, Node does not create an implicit Connection.
+
+## Model Elements Created
+
+```mermaid
+graph LR
+    subgraph "Device"
+        NodeModel["SourceSink<br/>(is_source=false, is_sink=false)"]
+    end
+```
+
+| Model Element                               | Name     | Parameters From Configuration  |
+| ------------------------------------------- | -------- | ------------------------------ |
+| [SourceSink](../model-layer/source-sink.md) | `{name}` | is_source=false, is_sink=false |
+
+Node is unique among Device Layer elements: it creates only a SourceSink with no implicit Connection.
+
 ## Model Formulation
+
+Node creates a SourceSink with `is_source=false, is_sink=false` which enforces power balance (Kirchhoff's law):
 
 ### Decision Variables
 
@@ -81,28 +101,28 @@ Separate buses with inverter connection between them.
 
 <div class="grid cards" markdown>
 
-- :material-file-document:{ .lg .middle } **User configuration guide**
+- :material-file-document:{ .lg .middle } **Node configuration**
 
     ---
 
     Configure nodes in your Home Assistant setup.
 
-    [:material-arrow-right: Node configuration](../user-guide/elements/node.md)
+    [:material-arrow-right: Node configuration](../../user-guide/elements/node.md)
 
-- :material-network:{ .lg .middle } **Network modeling**
-
-    ---
-
-    Understand how elements interact in the network model.
-
-    [:material-arrow-right: Network modeling overview](index.md)
-
-- :material-code-braces:{ .lg .middle } **Implementation**
+- :material-power-plug:{ .lg .middle } **SourceSink model**
 
     ---
 
-    View the source code for the node element model.
+    Underlying model element for Node.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/node.py)
+    [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
+
+- :material-connection:{ .lg .middle } **Connection model**
+
+    ---
+
+    Connect nodes to other elements.
+
+    [:material-arrow-right: Connection formulation](../model-layer/connection.md)
 
 </div>
