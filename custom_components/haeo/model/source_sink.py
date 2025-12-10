@@ -105,7 +105,7 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
         else:
             # Both source and sink: connection power plus power out minus power in equals zero
             if self.power_out is None or self.power_in is None:
-                msg = f"SourceSink '{self.name}' with both source and sink must have both power_out and power_in configured"
+                msg = f"SourceSink '{self.name}' with both source and sink must have power_out and power_in configured"
                 raise ValueError(msg)
             self._constraints[SOURCE_SINK_POWER_BALANCE] = [
                 self.connection_power(t) + self.power_out[t] - self.power_in[t] == 0 for t in range(self.n_periods)

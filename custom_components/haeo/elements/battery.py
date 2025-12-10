@@ -308,7 +308,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
 
 def outputs(
     name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-) -> dict[str, dict[BatteryOutputName, OutputData]]:
+) -> Mapping[str, Mapping[BatteryOutputName, OutputData]]:
     """Map model outputs to battery-specific output names.
 
     Returns multiple devices for SOC regions based on what's configured.
@@ -329,7 +329,7 @@ def outputs(
 
     # Undercharge region device outputs (only if configured)
     if MODEL_BATTERY_UNDERCHARGE_ENERGY_STORED in battery:
-        undercharge_outputs: dict[BatteryUnderchargeOutputName, OutputData] = {
+        undercharge_outputs: dict[BatteryOutputName, OutputData] = {
             BATTERY_UNDERCHARGE_ENERGY_STORED: battery[MODEL_BATTERY_UNDERCHARGE_ENERGY_STORED],
             BATTERY_UNDERCHARGE_POWER_CHARGE: battery[MODEL_BATTERY_UNDERCHARGE_POWER_CHARGE],
             BATTERY_UNDERCHARGE_POWER_DISCHARGE: battery[MODEL_BATTERY_UNDERCHARGE_POWER_DISCHARGE],
@@ -344,7 +344,7 @@ def outputs(
 
     # Normal region device outputs (only if configured)
     if MODEL_BATTERY_NORMAL_ENERGY_STORED in battery:
-        normal_outputs: dict[BatteryNormalOutputName, OutputData] = {
+        normal_outputs: dict[BatteryOutputName, OutputData] = {
             BATTERY_NORMAL_ENERGY_STORED: battery[MODEL_BATTERY_NORMAL_ENERGY_STORED],
             BATTERY_NORMAL_POWER_CHARGE: battery[MODEL_BATTERY_NORMAL_POWER_CHARGE],
             BATTERY_NORMAL_POWER_DISCHARGE: battery[MODEL_BATTERY_NORMAL_POWER_DISCHARGE],
@@ -359,7 +359,7 @@ def outputs(
 
     # Overcharge region device outputs (only if configured)
     if MODEL_BATTERY_OVERCHARGE_ENERGY_STORED in battery:
-        overcharge_outputs: dict[BatteryOverchargeOutputName, OutputData] = {
+        overcharge_outputs: dict[BatteryOutputName, OutputData] = {
             BATTERY_OVERCHARGE_ENERGY_STORED: battery[MODEL_BATTERY_OVERCHARGE_ENERGY_STORED],
             BATTERY_OVERCHARGE_POWER_CHARGE: battery[MODEL_BATTERY_OVERCHARGE_POWER_CHARGE],
             BATTERY_OVERCHARGE_POWER_DISCHARGE: battery[MODEL_BATTERY_OVERCHARGE_POWER_DISCHARGE],

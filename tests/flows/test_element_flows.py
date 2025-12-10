@@ -1,5 +1,6 @@
 """End-to-end tests for element subentry flows."""
 
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -24,8 +25,10 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.elements import (
     ELEMENT_TYPES,
+    ElementOutputName,
     ElementRegistryEntry,
     ElementType,
+    OutputsFn,
     battery,
     connection,
     grid,
@@ -149,7 +152,9 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
     def mock_create_model_elements(config: Any) -> list[dict[str, Any]]:
         return []
 
-    def mock_outputs(name: str, outputs: Any) -> dict[str, dict[str, OutputData]]:
+    def mock_outputs(
+        name: str, outputs: Mapping[str, Mapping[Any, OutputData]]
+    ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
         return {}
 
     entry = ElementRegistryEntry(

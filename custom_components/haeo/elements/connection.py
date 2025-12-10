@@ -149,7 +149,7 @@ def create_model_elements(config: ConnectionConfigData) -> list[dict[str, Any]]:
 
 def outputs(
     name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-) -> dict[str, dict[ConnectionOutputName, OutputData]]:
+) -> Mapping[str, Mapping[ConnectionOutputName, OutputData]]:
     """Map model outputs to connection-specific output names."""
     connection = outputs[name]
 

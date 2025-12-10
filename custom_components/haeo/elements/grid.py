@@ -116,10 +116,10 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
         # Create SourceSink for the grid (both source and sink - can import and export)
         {"element_type": "source_sink", "name": config["name"], "is_source": True, "is_sink": True},
         # Create a connection from system node to grid
-        # source = grid (Source)
-        # target = system (Target)
-        # source_target = grid to system = IMPORT
-        # target_source = system to grid = EXPORT
+        # source is the grid
+        # target is the network
+        # source_target is grid to system (IMPORT)
+        # target_source is system to grid (EXPORT)
         {
             "element_type": "connection",
             "name": f"{config['name']}:connection",
@@ -135,7 +135,7 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
 
 def outputs(
     name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-) -> dict[str, dict[GridOutputName, OutputData]]:
+) -> Mapping[str, Mapping[GridOutputName, OutputData]]:
     """Map model outputs to grid-specific output names."""
 
     connection = model_outputs[f"{name}:connection"]

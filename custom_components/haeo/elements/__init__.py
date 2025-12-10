@@ -99,7 +99,7 @@ type CreateModelElementsFn = Callable[[Any], list[dict[str, Any]]]
 
 type OutputsFn = Callable[
     [str, Mapping[str, Mapping[ModelOutputName, OutputData]]],
-    Mapping[str, Mapping[ElementOutputName, OutputData]],
+    Mapping[str, Mapping[Any, OutputData]],
 ]
 
 

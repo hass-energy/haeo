@@ -42,6 +42,7 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_GRID,
+    ELEMENT_TYPES,
     ElementConfigSchema,
 )
 from custom_components.haeo.elements.battery import (
@@ -276,8 +277,6 @@ async def test_async_update_data_returns_outputs(
     mock_empty_outputs = MagicMock(return_value={})
 
     # Patch the registry entries to use our mocked output functions
-    from custom_components.haeo.elements import ELEMENT_TYPES
-
     with (
         patch(
             "custom_components.haeo.coordinator.data_module.load_network",

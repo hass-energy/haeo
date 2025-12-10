@@ -387,13 +387,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     len(adapter_outputs),
                     list(adapter_outputs.keys()),
                 )
-            except KeyError as err:
-                _LOGGER.error(
-                    "Failed to get outputs for config element %r (type=%r): missing model element %s. "
+            except KeyError:
+                _LOGGER.exception(
+                    "Failed to get outputs for config element %r (type=%r): missing model element. "
                     "Available model elements: %s",
                     original_element_name,
                     element_type,
-                    err,
                     list(nested_outputs.keys()),
                 )
                 raise

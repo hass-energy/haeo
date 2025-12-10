@@ -43,7 +43,7 @@ def create_model_elements(config: NodeConfigData) -> list[dict[str, Any]]:
 
 def outputs(
     name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-) -> dict[str, dict[NodeOutputName, OutputData]]:
+) -> Mapping[str, Mapping[NodeOutputName, OutputData]]:
     """Convert model element outputs to node adapter outputs."""
 
     source_sink = outputs[name]
