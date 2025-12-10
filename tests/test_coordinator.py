@@ -236,16 +236,25 @@ async def test_async_update_data_returns_outputs(
     fake_network = MagicMock()
     empty_element = MagicMock()
     empty_element.outputs.return_value = {}
+
+    # Add connection element (config name is slugified to "battery_to_grid")
+    fake_connection = MagicMock()
+    fake_connection.outputs.return_value = {
+        CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)),
+        CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,)),
+    }
+
     fake_network.elements = {
         "test_battery": fake_element,
         "empty": empty_element,
+        "battery_to_grid": fake_connection,
     }
 
-    # Create NetworkWithAdapters mock
-    fake_network_with_adapters = MagicMock()
-    fake_network_with_adapters.network = fake_network
-    fake_network_with_adapters.adapters = {"test_battery": None, "empty": None}
-    fake_network_with_adapters.adapter_model_elements = {"test_battery": ["test_battery"], "empty": ["empty"]}
+    # Mock battery adapter
+    mock_battery_adapter = MagicMock()
+    mock_battery_adapter.outputs.return_value = {
+        "test_battery": {BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0))}
+    }
 
     generated_at = datetime(2024, 1, 1, 0, 15, tzinfo=UTC)
     expected_forecast_times = (
@@ -253,6 +262,21 @@ async def test_async_update_data_returns_outputs(
         int(datetime(2024, 1, 1, 0, 30, tzinfo=UTC).timestamp()),
         int(datetime(2024, 1, 1, 1, 0, tzinfo=UTC).timestamp()),
     )
+
+    # Mock connection adapter to return proper outputs
+    mock_connection_adapter = MagicMock()
+    mock_connection_adapter.outputs.return_value = {
+        "test_connection": {
+            CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)),
+            CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,)),
+        }
+    }
+
+    # Mock empty outputs for grid
+    mock_empty_outputs = MagicMock(return_value={})
+
+    # Patch the registry entries to use our mocked output functions
+    from custom_components.haeo.elements import ELEMENT_TYPES
 
     with (
         patch(
@@ -262,8 +286,16 @@ async def test_async_update_data_returns_outputs(
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.dt_util.utcnow", return_value=generated_at),
+        patch.dict(
+            ELEMENT_TYPES,
+            {
+                "battery": ELEMENT_TYPES["battery"]._replace(outputs=mock_battery_adapter.outputs),
+                "grid": ELEMENT_TYPES["grid"]._replace(outputs=mock_empty_outputs),
+                "connection": ELEMENT_TYPES["connection"]._replace(outputs=mock_connection_adapter.outputs),
+            },
+        ),
     ):
-        mock_load.return_value = fake_network_with_adapters
+        mock_load.return_value = fake_network
         mock_executor.return_value = 123.45
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         result = await coordinator._async_update_data()
