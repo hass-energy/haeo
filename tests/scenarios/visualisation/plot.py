@@ -17,7 +17,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.elements import ElementType
+from custom_components.haeo.elements import ELEMENT_TYPE_PHOTOVOLTAICS, ElementType
+from custom_components.haeo.model.const import (
+    OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_POWER_LIMIT,
+    OUTPUT_TYPE_PRICE,
+    OUTPUT_TYPE_SHADOW_PRICE,
+    OUTPUT_TYPE_SOC,
+)
 
 from .colors import ColorMapper
 
@@ -104,19 +111,23 @@ async def extract_forecast_data_from_sensors(hass: HomeAssistant) -> dict[str, F
             # Use type+direction to categorize outputs
             # "+" = adding power to graph (production/supply)
             # "-" = taking power away (consumption)
-            if output_type == "power" and direction == "+":
+            if output_type == OUTPUT_TYPE_POWER and direction == "+":
                 entry["production"] = forecast
-            elif output_type == "power" and direction == "-":
+            elif output_type == OUTPUT_TYPE_POWER and direction == "-":
                 entry["consumption"] = forecast
-            elif output_type == "power_limit" and direction == "+":
+            elif (
+                output_type == OUTPUT_TYPE_POWER_LIMIT
+                and direction == "+"
+                and element_type == ELEMENT_TYPE_PHOTOVOLTAICS
+            ):
                 entry["available"] = forecast
-            elif output_type == "soc":
+            elif output_type == OUTPUT_TYPE_SOC:
                 entry["soc"] = forecast
-            elif output_type == "price" and direction == "+":
+            elif output_type == OUTPUT_TYPE_PRICE and direction == "+":
                 entry["production_price"] = forecast
-            elif output_type == "price" and direction == "-":
+            elif output_type == OUTPUT_TYPE_PRICE and direction == "-":
                 entry["consumption_price"] = forecast
-            elif output_type == "shadow_price":
+            elif output_type == OUTPUT_TYPE_SHADOW_PRICE:
                 shadow_prices = entry.setdefault("shadow_prices", {})
                 # Use translated sensor name as the key for better display
                 shadow_prices[sensor_name] = forecast
