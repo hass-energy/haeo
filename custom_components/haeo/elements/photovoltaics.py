@@ -1,14 +1,16 @@
 """Photovoltaics element configuration for HAEO integration."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
-from custom_components.haeo.model import OutputName as ModelOutputName
+from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.connection import (
     CONNECTION_POWER_MAX_SOURCE_TARGET,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     BooleanFieldData,
@@ -96,7 +98,8 @@ def create_model_elements(config: PhotovoltaicsConfigData) -> list[dict[str, Any
             "source": config["name"],
             "target": config["connection"],
             "max_power_source_target": config["forecast"],
-            "fixed_power": True,
+            "max_power_target_source": 0.0,
+            "fixed_power": not config.get("curtailment", True),
             "price_source_target": config.get("price_production"),
         },
     ]
@@ -110,7 +113,7 @@ def outputs(
     connection = outputs[f"{name}:connection"]
 
     pv_outputs: dict[PhotovoltaicsOutputName, OutputData] = {
-        PHOTOVOLTAICS_POWER: connection[CONNECTION_POWER_SOURCE_TARGET],
+        PHOTOVOLTAICS_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER),
     }
 
     if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:

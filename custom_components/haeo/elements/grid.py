@@ -1,9 +1,10 @@
 """Grid element configuration for HAEO integration."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
-from custom_components.haeo.model import OutputName as ModelOutputName
+from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.connection import (
     CONNECTION_POWER_MAX_SOURCE_TARGET,
     CONNECTION_POWER_MAX_TARGET_SOURCE,
@@ -14,6 +15,7 @@ from custom_components.haeo.model.connection import (
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
@@ -105,10 +107,19 @@ CONFIG_DEFAULTS: dict[str, Any] = {}
 def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
     """Create model elements for Grid configuration."""
 
+    # Negate export price because exporting earns money (negative cost in optimization)
+    export_price = config.get("export_price")
+    if export_price is not None:
+        export_price = [-p for p in export_price]
+
     return [
         # Create SourceSink for the grid (both source and sink - can import and export)
         {"element_type": "source_sink", "name": config["name"], "is_source": True, "is_sink": True},
-        # Create a connection from the grid to the specified node
+        # Create a connection from system node to grid
+        # source = grid (Source)
+        # target = system (Target)
+        # source_target = grid to system = IMPORT
+        # target_source = system to grid = EXPORT
         {
             "element_type": "connection",
             "name": f"{config['name']}:connection",
@@ -117,7 +128,7 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
             "max_power_source_target": config.get("import_limit"),
             "max_power_target_source": config.get("export_limit"),
             "price_source_target": config.get("import_price"),
-            "price_target_source": config.get("export_price"),
+            "price_target_source": export_price,
         },
     ]
 
@@ -131,19 +142,24 @@ def outputs(
 
     grid_outputs: dict[GridOutputName, OutputData] = {}
 
-    # This will be identical to the source/sink power in/out outputs
-    grid_outputs[GRID_POWER_EXPORT] = connection[CONNECTION_POWER_TARGET_SOURCE]
-    grid_outputs[GRID_POWER_IMPORT] = connection[CONNECTION_POWER_SOURCE_TARGET]
+    # source_target = grid to system = IMPORT
+    # target_source = system to grid = EXPORT
+    grid_outputs[GRID_POWER_EXPORT] = replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER)
+    grid_outputs[GRID_POWER_IMPORT] = replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER)
 
     # Output the given inputs if they exist
-    if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
-        grid_outputs[GRID_POWER_MAX_IMPORT] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
-        grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
     if CONNECTION_POWER_MAX_TARGET_SOURCE in connection:
         grid_outputs[GRID_POWER_MAX_EXPORT] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
         grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
+    if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
+        grid_outputs[GRID_POWER_MAX_IMPORT] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+        grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
 
-    grid_outputs[GRID_PRICE_EXPORT] = connection[CONNECTION_PRICE_TARGET_SOURCE]
-    grid_outputs[GRID_PRICE_IMPORT] = connection[CONNECTION_PRICE_SOURCE_TARGET]
+    # Negate export price values for display (so they appear positive)
+    export_price_data = connection[CONNECTION_PRICE_TARGET_SOURCE]
+    negated_values = [-v for v in export_price_data.values] if export_price_data.values else []
+
+    grid_outputs[GRID_PRICE_EXPORT] = replace(export_price_data, values=negated_values, direction="-")
+    grid_outputs[GRID_PRICE_IMPORT] = replace(connection[CONNECTION_PRICE_SOURCE_TARGET], direction="+")
 
     return {name: grid_outputs}

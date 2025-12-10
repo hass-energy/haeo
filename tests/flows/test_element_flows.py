@@ -32,6 +32,7 @@ from custom_components.haeo.elements import (
     node,
 )
 from custom_components.haeo.flows.element import ElementSubentryFlow, create_subentry_flow_class
+from custom_components.haeo.model import OutputData
 from custom_components.haeo.schema.fields import NameFieldData, NameFieldSchema
 from tests.conftest import ElementTestData
 
@@ -145,11 +146,19 @@ class FlowTestElementFactory:
 def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElementFactory:
     """Register and return a synthetic element factory for flow testing."""
 
+    def mock_create_model_elements(config: Any) -> list[dict[str, Any]]:
+        return []
+
+    def mock_outputs(name: str, outputs: Any) -> dict[str, dict[str, OutputData]]:
+        return {}
+
     entry = ElementRegistryEntry(
         schema=FlowTestElementConfigSchema,
         data=FlowTestElementConfigData,
         defaults={},
         translation_key=cast("ElementType", TEST_ELEMENT_TYPE),
+        create_model_elements=mock_create_model_elements,
+        outputs=mock_outputs,
     )
     monkeypatch.setitem(ELEMENT_TYPES, cast("ElementType", TEST_ELEMENT_TYPE), entry)
     return FlowTestElementFactory()

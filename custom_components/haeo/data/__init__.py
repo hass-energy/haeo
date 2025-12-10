@@ -92,13 +92,11 @@ async def load_network(
 
     # Get the data for each participant and add to the network
     # This converts from Schema mode (with entity IDs) to Data mode (with loaded values)
-    # Sort so connections are added last - they need their source/target elements to exist
     forecast_times_list = list(forecast_times)
-    sorted_participants = sorted(
-        participants.values(),
-        key=lambda c: c[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_CONNECTION,
-    )
-    for element_config in sorted_participants:
+
+    # Collect all model elements from all config elements first
+    all_model_elements: list[dict[str, Any]] = []
+    for element_config in participants.values():
         # Load all fields using the high-level config_load function
         loaded_params: ElementConfigData = await config_load(
             element_config,
@@ -108,9 +106,33 @@ async def load_network(
 
         # Use registry entry to create model elements from configuration element
         element_type = loaded_params[CONF_ELEMENT_TYPE]
-        create_model_elements = ELEMENT_TYPES[element_type].create_model_elements
-        model_elements = create_model_elements(loaded_params)
-        for model_element_config in model_elements:
+        model_elements = ELEMENT_TYPES[element_type].create_model_elements(loaded_params)
+        _LOGGER.debug(
+            "Config element %r (type=%r) created %d model elements: %s",
+            loaded_params["name"],
+            element_type,
+            len(model_elements),
+            [elem["name"] for elem in model_elements],
+        )
+        all_model_elements.extend(model_elements)
+
+    # Sort all model elements so connections are added last
+    # This ensures connection source/target elements exist when connections are registered
+    sorted_model_elements = sorted(
+        all_model_elements,
+        key=lambda e: e.get("element_type") == ELEMENT_TYPE_CONNECTION,
+    )
+
+    # Add all model elements to network in correct order
+    for model_element_config in sorted_model_elements:
+        try:
             net.add(**model_element_config)
+        except Exception as e:
+            msg = (
+                f"Failed to add model element '{model_element_config.get('name')}' "
+                f"(type={model_element_config.get('element_type')})"
+            )
+            _LOGGER.exception(msg)
+            raise ValueError(msg) from e
 
     return net

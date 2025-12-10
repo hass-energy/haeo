@@ -87,28 +87,28 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
                 self.connection_power(t) == 0 for t in range(self.n_periods)
             ]
         elif self.is_source and not self.is_sink:
-            # Source only: connection power equals power out
+            # Source only: connection power plus power out equals zero (net leaving = generated)
             if self.power_out is None:
                 msg = f"Source-only SourceSink '{self.name}' must have power_out configured"
                 raise ValueError(msg)
             self._constraints[SOURCE_SINK_POWER_BALANCE] = [
-                self.connection_power(t) - self.power_out[t] == 0 for t in range(self.n_periods)
+                self.connection_power(t) + self.power_out[t] == 0 for t in range(self.n_periods)
             ]
         elif not self.is_source and self.is_sink:
-            # Sink only: connection power equals negative power in
+            # Sink only: connection power minus power in equals zero (net entering = consumed)
             if self.power_in is None:
                 msg = f"Sink-only SourceSink '{self.name}' must have power_in configured"
                 raise ValueError(msg)
             self._constraints[SOURCE_SINK_POWER_BALANCE] = [
-                self.connection_power(t) + self.power_in[t] == 0 for t in range(self.n_periods)
+                self.connection_power(t) - self.power_in[t] == 0 for t in range(self.n_periods)
             ]
         else:
-            # Both source and sink: connection power equals power out minus power in
+            # Both source and sink: connection power plus power out minus power in equals zero
             if self.power_out is None or self.power_in is None:
                 msg = f"SourceSink '{self.name}' with both source and sink must have both power_out and power_in configured"
                 raise ValueError(msg)
             self._constraints[SOURCE_SINK_POWER_BALANCE] = [
-                self.connection_power(t) - self.power_out[t] + self.power_in[t] == 0 for t in range(self.n_periods)
+                self.connection_power(t) + self.power_out[t] - self.power_in[t] == 0 for t in range(self.n_periods)
             ]
 
     def outputs(self) -> Mapping[SourceSinkOutputName, OutputData]:

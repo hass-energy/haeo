@@ -288,10 +288,7 @@
       "optimization_status": { "name": "Optimization Status" },
       "photovoltaics_forecast_limit": { "name": "Forecast Limit Price (Shadow)" },
       "photovoltaics_power": { "name": "Power" },
-      "photovoltaics_power_available": { "name": "Power Available" },
-      "source_sink_power_balance": { "name": "Power Balance Shadow Price" },
-      "source_sink_power_in": { "name": "Power In" },
-      "source_sink_power_out": { "name": "Power Out" }
+      "photovoltaics_power_available": { "name": "Power Available" }
     }
   },
   "exceptions": {

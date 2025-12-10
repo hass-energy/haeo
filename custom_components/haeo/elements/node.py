@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal, TypedDict
 
-from custom_components.haeo.model import OutputName as ModelOutputName
+from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
 from custom_components.haeo.schema.fields import NameFieldData, NameFieldSchema
@@ -15,7 +15,7 @@ NODE_POWER_BALANCE: Final = "node_power_balance"
 
 type NodeOutputName = Literal["node_power_balance"]
 
-OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
+NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
 
 
 class NodeConfigSchema(TypedDict):

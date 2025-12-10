@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from custom_components.haeo.model.output_names import ALL_OUTPUT_NAMES
+from custom_components.haeo.elements import ELEMENT_OUTPUT_NAMES
 
 
 def test_all_output_names_have_translations() -> None:
@@ -18,9 +18,7 @@ def test_all_output_names_have_translations() -> None:
     sensor_translations = translations.get("entity", {}).get("sensor", {})
 
     # Check each output name using list comprehension
-    missing_translations = [
-        output_name for output_name in sorted(ALL_OUTPUT_NAMES) if output_name not in sensor_translations
-    ]
+    missing_translations = [n for n in ELEMENT_OUTPUT_NAMES if n not in sensor_translations]
 
     if missing_translations:
         pytest.fail(
@@ -40,11 +38,7 @@ def test_no_unused_translations() -> None:
     sensor_translations = translations.get("entity", {}).get("sensor", {})
 
     # Check for unused translations using list comprehension
-    unused_translations = [
-        translation_key
-        for translation_key in sorted(sensor_translations.keys())
-        if translation_key not in ALL_OUTPUT_NAMES
-    ]
+    unused_translations = [k for k in sorted(sensor_translations.keys()) if k not in ELEMENT_OUTPUT_NAMES]
 
     if unused_translations:
         pytest.fail(

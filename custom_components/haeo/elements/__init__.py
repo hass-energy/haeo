@@ -1,13 +1,39 @@
-"""HAEO element registry with field-based metadata."""
+"""HAEO element registry with field-based metadata.
 
-from collections.abc import Mapping
+This module provides a centralized registry for all element types and their adapters.
+The adapter layer transforms configuration elements into model elements and maps
+model outputs to user-friendly device outputs.
+
+Adapter Pattern:
+    Configuration Element (with entity IDs) →
+    Adapter.create_model_elements() →
+    Model Elements (pure optimization) →
+    Model.optimize() →
+    Model Outputs (element-agnostic) →
+    Adapter.outputs() →
+    Device Outputs (user-friendly sensors)
+
+Sub-element Naming Convention:
+    Adapters may create multiple model elements and devices from a single config element.
+    Sub-elements follow the pattern: {main_element}:{subname}
+    Example: Battery "home_battery" creates:
+        - "home_battery" (aggregate device)
+        - "home_battery:undercharge" (undercharge region device)
+        - "home_battery:normal" (normal region device)
+        - "home_battery:overcharge" (overcharge region device)
+        - "home_battery:connection" (implicit connection to network)
+"""
+
+from collections.abc import Callable, Mapping
 import logging
 from typing import Any, Final, Literal, NamedTuple, TypeGuard
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, NETWORK_OUTPUT_NAMES, NetworkOutputName
+from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import schema_for_type
 
 from . import battery, connection, grid, load, node, photovoltaics
@@ -49,13 +75,50 @@ ElementConfigData = (
 )
 
 
+type ElementOutputName = (
+    battery.BatteryOutputName
+    | connection.ConnectionOutputName
+    | grid.GridOutputName
+    | load.LoadOutputName
+    | node.NodeOutputName
+    | photovoltaics.PhotovoltaicsOutputName
+    | NetworkOutputName
+)
+
+ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
+    battery.BATTERY_OUTPUT_NAMES
+    | connection.CONNECTION_OUTPUT_NAMES
+    | grid.GRID_OUTPUT_NAMES
+    | load.LOAD_OUTPUT_NAMES
+    | node.NODE_OUTPUT_NAMES
+    | photovoltaics.PHOTOVOLTAIC_OUTPUT_NAMES
+    | NETWORK_OUTPUT_NAMES
+)
+
+type CreateModelElementsFn = Callable[[Any], list[dict[str, Any]]]
+
+type OutputsFn = Callable[
+    [str, Mapping[str, Mapping[ModelOutputName, OutputData]]],
+    Mapping[str, Mapping[ElementOutputName, OutputData]],
+]
+
+
 class ElementRegistryEntry(NamedTuple):
-    """Registry entry for an element type."""
+    """Registry entry for an element type.
+
+    The create_model_elements and outputs fields are callables that:
+        - create_model_elements(config) -> list[dict[str, Any]]
+            Transforms config element to model elements
+        - outputs(name, outputs) -> dict[str, dict[str, Any]]
+            Transforms model outputs to device outputs
+    """
 
     schema: type[Any]
     data: type[Any]
     defaults: dict[str, Any]
     translation_key: ElementType
+    create_model_elements: CreateModelElementsFn
+    outputs: OutputsFn
 
 
 ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
@@ -64,36 +127,48 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         data=battery.BatteryConfigData,
         defaults=battery.CONFIG_DEFAULTS,
         translation_key=battery.ELEMENT_TYPE,
+        create_model_elements=battery.create_model_elements,
+        outputs=battery.outputs,
     ),
     connection.ELEMENT_TYPE: ElementRegistryEntry(
         schema=connection.ConnectionConfigSchema,
         data=connection.ConnectionConfigData,
         defaults=connection.CONFIG_DEFAULTS,
         translation_key=connection.ELEMENT_TYPE,
+        create_model_elements=connection.create_model_elements,
+        outputs=connection.outputs,
     ),
     photovoltaics.ELEMENT_TYPE: ElementRegistryEntry(
         schema=photovoltaics.PhotovoltaicsConfigSchema,
         data=photovoltaics.PhotovoltaicsConfigData,
         defaults=photovoltaics.CONFIG_DEFAULTS,
         translation_key=photovoltaics.ELEMENT_TYPE,
+        create_model_elements=photovoltaics.create_model_elements,
+        outputs=photovoltaics.outputs,
     ),
     grid.ELEMENT_TYPE: ElementRegistryEntry(
         schema=grid.GridConfigSchema,
         data=grid.GridConfigData,
         defaults=grid.CONFIG_DEFAULTS,
         translation_key=grid.ELEMENT_TYPE,
+        create_model_elements=grid.create_model_elements,
+        outputs=grid.outputs,
     ),
     load.ELEMENT_TYPE: ElementRegistryEntry(
         schema=load.LoadConfigSchema,
         data=load.LoadConfigData,
         defaults=load.CONFIG_DEFAULTS,
         translation_key=load.ELEMENT_TYPE,
+        create_model_elements=load.create_model_elements,
+        outputs=load.outputs,
     ),
     node.ELEMENT_TYPE: ElementRegistryEntry(
         schema=node.NodeConfigSchema,
         data=node.NodeConfigData,
         defaults=node.CONFIG_DEFAULTS,
         translation_key=node.ELEMENT_TYPE,
+        create_model_elements=node.create_model_elements,
+        outputs=node.outputs,
     ),
 }
 
@@ -150,10 +225,12 @@ __all__ = [
     "ELEMENT_TYPE_LOAD",
     "ELEMENT_TYPE_NODE",
     "ELEMENT_TYPE_PHOTOVOLTAICS",
+    "CreateModelElementsFn",
     "ElementConfigData",
     "ElementConfigSchema",
     "ElementRegistryEntry",
     "ElementType",
+    "OutputsFn",
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "is_element_config_schema",

@@ -27,6 +27,9 @@ from custom_components.haeo.const import (
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
+    OUTPUT_NAME_OPTIMIZATION_COST,
+    OUTPUT_NAME_OPTIMIZATION_DURATION,
+    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 from custom_components.haeo.coordinator import (
     ForecastPoint,
@@ -49,8 +52,14 @@ from custom_components.haeo.elements.battery import (
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
+    BatteryConfigSchema,
 )
-from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
+from custom_components.haeo.elements.connection import (
+    CONF_SOURCE,
+    CONF_TARGET,
+    CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_POWER_TARGET_SOURCE,
+)
 from custom_components.haeo.elements.grid import CONF_CONNECTION as CONF_CONNECTION_GRID
 from custom_components.haeo.elements.grid import (
     CONF_EXPORT_LIMIT,
@@ -58,11 +67,8 @@ from custom_components.haeo.elements.grid import (
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
 )
-from custom_components.haeo.elements.photovoltaics import PHOTOVOLTAICS_POWER_PRODUCED
+from custom_components.haeo.elements.photovoltaics import PHOTOVOLTAICS_POWER
 from custom_components.haeo.model import (
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
     OUTPUT_TYPE_COST,
     OUTPUT_TYPE_DURATION,
     OUTPUT_TYPE_POWER,
@@ -358,7 +364,7 @@ def test_collect_entity_ids_returns_empty_for_unknown_types() -> None:
 
 def test_extract_entity_ids_skips_constant_fields() -> None:
     """extract_entity_ids_from_config should ignore constant-only fields."""
-    config: ElementConfigSchema = {
+    config: BatteryConfigSchema = {
         CONF_NAME: "Battery",
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
         CONF_CAPACITY: "sensor.capacity",
@@ -366,6 +372,7 @@ def test_extract_entity_ids_skips_constant_fields() -> None:
         CONF_MIN_CHARGE_PERCENTAGE: 20.0,
         CONF_MAX_CHARGE_PERCENTAGE: 80.0,
         CONF_EFFICIENCY: 95.0,
+        CONF_CONNECTION: "DC Bus",
     }
 
     extracted = extract_entity_ids_from_config(config)
@@ -383,6 +390,7 @@ def test_extract_entity_ids_skips_missing_metadata(monkeypatch: pytest.MonkeyPat
         CONF_MIN_CHARGE_PERCENTAGE: 20.0,
         CONF_MAX_CHARGE_PERCENTAGE: 80.0,
         CONF_EFFICIENCY: 95.0,
+        CONF_CONNECTION: "DC Bus",
     }
 
     original_get_field_meta = extract_entity_ids_from_config.__globals__["get_field_meta"]
@@ -409,6 +417,7 @@ def test_extract_entity_ids_catches_type_errors(monkeypatch: pytest.MonkeyPatch)
         CONF_MIN_CHARGE_PERCENTAGE: 20.0,
         CONF_MAX_CHARGE_PERCENTAGE: 80.0,
         CONF_EFFICIENCY: 95.0,
+        CONF_CONNECTION: "DC Bus",
     }
 
     def broken_collect(_value: Any) -> set[str]:
@@ -428,7 +437,7 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
     base_time = datetime(2024, 6, 1, tzinfo=UTC)
     forecast_times = (int(base_time.timestamp()), int((base_time + timedelta(minutes=30)).timestamp()))
     output = _build_coordinator_output(
-        PHOTOVOLTAICS_POWER_PRODUCED,
+        PHOTOVOLTAICS_POWER,
         OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.2, 3.4)),
         forecast_times=forecast_times,
     )
@@ -448,7 +457,7 @@ def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.M
     monkeypatch.setattr("custom_components.haeo.coordinator.datetime", _ErrorDatetime)
 
     output = _build_coordinator_output(
-        PHOTOVOLTAICS_POWER_PRODUCED,
+        PHOTOVOLTAICS_POWER,
         OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0)),
         forecast_times=(1, 2),
     )

@@ -98,10 +98,8 @@ def test_connect_nonexistent_entities() -> None:
         period=1.0,  # Period in hours
         n_periods=3,
     )
-    network.add(ELEMENT_TYPE_CONNECTION, "bad_connection", source="nonexistent", target="also_nonexistent")
-
-    with pytest.raises(ValueError, match="Source element 'nonexistent' not found"):
-        network.validate()
+    with pytest.raises(ValueError, match="Failed to register connection bad_connection with source nonexistent"):
+        network.add(ELEMENT_TYPE_CONNECTION, "bad_connection", source="nonexistent", target="also_nonexistent")
 
 
 def test_connect_nonexistent_target_entity() -> None:
@@ -114,10 +112,8 @@ def test_connect_nonexistent_target_entity() -> None:
     # Add only source entity
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
     # Try to connect to nonexistent target
-    network.add(ELEMENT_TYPE_CONNECTION, "bad_connection", source="battery1", target="nonexistent")
-
-    with pytest.raises(ValueError, match="Target element 'nonexistent' not found"):
-        network.validate()
+    with pytest.raises(ValueError, match="Failed to register connection bad_connection with target nonexistent"):
+        network.add(ELEMENT_TYPE_CONNECTION, "bad_connection", source="battery1", target="nonexistent")
 
 
 def test_connect_source_is_connection() -> None:
@@ -211,12 +207,16 @@ def test_network_optimize_validates_before_running() -> None:
         n_periods=3,
     )
 
-    # Add elements but create an invalid connection
+    # Add elements but create an invalid connection (connection to connection)
     network.add(ELEMENT_TYPE_SOURCE_SINK, "node1", is_sink=True, is_source=True)
-    network.add(ELEMENT_TYPE_CONNECTION, "bad_conn", source="node1", target="nonexistent_node")
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "node2", is_sink=True, is_source=True)
+    network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="node1", target="node2")
+
+    # Connect conn2 to conn1 (invalid)
+    network.add(ELEMENT_TYPE_CONNECTION, "conn2", source="conn1", target="node2")
 
     # Should raise validation error when trying to optimize
-    with pytest.raises(ValueError, match="Target element 'nonexistent_node' not found"):
+    with pytest.raises(ValueError, match="Source element 'conn1' is a connection"):
         network.optimize()
 
 

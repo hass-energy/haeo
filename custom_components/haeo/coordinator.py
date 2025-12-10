@@ -30,12 +30,13 @@ from .const import (
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
-)
-from .elements import ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
-from .model import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
+    NetworkOutputName,
+)
+from .elements import ELEMENT_TYPES, ElementConfigSchema, ElementOutputName, collect_element_subentries
+from .model import (
     OUTPUT_TYPE_COST,
     OUTPUT_TYPE_DURATION,
     OUTPUT_TYPE_ENERGY,
@@ -46,9 +47,9 @@ from .model import (
     OUTPUT_TYPE_SHADOW_PRICE,
     OUTPUT_TYPE_SOC,
     OUTPUT_TYPE_STATUS,
+    ModelOutputName,
     Network,
     OutputData,
-    OutputName,
     OutputType,
 )
 from .repairs import dismiss_optimization_failure_issue
@@ -172,7 +173,7 @@ STATUS_OPTIONS: tuple[str, ...] = tuple(
 
 
 def _build_coordinator_output(
-    output_name: OutputName,
+    output_name: ElementOutputName,
     output_data: OutputData,
     *,
     forecast_times: tuple[int, ...] | None,
@@ -230,7 +231,7 @@ def _build_coordinator_output(
     )
 
 
-type CoordinatorData = dict[str, dict[OutputName, CoordinatorOutput]]
+type CoordinatorData = dict[str, dict[ElementOutputName, CoordinatorOutput]]
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
@@ -341,7 +342,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Persist runtime state for diagnostics and system health
         self.network = network
 
-        network_output_data: dict[OutputName, OutputData] = {
+        network_output_data: dict[NetworkOutputName, OutputData] = {
             OUTPUT_NAME_OPTIMIZATION_COST: OutputData(OUTPUT_TYPE_COST, unit=self.hass.config.currency, values=(cost,)),
             OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
                 OUTPUT_TYPE_STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
@@ -361,59 +362,61 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         }
 
         # Build nested outputs structure from all network model elements
-        nested_outputs: dict[str, Mapping[OutputName, OutputData]] = {
+        nested_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
             element_name: element.outputs() for element_name, element in network.elements.items()
         }
 
-        # Process each config element using its adapter module
-        for config_element_name, element_config in self._participant_configs.items():
+        # Process each config element using its outputs function to transform model outputs into device outputs
+        for config_element_key, element_config in self._participant_configs.items():
             element_type = element_config["element_type"]
+            outputs_fn = ELEMENT_TYPES[element_type].outputs
 
-            # Get adapter module for element type
-            from . import elements  # noqa: PLC0415
+            # Get original element name from config (not slugified key)
+            # Model elements are created with config["name"], so outputs function needs that name
+            original_element_name = element_config["name"]
 
-            adapter_module = None
-            if element_type == "battery":
-                adapter_module = elements.battery
-            elif element_type == "grid":
-                adapter_module = elements.grid
-            elif element_type == "load":
-                adapter_module = elements.load
-            elif element_type == "photovoltaics":
-                adapter_module = elements.photovoltaics
-            elif element_type == "node":
-                adapter_module = elements.node
-            elif element_type == "connection":
-                adapter_module = elements.connection
-
-            if adapter_module and hasattr(adapter_module, "outputs"):
-                # Adapter returns {device_name: {entity_name: OutputData}}
-                adapter_outputs = adapter_module.outputs(config_element_name, nested_outputs)
+            # outputs function returns {device_name: {output_name: OutputData}}
+            # May return multiple devices per config element (e.g., battery regions)
+            try:
+                adapter_outputs = outputs_fn(original_element_name, nested_outputs)
                 _LOGGER.debug(
-                    "Adapter outputs for config element %r: %s",
-                    config_element_name,
+                    "Adapter outputs for config element %r (type=%r, slugified key %r): created %d devices: %s",
+                    original_element_name,
+                    element_type,
+                    config_element_key,
+                    len(adapter_outputs),
                     list(adapter_outputs.keys()),
                 )
+            except KeyError as err:
+                _LOGGER.error(
+                    "Failed to get outputs for config element %r (type=%r): missing model element %s. "
+                    "Available model elements: %s",
+                    original_element_name,
+                    element_type,
+                    err,
+                    list(nested_outputs.keys()),
+                )
+                raise
 
-                # Process each device's outputs
-                for device_name, device_outputs in adapter_outputs.items():
-                    processed_outputs: dict[OutputName, CoordinatorOutput] = {
-                        output_name: _build_coordinator_output(
-                            output_name,
-                            output_data,
-                            forecast_times=forecast_timestamps,
-                        )
-                        for output_name, output_data in device_outputs.items()
-                    }
+            # Process each device's outputs
+            for device_name, device_outputs in adapter_outputs.items():
+                processed_outputs: dict[ElementOutputName, CoordinatorOutput] = {
+                    output_name: _build_coordinator_output(
+                        output_name,
+                        output_data,
+                        forecast_times=forecast_timestamps,
+                    )
+                    for output_name, output_data in device_outputs.items()
+                }
 
-                    if processed_outputs:
-                        slugified_key = slugify(device_name)
-                        _LOGGER.debug(
-                            "Storing %d outputs under key %r (from device_name %r)",
-                            len(processed_outputs),
-                            slugified_key,
-                            device_name,
-                        )
-                        result[slugified_key] = processed_outputs
+                if processed_outputs:
+                    slugified_key = slugify(device_name)
+                    _LOGGER.debug(
+                        "Storing %d outputs under key %r (from device_name %r)",
+                        len(processed_outputs),
+                        slugified_key,
+                        device_name,
+                    )
+                    result[slugified_key] = processed_outputs
 
         return result

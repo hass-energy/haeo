@@ -1,6 +1,6 @@
 """Constants for the Home Assistant Energy Optimizer integration."""
 
-from typing import Final
+from typing import Final, Literal
 
 # Integration domain
 DOMAIN: Final = "haeo"
@@ -29,3 +29,22 @@ DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"
 OPTIMIZATION_STATUS_FAILED: Final = "failed"
 OPTIMIZATION_STATUS_PENDING: Final = "pending"
+
+# Network output names
+OUTPUT_NAME_OPTIMIZATION_COST: Final = "optimization_cost"
+OUTPUT_NAME_OPTIMIZATION_STATUS: Final = "optimization_status"
+OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "optimization_duration"
+
+type NetworkOutputName = Literal[
+    "optimization_cost",
+    "optimization_status",
+    "optimization_duration",
+]
+
+NETWORK_OUTPUT_NAMES: Final[frozenset[NetworkOutputName]] = frozenset(
+    [
+        OUTPUT_NAME_OPTIMIZATION_COST,
+        OUTPUT_NAME_OPTIMIZATION_STATUS,
+        OUTPUT_NAME_OPTIMIZATION_DURATION,
+    ]
+)

@@ -1,14 +1,16 @@
 """Load element configuration for HAEO integration."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any, Final, Literal, TypedDict
 
-from custom_components.haeo.model import OutputName as ModelOutputName
+from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.connection import (
-    CONNECTION_POWER_MAX_SOURCE_TARGET,
+    CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_TARGET_SOURCE,
-    CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+    CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
@@ -75,9 +77,10 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
         {
             "element_type": "connection",
             "name": f"{config['name']}:connection",
-            "source": config["connection"],
-            "target": config["name"],
-            "max_power_source_target": config["forecast"],
+            "source": config["name"],
+            "target": config["connection"],
+            "max_power_source_target": 0.0,
+            "max_power_target_source": config["forecast"],
             "fixed_power": True,
         },
     ]
@@ -93,13 +96,13 @@ def outputs(
     connection = outputs[f"{name}:connection"]
 
     load_outputs: dict[LoadOutputName, OutputData] = {
-        LOAD_POWER: connection[CONNECTION_POWER_TARGET_SOURCE],
+        LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER),
     }
 
-    if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
-        load_outputs[LOAD_POWER_POSSIBLE] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+    if CONNECTION_POWER_MAX_TARGET_SOURCE in connection:
+        load_outputs[LOAD_POWER_POSSIBLE] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
 
     # Only the max limit has meaning, the source sink power balance is always zero as it will never influence cost
-    load_outputs[LOAD_FORECAST_LIMIT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+    load_outputs[LOAD_FORECAST_LIMIT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 
     return {name: load_outputs}

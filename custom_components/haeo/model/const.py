@@ -2,11 +2,6 @@
 
 from typing import Final, Literal
 
-# Network-level output names (created by coordinator, not individual elements)
-OUTPUT_NAME_OPTIMIZATION_COST: Final = "optimization_cost"
-OUTPUT_NAME_OPTIMIZATION_STATUS: Final = "optimization_status"
-OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "optimization_duration"
-
 # Output types
 OUTPUT_TYPE_POWER: Final = "power"
 OUTPUT_TYPE_POWER_FLOW: Final = "power_flow"

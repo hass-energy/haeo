@@ -22,8 +22,8 @@ from custom_components.haeo.const import (
     CONF_PERIOD_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
+    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
-from custom_components.haeo.model import OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
