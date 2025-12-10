@@ -5,7 +5,7 @@ from typing import Final, Literal
 
 from pulp import LpAffineExpression, LpVariable, lpSum
 
-from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE
+from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_POWER_LIMIT, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
 from .output_data import OutputData
 from .util import broadcast_to_sequence
@@ -100,8 +100,8 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         self.target = target
 
         # Broadcast power limits to n_periods
-        st_bounds = broadcast_to_sequence(max_power_source_target, n_periods)
-        ts_bounds = broadcast_to_sequence(max_power_target_source, n_periods)
+        self.max_power_source_target = broadcast_to_sequence(max_power_source_target, n_periods)
+        self.max_power_target_source = broadcast_to_sequence(max_power_target_source, n_periods)
 
         # Initialize separate power variables for each direction (both positive, bounds as constraints)
         self.power_source_target = [LpVariable(name=f"{name}_power_st_{i}", lowBound=0) for i in range(n_periods)]
@@ -119,33 +119,35 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         self.price_target_source = broadcast_to_sequence(price_target_source, n_periods)
 
         # Add power constraints - equality if the power is fixed, inequality if only max bounds are provided
-        if st_bounds is not None:
+        if self.max_power_source_target is not None:
             if fixed_power:
                 self._constraints[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = [
-                    self.power_source_target[t] == st_bounds[t] for t in range(n_periods)
+                    self.power_source_target[t] == self.max_power_source_target[t] for t in range(n_periods)
                 ]
             else:
                 self._constraints[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = [
-                    self.power_source_target[t] <= st_bounds[t] for t in range(n_periods)
+                    self.power_source_target[t] <= self.max_power_source_target[t] for t in range(n_periods)
                 ]
 
-        if ts_bounds is not None:
+        if self.max_power_target_source is not None:
             if fixed_power:
                 self._constraints[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = [
-                    self.power_target_source[t] == ts_bounds[t] for t in range(n_periods)
+                    self.power_target_source[t] == self.max_power_target_source[t] for t in range(n_periods)
                 ]
             else:
                 self._constraints[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = [
-                    self.power_target_source[t] <= ts_bounds[t] for t in range(n_periods)
+                    self.power_target_source[t] <= self.max_power_target_source[t] for t in range(n_periods)
                 ]
 
         # Time slicing constraint: prevent simultaneous full bidirectional power flow
         # This allows cycling but on a time-sliced basis (e.g., 50% forward, 50% backward)
-        if st_bounds is not None and ts_bounds is not None:
+        if self.max_power_source_target is not None and self.max_power_target_source is not None:
             self._constraints[CONNECTION_TIME_SLICE] = [
-                self.power_source_target[t] / st_bounds[t] + self.power_target_source[t] / ts_bounds[t] <= 1.0
+                self.power_source_target[t] / self.max_power_source_target[t]
+                + self.power_target_source[t] / self.max_power_target_source[t]
+                <= 1.0
                 for t in range(n_periods)
-                if st_bounds[t] > 0 and ts_bounds[t] > 0
+                if self.max_power_source_target[t] > 0 and self.max_power_target_source[t] > 0
             ]
 
     def cost(self) -> Sequence[LpAffineExpression]:
@@ -180,6 +182,23 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
                 type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=self.power_target_source, direction="-"
             ),
         }
+
+        # Output max power limits if provided
+        if self.max_power_source_target is not None:
+            outputs[CONNECTION_POWER_MAX_SOURCE_TARGET] = OutputData(
+                type=OUTPUT_TYPE_POWER_LIMIT,
+                unit="kW",
+                values=self.max_power_source_target,
+                direction="+",
+            )
+
+        if self.max_power_target_source is not None:
+            outputs[CONNECTION_POWER_MAX_TARGET_SOURCE] = OutputData(
+                type=OUTPUT_TYPE_POWER_LIMIT,
+                unit="kW",
+                values=self.max_power_target_source,
+                direction="-",
+            )
 
         # Output price data if provided
         if self.price_source_target is not None:
