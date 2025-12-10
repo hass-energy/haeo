@@ -206,6 +206,7 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
                 type=OUTPUT_TYPE_PRICE,
                 unit="$/kWh",
                 values=self.price_source_target,
+                direction="+",
             )
 
         if self.price_target_source is not None:
@@ -213,6 +214,7 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
                 type=OUTPUT_TYPE_PRICE,
                 unit="$/kWh",
                 values=self.price_target_source,
+                direction="-",
             )
 
         # Output constraint shadow prices

@@ -3052,7 +3052,7 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
+      "direction": "-",
       "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
@@ -3356,7 +3356,7 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
+      "direction": "+",
       "element_name": "Grid",
       "element_type": "grid",
       "forecast": [

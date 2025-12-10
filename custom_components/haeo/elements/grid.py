@@ -159,7 +159,7 @@ def outputs(
     export_price_data = connection[CONNECTION_PRICE_TARGET_SOURCE]
     negated_values = [-v for v in export_price_data.values] if export_price_data.values else []
 
-    grid_outputs[GRID_PRICE_EXPORT] = replace(export_price_data, values=negated_values, direction="-")
-    grid_outputs[GRID_PRICE_IMPORT] = replace(connection[CONNECTION_PRICE_SOURCE_TARGET], direction="+")
+    grid_outputs[GRID_PRICE_EXPORT] = replace(export_price_data, values=negated_values)
+    grid_outputs[GRID_PRICE_IMPORT] = replace(connection[CONNECTION_PRICE_SOURCE_TARGET])
 
     return {name: grid_outputs}
