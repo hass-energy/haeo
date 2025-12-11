@@ -78,13 +78,13 @@
           "title": "Add Connection",
           "description": "Set up connection parameters between devices",
           "data": {
-            "efficiency_source_target": "Efficiency Source\u2192Target (%)",
-            "efficiency_target_source": "Efficiency Target\u2192Source (%)",
-            "max_power_source_target": "Maximum Power Source\u2192Target",
-            "max_power_target_source": "Maximum Power Target\u2192Source",
+            "efficiency_source_target": "Efficiency Source to Target (%)",
+            "efficiency_target_source": "Efficiency Target to Source (%)",
+            "max_power_source_target": "Maximum Power Source to Target",
+            "max_power_target_source": "Maximum Power Target to Source",
             "name": "Connection Name",
-            "price_source_target": "Price Source\u2192Target",
-            "price_target_source": "Price Target\u2192Source",
+            "price_source_target": "Price Source to Target",
+            "price_target_source": "Price Target to Source",
             "source": "Source Device",
             "target": "Target Device"
           }
@@ -93,13 +93,13 @@
           "title": "Edit Connection",
           "description": "Update connection configuration",
           "data": {
-            "efficiency_source_target": "Efficiency Source\u2192Target (%)",
-            "efficiency_target_source": "Efficiency Target\u2192Source (%)",
-            "max_power_source_target": "Maximum Power Source\u2192Target",
-            "max_power_target_source": "Maximum Power Target\u2192Source",
+            "efficiency_source_target": "Efficiency Source to Target (%)",
+            "efficiency_target_source": "Efficiency Target to Source (%)",
+            "max_power_source_target": "Maximum Power Source to Target",
+            "max_power_target_source": "Maximum Power Target to Source",
             "name": "Connection Name",
-            "price_source_target": "Price Source\u2192Target",
-            "price_target_source": "Price Target\u2192Source",
+            "price_source_target": "Price Source to Target",
+            "price_target_source": "Price Target to Source",
             "source": "Source Device",
             "target": "Target Device"
           }

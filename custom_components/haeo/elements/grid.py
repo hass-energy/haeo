@@ -116,17 +116,13 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
         # Create SourceSink for the grid (both source and sink - can import and export)
         {"element_type": "source_sink", "name": config["name"], "is_source": True, "is_sink": True},
         # Create a connection from system node to grid
-        # source is the grid
-        # target is the network
-        # source_target is grid to system (IMPORT)
-        # target_source is system to grid (EXPORT)
         {
             "element_type": "connection",
             "name": f"{config['name']}:connection",
             "source": config["name"],
             "target": config["connection"],
-            "max_power_source_target": config.get("import_limit"),
-            "max_power_target_source": config.get("export_limit"),
+            "max_power_source_target": config.get("import_limit"),  # source_target is grid to system (IMPORT)
+            "max_power_target_source": config.get("export_limit"),  # target_source is system to grid (EXPORT)
             "price_source_target": config.get("import_price"),
             "price_target_source": export_price,
         },

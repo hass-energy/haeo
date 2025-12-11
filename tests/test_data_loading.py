@@ -17,7 +17,7 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
 )
-from custom_components.haeo.elements.load import CONF_FORECAST
+from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST
 
 
 async def test_load_network_successful_loads_load_participant(hass: HomeAssistant) -> None:
@@ -39,7 +39,7 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
             "load": {
                 CONF_ELEMENT_TYPE: "load",
                 CONF_NAME: "Baseload",
-                "connection": "main_bus",
+                CONF_CONNECTION: "main_bus",
                 CONF_FORECAST: ["sensor.baseload"],
             },
         },

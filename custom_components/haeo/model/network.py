@@ -12,6 +12,7 @@ from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, getSolver, lpSum
 from .battery import Battery
 from .connection import Connection
 from .element import Element
+from .source_sink import SourceSink
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,9 +47,6 @@ class Network:
             The created element
 
         """
-        # Import SourceSink here to avoid circular imports
-        from .source_sink import SourceSink  # noqa: PLC0415
-
         factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
             "connection": Connection,

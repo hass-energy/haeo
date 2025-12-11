@@ -397,7 +397,6 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         # Pre-calculate power and energy expressions to avoid recomputing them
         # power_consumption: power drawn from network (stored in battery)
         # power_production: power sent to network (released from battery)
-        # Note: Efficiency and power limits are now handled by Connection objects
         self.power_consumption: Sequence[LpAffineExpression] = [
             lpSum(s.power_consumption[t] for s in self._sections) for t in range(self.n_periods)
         ]
@@ -413,11 +412,9 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         """Build network-dependent constraints for the battery.
 
         This includes power balance constraints using connection_power().
-        Note: Efficiency losses and power limits are now handled by Connection objects.
         """
 
         # Power balance: connection_power equals net battery power
-        # Efficiency losses and power limits are handled by the Connection to the battery
         self._constraints[BATTERY_POWER_BALANCE] = [
             self.connection_power(t) == self.power_consumption[t] - self.power_production[t]
             for t in range(self.n_periods)

@@ -4,66 +4,7 @@ from collections.abc import Mapping
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model.battery import BATTERY_ENERGY_STORED as MODEL_BATTERY_ENERGY_STORED
-from custom_components.haeo.model.battery import BATTERY_NORMAL_CHARGE_PRICE as MODEL_BATTERY_NORMAL_CHARGE_PRICE
-from custom_components.haeo.model.battery import BATTERY_NORMAL_DISCHARGE_PRICE as MODEL_BATTERY_NORMAL_DISCHARGE_PRICE
-from custom_components.haeo.model.battery import BATTERY_NORMAL_ENERGY_IN_FLOW as MODEL_BATTERY_NORMAL_ENERGY_IN_FLOW
-from custom_components.haeo.model.battery import BATTERY_NORMAL_ENERGY_OUT_FLOW as MODEL_BATTERY_NORMAL_ENERGY_OUT_FLOW
-from custom_components.haeo.model.battery import BATTERY_NORMAL_ENERGY_STORED as MODEL_BATTERY_NORMAL_ENERGY_STORED
-from custom_components.haeo.model.battery import BATTERY_NORMAL_POWER_CHARGE as MODEL_BATTERY_NORMAL_POWER_CHARGE
-from custom_components.haeo.model.battery import BATTERY_NORMAL_POWER_DISCHARGE as MODEL_BATTERY_NORMAL_POWER_DISCHARGE
-from custom_components.haeo.model.battery import BATTERY_NORMAL_SOC_MAX as MODEL_BATTERY_NORMAL_SOC_MAX
-from custom_components.haeo.model.battery import BATTERY_NORMAL_SOC_MIN as MODEL_BATTERY_NORMAL_SOC_MIN
-from custom_components.haeo.model.battery import (
-    BATTERY_OVERCHARGE_CHARGE_PRICE as MODEL_BATTERY_OVERCHARGE_CHARGE_PRICE,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_OVERCHARGE_DISCHARGE_PRICE as MODEL_BATTERY_OVERCHARGE_DISCHARGE_PRICE,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_OVERCHARGE_ENERGY_IN_FLOW as MODEL_BATTERY_OVERCHARGE_ENERGY_IN_FLOW,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_OVERCHARGE_ENERGY_OUT_FLOW as MODEL_BATTERY_OVERCHARGE_ENERGY_OUT_FLOW,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_OVERCHARGE_ENERGY_STORED as MODEL_BATTERY_OVERCHARGE_ENERGY_STORED,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_OVERCHARGE_POWER_CHARGE as MODEL_BATTERY_OVERCHARGE_POWER_CHARGE,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_OVERCHARGE_POWER_DISCHARGE as MODEL_BATTERY_OVERCHARGE_POWER_DISCHARGE,
-)
-from custom_components.haeo.model.battery import BATTERY_OVERCHARGE_SOC_MAX as MODEL_BATTERY_OVERCHARGE_SOC_MAX
-from custom_components.haeo.model.battery import BATTERY_OVERCHARGE_SOC_MIN as MODEL_BATTERY_OVERCHARGE_SOC_MIN
-from custom_components.haeo.model.battery import BATTERY_POWER_BALANCE as MODEL_BATTERY_POWER_BALANCE
-from custom_components.haeo.model.battery import BATTERY_POWER_CHARGE as MODEL_BATTERY_POWER_CHARGE
-from custom_components.haeo.model.battery import BATTERY_POWER_DISCHARGE as MODEL_BATTERY_POWER_DISCHARGE
-from custom_components.haeo.model.battery import BATTERY_STATE_OF_CHARGE as MODEL_BATTERY_STATE_OF_CHARGE
-from custom_components.haeo.model.battery import (
-    BATTERY_UNDERCHARGE_CHARGE_PRICE as MODEL_BATTERY_UNDERCHARGE_CHARGE_PRICE,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_UNDERCHARGE_DISCHARGE_PRICE as MODEL_BATTERY_UNDERCHARGE_DISCHARGE_PRICE,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_UNDERCHARGE_ENERGY_IN_FLOW as MODEL_BATTERY_UNDERCHARGE_ENERGY_IN_FLOW,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW as MODEL_BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_UNDERCHARGE_ENERGY_STORED as MODEL_BATTERY_UNDERCHARGE_ENERGY_STORED,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_UNDERCHARGE_POWER_CHARGE as MODEL_BATTERY_UNDERCHARGE_POWER_CHARGE,
-)
-from custom_components.haeo.model.battery import (
-    BATTERY_UNDERCHARGE_POWER_DISCHARGE as MODEL_BATTERY_UNDERCHARGE_POWER_DISCHARGE,
-)
-from custom_components.haeo.model.battery import BATTERY_UNDERCHARGE_SOC_MAX as MODEL_BATTERY_UNDERCHARGE_SOC_MAX
-from custom_components.haeo.model.battery import BATTERY_UNDERCHARGE_SOC_MIN as MODEL_BATTERY_UNDERCHARGE_SOC_MIN
+from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     BatterySOCFieldData,
@@ -318,57 +259,57 @@ def outputs(
 
     # Aggregate device outputs (total power and energy across all regions)
     aggregate_outputs: dict[BatteryOutputName, OutputData] = {
-        BATTERY_POWER_CHARGE: battery[MODEL_BATTERY_POWER_CHARGE],
-        BATTERY_POWER_DISCHARGE: battery[MODEL_BATTERY_POWER_DISCHARGE],
-        BATTERY_ENERGY_STORED: battery[MODEL_BATTERY_ENERGY_STORED],
-        BATTERY_STATE_OF_CHARGE: battery[MODEL_BATTERY_STATE_OF_CHARGE],
-        BATTERY_POWER_BALANCE: battery[MODEL_BATTERY_POWER_BALANCE],
+        BATTERY_POWER_CHARGE: battery[model_battery.BATTERY_POWER_CHARGE],
+        BATTERY_POWER_DISCHARGE: battery[model_battery.BATTERY_POWER_DISCHARGE],
+        BATTERY_ENERGY_STORED: battery[model_battery.BATTERY_ENERGY_STORED],
+        BATTERY_STATE_OF_CHARGE: battery[model_battery.BATTERY_STATE_OF_CHARGE],
+        BATTERY_POWER_BALANCE: battery[model_battery.BATTERY_POWER_BALANCE],
     }
 
     result: dict[str, dict[BatteryOutputName, OutputData]] = {name: aggregate_outputs}
 
     # Undercharge region device outputs (only if configured)
-    if MODEL_BATTERY_UNDERCHARGE_ENERGY_STORED in battery:
+    if model_battery.BATTERY_UNDERCHARGE_ENERGY_STORED in battery:
         undercharge_outputs: dict[BatteryOutputName, OutputData] = {
-            BATTERY_UNDERCHARGE_ENERGY_STORED: battery[MODEL_BATTERY_UNDERCHARGE_ENERGY_STORED],
-            BATTERY_UNDERCHARGE_POWER_CHARGE: battery[MODEL_BATTERY_UNDERCHARGE_POWER_CHARGE],
-            BATTERY_UNDERCHARGE_POWER_DISCHARGE: battery[MODEL_BATTERY_UNDERCHARGE_POWER_DISCHARGE],
-            BATTERY_UNDERCHARGE_CHARGE_PRICE: battery[MODEL_BATTERY_UNDERCHARGE_CHARGE_PRICE],
-            BATTERY_UNDERCHARGE_DISCHARGE_PRICE: battery[MODEL_BATTERY_UNDERCHARGE_DISCHARGE_PRICE],
-            BATTERY_UNDERCHARGE_ENERGY_IN_FLOW: battery[MODEL_BATTERY_UNDERCHARGE_ENERGY_IN_FLOW],
-            BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW: battery[MODEL_BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW],
-            BATTERY_UNDERCHARGE_SOC_MAX: battery[MODEL_BATTERY_UNDERCHARGE_SOC_MAX],
-            BATTERY_UNDERCHARGE_SOC_MIN: battery[MODEL_BATTERY_UNDERCHARGE_SOC_MIN],
+            BATTERY_UNDERCHARGE_ENERGY_STORED: battery[model_battery.BATTERY_UNDERCHARGE_ENERGY_STORED],
+            BATTERY_UNDERCHARGE_POWER_CHARGE: battery[model_battery.BATTERY_UNDERCHARGE_POWER_CHARGE],
+            BATTERY_UNDERCHARGE_POWER_DISCHARGE: battery[model_battery.BATTERY_UNDERCHARGE_POWER_DISCHARGE],
+            BATTERY_UNDERCHARGE_CHARGE_PRICE: battery[model_battery.BATTERY_UNDERCHARGE_CHARGE_PRICE],
+            BATTERY_UNDERCHARGE_DISCHARGE_PRICE: battery[model_battery.BATTERY_UNDERCHARGE_DISCHARGE_PRICE],
+            BATTERY_UNDERCHARGE_ENERGY_IN_FLOW: battery[model_battery.BATTERY_UNDERCHARGE_ENERGY_IN_FLOW],
+            BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW: battery[model_battery.BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW],
+            BATTERY_UNDERCHARGE_SOC_MAX: battery[model_battery.BATTERY_UNDERCHARGE_SOC_MAX],
+            BATTERY_UNDERCHARGE_SOC_MIN: battery[model_battery.BATTERY_UNDERCHARGE_SOC_MIN],
         }
         result[f"{name}:undercharge"] = undercharge_outputs
 
     # Normal region device outputs (only if configured)
-    if MODEL_BATTERY_NORMAL_ENERGY_STORED in battery:
+    if model_battery.BATTERY_NORMAL_ENERGY_STORED in battery:
         normal_outputs: dict[BatteryOutputName, OutputData] = {
-            BATTERY_NORMAL_ENERGY_STORED: battery[MODEL_BATTERY_NORMAL_ENERGY_STORED],
-            BATTERY_NORMAL_POWER_CHARGE: battery[MODEL_BATTERY_NORMAL_POWER_CHARGE],
-            BATTERY_NORMAL_POWER_DISCHARGE: battery[MODEL_BATTERY_NORMAL_POWER_DISCHARGE],
-            BATTERY_NORMAL_CHARGE_PRICE: battery[MODEL_BATTERY_NORMAL_CHARGE_PRICE],
-            BATTERY_NORMAL_DISCHARGE_PRICE: battery[MODEL_BATTERY_NORMAL_DISCHARGE_PRICE],
-            BATTERY_NORMAL_ENERGY_IN_FLOW: battery[MODEL_BATTERY_NORMAL_ENERGY_IN_FLOW],
-            BATTERY_NORMAL_ENERGY_OUT_FLOW: battery[MODEL_BATTERY_NORMAL_ENERGY_OUT_FLOW],
-            BATTERY_NORMAL_SOC_MAX: battery[MODEL_BATTERY_NORMAL_SOC_MAX],
-            BATTERY_NORMAL_SOC_MIN: battery[MODEL_BATTERY_NORMAL_SOC_MIN],
+            BATTERY_NORMAL_ENERGY_STORED: battery[model_battery.BATTERY_NORMAL_ENERGY_STORED],
+            BATTERY_NORMAL_POWER_CHARGE: battery[model_battery.BATTERY_NORMAL_POWER_CHARGE],
+            BATTERY_NORMAL_POWER_DISCHARGE: battery[model_battery.BATTERY_NORMAL_POWER_DISCHARGE],
+            BATTERY_NORMAL_CHARGE_PRICE: battery[model_battery.BATTERY_NORMAL_CHARGE_PRICE],
+            BATTERY_NORMAL_DISCHARGE_PRICE: battery[model_battery.BATTERY_NORMAL_DISCHARGE_PRICE],
+            BATTERY_NORMAL_ENERGY_IN_FLOW: battery[model_battery.BATTERY_NORMAL_ENERGY_IN_FLOW],
+            BATTERY_NORMAL_ENERGY_OUT_FLOW: battery[model_battery.BATTERY_NORMAL_ENERGY_OUT_FLOW],
+            BATTERY_NORMAL_SOC_MAX: battery[model_battery.BATTERY_NORMAL_SOC_MAX],
+            BATTERY_NORMAL_SOC_MIN: battery[model_battery.BATTERY_NORMAL_SOC_MIN],
         }
         result[f"{name}:normal"] = normal_outputs
 
     # Overcharge region device outputs (only if configured)
-    if MODEL_BATTERY_OVERCHARGE_ENERGY_STORED in battery:
+    if model_battery.BATTERY_OVERCHARGE_ENERGY_STORED in battery:
         overcharge_outputs: dict[BatteryOutputName, OutputData] = {
-            BATTERY_OVERCHARGE_ENERGY_STORED: battery[MODEL_BATTERY_OVERCHARGE_ENERGY_STORED],
-            BATTERY_OVERCHARGE_POWER_CHARGE: battery[MODEL_BATTERY_OVERCHARGE_POWER_CHARGE],
-            BATTERY_OVERCHARGE_POWER_DISCHARGE: battery[MODEL_BATTERY_OVERCHARGE_POWER_DISCHARGE],
-            BATTERY_OVERCHARGE_CHARGE_PRICE: battery[MODEL_BATTERY_OVERCHARGE_CHARGE_PRICE],
-            BATTERY_OVERCHARGE_DISCHARGE_PRICE: battery[MODEL_BATTERY_OVERCHARGE_DISCHARGE_PRICE],
-            BATTERY_OVERCHARGE_ENERGY_IN_FLOW: battery[MODEL_BATTERY_OVERCHARGE_ENERGY_IN_FLOW],
-            BATTERY_OVERCHARGE_ENERGY_OUT_FLOW: battery[MODEL_BATTERY_OVERCHARGE_ENERGY_OUT_FLOW],
-            BATTERY_OVERCHARGE_SOC_MAX: battery[MODEL_BATTERY_OVERCHARGE_SOC_MAX],
-            BATTERY_OVERCHARGE_SOC_MIN: battery[MODEL_BATTERY_OVERCHARGE_SOC_MIN],
+            BATTERY_OVERCHARGE_ENERGY_STORED: battery[model_battery.BATTERY_OVERCHARGE_ENERGY_STORED],
+            BATTERY_OVERCHARGE_POWER_CHARGE: battery[model_battery.BATTERY_OVERCHARGE_POWER_CHARGE],
+            BATTERY_OVERCHARGE_POWER_DISCHARGE: battery[model_battery.BATTERY_OVERCHARGE_POWER_DISCHARGE],
+            BATTERY_OVERCHARGE_CHARGE_PRICE: battery[model_battery.BATTERY_OVERCHARGE_CHARGE_PRICE],
+            BATTERY_OVERCHARGE_DISCHARGE_PRICE: battery[model_battery.BATTERY_OVERCHARGE_DISCHARGE_PRICE],
+            BATTERY_OVERCHARGE_ENERGY_IN_FLOW: battery[model_battery.BATTERY_OVERCHARGE_ENERGY_IN_FLOW],
+            BATTERY_OVERCHARGE_ENERGY_OUT_FLOW: battery[model_battery.BATTERY_OVERCHARGE_ENERGY_OUT_FLOW],
+            BATTERY_OVERCHARGE_SOC_MAX: battery[model_battery.BATTERY_OVERCHARGE_SOC_MAX],
+            BATTERY_OVERCHARGE_SOC_MIN: battery[model_battery.BATTERY_OVERCHARGE_SOC_MIN],
         }
         result[f"{name}:overcharge"] = overcharge_outputs
 

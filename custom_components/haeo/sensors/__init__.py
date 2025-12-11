@@ -35,8 +35,7 @@ async def async_setup_entry(
 
     if coordinator.data:
         for subentry in config_entry.subentries.values():
-            slugified = slugify(subentry.title)
-            outputs = coordinator.data.get(slugified, {})
+            outputs = coordinator.data.get(slugify(subentry.title), {})
 
             # Get or create the device for this element
             device_entry = dr.async_get_or_create(
