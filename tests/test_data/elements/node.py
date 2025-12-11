@@ -2,44 +2,42 @@
 
 from typing import Any
 
-# Valid node configurations
-VALID: list[dict[str, Any]] = [
+from custom_components.haeo.elements import node
+from custom_components.haeo.model.const import OUTPUT_TYPE_SHADOW_PRICE
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
+
+from .types import ElementValidCase
+
+# Single fully-typed pipeline case
+VALID: list[ElementValidCase[node.NodeConfigSchema, node.NodeConfigData]] = [
     {
-        "data": {
-            "element_type": "node",
-            "name": "Junction Node",
+        "description": "Adapter mapping node case",
+        "element_type": "node",
+        "schema": node.NodeConfigSchema(element_type="node", name="node_main"),
+        "data": node.NodeConfigData(element_type="node", name="node_main"),
+        "model": [
+            {"element_type": "source_sink", "name": "node_main", "is_source": False, "is_sink": False},
+        ],
+        "model_outputs": {
+            "node_main": {
+                SOURCE_SINK_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+            }
         },
-        "description": "Simple junction node",
-    },
-    {
-        "data": {
-            "element_type": "node",
-            "name": "Main Bus",
+        "outputs": {
+            "node_main": {
+                node.NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+            }
         },
-        "description": "Main electrical bus node",
-    },
-    {
-        "data": {
-            "element_type": "node",
-            "name": "Inverter Input",
-        },
-        "description": "Inverter input connection node",
     },
 ]
 
-# Invalid node configurations
-INVALID: list[dict[str, Any]] = [
+# Invalid schema-only cases
+INVALID_SCHEMA: list[dict[str, Any]] = [
     {
-        "data": {
+        "description": "Node missing name",
+        "schema": {
             "element_type": "node",
         },
-        "description": "Node missing required name field",
-    },
-    {
-        "data": {
-            "element_type": "node",
-            "name": "",
-        },
-        "description": "Node with empty name",
     },
 ]

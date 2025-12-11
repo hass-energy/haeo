@@ -28,7 +28,6 @@ from custom_components.haeo.elements import (
     ElementOutputName,
     ElementRegistryEntry,
     ElementType,
-    OutputsFn,
     battery,
     connection,
     grid,

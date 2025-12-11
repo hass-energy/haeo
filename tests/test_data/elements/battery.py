@@ -2,121 +2,139 @@
 
 from typing import Any
 
-# Valid battery configurations
-VALID: list[dict[str, Any]] = [
+from custom_components.haeo.elements import battery as battery_element
+from custom_components.haeo.elements.battery import BatteryConfigData
+from custom_components.haeo.model import battery as battery_model
+from custom_components.haeo.model.const import (
+    OUTPUT_TYPE_ENERGY,
+    OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_PRICE,
+    OUTPUT_TYPE_SHADOW_PRICE,
+    OUTPUT_TYPE_SOC,
+)
+from custom_components.haeo.model.output_data import OutputData
+
+from .types import ElementValidCase
+
+# Single fully-typed pipeline case
+VALID: list[ElementValidCase[battery_element.BatteryConfigSchema, BatteryConfigData]] = [
     {
-        "data": {
-            "element_type": "battery",
-            "name": "Test Battery",
-            "capacity": 10.0,
-            "initial_charge_percentage": 50.0,
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
+        "description": "Adapter mapping battery case",
+        "element_type": "battery",
+        "schema": battery_element.BatteryConfigSchema(
+            element_type="battery",
+            name="battery_main",
+            connection="network",
+            capacity="sensor.battery_capacity",
+            initial_charge_percentage="sensor.battery_initial_soc",
+            min_charge_percentage=10.0,
+            max_charge_percentage=90.0,
+            efficiency=95.0,
+            max_charge_power=["sensor.battery_max_charge_power"],
+            max_discharge_power=["sensor.battery_max_discharge_power"],
+            early_charge_incentive=0.01,
+            discharge_cost=["sensor.battery_discharge_cost"],
+            undercharge_percentage=5.0,
+            overcharge_percentage=95.0,
+            undercharge_cost=["sensor.battery_undercharge_cost"],
+            overcharge_cost=["sensor.battery_overcharge_cost"],
+        ),
+        "data": BatteryConfigData(
+            element_type="battery",
+            name="battery_main",
+            connection="network",
+            capacity=[10.0],
+            initial_charge_percentage=[50.0],
+            min_charge_percentage=10.0,
+            max_charge_percentage=90.0,
+            efficiency=95.0,
+            max_charge_power=[5.0],
+            max_discharge_power=[5.0],
+            early_charge_incentive=0.01,
+            discharge_cost=[0.02],
+            undercharge_percentage=5.0,
+            overcharge_percentage=95.0,
+            undercharge_cost=[0.03],
+            overcharge_cost=[0.04],
+        ),
+        "model": [
+            {
+                "element_type": "battery",
+                "name": "battery_main",
+                "capacity": [10.0],
+                "initial_charge_percentage": [50.0],
+                "min_charge_percentage": 10.0,
+                "max_charge_percentage": 90.0,
+                "early_charge_incentive": 0.01,
+                "undercharge_percentage": 5.0,
+                "overcharge_percentage": 95.0,
+                "undercharge_cost": [0.03],
+                "overcharge_cost": [0.04],
+            },
+            {
+                "element_type": "connection",
+                "name": "battery_main:connection",
+                "source": "battery_main",
+                "target": "network",
+                "efficiency_source_target": 95.0,
+                "efficiency_target_source": 95.0,
+                "max_power_source_target": [5.0],
+                "max_power_target_source": [5.0],
+                "price_source_target": [0.02],
+            },
+        ],
+        "model_outputs": {
+            "battery_main": {
+                battery_model.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,)),
+                battery_model.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)),
+                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(2.0,)),
+                battery_model.BATTERY_STATE_OF_CHARGE: OutputData(type=OUTPUT_TYPE_SOC, unit="%", values=(50.0,)),
+                battery_model.BATTERY_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                battery_model.BATTERY_UNDERCHARGE_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(0.2,)),
+                battery_model.BATTERY_UNDERCHARGE_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.0,)),
+                battery_model.BATTERY_UNDERCHARGE_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.0,)),
+                battery_model.BATTERY_UNDERCHARGE_CHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.001,)),
+                battery_model.BATTERY_UNDERCHARGE_DISCHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.002,)),
+                battery_model.BATTERY_UNDERCHARGE_ENERGY_IN_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.003,)),
+                battery_model.BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,)),
+                battery_model.BATTERY_UNDERCHARGE_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,)),
+                battery_model.BATTERY_UNDERCHARGE_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.006,)),
+            }
         },
-        "description": "Standard battery with all fields",
-    },
-    {
-        "data": {
-            "element_type": "battery",
-            "name": "Sensor SOC Battery",
-            "capacity": 13.5,
-            "initial_charge_percentage": "sensor.battery_soc",
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
+        "outputs": {
+            "battery_main": {
+                battery_element.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,)),
+                battery_element.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)),
+                battery_element.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(2.0,)),
+                battery_element.BATTERY_STATE_OF_CHARGE: OutputData(type=OUTPUT_TYPE_SOC, unit="%", values=(50.0,)),
+                battery_element.BATTERY_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+            },
+            "battery_main:undercharge": {
+                battery_element.BATTERY_UNDERCHARGE_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(0.2,)),
+                battery_element.BATTERY_UNDERCHARGE_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.0,)),
+                battery_element.BATTERY_UNDERCHARGE_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.0,)),
+                battery_element.BATTERY_UNDERCHARGE_CHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.001,)),
+                battery_element.BATTERY_UNDERCHARGE_DISCHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.002,)),
+                battery_element.BATTERY_UNDERCHARGE_ENERGY_IN_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.003,)),
+                battery_element.BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,)),
+                battery_element.BATTERY_UNDERCHARGE_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,)),
+                battery_element.BATTERY_UNDERCHARGE_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.006,)),
+            },
         },
-        "description": "Battery with sensor for initial SOC",
-    },
-    {
-        "data": {
-            "element_type": "battery",
-            "name": "Min Charge Battery",
-            "capacity": 10.0,
-            "initial_charge_percentage": 50.0,
-            "min_charge_percentage": 10.0,
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
-        },
-        "description": "Battery with minimum charge constraint",
-    },
-    {
-        "data": {
-            "element_type": "battery",
-            "name": "Max Charge Battery",
-            "capacity": 10.0,
-            "initial_charge_percentage": 50.0,
-            "max_charge_percentage": 90.0,
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
-        },
-        "description": "Battery with maximum charge constraint",
-    },
-    {
-        "data": {
-            "element_type": "battery",
-            "name": "High Efficiency Battery",
-            "capacity": 10.0,
-            "initial_charge_percentage": 50.0,
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
-            "efficiency": 98.0,
-        },
-        "description": "Battery with custom efficiency",
     },
 ]
-# Invalid battery configurations
-INVALID: list[dict[str, Any]] = [
+
+# Invalid schema-only cases
+INVALID_SCHEMA: list[dict[str, Any]] = [
     {
-        "data": {
+        "description": "Battery min_charge_percentage greater than max_charge_percentage",
+        "schema": {
             "element_type": "battery",
-            "name": "Negative Capacity",
-            "capacity": -10.0,
-            "initial_charge_percentage": 50.0,
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
-        },
-        "description": "Battery with negative capacity (should fail validation)",
-    },
-    {
-        "data": {
-            "element_type": "battery",
-            "name": "Invalid SOC",
+            "name": "test_battery",
             "capacity": 10.0,
-            "initial_charge_percentage": 150.0,
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
-        },
-        "description": "Battery with SOC > 100%",
-    },
-    {
-        "data": {
-            "element_type": "battery",
-            "name": "Missing Capacity",
             "initial_charge_percentage": 50.0,
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
+            "min_charge_percentage": 80.0,
+            "max_charge_percentage": 20.0,
         },
-        "description": "Battery missing required capacity field",
-    },
-    {
-        "data": {
-            "element_type": "battery",
-            "name": "None Initial Charge",
-            "capacity": 10.0,
-            "initial_charge_percentage": None,
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
-        },
-        "description": "Battery with None initial_charge_percentage",
-    },
-    {
-        "data": {
-            "element_type": "battery",
-            "name": "Zero Capacity",
-            "capacity": 0.0,
-            "initial_charge_percentage": 0.0,
-            "max_charge_power": 5.0,
-            "max_discharge_power": 5.0,
-        },
-        "description": "Battery with zero capacity",
     },
 ]

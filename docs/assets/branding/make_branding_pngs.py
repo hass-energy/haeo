@@ -8,8 +8,6 @@
 # ruff: noqa: T201
 """Convert SVG files to PNG at various resolutions for Home Assistant brands repository."""
 
-from __future__ import annotations
-
 import asyncio
 from pathlib import Path
 
