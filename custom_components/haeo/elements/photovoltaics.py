@@ -114,13 +114,8 @@ def outputs(
 
     pv_outputs: dict[PhotovoltaicsOutputName, OutputData] = {
         PHOTOVOLTAICS_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER),
+        PHOTOVOLTAICS_POWER_AVAILABLE: connection[CONNECTION_POWER_MAX_SOURCE_TARGET],
+        PHOTOVOLTAICS_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
     }
-
-    if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
-        pv_outputs[PHOTOVOLTAICS_POWER_AVAILABLE] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
-
-    # Forecast limit shadow price is on the connection (the "I want more solar power" constraint)
-    if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
-        pv_outputs[PHOTOVOLTAICS_FORECAST_LIMIT] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
 
     return {name: pv_outputs}

@@ -97,12 +97,9 @@ def outputs(
 
     load_outputs: dict[LoadOutputName, OutputData] = {
         LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER),
+        LOAD_POWER_POSSIBLE: connection[CONNECTION_POWER_MAX_TARGET_SOURCE],
+        # Only the max limit has meaning, the source sink power balance is always zero as it will never influence cost
+        LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
     }
-
-    if CONNECTION_POWER_MAX_TARGET_SOURCE in connection:
-        load_outputs[LOAD_POWER_POSSIBLE] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
-
-    # Only the max limit has meaning, the source sink power balance is always zero as it will never influence cost
-    load_outputs[LOAD_FORECAST_LIMIT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 
     return {name: load_outputs}
