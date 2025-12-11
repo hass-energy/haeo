@@ -32,6 +32,7 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 from custom_components.haeo.coordinator import (
+    STATUS_OPTIONS,
     ForecastPoint,
     HaeoDataUpdateCoordinator,
     _build_coordinator_output,
@@ -493,6 +494,33 @@ def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.M
         forecast_times=(1, 2),
     )
 
+    assert output.forecast is None
+
+
+def test_build_coordinator_output_sets_status_options() -> None:
+    """Status outputs should carry enum options."""
+
+    output = _build_coordinator_output(
+        OUTPUT_NAME_OPTIMIZATION_STATUS,
+        OutputData(type=OUTPUT_TYPE_STATUS, unit=None, values=("success",)),
+        forecast_times=None,
+    )
+
+    assert output.options == STATUS_OPTIONS
+    assert output.state == "success"
+    assert output.forecast is None
+
+
+def test_build_coordinator_output_skips_forecast_for_single_value() -> None:
+    """Single-value outputs should not emit forecast entries."""
+
+    output = _build_coordinator_output(
+        PHOTOVOLTAICS_POWER,
+        OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(5.0,)),
+        forecast_times=(1, 2),
+    )
+
+    assert output.state == 5.0
     assert output.forecast is None
 
 

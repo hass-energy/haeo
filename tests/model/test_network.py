@@ -1,11 +1,15 @@
 """Unit tests for Network class."""
 
+import logging
+import sys
 from typing import cast
 from unittest.mock import Mock
 
+from pulp import LpProblem
 import pytest
 
 from custom_components.haeo.model import Network
+from custom_components.haeo.model import network as network_module
 from custom_components.haeo.model.connection import Connection
 from custom_components.haeo.model.element import Element
 
@@ -240,4 +244,47 @@ def test_network_optimize_build_constraints_error() -> None:
 
     # Should wrap the error with context about which element failed
     with pytest.raises(ValueError, match="Failed to build constraints for element 'failing_element'"):
+        network.optimize()
+
+
+def test_network_optimize_success_logs_solver_output(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Optimize should return the objective and log solver streams."""
+
+    caplog.set_level(logging.DEBUG, logger=network_module.__name__)
+
+    # Ensure solver stdout/stderr are captured without using print (T201)
+    def fake_solve(self: LpProblem, _solver: object) -> int:
+        sys.stdout.write("fake solver stdout\n")
+        sys.stderr.write("fake solver stderr\n")
+        return 1
+
+    monkeypatch.setattr(LpProblem, "solve", fake_solve)
+
+    network = Network(name="test_network", period=1.0, n_periods=2)
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "node", is_sink=True, is_source=True)
+
+    result = network.optimize()
+
+    assert result == 0.0
+
+
+def test_network_optimize_raises_on_solver_failure(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Optimize should surface solver failure status with context."""
+
+    caplog.set_level(logging.DEBUG, logger=network_module.__name__)
+
+    def fake_solve(self: LpProblem, _solver: object) -> int:
+        sys.stderr.write("solver failed\n")
+        return 0  # Not Solved
+
+    monkeypatch.setattr(LpProblem, "solve", fake_solve)
+
+    network = Network(name="test_network", period=1.0, n_periods=1)
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "node", is_sink=True, is_source=True)
+
+    with pytest.raises(ValueError, match="Optimization failed with status: Not Solved"):
         network.optimize()

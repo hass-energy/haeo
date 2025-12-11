@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model.connection import CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES
 from custom_components.haeo.model.connection import (
     CONNECTION_POWER_MAX_SOURCE_TARGET,
     CONNECTION_POWER_MAX_TARGET_SOURCE,
@@ -78,6 +79,8 @@ class ConnectionConfigData(TypedDict):
 
 CONFIG_DEFAULTS: dict[str, Any] = {}
 
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = MODEL_CONNECTION_OUTPUT_NAMES
+
 
 def create_model_elements(config: ConnectionConfigData) -> list[dict[str, Any]]:
     """Create model elements for Connection configuration."""
@@ -131,3 +134,31 @@ def outputs(
         connection_outputs[CONNECTION_TIME_SLICE] = connection[CONNECTION_TIME_SLICE]
 
     return {name: connection_outputs}
+
+
+__all__ = [
+    "CONF_EFFICIENCY_SOURCE_TARGET",
+    "CONF_EFFICIENCY_TARGET_SOURCE",
+    "CONF_MAX_POWER_SOURCE_TARGET",
+    "CONF_MAX_POWER_TARGET_SOURCE",
+    "CONF_PRICE_SOURCE_TARGET",
+    "CONF_PRICE_TARGET_SOURCE",
+    "CONF_SOURCE",
+    "CONF_TARGET",
+    "CONNECTION_OUTPUT_NAMES",
+    "CONNECTION_POWER_MAX_SOURCE_TARGET",
+    "CONNECTION_POWER_MAX_TARGET_SOURCE",
+    "CONNECTION_POWER_SOURCE_TARGET",
+    "CONNECTION_POWER_TARGET_SOURCE",
+    "CONNECTION_PRICE_SOURCE_TARGET",
+    "CONNECTION_PRICE_TARGET_SOURCE",
+    "CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET",
+    "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
+    "CONNECTION_TIME_SLICE",
+    "ELEMENT_TYPE",
+    "ConnectionConfigData",
+    "ConnectionConfigSchema",
+    "ConnectionOutputName",
+    "create_model_elements",
+    "outputs",
+]
