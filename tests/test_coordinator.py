@@ -11,7 +11,6 @@ from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
-from homeassistant.util import slugify
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -192,7 +191,7 @@ def test_coordinator_initialization_collects_participants_and_entity_ids(
 
     assert coordinator.hass is hass
     assert coordinator.config_entry is mock_hub_entry
-    assert set(coordinator._participant_configs) == {"test_battery", "test_grid"}
+    assert set(coordinator._participant_configs) == {"Test Battery", "Test Grid"}
 
     tracked_entities = set(patch_state_change_listener.call_args.args[1])
     assert tracked_entities == {
@@ -312,7 +311,7 @@ async def test_async_update_data_returns_outputs(
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
-    network_outputs = result[slugify(mock_hub_entry.title)]
+    network_outputs = result[mock_hub_entry.title]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OUTPUT_TYPE_COST
     assert cost_output.unit == hass.config.currency

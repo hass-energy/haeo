@@ -11,7 +11,6 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
-from homeassistant.util import slugify
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -116,8 +115,8 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
     """Sensors inherit metadata supplied by coordinator outputs."""
 
     coordinator = _DummyCoordinator()
-    network_key = slugify(config_entry.title)
-    battery_key = slugify("Battery")
+    network_key = config_entry.title
+    battery_key = "Battery"
 
     coordinator.data = {
         network_key: {

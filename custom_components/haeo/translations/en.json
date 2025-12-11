@@ -288,7 +288,8 @@
       "optimization_status": { "name": "Optimization Status" },
       "photovoltaics_forecast_limit": { "name": "Forecast Limit Price (Shadow)" },
       "photovoltaics_power": { "name": "Power" },
-      "photovoltaics_power_available": { "name": "Power Available" }
+      "photovoltaics_power_available": { "name": "Power Available" },
+      "photovoltaics_price": { "name": "Price" }
     }
   },
   "exceptions": {

@@ -16,7 +16,6 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
-from homeassistant.util import slugify
 
 from . import data as data_module
 from .const import (
@@ -247,7 +246,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.network: Network | None = None
 
         self._participant_configs: dict[str, ElementConfigSchema] = {
-            slugify(participant.name): participant.config for participant in collect_element_subentries(config_entry)
+            participant.name: participant.config for participant in collect_element_subentries(config_entry)
         }
 
         self._state_change_unsub: Callable[[], None] | None = None
@@ -355,45 +354,33 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Return network outputs first, then element outputs
         result: CoordinatorData = {
             # We use the name of the hub config entry as the network element name
-            slugify(self.config_entry.title): {
+            self.config_entry.title: {
                 name: _build_coordinator_output(name, output, forecast_times=None)
                 for name, output in network_output_data.items()
             }
         }
 
         # Build nested outputs structure from all network model elements
-        nested_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
+        model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
             element_name: element.outputs() for element_name, element in network.elements.items()
         }
 
         # Process each config element using its outputs function to transform model outputs into device outputs
-        for config_element_key, element_config in self._participant_configs.items():
+        for element_name, element_config in self._participant_configs.items():
             element_type = element_config["element_type"]
             outputs_fn = ELEMENT_TYPES[element_type].outputs
-
-            # Get original element name from config (not slugified key)
-            # Model elements are created with config["name"], so outputs function needs that name
-            original_element_name = element_config["name"]
 
             # outputs function returns {device_name: {output_name: OutputData}}
             # May return multiple devices per config element (e.g., battery regions)
             try:
-                adapter_outputs = outputs_fn(original_element_name, nested_outputs)
-                _LOGGER.debug(
-                    "Adapter outputs for config element %r (type=%r, slugified key %r): created %d devices: %s",
-                    original_element_name,
-                    element_type,
-                    config_element_key,
-                    len(adapter_outputs),
-                    list(adapter_outputs.keys()),
-                )
+                adapter_outputs = outputs_fn(element_name, model_outputs)
             except KeyError:
                 _LOGGER.exception(
                     "Failed to get outputs for config element %r (type=%r): missing model element. "
                     "Available model elements: %s",
-                    original_element_name,
+                    element_name,
                     element_type,
-                    list(nested_outputs.keys()),
+                    list(model_outputs.keys()),
                 )
                 raise
 
@@ -409,13 +396,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 }
 
                 if processed_outputs:
-                    slugified_key = slugify(device_name)
-                    _LOGGER.debug(
-                        "Storing %d outputs under key %r (from device_name %r)",
-                        len(processed_outputs),
-                        slugified_key,
-                        device_name,
-                    )
-                    result[slugified_key] = processed_outputs
+                    result[device_name] = processed_outputs
 
         return result
