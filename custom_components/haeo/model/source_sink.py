@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Final, Literal
 
-from pulp import LpVariable
+from pulp import LpAffineExpression, LpVariable
 
 from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
@@ -61,9 +61,6 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
         """
         super().__init__(name=name, period=period, n_periods=n_periods)
 
-        self.is_source = is_source
-        self.is_sink = is_sink
-
         # Element-agnostic power variables (only create if needed)
         # power_in: positive when accepting power from network (sink behavior)
         self.power_in = (
@@ -80,36 +77,13 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
         This includes power balance constraints using connection_power().
         Power limits and pricing are handled by the Connection to/from the source/sink.
         """
-        # Build power balance based on is_source and is_sink flags
-        if not self.is_source and not self.is_sink:
-            # Pure junction (Node): connection power must be zero
-            self._constraints[SOURCE_SINK_POWER_BALANCE] = [
-                self.connection_power(t) == 0 for t in range(self.n_periods)
-            ]
-        elif self.is_source and not self.is_sink:
-            # Source only: connection power plus power out equals zero (net leaving = generated)
-            if self.power_out is None:
-                msg = f"Source-only SourceSink '{self.name}' must have power_out configured"
-                raise ValueError(msg)
-            self._constraints[SOURCE_SINK_POWER_BALANCE] = [
-                self.connection_power(t) + self.power_out[t] == 0 for t in range(self.n_periods)
-            ]
-        elif not self.is_source and self.is_sink:
-            # Sink only: connection power minus power in equals zero (net entering = consumed)
-            if self.power_in is None:
-                msg = f"Sink-only SourceSink '{self.name}' must have power_in configured"
-                raise ValueError(msg)
-            self._constraints[SOURCE_SINK_POWER_BALANCE] = [
-                self.connection_power(t) - self.power_in[t] == 0 for t in range(self.n_periods)
-            ]
-        else:
-            # Both source and sink: connection power plus power out minus power in equals zero
-            if self.power_out is None or self.power_in is None:
-                msg = f"SourceSink '{self.name}' with both source and sink must have power_out and power_in configured"
-                raise ValueError(msg)
-            self._constraints[SOURCE_SINK_POWER_BALANCE] = [
-                self.connection_power(t) + self.power_out[t] - self.power_in[t] == 0 for t in range(self.n_periods)
-            ]
+        zero = LpAffineExpression(constant=0.0)
+        power_in = self.power_in if self.power_in is not None else (zero,) * self.n_periods
+        power_out = self.power_out if self.power_out is not None else (zero,) * self.n_periods
+
+        self._constraints[SOURCE_SINK_POWER_BALANCE] = [
+            self.connection_power(t) + power_out[t] - power_in[t] == 0 for t in range(self.n_periods)
+        ]
 
     def outputs(self) -> Mapping[SourceSinkOutputName, OutputData]:
         """Return element-agnostic outputs for the source/sink.
