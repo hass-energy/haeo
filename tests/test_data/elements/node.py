@@ -9,7 +9,6 @@ from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
 
 from .types import ElementConfigData, ElementConfigSchema, ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
-# Single fully-typed pipeline case
 VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
         "description": "Adapter mapping node case",

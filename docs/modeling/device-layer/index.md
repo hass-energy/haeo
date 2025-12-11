@@ -13,33 +13,6 @@ See individual element pages for composition details.
 
 Device Layer elements use an adapter pattern to transform user configuration into Model Layer elements:
 
-```mermaid
-graph LR
-    subgraph "Device Layer"
-        Config[User Configuration]
-    end
-
-    subgraph "Adapter"
-        Create["create_model_elements()"]
-        Map["outputs()"]
-    end
-
-    subgraph "Model Layer"
-        Model[Model Elements]
-        Results[Optimization Results]
-    end
-
-    subgraph "Home Assistant"
-        Devices[Devices & Sensors]
-    end
-
-    Config --> Create
-    Create --> Model
-    Model --> Results
-    Results --> Map
-    Map --> Devices
-```
-
 **Configuration → Model** (`create_model_elements`): Transforms user configuration into Model Layer element specifications.
 Called during network construction before optimization.
 

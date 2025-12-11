@@ -8,6 +8,7 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.connection import (
     CONNECTION_POWER_MAX_SOURCE_TARGET,
     CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_PRICE_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
@@ -34,15 +35,15 @@ CONF_CONNECTION: Final = "connection"
 
 # Photovoltaics-specific sensor names (for translation/output mapping)
 PHOTOVOLTAICS_POWER: Final = "photovoltaics_power"
-PHOTOVOLTAICS_POWER_BALANCE: Final = "photovoltaics_power_balance"
+PHOTOVOLTAICS_PRICE: Final = "photovoltaics_price"
 PHOTOVOLTAICS_POWER_AVAILABLE: Final = "photovoltaics_power_available"
 PHOTOVOLTAICS_FORECAST_LIMIT: Final = "photovoltaics_forecast_limit"
 
 type PhotovoltaicsOutputName = Literal[
     "photovoltaics_power",
     "photovoltaics_power_available",
+    "photovoltaics_price",
     # Shadow prices
-    "photovoltaics_power_balance",
     "photovoltaics_forecast_limit",
 ]
 
@@ -50,6 +51,7 @@ PHOTOVOLTAIC_OUTPUT_NAMES: Final[frozenset[PhotovoltaicsOutputName]] = frozenset
     (
         PHOTOVOLTAICS_POWER,
         PHOTOVOLTAICS_POWER_AVAILABLE,
+        PHOTOVOLTAICS_PRICE,
         # Shadow prices
         PHOTOVOLTAICS_FORECAST_LIMIT,
     )
@@ -117,5 +119,8 @@ def outputs(
         PHOTOVOLTAICS_POWER_AVAILABLE: connection[CONNECTION_POWER_MAX_SOURCE_TARGET],
         PHOTOVOLTAICS_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
     }
+
+    if CONNECTION_PRICE_SOURCE_TARGET in connection:
+        pv_outputs[PHOTOVOLTAICS_PRICE] = connection[CONNECTION_PRICE_SOURCE_TARGET]
 
     return {name: pv_outputs}

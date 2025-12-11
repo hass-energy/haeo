@@ -4,7 +4,7 @@ Connections define how power flows between elements in your network with support
 
 !!! note "Implicit connections"
 
-    Most elements (Battery, Grid, Photovoltaics, Load) create implicit connections automatically.
+    Many elements create implicit connections automatically.
     You only need explicit Connection elements for additional power paths not covered by element defaults.
 
 ## Configuration
@@ -143,17 +143,17 @@ The optimizer will only schedule charging when the sensor value is non-zero.
 A Connection element creates 1 device in Home Assistant with the following sensors.
 Not all sensors are created for every connection - only those relevant to the configuration.
 
-| Sensor                                                                            | Unit   | Description                          |
-| --------------------------------------------------------------------------------- | ------ | ------------------------------------ |
-| [`sensor.{name}_power_source_target`](#power-source-target)                       | kW     | Power flowing from source to target  |
-| [`sensor.{name}_power_target_source`](#power-target-source)                       | kW     | Power flowing from target to source  |
-| [`sensor.{name}_power_max_source_target`](#power-max-source-target)               | kW     | Maximum forward power (when limited) |
-| [`sensor.{name}_power_max_target_source`](#power-max-target-source)               | kW     | Maximum reverse power (when limited) |
-| [`sensor.{name}_price_source_target`](#price-source-target)                       | \$/kWh | Forward transfer price               |
-| [`sensor.{name}_price_target_source`](#price-target-source)                       | \$/kWh | Reverse transfer price               |
-| [`sensor.{name}_shadow_power_max_source_target`](#shadow-power-max-source-target) | \$/kW  | Value of additional forward capacity |
-| [`sensor.{name}_shadow_power_max_target_source`](#shadow-power-max-target-source) | \$/kW  | Value of additional reverse capacity |
-| [`sensor.{name}_time_slice`](#time-slice)                                         | s      | Duration of each optimization period |
+| Sensor                                                                            | Unit   | Description                             |
+| --------------------------------------------------------------------------------- | ------ | --------------------------------------- |
+| [`sensor.{name}_power_source_target`](#power-source-target)                       | kW     | Power flowing from source to target     |
+| [`sensor.{name}_power_target_source`](#power-target-source)                       | kW     | Power flowing from target to source     |
+| [`sensor.{name}_power_max_source_target`](#power-max-source-target)               | kW     | Maximum forward power (when limited)    |
+| [`sensor.{name}_power_max_target_source`](#power-max-target-source)               | kW     | Maximum reverse power (when limited)    |
+| [`sensor.{name}_price_source_target`](#price-source-target)                       | \$/kWh | Forward transfer price                  |
+| [`sensor.{name}_price_target_source`](#price-target-source)                       | \$/kWh | Reverse transfer price                  |
+| [`sensor.{name}_shadow_power_max_source_target`](#shadow-power-max-source-target) | \$/kW  | Value of additional forward capacity    |
+| [`sensor.{name}_shadow_power_max_target_source`](#shadow-power-max-target-source) | \$/kW  | Value of additional reverse capacity    |
+| [`sensor.{name}_time_slice`](#time-slice)                                         | \$/kW  | Value of relaxing time-slice constraint |
 
 ### Power Source Target
 
@@ -233,8 +233,36 @@ Only created when a reverse power limit is configured.
 
 ### Time Slice
 
-The duration in seconds of each optimization time period.
-Shows the time resolution used in the optimization.
+The marginal value of relaxing the time-slicing constraint.
+See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+This shadow price shows how much the total system cost would decrease if simultaneous bidirectional power flow were less restricted at this time period.
+Only created when both forward and reverse power limits are configured.
+
+The time-slicing constraint prevents full power flow in both directions simultaneously: `P_forward/P_max_forward + P_reverse/P_max_reverse ≤ 1.0`.
+This models real-world devices that share capacity between directions (e.g., an inverter that can't operate at full charge and discharge simultaneously).
+
+**Interpretation**:
+
+- **Zero value**: Connection is not constrained by time slicing (operating in only one direction or well below limits)
+- **Positive value**: Time slicing is constraining bidirectional operation
+    - The value shows how much system cost would decrease if the constraint were relaxed by 1% (allowing the sum to reach 1.01)
+    - Higher values indicate the connection could benefit from being able to operate more simultaneously in both directions
+    - Helps identify devices where increased bidirectional capacity would be valuable
+
+**Example**: A value of 0.15 means that if the connection could operate slightly more simultaneously in both directions (sum ≤ 1.01 instead of ≤ 1.0), the total system cost would decrease by \$0.15 at this time period.
+
+!!! warning "Unusual constraint binding"
+
+    A positive time-slice shadow price is unusual and typically indicates misconfiguration.
+    In most real-world scenarios, connections should not need to transfer power in both directions simultaneously.
+    If this constraint is binding, it often suggests arbitrage opportunities caused by:
+
+    - Inconsistent pricing across elements (e.g., different import/export prices creating profitable round-trip power flow)
+    - Efficiency values greater than 100% allowing energy creation through cycling
+    - Connection prices that don't reflect the true cost of bidirectional operation
+
+    Review your element configurations to ensure prices, efficiencies, and power limits accurately represent the physical system.
 
 ---
 

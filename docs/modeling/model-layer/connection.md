@@ -2,8 +2,6 @@
 
 Connections model bidirectional power flow paths between elements with optional limits, efficiency losses, and transfer costs.
 
-The Connection model is created by all device types, either implicitly (Battery, Grid, Photovoltaics, Load) or explicitly (Connection).
-
 ## Model Formulation
 
 ### Decision Variables

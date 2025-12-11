@@ -3,45 +3,17 @@
 HAEO uses linear programming to optimize energy flows across your network.
 This page explains the high-level architecture and mathematical foundations.
 
-## Two-Layer Architecture
+## Layered Architecture
 
-HAEO separates user configuration from mathematical modeling through a two-layer architecture:
+HAEO separates user configuration from mathematical modeling through a layered architecture:
 
 **Device Layer** (user-configured): Elements like Battery, Grid, Photovoltaics, and Load that users configure through Home Assistant.
 Each Device Layer element may create multiple Model Layer elements and multiple devices with sensors.
-See [Elements Configuration](../user-guide/elements/index.md) for user documentation.
+See [Device Layer](device-layer/index.md).
 
 **Model Layer** (optimization): The mathematical building blocks that form the linear programming problem.
-Three model element types—[Battery](model-layer/battery.md), [SourceSink](model-layer/source-sink.md), and [Connection](model-layer/connection.md)—combine to represent all Device Layer elements.
-
-```mermaid
-graph TD
-    subgraph "Device Layer (User Configured)"
-        Bat[Battery]
-        Grid[Grid]
-        PV[Photovoltaics]
-        Load[Load]
-        Node[Node]
-        Conn[Connection]
-    end
-
-    subgraph "Model Layer (Optimization)"
-        MB[Battery Model]
-        MSS[SourceSink Model]
-        MC[Connection Model]
-    end
-
-    Bat -->|creates| MB
-    Bat -->|creates| MC
-    Grid -->|creates| MSS
-    Grid -->|creates| MC
-    PV -->|creates| MSS
-    PV -->|creates| MC
-    Load -->|creates| MSS
-    Load -->|creates| MC
-    Node -->|creates| MSS
-    Conn -->|creates| MC
-```
+These elements define decision variables, constraints, and cost terms.
+See [Model Layer](model-layer/index.md).
 
 This separation enables composition flexibility—a single Device Layer element can create multiple Model Layer elements to achieve complex behavior (e.g., Battery creates both a battery model for SOC tracking and a connection model for power flow).
 

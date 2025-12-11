@@ -1,40 +1,38 @@
-# Model Layer Elements
+# Model Layer
 
-Model Layer elements are the mathematical building blocks of HAEO's linear programming formulation.
-These elements define decision variables, constraints, and cost contributions that the optimizer uses to find the optimal energy schedule.
+The Model Layer provides mathematical building blocks for HAEO's linear programming formulation.
+Elements at this layer define decision variables, constraints, and cost contributions that the optimizer uses to find optimal energy schedules.
 
-## Overview
+## Architecture
 
-HAEO uses three Model Layer element types to represent all energy system behaviors:
+The Model Layer uses a minimal set of mathematical primitives that compose to represent complex energy system behaviors.
 
-| Model Element                    | Purpose                                          |
-| -------------------------------- | ------------------------------------------------ |
-| **[Battery](battery.md)**        | Energy storage with multi-section SOC tracking   |
-| **[SourceSink](source-sink.md)** | Power source, sink, or junction point            |
-| **[Connection](connection.md)**  | Bidirectional power flow with limits and pricing |
+## Design principles
 
-## Design Philosophy
+**Composition over complexity**:
+Rather than creating specialized models for each device type, Device Layer elements compose simple mathematical primitives with different parameter mappings.
 
-The Model Layer provides a minimal set of mathematical primitives that combine to represent complex behaviors:
+**Separation of concerns**:
+The Model Layer handles pure optimization mathematics.
+Device-specific behavior (sensor integration, output naming, multi-device creation) lives in the [Device Layer](../device-layer/index.md).
 
-**Composition over complexity**: Rather than creating specialized models for each device type, Device Layer elements compose these simple building blocks with different parameter mappings.
+**Extensibility**:
+New device types can often be created by composing existing Model Layer elements with different parameter mappings, without requiring new mathematical formulations.
 
-**Separation of concerns**: The Model Layer handles pure optimization mathematics.
-Device-specific behavior (sensor integration, output naming, multi-device creation) lives in the Device Layer.
+## Optimization problem construction
 
-**Extensibility**: New device types can often be created by composing existing Model Layer elements with different parameter mappings, without new mathematical formulations.
+The complete optimization problem aggregates contributions from all Model Layer elements.
 
-## Model Aggregation
-
-The complete optimization problem is built by combining contributions from all Model Layer elements:
-
-**Decision variables**: Each element introduces variables representing its behavior (power flows, energy states).
+**Decision variables**:
+Each element introduces variables representing its behavior (power flows, energy states).
 The complete variable set is the union of all element variables.
 
-**Constraints**: Each element contributes constraints governing its operation.
+**Constraints**:
+Each element contributes constraints governing its operation.
 The complete constraint set is the union of all element constraints plus network-wide power balance.
 
-**Objective function**: Each element may contribute cost terms.
+**Objective function**:
+Each element may contribute cost terms.
 The total objective is the sum of all element cost contributions.
 
 ## Next Steps

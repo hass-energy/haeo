@@ -2,8 +2,6 @@
 
 This page explains how HAEO models battery storage systems using linear programming with a multi-section approach.
 
-The Battery model element is composed by the [Battery device](../device-layer/battery.md).
-
 ## Overview
 
 A battery in HAEO is modeled as an energy storage device with:

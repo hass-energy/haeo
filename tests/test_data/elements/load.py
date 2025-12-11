@@ -13,7 +13,6 @@ from custom_components.haeo.model.output_data import OutputData
 
 from .types import ElementConfigData, ElementConfigSchema, ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
-# Single fully-typed pipeline case
 VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
         "description": "Adapter mapping load case",

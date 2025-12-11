@@ -13,8 +13,9 @@ graph LR
 
     Node[Connection Target]
 
-    SS <--|linked via| Conn
-    Conn <--|connects to| Node
+
+    Conn -->|linked via| SS
+    Node -->|connects to| Conn
 ```
 
 | Model Element                               | Name                | Parameters From Configuration       |

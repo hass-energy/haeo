@@ -1,6 +1,6 @@
-"""Tests for the time series loader's entity ID handling and error cases.
+"""Unit tests for time series loader's entity ID handling and error cases.
 
-Integration tests verifying the full pipeline are in tests/data/loader/test_time_series_loader.py.
+Integration tests with Home Assistant state are in test_time_series_loader.py.
 Lower-level fusion and cycling logic is tested in:
 - tests/data/util/test_forecast_fuser.py (fusion logic)
 - tests/data/util/test_forecast_cycle.py (cycling logic)
@@ -89,7 +89,9 @@ def test_time_series_loader_available_invalid_value(hass: HomeAssistant, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_time_series_loader_load_merges_present_and_forecast(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_time_series_loader_load_merges_present_and_forecast(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """load() should merge present and forecast values into the target horizon."""
 
     loader = TimeSeriesLoader()
@@ -173,7 +175,9 @@ async def test_time_series_loader_load_requires_entity_ids(hass: HomeAssistant) 
 
 
 @pytest.mark.asyncio
-async def test_time_series_loader_load_fails_when_no_payloads(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_time_series_loader_load_fails_when_no_payloads(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """load() should raise when no sensor provided usable data."""
 
     loader = TimeSeriesLoader()
@@ -192,7 +196,9 @@ async def test_time_series_loader_load_fails_when_no_payloads(hass: HomeAssistan
 
 
 @pytest.mark.asyncio
-async def test_time_series_loader_load_fails_when_sensor_missing(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_time_series_loader_load_fails_when_sensor_missing(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """load() should raise when at least one referenced sensor failed to load."""
 
     loader = TimeSeriesLoader()
