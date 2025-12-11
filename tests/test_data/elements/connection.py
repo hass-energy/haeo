@@ -11,7 +11,7 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase, InvalidSchemaCase
+from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
 VALID: Sequence[ElementValidCase[connection_element.ConnectionConfigSchema, connection_element.ConnectionConfigData]] = [
@@ -96,3 +96,6 @@ INVALID_SCHEMA: Sequence[InvalidSchemaCase[connection_element.ConnectionConfigSc
         },
     },
 ]
+
+# Invalid model parameter combinations to exercise runtime validation
+INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[connection_element.ConnectionConfigData]] = []

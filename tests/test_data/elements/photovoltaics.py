@@ -12,7 +12,7 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase, InvalidSchemaCase
+from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
 VALID: Sequence[ElementValidCase[photovoltaics.PhotovoltaicsConfigSchema, photovoltaics.PhotovoltaicsConfigData]] = [
@@ -77,3 +77,6 @@ INVALID_SCHEMA: Sequence[InvalidSchemaCase[photovoltaics.PhotovoltaicsConfigSche
         },
     },
 ]
+
+# Invalid model parameter combinations to exercise runtime validation
+INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[photovoltaics.PhotovoltaicsConfigData]] = []

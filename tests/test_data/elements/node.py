@@ -7,7 +7,7 @@ from custom_components.haeo.model.const import OUTPUT_TYPE_SHADOW_PRICE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
 
-from .types import ElementValidCase, InvalidSchemaCase
+from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
 VALID: Sequence[ElementValidCase[node.NodeConfigSchema, node.NodeConfigData]] = [
@@ -42,3 +42,6 @@ INVALID_SCHEMA: Sequence[InvalidSchemaCase[node.NodeConfigSchema]] = [
         },
     },
 ]
+
+# Invalid model parameter combinations to exercise runtime validation
+INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[node.NodeConfigData]] = []
