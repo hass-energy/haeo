@@ -107,13 +107,6 @@ async def load_network(
         # Use registry entry to create model elements from configuration element
         element_type = loaded_params[CONF_ELEMENT_TYPE]
         model_elements = ELEMENT_TYPES[element_type].create_model_elements(loaded_params)
-        _LOGGER.debug(
-            "Config element %r (type=%r) created %d model elements: %s",
-            loaded_params["name"],
-            element_type,
-            len(model_elements),
-            [elem["name"] for elem in model_elements],
-        )
         all_model_elements.extend(model_elements)
 
     # Sort all model elements so connections are added last

@@ -3,12 +3,6 @@
 Brief description of the element (1-2 sentences).
 Focus on what the element represents in the energy system and its primary purpose.
 
-!!! note "Elements and devices"
-
-    A single element configuration may create multiple devices in Home Assistant.
-    See [Sensors Created](#sensors-created) for the devices and sensors this element produces.
-    For mathematical details, see the [Model Layer documentation](../../modeling/index.md).
-
 ## Configuration Fields
 
 Provide a table listing all configuration fields with their types, requirements, and descriptions.

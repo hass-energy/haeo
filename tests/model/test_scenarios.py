@@ -1,7 +1,5 @@
 """Integration tests for Network optimization scenarios."""
 
-import pytest
-
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.model import Network
 

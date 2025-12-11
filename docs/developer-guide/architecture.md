@@ -4,7 +4,7 @@ HAEO follows Home Assistant integration patterns with specialized optimization c
 This guide focuses on HAEO-specific architecture.
 For Home Assistant fundamentals, see the [Home Assistant developer documentation](https://developers.home-assistant.io/).
 
-## Two-Layer Architecture
+## Layered Architecture
 
 HAEO separates user configuration from mathematical modeling through two distinct layers:
 

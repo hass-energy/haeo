@@ -4,7 +4,7 @@ Guide for adding new element types to HAEO's optimization engine.
 
 ## Architecture Overview
 
-HAEO uses a [two-layer architecture](architecture.md#two-layer-architecture):
+HAEO uses a [layered architecture](architecture.md#layered-architecture):
 
 - **Model Layer**: Mathematical building blocks (`battery`, `source_sink`, `connection`) that form the LP problem
 - **Device Layer**: User-configured elements that compose Model Layer elements via the [Adapter Layer](adapter-layer.md)
