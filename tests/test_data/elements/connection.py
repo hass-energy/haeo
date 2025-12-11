@@ -1,7 +1,6 @@
 """Test data for connection element configuration."""
 
-from typing import Any
-
+from collections.abc import Sequence
 from custom_components.haeo.elements import connection as connection_element
 from custom_components.haeo.model import connection as connection_model
 from custom_components.haeo.model.const import (
@@ -12,10 +11,10 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase
+from .types import ElementValidCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: list[ElementValidCase[connection_element.ConnectionConfigSchema, connection_element.ConnectionConfigData]] = [
+VALID: Sequence[ElementValidCase[connection_element.ConnectionConfigSchema, connection_element.ConnectionConfigData]] = [
     {
         "description": "Adapter mapping connection case",
         "element_type": "connection",
@@ -85,14 +84,15 @@ VALID: list[ElementValidCase[connection_element.ConnectionConfigSchema, connecti
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: list[dict[str, Any]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[connection_element.ConnectionConfigSchema]] = [
     {
-        "description": "Connection missing source",
+        "description": "Connection has empty endpoints",
         "schema": {
             "element_type": "connection",
             "name": "Missing Source",
-            "target": "grid",
-            "max_power_source_target": 5.0,
+            "source": "",
+            "target": "",
+            "max_power_source_target": ["sensor.bad_max_power"],
         },
     },
 ]

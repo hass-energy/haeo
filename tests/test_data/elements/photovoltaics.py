@@ -1,6 +1,6 @@
 """Test data for photovoltaics element configuration."""
 
-from typing import Any
+from collections.abc import Sequence
 
 from custom_components.haeo.elements import photovoltaics
 from custom_components.haeo.model import connection
@@ -12,10 +12,10 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase
+from .types import ElementValidCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: list[ElementValidCase[photovoltaics.PhotovoltaicsConfigSchema, photovoltaics.PhotovoltaicsConfigData]] = [
+VALID: Sequence[ElementValidCase[photovoltaics.PhotovoltaicsConfigSchema, photovoltaics.PhotovoltaicsConfigData]] = [
     {
         "description": "Adapter mapping photovoltaics case",
         "element_type": "photovoltaics",
@@ -66,13 +66,14 @@ VALID: list[ElementValidCase[photovoltaics.PhotovoltaicsConfigSchema, photovolta
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: list[dict[str, Any]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[photovoltaics.PhotovoltaicsConfigSchema]] = [
     {
         "description": "Photovoltaics missing connection",
         "schema": {
             "element_type": "photovoltaics",
             "name": "pv_bad",
-            "forecast": [1.0, 1.0],
+            "connection": "",
+            "forecast": ["sensor.pv1", "sensor.pv2"],
         },
     },
 ]

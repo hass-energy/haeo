@@ -2,25 +2,31 @@
 
 import pytest
 
-from custom_components.haeo.elements import ElementConfigData, ElementConfigSchema
-from tests.test_data.elements import ADAPTER_HELPERS, ALL_VALID, ElementValidCase
-
-Case = ElementValidCase[ElementConfigSchema, ElementConfigData]
+from custom_components.haeo.elements import ELEMENT_TYPES, ElementConfigData, ElementConfigSchema, ElementType
+from tests.test_data.elements import VALID_CONFIGS_BY_TYPE, ElementValidCase
 
 
-@pytest.mark.parametrize("case", ALL_VALID, ids=lambda case: case["element_type"])
-def test_create_model_elements(case: Case) -> None:
+def _all_valid_cases() -> list[tuple[ElementType, ElementValidCase[ElementConfigSchema, ElementConfigData]]]:
+    return [(element_type, case) for element_type, configs in VALID_CONFIGS_BY_TYPE.items() for case in configs]
+
+
+@pytest.mark.parametrize(("element_type", "case"), _all_valid_cases(), ids=lambda c: c[1]["element_type"])
+def test_create_model_elements(
+    element_type: ElementType, case: ElementValidCase[ElementConfigSchema, ElementConfigData]
+) -> None:
     """Verify adapter transforms config into expected model elements."""
 
-    helper = ADAPTER_HELPERS[case["element_type"]]
-    result = helper.create_model_elements(case["data"])
+    entry = ELEMENT_TYPES[element_type]
+    result = entry.create_model_elements(case["data"])
     assert result == case["model"]
 
 
-@pytest.mark.parametrize("case", ALL_VALID, ids=lambda case: case["element_type"])
-def test_outputs_mapping(case: Case) -> None:
+@pytest.mark.parametrize(("element_type", "case"), _all_valid_cases(), ids=lambda c: c[1]["element_type"])
+def test_outputs_mapping(
+    element_type: ElementType, case: ElementValidCase[ElementConfigSchema, ElementConfigData]
+) -> None:
     """Verify adapter maps model outputs to device outputs."""
 
-    helper = ADAPTER_HELPERS[case["element_type"]]
-    result = helper.outputs(case["data"]["name"], case["model_outputs"])
+    entry = ELEMENT_TYPES[element_type]
+    result = entry.outputs(case["data"]["name"], case["model_outputs"])
     assert result == case["outputs"]

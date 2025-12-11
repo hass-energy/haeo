@@ -1,7 +1,6 @@
 """Test data for load element configuration."""
 
-from typing import Any
-
+from collections.abc import Sequence
 from custom_components.haeo.elements import load
 from custom_components.haeo.model import connection
 from custom_components.haeo.model.const import (
@@ -12,10 +11,10 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase
+from .types import ElementValidCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: list[ElementValidCase[load.LoadConfigSchema, load.LoadConfigData]] = [
+VALID: Sequence[ElementValidCase[load.LoadConfigSchema, load.LoadConfigData]] = [
     {
         "description": "Adapter mapping load case",
         "element_type": "load",
@@ -61,13 +60,14 @@ VALID: list[ElementValidCase[load.LoadConfigSchema, load.LoadConfigData]] = [
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: list[dict[str, Any]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[load.LoadConfigSchema]] = [
     {
         "description": "Load missing connection",
         "schema": {
             "element_type": "load",
             "name": "load_bad",
-            "forecast": [1.0, 2.0],
+            "connection": "",
+            "forecast": ["sensor.load1", "sensor.load2"],
         },
     },
 ]

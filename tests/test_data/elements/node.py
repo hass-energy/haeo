@@ -1,16 +1,16 @@
 """Test data for node element configuration."""
 
-from typing import Any
+from collections.abc import Sequence
 
 from custom_components.haeo.elements import node
 from custom_components.haeo.model.const import OUTPUT_TYPE_SHADOW_PRICE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
 
-from .types import ElementValidCase
+from .types import ElementValidCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: list[ElementValidCase[node.NodeConfigSchema, node.NodeConfigData]] = [
+VALID: Sequence[ElementValidCase[node.NodeConfigSchema, node.NodeConfigData]] = [
     {
         "description": "Adapter mapping node case",
         "element_type": "node",
@@ -33,11 +33,12 @@ VALID: list[ElementValidCase[node.NodeConfigSchema, node.NodeConfigData]] = [
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: list[dict[str, Any]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[node.NodeConfigSchema]] = [
     {
         "description": "Node missing name",
         "schema": {
             "element_type": "node",
+            "name": "",
         },
     },
 ]

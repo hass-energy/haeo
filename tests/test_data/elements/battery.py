@@ -1,9 +1,10 @@
 """Test data for battery element configuration."""
 
-from typing import Any
+from collections.abc import Sequence
+from typing import cast
 
 from custom_components.haeo.elements import battery as battery_element
-from custom_components.haeo.elements.battery import BatteryConfigData
+from custom_components.haeo.elements.battery import BatteryConfigData, BatteryConfigSchema
 from custom_components.haeo.model import battery as battery_model
 from custom_components.haeo.model.const import (
     OUTPUT_TYPE_ENERGY,
@@ -14,10 +15,10 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase
+from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: list[ElementValidCase[battery_element.BatteryConfigSchema, BatteryConfigData]] = [
+VALID: Sequence[ElementValidCase[BatteryConfigSchema, BatteryConfigData]] = [
     {
         "description": "Adapter mapping battery case",
         "element_type": "battery",
@@ -125,16 +126,113 @@ VALID: list[ElementValidCase[battery_element.BatteryConfigSchema, BatteryConfigD
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: list[dict[str, Any]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[BatteryConfigSchema]] = [
     {
         "description": "Battery min_charge_percentage greater than max_charge_percentage",
         "schema": {
             "element_type": "battery",
             "name": "test_battery",
-            "capacity": 10.0,
-            "initial_charge_percentage": 50.0,
+            "connection": "network",
+            "capacity": "sensor.capacity",
+            "initial_charge_percentage": "sensor.initial_soc",
             "min_charge_percentage": 80.0,
             "max_charge_percentage": 20.0,
+            "efficiency": 95.0,
         },
+    },
+]
+
+# Invalid model parameter combinations to exercise runtime validation
+INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[BatteryConfigData]] = [
+    {
+        "description": "undercharge percentage set without undercharge cost",
+        "element_type": "battery",
+        "params": cast(
+            battery_element.BatteryConfigData,
+            {
+                "element_type": "battery",
+                "name": "battery_invalid",
+                "connection": "network",
+                "capacity": [10.0],
+                "initial_charge_percentage": [50.0],
+                "min_charge_percentage": 10.0,
+                "max_charge_percentage": 90.0,
+                "efficiency": 95.0,
+                "undercharge_percentage": 5.0,
+            },
+        ),
+    },
+    {
+        "description": "overcharge percentage set without overcharge cost",
+        "element_type": "battery",
+        "params": cast(
+            battery_element.BatteryConfigData,
+            {
+                "element_type": "battery",
+                "name": "battery_invalid",
+                "connection": "network",
+                "capacity": [10.0],
+                "initial_charge_percentage": [50.0],
+                "min_charge_percentage": 10.0,
+                "max_charge_percentage": 90.0,
+                "efficiency": 95.0,
+                "overcharge_percentage": 95.0,
+            },
+        ),
+    },
+    {
+        "description": "min charge not less than max charge",
+        "element_type": "battery",
+        "params": cast(
+            battery_element.BatteryConfigData,
+            {
+                "element_type": "battery",
+                "name": "battery_invalid",
+                "connection": "network",
+                "capacity": [10.0],
+                "initial_charge_percentage": [50.0],
+                "min_charge_percentage": 90.0,
+                "max_charge_percentage": 90.0,
+                "efficiency": 95.0,
+            },
+        ),
+    },
+    {
+        "description": "undercharge not below min",
+        "element_type": "battery",
+        "params": cast(
+            battery_element.BatteryConfigData,
+            {
+                "element_type": "battery",
+                "name": "battery_invalid",
+                "connection": "network",
+                "capacity": [10.0],
+                "initial_charge_percentage": [50.0],
+                "min_charge_percentage": 20.0,
+                "max_charge_percentage": 90.0,
+                "efficiency": 95.0,
+                "undercharge_percentage": 20.0,
+                "undercharge_cost": [1.0],
+            },
+        ),
+    },
+    {
+        "description": "overcharge not above max",
+        "element_type": "battery",
+        "params": cast(
+            battery_element.BatteryConfigData,
+            {
+                "element_type": "battery",
+                "name": "battery_invalid",
+                "connection": "network",
+                "capacity": [10.0],
+                "initial_charge_percentage": [50.0],
+                "min_charge_percentage": 10.0,
+                "max_charge_percentage": 90.0,
+                "efficiency": 95.0,
+                "overcharge_percentage": 90.0,
+                "overcharge_cost": [1.0],
+            },
+        ),
     },
 ]

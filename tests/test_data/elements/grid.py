@@ -1,7 +1,6 @@
 """Test data for grid element configuration."""
 
-from typing import Any
-
+from collections.abc import Sequence
 from custom_components.haeo.elements import grid
 from custom_components.haeo.model import connection
 from custom_components.haeo.model.const import (
@@ -13,10 +12,10 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase
+from .types import ElementValidCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: list[ElementValidCase[grid.GridConfigSchema, grid.GridConfigData]] = [
+VALID: Sequence[ElementValidCase[grid.GridConfigSchema, grid.GridConfigData]] = [
     {
         "description": "Adapter mapping grid case",
         "element_type": "grid",
@@ -79,14 +78,16 @@ VALID: list[ElementValidCase[grid.GridConfigSchema, grid.GridConfigData]] = [
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: list[dict[str, Any]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[grid.GridConfigSchema]] = [
     {
-        "description": "Grid missing connection",
+        "description": "Grid negative import limit",
         "schema": {
             "element_type": "grid",
             "name": "grid_bad",
-            "import_price": [0.1],
-            "export_price": [0.05],
+            "connection": "network",
+            "import_price": ["sensor.import_price"],
+            "export_price": ["sensor.export_price"],
+            "import_limit": -1.0,
         },
     },
 ]
