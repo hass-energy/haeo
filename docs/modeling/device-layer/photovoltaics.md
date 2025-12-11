@@ -79,8 +79,8 @@ See [Photovoltaics Configuration](../../user-guide/elements/photovoltaics.md#sen
 ## Typical Use Cases
 
 **Standard Solar**:
-Disable curtailment (default) and use all available solar generation.
-Simplest configuration for most installations.
+Leave curtailment enabled (default) so the optimizer can reduce generation when beneficial.
+Set `curtailment: false` only when your inverter cannot support active power limiting.
 
 **Negative Export Pricing**:
 Enable curtailment when export prices can be negative.
