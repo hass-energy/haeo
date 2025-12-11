@@ -156,10 +156,12 @@ def outputs(
         grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
 
     # Negate export price values for display (so they appear positive)
-    export_price_data = connection[CONNECTION_PRICE_TARGET_SOURCE]
-    negated_values = [-v for v in export_price_data.values] if export_price_data.values else []
+    if CONNECTION_PRICE_TARGET_SOURCE in connection:
+        export_price_data = connection[CONNECTION_PRICE_TARGET_SOURCE]
+        negated_values = [-v for v in export_price_data.values] if export_price_data.values else []
+        grid_outputs[GRID_PRICE_EXPORT] = replace(export_price_data, values=negated_values)
 
-    grid_outputs[GRID_PRICE_EXPORT] = replace(export_price_data, values=negated_values)
-    grid_outputs[GRID_PRICE_IMPORT] = replace(connection[CONNECTION_PRICE_SOURCE_TARGET])
+    if CONNECTION_PRICE_SOURCE_TARGET in connection:
+        grid_outputs[GRID_PRICE_IMPORT] = replace(connection[CONNECTION_PRICE_SOURCE_TARGET])
 
     return {name: grid_outputs}

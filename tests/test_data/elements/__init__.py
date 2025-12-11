@@ -1,7 +1,6 @@
 """Test data aggregator for element configurations."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any
 
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID, ELEMENT_TYPE_LOAD, ELEMENT_TYPE_NODE, ElementConfigData, ElementConfigSchema, ElementType, ELEMENT_TYPE_PHOTOVOLTAICS
 

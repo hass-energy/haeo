@@ -80,9 +80,6 @@ __all__ = [
     "battery",
     "connection",
     "fix_lp_variable",
-    "grid",
-    "load",
     "lp_sequence",
     "node",
-    "photovoltaics",
 ]
