@@ -2,13 +2,12 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
-if TYPE_CHECKING:
-    from custom_components.haeo.schema.util import UnitSpec
+from custom_components.haeo.schema.util import UnitSpec
 
 
 @dataclass(frozen=True)

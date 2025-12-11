@@ -66,6 +66,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 connection_model.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)),
                 connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.1,)),
                 connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.05,)),
+                connection_model.CONNECTION_TIME_SLICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.001,)),
             }
         },
         "outputs": {
@@ -78,6 +79,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 connection_element.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)),
                 connection_element.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.1,)),
                 connection_element.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.05,)),
+                connection_element.CONNECTION_TIME_SLICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.001,)),
             }
         },
     },

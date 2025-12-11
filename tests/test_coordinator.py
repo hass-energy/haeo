@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
@@ -75,6 +75,7 @@ from custom_components.haeo.model import (
     OUTPUT_TYPE_DURATION,
     OUTPUT_TYPE_POWER,
     OUTPUT_TYPE_STATUS,
+    Network,
     OutputData,
 )
 
@@ -374,6 +375,37 @@ async def test_async_update_data_propagates_value_error(
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         with pytest.raises(ValueError, match="invalid config"):
             await coordinator._async_update_data()
+
+
+async def test_async_update_data_raises_on_missing_model_element(
+    hass: HomeAssistant,
+    mock_hub_entry: ConfigEntry,
+    mock_battery_subentry: ConfigSubentry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Coordinator should surface KeyError when adapter cannot find model element outputs."""
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    fake_network = Network(name="net", period=1.0, n_periods=1)
+
+    def broken_outputs(_name: str, _outputs: object) -> dict[str, dict[str, OutputData]]:
+        msg = "missing model element"
+        raise KeyError(msg)
+
+    battery_entry = ELEMENT_TYPES["battery"]
+    patched_entry = battery_entry._replace(outputs=broken_outputs)
+
+    monkeypatch.setattr(
+        "custom_components.haeo.coordinator.ELEMENT_TYPES",
+        {**ELEMENT_TYPES, "battery": patched_entry},
+    )
+    monkeypatch.setattr(
+        "custom_components.haeo.coordinator.data_module.load_network",
+        AsyncMock(return_value=fake_network),
+    )
+
+    with pytest.raises(KeyError):
+        await coordinator._async_update_data()
 
 
 def test_collect_entity_ids_handles_nested_structures() -> None:
