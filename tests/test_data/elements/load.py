@@ -11,10 +11,10 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
+from .types import ElementConfigData, ElementConfigSchema, ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: Sequence[ElementValidCase[load.LoadConfigSchema, load.LoadConfigData]] = [
+VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
         "description": "Adapter mapping load case",
         "element_type": "load",
@@ -60,7 +60,7 @@ VALID: Sequence[ElementValidCase[load.LoadConfigSchema, load.LoadConfigData]] = 
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: Sequence[InvalidSchemaCase[load.LoadConfigSchema]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[ElementConfigSchema]] = [
     {
         "description": "Load missing connection",
         "schema": {
@@ -73,4 +73,4 @@ INVALID_SCHEMA: Sequence[InvalidSchemaCase[load.LoadConfigSchema]] = [
 ]
 
 # Invalid model parameter combinations to exercise runtime validation
-INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[load.LoadConfigData]] = []
+INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[ElementConfigData]] = []

@@ -12,10 +12,10 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
+from .types import ElementConfigData, ElementConfigSchema, ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: Sequence[ElementValidCase[grid.GridConfigSchema, grid.GridConfigData]] = [
+VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
         "description": "Adapter mapping grid case",
         "element_type": "grid",
@@ -78,7 +78,7 @@ VALID: Sequence[ElementValidCase[grid.GridConfigSchema, grid.GridConfigData]] = 
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: Sequence[InvalidSchemaCase[grid.GridConfigSchema]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[ElementConfigSchema]] = [
     {
         "description": "Grid negative import limit",
         "schema": {
@@ -93,4 +93,4 @@ INVALID_SCHEMA: Sequence[InvalidSchemaCase[grid.GridConfigSchema]] = [
 ]
 
 # Invalid model parameter combinations to exercise runtime validation
-INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[grid.GridConfigData]] = []
+INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[ElementConfigData]] = []

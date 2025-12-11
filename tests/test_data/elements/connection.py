@@ -11,10 +11,10 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
+from .types import ElementConfigData, ElementConfigSchema, ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: Sequence[ElementValidCase[connection_element.ConnectionConfigSchema, connection_element.ConnectionConfigData]] = [
+VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
         "description": "Adapter mapping connection case",
         "element_type": "connection",
@@ -84,7 +84,7 @@ VALID: Sequence[ElementValidCase[connection_element.ConnectionConfigSchema, conn
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: Sequence[InvalidSchemaCase[connection_element.ConnectionConfigSchema]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[ElementConfigSchema]] = [
     {
         "description": "Connection has empty endpoints",
         "schema": {
@@ -98,4 +98,4 @@ INVALID_SCHEMA: Sequence[InvalidSchemaCase[connection_element.ConnectionConfigSc
 ]
 
 # Invalid model parameter combinations to exercise runtime validation
-INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[connection_element.ConnectionConfigData]] = []
+INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[ElementConfigData]] = []

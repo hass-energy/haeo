@@ -7,10 +7,10 @@ from custom_components.haeo.model.const import OUTPUT_TYPE_SHADOW_PRICE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
 
-from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
+from .types import ElementConfigData, ElementConfigSchema, ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: Sequence[ElementValidCase[node.NodeConfigSchema, node.NodeConfigData]] = [
+VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
         "description": "Adapter mapping node case",
         "element_type": "node",
@@ -33,7 +33,7 @@ VALID: Sequence[ElementValidCase[node.NodeConfigSchema, node.NodeConfigData]] = 
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: Sequence[InvalidSchemaCase[node.NodeConfigSchema]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[ElementConfigSchema]] = [
     {
         "description": "Node missing name",
         "schema": {
@@ -44,4 +44,4 @@ INVALID_SCHEMA: Sequence[InvalidSchemaCase[node.NodeConfigSchema]] = [
 ]
 
 # Invalid model parameter combinations to exercise runtime validation
-INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[node.NodeConfigData]] = []
+INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[ElementConfigData]] = []

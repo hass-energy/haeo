@@ -12,10 +12,10 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
+from .types import ElementConfigData, ElementConfigSchema, ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: Sequence[ElementValidCase[photovoltaics.PhotovoltaicsConfigSchema, photovoltaics.PhotovoltaicsConfigData]] = [
+VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
         "description": "Adapter mapping photovoltaics case",
         "element_type": "photovoltaics",
@@ -66,7 +66,7 @@ VALID: Sequence[ElementValidCase[photovoltaics.PhotovoltaicsConfigSchema, photov
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: Sequence[InvalidSchemaCase[photovoltaics.PhotovoltaicsConfigSchema]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[ElementConfigSchema]] = [
     {
         "description": "Photovoltaics missing connection",
         "schema": {
@@ -79,4 +79,4 @@ INVALID_SCHEMA: Sequence[InvalidSchemaCase[photovoltaics.PhotovoltaicsConfigSche
 ]
 
 # Invalid model parameter combinations to exercise runtime validation
-INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[photovoltaics.PhotovoltaicsConfigData]] = []
+INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[ElementConfigData]] = []

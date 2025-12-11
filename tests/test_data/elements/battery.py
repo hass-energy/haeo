@@ -15,10 +15,10 @@ from custom_components.haeo.model.const import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
+from .types import ElementConfigData, ElementConfigSchema, ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
 # Single fully-typed pipeline case
-VALID: Sequence[ElementValidCase[BatteryConfigSchema, BatteryConfigData]] = [
+VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
         "description": "Adapter mapping battery case",
         "element_type": "battery",
@@ -126,7 +126,7 @@ VALID: Sequence[ElementValidCase[BatteryConfigSchema, BatteryConfigData]] = [
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: Sequence[InvalidSchemaCase[BatteryConfigSchema]] = [
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[ElementConfigSchema]] = [
     {
         "description": "Battery min_charge_percentage greater than max_charge_percentage",
         "schema": {
@@ -143,7 +143,7 @@ INVALID_SCHEMA: Sequence[InvalidSchemaCase[BatteryConfigSchema]] = [
 ]
 
 # Invalid model parameter combinations to exercise runtime validation
-INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[BatteryConfigData]] = [
+INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[ElementConfigData]] = [
     {
         "description": "undercharge percentage set without undercharge cost",
         "element_type": "battery",
