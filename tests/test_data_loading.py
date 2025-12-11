@@ -194,3 +194,34 @@ async def test_load_network_sorts_connections_after_elements(hass: HomeAssistant
 
     # Nodes should be added before the connection even though the connection was listed first
     assert list(network.elements.keys()) == ["node_a", "node_b", "line"]
+
+
+async def test_load_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Failures when adding model elements should be wrapped with ValueError."""
+
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="add_failure")
+    entry.add_to_hass(hass)
+
+    participants = cast(
+        "dict[str, ElementConfigSchema]",
+        {
+            "node": {CONF_ELEMENT_TYPE: "node", CONF_NAME: "node"},
+        },
+    )
+
+    # Force Network.add to raise
+    def _raise(*_: object, **__: object) -> None:
+        err = RuntimeError("boom")
+        raise err
+
+    monkeypatch.setattr("custom_components.haeo.data.Network.add", _raise)
+
+    with pytest.raises(ValueError, match="Failed to add model element 'node'"):
+        await load_network(
+            hass,
+            entry,
+            period_seconds=900,
+            n_periods=1,
+            participants=participants,
+            forecast_times=[0, 900],
+        )
