@@ -81,6 +81,48 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             }
         },
     },
+    {
+        "description": "Adapter mapping connection without optional limits or prices",
+        "element_type": "connection",
+        "schema": connection_element.ConnectionConfigSchema(
+            element_type="connection",
+            name="c_min",
+            source="s",
+            target="t",
+        ),
+        "data": connection_element.ConnectionConfigData(
+            element_type="connection",
+            name="c_min",
+            source="s",
+            target="t",
+        ),
+        "model": [
+            {
+                "element_type": "connection",
+                "name": "c_min",
+                "source": "s",
+                "target": "t",
+                "max_power_source_target": None,
+                "max_power_target_source": None,
+                "efficiency_source_target": None,
+                "efficiency_target_source": None,
+                "price_source_target": None,
+                "price_target_source": None,
+            }
+        ],
+        "model_outputs": {
+            "c_min": {
+                connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="+"),
+                connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="-"),
+            }
+        },
+        "outputs": {
+            "c_min": {
+                connection_element.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="+"),
+                connection_element.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="-"),
+            }
+        },
+    },
 ]
 
 # Invalid schema-only cases
