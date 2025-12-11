@@ -27,11 +27,7 @@ INVALID_SENSORS_BY_PARSER: dict[str, list[dict[str, Any]]] = {
 }
 
 # Flatten all valid sensors into a single list for easy iteration
-ALL_VALID_SENSORS: list[tuple[str, dict[str, Any]]] = [
-    (parser_type, sensor) for parser_type, sensors in VALID_SENSORS_BY_PARSER.items() for sensor in sensors
-]
+ALL_VALID_SENSORS: list[tuple[str, dict[str, Any]]] = [(parser_type, sensor) for parser_type, sensors in VALID_SENSORS_BY_PARSER.items() for sensor in sensors]
 
 # Flatten all invalid sensors
-ALL_INVALID_SENSORS: list[tuple[str, dict[str, Any]]] = [
-    (parser_type, sensor) for parser_type, sensors in INVALID_SENSORS_BY_PARSER.items() for sensor in sensors
-]
+ALL_INVALID_SENSORS: list[tuple[str, dict[str, Any]]] = [(parser_type, sensor) for parser_type, sensors in INVALID_SENSORS_BY_PARSER.items() for sensor in sensors]
