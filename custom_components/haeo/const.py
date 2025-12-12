@@ -31,9 +31,9 @@ OPTIMIZATION_STATUS_FAILED: Final = "failed"
 OPTIMIZATION_STATUS_PENDING: Final = "pending"
 
 # Network output names
-OUTPUT_NAME_OPTIMIZATION_COST: Final = "optimization_cost"
-OUTPUT_NAME_OPTIMIZATION_STATUS: Final = "optimization_status"
-OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "optimization_duration"
+OUTPUT_NAME_OPTIMIZATION_COST: Final = "network_optimization_cost"
+OUTPUT_NAME_OPTIMIZATION_STATUS: Final = "network_optimization_status"
+OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "network_optimization_duration"
 
 type NetworkOutputName = Literal[
     "optimization_cost",

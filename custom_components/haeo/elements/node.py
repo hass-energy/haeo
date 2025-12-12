@@ -17,6 +17,19 @@ type NodeOutputName = Literal["node_power_balance"]
 
 NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
 
+# Device names for node devices (used for translations)
+NODE_DEVICE_NODE: Final = ELEMENT_TYPE
+
+type NodeDeviceName = Literal["node"]
+
+NODE_DEVICE_NAMES: Final[frozenset[NodeDeviceName]] = frozenset((NODE_DEVICE_NODE,))
+
+# Device suffix to translation key mapping
+# Element type is used as the key for the main device (no suffix)
+DEVICE_TRANSLATION_KEYS: Final[dict[str, NodeDeviceName]] = {
+    ELEMENT_TYPE: NODE_DEVICE_NODE,
+}
+
 
 class NodeConfigSchema(TypedDict):
     """Node element configuration."""

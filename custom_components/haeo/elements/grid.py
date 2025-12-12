@@ -72,6 +72,19 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
     )
 )
 
+# Device names for grid devices (used for translations)
+GRID_DEVICE_GRID: Final = ELEMENT_TYPE
+
+type GridDeviceName = Literal["grid"]
+
+GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset((GRID_DEVICE_GRID,))
+
+# Device suffix to translation key mapping
+# Element type is used as the key for the main device (no suffix)
+DEVICE_TRANSLATION_KEYS: Final[dict[str, GridDeviceName]] = {
+    ELEMENT_TYPE: GRID_DEVICE_GRID,
+}
+
 
 class GridConfigSchema(TypedDict):
     """Grid element configuration."""

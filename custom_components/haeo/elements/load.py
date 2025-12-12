@@ -45,6 +45,19 @@ LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     )
 )
 
+# Device names for load devices (used for translations)
+LOAD_DEVICE_LOAD: Final = ELEMENT_TYPE
+
+type LoadDeviceName = Literal["load"]
+
+LOAD_DEVICE_NAMES: Final[frozenset[LoadDeviceName]] = frozenset((LOAD_DEVICE_LOAD,))
+
+# Device suffix to translation key mapping
+# Element type is used as the key for the main device (no suffix)
+DEVICE_TRANSLATION_KEYS: Final[dict[str, LoadDeviceName]] = {
+    ELEMENT_TYPE: LOAD_DEVICE_LOAD,
+}
+
 
 class LoadConfigSchema(TypedDict):
     """Load element configuration."""

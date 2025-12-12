@@ -81,6 +81,19 @@ CONFIG_DEFAULTS: dict[str, Any] = {}
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = MODEL_CONNECTION_OUTPUT_NAMES
 
+# Device names for connection devices (used for translations)
+CONNECTION_DEVICE_CONNECTION: Final = ELEMENT_TYPE
+
+type ConnectionDeviceName = Literal["connection"]
+
+CONNECTION_DEVICE_NAMES: Final[frozenset[ConnectionDeviceName]] = frozenset((CONNECTION_DEVICE_CONNECTION,))
+
+# Device suffix to translation key mapping
+# Element type is used as the key for the main device (no suffix)
+DEVICE_TRANSLATION_KEYS: Final[dict[str, ConnectionDeviceName]] = {
+    ELEMENT_TYPE: CONNECTION_DEVICE_CONNECTION,
+}
+
 
 def create_model_elements(config: ConnectionConfigData) -> list[dict[str, Any]]:
     """Create model elements for Connection configuration."""

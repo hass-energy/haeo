@@ -311,7 +311,7 @@ async def test_async_update_data_returns_outputs(
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
-    network_outputs = result[mock_hub_entry.title]
+    network_outputs = result[mock_hub_entry.title][mock_hub_entry.title]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OUTPUT_TYPE_COST
     assert cost_output.unit == hass.config.currency
@@ -329,7 +329,7 @@ async def test_async_update_data_returns_outputs(
     assert duration_output.state is not None
     assert duration_output.forecast is None
 
-    battery_outputs = result["test_battery"]
+    battery_outputs = result["Test Battery"]["test_battery"]
     battery_output = battery_outputs[BATTERY_POWER_CHARGE]
     assert battery_output.type == OUTPUT_TYPE_POWER
     assert battery_output.unit == "kW"

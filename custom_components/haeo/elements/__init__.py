@@ -95,6 +95,26 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     | NETWORK_OUTPUT_NAMES
 )
 
+# Device translation keys for devices
+# These are the translation keys used for devices created by adapters
+type ElementDeviceName = (
+    battery.BatteryDeviceName
+    | connection.ConnectionDeviceName
+    | grid.GridDeviceName
+    | load.LoadDeviceName
+    | node.NodeDeviceName
+    | photovoltaics.PhotovoltaicsDeviceName
+)
+
+ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
+    battery.BATTERY_DEVICE_NAMES
+    | connection.CONNECTION_DEVICE_NAMES
+    | grid.GRID_DEVICE_NAMES
+    | load.LOAD_DEVICE_NAMES
+    | node.NODE_DEVICE_NAMES
+    | photovoltaics.PHOTOVOLTAICS_DEVICE_NAMES
+)
+
 type CreateModelElementsFn = Callable[[Any], list[dict[str, Any]]]
 
 type OutputsFn = Callable[
@@ -119,6 +139,7 @@ class ElementRegistryEntry(NamedTuple):
     translation_key: ElementType
     create_model_elements: CreateModelElementsFn
     outputs: OutputsFn
+    device_translation_keys: Mapping[str, str]
 
 
 ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
@@ -129,6 +150,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=battery.ELEMENT_TYPE,
         create_model_elements=battery.create_model_elements,
         outputs=battery.outputs,
+        device_translation_keys=battery.DEVICE_TRANSLATION_KEYS,
     ),
     connection.ELEMENT_TYPE: ElementRegistryEntry(
         schema=connection.ConnectionConfigSchema,
@@ -137,6 +159,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=connection.ELEMENT_TYPE,
         create_model_elements=connection.create_model_elements,
         outputs=connection.outputs,
+        device_translation_keys=connection.DEVICE_TRANSLATION_KEYS,
     ),
     photovoltaics.ELEMENT_TYPE: ElementRegistryEntry(
         schema=photovoltaics.PhotovoltaicsConfigSchema,
@@ -145,6 +168,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=photovoltaics.ELEMENT_TYPE,
         create_model_elements=photovoltaics.create_model_elements,
         outputs=photovoltaics.outputs,
+        device_translation_keys=photovoltaics.DEVICE_TRANSLATION_KEYS,
     ),
     grid.ELEMENT_TYPE: ElementRegistryEntry(
         schema=grid.GridConfigSchema,
@@ -153,6 +177,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=grid.ELEMENT_TYPE,
         create_model_elements=grid.create_model_elements,
         outputs=grid.outputs,
+        device_translation_keys=grid.DEVICE_TRANSLATION_KEYS,
     ),
     load.ELEMENT_TYPE: ElementRegistryEntry(
         schema=load.LoadConfigSchema,
@@ -161,6 +186,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=load.ELEMENT_TYPE,
         create_model_elements=load.create_model_elements,
         outputs=load.outputs,
+        device_translation_keys=load.DEVICE_TRANSLATION_KEYS,
     ),
     node.ELEMENT_TYPE: ElementRegistryEntry(
         schema=node.NodeConfigSchema,
@@ -169,6 +195,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=node.ELEMENT_TYPE,
         create_model_elements=node.create_model_elements,
         outputs=node.outputs,
+        device_translation_keys=node.DEVICE_TRANSLATION_KEYS,
     ),
 }
 
@@ -218,6 +245,7 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
 
 
 __all__ = [
+    "ELEMENT_DEVICE_NAMES",
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
     "ELEMENT_TYPE_CONNECTION",
@@ -228,6 +256,7 @@ __all__ = [
     "CreateModelElementsFn",
     "ElementConfigData",
     "ElementConfigSchema",
+    "ElementDeviceName",
     "ElementRegistryEntry",
     "ElementType",
     "OutputsFn",

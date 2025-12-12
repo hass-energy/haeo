@@ -57,6 +57,19 @@ PHOTOVOLTAIC_OUTPUT_NAMES: Final[frozenset[PhotovoltaicsOutputName]] = frozenset
     )
 )
 
+# Device names for photovoltaics devices (used for translations)
+PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS: Final = ELEMENT_TYPE
+
+type PhotovoltaicsDeviceName = Literal["photovoltaics"]
+
+PHOTOVOLTAICS_DEVICE_NAMES: Final[frozenset[PhotovoltaicsDeviceName]] = frozenset((PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS,))
+
+# Device suffix to translation key mapping
+# Element type is used as the key for the main device (no suffix)
+DEVICE_TRANSLATION_KEYS: Final[dict[str, PhotovoltaicsDeviceName]] = {
+    ELEMENT_TYPE: PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS,
+}
+
 
 class PhotovoltaicsConfigSchema(TypedDict):
     """Photovoltaics element configuration."""
