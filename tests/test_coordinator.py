@@ -25,6 +25,7 @@ from custom_components.haeo.const import (
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
@@ -46,6 +47,7 @@ from custom_components.haeo.elements import (
     ElementConfigSchema,
 )
 from custom_components.haeo.elements.battery import (
+    BATTERY_DEVICE_BATTERY,
     BATTERY_POWER_CHARGE,
     CONF_CAPACITY,
     CONF_CONNECTION,
@@ -58,6 +60,7 @@ from custom_components.haeo.elements.battery import (
 from custom_components.haeo.elements.connection import (
     CONF_SOURCE,
     CONF_TARGET,
+    CONNECTION_DEVICE_CONNECTION,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
 )
@@ -255,7 +258,7 @@ async def test_async_update_data_returns_outputs(
     # Mock battery adapter
     mock_battery_adapter = MagicMock()
     mock_battery_adapter.outputs.return_value = {
-        "test_battery": {BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0))}
+        BATTERY_DEVICE_BATTERY: {BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0))}
     }
 
     generated_at = datetime(2024, 1, 1, 0, 15, tzinfo=UTC)
@@ -268,7 +271,7 @@ async def test_async_update_data_returns_outputs(
     # Mock connection adapter to return proper outputs
     mock_connection_adapter = MagicMock()
     mock_connection_adapter.outputs.return_value = {
-        "test_connection": {
+        CONNECTION_DEVICE_CONNECTION: {
             CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)),
             CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,)),
         }
@@ -311,7 +314,7 @@ async def test_async_update_data_returns_outputs(
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
-    network_outputs = result[mock_hub_entry.title][mock_hub_entry.title]
+    network_outputs = result[mock_hub_entry.title][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OUTPUT_TYPE_COST
     assert cost_output.unit == hass.config.currency
@@ -329,7 +332,7 @@ async def test_async_update_data_returns_outputs(
     assert duration_output.state is not None
     assert duration_output.forecast is None
 
-    battery_outputs = result["Test Battery"]["test_battery"]
+    battery_outputs = result["Test Battery"][BATTERY_DEVICE_BATTERY]
     battery_output = battery_outputs[BATTERY_POWER_CHARGE]
     assert battery_output.type == OUTPUT_TYPE_POWER
     assert battery_output.unit == "kW"

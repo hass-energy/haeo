@@ -88,5 +88,5 @@ def test_no_unused_device_translations() -> None:
         pytest.fail(
             f"The following device translation keys in en.json are not used:\n"
             f"{', '.join(unused_translations)}\n\n"
-            f"Either remove them or add the corresponding device to an element's DEVICE_TRANSLATION_KEYS"
+            f"Either remove them or add the corresponding device to an element's DEVICE_NAMES"
         )

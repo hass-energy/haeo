@@ -26,6 +26,7 @@ from .const import (
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
@@ -34,7 +35,13 @@ from .const import (
     OUTPUT_NAME_OPTIMIZATION_STATUS,
     NetworkOutputName,
 )
-from .elements import ELEMENT_TYPES, ElementConfigSchema, ElementOutputName, collect_element_subentries
+from .elements import (
+    ELEMENT_TYPES,
+    ElementConfigSchema,
+    ElementDeviceName,
+    ElementOutputName,
+    collect_element_subentries,
+)
 from .model import (
     OUTPUT_TYPE_COST,
     OUTPUT_TYPE_DURATION,
@@ -230,7 +237,8 @@ def _build_coordinator_output(
     )
 
 
-type CoordinatorData = dict[str, dict[ElementOutputName, CoordinatorOutput]]
+type SubentryDevices = dict[ElementDeviceName, dict[ElementOutputName | NetworkOutputName, CoordinatorOutput]]
+type CoordinatorData = dict[str, SubentryDevices]
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
@@ -351,12 +359,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             ),
         }
 
-        # Return network outputs first, then element outputs
         result: CoordinatorData = {
-            # We use the name of the hub config entry as the network element name
+            # Hub outputs use config entry title as subentry, network element type as device
             self.config_entry.title: {
-                name: _build_coordinator_output(name, output, forecast_times=None)
-                for name, output in network_output_data.items()
+                ELEMENT_TYPE_NETWORK: {
+                    name: _build_coordinator_output(name, output, forecast_times=None)
+                    for name, output in network_output_data.items()
+                }
             }
         }
 
@@ -373,7 +382,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # outputs function returns {device_name: {output_name: OutputData}}
             # May return multiple devices per config element (e.g., battery regions)
             try:
-                adapter_outputs = outputs_fn(element_name, model_outputs)
+                adapter_outputs: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = outputs_fn(
+                    element_name, model_outputs
+                )
             except KeyError:
                 _LOGGER.exception(
                     "Failed to get outputs for config element %r (type=%r): missing model element. "
@@ -384,7 +395,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 )
                 raise
 
-            # Process each device's outputs
+            # Process each device's outputs, grouping under the subentry (element_name)
+            subentry_devices: SubentryDevices = {}
             for device_name, device_outputs in adapter_outputs.items():
                 processed_outputs: dict[ElementOutputName, CoordinatorOutput] = {
                     output_name: _build_coordinator_output(
@@ -396,6 +408,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 }
 
                 if processed_outputs:
-                    result[device_name] = processed_outputs
+                    subentry_devices[device_name] = processed_outputs
+
+            if subentry_devices:
+                result[element_name] = subentry_devices
 
         return result

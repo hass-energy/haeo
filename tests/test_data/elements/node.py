@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from custom_components.haeo.elements import node
+from custom_components.haeo.elements import node as node_element
 from custom_components.haeo.model.const import OUTPUT_TYPE_SHADOW_PRICE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
@@ -13,8 +13,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
         "description": "Adapter mapping node case",
         "element_type": "node",
-        "schema": node.NodeConfigSchema(element_type="node", name="node_main"),
-        "data": node.NodeConfigData(element_type="node", name="node_main"),
+        "schema": node_element.NodeConfigSchema(element_type="node", name="node_main"),
+        "data": node_element.NodeConfigData(element_type="node", name="node_main"),
         "model": [
             {"element_type": "source_sink", "name": "node_main", "is_source": False, "is_sink": False},
         ],
@@ -24,8 +24,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             }
         },
         "outputs": {
-            "node_main": {
-                node.NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+            node_element.NODE_DEVICE_NODE: {
+                node_element.NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
     },

@@ -24,12 +24,6 @@ type NodeDeviceName = Literal["node"]
 
 NODE_DEVICE_NAMES: Final[frozenset[NodeDeviceName]] = frozenset((NODE_DEVICE_NODE,))
 
-# Device suffix to translation key mapping
-# Element type is used as the key for the main device (no suffix)
-DEVICE_TRANSLATION_KEYS: Final[dict[str, NodeDeviceName]] = {
-    ELEMENT_TYPE: NODE_DEVICE_NODE,
-}
-
 
 class NodeConfigSchema(TypedDict):
     """Node element configuration."""
@@ -56,7 +50,7 @@ def create_model_elements(config: NodeConfigData) -> list[dict[str, Any]]:
 
 def outputs(
     name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-) -> Mapping[str, Mapping[NodeOutputName, OutputData]]:
+) -> Mapping[NodeDeviceName, Mapping[NodeOutputName, OutputData]]:
     """Convert model element outputs to node adapter outputs."""
 
     source_sink = outputs[name]
@@ -66,4 +60,4 @@ def outputs(
         NODE_POWER_BALANCE: source_sink[SOURCE_SINK_POWER_BALANCE],
     }
 
-    return {name: node_outputs}
+    return {NODE_DEVICE_NODE: node_outputs}

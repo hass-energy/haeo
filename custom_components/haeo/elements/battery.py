@@ -110,16 +110,6 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
     )
 )
 
-# Device suffix to translation key mapping
-# Maps the suffix in "{name}:{suffix}" to the device translation key
-# Element type is used as the key for the main device (no suffix)
-DEVICE_TRANSLATION_KEYS: Final[dict[str, BatteryDeviceName]] = {
-    ELEMENT_TYPE: BATTERY_DEVICE_BATTERY,
-    "undercharge": BATTERY_DEVICE_UNDERCHARGE,
-    "normal": BATTERY_DEVICE_NORMAL,
-    "overcharge": BATTERY_DEVICE_OVERCHARGE,
-}
-
 
 class BatteryConfigSchema(TypedDict):
     """Battery configuration with sensor entity IDs."""
@@ -202,7 +192,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
 
 def outputs(
     name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-) -> Mapping[str, Mapping[BatteryOutputName, OutputData]]:
+) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
     """Map model outputs to battery-specific output names.
 
     Returns multiple devices for SOC regions based on what's configured.
@@ -219,7 +209,7 @@ def outputs(
         BATTERY_POWER_BALANCE: battery[model_battery.BATTERY_POWER_BALANCE],
     }
 
-    result: dict[str, dict[BatteryOutputName, OutputData]] = {name: aggregate_outputs}
+    result: dict[BatteryDeviceName, dict[BatteryOutputName, OutputData]] = {BATTERY_DEVICE_BATTERY: aggregate_outputs}
 
     # Undercharge region device outputs (only if configured)
     if model_battery.BATTERY_UNDERCHARGE_ENERGY_STORED in battery:
@@ -234,7 +224,7 @@ def outputs(
             BATTERY_SOC_MAX: battery[model_battery.BATTERY_UNDERCHARGE_SOC_MAX],
             BATTERY_SOC_MIN: battery[model_battery.BATTERY_UNDERCHARGE_SOC_MIN],
         }
-        result[f"{name}:undercharge"] = undercharge_outputs
+        result[BATTERY_DEVICE_UNDERCHARGE] = undercharge_outputs
 
     # Normal region device outputs (only if configured)
     if model_battery.BATTERY_NORMAL_ENERGY_STORED in battery:
@@ -249,7 +239,7 @@ def outputs(
             BATTERY_SOC_MAX: battery[model_battery.BATTERY_NORMAL_SOC_MAX],
             BATTERY_SOC_MIN: battery[model_battery.BATTERY_NORMAL_SOC_MIN],
         }
-        result[f"{name}:normal"] = normal_outputs
+        result[BATTERY_DEVICE_NORMAL] = normal_outputs
 
     # Overcharge region device outputs (only if configured)
     if model_battery.BATTERY_OVERCHARGE_ENERGY_STORED in battery:
@@ -264,6 +254,6 @@ def outputs(
             BATTERY_SOC_MAX: battery[model_battery.BATTERY_OVERCHARGE_SOC_MAX],
             BATTERY_SOC_MIN: battery[model_battery.BATTERY_OVERCHARGE_SOC_MIN],
         }
-        result[f"{name}:overcharge"] = overcharge_outputs
+        result[BATTERY_DEVICE_OVERCHARGE] = overcharge_outputs
 
     return result

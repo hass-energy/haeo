@@ -1,7 +1,7 @@
 """Test data for grid element configuration."""
 
 from collections.abc import Sequence
-from custom_components.haeo.elements import grid
+from custom_components.haeo.elements import grid as grid_element
 from custom_components.haeo.model import connection
 from custom_components.haeo.model.const import (
     OUTPUT_TYPE_POWER,
@@ -19,7 +19,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
         "description": "Adapter mapping grid case",
         "element_type": "grid",
-        "schema": grid.GridConfigSchema(
+        "schema": grid_element.GridConfigSchema(
             element_type="grid",
             name="grid_main",
             connection="network",
@@ -28,7 +28,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             import_limit=5.0,
             export_limit=3.0,
         ),
-        "data": grid.GridConfigData(
+        "data": grid_element.GridConfigData(
             element_type="grid",
             name="grid_main",
             connection="network",
@@ -63,15 +63,15 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             }
         },
         "outputs": {
-            "grid_main": {
-                grid.GRID_POWER_EXPORT: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.4,), direction="-"),
-                grid.GRID_POWER_IMPORT: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,), direction="+"),
-                grid.GRID_POWER_MAX_EXPORT: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(3.0,)),
-                grid.GRID_POWER_MAX_IMPORT: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(5.0,)),
-                grid.GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                grid.GRID_POWER_MAX_IMPORT_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)),
-                grid.GRID_PRICE_EXPORT: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.05,)),
-                grid.GRID_PRICE_IMPORT: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.1,)),
+            grid_element.GRID_DEVICE_GRID: {
+                grid_element.GRID_POWER_EXPORT: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.4,), direction="-"),
+                grid_element.GRID_POWER_IMPORT: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,), direction="+"),
+                grid_element.GRID_POWER_MAX_EXPORT: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(3.0,)),
+                grid_element.GRID_POWER_MAX_IMPORT: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(5.0,)),
+                grid_element.GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                grid_element.GRID_POWER_MAX_IMPORT_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                grid_element.GRID_PRICE_EXPORT: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.05,)),
+                grid_element.GRID_PRICE_IMPORT: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.1,)),
             }
         },
     },

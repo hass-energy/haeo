@@ -1,7 +1,7 @@
 """Test data for load element configuration."""
 
 from collections.abc import Sequence
-from custom_components.haeo.elements import load
+from custom_components.haeo.elements import load as load_element
 from custom_components.haeo.model import connection
 from custom_components.haeo.model.const import (
     OUTPUT_TYPE_POWER,
@@ -17,13 +17,13 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
         "description": "Adapter mapping load case",
         "element_type": "load",
-        "schema": load.LoadConfigSchema(
+        "schema": load_element.LoadConfigSchema(
             element_type="load",
             name="load_main",
             connection="network",
             forecast=["sensor.load_forecast_1", "sensor.load_forecast_2"],
         ),
-        "data": load.LoadConfigData(
+        "data": load_element.LoadConfigData(
             element_type="load",
             name="load_main",
             connection="network",
@@ -49,10 +49,10 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             }
         },
         "outputs": {
-            "load_main": {
-                load.LOAD_POWER: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"),
-                load.LOAD_POWER_POSSIBLE: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
-                load.LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+            load_element.LOAD_DEVICE_LOAD: {
+                load_element.LOAD_POWER: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"),
+                load_element.LOAD_POWER_POSSIBLE: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
+                load_element.LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             }
         },
     },

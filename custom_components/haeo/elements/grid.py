@@ -79,12 +79,6 @@ type GridDeviceName = Literal["grid"]
 
 GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset((GRID_DEVICE_GRID,))
 
-# Device suffix to translation key mapping
-# Element type is used as the key for the main device (no suffix)
-DEVICE_TRANSLATION_KEYS: Final[dict[str, GridDeviceName]] = {
-    ELEMENT_TYPE: GRID_DEVICE_GRID,
-}
-
 
 class GridConfigSchema(TypedDict):
     """Grid element configuration."""
@@ -139,7 +133,7 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
 
 def outputs(
     name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-) -> Mapping[str, Mapping[GridOutputName, OutputData]]:
+) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
     """Map model outputs to grid-specific output names."""
 
     connection = model_outputs[f"{name}:connection"]
@@ -164,4 +158,4 @@ def outputs(
     grid_outputs[GRID_PRICE_EXPORT] = replace(export_price_data, values=[-v for v in export_price_data.values])
     grid_outputs[GRID_PRICE_IMPORT] = replace(connection[CONNECTION_PRICE_SOURCE_TARGET])
 
-    return {name: grid_outputs}
+    return {GRID_DEVICE_GRID: grid_outputs}

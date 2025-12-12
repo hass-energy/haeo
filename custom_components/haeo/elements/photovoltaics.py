@@ -64,12 +64,6 @@ type PhotovoltaicsDeviceName = Literal["photovoltaics"]
 
 PHOTOVOLTAICS_DEVICE_NAMES: Final[frozenset[PhotovoltaicsDeviceName]] = frozenset((PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS,))
 
-# Device suffix to translation key mapping
-# Element type is used as the key for the main device (no suffix)
-DEVICE_TRANSLATION_KEYS: Final[dict[str, PhotovoltaicsDeviceName]] = {
-    ELEMENT_TYPE: PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS,
-}
-
 
 class PhotovoltaicsConfigSchema(TypedDict):
     """Photovoltaics element configuration."""
@@ -122,7 +116,7 @@ def create_model_elements(config: PhotovoltaicsConfigData) -> list[dict[str, Any
 
 def outputs(
     name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-) -> Mapping[str, Mapping[PhotovoltaicsOutputName, OutputData]]:
+) -> Mapping[PhotovoltaicsDeviceName, Mapping[PhotovoltaicsOutputName, OutputData]]:
     """Map model outputs to photovoltaics-specific output names."""
 
     connection = outputs[f"{name}:connection"]
@@ -136,4 +130,4 @@ def outputs(
     if CONNECTION_PRICE_SOURCE_TARGET in connection:
         pv_outputs[PHOTOVOLTAICS_PRICE] = connection[CONNECTION_PRICE_SOURCE_TARGET]
 
-    return {name: pv_outputs}
+    return {PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS: pv_outputs}

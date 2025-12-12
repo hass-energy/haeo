@@ -17,6 +17,8 @@ CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
 
 ELEMENT_TYPE_NETWORK: Final = "network"
 
+type NetworkDeviceName = Literal["network"]
+
 # Horizon and period configuration
 CONF_HORIZON_HOURS: Final = "horizon_hours"
 CONF_PERIOD_MINUTES: Final = "period_minutes"
@@ -36,9 +38,9 @@ OUTPUT_NAME_OPTIMIZATION_STATUS: Final = "network_optimization_status"
 OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "network_optimization_duration"
 
 type NetworkOutputName = Literal[
-    "optimization_cost",
-    "optimization_status",
-    "optimization_duration",
+    "network_optimization_cost",
+    "network_optimization_status",
+    "network_optimization_duration",
 ]
 
 NETWORK_OUTPUT_NAMES: Final[frozenset[NetworkOutputName]] = frozenset(

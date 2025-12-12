@@ -88,12 +88,6 @@ type ConnectionDeviceName = Literal["connection"]
 
 CONNECTION_DEVICE_NAMES: Final[frozenset[ConnectionDeviceName]] = frozenset((CONNECTION_DEVICE_CONNECTION,))
 
-# Device suffix to translation key mapping
-# Element type is used as the key for the main device (no suffix)
-DEVICE_TRANSLATION_KEYS: Final[dict[str, ConnectionDeviceName]] = {
-    ELEMENT_TYPE: CONNECTION_DEVICE_CONNECTION,
-}
-
 
 def create_model_elements(config: ConnectionConfigData) -> list[dict[str, Any]]:
     """Create model elements for Connection configuration."""
@@ -115,7 +109,7 @@ def create_model_elements(config: ConnectionConfigData) -> list[dict[str, Any]]:
 
 def outputs(
     name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-) -> Mapping[str, Mapping[ConnectionOutputName, OutputData]]:
+) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
     """Map model outputs to connection-specific output names."""
     connection = outputs[name]
 
@@ -146,7 +140,7 @@ def outputs(
     if CONNECTION_TIME_SLICE in connection:
         connection_outputs[CONNECTION_TIME_SLICE] = connection[CONNECTION_TIME_SLICE]
 
-    return {name: connection_outputs}
+    return {CONNECTION_DEVICE_CONNECTION: connection_outputs}
 
 
 __all__ = [

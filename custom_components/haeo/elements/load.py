@@ -52,12 +52,6 @@ type LoadDeviceName = Literal["load"]
 
 LOAD_DEVICE_NAMES: Final[frozenset[LoadDeviceName]] = frozenset((LOAD_DEVICE_LOAD,))
 
-# Device suffix to translation key mapping
-# Element type is used as the key for the main device (no suffix)
-DEVICE_TRANSLATION_KEYS: Final[dict[str, LoadDeviceName]] = {
-    ELEMENT_TYPE: LOAD_DEVICE_LOAD,
-}
-
 
 class LoadConfigSchema(TypedDict):
     """Load element configuration."""
@@ -103,7 +97,7 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
 
 def outputs(
     name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
-) -> Mapping[str, Mapping[LoadOutputName, OutputData]]:
+) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
     """Map model outputs to load-specific output names."""
 
     connection = outputs[f"{name}:connection"]
@@ -115,4 +109,4 @@ def outputs(
         LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
     }
 
-    return {name: load_outputs}
+    return {LOAD_DEVICE_LOAD: load_outputs}
