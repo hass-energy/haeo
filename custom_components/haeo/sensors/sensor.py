@@ -9,7 +9,7 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
-from custom_components.haeo.elements import ElementOutputName
+from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
 from custom_components.haeo.model import OutputType
 
 
@@ -25,7 +25,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         device_entry: DeviceEntry,
         *,
         subentry_key: str,
-        device_key: str,
+        device_key: ElementDeviceName,
         element_title: str,
         element_type: str,
         output_name: ElementOutputName,
@@ -38,7 +38,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self.device_entry = device_entry
 
         self._subentry_key: str = subentry_key
-        self._device_key: str = device_key
+        self._device_key: ElementDeviceName = device_key
         self._element_title: str = element_title
         self._element_type: str = element_type
         self._output_name: ElementOutputName = output_name
