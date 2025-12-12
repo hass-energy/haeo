@@ -28,12 +28,6 @@ from custom_components.haeo.schema.fields import (
 
 ELEMENT_TYPE: Final = "battery"
 
-# Device names for battery devices (used for translations)
-BATTERY_DEVICE_BATTERY: Final = ELEMENT_TYPE
-BATTERY_DEVICE_UNDERCHARGE: Final = "battery_device_undercharge"
-BATTERY_DEVICE_NORMAL: Final = "battery_device_normal"
-BATTERY_DEVICE_OVERCHARGE: Final = "battery_device_overcharge"
-
 type BatteryDeviceName = Literal[
     "battery",
     "battery_device_undercharge",
@@ -43,10 +37,10 @@ type BatteryDeviceName = Literal[
 
 BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset(
     (
-        BATTERY_DEVICE_BATTERY,
-        BATTERY_DEVICE_UNDERCHARGE,
-        BATTERY_DEVICE_NORMAL,
-        BATTERY_DEVICE_OVERCHARGE,
+        BATTERY_DEVICE_BATTERY := ELEMENT_TYPE,
+        BATTERY_DEVICE_UNDERCHARGE := "battery_device_undercharge",
+        BATTERY_DEVICE_NORMAL := "battery_device_normal",
+        BATTERY_DEVICE_OVERCHARGE := "battery_device_overcharge",
     )
 )
 
@@ -66,20 +60,6 @@ CONF_UNDERCHARGE_COST: Final = "undercharge_cost"
 CONF_OVERCHARGE_COST: Final = "overcharge_cost"
 CONF_CONNECTION: Final = "connection"
 
-# Battery-specific sensor names (for translation/output mapping)
-BATTERY_POWER_CHARGE: Final = "battery_power_charge"
-BATTERY_POWER_DISCHARGE: Final = "battery_power_discharge"
-BATTERY_ENERGY_STORED: Final = "battery_energy_stored"
-BATTERY_STATE_OF_CHARGE: Final = "battery_state_of_charge"
-BATTERY_POWER_BALANCE: Final = "battery_power_balance"
-BATTERY_CHARGE_PRICE: Final = "battery_charge_price"
-BATTERY_DISCHARGE_PRICE: Final = "battery_discharge_price"
-BATTERY_ENERGY_IN_FLOW: Final = "battery_energy_in_flow"
-BATTERY_ENERGY_OUT_FLOW: Final = "battery_energy_out_flow"
-BATTERY_SOC_MAX: Final = "battery_soc_max"
-BATTERY_SOC_MIN: Final = "battery_soc_min"
-
-
 type BatteryOutputName = Literal[
     "battery_power_charge",
     "battery_power_discharge",
@@ -96,17 +76,17 @@ type BatteryOutputName = Literal[
 
 BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
     (
-        BATTERY_POWER_CHARGE,
-        BATTERY_POWER_DISCHARGE,
-        BATTERY_ENERGY_STORED,
-        BATTERY_STATE_OF_CHARGE,
-        BATTERY_POWER_BALANCE,
-        BATTERY_CHARGE_PRICE,
-        BATTERY_DISCHARGE_PRICE,
-        BATTERY_ENERGY_IN_FLOW,
-        BATTERY_ENERGY_OUT_FLOW,
-        BATTERY_SOC_MAX,
-        BATTERY_SOC_MIN,
+        BATTERY_POWER_CHARGE := "battery_power_charge",
+        BATTERY_POWER_DISCHARGE := "battery_power_discharge",
+        BATTERY_ENERGY_STORED := "battery_energy_stored",
+        BATTERY_STATE_OF_CHARGE := "battery_state_of_charge",
+        BATTERY_POWER_BALANCE := "battery_power_balance",
+        BATTERY_CHARGE_PRICE := "battery_charge_price",
+        BATTERY_DISCHARGE_PRICE := "battery_discharge_price",
+        BATTERY_ENERGY_IN_FLOW := "battery_energy_in_flow",
+        BATTERY_ENERGY_OUT_FLOW := "battery_energy_out_flow",
+        BATTERY_SOC_MAX := "battery_soc_max",
+        BATTERY_SOC_MIN := "battery_soc_min",
     )
 )
 

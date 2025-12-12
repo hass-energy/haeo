@@ -17,51 +17,11 @@ BATTERY_SECTION_UNDERCHARGE: Final = "undercharge"
 BATTERY_SECTION_NORMAL: Final = "normal"
 BATTERY_SECTION_OVERCHARGE: Final = "overcharge"
 
-# Battery constraint names (also used as shadow price output names)
-BATTERY_POWER_BALANCE: Final = "battery_power_balance"
-
 # Internal section constraint name patterns (used to build shadow price outputs)
 BATTERY_ENERGY_IN_FLOW: Final = "energy_in_flow"
 BATTERY_ENERGY_OUT_FLOW: Final = "energy_out_flow"
 BATTERY_SOC_MAX: Final = "soc_max"
 BATTERY_SOC_MIN: Final = "soc_min"
-
-# Battery output names
-BATTERY_POWER_CHARGE: Final = "battery_power_charge"
-BATTERY_POWER_DISCHARGE: Final = "battery_power_discharge"
-BATTERY_ENERGY_STORED: Final = "battery_energy_stored"
-BATTERY_STATE_OF_CHARGE: Final = "battery_state_of_charge"
-
-# Section-specific output names
-BATTERY_UNDERCHARGE_ENERGY_STORED: Final = "battery_undercharge_energy_stored"
-BATTERY_UNDERCHARGE_POWER_CHARGE: Final = "battery_undercharge_power_charge"
-BATTERY_UNDERCHARGE_POWER_DISCHARGE: Final = "battery_undercharge_power_discharge"
-BATTERY_UNDERCHARGE_CHARGE_PRICE: Final = "battery_undercharge_charge_price"
-BATTERY_UNDERCHARGE_DISCHARGE_PRICE: Final = "battery_undercharge_discharge_price"
-BATTERY_UNDERCHARGE_ENERGY_IN_FLOW: Final = "battery_undercharge_energy_in_flow"
-BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW: Final = "battery_undercharge_energy_out_flow"
-BATTERY_UNDERCHARGE_SOC_MAX: Final = "battery_undercharge_soc_max"
-BATTERY_UNDERCHARGE_SOC_MIN: Final = "battery_undercharge_soc_min"
-
-BATTERY_NORMAL_ENERGY_STORED: Final = "battery_normal_energy_stored"
-BATTERY_NORMAL_POWER_CHARGE: Final = "battery_normal_power_charge"
-BATTERY_NORMAL_POWER_DISCHARGE: Final = "battery_normal_power_discharge"
-BATTERY_NORMAL_CHARGE_PRICE: Final = "battery_normal_charge_price"
-BATTERY_NORMAL_DISCHARGE_PRICE: Final = "battery_normal_discharge_price"
-BATTERY_NORMAL_ENERGY_IN_FLOW: Final = "battery_normal_energy_in_flow"
-BATTERY_NORMAL_ENERGY_OUT_FLOW: Final = "battery_normal_energy_out_flow"
-BATTERY_NORMAL_SOC_MAX: Final = "battery_normal_soc_max"
-BATTERY_NORMAL_SOC_MIN: Final = "battery_normal_soc_min"
-
-BATTERY_OVERCHARGE_ENERGY_STORED: Final = "battery_overcharge_energy_stored"
-BATTERY_OVERCHARGE_POWER_CHARGE: Final = "battery_overcharge_power_charge"
-BATTERY_OVERCHARGE_POWER_DISCHARGE: Final = "battery_overcharge_power_discharge"
-BATTERY_OVERCHARGE_CHARGE_PRICE: Final = "battery_overcharge_charge_price"
-BATTERY_OVERCHARGE_DISCHARGE_PRICE: Final = "battery_overcharge_discharge_price"
-BATTERY_OVERCHARGE_ENERGY_IN_FLOW: Final = "battery_overcharge_energy_in_flow"
-BATTERY_OVERCHARGE_ENERGY_OUT_FLOW: Final = "battery_overcharge_energy_out_flow"
-BATTERY_OVERCHARGE_SOC_MAX: Final = "battery_overcharge_soc_max"
-BATTERY_OVERCHARGE_SOC_MIN: Final = "battery_overcharge_soc_min"
 
 # Type for battery constraint names (includes all internal and external constraints)
 type BatteryConstraintName = Literal[
@@ -106,64 +66,54 @@ type BatteryOutputName = (
     | BatteryConstraintName
 )
 
+BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
+    (
+        BATTERY_POWER_BALANCE := "battery_power_balance",
+        BATTERY_UNDERCHARGE_ENERGY_IN_FLOW := "battery_undercharge_energy_in_flow",
+        BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW := "battery_undercharge_energy_out_flow",
+        BATTERY_UNDERCHARGE_SOC_MAX := "battery_undercharge_soc_max",
+        BATTERY_UNDERCHARGE_SOC_MIN := "battery_undercharge_soc_min",
+        BATTERY_NORMAL_ENERGY_IN_FLOW := "battery_normal_energy_in_flow",
+        BATTERY_NORMAL_ENERGY_OUT_FLOW := "battery_normal_energy_out_flow",
+        BATTERY_NORMAL_SOC_MAX := "battery_normal_soc_max",
+        BATTERY_NORMAL_SOC_MIN := "battery_normal_soc_min",
+        BATTERY_OVERCHARGE_ENERGY_IN_FLOW := "battery_overcharge_energy_in_flow",
+        BATTERY_OVERCHARGE_ENERGY_OUT_FLOW := "battery_overcharge_energy_out_flow",
+        BATTERY_OVERCHARGE_SOC_MAX := "battery_overcharge_soc_max",
+        BATTERY_OVERCHARGE_SOC_MIN := "battery_overcharge_soc_min",
+    )
+)
+
+BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset(
+    (BATTERY_POWER_BALANCE,),
+)
+
 # Set of battery output names for runtime validation and type narrowing
 # Note: Includes dynamic constraint names built from sections, so type is inferred
 BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
     (
-        BATTERY_POWER_CHARGE,
-        BATTERY_POWER_DISCHARGE,
-        BATTERY_ENERGY_STORED,
-        BATTERY_STATE_OF_CHARGE,
-        BATTERY_UNDERCHARGE_ENERGY_STORED,
-        BATTERY_UNDERCHARGE_POWER_CHARGE,
-        BATTERY_UNDERCHARGE_POWER_DISCHARGE,
-        BATTERY_UNDERCHARGE_CHARGE_PRICE,
-        BATTERY_UNDERCHARGE_DISCHARGE_PRICE,
-        BATTERY_NORMAL_ENERGY_STORED,
-        BATTERY_NORMAL_POWER_CHARGE,
-        BATTERY_NORMAL_POWER_DISCHARGE,
-        BATTERY_NORMAL_CHARGE_PRICE,
-        BATTERY_NORMAL_DISCHARGE_PRICE,
-        BATTERY_OVERCHARGE_ENERGY_STORED,
-        BATTERY_OVERCHARGE_POWER_CHARGE,
-        BATTERY_OVERCHARGE_POWER_DISCHARGE,
-        BATTERY_OVERCHARGE_CHARGE_PRICE,
-        BATTERY_OVERCHARGE_DISCHARGE_PRICE,
-        BATTERY_POWER_BALANCE,
-        BATTERY_UNDERCHARGE_ENERGY_IN_FLOW,
-        BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW,
-        BATTERY_UNDERCHARGE_SOC_MAX,
-        BATTERY_UNDERCHARGE_SOC_MIN,
-        BATTERY_NORMAL_ENERGY_IN_FLOW,
-        BATTERY_NORMAL_ENERGY_OUT_FLOW,
-        BATTERY_NORMAL_SOC_MAX,
-        BATTERY_NORMAL_SOC_MIN,
-        BATTERY_OVERCHARGE_ENERGY_IN_FLOW,
-        BATTERY_OVERCHARGE_ENERGY_OUT_FLOW,
-        BATTERY_OVERCHARGE_SOC_MAX,
-        BATTERY_OVERCHARGE_SOC_MIN,
+        BATTERY_POWER_CHARGE := "battery_power_charge",
+        BATTERY_POWER_DISCHARGE := "battery_power_discharge",
+        BATTERY_ENERGY_STORED := "battery_energy_stored",
+        BATTERY_STATE_OF_CHARGE := "battery_state_of_charge",
+        BATTERY_UNDERCHARGE_ENERGY_STORED := "battery_undercharge_energy_stored",
+        BATTERY_UNDERCHARGE_POWER_CHARGE := "battery_undercharge_power_charge",
+        BATTERY_UNDERCHARGE_POWER_DISCHARGE := "battery_undercharge_power_discharge",
+        BATTERY_UNDERCHARGE_CHARGE_PRICE := "battery_undercharge_charge_price",
+        BATTERY_UNDERCHARGE_DISCHARGE_PRICE := "battery_undercharge_discharge_price",
+        BATTERY_NORMAL_ENERGY_STORED := "battery_normal_energy_stored",
+        BATTERY_NORMAL_POWER_CHARGE := "battery_normal_power_charge",
+        BATTERY_NORMAL_POWER_DISCHARGE := "battery_normal_power_discharge",
+        BATTERY_NORMAL_CHARGE_PRICE := "battery_normal_charge_price",
+        BATTERY_NORMAL_DISCHARGE_PRICE := "battery_normal_discharge_price",
+        BATTERY_OVERCHARGE_ENERGY_STORED := "battery_overcharge_energy_stored",
+        BATTERY_OVERCHARGE_POWER_CHARGE := "battery_overcharge_power_charge",
+        BATTERY_OVERCHARGE_POWER_DISCHARGE := "battery_overcharge_power_discharge",
+        BATTERY_OVERCHARGE_CHARGE_PRICE := "battery_overcharge_charge_price",
+        BATTERY_OVERCHARGE_DISCHARGE_PRICE := "battery_overcharge_discharge_price",
+        *BATTERY_CONSTRAINT_NAMES,
     )
 )
-
-BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
-    (
-        BATTERY_POWER_BALANCE,
-        BATTERY_UNDERCHARGE_ENERGY_IN_FLOW,
-        BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW,
-        BATTERY_UNDERCHARGE_SOC_MAX,
-        BATTERY_UNDERCHARGE_SOC_MIN,
-        BATTERY_NORMAL_ENERGY_IN_FLOW,
-        BATTERY_NORMAL_ENERGY_OUT_FLOW,
-        BATTERY_NORMAL_SOC_MAX,
-        BATTERY_NORMAL_SOC_MIN,
-        BATTERY_OVERCHARGE_ENERGY_IN_FLOW,
-        BATTERY_OVERCHARGE_ENERGY_OUT_FLOW,
-        BATTERY_OVERCHARGE_SOC_MAX,
-        BATTERY_OVERCHARGE_SOC_MIN,
-    )
-)
-
-BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset((BATTERY_POWER_BALANCE,))
 
 
 def _is_battery_constraint_name(name: str) -> TypeGuard[BatteryConstraintName]:

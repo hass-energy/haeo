@@ -9,20 +9,15 @@ from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
 from .output_data import OutputData
 
-# Element-agnostic output names
-SOURCE_SINK_POWER_IN: Final = "source_sink_power_in"
-SOURCE_SINK_POWER_OUT: Final = "source_sink_power_out"
-SOURCE_SINK_POWER_BALANCE: Final = "source_sink_power_balance"
-
 type SourceSinkConstraintName = Literal["source_sink_power_balance"]
 
 type SourceSinkOutputName = Literal["source_sink_power_in", "source_sink_power_out"] | SourceSinkConstraintName
 
 SOURCE_SINK_OUTPUT_NAMES: Final[frozenset[SourceSinkOutputName]] = frozenset(
     (
-        SOURCE_SINK_POWER_IN,
-        SOURCE_SINK_POWER_OUT,
-        SOURCE_SINK_POWER_BALANCE,
+        SOURCE_SINK_POWER_IN := "source_sink_power_in",
+        SOURCE_SINK_POWER_OUT := "source_sink_power_out",
+        SOURCE_SINK_POWER_BALANCE := "source_sink_power_balance",
     )
 )
 

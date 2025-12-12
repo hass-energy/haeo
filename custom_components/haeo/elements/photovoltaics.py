@@ -35,12 +35,6 @@ CONF_PRICE_CONSUMPTION: Final = "price_consumption"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
 
-# Photovoltaics-specific sensor names (for translation/output mapping)
-PHOTOVOLTAICS_POWER: Final = "photovoltaics_power"
-PHOTOVOLTAICS_PRICE: Final = "photovoltaics_price"
-PHOTOVOLTAICS_POWER_AVAILABLE: Final = "photovoltaics_power_available"
-PHOTOVOLTAICS_FORECAST_LIMIT: Final = "photovoltaics_forecast_limit"
-
 type PhotovoltaicsOutputName = Literal[
     "photovoltaics_power",
     "photovoltaics_power_available",
@@ -51,20 +45,19 @@ type PhotovoltaicsOutputName = Literal[
 
 PHOTOVOLTAIC_OUTPUT_NAMES: Final[frozenset[PhotovoltaicsOutputName]] = frozenset(
     (
-        PHOTOVOLTAICS_POWER,
-        PHOTOVOLTAICS_POWER_AVAILABLE,
-        PHOTOVOLTAICS_PRICE,
+        PHOTOVOLTAICS_POWER := "photovoltaics_power",
+        PHOTOVOLTAICS_POWER_AVAILABLE := "photovoltaics_power_available",
+        PHOTOVOLTAICS_PRICE := "photovoltaics_price",
         # Shadow prices
-        PHOTOVOLTAICS_FORECAST_LIMIT,
+        PHOTOVOLTAICS_FORECAST_LIMIT := "photovoltaics_forecast_limit",
     )
 )
 
-# Device names for photovoltaics devices (used for translations)
-PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS: Final = ELEMENT_TYPE
-
 type PhotovoltaicsDeviceName = Literal["photovoltaics"]
 
-PHOTOVOLTAICS_DEVICE_NAMES: Final[frozenset[PhotovoltaicsDeviceName]] = frozenset((PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS,))
+PHOTOVOLTAICS_DEVICE_NAMES: Final[frozenset[PhotovoltaicsDeviceName]] = frozenset(
+    (PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS := ELEMENT_TYPE,)
+)
 
 
 class PhotovoltaicsConfigSchema(TypedDict):

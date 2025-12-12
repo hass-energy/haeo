@@ -10,19 +10,17 @@ from custom_components.haeo.schema.fields import NameFieldData, NameFieldSchema
 
 ELEMENT_TYPE: Final = "node"
 
-# Node-specific output names
-NODE_POWER_BALANCE: Final = "node_power_balance"
-
 type NodeOutputName = Literal["node_power_balance"]
 
-NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
-
-# Device names for node devices (used for translations)
-NODE_DEVICE_NODE: Final = ELEMENT_TYPE
+NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset(
+    (NODE_POWER_BALANCE := "node_power_balance",),
+)
 
 type NodeDeviceName = Literal["node"]
 
-NODE_DEVICE_NAMES: Final[frozenset[NodeDeviceName]] = frozenset((NODE_DEVICE_NODE,))
+NODE_DEVICE_NAMES: Final[frozenset[NodeDeviceName]] = frozenset(
+    (NODE_DEVICE_NODE := ELEMENT_TYPE,),
+)
 
 
 class NodeConfigSchema(TypedDict):

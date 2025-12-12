@@ -26,11 +26,6 @@ ELEMENT_TYPE: Final = "load"
 CONF_FORECAST: Final = "forecast"
 CONF_CONNECTION: Final = "connection"
 
-# Load-specific sensor names (for translation/output mapping)
-LOAD_POWER: Final = "load_power"
-LOAD_POWER_POSSIBLE: Final = "load_power_possible"
-LOAD_FORECAST_LIMIT_PRICE: Final = "load_forecast_limit_price"
-
 type LoadOutputName = Literal[
     "load_power",
     "load_power_possible",
@@ -38,19 +33,18 @@ type LoadOutputName = Literal[
 ]
 LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     (
-        LOAD_POWER,
-        LOAD_POWER_POSSIBLE,
+        LOAD_POWER := "load_power",
+        LOAD_POWER_POSSIBLE := "load_power_possible",
         # Shadow prices
-        LOAD_FORECAST_LIMIT_PRICE,
+        LOAD_FORECAST_LIMIT_PRICE := "load_forecast_limit_price",
     )
 )
 
-# Device names for load devices (used for translations)
-LOAD_DEVICE_LOAD: Final = ELEMENT_TYPE
-
 type LoadDeviceName = Literal["load"]
 
-LOAD_DEVICE_NAMES: Final[frozenset[LoadDeviceName]] = frozenset((LOAD_DEVICE_LOAD,))
+LOAD_DEVICE_NAMES: Final[frozenset[LoadDeviceName]] = frozenset(
+    (LOAD_DEVICE_LOAD := ELEMENT_TYPE,),
+)
 
 
 class LoadConfigSchema(TypedDict):
