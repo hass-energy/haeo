@@ -395,7 +395,7 @@ async def test_async_update_data_raises_on_missing_model_element(
         raise KeyError(msg)
 
     battery_entry = ELEMENT_TYPES["battery"]
-    patched_entry = battery_entry._replace(outputs=broken_outputs)   # type: ignore[arg-type]
+    patched_entry = battery_entry._replace(outputs=broken_outputs)  # type: ignore[arg-type]
 
     monkeypatch.setattr(
         "custom_components.haeo.coordinator.ELEMENT_TYPES",
