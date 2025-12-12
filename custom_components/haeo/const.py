@@ -18,6 +18,8 @@ CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
 ELEMENT_TYPE_NETWORK: Final = "network"
 
 type NetworkDeviceName = Literal["network"]
+NETWORK_DEVICE_NETWORK: Final = "network"
+NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset((NETWORK_DEVICE_NETWORK,))
 
 # Horizon and period configuration
 CONF_HORIZON_HOURS: Final = "horizon_hours"

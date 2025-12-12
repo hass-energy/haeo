@@ -26,7 +26,7 @@ Sub-element Naming Convention:
 
 from collections.abc import Callable, Mapping
 import logging
-from typing import Any, Final, Literal, NamedTuple, TypeGuard
+from typing import Any, Final, Literal, NamedTuple, TypeGuard, cast
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 import voluptuous as vol
@@ -107,6 +107,8 @@ type ElementDeviceName = (
     | NetworkDeviceName
 )
 
+NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(("network",))
+
 ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     battery.BATTERY_DEVICE_NAMES
     | connection.CONNECTION_DEVICE_NAMES
@@ -114,14 +116,14 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | load.LOAD_DEVICE_NAMES
     | node.NODE_DEVICE_NAMES
     | photovoltaics.PHOTOVOLTAICS_DEVICE_NAMES
-    | {"network"}
+    | NETWORK_DEVICE_NAMES
 )
 
 type CreateModelElementsFn = Callable[[Any], list[dict[str, Any]]]
 
 type OutputsFn = Callable[
     [str, Mapping[str, Mapping[ModelOutputName, OutputData]]],
-    Mapping[ElementDeviceName, Mapping[Any, OutputData]],
+    Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]],
 ]
 
 
@@ -150,7 +152,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=battery.CONFIG_DEFAULTS,
         translation_key=battery.ELEMENT_TYPE,
         create_model_elements=battery.create_model_elements,
-        outputs=battery.outputs,
+        outputs=cast("OutputsFn", battery.outputs),
     ),
     connection.ELEMENT_TYPE: ElementRegistryEntry(
         schema=connection.ConnectionConfigSchema,
@@ -158,7 +160,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=connection.CONFIG_DEFAULTS,
         translation_key=connection.ELEMENT_TYPE,
         create_model_elements=connection.create_model_elements,
-        outputs=connection.outputs,
+        outputs=cast("OutputsFn", connection.outputs),
     ),
     photovoltaics.ELEMENT_TYPE: ElementRegistryEntry(
         schema=photovoltaics.PhotovoltaicsConfigSchema,
@@ -166,7 +168,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=photovoltaics.CONFIG_DEFAULTS,
         translation_key=photovoltaics.ELEMENT_TYPE,
         create_model_elements=photovoltaics.create_model_elements,
-        outputs=photovoltaics.outputs,
+        outputs=cast("OutputsFn", photovoltaics.outputs),
     ),
     grid.ELEMENT_TYPE: ElementRegistryEntry(
         schema=grid.GridConfigSchema,
@@ -174,7 +176,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=grid.CONFIG_DEFAULTS,
         translation_key=grid.ELEMENT_TYPE,
         create_model_elements=grid.create_model_elements,
-        outputs=grid.outputs,
+        outputs=cast("OutputsFn", grid.outputs),
     ),
     load.ELEMENT_TYPE: ElementRegistryEntry(
         schema=load.LoadConfigSchema,
@@ -182,7 +184,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=load.CONFIG_DEFAULTS,
         translation_key=load.ELEMENT_TYPE,
         create_model_elements=load.create_model_elements,
-        outputs=load.outputs,
+        outputs=cast("OutputsFn", load.outputs),
     ),
     node.ELEMENT_TYPE: ElementRegistryEntry(
         schema=node.NodeConfigSchema,
@@ -190,7 +192,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=node.CONFIG_DEFAULTS,
         translation_key=node.ELEMENT_TYPE,
         create_model_elements=node.create_model_elements,
-        outputs=node.outputs,
+        outputs=cast("OutputsFn", node.outputs),
     ),
 }
 
