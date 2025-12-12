@@ -1,11 +1,11 @@
-"""Data update coordinator for the Home Assistant Energy Optimization integration."""
+"""Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
 import time
-from typing import Any, get_type_hints
+from typing import Any, Literal, TypedDict, get_type_hints
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -16,7 +16,6 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
-from homeassistant.util import slugify
 
 from . import data as data_module
 from .const import (
@@ -27,25 +26,36 @@ from .const import (
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
-)
-from .elements import ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
-from .model import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
+    NetworkOutputName,
+)
+from .elements import (
+    ELEMENT_TYPES,
+    ElementConfigSchema,
+    ElementDeviceName,
+    ElementOutputName,
+    collect_element_subentries,
+)
+from .model import (
     OUTPUT_TYPE_COST,
     OUTPUT_TYPE_DURATION,
     OUTPUT_TYPE_ENERGY,
     OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_POWER_FLOW,
+    OUTPUT_TYPE_POWER_LIMIT,
     OUTPUT_TYPE_PRICE,
+    OUTPUT_TYPE_SHADOW_PRICE,
     OUTPUT_TYPE_SOC,
     OUTPUT_TYPE_STATUS,
+    ModelOutputName,
     Network,
     OutputData,
-    OutputName,
     OutputType,
 )
 from .repairs import dismiss_optimization_failure_issue
@@ -54,28 +64,27 @@ from .schema import get_field_meta
 _LOGGER = logging.getLogger(__name__)
 
 
-def _collect_entity_ids(value: Any) -> set[str]:
+def collect_entity_ids(value: Any) -> set[str]:
     """Recursively collect entity IDs from nested configuration values."""
-
     if isinstance(value, str):
         return {value}
 
     if isinstance(value, Mapping):
         mapping_ids: set[str] = set()
         for nested in value.values():
-            mapping_ids.update(_collect_entity_ids(nested))
+            mapping_ids.update(collect_entity_ids(nested))
         return mapping_ids
 
-    if isinstance(value, Sequence):
+    if isinstance(value, Sequence) and not isinstance(value, str):
         sequence_ids: set[str] = set()
         for nested in value:
-            sequence_ids.update(_collect_entity_ids(nested))
+            sequence_ids.update(collect_entity_ids(nested))
         return sequence_ids
 
     return set()
 
 
-def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
+def extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     """Extract entity IDs from a configuration using schema loaders."""
     entity_ids: set[str] = set()
 
@@ -101,11 +110,24 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
             continue
 
         try:
-            entity_ids.update(_collect_entity_ids(field_value))
+            entity_ids.update(collect_entity_ids(field_value))
         except TypeError:
             continue
 
     return entity_ids
+
+
+class ForecastPoint(TypedDict):
+    """Single point in a forecast time series.
+
+    Attributes:
+        time: Timestamp as datetime object (timezone-aware)
+        value: Forecast value (numeric or other types depending on output type)
+
+    """
+
+    time: datetime
+    value: Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,25 +137,32 @@ class CoordinatorOutput:
     type: OutputType
     unit: str | None
     state: StateType | None
-    forecast: dict[datetime, Any] | None
+    forecast: list[ForecastPoint] | None
+    direction: Literal["+", "-"] | None = None
     entity_category: EntityCategory | None = None
     device_class: SensorDeviceClass | None = None
     state_class: SensorStateClass | None = None
     options: tuple[str, ...] | None = None
+    advanced: bool = False
 
 
 DEVICE_CLASS_MAP: dict[OutputType, SensorDeviceClass] = {
     OUTPUT_TYPE_POWER: SensorDeviceClass.POWER,
+    OUTPUT_TYPE_POWER_FLOW: SensorDeviceClass.POWER,
+    OUTPUT_TYPE_POWER_LIMIT: SensorDeviceClass.POWER,
     OUTPUT_TYPE_ENERGY: SensorDeviceClass.ENERGY,
     OUTPUT_TYPE_SOC: SensorDeviceClass.BATTERY,
     OUTPUT_TYPE_COST: SensorDeviceClass.MONETARY,
     OUTPUT_TYPE_PRICE: SensorDeviceClass.MONETARY,
+    OUTPUT_TYPE_SHADOW_PRICE: SensorDeviceClass.MONETARY,
     OUTPUT_TYPE_DURATION: SensorDeviceClass.DURATION,
     OUTPUT_TYPE_STATUS: SensorDeviceClass.ENUM,
 }
 
 STATE_CLASS_MAP: dict[OutputType, SensorStateClass | None] = {
     OUTPUT_TYPE_POWER: SensorStateClass.MEASUREMENT,
+    OUTPUT_TYPE_POWER_FLOW: SensorStateClass.MEASUREMENT,
+    OUTPUT_TYPE_POWER_LIMIT: SensorStateClass.MEASUREMENT,
     OUTPUT_TYPE_SOC: SensorStateClass.MEASUREMENT,
     OUTPUT_TYPE_DURATION: SensorStateClass.MEASUREMENT,
 }
@@ -150,25 +179,47 @@ STATUS_OPTIONS: tuple[str, ...] = tuple(
 
 
 def _build_coordinator_output(
-    output_name: OutputName,
+    output_name: ElementOutputName,
     output_data: OutputData,
     *,
     forecast_times: tuple[int, ...] | None,
 ) -> CoordinatorOutput:
-    """Convert model output values into coordinator state and forecast."""
+    """Convert model output values into coordinator state and forecast.
+
+    This function handles the "fence post problem" where different output types require
+    different numbers of timestamps:
+
+    - **Interval values** (power, prices): Average values over time periods.
+      These have n_periods values, each representing the average from the start
+      of that period to its end. Use the first n_periods timestamps (fence posts).
+
+    - **Boundary values** (energy, SOC): Instantaneous state at specific points in time.
+      These have n_periods+1 values (one more than intervals) representing the state
+      at each fence post. Use all n_periods+1 timestamps.
+
+    The forecast_times tuple contains n_periods+1 timestamps (all fence posts).
+    Each output type zips its values with however many timestamps it needs.
+
+    Example with 3 periods of 300 seconds starting at t=0:
+      - forecast_times: [0, 300, 600, 900] (n_periods+1 = 4 fence posts)
+      - Interval values (n=3): zip with [0, 300, 600]
+      - Boundary values (n=4): zip with [0, 300, 600, 900]
+    """
 
     values = tuple(output_data.values)
     state: Any | None = values[0] if values else None
-    forecast: dict[datetime, Any] | None = None
+    forecast: list[ForecastPoint] | None = None
 
-    if forecast_times and len(values) == len(forecast_times) and len(values) > 1:
+    if forecast_times and len(values) > 1:
         try:
             # Convert timestamps to localized datetime objects using HA's configured timezone
             local_tz = dt_util.get_default_time_zone()
-            forecast = {
-                datetime.fromtimestamp(timestamp, tz=local_tz): value
-                for timestamp, value in zip(forecast_times, values, strict=True)
-            }
+            # Zip values with available timestamps - interval values use n_periods timestamps,
+            # boundary values use all n_periods+1 timestamps (strict=False handles both)
+            forecast = [
+                ForecastPoint(time=datetime.fromtimestamp(timestamp, tz=local_tz), value=value)
+                for timestamp, value in zip(forecast_times, values, strict=False)
+            ]
         except ValueError:
             forecast = None
 
@@ -177,14 +228,17 @@ def _build_coordinator_output(
         unit=output_data.unit,
         state=state,
         forecast=forecast,
+        direction=output_data.direction,
         entity_category=(EntityCategory.DIAGNOSTIC if output_name == OUTPUT_NAME_OPTIMIZATION_DURATION else None),
         device_class=DEVICE_CLASS_MAP.get(output_data.type),
         state_class=STATE_CLASS_MAP.get(output_data.type),
         options=(STATUS_OPTIONS if output_data.type == OUTPUT_TYPE_STATUS else None),
+        advanced=output_data.advanced,
     )
 
 
-type CoordinatorData = dict[str, dict[OutputName, CoordinatorOutput]]
+type SubentryDevices = dict[ElementDeviceName, dict[ElementOutputName | NetworkOutputName, CoordinatorOutput]]
+type CoordinatorData = dict[str, SubentryDevices]
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
@@ -200,7 +254,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.network: Network | None = None
 
         self._participant_configs: dict[str, ElementConfigSchema] = {
-            slugify(participant.name): participant.config for participant in collect_element_subentries(config_entry)
+            participant.name: participant.config for participant in collect_element_subentries(config_entry)
         }
 
         self._state_change_unsub: Callable[[], None] | None = None
@@ -221,7 +275,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Extract entity IDs from all participant configurations
         all_entity_ids: set[str] = set()
         for config in self._participant_configs.values():
-            all_entity_ids.update(_extract_entity_ids_from_config(config))
+            all_entity_ids.update(extract_entity_ids_from_config(config))
 
         # Set up state change listeners for all entity IDs in configuration
         if all_entity_ids:
@@ -244,14 +298,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     @staticmethod
     def _generate_forecast_timestamps(*, period_seconds: int, n_periods: int) -> tuple[int, ...]:
-        """Return rounded forecast timestamps for the optimization horizon."""
+        """Return forecast timestamps representing all fence posts (period boundaries).
+
+        Generates n_periods+1 timestamps representing the start of each period plus
+        the end of the final period. These are the "fence posts" in the fence post problem.
+
+        Example: 3 periods of 300s starting at t=0 returns [0, 300, 600, 900]
+        """
 
         epoch_seconds = dt_util.utcnow().timestamp()
         rounded_epoch = int(epoch_seconds // period_seconds * period_seconds)
         origin_time = dt_util.utc_from_timestamp(rounded_epoch)
 
         return tuple(
-            int((origin_time + timedelta(seconds=period_seconds * index)).timestamp()) for index in range(n_periods)
+            int((origin_time + timedelta(seconds=period_seconds * index)).timestamp()) for index in range(n_periods + 1)
         )
 
     async def _async_update_data(self) -> CoordinatorData:
@@ -289,7 +349,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Persist runtime state for diagnostics and system health
         self.network = network
 
-        network_output_data: dict[OutputName, OutputData] = {
+        network_output_data: dict[NetworkOutputName, OutputData] = {
             OUTPUT_NAME_OPTIMIZATION_COST: OutputData(OUTPUT_TYPE_COST, unit=self.hass.config.currency, values=(cost,)),
             OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
                 OUTPUT_TYPE_STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
@@ -299,31 +359,58 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             ),
         }
 
-        # Return network outputs first, then element outputs
         result: CoordinatorData = {
-            # We use the name of the hub config entry as the network element name
-            slugify(self.config_entry.title): {
-                name: _build_coordinator_output(name, output, forecast_times=None)
-                for name, output in network_output_data.items()
+            # Hub outputs use config entry title as subentry, network element type as device
+            self.config_entry.title: {
+                ELEMENT_TYPE_NETWORK: {
+                    name: _build_coordinator_output(name, output, forecast_times=None)
+                    for name, output in network_output_data.items()
+                }
             }
         }
 
-        # Add element outputs from each network element keyed by element name
-        for element_name, element in network.elements.items():
-            element_outputs = element.outputs()
-            if not element_outputs:
-                continue
+        # Build nested outputs structure from all network model elements
+        model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
+            element_name: element.outputs() for element_name, element in network.elements.items()
+        }
 
-            processed_outputs: dict[OutputName, CoordinatorOutput] = {
-                output_name: _build_coordinator_output(
-                    output_name,
-                    output_data,
-                    forecast_times=forecast_timestamps,
+        # Process each config element using its outputs function to transform model outputs into device outputs
+        for element_name, element_config in self._participant_configs.items():
+            element_type = element_config["element_type"]
+            outputs_fn = ELEMENT_TYPES[element_type].outputs
+
+            # outputs function returns {device_name: {output_name: OutputData}}
+            # May return multiple devices per config element (e.g., battery regions)
+            try:
+                adapter_outputs: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = outputs_fn(
+                    element_name, model_outputs
                 )
-                for output_name, output_data in element_outputs.items()
-            }
+            except KeyError:
+                _LOGGER.exception(
+                    "Failed to get outputs for config element %r (type=%r): missing model element. "
+                    "Available model elements: %s",
+                    element_name,
+                    element_type,
+                    list(model_outputs.keys()),
+                )
+                raise
 
-            if processed_outputs:
-                result[slugify(element_name)] = processed_outputs
+            # Process each device's outputs, grouping under the subentry (element_name)
+            subentry_devices: SubentryDevices = {}
+            for device_name, device_outputs in adapter_outputs.items():
+                processed_outputs: dict[ElementOutputName, CoordinatorOutput] = {
+                    output_name: _build_coordinator_output(
+                        output_name,
+                        output_data,
+                        forecast_times=forecast_timestamps,
+                    )
+                    for output_name, output_data in device_outputs.items()
+                }
+
+                if processed_outputs:
+                    subentry_devices[device_name] = processed_outputs
+
+            if subentry_devices:
+                result[element_name] = subentry_devices
 
         return result

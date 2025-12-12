@@ -7,16 +7,15 @@ from homeassistant.components.system_health import SystemHealthRegistration
 from homeassistant.core import HomeAssistant
 import pytest
 
-from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES
-from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
-from custom_components.haeo.model.const import (
+from custom_components.haeo.const import (
+    CONF_HORIZON_HOURS,
+    CONF_PERIOD_MINUTES,
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
-    OUTPUT_TYPE_COST,
-    OUTPUT_TYPE_DURATION,
-    OUTPUT_TYPE_STATUS,
 )
+from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.model.const import OUTPUT_TYPE_COST, OUTPUT_TYPE_DURATION, OUTPUT_TYPE_STATUS
 from custom_components.haeo.system_health import async_register, async_system_health_info
 
 
@@ -55,7 +54,7 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     coordinator.last_update_success = True
     coordinator.last_update_success_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     coordinator.data = {
-        "haeo_hub": {
+        "HAEO Hub": {
             OUTPUT_NAME_OPTIMIZATION_STATUS: CoordinatorOutput(
                 type=OUTPUT_TYPE_STATUS,
                 unit=None,
@@ -75,7 +74,7 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
                 forecast=None,
             ),
         },
-        "battery": {"soc": CoordinatorOutput(type=OUTPUT_TYPE_STATUS, unit=None, state=50, forecast=None)},
+        "Battery": {"soc": CoordinatorOutput(type=OUTPUT_TYPE_STATUS, unit=None, state=50, forecast=None)},
     }
 
     entry = MagicMock()

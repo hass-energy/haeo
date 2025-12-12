@@ -5,10 +5,16 @@ from typing import Any
 
 from homeassistant.components import system_health
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.util import slugify
 
-from .const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES, DOMAIN, OPTIMIZATION_STATUS_PENDING
-from .model import OUTPUT_NAME_OPTIMIZATION_COST, OUTPUT_NAME_OPTIMIZATION_DURATION, OUTPUT_NAME_OPTIMIZATION_STATUS
+from .const import (
+    CONF_HORIZON_HOURS,
+    CONF_PERIOD_MINUTES,
+    DOMAIN,
+    OPTIMIZATION_STATUS_PENDING,
+    OUTPUT_NAME_OPTIMIZATION_COST,
+    OUTPUT_NAME_OPTIMIZATION_DURATION,
+    OUTPUT_NAME_OPTIMIZATION_STATUS,
+)
 
 
 @callback
@@ -35,7 +41,7 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
     for entry in entries:
         entry_name = entry.title or entry.entry_id
         prefix = f"{entry_name}_"
-        hub_key = slugify(str(entry_name))
+        hub_key = entry_name
 
         # Get coordinator from runtime data
         coordinator = entry.runtime_data

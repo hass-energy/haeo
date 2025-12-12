@@ -24,7 +24,7 @@ automation:
     description: Send notification when energy optimization fails
     trigger:
       - platform: state
-        entity_id: sensor.haeo_network_optimization_status
+        entity_id: sensor.{network_name}_optimization_status
         to: failed
     action:
       - service: notify.persistent_notification
@@ -33,30 +33,19 @@ automation:
           message: >
             The HAEO energy optimization has failed.
             Please check the system logs for details.
-      - service: notify.mobile_app_phone
-        data:
-          title: HAEO Alert
-          message: Energy optimization failed - check Home Assistant
-          data:
-            priority: high
-            ttl: 0
 ```
 
 ### What this automation does
 
 1. **Trigger**: Monitors the optimization status sensor
 2. **Condition**: Activates when status changes to "failed"
-3. **Actions**:
-    - Creates a persistent notification in Home Assistant
-    - Sends a mobile notification with high priority
-    - Uses TTL=0 to ensure delivery even if phone is offline
+3. **Action**: Creates a persistent notification in Home Assistant
 
 ### Customization options
 
 - Add conditions to only notify during certain hours
-- Include the failure reason in the message if available
-- Send to multiple notification services
-- Create a counter to track failure frequency
+- Add mobile app notifications using your configured notify service
+- Create a counter to track failure frequency over time
 
 ## Example 2: Apply battery power recommendation
 
@@ -64,59 +53,57 @@ This automation writes HAEO's recommended battery power directly to a controllab
 
 ```yaml
 automation:
-  - alias: 'HAEO: Apply battery power recommendation'
-    description: Set battery power limit to the optimization recommendation
+  - alias: 'HAEO: Apply battery charge power'
+    description: Set battery charge power from HAEO recommendation
     trigger:
       - platform: state
-        entity_id: sensor.haeo_battery_recommended_power
+        entity_id: sensor.{battery_name}_power_consumed
     condition:
       - condition: template
         value_template: >
           {{ trigger.to_state.state not in ['unavailable', 'unknown'] }}
-      - condition: state
-        entity_id: sensor.haeo_network_optimization_status
-        state: success
       - condition: template
         value_template: >
-          {{
-            (trigger.to_state.state | float(0))
-             | abs <= states('number.battery_max_safe_power')
-             | float(5)
-          }}
+          {{ trigger.to_state.state | float(0) > 0 }}
     action:
       - service: number.set_value
         target:
-          entity_id: number.battery_power_setpoint
+          entity_id: number.battery_charge_power_setpoint
         data:
           value: '{{ trigger.to_state.state | float(0) }}'
-      - service: logbook.log
+
+  - alias: 'HAEO: Apply battery discharge power'
+    description: Set battery discharge power from HAEO recommendation
+    trigger:
+      - platform: state
+        entity_id: sensor.{battery_name}_power_produced
+    condition:
+      - condition: template
+        value_template: >
+          {{ trigger.to_state.state not in ['unavailable', 'unknown'] }}
+      - condition: template
+        value_template: >
+          {{ trigger.to_state.state | float(0) > 0 }}
+    action:
+      - service: number.set_value
+        target:
+          entity_id: number.battery_discharge_power_setpoint
         data:
-          name: HAEO battery dispatch
-          message: >-
-            Applied
-            {{ trigger.to_state.state | float(0) | round(2) }}
-            kW limit to
-            {{ state_attr('number.battery_power_setpoint', 'friendly_name') }}.
-      - service: notify.mobile_app_phone
-        data:
-          title: Battery output updated
-          message: >-
-            Battery now set to
-            {{ trigger.to_state.state | float(0) | round(2) }}
-            kW based on HAEO recommendation.
+          value: '{{ trigger.to_state.state | float(0) }}'
 ```
 
 ### What this automation does
 
-1. **Trigger**: Runs whenever `sensor.haeo_battery_recommended_power` changes.
-2. **Safety checks**: Ensures the optimization succeeded, the recommendation is valid, and the value stays within a user-defined `number.battery_max_safe_power` control.
-3. **Actions**: Writes the new setpoint, records a log entry, and sends a confirmation notification.
+1. **Triggers**: Separate automations for charge (`power_consumed`) and discharge (`power_produced`) sensors
+2. **Safety checks**: Ensures sensor is available and value is positive (non-zero operation)
+3. **Actions**: Writes the appropriate setpoint to battery control entities
 
 ### Customization options
 
-- Replace `number.battery_power_setpoint` with the entity that controls your battery inverter or dispatch service.
-- Use [`numeric_state` triggers](https://www.home-assistant.io/docs/automation/trigger/#numeric-state-trigger) if you only want to react to significant changes.
-- Swap the notification for an input boolean or scene activation if you prefer silent updates.
+- Replace `number.battery_charge_power_setpoint` and `number.battery_discharge_power_setpoint` with your battery's control entities
+- Use [`numeric_state` triggers](https://www.home-assistant.io/docs/automation/trigger/#numeric-state-trigger) to only react to significant changes
+- Add rate limiting with `for:` duration to debounce rapid updates
+- Include logbook.log service for audit trail of applied changes
 
 ## Example 3: Curtail solar generation based on forecast
 
@@ -124,86 +111,49 @@ This automation caps inverter output when HAEO predicts excess solar that would 
 
 ```yaml
 automation:
-  - alias: 'HAEO: Solar curtailment when forecast is high'
-    description: Limit inverter output according to HAEO recommendation
+  - alias: 'HAEO: Solar curtailment'
+    description: Limit inverter output when HAEO recommends curtailment
     trigger:
       - platform: state
-        entity_id: sensor.haeo_solar_recommended_power
+        entity_id: sensor.{solar_name}_power_produced
     condition:
       - condition: template
         value_template: >
           {{ trigger.to_state.state not in ['unavailable', 'unknown'] }}
-      - condition: state
-        entity_id: sensor.haeo_network_optimization_status
-        state: success
       - condition: template
         value_template: >
           {{
-            trigger.to_state.state
-            | float(0) < states('sensor.haeo_solar_power')
-            | float(0)
+            trigger.to_state.state | float(0)
+            < states('sensor.{solar_name}_power_available') | float(0)
           }}
     action:
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: >
-                  {{ trigger.to_state.state | float(0) <= 0.5 }}
-            sequence:
-              - service: switch.turn_on
-                target:
-                  entity_id: switch.solar_inverter_export_block
-              - service: notify.mobile_app_phone
-                data:
-                  title: Solar curtailed
-                  message: Inverter export fully blocked due to negative pricing
-                    forecast.
-        default:
-          - service: select.select_option
-            target:
-              entity_id: select.solar_inverter_mode
-            data:
-              option: limited
-          - service: number.set_value
-            target:
-              entity_id: number.solar_inverter_limit_kw
-            data:
-              value: >-
-                {{
-                  [
-                    trigger.to_state.state | float(0),
-                    states('number.solar_inverter_limit_max') | float(15)
-                  ] | min
-                }}
-          - service: notify.mobile_app_phone
-            data:
-              title: Solar limit updated
-              message: >-
-                Inverter capped at
-                {{ trigger.to_state.state | float(0) | round(2) }} kW
-                to follow HAEO recommendation.
+      - service: number.set_value
+        target:
+          entity_id: number.solar_inverter_limit_kw
+        data:
+          value: '{{ trigger.to_state.state | float(0) }}'
 ```
 
 ### What this automation does
 
-1. **Trigger**: Monitors `sensor.haeo_solar_recommended_power` for new curtailment values.
-2. **Conditions**: Validates the recommendation and checks actual solar output.
-3. **Actions**: Either blocks export entirely when the recommendation is near zero, or sets a numeric cap via inverter entities and notifies you.
+1. **Trigger**: Monitors `power_produced` (optimal generation after curtailment)
+2. **Conditions**: Validates sensor availability and checks if curtailment is active (produced < available)
+3. **Action**: Sets inverter power limit to match HAEO's curtailment recommendation
 
 ### Customization options
 
-- Replace the inverter entities with services from your specific hardware vendor.
-- Add [`for:` options on the trigger](https://www.home-assistant.io/docs/automation/trigger/#state-trigger) to debounce brief fluctuations.
-- Combine with grid price sensors to only curtail when export prices go negative.
+- Replace `number.solar_inverter_limit_kw` with your inverter's power limit control entity
+- Add [`for:` duration on the trigger](https://www.home-assistant.io/docs/automation/trigger/#state-trigger) to debounce brief fluctuations
+- Use `choose` action with multiple conditions for different curtailment levels (e.g., block export vs reduce power)
 
 ## Best practices
 
 ### Safely apply optimization recommendations
 
-- Always confirm `sensor.haeo_network_optimization_status` shows `success` before writing recommendations to hardware.
-- Compare the recommendation against live feedback sensors such as `sensor.haeo_battery_power` to detect drift or actuator limits.
-- Use [`choose`](https://www.home-assistant.io/docs/scripts/conditions/#choose-a-group-of-actions) blocks to define fallback behaviors when recommendations exceed your safety thresholds.
-- Keep a manual override helper (for example, `input_boolean.haeo_manual_override`) and add it as a condition to skip automations when you need manual control.
+- Check sensor availability using `not in ['unavailable', 'unknown']` template conditions
+- Compare recommendations against hardware limits and sensor feedback to detect drift
+- Use [`choose`](https://www.home-assistant.io/docs/scripts/conditions/#choose-a-group-of-actions) blocks for fallback behaviors when values exceed safety thresholds
+- Keep a manual override helper (e.g., `input_boolean.haeo_manual_override`) to skip automations when you need direct control
 
 ### Handle frequent optimization result changes
 
@@ -235,10 +185,11 @@ automation:
 Use Developer Tools → States to inspect sensor values:
 
 ```
-sensor.haeo_network_optimization_status: "success"
-sensor.haeo_battery_recommended_power: 3.2
-sensor.haeo_battery_power: 3.0
-sensor.haeo_solar_recommended_power: 4.5
+sensor.{network_name}_optimization_status: "success"
+sensor.{battery_name}_power_consumed: 3.2
+sensor.{battery_name}_power_produced: 0.0
+sensor.{solar_name}_power_produced: 4.5
+sensor.{solar_name}_power_available: 5.0
 ```
 
 ### Debugging with traces
@@ -254,8 +205,7 @@ Enable automation traces to see execution history:
 
 - [Home Assistant Automation Documentation](https://www.home-assistant.io/docs/automation/)
 - [Template Documentation](https://www.home-assistant.io/docs/configuration/templating/)
-- [HAEO Sensor Reference](../reference/sensors.md)
-- [Optimization Status Values](../reference/sensors.md#sensor-states)
+- [Understanding Results](optimization.md)
 
 ## Need help?
 

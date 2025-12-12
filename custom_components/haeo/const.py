@@ -1,6 +1,6 @@
-"""Constants for the Home Assistant Energy Optimization integration."""
+"""Constants for the Home Assistant Energy Optimizer integration."""
 
-from typing import Final
+from typing import Final, Literal
 
 # Integration domain
 DOMAIN: Final = "haeo"
@@ -17,6 +17,10 @@ CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
 
 ELEMENT_TYPE_NETWORK: Final = "network"
 
+type NetworkDeviceName = Literal["network"]
+NETWORK_DEVICE_NETWORK: Final = "network"
+NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset((NETWORK_DEVICE_NETWORK,))
+
 # Horizon and period configuration
 CONF_HORIZON_HOURS: Final = "horizon_hours"
 CONF_PERIOD_MINUTES: Final = "period_minutes"
@@ -29,3 +33,22 @@ DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"
 OPTIMIZATION_STATUS_FAILED: Final = "failed"
 OPTIMIZATION_STATUS_PENDING: Final = "pending"
+
+# Network output names
+OUTPUT_NAME_OPTIMIZATION_COST: Final = "network_optimization_cost"
+OUTPUT_NAME_OPTIMIZATION_STATUS: Final = "network_optimization_status"
+OUTPUT_NAME_OPTIMIZATION_DURATION: Final = "network_optimization_duration"
+
+type NetworkOutputName = Literal[
+    "network_optimization_cost",
+    "network_optimization_status",
+    "network_optimization_duration",
+]
+
+NETWORK_OUTPUT_NAMES: Final[frozenset[NetworkOutputName]] = frozenset(
+    [
+        OUTPUT_NAME_OPTIMIZATION_COST,
+        OUTPUT_NAME_OPTIMIZATION_STATUS,
+        OUTPUT_NAME_OPTIMIZATION_DURATION,
+    ]
+)

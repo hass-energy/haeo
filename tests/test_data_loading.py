@@ -17,7 +17,8 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
 )
-from custom_components.haeo.elements.load import CONF_FORECAST
+from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
+from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST
 
 
 async def test_load_network_successful_loads_load_participant(hass: HomeAssistant) -> None:
@@ -32,11 +33,16 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
     participants = cast(
         "dict[str, ElementConfigSchema]",
         {
+            "node": {
+                CONF_ELEMENT_TYPE: "node",
+                CONF_NAME: "main_bus",
+            },
             "load": {
                 CONF_ELEMENT_TYPE: "load",
                 CONF_NAME: "Baseload",
+                CONF_CONNECTION: "main_bus",
                 CONF_FORECAST: ["sensor.baseload"],
-            }
+            },
         },
     )
 
@@ -46,7 +52,7 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
         period_seconds=1800,
         n_periods=4,
         participants=participants,
-        forecast_times=[0, 1800, 3600, 5400],
+        forecast_times=[0, 1800, 3600, 5400, 7200],
     )
 
     assert result.period == pytest.approx(0.5)
@@ -132,3 +138,90 @@ async def test_load_network_with_unavailable_sensor_state(hass: HomeAssistant) -
     placeholders = exc_info.value.translation_placeholders
     assert placeholders is not None
     assert "battery" in placeholders["unavailable_sensors"]
+
+
+async def test_load_network_without_participants_raises(hass: HomeAssistant) -> None:
+    """load_network should raise when no participants are provided."""
+
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="no_participants")
+    entry.add_to_hass(hass)
+
+    with pytest.raises(ValueError, match="No participants configured"):
+        await load_network(
+            hass,
+            entry,
+            period_seconds=1800,
+            n_periods=1,
+            participants={},
+            forecast_times=[0, 1800],
+        )
+
+
+async def test_load_network_sorts_connections_after_elements(hass: HomeAssistant) -> None:
+    """Connections should be added after their source/target elements."""
+
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="sorted_connections")
+    entry.add_to_hass(hass)
+
+    participants = cast(
+        "dict[str, ElementConfigSchema]",
+        {
+            "line": {
+                CONF_ELEMENT_TYPE: "connection",
+                CONF_NAME: "line",
+                CONF_SOURCE: "node_a",
+                CONF_TARGET: "node_b",
+            },
+            "node_a": {
+                CONF_ELEMENT_TYPE: "node",
+                CONF_NAME: "node_a",
+            },
+            "node_b": {
+                CONF_ELEMENT_TYPE: "node",
+                CONF_NAME: "node_b",
+            },
+        },
+    )
+
+    network = await load_network(
+        hass,
+        entry,
+        period_seconds=900,
+        n_periods=1,
+        participants=participants,
+        forecast_times=[0, 900],
+    )
+
+    # Nodes should be added before the connection even though the connection was listed first
+    assert list(network.elements.keys()) == ["node_a", "node_b", "line"]
+
+
+async def test_load_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Failures when adding model elements should be wrapped with ValueError."""
+
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="add_failure")
+    entry.add_to_hass(hass)
+
+    participants = cast(
+        "dict[str, ElementConfigSchema]",
+        {
+            "node": {CONF_ELEMENT_TYPE: "node", CONF_NAME: "node"},
+        },
+    )
+
+    # Force Network.add to raise
+    def _raise(*_: object, **__: object) -> None:
+        err = RuntimeError("boom")
+        raise err
+
+    monkeypatch.setattr("custom_components.haeo.data.Network.add", _raise)
+
+    with pytest.raises(ValueError, match="Failed to add model element 'node'"):
+        await load_network(
+            hass,
+            entry,
+            period_seconds=900,
+            n_periods=1,
+            participants=participants,
+            forecast_times=[0, 900],
+        )

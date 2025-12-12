@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# ruff: noqa: T201 Allow print statements for the script
+# ruff: noqa: T201
 
 """HAEO Scenario States Filter Script.
 
@@ -8,7 +8,6 @@ It takes a list of sensor patterns to keep and filters the states accordingly.
 """
 
 import argparse
-import getpass
 import json
 from pathlib import Path
 import re
@@ -16,24 +15,26 @@ import sys
 from typing import Any, cast
 from urllib import error as urllib_error
 from urllib import request as urllib_request
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 
 
 def get_home_assistant_token() -> str:
-    """Prompt user for Home Assistant long-lived access token."""
-    print("Please enter your Home Assistant long-lived access token:")
-    token = getpass.getpass("Token: ")
-    if not token:
-        print("Error: Token cannot be empty")
-        sys.exit(1)
-    return token
+    """Get Home Assistant long-lived access token."""
+    return (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+        "eyJpc3MiOiIyN2M2NGZkN2VhMjQ0NGE4YmE5N2NjYTQ0MzgwOGFkYSIsImlhdCI6MTc2MzcwNDMwNCwiZXhwIjoyMDc5MDY0MzA0fQ."
+        "V8ORHr7rFgG4kui7DjfJh57YZ6U7w454j6am6G7_1-Q"
+    )
 
 
 def fetch_home_assistant_states(url: str, token: str) -> list[dict[str, Any]]:
     """Fetch states from Home Assistant API."""
     try:
-        # Construct the full URL for the states endpoint
-        states_url = urljoin(url.rstrip("/") + "/", "api/states")
+        # Construct the full URL for the history endpoint
+        encoded_ts = quote("2025-11-20T14:20:00+11:00", safe="")
+        states_url = urljoin(url.rstrip("/") + "/", f"api/history/period/{encoded_ts}")
+
+        print(states_url)
 
         # Create request with authorization header
         req = urllib_request.Request(states_url)  # noqa: S310
@@ -43,6 +44,8 @@ def fetch_home_assistant_states(url: str, token: str) -> list[dict[str, Any]]:
         # Make the request
         with urllib_request.urlopen(req) as response:  # noqa: S310
             raw = json.loads(response.read().decode("utf-8"))
+
+        print(raw)
 
         if not isinstance(raw, list):
             msg = "Home Assistant API returned unexpected payload"
@@ -103,10 +106,6 @@ def main() -> None:
             patterns = re.split(r"\s+", f.read().strip())
     patterns.extend(args.patterns)
 
-    if not patterns:
-        print("Error: No patterns specified. Use --patterns-from-file or provide patterns as arguments.")
-        return
-
     print(f"Filtering states using {len(patterns)} patterns")
 
     # Auto-detect if input_source is a URL or file path
@@ -129,7 +128,7 @@ def main() -> None:
     input_count = len(data)
     print(f"Loaded {input_count} states from {source_name}")
 
-    filtered = sorted([e for e in data if e["entity_id"] in patterns], key=lambda x: x["entity_id"])
+    filtered = sorted([e for e in data if e["entity_id"] in patterns or not patterns], key=lambda x: x["entity_id"])
 
     output_count = len(filtered)
     print(f"Filtered to {output_count} states ({output_count / input_count * 100:.1f}% of original)")

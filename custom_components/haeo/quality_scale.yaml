@@ -103,7 +103,7 @@ silver:
 
   docs-configuration-parameters:
     status: done
-    comment: docs/reference/configuration-schema.md documents every hub and element field
+    comment: docs/user-guide/elements/ pages document every hub and element field
 
   docs-installation-parameters:
     status: done

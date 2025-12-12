@@ -28,3 +28,6 @@ known_devices.yaml
 
 # mkdocs site
 site/
+
+# Node modules
+node_modules/

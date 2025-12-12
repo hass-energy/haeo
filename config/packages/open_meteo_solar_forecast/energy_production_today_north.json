@@ -1,7 +1,14 @@
 {
   "entity_id": "sensor.energy_production_today_north",
   "state": "35.165",
+  "last_changed": "2025-10-05T10:33:00.161812+00:00",
+  "last_reported": "2025-10-05T10:59:00.151995+00:00",
+  "last_updated": "2025-10-05T10:33:00.161812+00:00",
+  "context": { "id": "01K6SYX401DRHMRCBBDZ1P1TD7", "parent_id": null, "user_id": null },
   "attributes": {
+    "device_class": "energy",
+    "friendly_name": "North solar production forecast Estimated energy production - today",
+    "unit_of_measurement": "kWh",
     "watts": {
       "2025-10-05T00:00:00+11:00": 0,
       "2025-10-05T00:15:00+11:00": 0,
@@ -125,17 +132,6 @@
       "2025-10-05T21:00:00+11:00": 0.0,
       "2025-10-05T22:00:00+11:00": 0.0,
       "2025-10-05T23:00:00+11:00": 0.0
-    },
-    "unit_of_measurement": "kWh",
-    "device_class": "energy",
-    "friendly_name": "North solar production forecast Estimated energy production - today"
-  },
-  "last_changed": "2025-10-05T10:33:00.161812+00:00",
-  "last_reported": "2025-10-05T10:59:00.151995+00:00",
-  "last_updated": "2025-10-05T10:33:00.161812+00:00",
-  "context": {
-    "id": "01K6SYX401DRHMRCBBDZ1P1TD7",
-    "parent_id": null,
-    "user_id": null
+    }
   }
 }

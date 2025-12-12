@@ -167,9 +167,54 @@ async def coordinator(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -
 
 ## Related Documentation
 
-- [Architecture](architecture.md) - System overview and component relationships
-- [Data Loading](data-loading.md) - How coordinator loads data from sensors
-- [Energy Models](energy-models.md) - Network entities and constraints
-- [Sensor Reference](../reference/sensors.md) - Exposed sensor entities
-- [Testing Guide](testing.md) - Testing patterns and fixtures
-- [Home Assistant DataUpdateCoordinator](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities) - Upstream pattern documentation
+<div class="grid cards" markdown>
+
+- :material-sitemap:{ .lg .middle } **Architecture**
+
+    ---
+
+    System overview and component relationships.
+
+    [:material-arrow-right: Architecture guide](architecture.md)
+
+- :material-database:{ .lg .middle } **Data Loading**
+
+    ---
+
+    How coordinator loads data from sensors.
+
+    [:material-arrow-right: Data loading guide](data-loading.md)
+
+- :material-network:{ .lg .middle } **Energy Models**
+
+    ---
+
+    Network entities and constraints.
+
+    [:material-arrow-right: Energy models](energy-models.md)
+
+- :material-chart-line:{ .lg .middle } **Sensor Reference**
+
+    ---
+
+    Exposed sensor entities and their meanings.
+
+    [:material-arrow-right: Understanding Results](../user-guide/optimization.md)
+
+- :material-test-tube:{ .lg .middle } **Testing Guide**
+
+    ---
+
+    Testing patterns and fixtures.
+
+    [:material-arrow-right: Testing guide](testing.md)
+
+- :material-home-assistant:{ .lg .middle } **Home Assistant DataUpdateCoordinator**
+
+    ---
+
+    Upstream pattern documentation.
+
+    [:material-arrow-right: HA documentation](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities)
+
+</div>

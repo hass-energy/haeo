@@ -2,12 +2,12 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
-if TYPE_CHECKING:
-    from custom_components.haeo.schema.util import UnitSpec
+from custom_components.haeo.schema.util import UnitSpec
 
 
 @dataclass(frozen=True)
@@ -54,7 +54,7 @@ def extract_entity_metadata(hass: HomeAssistant) -> list[EntityMetadata]:
         try:
             # This will only work for sensor entities that return floats
             unit = extractors.extract(state).unit
-        except (ValueError, KeyError):
+        except (ValueError, KeyError, HomeAssistantError):
             unit = state.attributes.get("unit_of_measurement")
 
         entities.append(EntityMetadata(entity_id=state.entity_id, unit_of_measurement=unit))

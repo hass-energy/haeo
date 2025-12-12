@@ -128,6 +128,7 @@ def test_extract_raises_for_non_numeric_state(hass: HomeAssistant) -> None:
 PARSER_MAP: dict[str, extractors.DataExtractor] = {
     extractors.amberelectric.DOMAIN: extractors.amberelectric.Parser,
     extractors.aemo_nem.DOMAIN: extractors.aemo_nem.Parser,
+    extractors.haeo.DOMAIN: extractors.haeo.Parser,
     extractors.solcast_solar.DOMAIN: extractors.solcast_solar.Parser,
     extractors.open_meteo_solar_forecast.DOMAIN: extractors.open_meteo_solar_forecast.Parser,
 }

@@ -1,13 +1,13 @@
 # Removing HAEO
 
-This guide explains how to completely remove the Home Assistant Energy Optimization (HAEO) integration from your system.
+This guide explains how to completely remove the Home Assistant Energy Optimizer (HAEO) integration from your system.
 
 ## Removal process (HACS installation)
 
 HAEO is distributed as a HACS custom component, so its files remain on disk after you remove the integration from the Home Assistant UI. Follow the full sequence below to ensure everything is deleted. The steps mirror the [official HACS removal guidance](https://hacs.xyz/docs/basic/operations/#uninstall-remove):
 
 1. Open **Settings** → **Devices & Services**.
-2. Locate **"Home Assistant Energy Optimization"**, open the **three-dot menu** (⋮), and choose **Delete**. Confirm the prompt.
+2. Locate **"Home Assistant Energy Optimizer"**, open the **three-dot menu** (⋮), and choose **Delete**. Confirm the prompt.
 3. Restart Home Assistant so the config entry unloads cleanly.
 4. After Home Assistant restarts, delete the `/custom_components/haeo/` directory using the File Editor add-on, SSH, or Samba.
 5. Restart Home Assistant again to make sure the component is fully removed and caches are cleared.

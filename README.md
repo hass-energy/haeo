@@ -2,11 +2,11 @@
     <img src="docs/assets/logo.svg" alt="HAEO Logo" width="512">
 </p>
 
-# HAEO - Home Assistant Energy Optimization
+# HAEO - Home Assistant Energy Optimizer
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration) [![GitHub Release](https://img.shields.io/github/release/hass-energy/haeo.svg)](https://github.com/hass-energy/haeo/releases) [![License](https://img.shields.io/github/license/hass-energy/haeo.svg)](LICENSE) [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://hass-energy.github.io/haeo/)
 
-HAEO (Home Assistant Energy Optimization) is a custom integration that optimizes your home's energy usage in real-time using linear programming.
+HAEO (Home Assistant Energy Optimizer) is a custom integration that optimizes your home's energy usage in real-time using linear programming.
 It helps you minimize energy costs by intelligently managing battery storage, solar generation, grid import/export, and loads based on electricity prices, forecasts, and system constraints.
 
 ## 🎯 Project Philosophy

@@ -2,11 +2,11 @@
     <img src="assets/logo.svg" alt="HAEO Logo" width="512">
 </p>
 
-# HAEO - Home Assistant Energy Optimization
+# HAEO - Home Assistant Energy Optimizer
 
 Welcome to the HAEO documentation!
 HAEO is a Home Assistant custom integration that optimizes your home's energy usage in real-time using linear programming.
-It helps you minimize energy costs by intelligently managing battery storage, solar generation, grid import/export, and loads based on electricity prices, forecasts, and system constraints.
+It helps you minimize energy costs by intelligently managing energy system elements based on electricity prices, forecasts, and system constraints.
 
 ## Quick Links
 
@@ -57,7 +57,9 @@ Configuration uses the standard [Home Assistant integration flow](https://www.ho
 
 ### Works with diverse energy setups
 
-Whether you have storage, on-site generation, flexible loads, or only the grid, HAEO treats each component as an element in the same optimization network.
+HAEO models your energy system as a network of connected elements.
+Each element—whether it stores energy, generates it, consumes it, or transfers it—participates in a single unified optimization.
+Learn about [available element types](user-guide/elements/index.md) in the user guide.
 
 ### Extensible modeling
 
@@ -80,9 +82,8 @@ Perfect for **end users** who want to install and configure HAEO:
 For those interested in **how the optimization works**:
 
 - [Mathematical Modeling Overview](modeling/index.md) - Linear programming formulation and network structure
-- [Battery Model](modeling/battery.md) - Storage dynamics and constraints
-- [Grid Model](modeling/grid.md) - Import and export cost modeling
-- [Component Models](modeling/battery.md) - Element-by-element formulations
+- [Model Layer Elements](modeling/model-layer/index.md) - Battery, SourceSink, and Connection models
+- [Device Layer Elements](modeling/device-layer/index.md) - How user-configured elements compose models
 
 ### :material-code-braces: Developer Guide
 
@@ -93,14 +94,6 @@ For **contributors and developers**:
 - [Units](developer-guide/units.md) - Unit system and numerical stability
 - [Testing](developer-guide/testing.md) - Running and writing tests
 - [Contributing](developer-guide/contributing.md) - Contribution guidelines
-
-### :material-file-document: Reference
-
-Quick **reference tables and schemas**:
-
-- [Element Types](reference/elements.md) - Complete element reference
-- [Sensor Types](reference/sensors.md) - All sensor types and meanings
-- [Configuration Schema](reference/configuration-schema.md) - Full config options
 
 ## Getting Help
 

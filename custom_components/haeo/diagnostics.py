@@ -1,166 +1,83 @@
 """Diagnostics support for HAEO integration."""
 
-from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant
-from homeassistant.util import slugify
+from homeassistant.loader import async_get_integration
+from homeassistant.util import dt as dt_util
 
-from .const import (
-    CONF_DEBOUNCE_SECONDS,
-    CONF_ELEMENT_TYPE,
-    CONF_HORIZON_HOURS,
-    CONF_PERIOD_MINUTES,
-    CONF_UPDATE_INTERVAL_MINUTES,
-    OPTIMIZATION_STATUS_PENDING,
-)
-from .coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
-from .model import (
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
-    OutputName,
-)
-from .validation import collect_participant_configs, validate_network_topology
+from .const import CONF_ELEMENT_TYPE, CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES
+from .coordinator import extract_entity_ids_from_config
+from .elements import is_element_config_schema
+from .sensor_utils import get_output_sensors
 
 
-def _get_hub_outputs(
-    coordinator: HaeoDataUpdateCoordinator,
-    config_entry: ConfigEntry,
-) -> Mapping[OutputName, CoordinatorOutput]:
-    """Return coordinator outputs for the hub element."""
+async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, Any]:
+    """Return diagnostics for a HAEO config entry.
 
-    if not coordinator.data:
-        return {}
-
-    hub_title = config_entry.title or config_entry.entry_id
-    hub_key = slugify(str(hub_title))
-    return coordinator.data.get(hub_key, {})
-
-
-def _get_output_state(
-    outputs: Mapping[OutputName, CoordinatorOutput],
-    output_name: OutputName,
-) -> Any | None:
-    """Extract the state value for a specific coordinator output."""
-
-    output = outputs.get(output_name)
-    return output.state if output and output.state is not None else None
-
-
-async def async_get_config_entry_diagnostics(_hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, Any]:
-    """Return diagnostics for a HAEO config entry."""
-    coordinator: HaeoDataUpdateCoordinator | None = config_entry.runtime_data
-
-    diagnostics: dict[str, Any] = {
-        "config_entry": {
-            "entry_id": config_entry.entry_id,
-            "title": config_entry.title,
-            "version": config_entry.version,
-            "domain": config_entry.domain,
-        },
-        "hub_config": {
-            CONF_HORIZON_HOURS: config_entry.data.get(CONF_HORIZON_HOURS),
-            CONF_PERIOD_MINUTES: config_entry.data.get(CONF_PERIOD_MINUTES),
-            CONF_UPDATE_INTERVAL_MINUTES: config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES),
-            CONF_DEBOUNCE_SECONDS: config_entry.data.get(CONF_DEBOUNCE_SECONDS),
-        },
+    Returns a dict with four main keys:
+    - config: HAEO configuration (participants, horizon, period)
+    - inputs: Input sensor states used in optimization
+    - outputs: Output sensor states from optimization results
+    - environment: Environment information (HA version, HAEO version, timestamp)
+    """
+    # Build config section with participants
+    config: dict[str, Any] = {
+        "participants": {},
+        CONF_HORIZON_HOURS: config_entry.data.get(CONF_HORIZON_HOURS),
+        CONF_PERIOD_MINUTES: config_entry.data.get(CONF_PERIOD_MINUTES),
     }
 
-    # Add subentry information
-    subentries_info: list[dict[str, Any]] = []
+    # Transform subentries into participants dict
     for subentry in config_entry.subentries.values():
-        raw_data = dict(subentry.data)
-        name = raw_data.get("name")
-
-        subentry_info: dict[str, Any] = {
-            "subentry_id": subentry.subentry_id,
-            "subentry_type": subentry.subentry_type,
-            "title": subentry.title,
-            "name": name,
-        }
-
         if subentry.subentry_type != "network":
-            raw_data.setdefault("name", name)
+            raw_data = dict(subentry.data)
+            raw_data.setdefault("name", subentry.title)
             raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
-            subentry_info["config"] = raw_data
+            config["participants"][subentry.title] = raw_data
 
-        subentries_info.append(subentry_info)
+    # Collect input sensor states for all entities used in the configuration
+    all_entity_ids: set[str] = set()
+    for subentry in config_entry.subentries.values():
+        if subentry.subentry_type == "network":
+            continue
+        # Create config dict with element_type
+        participant_config = dict(subentry.data)
+        participant_config[CONF_ELEMENT_TYPE] = subentry.subentry_type
+        # Extract entity IDs from valid element configs only
+        if is_element_config_schema(participant_config):
+            extracted_ids = extract_entity_ids_from_config(participant_config)
+            all_entity_ids.update(extracted_ids)
 
-    diagnostics["subentries"] = subentries_info
+    # Extract input states as dicts
+    inputs: list[dict[str, Any]] = [
+        state.as_dict() for entity_id in sorted(all_entity_ids) if (state := hass.states.get(entity_id)) is not None
+    ]
 
-    # Add coordinator state if available
-    if coordinator:
-        hub_outputs = _get_hub_outputs(coordinator, config_entry)
-        optimization_status = _get_output_state(hub_outputs, OUTPUT_NAME_OPTIMIZATION_STATUS)
-        optimization_cost = _get_output_state(hub_outputs, OUTPUT_NAME_OPTIMIZATION_COST)
-        optimization_duration = _get_output_state(hub_outputs, OUTPUT_NAME_OPTIMIZATION_DURATION)
-        last_update_time = getattr(coordinator, "last_update_success_time", None)
+    # Get output sensors using common utility function
+    # This filters to entities created by this config entry and cleans unstable fields
+    output_sensors = get_output_sensors(hass, config_entry)
+    outputs: dict[str, dict[str, Any]] = output_sensors
 
-        diagnostics["coordinator"] = {
-            "optimization_status": optimization_status or OPTIMIZATION_STATUS_PENDING,
-            "last_update_success": coordinator.last_update_success,
-            "update_interval": (coordinator.update_interval.total_seconds() if coordinator.update_interval else None),
-        }
+    # Get HAEO version from integration metadata
+    integration = await async_get_integration(hass, config_entry.domain)
+    haeo_version = integration.version or "unknown"
 
-        if (
-            last_update_time
-            or optimization_status
-            or optimization_cost is not None
-            or optimization_duration is not None
-        ):
-            last_optimization: dict[str, Any] = {
-                "status": optimization_status or OPTIMIZATION_STATUS_PENDING,
-                "duration_seconds": optimization_duration,
-                "cost": optimization_cost,
-            }
+    # Build environment section
+    environment: dict[str, Any] = {
+        "ha_version": ha_version,
+        "haeo_version": haeo_version,
+        "timestamp": dt_util.now().isoformat(),
+        "timezone": str(dt_util.get_default_time_zone()),
+    }
 
-            if last_update_time:
-                last_optimization["timestamp"] = last_update_time.isoformat()
-
-            diagnostics["last_optimization"] = last_optimization
-
-        # Summarize available outputs from the coordinator data
-        if coordinator.data:
-            outputs_summary: dict[str, Any] = {}
-            for element_name, outputs in coordinator.data.items():
-                element_summary: dict[str, Any] = {}
-                for output_name, output in outputs.items():
-                    forecast_points = len(output.forecast) if output.forecast else 0
-                    element_summary[output_name] = {
-                        "type": output.type,
-                        "unit": output.unit,
-                        "state": output.state,
-                        "value_count": forecast_points or (1 if output.state is not None else 0),
-                        "first_value": output.state if output.state is not None else None,
-                        "has_forecast": bool(output.forecast),
-                    }
-                outputs_summary[element_name] = element_summary
-            diagnostics["outputs"] = outputs_summary
-
-        # Add network structure information when available
-        if coordinator.network:
-            connection_pairs: list[dict[str, str]] = []
-            for element_name, element in coordinator.network.elements.items():
-                if element_name.startswith("connection_"):
-                    source = getattr(element, "source", None)
-                    target = getattr(element, "target", None)
-                    if source and target:
-                        connection_pairs.append({"from": source, "to": target})
-
-            connectivity_result = validate_network_topology(collect_participant_configs(config_entry))
-            connected_components = [list(component) for component in connectivity_result.components]
-
-            network_info: dict[str, Any] = {
-                "num_elements": len(coordinator.network.elements),
-                "element_names": list(coordinator.network.elements.keys()),
-                "connections": connection_pairs,
-                "connectivity_check": connectivity_result.is_connected,
-                "connected_components": connected_components,
-                "num_components": len(connected_components),
-            }
-
-            diagnostics["network"] = network_info
-
-    return diagnostics
+    # Return dict with alphabetically sorted keys
+    # This puts config and environment first, then inputs and outputs
+    return {
+        "config": config,
+        "environment": environment,
+        "inputs": inputs,
+        "outputs": outputs,
+    }

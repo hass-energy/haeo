@@ -12,12 +12,24 @@ uv sync
 uv run pytest
 ```
 
-## Topics
+## Architecture
+
+HAEO uses a layered architecture separating user configuration from optimization modeling:
 
 - [Architecture](architecture.md) - System design overview
+- [Adapter Layer](adapter-layer.md) - Device Layer to Model Layer transformation
+
+## Component Guides
+
+- [Data Loading](data-loading.md) - Sensor data extraction and loading
+- [Coordinator](coordinator.md) - Data update coordinator pattern
+- [Config Flow](config-flow.md) - Configuration UI patterns
+- [Energy Models](energy-models.md) - Creating new element types
+
+## Development
+
 - [Setup](setup.md) - Development environment with `uv`
 - [Units & Stability](units.md) - Unit system and numerical considerations
-- [Energy Models](energy-models.md) - Creating new element types
-- [Coordinator](coordinator.md) - Data update coordinator pattern
 - [Testing](testing.md) - Running and writing tests
 - [Contributing](contributing.md) - Contribution workflow
+- [Documentation Guidelines](documentation-guidelines.md) - Writing and maintaining docs

@@ -1,4 +1,4 @@
-"""Config flow for Home Assistant Energy Optimization integration."""
+"""Config flow for Home Assistant Energy Optimizer integration."""
 
 from .flows.hub import HubConfigFlow
 

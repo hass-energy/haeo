@@ -18,7 +18,7 @@ HAEO configuration happens entirely through Home Assistant's UI. You'll:
 
 1. Navigate to **Settings** → **Devices & Services**
 2. Click the **Add Integration** button (+ in bottom right)
-3. Search for **HAEO** or **Home Assistant Energy Optimization**
+3. Search for **HAEO** or **Home Assistant Energy Optimizer**
 4. Click on it to start the configuration flow
 
 ### Configure hub settings
@@ -38,9 +38,22 @@ A unique name for your energy hub (for example, "Home Energy System").
 
 The optimization time horizon in hours (1-168).
 
-Choose a horizon that matches the length of your forecasts so the optimizer can see the same window of data.
-Set at least 48 hours whenever forecasts support it because that lets batteries plan a full charge and discharge cycle with awareness of the next day's demand.
-Extending beyond 48 hours only helps if your battery capacity can sustain useful energy decisions over that period.
+**Recommended**: 48-72 hours for most residential systems.
+
+HAEO uses intelligent forecast cycling to extend partial forecast data across the full horizon.
+This means a 24-hour solar forecast automatically cycles to cover 48+ hour horizons with time-of-day alignment preserved.
+You don't need forecast data covering your entire horizon.
+
+**Why 48-72 hours**:
+
+- Enables multi-day battery charge/discharge planning
+- Captures tomorrow's price patterns for today's decisions
+- Provides lookahead for optimal solar self-consumption vs export timing
+- Longer horizons add computational cost without practical benefit for typical battery capacities
+
+**Shorter horizons** (12-24 hours): Use only if optimization duration becomes excessive or battery capacity is very small.
+
+**Longer horizons** (72+ hours): Only beneficial for very large battery banks that can store multiple days of energy.
 
 #### Period minutes
 
@@ -57,12 +70,15 @@ Click **Submit** to create your hub.
 After creating your hub, add elements to represent your devices through the Home Assistant UI.
 
 1. Navigate to **Settings** → **Devices & Services**
-2. Find your **HAEO** hub integration
-3. Click on the hub to open its details page
-4. Click **Add Entry**
-5. Choose the element type you want to add
-6. Fill in the configuration fields
-7. Click **Submit** to create the element
+2. Find your **HAEO** integration
+3. Click on the integration card to open the hub details page
+4. Click the **`:` menu button** (three vertical dots in top right)
+5. Select **Add Entry** from the dropdown menu
+6. Choose the element type you want to add from the list
+7. Fill in the configuration fields for that element type
+8. Click **Submit** to create the element
+
+**Editing existing elements**: Click the :material-cog: **cog icon** next to each element entry to modify its configuration.
 
 !!! note "Network entry"
 
@@ -90,18 +106,18 @@ Add them from the same hub page as elements by selecting **Connection** from the
 
 ```mermaid
 graph LR
-    Grid[Grid] <-->|Bi-directional| Net[Net]
+    Grid[Grid] <--> Net[Main Node]
     Net <--> Battery[Battery]
-    Solar[Solar] --> Net
+    Solar[Photovoltaics] --> Net
     Net --> Load[Load]
 ```
 
-This requires these connections:
+This network requires four connections:
 
-1. Grid ↔ Net (bi-directional)
-2. Battery ↔ Net (bi-directional)
-3. Solar → Net (one-way)
-4. Net → Load (one-way)
+1. Grid ↔ Main Node (bidirectional: import and export)
+2. Battery ↔ Main Node (bidirectional: charge and discharge)
+3. Photovoltaics → Main Node (unidirectional: generation only)
+4. Main Node → Load (unidirectional: consumption only)
 
 See the [Connections guide](elements/connections.md) for detailed information and examples.
 
@@ -143,7 +159,16 @@ Changes trigger immediate re-optimization with the new parameters.
 
 ### Start simple
 
-Begin with a minimal configuration (Grid + Battery + Connection), verify optimization works, then add complexity gradually.
+Begin with a minimal configuration to verify optimization works, then add complexity gradually.
+
+**Recommended first configuration**:
+
+- 1 Grid element (import/export prices)
+- 1 Battery element (with current SOC sensor)
+- 1 Load element (constant or forecast)
+- 3 Connections (Grid↔Node, Battery↔Node, Node→Load)
+
+This simple network is enough to test optimization behavior before adding solar, additional loads, or complex connection patterns.
 
 ### Use meaningful names
 

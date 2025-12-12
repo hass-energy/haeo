@@ -1,4 +1,4 @@
-"""Sensor platform for Home Assistant Energy Optimization integration."""
+"""Sensor platform for Home Assistant Energy Optimizer integration."""
 
 import logging
 
@@ -6,7 +6,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.util import slugify
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
@@ -35,30 +34,38 @@ async def async_setup_entry(
 
     if coordinator.data:
         for subentry in config_entry.subentries.values():
-            outputs = coordinator.data.get(slugify(subentry.title), {})
+            # Get all devices under this subentry (may be multiple, e.g., battery regions)
+            subentry_devices = coordinator.data.get(subentry.title, {})
 
-            # Get or create the device for this element
-            device_entry = dr.async_get_or_create(
-                identifiers={(DOMAIN, f"{config_entry.entry_id}_{subentry.subentry_id}")},
-                config_entry_id=config_entry.entry_id,
-                config_subentry_id=subentry.subentry_id,
-                translation_key=subentry.subentry_type,
-                translation_placeholders=subentry.data,
-            )
+            for device_name, device_outputs in subentry_devices.items():
+                # Create a unique device identifier that includes device name for sub-devices
+                is_sub_device = device_name != subentry.title
+                device_id_suffix = f"{subentry.subentry_id}_{device_name}" if is_sub_device else subentry.subentry_id
 
-            for output_name, output_data in outputs.items():
-                entities.append(
-                    HaeoSensor(
-                        coordinator,
-                        device_entry=device_entry,
-                        element_key=slugify(subentry.title),
-                        element_title=subentry.title,
-                        element_type=subentry.subentry_type,
-                        output_name=output_name,
-                        output_data=output_data,
-                        unique_id=f"{config_entry.entry_id}_{subentry.subentry_id}_{output_name}",
-                    )
+                # Get or create the device for this element
+                # Device name is already constrained to ElementDeviceName type, so use it directly as translation key
+                device_entry = dr.async_get_or_create(
+                    identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")},
+                    config_entry_id=config_entry.entry_id,
+                    config_subentry_id=subentry.subentry_id,
+                    translation_key=device_name,
+                    translation_placeholders={"name": subentry.title},
                 )
+
+                for output_name, output_data in device_outputs.items():
+                    entities.append(
+                        HaeoSensor(
+                            coordinator,
+                            device_entry=device_entry,
+                            subentry_key=subentry.title,
+                            device_key=device_name,
+                            element_title=subentry.title,
+                            element_type=subentry.subentry_type,
+                            output_name=output_name,
+                            output_data=output_data,
+                            unique_id=f"{config_entry.entry_id}_{device_id_suffix}_{output_name}",
+                        )
+                    )
 
     if entities:
         async_add_entities(entities)

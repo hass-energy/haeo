@@ -4,6 +4,42 @@ HAEO follows Home Assistant integration patterns with specialized optimization c
 This guide focuses on HAEO-specific architecture.
 For Home Assistant fundamentals, see the [Home Assistant developer documentation](https://developers.home-assistant.io/).
 
+## Layered Architecture
+
+HAEO separates user configuration from mathematical modeling through two distinct layers:
+
+**Device Layer**: User-configured elements (Battery, Grid, Photovoltaics, Load, Node, Connection) that integrate with Home Assistant sensors and present user-friendly outputs.
+
+**Model Layer**: Mathematical building blocks (battery, source_sink, connection) that form the linear programming problem.
+
+The [Adapter Layer](adapter-layer.md) transforms between these layers, enabling composition where a single Device Layer element creates multiple Model Layer elements and devices.
+
+```mermaid
+graph LR
+    subgraph "Device Layer"
+        Config[User Configuration]
+    end
+
+    subgraph "Adapter Layer"
+        Adapt[Element Adapters]
+    end
+
+    subgraph "Model Layer"
+        Model[LP Model]
+    end
+
+    subgraph "Output"
+        Sensors[HA Sensors]
+    end
+
+    Config --> Adapt
+    Adapt --> Model
+    Model -->|optimize| Adapt
+    Adapt --> Sensors
+```
+
+See [Modeling Documentation](../modeling/index.md) for detailed layer descriptions.
+
 ## System Overview
 
 ```mermaid
@@ -11,14 +47,12 @@ graph TD
     CF[Config Flow] --> CE[Config Entry]
     CE --> Coord[Coordinator]
     Coord --> Loaders[Data Loaders]
-    Coord --> Builder[Network Builder]
-    Builder --> Model[Network Model]
+    Coord --> Adapt[Adapter Layer]
+    Adapt --> Model[Network Model]
     Model --> Optimizer[HiGHS Optimizer]
     Optimizer --> Results[Results]
-    Results --> Sensors[Sensors]
-
-    style Coord fill:#FFE4B5
-    style Optimizer fill:#90EE90
+    Results --> Adapt
+    Adapt --> Sensors[Sensors]
 ```
 
 ## Core Components
@@ -69,7 +103,7 @@ LP representation using PuLP:
 - **ConstantLoad, ForecastLoad**: Consumption elements
 - **Node**: Virtual balance point enforcing Kirchhoff's law
 - **Connection**: Power flow path with optional min/max limits
-- **Network**: Container with `optimize()`, `cost()`, and `constraints()` methods
+- **Network**: Container with `build()`, `optimize()`, and `cost()` methods
 
 ### Optimization
 
@@ -127,7 +161,7 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
     - Inherit from `Element`
     - Define power/energy variables
-    - Implement `cost()` and `constraints()` methods
+    - Implement `build()` and `constraints()` methods
 
 2. **Add element metadata** in `elements/`:
 
@@ -166,6 +200,30 @@ Extend `schema/fields.py`:
 
 ## Related Documentation
 
-- [Coordinator Guide](coordinator.md)
-- [Energy Models](energy-models.md)
-- [Testing](testing.md)
+<div class="grid cards" markdown>
+
+- :material-sync:{ .lg .middle } **Coordinator Guide**
+
+    ---
+
+    Data update coordination patterns.
+
+    [:material-arrow-right: Coordinator guide](coordinator.md)
+
+- :material-network:{ .lg .middle } **Energy Models**
+
+    ---
+
+    Network entities and constraints.
+
+    [:material-arrow-right: Energy models](energy-models.md)
+
+- :material-test-tube:{ .lg .middle } **Testing**
+
+    ---
+
+    Testing patterns and fixtures.
+
+    [:material-arrow-right: Testing guide](testing.md)
+
+</div>

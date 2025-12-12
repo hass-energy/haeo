@@ -5,16 +5,14 @@ from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass, field
 import io
 import logging
+from typing import Any
 
 from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, getSolver, lpSum, value
 
 from .battery import Battery
 from .connection import Connection
 from .element import Element
-from .grid import Grid
-from .load import Load
-from .node import Node
-from .photovoltaics import Photovoltaics
+from .source_sink import SourceSink
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,9 +33,9 @@ class Network:
     name: str
     period: float  # Period in hours
     n_periods: int
-    elements: dict[str, Element | Connection] = field(default_factory=dict)
+    elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
 
-    def add(self, element_type: str, name: str, **kwargs: object) -> Element | Connection:
+    def add(self, element_type: str, name: str, **kwargs: object) -> Element[Any, Any]:
         """Add an element to the network by type.
 
         Args:
@@ -49,13 +47,10 @@ class Network:
             The created element
 
         """
-        factories: dict[str, Callable[..., Element | Connection]] = {
+        factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
-            "photovoltaics": Photovoltaics,
-            "load": Load,
-            "grid": Grid,
-            "node": Node,
             "connection": Connection,
+            "source_sink": SourceSink,
         }
 
         factory = factories[element_type.lower()]
@@ -68,10 +63,17 @@ class Network:
             source_element = self.elements.get(element.source)
             target_element = self.elements.get(element.target)
 
-            if source_element is not None and not isinstance(source_element, Connection):
+            if source_element is not None:
                 source_element.register_connection(element, "source")
-            if target_element is not None and isinstance(target_element, Connection):
+            else:
+                msg = f"Failed to register connection {name} with source {element.source}: Not found or invalid"
+                raise ValueError(msg)
+
+            if target_element is not None:
                 target_element.register_connection(element, "target")
+            else:
+                msg = f"Failed to register connection {name} with target {element.target}: Not found or invalid"
+                raise ValueError(msg)
 
         return element
 
@@ -122,13 +124,14 @@ class Network:
         # Add the objective function (minimize total cost)
         prob += lpSum(c for element in self.elements.values() for c in element.cost())
 
-        # Add all constraints
-        for constraint in self.constraints():
-            prob += constraint
+        # Add element constraints
+        for element in self.elements.values():
+            for constraint in element.constraints():
+                prob += constraint
 
         # Get the specified solver
         try:
-            solver = getSolver(optimizer)
+            solver = getSolver(optimizer, msg=0)
         except Exception as e:
             msg = f"Failed to get solver '{optimizer}': {e}"
             raise ValueError(msg) from e

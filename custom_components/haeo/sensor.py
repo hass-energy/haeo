@@ -1,4 +1,4 @@
-"""Sensor platform for Home Assistant Energy Optimization integration.
+"""Sensor platform for Home Assistant Energy Optimizer integration.
 
 This module serves as the entry point for the sensor platform, re-exporting
 functionality from the sensors package.

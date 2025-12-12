@@ -1,0 +1,8 @@
+{
+  "name": "haeo",
+  "private": true,
+  "dependencies": {
+    "prettier": "^3.7.3",
+    "prettier-plugin-sort-json": "^4.1.1"
+  }
+}

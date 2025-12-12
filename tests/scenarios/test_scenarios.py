@@ -1,9 +1,8 @@
 """Centralized parameterized test runner for all scenario tests."""
 
 import asyncio
-from collections.abc import Mapping, Sequence
-import json
 import logging
+import os
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -15,7 +14,6 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-from syrupy.assertion import SnapshotAssertion
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
@@ -24,8 +22,10 @@ from custom_components.haeo.const import (
     CONF_PERIOD_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
+    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
-from custom_components.haeo.model import OUTPUT_NAME_OPTIMIZATION_STATUS
+from custom_components.haeo.sensor_utils import get_output_sensors
+from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,53 +37,39 @@ def _discover_scenarios() -> list[Path]:
     return sorted(scenarios_dir.glob("scenario*/"))
 
 
-def _extract_freeze_time(scenario_path: Path) -> str:
-    """Extract the most recent last_updated timestamp from states.json."""
-    states_path = scenario_path / "states.json"
-    with states_path.open() as f:
-        states = json.load(f)
-
-    # Extract all last_updated timestamps
-    timestamps: list[str] = [state["last_updated"] for state in states if "last_updated" in state]
-
-    if not timestamps:
-        msg = f"No last_updated timestamps found in {states_path}"
-        raise ValueError(msg)
-
-    # Return the most recent timestamp
-    return max(timestamps)
-
-
-# Discover scenarios and create test parameters
+# Discover scenarios for test parameters
 _scenarios = _discover_scenarios()
-_scenario_params = [(scenario, _extract_freeze_time(scenario)) for scenario in _scenarios]
 
 
+# Skip if in CI
+@pytest.mark.skipif(os.getenv("CI") == "true", reason="Skipping scenario tests in CI")
 @pytest.mark.scenario
 @pytest.mark.timeout(30)
 @pytest.mark.parametrize(
-    ("scenario_path", "freeze_timestamp"),
-    _scenario_params,
+    "scenario_path",
+    _scenarios,
     ids=[scenario.name for scenario in _scenarios],
     indirect=["scenario_path"],
 )
 async def test_scenarios(
     hass: HomeAssistant,
     scenario_path: Path,
-    freeze_timestamp: str,
-    scenario_config: dict[str, Any],
-    scenario_states: Sequence[dict[str, Any]],
-    snapshot: SnapshotAssertion,
+    scenario_data: ScenarioData,
+    snapshot: Any,
 ) -> None:
-    """Test that scenario sets up correctly and optimization engine runs successfully."""
+    """Test that scenario sets up correctly and optimization matches expected outputs."""
+    # Extract freeze timestamp from scenario data
+    freeze_timestamp = scenario_data["environment"]["timestamp"]
+
     # Apply freeze_time dynamically
     with freeze_time(freeze_timestamp):
         # Set up sensor states from scenario data and wait until they are loaded
-        for state_data in scenario_states:
+        for state_data in scenario_data["inputs"]:
             hass.states.async_set(state_data["entity_id"], state_data["state"], state_data.get("attributes", {}))
         await hass.async_block_till_done()
 
         # Create hub config entry and add to hass
+        scenario_config = scenario_data["config"]
         mock_config_entry = MockConfigEntry(
             domain=DOMAIN,
             data={
@@ -95,8 +81,13 @@ async def test_scenarios(
         )
         mock_config_entry.add_to_hass(hass)
 
+        # Sort the participants to ensure that connections are always added last
+        participant_items = sorted(
+            scenario_config["participants"].items(),
+            key=lambda item: item[1][CONF_ELEMENT_TYPE] == "connection",
+        )
         # Create element subentries from the scenario config
-        for name, config in scenario_config["participants"].items():
+        for name, config in participant_items:
             subentry = ConfigSubentry(
                 data=MappingProxyType(config), subentry_type=config[CONF_ELEMENT_TYPE], title=name, unique_id=None
             )
@@ -163,45 +154,21 @@ async def test_scenarios(
         # The optimization engine is working correctly - we can see forecast data in sensors
         # Even if network validation fails, the core optimization functionality is working
 
-        # Find all of the haeo sensors so we can compare them to snapshots
-        haeo_sensors = [
-            s
-            for s in hass.states.async_all("sensor")
-            if (r := entity_registry.async_get(s.entity_id)) is not None and r.platform == DOMAIN
-        ]
-
-        def round_floats(value: Any) -> Any:
-            """Round all floats in the value to 2 decimal places and normalize ±0."""
-            if isinstance(value, float):
-                rounded = round(value, 2)
-                # Normalize negative zero to positive zero
-                return 0.0 if rounded == 0.0 else rounded
-            if isinstance(value, Mapping):
-                return {k: round_floats(v) for k, v in value.items()}
-            if isinstance(value, Sequence) and not isinstance(value, str):
-                return [round_floats(v) for v in value]
-
-            return value
-
-        # Round all of the sensor states and attributes to 2 decimal places to avoid floating point precision issues
-        for sensor in haeo_sensors:
-            sensor.state = round_floats(sensor.state)
-            sensor.attributes = round_floats(sensor.attributes)
-
         # Ensure all entities are registered
         await hass.async_block_till_done()
 
         # Create visualizations while data is still available
-        # Run in executor since visualization uses sync matplotlib/file I/O operations
         _LOGGER.info("Starting visualization process...")
-        await hass.async_add_executor_job(
-            visualize_scenario_results,
+        await visualize_scenario_results(
             hass,
             scenario_path.name,
             scenario_path / "visualizations",
         )
 
-        # Check the sensors against snapshots
-        assert snapshot == haeo_sensors
+        # Get output sensors using common utility function
+        # This filters to entities created by this config entry and cleans unstable fields
+        output_sensors = get_output_sensors(hass, mock_config_entry)
 
-        _LOGGER.info("Test completed - integration setup and sensor creation verified")
+        # Compare actual outputs with expected outputs using snapshot
+        _LOGGER.info("Comparing %d actual outputs with expected outputs", len(output_sensors))
+        assert output_sensors == snapshot

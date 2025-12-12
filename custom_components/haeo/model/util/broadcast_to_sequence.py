@@ -17,14 +17,18 @@ def broadcast_to_sequence(
 def broadcast_to_sequence(
     value: float | Sequence[float],
     n_periods: int,
-) -> list[float]: ...
+) -> Sequence[float]: ...
 
 
 def broadcast_to_sequence(
     value: float | Sequence[float] | None,
     n_periods: int,
-) -> list[float] | None:
+) -> Sequence[float] | None:
     """Broadcast a scalar or sequence to match n_periods.
+
+    For single values, broadcasts to n_periods length.
+    For sequences that are too short, extends by repeating the last value.
+    For sequences that are too long, truncates to n_periods.
 
     Args:
         value: Scalar value, sequence to broadcast, or None
@@ -34,7 +38,7 @@ def broadcast_to_sequence(
         List of floats with length n_periods, or None if input is None
 
     Raises:
-        ValueError: If sequence length doesn't match n_periods
+        ValueError: If the input sequence is empty
 
     """
     # Handle None input
@@ -44,15 +48,23 @@ def broadcast_to_sequence(
     # Convert to array and broadcast
     value_array = np.atleast_1d(value)
 
-    # If it's a single value, broadcast it
-    if len(value_array) == 1:
-        result: list[float] = np.broadcast_to(value_array, (n_periods,)).tolist()
-        return result
-
-    # If it's a sequence, validate length
-    if len(value_array) != n_periods:
-        msg = f"Sequence length ({len(value_array)}) must match n_periods ({n_periods})"
+    if value_array.size == 0:
+        msg = "Sequence cannot be empty"
         raise ValueError(msg)
 
-    result_list: list[float] = value_array.tolist()
-    return result_list
+    # If it's a single value, broadcast it
+    if len(value_array) == 1:
+        broadcast_result: list[float] = np.broadcast_to(value_array, (n_periods,)).tolist()
+        return broadcast_result
+
+    # If it's a sequence repeat the last value if it's not the same length
+    if len(value_array) == n_periods:
+        exact_match_result: list[float] = value_array.tolist()
+        return exact_match_result
+
+    if len(value_array) > n_periods:
+        truncated_result: list[float] = value_array[:n_periods].tolist()
+        return truncated_result
+
+    extended_result: list[float] = value_array.tolist() + [float(value_array[-1])] * (n_periods - len(value_array))
+    return extended_result
