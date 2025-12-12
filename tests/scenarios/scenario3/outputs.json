@@ -6,7 +6,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "node",
+      "element_name": "AC Net",
       "element_type": "node",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.01830727565510165 },
@@ -598,7 +598,7 @@
       "advanced": false,
       "device_class": "energy",
       "direction": null,
-      "element_name": "battery",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 19.8276 },
@@ -1191,7 +1191,7 @@
       "advanced": true,
       "device_class": "monetary",
       "direction": "-",
-      "element_name": "battery_device_normal",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -0.002 },
@@ -1783,7 +1783,7 @@
       "advanced": true,
       "device_class": "monetary",
       "direction": "+",
-      "element_name": "battery_device_normal",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.002 },
@@ -2375,7 +2375,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "battery_device_normal",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -4.954370247389761e-15 },
@@ -2967,7 +2967,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "battery_device_normal",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -0.0 },
@@ -3559,7 +3559,7 @@
       "advanced": true,
       "device_class": "energy",
       "direction": null,
-      "element_name": "battery_device_normal",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 16.6036 },
@@ -4152,7 +4152,7 @@
       "advanced": true,
       "device_class": "power",
       "direction": "-",
-      "element_name": "battery_device_normal",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.0 },
@@ -4745,7 +4745,7 @@
       "advanced": true,
       "device_class": "power",
       "direction": "+",
-      "element_name": "battery_device_normal",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 1.0101010101010102 },
@@ -5338,7 +5338,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "battery_device_normal",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -0.0 },
@@ -5930,7 +5930,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "battery_device_normal",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -0.0 },
@@ -6522,7 +6522,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "battery",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.01645753623188397 },
@@ -7114,7 +7114,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "-",
-      "element_name": "battery",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.0 },
@@ -7707,7 +7707,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "+",
-      "element_name": "battery",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 1.0101010101010102 },
@@ -8300,7 +8300,7 @@
       "advanced": false,
       "device_class": "battery",
       "direction": null,
-      "element_name": "battery",
+      "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 61.5 },
@@ -8894,7 +8894,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "load",
+      "element_name": "Constant Load",
       "element_type": "load",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.01830727565510165 },
@@ -9486,7 +9486,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "-",
-      "element_name": "load",
+      "element_name": "Constant Load",
       "element_type": "load",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 1.0 },
@@ -10079,7 +10079,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "-",
-      "element_name": "load",
+      "element_name": "Constant Load",
       "element_type": "load",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 1.0 },
@@ -10672,7 +10672,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "node",
+      "element_name": "DC Net",
       "element_type": "node",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.01830727565510165 },
@@ -11264,7 +11264,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": "-",
-      "element_name": "grid",
+      "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.21 },
@@ -11856,7 +11856,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": "+",
-      "element_name": "grid",
+      "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.55 },
@@ -12448,7 +12448,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "grid",
+      "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -0.0 },
@@ -13040,7 +13040,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "grid",
+      "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -0.0 },
@@ -13632,7 +13632,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "-",
-      "element_name": "grid",
+      "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 30.0 },
@@ -14225,7 +14225,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "+",
-      "element_name": "grid",
+      "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 55.0 },
@@ -14818,7 +14818,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "-",
-      "element_name": "grid",
+      "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.0 },
@@ -15411,7 +15411,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "+",
-      "element_name": "grid",
+      "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.0 },
@@ -16004,7 +16004,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "+",
-      "element_name": "connection",
+      "element_name": "Inverter",
       "element_type": "connection",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 29.999 },
@@ -16597,7 +16597,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "-",
-      "element_name": "connection",
+      "element_name": "Inverter",
       "element_type": "connection",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 29.999 },
@@ -17190,7 +17190,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "+",
-      "element_name": "connection",
+      "element_name": "Inverter",
       "element_type": "connection",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 1.0 },
@@ -17783,7 +17783,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "-",
-      "element_name": "connection",
+      "element_name": "Inverter",
       "element_type": "connection",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.0 },
@@ -18376,7 +18376,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "connection",
+      "element_name": "Inverter",
       "element_type": "connection",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -0.0 },
@@ -18968,7 +18968,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "connection",
+      "element_name": "Inverter",
       "element_type": "connection",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -0.0 },
@@ -19560,7 +19560,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "connection",
+      "element_name": "Inverter",
       "element_type": "connection",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -0.0 },
@@ -20145,9 +20145,9 @@
       "unit_of_measurement": "$/kW"
     }
   },
-  "sensor.mock_title_optimization_cost": { "entity_id": "sensor.mock_title_optimization_cost", "state": "-14.0537754317802", "attributes": { "advanced": false, "device_class": "monetary", "direction": null, "element_name": "network", "element_type": "network", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "EUR" } },
-  "sensor.mock_title_optimization_duration": { "entity_id": "sensor.mock_title_optimization_duration", "state": "0.0", "attributes": { "advanced": false, "device_class": "duration", "direction": null, "element_name": "network", "element_type": "network", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" } },
-  "sensor.mock_title_optimization_status": { "entity_id": "sensor.mock_title_optimization_status", "state": "success", "attributes": { "advanced": false, "device_class": "enum", "direction": null, "element_name": "network", "element_type": "network", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" } },
+  "sensor.mock_title_optimization_cost": { "entity_id": "sensor.mock_title_optimization_cost", "state": "-14.0537754317802", "attributes": { "advanced": false, "device_class": "monetary", "direction": null, "element_name": "Mock Title", "element_type": "network", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "EUR" } },
+  "sensor.mock_title_optimization_duration": { "entity_id": "sensor.mock_title_optimization_duration", "state": "0.0", "attributes": { "advanced": false, "device_class": "duration", "direction": null, "element_name": "Mock Title", "element_type": "network", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" } },
+  "sensor.mock_title_optimization_status": { "entity_id": "sensor.mock_title_optimization_status", "state": "success", "attributes": { "advanced": false, "device_class": "enum", "direction": null, "element_name": "Mock Title", "element_type": "network", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" } },
   "sensor.solar_forecast_limit_price_shadow": {
     "entity_id": "sensor.solar_forecast_limit_price_shadow",
     "state": "-0.0183072756551017",
@@ -20155,7 +20155,7 @@
       "advanced": false,
       "device_class": "monetary",
       "direction": null,
-      "element_name": "photovoltaics",
+      "element_name": "Solar",
       "element_type": "photovoltaics",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -0.01830727565510165 },
@@ -20747,7 +20747,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "+",
-      "element_name": "photovoltaics",
+      "element_name": "Solar",
       "element_type": "photovoltaics",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": -0.0 },
@@ -21340,7 +21340,7 @@
       "advanced": false,
       "device_class": "power",
       "direction": "+",
-      "element_name": "photovoltaics",
+      "element_name": "Solar",
       "element_type": "photovoltaics",
       "forecast": [
         { "time": "2025-11-06T01:00:00.000000-0800", "value": 0.0 },
