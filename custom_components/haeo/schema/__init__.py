@@ -9,13 +9,12 @@ import voluptuous as vol
 from custom_components.haeo.data.loader import ConstantLoader, Loader
 from custom_components.haeo.data.loader.extractors import EntityMetadata
 
-from .fields import FieldMeta, FieldValidator
+from .fields import FieldMeta
 from .params import SchemaParams
 
 __all__ = [
     "EntityMetadata",
     "FieldMeta",
-    "FieldValidator",
     "available",
     "get_field_meta",
     "get_loader_instance",
@@ -228,7 +227,7 @@ def schema_for_type(cls: type, **schema_params: Unpack[SchemaParams]) -> vol.Sch
 
     """
     annotated_fields = _get_annotated_fields(cls)
-    schema: dict[vol.Required | vol.Optional, FieldValidator] = {}
+    schema: dict[vol.Required | vol.Optional, vol.All] = {}
     for field, (meta, is_optional) in annotated_fields.items():
         validator = meta.create_schema(**schema_params)
         schema_key = (vol.Optional if is_optional else vol.Required)(field)

@@ -27,8 +27,6 @@ from custom_components.haeo.data.loader.extractors import EntityMetadata
 from .params import SchemaParams
 from .util import UnitSpec
 
-type FieldValidator = vol.All | BooleanSelector | EntitySelector | NumberSelector | SelectSelector
-
 
 @dataclass(frozen=True)
 class FieldMeta(ABC):
@@ -37,12 +35,12 @@ class FieldMeta(ABC):
     field_type: str
     loader: Loader
 
-    def create_schema(self, **schema_params: Unpack[SchemaParams]) -> FieldValidator:
+    def create_schema(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
         """Return the voluptuous validators for this field."""
         return self._get_field_validators(**schema_params)
 
     @abstractmethod
-    def _get_field_validators(self, **schema_params: Unpack[SchemaParams]) -> FieldValidator:
+    def _get_field_validators(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
         """Return the validators (selector or callable) for this field."""
 
 
@@ -61,7 +59,7 @@ class PowerFieldMeta(FieldMeta):
                 NumberSelectorConfig(
                     mode=NumberSelectorMode.BOX,
                     min=0,
-                    step=0.01,
+                    step=0.001,
                     unit_of_measurement=UnitOfPower.KILO_WATT,
                 )
             ),
@@ -77,7 +75,7 @@ class SensorFieldMeta(FieldMeta):
     loader: TimeSeriesLoader = field(default_factory=TimeSeriesLoader)
     field_type: Literal["sensor"] = "sensor"
 
-    def _get_field_validators(self, **schema_params: Unpack[SchemaParams]) -> EntitySelector:
+    def _get_field_validators(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
         """Return entity selector with unit-based filtering."""
         # Filter incompatible entities based on accepted_units
         entity_metadata: Sequence[EntityMetadata] = schema_params.get("entity_metadata", [])
@@ -85,12 +83,14 @@ class SensorFieldMeta(FieldMeta):
             v.entity_id for v in entity_metadata if not v.is_compatible_with(self.accepted_units)
         ]
 
-        return EntitySelector(
-            EntitySelectorConfig(
-                domain=["sensor", "input_number"],
-                multiple=self.multiple,
-                exclude_entities=incompatible_entities,
-            )
+        return vol.All(
+            EntitySelector(
+                EntitySelectorConfig(
+                    domain=["sensor", "input_number"],
+                    multiple=self.multiple,
+                    exclude_entities=incompatible_entities,
+                )
+            ),
         )
 
 
@@ -109,7 +109,7 @@ class EnergyFieldMeta(FieldMeta):
                 NumberSelectorConfig(
                     mode=NumberSelectorMode.BOX,
                     min=0,
-                    step=0.01,
+                    step=0.001,
                     unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
                 )
             ),
@@ -129,7 +129,7 @@ class PriceFieldMeta(FieldMeta):
             NumberSelector(
                 NumberSelectorConfig(
                     mode=NumberSelectorMode.BOX,
-                    step=1,
+                    step=0.001,
                     unit_of_measurement=f"{CURRENCY_DOLLAR}/{UnitOfEnergy.KILO_WATT_HOUR}",
                 )
             ),
@@ -210,7 +210,7 @@ class PowerFlowFieldMeta(FieldMeta):
         return vol.All(
             vol.Coerce(float),
             NumberSelector(
-                NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=0.01, unit_of_measurement=UnitOfPower.KILO_WATT)
+                NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=0.001, unit_of_measurement=UnitOfPower.KILO_WATT)
             ),
         )
 

@@ -110,7 +110,8 @@ def test_connection_outputs(case: ConnectionTestCase) -> None:
     outputs = _solve_connection_scenario(element, case.get("inputs"))
 
     # Validate outputs match expected
-    expected_outputs = case["expected_outputs"]
+    expected_outputs = case.get("expected_outputs")
+    assert expected_outputs is not None
     assert set(outputs.keys()) == set(expected_outputs.keys())
 
     for output_name, expected in expected_outputs.items():

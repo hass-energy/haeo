@@ -4,7 +4,6 @@ This module provides factory functions and utilities for creating test element i
 """
 
 from collections.abc import Sequence
-from typing import Any, cast
 
 from pulp import LpVariable
 
@@ -13,11 +12,9 @@ from .element_types import ElementTestCase
 
 
 def fix_lp_variable(variable: LpVariable, value: float) -> None:
-    """Assign a fixed value to an LP variable using typed casts for mypy."""
-
-    lp_variable = cast("Any", variable)
-    lp_variable.setInitialValue(value)
-    lp_variable.fixValue()
+    """Assign a fixed value to an LP variable."""
+    variable.setInitialValue(value)
+    variable.fixValue()
 
 
 def lp_sequence(name: str, length: int) -> Sequence[LpVariable]:

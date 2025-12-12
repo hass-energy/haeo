@@ -100,6 +100,16 @@ stubPath = "stubs"
 include = ["tests", "custom_components"]
 extraPaths = ["."]
 
+# Disable errors that propagate from third-party incomplete types
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownLambdaType = false
+reportUnknownParameterType = false
+
+# Disable missing stubs warning
+reportMissingTypeStubs = false
+
 # Test-specific overrides - allow patterns common in testing
 [[tool.pyright.executionEnvironments]]
 root = "tests"
