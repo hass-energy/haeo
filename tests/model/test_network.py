@@ -48,11 +48,11 @@ def test_network_add_duplicate_element() -> None:
     )
 
     # Add first battery
-    battery1 = network.add(ELEMENT_TYPE_BATTERY, "test_battery", capacity=10000, initial_charge_percentage=50)
+    battery1 = network.add(ELEMENT_TYPE_BATTERY, "test_battery", capacity=10000, initial_charge=5000)  # 50% of 10000
     assert battery1 is not None
 
     # Try to add another element with same name
-    network.add(ELEMENT_TYPE_BATTERY, "test_battery", capacity=15000, initial_charge_percentage=75)
+    network.add(ELEMENT_TYPE_BATTERY, "test_battery", capacity=15000, initial_charge=11250)  # 75% of 15000
 
     # Network handles duplicates
     assert "test_battery" in network.elements
@@ -67,7 +67,7 @@ def test_connect_entities() -> None:
     )
 
     # Add entities
-    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
+    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
     network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
 
     # Connect them
@@ -115,7 +115,7 @@ def test_connect_nonexistent_target_entity() -> None:
         n_periods=3,
     )
     # Add only source entity
-    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
+    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
     # Try to connect to nonexistent target
     with pytest.raises(ValueError, match="Failed to register connection bad_connection with target nonexistent"):
         network.add(ELEMENT_TYPE_CONNECTION, "bad_connection", source="battery1", target="nonexistent")
@@ -129,7 +129,7 @@ def test_connect_source_is_connection() -> None:
         n_periods=3,
     )
     # Add entities and a connection
-    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
+    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
     network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="battery1", target="grid1")
 
@@ -148,7 +148,7 @@ def test_connect_target_is_connection() -> None:
         n_periods=3,
     )
     # Add entities and a connection
-    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
+    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
     network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="battery1", target="grid1")
 
@@ -233,7 +233,7 @@ def test_network_constraint_generation_error() -> None:
     )
 
     # Add a regular battery
-    network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge_percentage=50)
+    network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge=5000)  # 50% of 10000
 
     # Mock an element to raise an exception during constraint generation
     mock_element = Mock(spec=Element)
@@ -260,7 +260,7 @@ def test_network_invalid_solver() -> None:
     )
 
     # Add simple network
-    network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge_percentage=50)
+    network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge=5000)  # 50% of 10000
     network.add(ELEMENT_TYPE_SOURCE_SINK, "net", is_sink=True, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "battery_to_net", source="battery", target="net")
 

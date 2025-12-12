@@ -47,7 +47,7 @@ def create_model_elements(config: NodeConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: NodeConfigData
 ) -> Mapping[NodeDeviceName, Mapping[NodeOutputName, OutputData]]:
     """Convert model element outputs to node adapter outputs."""
 

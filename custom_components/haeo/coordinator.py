@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.typing import StateType
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from . import data as data_module
@@ -327,14 +327,36 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             n_periods=n_periods,
         )
 
-        # Try to load the data into a network object
-        network = await data_module.load_network(
+        # Load element configurations (convert entity IDs to values)
+        loaded_configs = await data_module.load_element_configs(
             self.hass,
+            self._participant_configs,
+            forecast_timestamps,
+        )
+
+        # Check that all required sensor data is available before loading
+        missing_sensors: list[str] = []
+        for name, element_config in self._participant_configs.items():
+            # Check availability for entire config
+            if not data_module.config_available(
+                element_config,
+                hass=self.hass,
+                forecast_times=list(forecast_timestamps),
+            ):
+                missing_sensors.append(name)
+
+        if missing_sensors:
+            raise UpdateFailed(
+                translation_key="missing_sensors",
+                translation_placeholders={"unavailable_sensors": ", ".join(missing_sensors)},
+            )
+
+        # Build network with loaded configurations
+        network = await data_module.load_network(
             self.config_entry,
             period_seconds=period_seconds,
             n_periods=n_periods,
-            participants=self._participant_configs,
-            forecast_times=forecast_timestamps,
+            participants=loaded_configs,
         )
 
         # Perform the optimization
@@ -383,7 +405,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # May return multiple devices per config element (e.g., battery regions)
             try:
                 adapter_outputs: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = outputs_fn(
-                    element_name, model_outputs
+                    element_name, model_outputs, loaded_configs[element_name]
                 )
             except KeyError:
                 _LOGGER.exception(
