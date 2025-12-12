@@ -7,13 +7,13 @@ from .const import OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
 from .output_data import OutputData
 
-NODE_POWER_BALANCE: Final = "node_power_balance"
-
 type NodeConstraintName = Literal["node_power_balance"]
 
 type NodeOutputName = NodeConstraintName
 
-NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
+NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset(
+    (NODE_POWER_BALANCE := "node_power_balance",),
+)
 
 
 class Node(Element[NodeOutputName, NodeConstraintName]):

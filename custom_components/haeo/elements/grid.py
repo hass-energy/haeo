@@ -49,35 +49,26 @@ type GridOutputName = Literal[
     "grid_power_max_import_price",
     "grid_power_max_export_price",
 ]
-GRID_POWER_IMPORT: Final = "grid_power_import"
-GRID_POWER_EXPORT: Final = "grid_power_export"
-GRID_POWER_MAX_IMPORT: Final = "grid_power_max_import"
-GRID_POWER_MAX_EXPORT: Final = "grid_power_max_export"
-GRID_PRICE_IMPORT: Final = "grid_price_import"
-GRID_PRICE_EXPORT: Final = "grid_price_export"
-GRID_POWER_MAX_IMPORT_PRICE: Final = "grid_power_max_import_price"
-GRID_POWER_MAX_EXPORT_PRICE: Final = "grid_power_max_export_price"
 
 GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
     (
-        GRID_POWER_IMPORT,
-        GRID_POWER_EXPORT,
-        GRID_POWER_MAX_IMPORT,
-        GRID_POWER_MAX_EXPORT,
-        GRID_PRICE_IMPORT,
-        GRID_PRICE_EXPORT,
+        GRID_POWER_IMPORT := "grid_power_import",
+        GRID_POWER_EXPORT := "grid_power_export",
+        GRID_POWER_MAX_IMPORT := "grid_power_max_import",
+        GRID_POWER_MAX_EXPORT := "grid_power_max_export",
+        GRID_PRICE_IMPORT := "grid_price_import",
+        GRID_PRICE_EXPORT := "grid_price_export",
         # Shadow prices
-        GRID_POWER_MAX_IMPORT_PRICE,
-        GRID_POWER_MAX_EXPORT_PRICE,
+        GRID_POWER_MAX_IMPORT_PRICE := "grid_power_max_import_price",
+        GRID_POWER_MAX_EXPORT_PRICE := "grid_power_max_export_price",
     )
 )
 
-# Device names for grid devices (used for translations)
-GRID_DEVICE_GRID: Final = ELEMENT_TYPE
-
 type GridDeviceName = Literal["grid"]
 
-GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset((GRID_DEVICE_GRID,))
+GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset(
+    (GRID_DEVICE_GRID := ELEMENT_TYPE,),
+)
 
 
 class GridConfigSchema(TypedDict):
