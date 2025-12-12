@@ -162,7 +162,7 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
         defaults={},
         translation_key=cast("ElementType", TEST_ELEMENT_TYPE),
         create_model_elements=mock_create_model_elements,
-        outputs=mock_outputs,
+        outputs=mock_outputs,  # type: ignore[arg-type]
     )
     monkeypatch.setitem(ELEMENT_TYPES, cast("ElementType", TEST_ELEMENT_TYPE), entry)
     return FlowTestElementFactory()
