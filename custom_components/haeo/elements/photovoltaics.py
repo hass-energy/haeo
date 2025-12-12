@@ -16,6 +16,8 @@ from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     BooleanFieldData,
     BooleanFieldSchema,
+    ElementNameFieldData,
+    ElementNameFieldSchema,
     NameFieldData,
     NameFieldSchema,
     PowerSensorsFieldData,
@@ -70,7 +72,7 @@ class PhotovoltaicsConfigSchema(TypedDict):
 
     element_type: Literal["photovoltaics"]
     name: NameFieldSchema
-    connection: NameFieldSchema  # Node to connect to
+    connection: ElementNameFieldSchema  # Node to connect to
     forecast: PowerSensorsFieldSchema
 
     # Optional fields
@@ -83,7 +85,7 @@ class PhotovoltaicsConfigData(TypedDict):
 
     element_type: Literal["photovoltaics"]
     name: NameFieldData
-    connection: NameFieldData  # Node to connect to
+    connection: ElementNameFieldData  # Node to connect to
     forecast: PowerSensorsFieldData
 
     # Optional fields
