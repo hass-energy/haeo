@@ -301,6 +301,7 @@ async def test_async_update_data_returns_outputs(
 
     # Patch the registry entries to use our mocked output functions
     with (
+        patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
         patch(
             "custom_components.haeo.coordinator.data_module.load_element_configs",
             new_callable=AsyncMock,
@@ -377,7 +378,15 @@ async def test_async_update_data_propagates_update_failed(
     mock_grid_subentry: ConfigSubentry,
 ) -> None:
     """Coordinator surfaces loader failures as UpdateFailed."""
-    with patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=UpdateFailed("missing data")):
+    with (
+        patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
+        patch(
+            "custom_components.haeo.coordinator.data_module.load_element_configs",
+            new_callable=AsyncMock,
+            return_value={},
+        ),
+        patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=UpdateFailed("missing data")),
+    ):
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         with pytest.raises(UpdateFailed, match="missing data"):
             await coordinator._async_update_data()
@@ -390,7 +399,15 @@ async def test_async_update_data_propagates_value_error(
     mock_grid_subentry: ConfigSubentry,
 ) -> None:
     """Coordinator allows unexpected errors to bubble up."""
-    with patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=ValueError("invalid config")):
+    with (
+        patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
+        patch(
+            "custom_components.haeo.coordinator.data_module.load_element_configs",
+            new_callable=AsyncMock,
+            return_value={},
+        ),
+        patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=ValueError("invalid config")),
+    ):
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         with pytest.raises(ValueError, match="invalid config"):
             await coordinator._async_update_data()

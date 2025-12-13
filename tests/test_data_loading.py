@@ -8,7 +8,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data import load_element_configs, load_network
-from custom_components.haeo.elements import ElementConfigSchema
+from custom_components.haeo.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_EFFICIENCY,
@@ -66,8 +66,6 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
 
 async def test_load_network_with_missing_sensors(hass: HomeAssistant) -> None:
     """Test load_element_configs raises ValueError when sensors are unavailable."""
-    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
-
     # Create a config with a sensor that doesn't exist
     participants = cast(
         "dict[str, ElementConfigSchema]",
@@ -97,8 +95,6 @@ async def test_load_network_with_missing_sensors(hass: HomeAssistant) -> None:
 
 async def test_load_network_with_unavailable_sensor_state(hass: HomeAssistant) -> None:
     """Test load_network raises UpdateFailed when sensor state is unavailable."""
-    entry = MockConfigEntry(domain=DOMAIN, entry_id="test_entry")
-
     # Create sensors with unavailable state
     hass.states.async_set("sensor.unavailable_capacity", "unavailable")
     hass.states.async_set("sensor.unavailable_soc", "unavailable")
@@ -150,7 +146,7 @@ async def test_load_network_sorts_connections_after_elements(hass: HomeAssistant
     entry.add_to_hass(hass)
 
     participants = cast(
-        "dict[str, ElementConfigSchema]",
+        "dict[str, ElementConfigData]",
         {
             "line": {
                 CONF_ELEMENT_TYPE: "connection",
@@ -186,7 +182,7 @@ async def test_load_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypa
     entry.add_to_hass(hass)
 
     participants = cast(
-        "dict[str, ElementConfigSchema]",
+        "dict[str, ElementConfigData]",
         {
             "node": {CONF_ELEMENT_TYPE: "node", CONF_NAME: "node"},
         },
