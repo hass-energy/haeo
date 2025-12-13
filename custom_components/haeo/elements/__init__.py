@@ -122,7 +122,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
 type CreateModelElementsFn = Callable[[Any], list[dict[str, Any]]]
 
 type OutputsFn = Callable[
-    [str, Mapping[str, Mapping[ModelOutputName, OutputData]]],
+    [str, Mapping[str, Mapping[ModelOutputName, OutputData]], Any],
     Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]],
 ]
 
@@ -133,8 +133,8 @@ class ElementRegistryEntry(NamedTuple):
     The create_model_elements and outputs fields are callables that:
         - create_model_elements(config) -> list[dict[str, Any]]
             Transforms config element to model elements
-        - outputs(name, outputs) -> dict[str, dict[str, Any]]
-            Transforms model outputs to device outputs
+        - outputs(name, model_outputs, config) -> dict[str, dict[str, Any]]
+            Transforms model outputs to device outputs with access to original config
     """
 
     schema: type[Any]

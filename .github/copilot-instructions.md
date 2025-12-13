@@ -49,6 +49,7 @@ Users configure entities (batteries, grids, loads, generators) and connections b
 - **Property Access**: Always assume that accessed properties/fields which should exist directly and rely on errors occurring if they do not when they indicate a coding error and not a possibly None value. This is especially true in tests where you have added entities and then must access them later, having None checks there reduces readability and also makes the test more fragile to passing unexpectedly
 - **Clean Changes**: When making changes don't leave behind comments describing what was once there, comments should always describe code as it exists without reference to former code
 - **API Evolution**: When making changes don't leave behind backwards compatible interfaces for internal APIs there should always be a complete clean changeover
+- **Error Context**: The main branch is always clean with no errors or warnings. Any errors, warnings, or test failures you encounter are directly related to recent changes in the current branch/PR you're working on. These issues must be fixed as part of the work - they indicate problems introduced by the changes being made
 
 ### Testing Approach
 

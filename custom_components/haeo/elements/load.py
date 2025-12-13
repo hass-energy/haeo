@@ -90,7 +90,7 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: LoadConfigData
 ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
     """Map model outputs to load-specific output names."""
 

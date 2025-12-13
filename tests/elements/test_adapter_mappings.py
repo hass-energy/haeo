@@ -1,4 +1,11 @@
-"""Adapter-layer tests using element-specific test data modules."""
+"""Adapter-layer tests using element-specific test data modules.
+
+These tests verify that:
+1. create_model_elements() transforms config data into correct model elements
+2. outputs() correctly maps model outputs back to device outputs
+
+Full optimization behavior tests (e.g., early charging) belong in integration/scenario tests.
+"""
 
 import pytest
 
@@ -36,5 +43,5 @@ def test_outputs_mapping(
     """Verify adapter maps model outputs to device outputs."""
 
     entry = ELEMENT_TYPES[element_type]
-    result = entry.outputs(case["data"]["name"], case["model_outputs"])
+    result = entry.outputs(case["data"]["name"], case["model_outputs"], case["data"])
     assert result == case["outputs"]
