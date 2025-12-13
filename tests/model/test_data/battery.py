@@ -395,52 +395,6 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_overcharge_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },
     },
-<<<<<<< HEAD
-    {
-        "description": "Battery with 50% efficiency - explicit efficiency validation",
-        "factory": Battery,
-        "data": {
-            "name": "battery_efficiency_test",
-            "periods": [1.0] * 2,
-            "capacity": 10.0,
-            "initial_charge_percentage": 50.0,
-            "min_charge_percentage": 10.0,
-            "max_charge_percentage": 90.0,
-            "max_charge_power": 10.0,
-            "max_discharge_power": 10.0,
-            "efficiency": 50.0,  # 50% round-trip efficiency
-        },
-        "inputs": {
-            "power": [5.656854249, 0.0],  # Forced input to test efficiency (4.0kWh / sqrt(0.5) ≈ 5.657kW)
-            "input_cost": 0.0,
-            "output_cost": 0.0,
-        },
-        "expected_outputs": {
-            "battery_state_of_charge": {"type": "soc", "unit": "%", "values": (50.0, 90.0, 90.0)},
-            "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 9.0, 9.0)},
-            "battery_normal_energy_stored": {"type": "energy", "unit": "kWh", "values": (4.0, 8.0, 8.0)},
-            "battery_normal_power_charge": {"type": "power", "unit": "kW", "values": (4.0, 0.0)},
-            "battery_normal_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
-            "battery_normal_charge_price": {"type": "price", "unit": "$/kWh", "values": (-0.002, 0.0)},
-            "battery_normal_discharge_price": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.004)},
-            "battery_power_charge": {"type": "power", "unit": "kW", "values": (5.656854249, 0.0)},
-            "battery_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
-            "battery_power_balance": {
-                "type": "shadow_price",
-                "unit": "$/kW",
-                "values": (0.001414213562373096, 0.00565685424949238),
-            },
-            "battery_max_charge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
-            "battery_max_discharge_power": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
-            "battery_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
-            "battery_normal_energy_in_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.008)},
-            "battery_normal_energy_out_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
-            "battery_normal_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
-            "battery_normal_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
-        },
-    },
-=======
->>>>>>> origin/main
 ]
 
 INVALID_CASES: list[ElementTestCase] = [

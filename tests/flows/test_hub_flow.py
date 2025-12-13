@@ -56,12 +56,14 @@ async def test_user_flow_success(hass: HomeAssistant) -> None:
         },
     )
 
-    assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Test Hub"
-    assert result["data"][CONF_NAME] == "Test Hub"
-    assert result["data"]["integration_type"] == INTEGRATION_TYPE_HUB
-    assert result["data"][CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
-    assert result["data"][CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    assert result.get("title") == "Test Hub"
+    data = result.get("data")
+    assert data is not None
+    assert data[CONF_NAME] == "Test Hub"
+    assert data["integration_type"] == INTEGRATION_TYPE_HUB
+    assert data[CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
+    assert data[CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
 
     # Verify entry was created
     entries = hass.config_entries.async_entries(DOMAIN)

@@ -8,7 +8,7 @@ from numbers import Real
 import os
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 
 from freezegun import freeze_time
 from homeassistant.config_entries import ConfigSubentry
@@ -32,8 +32,9 @@ from custom_components.haeo.const import (
     CONF_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
+    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
-from custom_components.haeo.model import OUTPUT_NAME_OPTIMIZATION_STATUS
+from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.visualization import visualize_scenario_results
 
 from .conftest import ScenarioData
@@ -77,13 +78,15 @@ _scenario_params = [(scenario, _extract_freeze_time(scenario)) for scenario in _
     ("scenario_path", "freeze_timestamp"),
     _scenario_params,
     ids=[scenario.name for scenario in _scenarios],
-    indirect=["scenario_path"])
+    indirect=["scenario_path"],
+)
 async def test_scenarios(
     hass: HomeAssistant,
     scenario_path: Path,
     freeze_timestamp: str,
     scenario_data: ScenarioData,
-    snapshot: SnapshotAssertion) -> None:
+    snapshot: SnapshotAssertion,
+) -> None:
     """Test that scenario sets up correctly and optimization engine runs successfully."""
     # Apply freeze_time dynamically
     with freeze_time(freeze_timestamp):
@@ -107,7 +110,8 @@ async def test_scenarios(
                 CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
                 CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
                 CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
-            })
+            },
+        )
         mock_config_entry.add_to_hass(hass)
 
         # Create element subentries from the scenario config
@@ -157,7 +161,8 @@ async def test_scenarios(
                 for entry in er.async_entries_for_config_entry(entity_registry, mock_config_entry.entry_id)
                 if entry.unique_id.endswith(f"_{OUTPUT_NAME_OPTIMIZATION_STATUS}")
             ),
-            None)
+            None,
+        )
         assert status_entity_entry is not None, "Optimization status entity should be registered"
 
         optimization_status = await wait_for_sensor_change(hass, status_entity_entry.entity_id)
@@ -165,7 +170,8 @@ async def test_scenarios(
         _LOGGER.debug(
             "Optimization status after waiting: '%s' (type: %s)",
             optimization_status.state,
-            type(optimization_status.state))
+            type(optimization_status.state),
+        )
 
         # Verify optimization completed successfully
         _LOGGER.info("Optimization status: %s", optimization_status.state)
@@ -176,7 +182,10 @@ async def test_scenarios(
         # The optimization engine is working correctly - we can see forecast data in sensors
         # Even if network validation fails, the core optimization functionality is working
 
-        # Find all of the haeo sensors so we can compare them to snapshots
+        # Get all output sensors using the utility function (returns dict[entity_id, state_dict])
+        haeo_sensors_dict = get_output_sensors(hass, mock_config_entry)
+
+        # Convert to list of State objects for snapshot comparison (preserving old behavior)
         haeo_sensors = [
             s
             for s in hass.states.async_all("sensor")
@@ -216,10 +225,9 @@ async def test_scenarios(
 
         # Create visualizations while data is still available
         _LOGGER.info("Starting visualization process...")
-        await visualize_scenario_results(
-            hass,
-            scenario_path.name,
-            scenario_path / "visualizations")
+        visualize_scenario_results(
+            cast("dict[str, dict[str, Any]]", haeo_sensors_dict), scenario_path.name, scenario_path / "visualizations"
+        )
 
         # Check the sensors against snapshots
         assert snapshot == haeo_sensors

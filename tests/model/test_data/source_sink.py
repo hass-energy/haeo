@@ -10,8 +10,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": SourceSink,
         "data": {
             "name": "junction",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "is_source": False,
             "is_sink": False,
         },
@@ -25,8 +24,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": SourceSink,
         "data": {
             "name": "sink_only",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "is_source": False,
             "is_sink": True,
         },
@@ -41,8 +39,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": SourceSink,
         "data": {
             "name": "source_only",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "is_source": True,
             "is_sink": False,
         },
@@ -57,8 +54,7 @@ VALID_CASES: list[ElementTestCase] = [
         "factory": SourceSink,
         "data": {
             "name": "bidirectional",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "is_source": True,
             "is_sink": True,
         },

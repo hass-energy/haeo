@@ -74,8 +74,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
 
     # Get output sensors using common utility function
     # This filters to entities created by this config entry and cleans unstable fields
-    output_sensors = get_output_sensors(hass, config_entry)
-    outputs: dict[str, dict[str, Any]] = output_sensors
+    outputs = get_output_sensors(hass, config_entry)
 
     # Get HAEO version from integration metadata
     integration = await async_get_integration(hass, config_entry.domain)

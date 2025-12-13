@@ -12,16 +12,11 @@
       "element_type": "node",
       "name": "AC Net"
     },
-    "AC Net->DC Net": {
-      "element_type": "connection",
-      "name": "Inverter",
-      "source": "DC Net",
-      "target": "AC Net"
-    },
     "Battery": {
       "capacity": "sensor.sigen_plant_rated_energy_capacity",
-      "discharge_cost": 0.02,
-      "early_charge_incentive": 1e-3,
+      "connection": "DC Net",
+      "discharge_cost": ["input_number.battery_discharge_cost"],
+      "early_charge_incentive": 0.001,
       "efficiency": 99.0,
       "element_type": "battery",
       "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
@@ -32,6 +27,7 @@
       "name": "Battery"
     },
     "Constant Load": {
+      "connection": "AC Net",
       "element_type": "load",
       "forecast": ["input_number.constant_load_power"],
       "name": "Constant Load"
@@ -40,13 +36,8 @@
       "element_type": "node",
       "name": "DC Net"
     },
-    "DC Net->Battery": {
-      "element_type": "connection",
-      "name": "DC Net->Battery",
-      "source": "DC Net",
-      "target": "Battery"
-    },
     "Grid": {
+      "connection": "AC Net",
       "element_type": "grid",
       "export_limit": 30,
       "export_price": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
@@ -54,19 +45,16 @@
       "import_price": ["sensor.home_general_price", "sensor.home_general_forecast"],
       "name": "Grid"
     },
-    "Grid->AC Net": {
+    "Inverter": {
       "element_type": "connection",
-      "name": "Grid->AC Net",
-      "source": "Grid",
-      "target": "AC Net"
-    },
-    "Load->AC Net": {
-      "element_type": "connection",
-      "name": "Load->AC Net",
-      "source": "Constant Load",
+      "max_power_source_target": "sensor.sigen_plant_max_active_power",
+      "max_power_target_source": "sensor.sigen_plant_max_active_power",
+      "name": "Inverter",
+      "source": "DC Net",
       "target": "AC Net"
     },
     "Solar": {
+      "connection": "DC Net",
       "curtailment": true,
       "element_type": "photovoltaics",
       "forecast": [
@@ -104,12 +92,6 @@
         "sensor.energy_production_d7_west"
       ],
       "name": "Solar"
-    },
-    "Solar->DC Net": {
-      "element_type": "connection",
-      "name": "Solar->DC Net",
-      "source": "Solar",
-      "target": "DC Net"
     }
   }
 }
