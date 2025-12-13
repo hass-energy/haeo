@@ -133,6 +133,7 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
                             value = float(item["value"])
                             item["value"] = round(value, decimal_places) + 0.0  # Makes -0.0 into 0.0
                         except (ValueError, TypeError):
+                            # Ignore non-numeric forecast values; leave them unchanged
                             pass
 
     return output_sensors
