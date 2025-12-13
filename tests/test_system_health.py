@@ -106,7 +106,7 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     assert info["HAEO Hub_last_optimization_duration"] == pytest.approx(1.234)
     assert info["HAEO Hub_last_optimization_time"] == "2024-01-01T12:00:00+00:00"
     assert info["HAEO Hub_outputs"] == 1
-    # Check the new tier-based configuration is reported
+    # Check the tier-based configuration is reported
     total_periods = DEFAULT_TIER_1_COUNT + DEFAULT_TIER_2_COUNT + DEFAULT_TIER_3_COUNT + DEFAULT_TIER_4_COUNT
     assert info["HAEO Hub_total_periods"] == total_periods
 

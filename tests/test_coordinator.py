@@ -413,7 +413,7 @@ def test_collect_entity_ids_handles_nested_structures() -> None:
         "single": "sensor.solo",
         "group": ["sensor.one", "sensor.two"],
         "nested": {
-            "inner": ("sensor.three"),
+            "inner": ("sensor.three",),
         },
     }
 
