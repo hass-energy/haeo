@@ -136,7 +136,10 @@ async def load(config: "ElementConfigSchema", hass: HomeAssistant, forecast_time
     Args:
         config: Schema mode config (with entity IDs)
         hass: Home Assistant instance
-        forecast_times: Time intervals for data aggregation
+        forecast_times: Time intervals for data aggregation. When empty ([]),
+            ConstantLoader fields (strings, numbers, booleans) pass through unchanged,
+            while TimeSeriesLoader fields (sensors) return empty lists. This is useful
+            for structural validation without loading actual sensor data.
 
     Returns:
         Data mode config (with loaded values)
