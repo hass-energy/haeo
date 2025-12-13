@@ -46,12 +46,11 @@ def get_network_config_schema(
 
     The configuration uses 4 tiers of intervals with variable durations:
     - Tier 1: Fine-grained near-term intervals (default: 5 x 1 min = 5 min)
-    - Tier 2: Short-term intervals (default: 5 x 5 min = 25 min)
+    - Tier 2: Short-term intervals (default: 11 x 5 min = 55 min)
     - Tier 3: Medium-term intervals (default: 46 x 30 min = 23 hr)
     - Tier 4: Long-term intervals (default: 48 x 60 min = 48 hr)
 
-    Total default: 104 periods covering ~72 hours
-
+    Total default: 110 periods covering ~72 hours
     """
     return vol.Schema(
         {
