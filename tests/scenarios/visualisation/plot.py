@@ -1,6 +1,6 @@
 """Main plotting functions for HAEO optimization visualization."""
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 import itertools
 import logging
@@ -63,7 +63,7 @@ STACKED_FORECAST_TYPES: Final = ("production", "consumption", "available")
 ACTIVITY_EPSILON: Final = 1e-6
 
 
-def extract_forecast_data(output_sensors: dict[str, dict[str, Any]]) -> dict[str, ForecastData]:
+def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> dict[str, ForecastData]:
     """Extract forecast data from output sensors dict for visualization."""
     # Create color mapper to assign consistent colors to elements
     color_mapper = ColorMapper()
@@ -126,7 +126,7 @@ def extract_forecast_data(output_sensors: dict[str, dict[str, Any]]) -> dict[str
     return forecast_data
 
 
-def _parse_forecast_items(forecast_attr: list[dict[str, Any]]) -> list[tuple[float, float]]:
+def _parse_forecast_items(forecast_attr: list[Mapping[str, Any]]) -> list[tuple[float, float]]:
     """Parse forecast items handling both datetime objects and ISO strings.
 
     Args:
@@ -323,7 +323,7 @@ def collect_shadow_price_series(
     return series
 
 
-def create_stacked_visualization(output_sensors: dict[str, dict[str, Any]], output_path: str, title: str) -> None:
+def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]], output_path: str, title: str) -> None:
     """Create visualization of HAEO optimization results with stacked plots and price traces."""
 
     # Extract forecast data
@@ -426,7 +426,9 @@ def create_stacked_visualization(output_sensors: dict[str, dict[str, Any]], outp
     plt.close(fig)
 
 
-def create_shadow_price_visualization(output_sensors: dict[str, dict[str, Any]], output_path: str, title: str) -> bool:
+def create_shadow_price_visualization(
+    output_sensors: Mapping[str, Mapping[str, Any]], output_path: str, title: str
+) -> bool:
     """Create a dedicated visualization for shadow price series using matplotlib cycling."""
 
     forecast_data = extract_forecast_data(output_sensors)
@@ -478,7 +480,9 @@ def create_shadow_price_visualization(output_sensors: dict[str, dict[str, Any]],
     return True
 
 
-def visualize_scenario_results(output_sensors: dict[str, dict[str, Any]], scenario_name: str, output_dir: Path) -> None:
+def visualize_scenario_results(
+    output_sensors: Mapping[str, Mapping[str, Any]], scenario_name: str, output_dir: Path
+) -> None:
     """Create comprehensive visualizations for HAEO scenario test results.
 
     Creates both detailed optimization results visualization and summary metrics
