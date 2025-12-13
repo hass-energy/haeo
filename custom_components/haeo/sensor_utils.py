@@ -71,28 +71,33 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
         output_sensors[entity_entry.entity_id] = state_dict
 
         # Collect numeric values for unit-based rounding
-        unit = state_dict.get("attributes", {}).get("unit_of_measurement")
+        attrs = state_dict.get("attributes", {})
+        unit: str | None = None
+        if isinstance(attrs, dict):
+            unit = attrs.get("unit_of_measurement")
         if unit not in unit_values:
             unit_values[unit] = []
 
         # Add state value if numeric
-        if isinstance(state_dict.get("state"), str):
+        state_value = state_dict.get("state")
+        if isinstance(state_value, str):
             try:
-                state_val = float(state_dict["state"])
+                state_val = float(state_value)
                 unit_values[unit].append(abs(state_val))
             except (ValueError, TypeError):
                 pass  # Non-numeric state (e.g., "success")
 
         # Add forecast values if present
-        forecast = state_dict.get("attributes", {}).get("forecast")
-        if isinstance(forecast, list):
-            for item in forecast:
-                if isinstance(item, dict) and "value" in item:
-                    try:
-                        value = float(item["value"])
-                        unit_values[unit].append(abs(value))
-                    except (ValueError, TypeError):
-                        pass
+        if isinstance(attrs, dict):
+            forecast = attrs.get("forecast")
+            if isinstance(forecast, list):
+                for item in forecast:
+                    if isinstance(item, dict) and "value" in item:
+                        try:
+                            value = float(item["value"])
+                            unit_values[unit].append(abs(value))
+                        except (ValueError, TypeError):
+                            pass
 
     # Calculate decimal places for each unit
     unit_decimal_places: dict[str | None, int] = {}
@@ -107,7 +112,8 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
     for entity_data in output_sensors.values():
         # Round the state if it's numeric
         if isinstance(entity_data.get("state"), str):
-            unit = entity_data.get("attributes", {}).get("unit_of_measurement")
+            attrs = entity_data.get("attributes", {})
+            unit = attrs.get("unit_of_measurement") if isinstance(attrs, dict) else None
             decimal_places = unit_decimal_places.get(unit, _DEFAULT_DECIMAL_PLACES)
             try:
                 state_val = float(entity_data["state"])
