@@ -3,6 +3,8 @@
 Batteries are energy storage devices that can charge (store energy) and discharge (release energy).
 HAEO optimizes when to charge and discharge based on electricity prices, solar availability, and economic preferences.
 
+For mathematical details, see [Battery Modeling](../../modeling/device-layer/battery.md).
+
 ## Configuration
 
 ### Overview
@@ -253,35 +255,40 @@ In this example:
 
 ## Sensors Created
 
-HAEO creates these sensors for each battery to provide visibility into power flows, energy storage, and optimization constraints.
+A Battery element creates 1-4 devices in Home Assistant depending on configuration:
 
-| Sensor                                                                               | Unit   | Description                                  |
-| ------------------------------------------------------------------------------------ | ------ | -------------------------------------------- |
-| [`sensor.{name}_power_charge`](#power-charge)                                        | kW     | Charging power                               |
-| [`sensor.{name}_power_discharge`](#power-discharge)                                  | kW     | Discharging power                            |
-| [`sensor.{name}_energy_stored`](#energy-stored)                                      | kWh    | Current energy level                         |
-| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)                           | %      | State of charge percentage                   |
-| [`sensor.{name}_undercharge_energy_stored`](#energy-stored-by-region) (\*)           | kWh    | Energy in undercharge region                 |
-| [`sensor.{name}_undercharge_power_charge`](#power-chargedischarge-by-region) (\*)    | kW     | Charging power in undercharge region         |
-| [`sensor.{name}_undercharge_power_discharge`](#power-chargedischarge-by-region) (\*) | kW     | Discharging power in undercharge region      |
-| [`sensor.{name}_undercharge_charge_price`](#chargedischarge-price-by-region) (\*)    | \$/kWh | Charging price in undercharge region         |
-| [`sensor.{name}_undercharge_discharge_price`](#chargedischarge-price-by-region) (\*) | \$/kWh | Discharging price in undercharge region      |
-| [`sensor.{name}_normal_energy_stored`](#energy-stored-by-region) (\*)                | kWh    | Energy in normal region                      |
-| [`sensor.{name}_normal_power_charge`](#power-chargedischarge-by-region) (\*)         | kW     | Charging power in normal region              |
-| [`sensor.{name}_normal_power_discharge`](#power-chargedischarge-by-region) (\*)      | kW     | Discharging power in normal region           |
-| [`sensor.{name}_normal_charge_price`](#chargedischarge-price-by-region) (\*)         | \$/kWh | Charging price in normal region              |
-| [`sensor.{name}_normal_discharge_price`](#chargedischarge-price-by-region) (\*)      | \$/kWh | Discharging price in normal region           |
-| [`sensor.{name}_overcharge_energy_stored`](#energy-stored-by-region) (\*)            | kWh    | Energy in overcharge region                  |
-| [`sensor.{name}_overcharge_power_charge`](#power-chargedischarge-by-region) (\*)     | kW     | Charging power in overcharge region          |
-| [`sensor.{name}_overcharge_power_discharge`](#power-chargedischarge-by-region) (\*)  | kW     | Discharging power in overcharge region       |
-| [`sensor.{name}_overcharge_charge_price`](#chargedischarge-price-by-region) (\*)     | \$/kWh | Charging price in overcharge region          |
-| [`sensor.{name}_overcharge_discharge_price`](#chargedischarge-price-by-region) (\*)  | \$/kWh | Discharging price in overcharge region       |
-| [`sensor.{name}_power_balance`](#power-balance-shadow-price)                         | \$/kW  | Marginal value of power at battery terminals |
-| [`sensor.{name}_max_charge_power`](#max-charge-power-shadow-price)                   | \$/kW  | Value of additional charging capacity        |
-| [`sensor.{name}_max_discharge_power`](#max-discharge-power-shadow-price)             | \$/kW  | Value of additional discharging capacity     |
-| [`sensor.{name}_time_slice`](#time-slice-shadow-price)                               | \$/kW  | Time slice constraint shadow price           |
+- **Aggregate device** (`{name}`): Always created with total power, energy, and SOC sensors
+- **Undercharge device** (`{name}:undercharge`): Created when `undercharge_percentage` is configured
+- **Normal device** (`{name}:normal`): Created when multi-section operation is active
+- **Overcharge device** (`{name}:overcharge`): Created when `overcharge_percentage` is configured
 
-(\*) Only created when SOC sections are configured (undercharge/overcharge percentages and costs)
+### Aggregate Device Sensors
+
+These sensors appear on the main battery device:
+
+| Sensor                                                       | Unit  | Description                                  |
+| ------------------------------------------------------------ | ----- | -------------------------------------------- |
+| [`sensor.{name}_power_charge`](#power-charge)                | kW    | Charging power                               |
+| [`sensor.{name}_power_discharge`](#power-discharge)          | kW    | Discharging power                            |
+| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh   | Current energy level                         |
+| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %     | State of charge percentage                   |
+| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kW | Marginal value of power at battery terminals |
+
+### Region Device Sensors
+
+These sensors appear on region-specific devices (undercharge, normal, overcharge) when configured:
+
+| Sensor                                                                       | Unit   | Description                       |
+| ---------------------------------------------------------------------------- | ------ | --------------------------------- |
+| [`sensor.{name}_{region}_energy_stored`](#energy-stored-by-region)           | kWh    | Energy in this region             |
+| [`sensor.{name}_{region}_power_charge`](#power-chargedischarge-by-region)    | kW     | Charging power in this region     |
+| [`sensor.{name}_{region}_power_discharge`](#power-chargedischarge-by-region) | kW     | Discharging power in this region  |
+| [`sensor.{name}_{region}_charge_price`](#chargedischarge-price-by-region)    | \$/kWh | Charging price in this region     |
+| [`sensor.{name}_{region}_discharge_price`](#chargedischarge-price-by-region) | \$/kWh | Discharging price in this region  |
+| [`sensor.{name}_{region}_energy_in_flow`](#energy-flow-by-region)            | kWh    | Energy flowing into this region   |
+| [`sensor.{name}_{region}_energy_out_flow`](#energy-flow-by-region)           | kWh    | Energy flowing out of this region |
+| [`sensor.{name}_{region}_soc_max`](#soc-bounds-by-region)                    | %      | Maximum SOC for this region       |
+| [`sensor.{name}_{region}_soc_min`](#soc-bounds-by-region)                    | %      | Minimum SOC for this region       |
 
 ### Power Charge
 
@@ -321,30 +328,33 @@ Provides a convenient percentage view of the battery level.
 
 **Example**: A value of 75% means the battery has 75% of its capacity available.
 
-### Region-Specific Sensors
-
-When undercharge or overcharge sections are configured, HAEO creates region-specific sensors that break down energy, power, and pricing by SOC region.
-These sensors help you understand how the battery operates across its extended range.
-
-**Availability**: Only created when SOC sections are configured (undercharge/overcharge percentages and costs).
-
-#### Energy Stored (by region)
+### Energy Stored (by region)
 
 Shows energy stored in each region: undercharge (below min SOC), normal (min to max SOC), or overcharge (above max SOC).
 A nonzero value in undercharge or overcharge regions indicates the battery is operating outside its normal range.
 
-#### Power Charge/Discharge (by region)
+### Power Charge/Discharge (by region)
 
 Shows power flowing into or out of each region.
 Undercharge discharge incurs penalties; overcharge charge incurs penalties.
 Moving toward normal operation (charging undercharge, discharging overcharge) has no penalty.
 
-#### Charge/Discharge Price (by region)
+### Charge/Discharge Price (by region)
 
 Shows effective costs/revenue for each region.
 Undercharge discharge price includes the undercharge penalty (may be negative, meaning discharge costs money).
 Overcharge charge price includes the overcharge penalty.
 Normal region prices reflect base costs only.
+
+### Energy Flow (by region)
+
+Shows cumulative energy flowing into or out of each region during the optimization horizon.
+These sensors help track energy movement between regions.
+
+### SOC Bounds (by region)
+
+Shows the configured SOC boundaries for each region.
+Useful for verifying configuration and debugging.
 
 ### Power Balance Shadow Price
 
@@ -361,55 +371,6 @@ It reflects the cost of power flowing through the battery connection point.
 - **Magnitude**: Higher absolute values indicate the battery connection is more valuable to the system
 
 **Example**: A value of 0.15 means 1 kW of additional power capacity at the battery would save \$0.15 per time period.
-
-### Max Charge Power Shadow Price
-
-The marginal value of additional charging capacity.
-See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
-
-This shadow price shows how much the total system cost would decrease if the max charge power limit were increased by 1 kW at this time period.
-
-**Interpretation**:
-
-- **Zero value**: Not charging at maximum rate (charging is below the limit or not charging at all)
-- **Positive value**: Charging at maximum rate and the limit is constraining
-    - The value shows how much system cost would decrease per kW of additional charge capacity
-    - Higher values indicate the charge power limit is causing significant cost increases
-    - Suggests that more charge capacity would be valuable at this time
-
-**Example**: A value of 0.12 means that if the battery could charge 1 kW faster, the total system cost would decrease by \$0.12 at this time period.
-
-### Max Discharge Power Shadow Price
-
-The marginal value of additional discharging capacity.
-See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
-
-This shadow price shows how much the total system cost would decrease if the max discharge power limit were increased by 1 kW at this time period.
-
-**Interpretation**:
-
-- **Zero value**: Not discharging at maximum rate (discharging is below the limit or not discharging at all)
-- **Positive value**: Discharging at maximum rate and the limit is constraining
-    - The value shows how much system cost would decrease per kW of additional discharge capacity
-    - Higher values indicate the discharge power limit is causing significant cost increases
-    - Suggests that more discharge capacity would be valuable at this time
-
-**Example**: A value of 0.18 means that if the battery could discharge 1 kW faster, the total system cost would decrease by \$0.18 at this time period.
-
-### Time Slice Shadow Price
-
-The marginal value of relaxing the time slice constraint.
-See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
-
-This shadow price relates to the constraint that prevents simultaneous charging and discharging within a single time period.
-
-**Interpretation**:
-
-- **Zero value**: Battery is only charging or only discharging (no conflict)
-- **Non-zero value**: Indicates the constraint is preventing optimization from finding a better solution
-    - This is rare in practice as batteries naturally charge or discharge, not both
-
-**Example**: Typically zero; non-zero values may indicate unusual grid price patterns.
 
 ---
 
@@ -518,6 +479,6 @@ Build on your battery configuration with these guides.
 
     Understand the mathematical formulation and constraints.
 
-    [:material-arrow-right: Battery modeling](../../modeling/battery.md)
+    [:material-arrow-right: Battery modeling](../../modeling/device-layer/battery.md)
 
 </div>

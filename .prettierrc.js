@@ -42,6 +42,7 @@ module.exports = {
       // Home Assistant translation files - semantic ordering for config flows
       files: "custom_components/haeo/translations/*.json",
       options: {
+        objectWrap: "collapse",
         jsonSortOrder: JSON.stringify({
           // Flow-level keys (config, options, config_subentries.*)
           flow_title: null,

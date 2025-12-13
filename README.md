@@ -235,8 +235,8 @@ uv sync
 uv run pytest
 
 # Run linters
-uv run ruff check custom_components/ tests/
-uv run mypy custom_components/
+uv run ruff check
+uv run pyright
 ```
 
 ## 🐛 Support

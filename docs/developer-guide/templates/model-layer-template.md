@@ -1,7 +1,12 @@
-# [Element Name] Modeling
+# [Model Element Name]
 
-Brief description of the element's role in the optimization problem (1-2 sentences).
-Focus on what decisions the model makes regarding this element.
+Brief description of this model element's role in the optimization problem (1-2 sentences).
+Focus on what decisions the optimizer makes regarding this element.
+
+!!! note "Model Layer element"
+
+    This page documents a **Model Layer** element—the building blocks of HAEO's linear programming formulation.
+    Model Layer elements are composed by Device Layer elements through the adapter layer.
 
 ## Model Formulation
 
@@ -11,7 +16,7 @@ Present the formulation in standard optimization notation.
 ### Parameters
 
 List all parameters (inputs) required by this element's model.
-Distinguish between user-configured parameters and sensor-derived data.
+Distinguish between configuration-derived parameters and sensor-derived data.
 
 | Parameter        | Dimensions | Source        | Description                           |
 | ---------------- | ---------- | ------------- | ------------------------------------- |
@@ -83,35 +88,35 @@ Note any real-world behaviors not captured by the model:
 
     When using this template:
 
-    1. Replace the element configuration link with the actual element page (e.g., `battery.md`)
-    2. Replace `element.py` in the source code link with the actual model filename (e.g., `battery.py`)
-    3. Curate Next Steps cards to show 3-4 most relevant actions for readers of this page
-    4. Choose cards that flow naturally from this element's modeling concepts
+    1. Replace `element.py` in the source code link with the actual model filename (e.g., `battery.py`)
+    2. Curate Next Steps cards to show 3-4 most relevant actions for readers of this page
+    3. Link to related Model Layer elements and relevant user-facing documentation
+    4. Do NOT enumerate which Device Layer elements use this model (that's reverse enumeration)
 
 <div class="grid cards" markdown>
 
-- :material-file-document:{ .lg .middle } **User configuration guide**
+- :material-file-document:{ .lg .middle } **User guide**
 
     ---
 
-    Configure this element in your Home Assistant setup.
+    Learn how to configure elements in Home Assistant.
 
-    [:material-arrow-right: Element configuration](../../user-guide/elements/index.md)
+    [:material-arrow-right: Elements overview](../../user-guide/elements/index.md)
 
-- :material-network:{ .lg .middle } **Network modeling**
+- :material-network:{ .lg .middle } **Network optimization**
 
     ---
 
-    Understand how elements interact in the network model.
+    Understand how model elements interact in the network.
 
-    [:material-arrow-right: Network modeling overview](../index.md)
+    [:material-arrow-right: Network optimization overview](../index.md)
 
 - :material-code-braces:{ .lg .middle } **Implementation**
 
     ---
 
-    View the source code for this element's model.
+    View the source code for this model element.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/element.py)
 
 </div>

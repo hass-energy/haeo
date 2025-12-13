@@ -1,24 +1,28 @@
 """Unit tests for Network class."""
 
+import logging
+import sys
 from typing import cast
 from unittest.mock import Mock
 
+from pulp import LpProblem
 import pytest
 
-from custom_components.haeo.elements import (
-    ELEMENT_TYPE_BATTERY,
-    ELEMENT_TYPE_CONNECTION,
-    ELEMENT_TYPE_GRID,
-    ELEMENT_TYPE_NODE,
-)
 from custom_components.haeo.model import Network
+from custom_components.haeo.model import network as network_module
 from custom_components.haeo.model.connection import Connection
 from custom_components.haeo.model.element import Element
+from custom_components.haeo.model.source_sink import SourceSink
 
 # Test constants
 HOURS_PER_DAY = 24
 DEFAULT_PERIODS = 24
 CONNECTION_PERIODS = 3
+
+# Model element type strings
+ELEMENT_TYPE_BATTERY = "battery"
+ELEMENT_TYPE_CONNECTION = "connection"
+ELEMENT_TYPE_SOURCE_SINK = "source_sink"
 
 
 def test_network_initialization() -> None:
@@ -61,14 +65,7 @@ def test_connect_entities() -> None:
 
     # Add entities
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
-    network.add(
-        ELEMENT_TYPE_GRID,
-        "grid1",
-        import_limit=10000,
-        export_limit=5000,
-        import_price=[0.1, 0.2, 0.15],
-        export_price=[0.05, 0.08, 0.06],
-    )
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
 
     # Connect them
     connection = cast(
@@ -102,10 +99,8 @@ def test_connect_nonexistent_entities() -> None:
         name="test_network",
         periods=[1.0] * 3,
     )
-    network.add(ELEMENT_TYPE_CONNECTION, "bad_connection", source="nonexistent", target="also_nonexistent")
-
-    with pytest.raises(ValueError, match="Source element 'nonexistent' not found"):
-        network.validate()
+    with pytest.raises(ValueError, match="Failed to register connection bad_connection with source nonexistent"):
+        network.add(ELEMENT_TYPE_CONNECTION, "bad_connection", source="nonexistent", target="also_nonexistent")
 
 
 def test_connect_nonexistent_target_entity() -> None:
@@ -117,10 +112,8 @@ def test_connect_nonexistent_target_entity() -> None:
     # Add only source entity
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
     # Try to connect to nonexistent target
-    network.add(ELEMENT_TYPE_CONNECTION, "bad_connection", source="battery1", target="nonexistent")
-
-    with pytest.raises(ValueError, match="Target element 'nonexistent' not found"):
-        network.validate()
+    with pytest.raises(ValueError, match="Failed to register connection bad_connection with target nonexistent"):
+        network.add(ELEMENT_TYPE_CONNECTION, "bad_connection", source="battery1", target="nonexistent")
 
 
 def test_connect_source_is_connection() -> None:
@@ -131,14 +124,7 @@ def test_connect_source_is_connection() -> None:
     )
     # Add entities and a connection
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
-    network.add(
-        ELEMENT_TYPE_GRID,
-        "grid1",
-        import_limit=10000,
-        export_limit=5000,
-        import_price=[0.1, 0.2, 0.15],
-        export_price=[0.05, 0.08, 0.06],
-    )
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="battery1", target="grid1")
 
     # Try to create another connection using the connection as source
@@ -156,14 +142,7 @@ def test_connect_target_is_connection() -> None:
     )
     # Add entities and a connection
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge_percentage=50)
-    network.add(
-        ELEMENT_TYPE_GRID,
-        "grid1",
-        import_limit=10000,
-        export_limit=5000,
-        import_price=[0.1, 0.2, 0.15],
-        export_price=[0.05, 0.08, 0.06],
-    )
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="battery1", target="grid1")
 
     # Try to create another connection using the connection as target
@@ -171,6 +150,71 @@ def test_connect_target_is_connection() -> None:
 
     with pytest.raises(ValueError, match="Target element 'conn1' is a connection"):
         network.validate()
+
+
+def test_validate_raises_when_source_missing() -> None:
+    """Validate should raise when a connection source is missing."""
+    net = Network(name="net", period=1.0, n_periods=1)
+    net.elements["conn"] = Connection(
+        name="conn",
+        period=1.0,
+        n_periods=1,
+        source="missing",
+        target="also_missing",
+    )
+
+    with pytest.raises(ValueError, match="Source element 'missing' not found"):
+        net.validate()
+
+
+def test_validate_raises_when_target_missing() -> None:
+    """Validate should raise when a connection target is missing."""
+    net = Network(name="net", period=1.0, n_periods=1)
+    net.elements["source_node"] = SourceSink(name="source_node", period=1.0, n_periods=1, is_source=True, is_sink=True)
+    net.elements["conn"] = Connection(
+        name="conn",
+        period=1.0,
+        n_periods=1,
+        source="source_node",
+        target="missing_target",
+    )
+
+    with pytest.raises(ValueError, match="Target element 'missing_target' not found"):
+        net.validate()
+
+
+def test_validate_raises_when_endpoints_are_connections() -> None:
+    """Validate should reject connections that point to connection elements."""
+    net = Network(name="net", period=1.0, n_periods=1)
+    # Non-connection element to satisfy target for conn2
+    net.elements["node"] = SourceSink(name="node", period=1.0, n_periods=1, is_source=True, is_sink=True)
+
+    net.elements["conn2"] = Connection(
+        name="conn2",
+        period=1.0,
+        n_periods=1,
+        source="node",
+        target="node",
+    )
+
+    # conn1 references conn2 as source and target to hit both connection checks
+    net.elements["conn1"] = Connection(
+        name="conn1",
+        period=1.0,
+        n_periods=1,
+        source="conn2",
+        target="conn2",
+    )
+
+    with pytest.raises(ValueError, match="Source element 'conn2' is a connection"):
+        net.validate()
+
+
+def test_constraints_returns_empty_when_no_elements() -> None:
+    """Constraints should return empty list when network has no elements."""
+    net = Network(name="net", period=1.0, n_periods=1)
+
+    assert net.constraints() == []
 
 
 def test_network_constraint_generation_error() -> None:
@@ -208,7 +252,7 @@ def test_network_invalid_solver() -> None:
 
     # Add simple network
     network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge_percentage=50)
-    network.add(ELEMENT_TYPE_NODE, "net")
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "net", is_sink=True, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "battery_to_net", source="battery", target="net")
 
     # Try to use non-existent solver
@@ -223,12 +267,16 @@ def test_network_optimize_validates_before_running() -> None:
         periods=[1.0] * 3,
     )
 
-    # Add elements but create an invalid connection
-    network.add(ELEMENT_TYPE_NODE, "node1")
-    network.add(ELEMENT_TYPE_CONNECTION, "bad_conn", source="node1", target="nonexistent_node")
+    # Add elements but create an invalid connection (connection to connection)
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "node1", is_sink=True, is_source=True)
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "node2", is_sink=True, is_source=True)
+    network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="node1", target="node2")
+
+    # Connect conn2 to conn1 (invalid)
+    network.add(ELEMENT_TYPE_CONNECTION, "conn2", source="conn1", target="node2")
 
     # Should raise validation error when trying to optimize
-    with pytest.raises(ValueError, match="Target element 'nonexistent_node' not found"):
+    with pytest.raises(ValueError, match="Source element 'conn1' is a connection"):
         network.optimize()
 
 
@@ -240,7 +288,7 @@ def test_network_optimize_build_constraints_error() -> None:
     )
 
     # Add a regular element
-    network.add(ELEMENT_TYPE_NODE, "node1")
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "node1", is_sink=True, is_source=True)
 
     # Mock an element that raises an exception during build_constraints
     mock_element = Mock(spec=Element)
@@ -251,4 +299,47 @@ def test_network_optimize_build_constraints_error() -> None:
 
     # Should wrap the error with context about which element failed
     with pytest.raises(ValueError, match="Failed to build constraints for element 'failing_element'"):
+        network.optimize()
+
+
+def test_network_optimize_success_logs_solver_output(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Optimize should return the objective and log solver streams."""
+
+    caplog.set_level(logging.DEBUG, logger=network_module.__name__)
+
+    # Ensure solver stdout/stderr are captured without using print (T201)
+    def fake_solve(self: LpProblem, _solver: object) -> int:
+        sys.stdout.write("fake solver stdout\n")
+        sys.stderr.write("fake solver stderr\n")
+        return 1
+
+    monkeypatch.setattr(LpProblem, "solve", fake_solve)
+
+    network = Network(name="test_network", period=1.0, n_periods=2)
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "node", is_sink=True, is_source=True)
+
+    result = network.optimize()
+
+    assert result == 0.0
+
+
+def test_network_optimize_raises_on_solver_failure(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Optimize should surface solver failure status with context."""
+
+    caplog.set_level(logging.DEBUG, logger=network_module.__name__)
+
+    def fake_solve(self: LpProblem, _solver: object) -> int:
+        sys.stderr.write("solver failed\n")
+        return 0  # Not Solved
+
+    monkeypatch.setattr(LpProblem, "solve", fake_solve)
+
+    network = Network(name="test_network", period=1.0, n_periods=1)
+    network.add(ELEMENT_TYPE_SOURCE_SINK, "node", is_sink=True, is_source=True)
+
+    with pytest.raises(ValueError, match="Optimization failed with status: Not Solved"):
         network.optimize()

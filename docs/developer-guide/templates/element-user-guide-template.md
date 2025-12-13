@@ -1,4 +1,4 @@
-# [Element Name] Configuration
+# [Element Name]
 
 Brief description of the element (1-2 sentences).
 Focus on what the element represents in the energy system and its primary purpose.
@@ -21,10 +21,13 @@ Keep explanations focused on configuration, not mathematical modeling.
 For complex elements, you may group related fields under a descriptive H3 heading, then use H4 subheadings for individual field details.
 Link to the field name in the configuration table where appropriate.
 
-## Configuration Example
+## Configuration Examples
 
-Provide a minimal working example using a table format.
+Provide minimal working examples using table format.
 Keep examples realistic and representative of typical use cases.
+For complex elements, provide multiple examples showing different configuration patterns.
+
+### Basic Configuration
 
 | Field         | Value                |
 | ------------- | -------------------- |
@@ -32,41 +35,63 @@ Keep examples realistic and representative of typical use cases.
 | **Field One** | value                |
 | **Field Two** | sensor.example_value |
 
+### Alternative Configuration
+
+| Field         | Value                     |
+| ------------- | ------------------------- |
+| **Name**      | Alternative Example       |
+| **Field One** | different_value           |
+| **Field Two** | sensor.alternative_sensor |
+
 ## Sensors Created
 
-Brief overview paragraph explaining what sensors this element creates (optional).
+This element creates sensors organized by device.
+Each device groups related sensors for a specific aspect of the element's operation.
 
-All sensors this element creates are listed in the table below.
-Regular operational sensors appear first, followed by shadow price sensors at the end.
+For detailed mathematical formulation, see the [relevant Model Layer documentation](../../modeling/index.md).
 
-| Sensor                                                         | Unit  | Description                            |
-| -------------------------------------------------------------- | ----- | -------------------------------------- |
-| [`sensor.{name}_sensor_one`](#sensor-one)                      | kW    | Brief description (link to subsection) |
-| [`sensor.{name}_sensor_two`](#sensor-two)                      | kWh   | Brief description (link to subsection) |
-| [`sensor.{name}_conditional_sensor`](#conditional-sensor) (\*) | %     | Brief description (conditional sensor) |
-| [`sensor.{name}_shadow_price_one`](#shadow-price-one)          | \$/kW | Brief description (shadow price)       |
-| [`sensor.{name}_shadow_price_two`](#shadow-price-two)          | \$/kW | Brief description (shadow price)       |
+### [Device Name] Device
+
+Brief description of what this device represents.
+
+| Sensor                                                | Unit  | Description                            |
+| ----------------------------------------------------- | ----- | -------------------------------------- |
+| [`sensor.{name}_sensor_one`](#sensor-one)             | kW    | Brief description (link to subsection) |
+| [`sensor.{name}_sensor_two`](#sensor-two)             | kWh   | Brief description (link to subsection) |
+| [`sensor.{name}_shadow_price_one`](#shadow-price-one) | \$/kW | Brief description (shadow price)       |
+
+### [Optional Device Name] Device (\*)
+
+Brief description of when this device is created and what it represents.
 
 (\*) Only created when [specific condition is met]
 
-### Sensor One
+| Sensor                                                    | Unit | Description                            |
+| --------------------------------------------------------- | ---- | -------------------------------------- |
+| [`sensor.{name}_conditional_sensor`](#conditional-sensor) | %    | Brief description (conditional sensor) |
+
+---
+
+### Sensor Descriptions
+
+#### Sensor One
 
 Plain-English explanation of what this sensor represents and what its values mean.
 Keep explanations focused on interpretation, not mathematical details.
 
 **Example interpretation**: "A value of 5.2 kW means..."
 
-### Sensor Two
+#### Sensor Two
 
 Plain-English explanation of what this sensor represents and what its values mean.
 
-### Conditional Sensor
+#### Conditional Sensor
 
 Plain-English explanation of when this sensor is created and what it represents.
 
 **Availability**: This sensor only appears when [specific condition].
 
-### Shadow Price One
+#### Shadow Price One
 
 Brief explanation of what this specific shadow price represents.
 Reference the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -75,13 +100,6 @@ Reference the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) fo
 
 - **Zero value**: Constraint is not limiting (explain what this means for this element)
 - **Nonzero value**: Constraint is binding (explain what this means for this element)
-
-### Shadow Price Two
-
-Brief explanation of what this specific shadow price represents.
-Link to [Shadow Prices guide](../../modeling/shadow-prices.md) for general concepts.
-
-**Interpretation**: Element-specific interpretation guidance.
 
 ---
 

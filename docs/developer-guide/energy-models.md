@@ -2,13 +2,39 @@
 
 Guide for adding new element types to HAEO's optimization engine.
 
+## Architecture Overview
+
+HAEO uses a [layered architecture](architecture.md#layered-architecture):
+
+- **Model Layer**: Mathematical building blocks (`battery`, `source_sink`, `connection`) that form the LP problem
+- **Device Layer**: User-configured elements that compose Model Layer elements via the [Adapter Layer](adapter-layer.md)
+
+When adding a new element type, decide which layer it belongs to:
+
+- **Model Layer**: New mathematical formulation not representable by existing models
+- **Device Layer**: New user-facing element that composes existing Model Layer elements
+
+Most new elements will be Device Layer elements that compose `source_sink` and `connection` models with different parameter mappings.
+
 ## Workflow overview
 
-1. Design the mathematical behaviour for your element: required variables, constraints, and cost contributions.
-2. Implement the model class in `custom_components/haeo/model/` by deriving from the shared `Element` base.
-3. Define the configuration schema and defaults in `custom_components/haeo/elements/` so the UI can collect the necessary inputs.
-4. Register the element with the network builder so the coordinator can instantiate it from configuration.
-5. Extend the element config flow and add tests that cover both the mathematical formulation and the user-facing configuration.
+### Adding a Device Layer element
+
+1. Design how existing Model Layer elements combine to achieve the desired behavior
+2. Define the configuration schema in `custom_components/haeo/elements/`
+3. Implement `create_model_elements()` to transform config into Model Layer specifications
+4. Implement `outputs()` to map Model Layer results to user-friendly device outputs
+5. Register in `ELEMENT_TYPES` and add translations
+6. Write tests covering configuration and output mapping
+
+### Adding a Model Layer element
+
+1. Design the mathematical behavior: variables, constraints, cost contributions
+2. Implement the model class in `custom_components/haeo/model/` deriving from `Element`
+3. Implement `outputs()` returning raw optimization results
+4. Register with the network builder
+5. Update Device Layer elements to use the new model
+6. Write model tests and integration tests
 
 ## Modeling guidelines
 
@@ -93,7 +119,7 @@ If the element interacts with external tariffs or degradation models, expose the
 
     Example of a storage formulation.
 
-    [:material-arrow-right: Battery modeling](../modeling/battery.md)
+    [:material-arrow-right: Battery modeling](../modeling/model-layer/battery.md)
 
 - :material-test-tube:{ .lg .middle } **Testing**
 

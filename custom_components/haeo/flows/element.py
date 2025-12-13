@@ -27,6 +27,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             defaults: Default values for this element type
 
         """
+        super().__init__()
         self.element_type: str = element_type
         self.schema_cls: type[ElementConfigSchema] = schema_cls
         self.defaults: dict[str, Any] = defaults

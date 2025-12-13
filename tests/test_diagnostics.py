@@ -37,14 +37,14 @@ from custom_components.haeo.diagnostics import async_get_config_entry_diagnostic
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
+    CONF_CONNECTION,
     CONF_EFFICIENCY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
 )
-from custom_components.haeo.elements.grid import CONF_IMPORT_PRICE
+from custom_components.haeo.elements.grid import CONF_IMPORT_PRICE, GRID_POWER_IMPORT
 from custom_components.haeo.model import OUTPUT_TYPE_POWER
-from custom_components.haeo.model.grid import GRID_POWER_IMPORTED
 
 
 async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
@@ -118,6 +118,7 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 CONF_NAME: "Battery One",
                 CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CONNECTION: "DC Bus",
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
@@ -214,6 +215,7 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 CONF_NAME: "Battery",
                 CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CONNECTION: "DC Bus",
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
@@ -294,7 +296,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.data = {
         "grid": {
-            GRID_POWER_IMPORTED: CoordinatorOutput(
+            GRID_POWER_IMPORT: CoordinatorOutput(
                 type=OUTPUT_TYPE_POWER,
                 unit="kW",
                 state=5.5,
@@ -305,11 +307,11 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
 
     # Register output sensor in entity registry (required for get_output_sensors)
     entity_registry = er.async_get(hass)
-    output_entity_id = f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORTED}"
+    output_entity_id = f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORT}"
     entity_registry.async_get_or_create(
         domain="sensor",
         platform=DOMAIN,
-        unique_id=f"hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORTED}",
+        unique_id=f"hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORT}",
         config_entry=entry,
     )
 
@@ -332,7 +334,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     assert len(outputs) >= 1
     # Find the entity by checking entity_id in values
     output_entity = next(
-        (s for s in outputs.values() if GRID_POWER_IMPORTED in s["entity_id"]),
+        (s for s in outputs.values() if GRID_POWER_IMPORT in s["entity_id"]),
         None,
     )
     assert output_entity is not None

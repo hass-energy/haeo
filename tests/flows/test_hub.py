@@ -56,15 +56,16 @@ async def test_user_step_form_has_translations(hass: HomeAssistant) -> None:
 
     result = await flow.async_step_user(user_input=None)
 
-    assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "user"
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "user"
 
     # Get translations
     translations = await async_get_translations(hass, "en", "config", integrations=[DOMAIN], config_flow=True)
 
     # Verify all form fields have translations
-    assert result["data_schema"] is not None
-    schema = result["data_schema"].schema
+    data_schema = result.get("data_schema")
+    assert data_schema is not None
+    schema = data_schema.schema
     for key in schema:
         field_name = key.schema
         translation_key = f"component.{DOMAIN}.config.step.user.data.{field_name}"

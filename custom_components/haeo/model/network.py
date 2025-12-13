@@ -12,10 +12,7 @@ from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, getSolver, lpSum
 from .battery import Battery
 from .connection import Connection
 from .element import Element
-from .grid import Grid
-from .load import Load
-from .node import Node
-from .photovoltaics import Photovoltaics
+from .source_sink import SourceSink
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,11 +53,8 @@ class Network:
         """
         factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
-            "photovoltaics": Photovoltaics,
-            "load": Load,
-            "grid": Grid,
-            "node": Node,
             "connection": Connection,
+            "source_sink": SourceSink,
         }
 
         factory = factories[element_type.lower()]
@@ -73,10 +67,17 @@ class Network:
             source_element = self.elements.get(element.source)
             target_element = self.elements.get(element.target)
 
-            if source_element is not None and isinstance(source_element, Element):
+            if source_element is not None:
                 source_element.register_connection(element, "source")
-            if target_element is not None and isinstance(target_element, Element):
+            else:
+                msg = f"Failed to register connection {name} with source {element.source}: Not found or invalid"
+                raise ValueError(msg)
+
+            if target_element is not None:
                 target_element.register_connection(element, "target")
+            else:
+                msg = f"Failed to register connection {name} with target {element.target}: Not found or invalid"
+                raise ValueError(msg)
 
         return element
 

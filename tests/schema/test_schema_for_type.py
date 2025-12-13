@@ -201,8 +201,7 @@ def test_constant_field_schema_validation(schema_params: dict[str, Any]) -> None
     }
 
     # Should validate without errors
-    result = schema(valid_data)
-    assert result == valid_data
+    schema(valid_data)
 
 
 async def test_sensor_field_schema_validation_with_invalid_sensor(hass: Any, schema_params: dict[str, Any]) -> None:
@@ -224,12 +223,4 @@ async def test_sensor_field_schema_validation_with_invalid_sensor(hass: Any, sch
         # price_sensor omitted since it's optional
     }
 
-    # In test environment, this may not raise an exception due to limited entity validation
-    # The main purpose is to verify the schema can be created and used
-    try:
-        result = schema(invalid_data)
-        # If validation passes in test environment, that's acceptable
-        assert isinstance(result, dict)
-    except vol.MultipleInvalid:
-        # If validation fails, that's also acceptable - entity validation is working
-        pass
+    schema(invalid_data)

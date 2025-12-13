@@ -42,7 +42,7 @@ def matches_unit_spec(unit: str, spec: UnitSpec | list[UnitSpec]) -> bool:
         return unit == spec
 
     # Handle Enum class - check if unit matches any enum value
-    if isinstance(spec, type) and issubclass(spec, StrEnum):
+    if isinstance(spec, type):
         return unit in (member.value for member in spec)
 
     # Handle iterable of strings (tuple, etc.) - build regex pattern and match

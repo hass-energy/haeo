@@ -1,6 +1,6 @@
-"""Tests for the time series loader's entity ID handling and error cases.
+"""Unit tests for time series loader's entity ID handling and error cases.
 
-Integration tests verifying the full pipeline are in tests/data/loader/test_time_series_loader.py.
+Integration tests with Home Assistant state are in test_time_series_loader.py.
 Lower-level fusion and cycling logic is tested in:
 - tests/data/util/test_forecast_fuser.py (fusion logic)
 - tests/data/util/test_forecast_cycle.py (cycling logic)

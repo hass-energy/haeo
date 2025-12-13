@@ -1,9 +1,6 @@
 """HAEO energy modeling components."""
 
 from .const import (
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
     OUTPUT_TYPE_COST,
     OUTPUT_TYPE_DURATION,
     OUTPUT_TYPE_ENERGY,
@@ -19,12 +16,9 @@ from .const import (
 from .element import Element as Element
 from .network import Network as Network
 from .output_data import OutputData
-from .output_names import OutputName
+from .output_names import ModelOutputName
 
 __all__ = [
-    "OUTPUT_NAME_OPTIMIZATION_COST",
-    "OUTPUT_NAME_OPTIMIZATION_DURATION",
-    "OUTPUT_NAME_OPTIMIZATION_STATUS",
     "OUTPUT_TYPE_COST",
     "OUTPUT_TYPE_DURATION",
     "OUTPUT_TYPE_ENERGY",
@@ -36,8 +30,8 @@ __all__ = [
     "OUTPUT_TYPE_SOC",
     "OUTPUT_TYPE_STATUS",
     "Element",
+    "ModelOutputName",
     "Network",
     "OutputData",
-    "OutputName",
     "OutputType",
 ]

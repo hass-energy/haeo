@@ -1,4 +1,4 @@
-# Battery Modeling
+# Battery Model
 
 This page explains how HAEO models battery storage systems using linear programming with a multi-section approach.
 
@@ -94,7 +94,7 @@ This creates three sections where operation in the undercharge and overcharge zo
 
 ## Model Formulation
 
-The battery model follows the [fence post pattern](index.md#power-and-energy-discretization) used throughout HAEO's optimization.
+The battery model follows the [fence post pattern](../index.md#power-and-energy-discretization) used throughout HAEO's optimization.
 Power variables (charge/discharge rates) represent average power over each period and have $T$ values indexed as $t \in \{0, 1, \ldots, T-1\}$.
 Energy variables (stored energy, SOC) represent instantaneous values at time boundaries and have $T+1$ values indexed as $t \in \{0, 1, \ldots, T\}$.
 Power is calculated from the change in energy between consecutive boundaries divided by the period duration.
@@ -445,7 +445,7 @@ This keeps variables in similar numerical ranges (0.001 to 1000) which:
 - Reduces numerical errors
 - Makes debugging easier
 
-See the [units documentation](../developer-guide/units.md) for detailed explanation.
+See the [units documentation](../../developer-guide/units.md) for detailed explanation.
 
 ### Efficiency Modeling
 
@@ -540,7 +540,7 @@ The cost parameters create economic trade-offs rather than hard limits:
 
     Configure batteries in your Home Assistant setup.
 
-    [:material-arrow-right: Battery configuration](../user-guide/elements/battery.md)
+    [:material-arrow-right: Battery configuration](../../user-guide/elements/battery.md)
 
 - :material-network:{ .lg .middle } **Network modeling**
 
@@ -548,7 +548,7 @@ The cost parameters create economic trade-offs rather than hard limits:
 
     Understand how elements interact in the network model.
 
-    [:material-arrow-right: Network modeling overview](index.md)
+    [:material-arrow-right: Network modeling overview](../index.md)
 
 - :material-code-braces:{ .lg .middle } **Implementation**
 

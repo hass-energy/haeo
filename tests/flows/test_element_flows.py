@@ -1,5 +1,6 @@
 """End-to-end tests for element subentry flows."""
 
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -38,6 +39,7 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.elements import (
     ELEMENT_TYPES,
+    ElementOutputName,
     ElementRegistryEntry,
     ElementType,
     battery,
@@ -46,6 +48,7 @@ from custom_components.haeo.elements import (
     node,
 )
 from custom_components.haeo.flows.element import ElementSubentryFlow, create_subentry_flow_class
+from custom_components.haeo.model import OutputData
 from custom_components.haeo.schema.fields import NameFieldData, NameFieldSchema
 from tests.conftest import ElementTestData
 
@@ -159,11 +162,21 @@ class FlowTestElementFactory:
 def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElementFactory:
     """Register and return a synthetic element factory for flow testing."""
 
+    def mock_create_model_elements(config: Any) -> list[dict[str, Any]]:
+        return []
+
+    def mock_outputs(
+        name: str, outputs: Mapping[str, Mapping[Any, OutputData]]
+    ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
+        return {}
+
     entry = ElementRegistryEntry(
         schema=FlowTestElementConfigSchema,
         data=FlowTestElementConfigData,
         defaults={},
         translation_key=cast("ElementType", TEST_ELEMENT_TYPE),
+        create_model_elements=mock_create_model_elements,
+        outputs=mock_outputs,  # type: ignore[arg-type]
     )
     monkeypatch.setitem(ELEMENT_TYPES, cast("ElementType", TEST_ELEMENT_TYPE), entry)
     return FlowTestElementFactory()

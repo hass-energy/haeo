@@ -84,7 +84,7 @@ uv run pytest -v --tb=short           # Verbose with short tracebacks
 # Code quality and linting
 uv run ruff check                      # Lint code
 uv run ruff format                     # Format code
-uv run mypy custom_components/         # Type checking
+uv run pyright                         # Type checking
 
 # Add new dependencies
 uv add requests                        # Runtime dependency
@@ -129,7 +129,7 @@ uv lock --upgrade                      # Update lock file
 
 - **Formatting**: Ruff
 - **Linting**: PyLint and Ruff
-- **Type Checking**: MyPy
+- **Type Checking**: Pyright
 - **Testing**: pytest with plain functions and fixtures
 - **Language**: American English for all code, comments, and documentation (use sentence case, including titles)
 - **Units**: Use SI units (seconds, watts, watt-hours, etc.) throughout all calculations and internal data structures. Only convert to user-friendly units (hours, minutes, kW, kWh) when displaying to users or accepting user input.

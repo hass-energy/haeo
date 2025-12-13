@@ -1,45 +1,46 @@
 """Test data for node element configuration."""
 
-from typing import Any
+from collections.abc import Sequence
 
-# Valid node configurations
-VALID: list[dict[str, Any]] = [
+from custom_components.haeo.elements import node as node_element
+from custom_components.haeo.model.const import OUTPUT_TYPE_SHADOW_PRICE
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
+
+from .types import ElementConfigData, ElementConfigSchema, ElementValidCase, InvalidModelCase, InvalidSchemaCase
+
+VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
-        "data": {
-            "element_type": "node",
-            "name": "Junction Node",
+        "description": "Adapter mapping node case",
+        "element_type": "node",
+        "schema": node_element.NodeConfigSchema(element_type="node", name="node_main"),
+        "data": node_element.NodeConfigData(element_type="node", name="node_main"),
+        "model": [
+            {"element_type": "source_sink", "name": "node_main", "is_source": False, "is_sink": False},
+        ],
+        "model_outputs": {
+            "node_main": {
+                SOURCE_SINK_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+            }
         },
-        "description": "Simple junction node",
-    },
-    {
-        "data": {
-            "element_type": "node",
-            "name": "Main Bus",
+        "outputs": {
+            node_element.NODE_DEVICE_NODE: {
+                node_element.NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+            }
         },
-        "description": "Main electrical bus node",
-    },
-    {
-        "data": {
-            "element_type": "node",
-            "name": "Inverter Input",
-        },
-        "description": "Inverter input connection node",
     },
 ]
 
-# Invalid node configurations
-INVALID: list[dict[str, Any]] = [
+# Invalid schema-only cases
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[ElementConfigSchema]] = [
     {
-        "data": {
-            "element_type": "node",
-        },
-        "description": "Node missing required name field",
-    },
-    {
-        "data": {
+        "description": "Node missing name",
+        "schema": {
             "element_type": "node",
             "name": "",
         },
-        "description": "Node with empty name",
     },
 ]
+
+# Invalid model parameter combinations to exercise runtime validation
+INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[ElementConfigData]] = []

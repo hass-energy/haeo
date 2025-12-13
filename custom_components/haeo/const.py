@@ -1,7 +1,7 @@
 """Constants for the Home Assistant Energy Optimizer integration."""
 
 from collections.abc import Mapping
-from typing import Final
+from typing import Final, Literal
 
 # Integration domain
 DOMAIN: Final = "haeo"
@@ -70,3 +70,23 @@ def tiers_to_periods_seconds(config: Mapping[str, int]) -> list[int]:
         duration_seconds = config[f"tier_{tier}_duration"] * 60  # minutes to seconds
         periods.extend([duration_seconds] * count)
     return periods
+
+
+type NetworkOutputName = Literal[
+    "network_optimization_cost",
+    "network_optimization_status",
+    "network_optimization_duration",
+]
+NETWORK_OUTPUT_NAMES: Final[frozenset[NetworkOutputName]] = frozenset(
+    [
+        OUTPUT_NAME_OPTIMIZATION_COST := "network_optimization_cost",
+        OUTPUT_NAME_OPTIMIZATION_STATUS := "network_optimization_status",
+        OUTPUT_NAME_OPTIMIZATION_DURATION := "network_optimization_duration",
+    ]
+)
+
+type NetworkDeviceName = Literal["network"]
+
+NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(
+    (NETWORK_DEVICE_NETWORK := "network",),
+)

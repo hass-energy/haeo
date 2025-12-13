@@ -26,7 +26,7 @@ DataExtractor = (
 
 
 # Dictionary mapping domain strings to their extractor classes
-_FORMATS: dict[ExtractorFormat, DataExtractor] = {
+FORMATS: dict[ExtractorFormat, DataExtractor] = {
     aemo_nem.DOMAIN: aemo_nem.Parser,
     amberelectric.DOMAIN: amberelectric.Parser,
     haeo.DOMAIN: haeo.Parser,
@@ -87,6 +87,7 @@ def extract(state: State) -> ExtractedData:
 
 
 __all__ = [
+    "FORMATS",
     "DataExtractor",
     "EntityMetadata",
     "ExtractorFormat",

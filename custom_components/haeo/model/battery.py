@@ -17,61 +17,15 @@ BATTERY_SECTION_UNDERCHARGE: Final = "undercharge"
 BATTERY_SECTION_NORMAL: Final = "normal"
 BATTERY_SECTION_OVERCHARGE: Final = "overcharge"
 
-# Battery constraint names (also used as shadow price output names)
-BATTERY_POWER_BALANCE: Final = "battery_power_balance"
-BATTERY_MAX_CHARGE_POWER: Final = "battery_max_charge_power"
-BATTERY_MAX_DISCHARGE_POWER: Final = "battery_max_discharge_power"
-BATTERY_TIME_SLICE: Final = "battery_time_slice"
-
 # Internal section constraint name patterns (used to build shadow price outputs)
 BATTERY_ENERGY_IN_FLOW: Final = "energy_in_flow"
 BATTERY_ENERGY_OUT_FLOW: Final = "energy_out_flow"
 BATTERY_SOC_MAX: Final = "soc_max"
 BATTERY_SOC_MIN: Final = "soc_min"
 
-# Battery output names
-BATTERY_POWER_CHARGE: Final = "battery_power_charge"
-BATTERY_POWER_DISCHARGE: Final = "battery_power_discharge"
-BATTERY_ENERGY_STORED: Final = "battery_energy_stored"
-BATTERY_STATE_OF_CHARGE: Final = "battery_state_of_charge"
-
-# Section-specific output names
-BATTERY_UNDERCHARGE_ENERGY_STORED: Final = "battery_undercharge_energy_stored"
-BATTERY_UNDERCHARGE_POWER_CHARGE: Final = "battery_undercharge_power_charge"
-BATTERY_UNDERCHARGE_POWER_DISCHARGE: Final = "battery_undercharge_power_discharge"
-BATTERY_UNDERCHARGE_CHARGE_PRICE: Final = "battery_undercharge_charge_price"
-BATTERY_UNDERCHARGE_DISCHARGE_PRICE: Final = "battery_undercharge_discharge_price"
-BATTERY_UNDERCHARGE_ENERGY_IN_FLOW: Final = "battery_undercharge_energy_in_flow"
-BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW: Final = "battery_undercharge_energy_out_flow"
-BATTERY_UNDERCHARGE_SOC_MAX: Final = "battery_undercharge_soc_max"
-BATTERY_UNDERCHARGE_SOC_MIN: Final = "battery_undercharge_soc_min"
-
-BATTERY_NORMAL_ENERGY_STORED: Final = "battery_normal_energy_stored"
-BATTERY_NORMAL_POWER_CHARGE: Final = "battery_normal_power_charge"
-BATTERY_NORMAL_POWER_DISCHARGE: Final = "battery_normal_power_discharge"
-BATTERY_NORMAL_CHARGE_PRICE: Final = "battery_normal_charge_price"
-BATTERY_NORMAL_DISCHARGE_PRICE: Final = "battery_normal_discharge_price"
-BATTERY_NORMAL_ENERGY_IN_FLOW: Final = "battery_normal_energy_in_flow"
-BATTERY_NORMAL_ENERGY_OUT_FLOW: Final = "battery_normal_energy_out_flow"
-BATTERY_NORMAL_SOC_MAX: Final = "battery_normal_soc_max"
-BATTERY_NORMAL_SOC_MIN: Final = "battery_normal_soc_min"
-
-BATTERY_OVERCHARGE_ENERGY_STORED: Final = "battery_overcharge_energy_stored"
-BATTERY_OVERCHARGE_POWER_CHARGE: Final = "battery_overcharge_power_charge"
-BATTERY_OVERCHARGE_POWER_DISCHARGE: Final = "battery_overcharge_power_discharge"
-BATTERY_OVERCHARGE_CHARGE_PRICE: Final = "battery_overcharge_charge_price"
-BATTERY_OVERCHARGE_DISCHARGE_PRICE: Final = "battery_overcharge_discharge_price"
-BATTERY_OVERCHARGE_ENERGY_IN_FLOW: Final = "battery_overcharge_energy_in_flow"
-BATTERY_OVERCHARGE_ENERGY_OUT_FLOW: Final = "battery_overcharge_energy_out_flow"
-BATTERY_OVERCHARGE_SOC_MAX: Final = "battery_overcharge_soc_max"
-BATTERY_OVERCHARGE_SOC_MIN: Final = "battery_overcharge_soc_min"
-
 # Type for battery constraint names (includes all internal and external constraints)
 type BatteryConstraintName = Literal[
     "battery_power_balance",
-    "battery_max_charge_power",
-    "battery_max_discharge_power",
-    "battery_time_slice",
     "battery_undercharge_energy_in_flow",
     "battery_undercharge_energy_out_flow",
     "battery_undercharge_soc_max",
@@ -112,75 +66,52 @@ type BatteryOutputName = (
     | BatteryConstraintName
 )
 
-# Set of battery output names for runtime validation and type narrowing
-# Note: Includes dynamic constraint names built from sections, so type is inferred
-BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
-    (
-        BATTERY_POWER_CHARGE,
-        BATTERY_POWER_DISCHARGE,
-        BATTERY_ENERGY_STORED,
-        BATTERY_STATE_OF_CHARGE,
-        BATTERY_UNDERCHARGE_ENERGY_STORED,
-        BATTERY_UNDERCHARGE_POWER_CHARGE,
-        BATTERY_UNDERCHARGE_POWER_DISCHARGE,
-        BATTERY_UNDERCHARGE_CHARGE_PRICE,
-        BATTERY_UNDERCHARGE_DISCHARGE_PRICE,
-        BATTERY_NORMAL_ENERGY_STORED,
-        BATTERY_NORMAL_POWER_CHARGE,
-        BATTERY_NORMAL_POWER_DISCHARGE,
-        BATTERY_NORMAL_CHARGE_PRICE,
-        BATTERY_NORMAL_DISCHARGE_PRICE,
-        BATTERY_OVERCHARGE_ENERGY_STORED,
-        BATTERY_OVERCHARGE_POWER_CHARGE,
-        BATTERY_OVERCHARGE_POWER_DISCHARGE,
-        BATTERY_OVERCHARGE_CHARGE_PRICE,
-        BATTERY_OVERCHARGE_DISCHARGE_PRICE,
-        BATTERY_POWER_BALANCE,
-        BATTERY_MAX_CHARGE_POWER,
-        BATTERY_MAX_DISCHARGE_POWER,
-        BATTERY_TIME_SLICE,
-        BATTERY_UNDERCHARGE_ENERGY_IN_FLOW,
-        BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW,
-        BATTERY_UNDERCHARGE_SOC_MAX,
-        BATTERY_UNDERCHARGE_SOC_MIN,
-        BATTERY_NORMAL_ENERGY_IN_FLOW,
-        BATTERY_NORMAL_ENERGY_OUT_FLOW,
-        BATTERY_NORMAL_SOC_MAX,
-        BATTERY_NORMAL_SOC_MIN,
-        BATTERY_OVERCHARGE_ENERGY_IN_FLOW,
-        BATTERY_OVERCHARGE_ENERGY_OUT_FLOW,
-        BATTERY_OVERCHARGE_SOC_MAX,
-        BATTERY_OVERCHARGE_SOC_MIN,
-    )
-)
-
 BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
     (
-        BATTERY_POWER_BALANCE,
-        BATTERY_MAX_CHARGE_POWER,
-        BATTERY_MAX_DISCHARGE_POWER,
-        BATTERY_TIME_SLICE,
-        BATTERY_UNDERCHARGE_ENERGY_IN_FLOW,
-        BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW,
-        BATTERY_UNDERCHARGE_SOC_MAX,
-        BATTERY_UNDERCHARGE_SOC_MIN,
-        BATTERY_NORMAL_ENERGY_IN_FLOW,
-        BATTERY_NORMAL_ENERGY_OUT_FLOW,
-        BATTERY_NORMAL_SOC_MAX,
-        BATTERY_NORMAL_SOC_MIN,
-        BATTERY_OVERCHARGE_ENERGY_IN_FLOW,
-        BATTERY_OVERCHARGE_ENERGY_OUT_FLOW,
-        BATTERY_OVERCHARGE_SOC_MAX,
-        BATTERY_OVERCHARGE_SOC_MIN,
+        BATTERY_POWER_BALANCE := "battery_power_balance",
+        BATTERY_UNDERCHARGE_ENERGY_IN_FLOW := "battery_undercharge_energy_in_flow",
+        BATTERY_UNDERCHARGE_ENERGY_OUT_FLOW := "battery_undercharge_energy_out_flow",
+        BATTERY_UNDERCHARGE_SOC_MAX := "battery_undercharge_soc_max",
+        BATTERY_UNDERCHARGE_SOC_MIN := "battery_undercharge_soc_min",
+        BATTERY_NORMAL_ENERGY_IN_FLOW := "battery_normal_energy_in_flow",
+        BATTERY_NORMAL_ENERGY_OUT_FLOW := "battery_normal_energy_out_flow",
+        BATTERY_NORMAL_SOC_MAX := "battery_normal_soc_max",
+        BATTERY_NORMAL_SOC_MIN := "battery_normal_soc_min",
+        BATTERY_OVERCHARGE_ENERGY_IN_FLOW := "battery_overcharge_energy_in_flow",
+        BATTERY_OVERCHARGE_ENERGY_OUT_FLOW := "battery_overcharge_energy_out_flow",
+        BATTERY_OVERCHARGE_SOC_MAX := "battery_overcharge_soc_max",
+        BATTERY_OVERCHARGE_SOC_MIN := "battery_overcharge_soc_min",
     )
 )
 
 BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset(
+    (BATTERY_POWER_BALANCE,),
+)
+
+# Set of battery output names for runtime validation and type narrowing
+# Note: Includes dynamic constraint names built from sections, so type is inferred
+BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
     (
-        BATTERY_POWER_BALANCE,
-        BATTERY_MAX_CHARGE_POWER,
-        BATTERY_MAX_DISCHARGE_POWER,
-        BATTERY_TIME_SLICE,
+        BATTERY_POWER_CHARGE := "battery_power_charge",
+        BATTERY_POWER_DISCHARGE := "battery_power_discharge",
+        BATTERY_ENERGY_STORED := "battery_energy_stored",
+        BATTERY_STATE_OF_CHARGE := "battery_state_of_charge",
+        BATTERY_UNDERCHARGE_ENERGY_STORED := "battery_undercharge_energy_stored",
+        BATTERY_UNDERCHARGE_POWER_CHARGE := "battery_undercharge_power_charge",
+        BATTERY_UNDERCHARGE_POWER_DISCHARGE := "battery_undercharge_power_discharge",
+        BATTERY_UNDERCHARGE_CHARGE_PRICE := "battery_undercharge_charge_price",
+        BATTERY_UNDERCHARGE_DISCHARGE_PRICE := "battery_undercharge_discharge_price",
+        BATTERY_NORMAL_ENERGY_STORED := "battery_normal_energy_stored",
+        BATTERY_NORMAL_POWER_CHARGE := "battery_normal_power_charge",
+        BATTERY_NORMAL_POWER_DISCHARGE := "battery_normal_power_discharge",
+        BATTERY_NORMAL_CHARGE_PRICE := "battery_normal_charge_price",
+        BATTERY_NORMAL_DISCHARGE_PRICE := "battery_normal_discharge_price",
+        BATTERY_OVERCHARGE_ENERGY_STORED := "battery_overcharge_energy_stored",
+        BATTERY_OVERCHARGE_POWER_CHARGE := "battery_overcharge_power_charge",
+        BATTERY_OVERCHARGE_POWER_DISCHARGE := "battery_overcharge_power_discharge",
+        BATTERY_OVERCHARGE_CHARGE_PRICE := "battery_overcharge_charge_price",
+        BATTERY_OVERCHARGE_DISCHARGE_PRICE := "battery_overcharge_discharge_price",
+        *BATTERY_CONSTRAINT_NAMES,
     )
 )
 
@@ -291,11 +222,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         initial_charge_percentage: Sequence[float] | float,
         min_charge_percentage: Sequence[float] | float = 10,
         max_charge_percentage: Sequence[float] | float = 90,
-        max_charge_power: Sequence[float] | float | None = None,
-        max_discharge_power: Sequence[float] | float | None = None,
-        efficiency: Sequence[float] | float = 99.0,
         early_charge_incentive: float = 1e-3,
-        discharge_cost: Sequence[float] | float | None = None,
         undercharge_percentage: Sequence[float] | float | None = None,
         overcharge_percentage: Sequence[float] | float | None = None,
         undercharge_cost: Sequence[float] | float | None = None,
@@ -310,15 +237,9 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
             initial_charge_percentage: Initial charge percentage 0-100
             min_charge_percentage: Preferred minimum charge percentage (inner bound) 0-100
             max_charge_percentage: Preferred maximum charge percentage (inner bound) 0-100
-            max_charge_power: Maximum charging power in kW per period
-            max_discharge_power: Maximum discharging power in kW per period
-            efficiency: Battery round-trip efficiency percentage 0-100.
-                Internally converted to one-way efficiency (sqrt of round-trip) and applied
-                symmetrically to charge and discharge operations.
             early_charge_incentive: Positive value ($/kWh) that creates a small incentive
                 to prefer earlier charging. Linearly increases from 0 to -incentive across periods.
                 Default 0.001 (0.1 cents/kWh) encourages charging earlier when costs are equal.
-            discharge_cost: Cost in $/kWh when discharging (applies to normal section)
             undercharge_percentage: Absolute minimum charge percentage (outer bound) 0-100
             overcharge_percentage: Absolute maximum charge percentage (outer bound) 0-100
             undercharge_cost: Cost in $/kWh for discharging in undercharge section
@@ -331,15 +252,8 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         super().__init__(name=name, periods=periods)
         n_periods = self.n_periods
 
-        # Convert round-trip efficiency to one-way efficiency (applied symmetrically to charge/discharge)
-        # Round-trip efficiency = (one-way efficiency)^2, so one-way = sqrt(round-trip)
-        efficiency_ratio = percentage_to_ratio(broadcast_to_sequence(efficiency, n_periods))
-        self.efficiency = [np.sqrt(eff) for eff in efficiency_ratio]
-        self.max_charge_power = broadcast_to_sequence(max_charge_power, n_periods)
-        self.max_discharge_power = broadcast_to_sequence(max_discharge_power, n_periods)
         undercharge_cost = broadcast_to_sequence(undercharge_cost, n_periods)
         overcharge_cost = broadcast_to_sequence(overcharge_cost, n_periods)
-        discharge_cost = broadcast_to_sequence(discharge_cost if discharge_cost is not None else 0.0, n_periods)
 
         # These parameters are defined per energy item, so extend by 1 (repeats the last value)
         # Convert percentages (0-100) to ratios (0-1)
@@ -402,7 +316,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
                 name=BATTERY_SECTION_NORMAL,
                 capacity=normal_capacity,
                 charge_cost=(charge_early_incentive * 2).tolist(),
-                discharge_cost=((discharge_early_incentive * 2) + np.array(discharge_cost)).tolist(),
+                discharge_cost=(discharge_early_incentive * 2).tolist(),
                 initial_charge=section_initial_charge,
                 periods=periods,
             )
@@ -419,7 +333,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
                     name=BATTERY_SECTION_OVERCHARGE,
                     capacity=overcharge_capacity,
                     charge_cost=((charge_early_incentive * 1) + np.array(overcharge_cost)).tolist(),
-                    discharge_cost=((discharge_early_incentive * 3) + np.array(discharge_cost)).tolist(),
+                    discharge_cost=(discharge_early_incentive * 3).tolist(),
                     initial_charge=section_initial_charge,
                     periods=periods,
                 )
@@ -431,49 +345,26 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
                 self._constraints[constraint_name] = constraint
 
         # Pre-calculate power and energy expressions to avoid recomputing them
-        # power_consumption: external power drawn from network (more than stored due to efficiency loss)
-        # power_production: external power sent to network (less than released due to efficiency loss)
+        # power_consumption: power drawn from network (stored in battery)
+        # power_production: power sent to network (released from battery)
         self.power_consumption: Sequence[LpAffineExpression] = [
-            lpSum(s.power_consumption[t] for s in self._sections) / self.efficiency[t] for t in range(self.n_periods)
+            lpSum(s.power_consumption[t] for s in self._sections) for t in range(self.n_periods)
         ]
         self.power_production: Sequence[LpAffineExpression] = [
-            lpSum(s.power_production[t] for s in self._sections) * self.efficiency[t] for t in range(self.n_periods)
+            lpSum(s.power_production[t] for s in self._sections) for t in range(self.n_periods)
         ]
         self.stored_energy: Sequence[LpAffineExpression] = [
             self.inaccessible_energy[t] + lpSum(s.energy_in[t] - s.energy_out[t] for s in self._sections)
             for t in range(self.n_periods + 1)
         ]
 
-        # Power limits constrain external power (power_consumption/power_production already include efficiency)
-        if self.max_charge_power is not None:
-            self._constraints[BATTERY_MAX_CHARGE_POWER] = [
-                self.power_consumption[t] <= self.max_charge_power[t] for t in range(self.n_periods)
-            ]
-        if self.max_discharge_power is not None:
-            self._constraints[BATTERY_MAX_DISCHARGE_POWER] = [
-                self.power_production[t] <= self.max_discharge_power[t] for t in range(self.n_periods)
-            ]
-
-        # Prevent simultaneous full charging and discharging using time-slicing constraint:
-        # This allows cycling but on a time-sliced basis (e.g., charge 50% of time, discharge 50%)
-        if self.max_charge_power is not None and self.max_discharge_power is not None:
-            self._constraints[BATTERY_TIME_SLICE] = [
-                self.power_consumption[t] / self.max_charge_power[t]
-                + self.power_production[t] / self.max_discharge_power[t]
-                <= 1.0
-                for t in range(self.n_periods)
-                if self.max_charge_power[t] > 0 and self.max_discharge_power[t] > 0
-            ]
-
     def build_constraints(self) -> None:
         """Build network-dependent constraints for the battery.
 
         This includes power balance constraints using connection_power().
-        Efficiency losses are applied to prevent oscillation (cycling).
         """
 
-        # Power balance: connection_power equals net external power
-        # power_consumption and power_production already include efficiency losses
+        # Power balance: connection_power equals net battery power
         self._constraints[BATTERY_POWER_BALANCE] = [
             self.connection_power(t) == self.power_consumption[t] - self.power_production[t]
             for t in range(self.n_periods)

@@ -29,6 +29,7 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
             periods: Sequence of time period durations in hours (one per optimization interval)
 
         """
+        super().__init__()
         self.name = name
         self.periods = periods
 
@@ -54,7 +55,7 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         self._connections.append((connection, end))
 
     def connection_power(self, t: int) -> LpAffineExpression:
-        """Return the net power from connections at timestep t.
+        """Return the net power from connections at time t.
 
         Positive means power flowing into this element from connections.
         Negative means power flowing out of this element to connections.

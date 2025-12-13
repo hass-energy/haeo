@@ -9,7 +9,8 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
-from custom_components.haeo.model import OutputName, OutputType
+from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
+from custom_components.haeo.model import OutputType
 
 
 class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
@@ -23,10 +24,11 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         coordinator: HaeoDataUpdateCoordinator,
         device_entry: DeviceEntry,
         *,
-        element_key: str,
+        subentry_key: str,
+        device_key: ElementDeviceName,
         element_title: str,
         element_type: str,
-        output_name: OutputName,
+        output_name: ElementOutputName,
         output_data: CoordinatorOutput,
         unique_id: str,
     ) -> None:
@@ -35,10 +37,11 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
         self.device_entry = device_entry
 
-        self._element_key: str = element_key
+        self._subentry_key: str = subentry_key
+        self._device_key: ElementDeviceName = device_key
         self._element_title: str = element_title
         self._element_type: str = element_type
-        self._output_name: OutputName = output_name
+        self._output_name: ElementOutputName = output_name
         self._output_type: OutputType = output_data.type
 
         self._attr_translation_key = output_name
@@ -64,7 +67,9 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         }
         native_value: StateType | None = None
 
-        outputs = self.coordinator.data.get(self._element_key) if self.coordinator.data else None
+        # Navigate the nested structure: subentry -> device -> outputs
+        subentry_devices = self.coordinator.data.get(self._subentry_key) if self.coordinator.data else None
+        outputs = subentry_devices.get(self._device_key) if subentry_devices else None
         if outputs:
             output_data = outputs.get(self._output_name)
             if output_data is not None:
@@ -86,8 +91,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
     async def async_added_to_hass(self) -> None:
         """Finalize setup when entity is added to Home Assistant."""
         await super().async_added_to_hass()
-        if self.coordinator.data is not None:
-            self._handle_coordinator_update()
+        self._handle_coordinator_update()
 
     def _apply_output(self, output: CoordinatorOutput) -> None:
         """Apply device class, options, and unit metadata for an output."""
