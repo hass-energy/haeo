@@ -1,7 +1,7 @@
 """Utility functions for extracting and processing sensor data."""
 
 import math
-from typing import Any
+from typing import Any, TypedDict, cast
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -16,6 +16,32 @@ _DEFAULT_DECIMAL_PLACES = 4
 _TARGET_SIG_FIGS = 4
 
 
+class ForecastItem(TypedDict):
+    """Single forecast point in sensor attributes."""
+
+    time: str  # ISO format after as_dict() serialization
+    value: float | str  # Numeric or status string (e.g., "success")
+
+
+class SensorAttributes(TypedDict, total=False):
+    """Attributes dict for HAEO sensors.
+
+    Uses total=False since not all attributes are always present.
+    Other Home Assistant attributes pass through as additional keys.
+    """
+
+    unit_of_measurement: str | None
+    forecast: list[ForecastItem]
+
+
+class SensorStateDict(TypedDict):
+    """Cleaned sensor state dict returned by get_output_sensors."""
+
+    entity_id: str
+    state: str
+    attributes: SensorAttributes
+
+
 def _get_decimal_places(max_abs_value: float) -> int:
     """Calculate decimal places needed for approximately 4 significant figures."""
     if max_abs_value == 0:
@@ -25,7 +51,72 @@ def _get_decimal_places(max_abs_value: float) -> int:
     return max(0, _TARGET_SIG_FIGS - (magnitude + 1))
 
 
-def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, dict[str, Any]]:
+def _try_parse_float(value: Any) -> float | None:
+    """Try to parse a value as float, returning None if not possible."""
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
+    """Apply intelligent rounding to numeric values in output sensors.
+
+    Analyzes all numeric values by unit and rounds them to approximately 4 significant figures,
+    reducing noise from floating-point precision while preserving measurement accuracy.
+
+    Modifies output_sensors in place by rounding:
+    - State values (if numeric strings)
+    - Forecast values in attributes (if present and numeric)
+
+    Args:
+        output_sensors: Dict mapping entity_id to sensor state dict.
+
+    """
+    # First pass: gather all numeric values by unit
+    unit_values: dict[str | None, list[float]] = {}
+
+    for entity_data in output_sensors.values():
+        unit = entity_data["attributes"].get("unit_of_measurement")
+        if unit not in unit_values:
+            unit_values[unit] = []
+
+        # Collect state value if numeric
+        state_val = _try_parse_float(entity_data["state"])
+        if state_val is not None:
+            unit_values[unit].append(abs(state_val))
+
+        # Collect forecast values
+        for item in entity_data["attributes"].get("forecast", []):
+            val = _try_parse_float(item["value"])
+            if val is not None:
+                unit_values[unit].append(abs(val))
+
+    # Calculate decimal places for each unit
+    unit_decimal_places: dict[str | None, int] = {
+        unit: _get_decimal_places(max(values)) if values else _DEFAULT_DECIMAL_PLACES
+        for unit, values in unit_values.items()
+    }
+
+    # Second pass: apply rounding to all numeric values
+    for entity_data in output_sensors.values():
+        unit = entity_data["attributes"].get("unit_of_measurement")
+        decimal_places = unit_decimal_places.get(unit, _DEFAULT_DECIMAL_PLACES)
+
+        # Round the state if it's numeric
+        state_val = _try_parse_float(entity_data["state"])
+        if state_val is not None:
+            rounded_val = round(state_val, decimal_places) + 0.0  # Makes -0.0 into 0.0
+            entity_data["state"] = str(rounded_val)
+
+        # Round forecast values
+        for item in entity_data["attributes"].get("forecast", []):
+            val = _try_parse_float(item["value"])
+            if val is not None:
+                item["value"] = round(val, decimal_places) + 0.0  # Makes -0.0 into 0.0
+
+
+def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, SensorStateDict]:
     """Get all output sensors created by this config entry.
 
     Returns a dict mapping entity_id to a cleaned sensor state dict.
@@ -40,10 +131,9 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
     """
     entity_registry = er.async_get(hass)
 
-    output_sensors: dict[str, dict[str, Any]] = {}
-    unit_values: dict[str | None, list[float]] = {}  # Map unit -> list of numeric values
+    output_sensors: dict[str, SensorStateDict] = {}
 
-    # First pass: collect sensor data and gather all numeric values by unit
+    # Collect sensor data
     for entity_entry in er.async_entries_for_config_entry(entity_registry, config_entry.entry_id):
         # Only include sensors from our domain
         if entity_entry.platform != DOMAIN:
@@ -67,74 +157,10 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
         state_dict.pop("last_reported", None)
         state_dict.pop("context", None)
 
-        output_sensors[entity_entry.entity_id] = state_dict
+        # Cast to SensorStateDict after cleaning (state.as_dict() has extra fields we removed)
+        output_sensors[entity_entry.entity_id] = cast("SensorStateDict", state_dict)
 
-        # Collect numeric values for unit-based rounding
-        attrs = state_dict.get("attributes", {})
-        unit: str | None = None
-        if isinstance(attrs, dict):
-            unit = attrs.get("unit_of_measurement")
-        if unit not in unit_values:
-            unit_values[unit] = []
-
-        # Add state value if numeric
-        state_value = state_dict.get("state")
-        if isinstance(state_value, str):
-            try:
-                state_val = float(state_value)
-                unit_values[unit].append(abs(state_val))
-            except (ValueError, TypeError):
-                pass  # Non-numeric state (e.g., "success")
-
-        # Add forecast values if present
-        if isinstance(attrs, dict):
-            forecast = attrs.get("forecast")
-            if isinstance(forecast, list):
-                for item in forecast:
-                    if isinstance(item, dict) and "value" in item:
-                        try:
-                            value = float(item["value"])
-                            unit_values[unit].append(abs(value))
-                        except (ValueError, TypeError):
-                            # Ignore non-numeric forecast values (e.g., "success" or None)
-                            pass
-
-    # Calculate decimal places for each unit
-    unit_decimal_places: dict[str | None, int] = {}
-    for unit, values in unit_values.items():
-        if values:
-            max_abs_value = max(values)
-            unit_decimal_places[unit] = _get_decimal_places(max_abs_value)
-        else:
-            unit_decimal_places[unit] = _DEFAULT_DECIMAL_PLACES
-
-    # Second pass: apply rounding to all numeric values
-    for entity_data in output_sensors.values():
-        # Round the state if it's numeric
-        if isinstance(entity_data.get("state"), str):
-            attrs = entity_data.get("attributes", {})
-            unit = attrs.get("unit_of_measurement") if isinstance(attrs, dict) else None
-            decimal_places = unit_decimal_places.get(unit, _DEFAULT_DECIMAL_PLACES)
-            try:
-                state_val = float(entity_data["state"])
-                rounded_val = round(state_val, decimal_places) + 0.0  # Makes -0.0 into 0.0
-                entity_data["state"] = str(rounded_val)
-            except (ValueError, TypeError):
-                pass  # Non-numeric state, leave as is
-
-        # Round forecast values if present
-        if "attributes" in entity_data and isinstance(entity_data["attributes"], dict):
-            forecast = entity_data["attributes"].get("forecast")
-            if isinstance(forecast, list):
-                unit = entity_data["attributes"].get("unit_of_measurement")
-                decimal_places = unit_decimal_places.get(unit, _DEFAULT_DECIMAL_PLACES)
-                for item in forecast:
-                    if isinstance(item, dict) and "value" in item:
-                        try:
-                            value = float(item["value"])
-                            item["value"] = round(value, decimal_places) + 0.0  # Makes -0.0 into 0.0
-                        except (ValueError, TypeError):
-                            # Ignore non-numeric forecast values; leave them unchanged
-                            pass
+    # Apply smart rounding to all numeric values
+    _apply_smart_rounding(output_sensors)
 
     return output_sensors
