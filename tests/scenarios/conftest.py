@@ -59,7 +59,7 @@ class ScenarioData(TypedDict):
     config: dict[str, Any]
     environment: dict[str, Any]
     inputs: list[dict[str, Any]]
-    outputs: list[dict[str, Any]]
+    outputs: dict[str, dict[str, Any]]  # Dict with entity_id keys
 
 
 def is_scenario_data(value: Any) -> TypeGuard[ScenarioData]:
@@ -78,7 +78,7 @@ def is_scenario_data(value: Any) -> TypeGuard[ScenarioData]:
         return False
     if not isinstance(value["inputs"], list):
         return False
-    return isinstance(value["outputs"], list)
+    return isinstance(value["outputs"], dict)
 
 
 @pytest.fixture
