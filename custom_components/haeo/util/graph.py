@@ -17,12 +17,6 @@ class ConnectivityResult:
 
         return len(self.components)
 
-    @property
-    def component_sets(self) -> list[set[str]]:
-        """Return components as mutable sets."""
-
-        return [set(component) for component in self.components]
-
 
 def _normalize_components(components: Sequence[Iterable[str]]) -> tuple[tuple[str, ...], ...]:
     """Return sorted, deterministic component tuples."""

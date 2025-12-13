@@ -28,7 +28,7 @@ async def evaluate_network_connectivity(
         dismiss_disconnected_network_issue(hass, entry.entry_id)
         return
 
-    create_disconnected_network_issue(hass, entry.entry_id, result.component_sets)
+    create_disconnected_network_issue(hass, entry.entry_id, result.components)
 
     summary = format_component_summary(result.components, separator=" | ")
     _LOGGER.warning(
