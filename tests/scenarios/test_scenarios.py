@@ -164,20 +164,18 @@ async def test_scenarios(
         # Ensure all entities are registered
         await hass.async_block_till_done()
 
-        # Create visualizations while data is still available
-        _LOGGER.info("Starting visualization process...")
-        await visualize_scenario_results(
-            hass,
-            scenario_path.name,
-            scenario_path / "visualizations",
-        )
-
         # Get output sensors using common utility function
         # This filters to entities created by this config entry and cleans unstable fields
         output_sensors = get_output_sensors(hass, mock_config_entry)
 
+        # Create visualizations from the output sensors
+        _LOGGER.info("Starting visualization process...")
+        visualize_scenario_results(
+            output_sensors,
+            scenario_path.name,
+            scenario_path / "visualizations",
+        )
+
         # Compare actual outputs with expected outputs using snapshot
         _LOGGER.info("Comparing %d actual outputs with expected outputs", len(output_sensors))
         assert output_sensors == snapshot
-
-        _LOGGER.info("Test completed - integration setup and sensor creation verified")
