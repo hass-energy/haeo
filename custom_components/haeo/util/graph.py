@@ -29,9 +29,6 @@ def _normalize_components(components: Sequence[Iterable[str]]) -> tuple[tuple[st
 def find_connected_components(adjacency: Mapping[str, Iterable[str]]) -> ConnectivityResult:
     """Find connected components in a graph represented as an adjacency map.
 
-    This is a pure graph algorithm that performs depth-first search to identify
-    all connected components in an undirected graph.
-
     Args:
         adjacency: Mapping from node name to iterable of neighbor names.
                   For undirected graphs, if A connects to B, then B should connect to A.
