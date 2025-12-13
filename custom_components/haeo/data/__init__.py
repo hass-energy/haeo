@@ -71,16 +71,14 @@ async def load_element_configs(
 async def load_network(
     entry: ConfigEntry,
     *,
-    period_seconds: int,
-    n_periods: int,
+    periods_seconds: Sequence[int],
     participants: Mapping[str, ElementConfigData],
 ) -> Network:
     """Return a fully-populated `Network` ready for optimization.
 
     Args:
         entry: Config entry
-        period_seconds: Optimization period in seconds
-        n_periods: Number of periods
+        periods_seconds: Sequence of optimization period durations in seconds
         participants: Mapping of element names to loaded configurations (with values)
 
     Raises:
@@ -97,12 +95,12 @@ async def load_network(
     # ==================================================================================
     # The coordinator and data loading layers work in seconds (practical for timestamps).
     # The model/optimization layer works in hours (necessary for kW·h = kWh math).
-    # This is where we convert period from seconds to hours for the model layer.
+    # This is where we convert periods from seconds to hours for the model layer.
     # ==================================================================================
-    period_hours = period_seconds / 3600
+    periods_hours = [s / 3600 for s in periods_seconds]
 
-    # Build network with period in hours
-    net = Network(name=f"haeo_network_{entry.entry_id}", period=period_hours, n_periods=n_periods)
+    # Build network with periods in hours
+    net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
 
     # Collect all model elements from all config elements
     all_model_elements: list[dict[str, Any]] = []

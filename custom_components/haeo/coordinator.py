@@ -20,8 +20,6 @@ from homeassistant.util import dt as dt_util
 from . import data as data_module
 from .const import (
     CONF_DEBOUNCE_SECONDS,
-    CONF_HORIZON_HOURS,
-    CONF_PERIOD_MINUTES,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
@@ -34,6 +32,7 @@ from .const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
     NetworkOutputName,
+    tiers_to_periods_seconds,
 )
 from .elements import (
     ELEMENT_TYPES,
@@ -297,35 +296,32 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._state_change_unsub = None
 
     @staticmethod
-    def _generate_forecast_timestamps(*, period_seconds: int, n_periods: int) -> tuple[int, ...]:
+    def _generate_forecast_timestamps(periods_seconds: Sequence[int]) -> tuple[int, ...]:
         """Return forecast timestamps representing all fence posts (period boundaries).
 
         Generates n_periods+1 timestamps representing the start of each period plus
         the end of the final period. These are the "fence posts" in the fence post problem.
 
-        Example: 3 periods of 300s starting at t=0 returns [0, 300, 600, 900]
+        With variable-width intervals, each period can have a different duration.
+
+        Example: periods [60, 60, 300] starting at t=0 returns [0, 60, 120, 420]
         """
-
         epoch_seconds = dt_util.utcnow().timestamp()
-        rounded_epoch = int(epoch_seconds // period_seconds * period_seconds)
-        origin_time = dt_util.utc_from_timestamp(rounded_epoch)
+        # Round to nearest minute for clean timestamps
+        rounded_epoch = int(epoch_seconds // 60 * 60)
 
-        return tuple(
-            int((origin_time + timedelta(seconds=period_seconds * index)).timestamp()) for index in range(n_periods + 1)
-        )
+        timestamps: list[int] = [rounded_epoch]
+        for period in periods_seconds:
+            timestamps.append(timestamps[-1] + period)
+        return tuple(timestamps)
 
     async def _async_update_data(self) -> CoordinatorData:
         """Update data from Home Assistant entities and run optimization."""
         start_time = time.time()
 
-        # Convert the time parameters from seconds and hours to seconds and a number of periods
-        period_seconds = self.config_entry.data[CONF_PERIOD_MINUTES] * 60  # Convert minutes to seconds
-        horizon_seconds = self.config_entry.data[CONF_HORIZON_HOURS] * 3600  # Convert hours to seconds
-        n_periods = horizon_seconds // period_seconds
-        forecast_timestamps = self._generate_forecast_timestamps(
-            period_seconds=period_seconds,
-            n_periods=n_periods,
-        )
+        # Convert tier configuration to list of period durations in seconds
+        periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
+        forecast_timestamps = self._generate_forecast_timestamps(periods_seconds)
 
         # Load element configurations (convert entity IDs to values)
         loaded_configs = await data_module.load_element_configs(
@@ -354,8 +350,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Build network with loaded configurations
         network = await data_module.load_network(
             self.config_entry,
-            period_seconds=period_seconds,
-            n_periods=n_periods,
+            periods_seconds=periods_seconds,
             participants=loaded_configs,
         )
 

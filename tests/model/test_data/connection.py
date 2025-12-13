@@ -10,8 +10,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "forward_connection",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "source": "battery",
             "target": "load",
             "max_power_source_target": 5.0,
@@ -34,8 +33,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "reverse_connection",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "source": "grid",
             "target": "solar",
             "max_power_target_source": 3.0,
@@ -58,8 +56,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "limited_forward",
-            "period": 1.0,
-            "n_periods": 2,
+            "periods": [1.0] * 2,
             "source": "gen",
             "target": "net",
             "max_power_source_target": 4.0,
@@ -82,8 +79,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "inverter",
-            "period": 1.0,
-            "n_periods": 2,
+            "periods": [1.0] * 2,
             "source": "dc",
             "target": "ac",
             "max_power_source_target": 10.0,
@@ -107,8 +103,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "priced_link",
-            "period": 1.0,
-            "n_periods": 2,
+            "periods": [1.0] * 2,
             "source": "node_a",
             "target": "node_b",
             "price_source_target": [0.5, 0.5],  # High transfer cost
@@ -130,8 +125,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "varying_connection",
-            "period": 1.0,
-            "n_periods": 3,
+            "periods": [1.0] * 3,
             "source": "grid",
             "target": "net",
             "max_power_source_target": [10.0, 5.0, 8.0],
@@ -154,8 +148,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "bidirectional_priced",
-            "period": 1.0,
-            "n_periods": 2,
+            "periods": [1.0] * 2,
             "source": "node_a",
             "target": "node_b",
             "price_source_target": [0.1, 0.1],
@@ -179,8 +172,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         "factory": Connection,
         "data": {
             "name": "bidirectional_converter",
-            "period": 1.0,
-            "n_periods": 2,
+            "periods": [1.0] * 2,
             "source": "dc_bus",
             "target": "ac_bus",
             "max_power_source_target": 10.0,

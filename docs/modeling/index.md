@@ -126,13 +126,22 @@ This validation ensures the network forms a valid directed graph before attempti
 
 ## Time Discretization
 
-The optimization horizon is divided into discrete periods:
+The optimization horizon is divided into discrete intervals with variable durations:
 
-- **Horizon**: Total optimization period (hours)
-- **Period**: Time step duration (minutes)
-- **Time steps**: $T = \text{Horizon} / \text{Period}$
+- **Tiers**: Groups of intervals with the same duration (up to 4 tiers)
+- **Intervals**: Individual time steps within each tier
+- **Duration**: Each tier specifies a duration in minutes for its intervals
+- **Time steps**: $T = \sum_{\text{tier}} \text{count}_{\text{tier}}$
 
-Each decision variable exists for every time step.
+For example, the default configuration creates:
+
+- Tier 1: 5 intervals × 1 minute = 5 minutes (high resolution near-term)
+- Tier 2: 5 intervals × 5 minutes = 25 minutes
+- Tier 3: 46 intervals × 30 minutes ≈ 23 hours
+- Tier 4: 48 intervals × 60 minutes = 48 hours (low resolution long-term)
+
+This yields $T = 104$ intervals spanning approximately 72 hours.
+Each decision variable exists for every time step, but interval durations vary.
 
 ## Power and Energy Discretization
 
@@ -170,14 +179,14 @@ This distinction matters for cost calculations.
 Prices apply to average power over intervals, which is then converted to energy:
 
 $$
-\text{Energy consumed} = P(t) \times \Delta t
+\text{Energy consumed} = P(t) \times \Delta t_t
 $$
 
 $$
-\text{Cost} = P(t) \times \Delta t \times \text{price}(t)
+\text{Cost} = P(t) \times \Delta t_t \times \text{price}(t)
 $$
 
-Where $\Delta t$ is the period duration in hours.
+Where $\Delta t_t$ is the duration of interval $t$ in hours (varies by tier).
 
 ## Decision Variables and Constraints
 

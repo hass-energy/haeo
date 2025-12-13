@@ -1,6 +1,6 @@
 """Base SourceSink entity for electrical system modeling."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
 from pulp import LpAffineExpression, LpVariable
@@ -38,8 +38,7 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
     def __init__(
         self,
         name: str,
-        period: float,
-        n_periods: int,
+        periods: Sequence[float],
         *,
         is_source: bool = True,
         is_sink: bool = True,
@@ -48,13 +47,13 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
 
         Args:
             name: Name of the source/sink
-            period: Time period in hours
-            n_periods: Number of time periods
+            periods: Sequence of time period durations in hours
             is_source: Whether this element can produce power (source behavior)
             is_sink: Whether this element can consume power (sink behavior)
 
         """
-        super().__init__(name=name, period=period, n_periods=n_periods)
+        super().__init__(name=name, periods=periods)
+        n_periods = len(periods)
 
         # Element-agnostic power variables (only create if needed)
         # power_in: positive when accepting power from network (sink behavior)

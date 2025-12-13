@@ -17,9 +17,15 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
-    CONF_HORIZON_HOURS,
     CONF_NAME,
-    CONF_PERIOD_MINUTES,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
@@ -75,19 +81,20 @@ async def test_scenarios(
             data={
                 "integration_type": INTEGRATION_TYPE_HUB,
                 CONF_NAME: "Test Hub",
-                CONF_HORIZON_HOURS: scenario_config[CONF_HORIZON_HOURS],
-                CONF_PERIOD_MINUTES: scenario_config[CONF_PERIOD_MINUTES],
+                CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
+                CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],
+                CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 0),
+                CONF_TIER_2_DURATION: scenario_config.get("tier_2_duration", 5),
+                CONF_TIER_3_COUNT: scenario_config.get("tier_3_count", 0),
+                CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
+                CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
+                CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
             },
         )
         mock_config_entry.add_to_hass(hass)
 
-        # Sort the participants to ensure that connections are always added last
-        participant_items = sorted(
-            scenario_config["participants"].items(),
-            key=lambda item: item[1][CONF_ELEMENT_TYPE] == "connection",
-        )
         # Create element subentries from the scenario config
-        for name, config in participant_items:
+        for name, config in scenario_config["participants"].items():
             subentry = ConfigSubentry(
                 data=MappingProxyType(config), subentry_type=config[CONF_ELEMENT_TYPE], title=name, unique_id=None
             )
@@ -157,17 +164,17 @@ async def test_scenarios(
         # Ensure all entities are registered
         await hass.async_block_till_done()
 
-        # Create visualizations while data is still available
-        _LOGGER.info("Starting visualization process...")
-        await visualize_scenario_results(
-            hass,
-            scenario_path.name,
-            scenario_path / "visualizations",
-        )
-
         # Get output sensors using common utility function
         # This filters to entities created by this config entry and cleans unstable fields
         output_sensors = get_output_sensors(hass, mock_config_entry)
+
+        # Create visualizations from the output sensors
+        _LOGGER.info("Starting visualization process...")
+        visualize_scenario_results(
+            output_sensors,
+            scenario_path.name,
+            scenario_path / "visualizations",
+        )
 
         # Compare actual outputs with expected outputs using snapshot
         _LOGGER.info("Comparing %d actual outputs with expected outputs", len(output_sensors))

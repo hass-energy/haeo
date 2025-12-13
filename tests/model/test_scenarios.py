@@ -6,7 +6,7 @@ from custom_components.haeo.model import Network
 
 def test_simple_optimization() -> None:
     """Test a simple optimization scenario with basic network setup."""
-    network = Network(name="test_network", period=1.0, n_periods=3)
+    network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add a simple grid and load
     network.add("source_sink", "grid", is_source=True, is_sink=True)
@@ -39,7 +39,7 @@ def test_simple_optimization() -> None:
 
 def test_network_validation() -> None:
     """Test that network validation catches invalid configurations."""
-    network = Network(name="test_network", period=1.0, n_periods=3)
+    network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add entities
     network.add("source_sink", "source", is_source=True, is_sink=False)

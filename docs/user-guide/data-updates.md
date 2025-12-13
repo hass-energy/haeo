@@ -34,7 +34,7 @@ Persistent problems usually point to missing inputs or external services that ne
 
 Monitor your system occasionally to ensure updates finish comfortably within the time windows that matter for your automations.
 Long optimisation runs usually mean the problem has become quite large, so start by simplifying inputs before you tweak the look-ahead horizon.
-Review the [horizon guidance](configuration.md#horizon-hours) before changing that value.
+Review the [interval tier guidance](configuration.md#interval-tiers) before changing that value.
 
 ## Debugging updates
 
@@ -132,8 +132,7 @@ Combine these strategies for quicker responses:
 
 - Shorten the **Update interval** to run the optimizer more often when no sensor changes occur.
 - Reduce the **Debounce window** so sensor changes trigger reruns sooner.
-- Reduce optimization horizon for faster solving after consulting the [horizon guidance](configuration.md#horizon-hours).
-- Use longer time periods (15 minutes vs. 5 minutes) to shrink the optimization problem.
+- Adjust interval tiers for faster solving (reduce tier counts or increase durations) after consulting the [interval tier guidance](configuration.md#interval-tiers).
 - Simplify network topology when possible.
 - Trigger manual updates via service calls when you need immediate feedback.
 

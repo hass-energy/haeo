@@ -17,12 +17,21 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
-    CONF_HORIZON_HOURS,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
-    CONF_PERIOD_MINUTES,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_DURATION,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
@@ -90,8 +99,14 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Power Network",
-            CONF_HORIZON_HOURS: 1,
-            CONF_PERIOD_MINUTES: 30,
+            CONF_TIER_1_COUNT: 2,  # 2 intervals of 30 min = 1 hour horizon
+            CONF_TIER_1_DURATION: 30,
+            CONF_TIER_2_COUNT: 0,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: 0,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: 0,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
             CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
             CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
@@ -176,8 +191,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
 def patch_state_change_listener() -> Generator[MagicMock]:
     """Patch state change listener registration for tests."""
     with patch(
-        "custom_components.haeo.coordinator.async_track_state_change_event",
-        return_value=lambda: None,
+        "custom_components.haeo.coordinator.async_track_state_change_event", return_value=lambda: None
     ) as mock_track:
         yield mock_track
 
@@ -213,8 +227,7 @@ def test_update_interval_respects_config(
 ) -> None:
     """Update interval honours the configured value."""
     hass.config_entries.async_update_entry(
-        mock_hub_entry,
-        data={**dict(mock_hub_entry.data), CONF_UPDATE_INTERVAL_MINUTES: 12},
+        mock_hub_entry, data={**dict(mock_hub_entry.data), CONF_UPDATE_INTERVAL_MINUTES: 12}
     )
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
@@ -231,11 +244,7 @@ async def test_async_update_data_returns_outputs(
     """Coordinator returns optimization results merged with element outputs."""
     fake_element = MagicMock()
     fake_element.outputs.return_value = {
-        BATTERY_POWER_CHARGE: OutputData(
-            type=OUTPUT_TYPE_POWER,
-            unit="kW",
-            values=(1.0, 2.0),
-        )
+        BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0))
     }
 
     fake_network = MagicMock()
@@ -262,11 +271,9 @@ async def test_async_update_data_returns_outputs(
     }
 
     generated_at = datetime(2024, 1, 1, 0, 15, tzinfo=UTC)
-    expected_forecast_times = (
-        int(datetime(2024, 1, 1, 0, 0, tzinfo=UTC).timestamp()),
-        int(datetime(2024, 1, 1, 0, 30, tzinfo=UTC).timestamp()),
-        int(datetime(2024, 1, 1, 1, 0, tzinfo=UTC).timestamp()),
-    )
+    # Round to nearest minute (00:15), then add two 30-minute intervals
+    base_timestamp = int(datetime(2024, 1, 1, 0, 15, tzinfo=UTC).timestamp())
+    expected_forecast_times = (base_timestamp, base_timestamp + 30 * 60, base_timestamp + 2 * 30 * 60)
 
     # Mock connection adapter to return proper outputs
     mock_connection_adapter = MagicMock()
@@ -295,17 +302,10 @@ async def test_async_update_data_returns_outputs(
     # Patch the registry entries to use our mocked output functions
     with (
         patch(
-            "custom_components.haeo.coordinator.data_module.config_available",
-            return_value=True,
-        ),
-        patch(
             "custom_components.haeo.coordinator.data_module.load_element_configs",
             new_callable=AsyncMock,
         ) as mock_load_configs,
-        patch(
-            "custom_components.haeo.coordinator.data_module.load_network",
-            new_callable=AsyncMock,
-        ) as mock_load,
+        patch("custom_components.haeo.coordinator.data_module.load_network", new_callable=AsyncMock) as mock_load,
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.dt_util.utcnow", return_value=generated_at),
@@ -331,8 +331,7 @@ async def test_async_update_data_returns_outputs(
     )
     mock_load.assert_awaited_once_with(
         mock_hub_entry,
-        period_seconds=30 * 60,
-        n_periods=2,
+        periods_seconds=[30 * 60, 30 * 60],  # Two 30-minute intervals
         participants=mock_loaded_configs,
     )
 
@@ -378,21 +377,7 @@ async def test_async_update_data_propagates_update_failed(
     mock_grid_subentry: ConfigSubentry,
 ) -> None:
     """Coordinator surfaces loader failures as UpdateFailed."""
-    with (
-        patch(
-            "custom_components.haeo.coordinator.data_module.config_available",
-            return_value=True,
-        ),
-        patch(
-            "custom_components.haeo.coordinator.data_module.load_element_configs",
-            new_callable=AsyncMock,
-        ) as mock_load_configs,
-        patch(
-            "custom_components.haeo.coordinator.data_module.load_network",
-            side_effect=UpdateFailed("missing data"),
-        ),
-    ):
-        mock_load_configs.return_value = {}
+    with patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=UpdateFailed("missing data")):
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         with pytest.raises(UpdateFailed, match="missing data"):
             await coordinator._async_update_data()
@@ -405,21 +390,7 @@ async def test_async_update_data_propagates_value_error(
     mock_grid_subentry: ConfigSubentry,
 ) -> None:
     """Coordinator allows unexpected errors to bubble up."""
-    with (
-        patch(
-            "custom_components.haeo.coordinator.data_module.config_available",
-            return_value=True,
-        ),
-        patch(
-            "custom_components.haeo.coordinator.data_module.load_element_configs",
-            new_callable=AsyncMock,
-        ) as mock_load_configs,
-        patch(
-            "custom_components.haeo.coordinator.data_module.load_network",
-            side_effect=ValueError("invalid config"),
-        ),
-    ):
-        mock_load_configs.return_value = {}
+    with patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=ValueError("invalid config")):
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         with pytest.raises(ValueError, match="invalid config"):
             await coordinator._async_update_data()
@@ -434,7 +405,7 @@ async def test_async_update_data_raises_on_missing_model_element(
     """Coordinator should surface KeyError when adapter cannot find model element outputs."""
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-    fake_network = Network(name="net", period=1.0, n_periods=1)
+    fake_network = Network(name="net", periods=[1.0] * 1)
 
     def broken_outputs(_name: str, _outputs: object, _config: object) -> dict[str, dict[str, OutputData]]:
         msg = "missing model element"
@@ -569,9 +540,7 @@ def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.M
     monkeypatch.setattr("custom_components.haeo.coordinator.datetime", _ErrorDatetime)
 
     output = _build_coordinator_output(
-        PHOTOVOLTAICS_POWER,
-        OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0)),
-        forecast_times=(1, 2),
+        PHOTOVOLTAICS_POWER, OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0)), forecast_times=(1, 2)
     )
 
     assert output.forecast is None
@@ -625,10 +594,7 @@ def test_coordinator_cleanup_invokes_listener(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-async def test_state_change_handler_requests_refresh(
-    hass: HomeAssistant,
-    mock_hub_entry: MockConfigEntry,
-) -> None:
+async def test_state_change_handler_requests_refresh(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """State change events should trigger a coordinator refresh."""
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)

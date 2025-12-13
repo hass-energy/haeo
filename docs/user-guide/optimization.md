@@ -44,8 +44,8 @@ When status is `failed`, check the Home Assistant logs for detailed error messag
 **Entity ID**: `sensor.{network_name}_optimization_duration`
 
 Time taken to solve the optimization in seconds.
-If this value climbs higher than you expect, adjust the horizon or period length, simplify the network, or try another solver.
-Review the [horizon guidance](configuration.md#horizon-hours) before changing that value.
+If this value climbs higher than you expect, adjust the interval tiers, simplify the network, or try another solver.
+Review the [interval tier guidance](configuration.md#interval-tiers) before changing that value.
 
 ## Element Sensors
 
@@ -136,8 +136,8 @@ Monitor the optimization duration sensor to keep solve times reasonable (typical
 
 If optimization takes too long:
 
-1. **Reduce horizon**: Shorter planning windows solve faster (see [horizon guidance](configuration.md#horizon-hours))
-2. **Increase period length**: Fewer time steps reduce problem size
+1. **Adjust interval tiers**: Reduce tier 4 count or increase tier durations for faster solving (see [interval tier guidance](configuration.md#interval-tiers))
+2. **Increase tier durations**: Fewer time steps reduce problem size
 3. **Simplify network**: Remove unnecessary elements or connections
 4. **Check configuration**: Verify all sensors are available and providing valid data
 

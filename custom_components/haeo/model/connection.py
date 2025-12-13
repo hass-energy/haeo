@@ -50,8 +50,7 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
     def __init__(
         self,
         name: str,
-        period: float,
-        n_periods: int,
+        periods: Sequence[float],
         *,
         source: str,
         target: str,
@@ -67,8 +66,7 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
 
         Args:
             name: Name of the connection
-            period: Time period in hours
-            n_periods: Number of time periods
+            periods: Sequence of time period durations in hours (one per optimization interval)
             source: Name of the source element
             target: Name of the target element
             max_power_source_target: Maximum power flow from source to target in kW (per period)
@@ -82,7 +80,8 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         """
 
         # Initialize base Element class
-        super().__init__(name=name, period=period, n_periods=n_periods)
+        super().__init__(name=name, periods=periods)
+        n_periods = self.n_periods
 
         # Store source and target
         self.source = source
@@ -142,19 +141,24 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
     def cost(self) -> Sequence[LpAffineExpression]:
         """Return the cost expressions of the connection with transfer pricing."""
         costs: list[LpAffineExpression] = []
+        # Using variable period durations
         if self.price_source_target is not None:
             costs.append(
                 lpSum(
-                    price * power * self.period
-                    for price, power in zip(self.price_source_target, self.power_source_target, strict=True)
+                    price * power * period
+                    for price, power, period in zip(
+                        self.price_source_target, self.power_source_target, self.periods, strict=True
+                    )
                 )
             )
 
         if self.price_target_source is not None:
             costs.append(
                 lpSum(
-                    price * power * self.period
-                    for price, power in zip(self.price_target_source, self.power_target_source, strict=True)
+                    price * power * period
+                    for price, power, period in zip(
+                        self.price_target_source, self.power_target_source, self.periods, strict=True
+                    )
                 )
             )
 

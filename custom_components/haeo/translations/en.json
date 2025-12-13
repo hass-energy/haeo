@@ -4,19 +4,56 @@
     "step": {
       "user": {
         "title": "HAEO Network Setup",
-        "description": "Create a new HAEO optimization network. Configure the optimization horizon (how far into the future to optimize) and time period (how often to make optimization decisions). After creating the network, you can add individual devices like batteries, grid connections, loads, and photovoltaics through the network's configuration options.",
+        "description": "Create a new HAEO optimization network with dynamic interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity. Default: 110 periods covering ~72 hours.",
         "data": {
           "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_hours": "Optimization Horizon (hours)",
           "name": "Network Name",
-          "optimizer": "Optimization Solver",
-          "period_minutes": "Time Period (minutes)",
+          "tier_1_count": "Tier 1 Count (fine-grained)",
+          "tier_1_duration": "Tier 1 Duration (minutes)",
+          "tier_2_count": "Tier 2 Count (short-term)",
+          "tier_2_duration": "Tier 2 Duration (minutes)",
+          "tier_3_count": "Tier 3 Count (medium-term)",
+          "tier_3_duration": "Tier 3 Duration (minutes)",
+          "tier_4_count": "Tier 4 Count (long-term)",
+          "tier_4_duration": "Tier 4 Duration (minutes)",
           "update_interval_minutes": "Update Interval (minutes)"
         }
       }
     },
     "error": { "name_exists": "A network with this name already exists" },
     "abort": { "already_configured": "Network already configured" }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Network Settings",
+        "description": "Configure dynamic interval tiers and update settings. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
+        "data": {
+          "debounce_seconds": "Debounce Window (seconds)",
+          "tier_1_count": "Tier 1 Count (fine-grained)",
+          "tier_1_duration": "Tier 1 Duration (minutes)",
+          "tier_2_count": "Tier 2 Count (short-term)",
+          "tier_2_duration": "Tier 2 Duration (minutes)",
+          "tier_3_count": "Tier 3 Count (medium-term)",
+          "tier_3_duration": "Tier 3 Duration (minutes)",
+          "tier_4_count": "Tier 4 Count (long-term)",
+          "tier_4_duration": "Tier 4 Duration (minutes)",
+          "update_interval_minutes": "Update Interval (minutes)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect_to_self": "Cannot connect a device to itself",
+      "invalid_name": "Invalid device name",
+      "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
+      "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections",
+      "min_power_too_high": "Minimum power must be less than or equal to maximum power",
+      "name_exists": "A device with this name already exists"
+    },
+    "abort": {
+      "no_participants": "No devices are currently connected to this network",
+      "reload_failed": "Failed to reload the integration after configuration changes. Please check your configuration and try again."
+    }
   },
   "config_subentries": {
     "battery": {
@@ -295,33 +332,6 @@
     "optimization_failure": {
       "title": "Optimization failed",
       "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. Issues with the selected solver\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your network configuration for conflicting constraints\n4. Try a different optimization solver in the integration settings\n5. This issue will automatically dismiss when optimization succeeds"
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Network Settings",
-        "description": "Configure optimization horizon, time period, and solver",
-        "data": {
-          "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_hours": "Optimization Horizon (hours)",
-          "optimizer": "Optimization Solver",
-          "period_minutes": "Time Period (minutes)",
-          "update_interval_minutes": "Update Interval (minutes)"
-        }
-      }
-    },
-    "error": {
-      "cannot_connect_to_self": "Cannot connect a device to itself",
-      "invalid_name": "Invalid device name",
-      "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
-      "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections",
-      "min_power_too_high": "Minimum power must be less than or equal to maximum power",
-      "name_exists": "A device with this name already exists"
-    },
-    "abort": {
-      "no_participants": "No devices are currently connected to this network",
-      "reload_failed": "Failed to reload the integration after configuration changes. Please check your configuration and try again."
     }
   }
 }

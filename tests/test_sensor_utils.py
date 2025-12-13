@@ -5,10 +5,24 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
-    CONF_HORIZON_HOURS,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
-    CONF_PERIOD_MINUTES,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
+    DEFAULT_TIER_1_COUNT,
+    DEFAULT_TIER_1_DURATION,
+    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
@@ -23,8 +37,14 @@ async def test_get_output_sensors_excludes_other_platforms(hass: HomeAssistant) 
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            CONF_HORIZON_HOURS: 24,
-            CONF_PERIOD_MINUTES: 15,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         entry_id="hub_entry",
     )
@@ -56,7 +76,7 @@ async def test_get_output_sensors_excludes_other_platforms(hass: HomeAssistant) 
     # Verify only HAEO sensor is included
     assert haeo_entry.entity_id in output_sensors
     assert other_entry.entity_id not in output_sensors
-    assert output_sensors[haeo_entry.entity_id]["state"] == "42"
+    assert output_sensors[haeo_entry.entity_id]["state"] == "42.0"
 
 
 async def test_get_output_sensors_excludes_entities_without_state(hass: HomeAssistant) -> None:
@@ -67,8 +87,14 @@ async def test_get_output_sensors_excludes_entities_without_state(hass: HomeAssi
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            CONF_HORIZON_HOURS: 24,
-            CONF_PERIOD_MINUTES: 15,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         entry_id="hub_entry",
     )
@@ -100,4 +126,4 @@ async def test_get_output_sensors_excludes_entities_without_state(hass: HomeAssi
     # Verify only the sensor with state is included
     assert with_state_entry.entity_id in output_sensors
     assert without_state_entry.entity_id not in output_sensors
-    assert output_sensors[with_state_entry.entity_id]["state"] == "50"
+    assert output_sensors[with_state_entry.entity_id]["state"] == "50.0"

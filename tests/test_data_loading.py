@@ -57,12 +57,11 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
 
     result = await load_network(
         entry,
-        period_seconds=1800,
-        n_periods=4,
+        periods_seconds=[1800] * 4,
         participants=loaded_configs,
     )
 
-    assert result.period == pytest.approx(0.5)
+    assert result.periods == [0.5] * 4  # 1800 seconds = 0.5 hours
     assert "Baseload" in result.elements
 
 
@@ -140,8 +139,7 @@ async def test_load_network_without_participants_raises(hass: HomeAssistant) -> 
     with pytest.raises(ValueError, match="No participants configured"):
         await load_network(
             entry,
-            period_seconds=1800,
-            n_periods=1,
+            periods_seconds=[1800],
             participants={},
         )
 
@@ -174,8 +172,7 @@ async def test_load_network_sorts_connections_after_elements(hass: HomeAssistant
 
     network = await load_network(
         entry,
-        period_seconds=900,
-        n_periods=1,
+        periods_seconds=[900],
         participants=participants,
     )
 
@@ -206,7 +203,6 @@ async def test_load_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypa
     with pytest.raises(ValueError, match="Failed to add model element 'node'"):
         await load_network(
             entry,
-            period_seconds=900,
-            n_periods=1,
+            periods_seconds=[900],
             participants=participants,
         )
