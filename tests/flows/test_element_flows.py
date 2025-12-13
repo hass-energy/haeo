@@ -5,7 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Literal, TypedDict, cast
-from unittest.mock import MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -210,7 +210,7 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
 def connectivity_mock(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     """Patch connectivity evaluation during flow tests."""
 
-    mock = MagicMock()
+    mock = AsyncMock()
     monkeypatch.setattr(
         "custom_components.haeo.flows.element.evaluate_network_connectivity",
         mock,

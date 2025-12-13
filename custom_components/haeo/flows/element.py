@@ -52,7 +52,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                 hub_entry = self._get_entry()
                 participant_configs = collect_participant_configs(hub_entry)
                 participant_configs[new_config[CONF_NAME]] = new_config
-                evaluate_network_connectivity(self.hass, hub_entry, participant_configs=participant_configs)
+                await evaluate_network_connectivity(self.hass, hub_entry, participant_configs=participant_configs)
 
                 return self.async_create_entry(title=name, data=new_config)
 
@@ -91,7 +91,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                 if isinstance(current_name, str):
                     participant_configs.pop(current_name, None)
                 participant_configs[updated_config[CONF_NAME]] = updated_config
-                evaluate_network_connectivity(self.hass, hub_entry, participant_configs=participant_configs)
+                await evaluate_network_connectivity(self.hass, hub_entry, participant_configs=participant_configs)
 
                 return self.async_update_reload_and_abort(
                     hub_entry,

@@ -1,34 +1,16 @@
 """Validation helpers for HAEO network topology."""
 
-from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
-from typing import TypeGuard
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
-from .const import CONF_ELEMENT_TYPE, CONF_NAME
-from .elements import ELEMENT_TYPE_CONNECTION, ElementConfigSchema, collect_element_subentries
-from .elements.connection import CONF_SOURCE, CONF_TARGET, ConnectionConfigSchema
-
-
-@dataclass(slots=True, frozen=True)
-class NetworkConnectivityResult:
-    """Connectivity evaluation for a HAEO network."""
-
-    is_connected: bool
-    components: tuple[tuple[str, ...], ...]
-
-    @property
-    def num_components(self) -> int:
-        """Return count of connected components."""
-
-        return len(self.components)
-
-    @property
-    def component_sets(self) -> list[set[str]]:
-        """Return components as mutable sets."""
-
-        return [set(component) for component in self.components]
+from .const import CONF_ELEMENT_TYPE
+from .elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
+from .schema import load as schema_load
+from .util.graph import ConnectivityResult as NetworkConnectivityResult
+from .util.graph import find_connected_components
 
 
 def collect_participant_configs(entry: ConfigEntry) -> dict[str, ElementConfigSchema]:
@@ -42,74 +24,55 @@ def collect_participant_configs(entry: ConfigEntry) -> dict[str, ElementConfigSc
     return participants
 
 
-def _is_connection_config(config: ElementConfigSchema) -> TypeGuard[ConnectionConfigSchema]:
-    """Return true when the config represents a connection element."""
+async def _build_adjacency(hass: HomeAssistant, participants: Mapping[str, ElementConfigSchema]) -> dict[str, set[str]]:
+    """Build adjacency map by transforming configs through adapters.
 
-    return config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_CONNECTION
-
-
-def _build_adjacency(participants: Mapping[str, ElementConfigSchema]) -> dict[str, set[str]]:
-    """Return adjacency map for element participants."""
-
+    This uses the adapter layer to convert configuration elements into model elements,
+    which includes both explicit connection elements and implicit connections.
+    """
     adjacency: dict[str, set[str]] = {}
 
+    # Collect all model elements from all configs
     for config in participants.values():
-        if config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_CONNECTION:
-            continue
-        name = config[CONF_NAME]
-        adjacency.setdefault(name, set())
+        element_type = config[CONF_ELEMENT_TYPE]
 
-    for config in participants.values():
-        if not _is_connection_config(config):
-            continue
+        # Load config (constants pass through, sensors become [])
+        loaded = await schema_load(config, hass=hass, forecast_times=[])
 
-        source = config[CONF_SOURCE]
-        target = config[CONF_TARGET]
+        # Get model elements including implicit connections
+        model_elements = ELEMENT_TYPES[element_type].create_model_elements(loaded)
 
-        adjacency.setdefault(source, set()).add(target)
-        adjacency.setdefault(target, set()).add(source)
+        # Add non-connection elements as nodes
+        for elem in model_elements:
+            if elem.get(CONF_ELEMENT_TYPE) != ELEMENT_TYPE_CONNECTION:
+                adjacency.setdefault(elem["name"], set())
+
+        # Add edges from connection elements
+        for elem in model_elements:
+            if elem.get(CONF_ELEMENT_TYPE) == ELEMENT_TYPE_CONNECTION:
+                source: Any = elem["source"]
+                target: Any = elem["target"]
+                adjacency.setdefault(source, set()).add(target)
+                adjacency.setdefault(target, set()).add(source)
 
     return adjacency
 
 
-def _normalize_components(components: Sequence[Iterable[str]]) -> tuple[tuple[str, ...], ...]:
-    """Return sorted, deterministic component tuples."""
+async def validate_network_topology(
+    hass: HomeAssistant,
+    participants: Mapping[str, ElementConfigSchema],
+) -> NetworkConnectivityResult:
+    """Validate connectivity for the provided participant configurations.
 
-    ordered = [tuple(sorted(component)) for component in components]
-    ordered.sort()
-    return tuple(ordered)
-
-
-def validate_network_topology(participants: Mapping[str, ElementConfigSchema]) -> NetworkConnectivityResult:
-    """Validate connectivity for the provided participant configurations."""
+    Uses the adapter layer to transform configurations into model elements,
+    which automatically includes implicit connections created by elements.
+    """
 
     if not participants:
         return NetworkConnectivityResult(is_connected=True, components=())
 
-    adjacency = _build_adjacency(participants)
-
-    components: list[set[str]] = []
-    visited: set[str] = set()
-
-    for node in sorted(adjacency):
-        if node in visited:
-            continue
-
-        stack = [node]
-        component: set[str] = set()
-
-        while stack:
-            current = stack.pop()
-            visited.add(current)
-            component.add(current)
-            neighbours = adjacency[current]
-            stack.extend(neighbour for neighbour in sorted(neighbours, reverse=True) if neighbour not in visited)
-
-        components.append(component)
-
-    normalized = _normalize_components(components)
-    is_connected = len(normalized) <= 1
-    return NetworkConnectivityResult(is_connected=is_connected, components=normalized)
+    adjacency = await _build_adjacency(hass, participants)
+    return find_connected_components(adjacency)
 
 
 def format_component_summary(components: Sequence[Sequence[str]], *, separator: str = "\n") -> str:

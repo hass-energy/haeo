@@ -8,8 +8,6 @@ from typing import Literal, Protocol, TypedDict, TypeGuard
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
-from custom_components.haeo.helpers.types import is_sequence
-
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,7 +50,7 @@ class Parser:
             return False
 
         forecasts = state.attributes["forecasts"]
-        if not (is_sequence(forecasts) and not isinstance(forecasts, (str, bytes))) or not forecasts:
+        if not (isinstance(forecasts, Sequence) and not isinstance(forecasts, (str, bytes))) or not forecasts:
             return False
 
         return all(

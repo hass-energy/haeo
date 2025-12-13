@@ -267,7 +267,7 @@ async def test_async_update_listener(
 
     monkeypatch.setattr("custom_components.haeo._ensure_network_subentry", mock_ensure)
 
-    def mock_evaluate(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
+    async def mock_evaluate(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
         nonlocal connectivity_called
         assert hass_arg is hass
         assert entry_arg is mock_hub_entry
