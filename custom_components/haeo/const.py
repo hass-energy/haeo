@@ -31,13 +31,13 @@ CONF_TIER_4_DURATION: Final = "tier_4_duration"
 
 # Default tier values: (count, duration_minutes)
 # Tier 1: 5 intervals of 1 minute = 5 minutes total
-# Tier 2: 5 intervals of 5 minutes = 25 minutes total (30 min cumulative)
-# Tier 3: 46 intervals of 30 minutes = 23 hours total (23.5 hr cumulative)
-# Tier 4: 48 intervals of 60 minutes = 48 hours total (71.5 hr cumulative)
-# Total: 104 periods covering ~72 hours
+# Tier 2: 11 intervals of 5 minutes = 55 minutes total (60 min cumulative)
+# Tier 3: 46 intervals of 30 minutes = 23 hours total (24 hr cumulative)
+# Tier 4: 48 intervals of 60 minutes = 48 hours total (72 hr cumulative)
+# Total: 110 periods covering ~72 hours
 DEFAULT_TIER_1_COUNT: Final = 5
 DEFAULT_TIER_1_DURATION: Final = 1
-DEFAULT_TIER_2_COUNT: Final = 5
+DEFAULT_TIER_2_COUNT: Final = 11
 DEFAULT_TIER_2_DURATION: Final = 5
 DEFAULT_TIER_3_COUNT: Final = 46
 DEFAULT_TIER_3_DURATION: Final = 30
@@ -55,15 +55,7 @@ OPTIMIZATION_STATUS_PENDING: Final = "pending"
 
 
 def tiers_to_periods_seconds(config: Mapping[str, int]) -> list[int]:
-    """Convert tier configuration to list of period durations in seconds.
-
-    Args:
-        config: Configuration dict containing tier_N_count and tier_N_duration keys
-
-    Returns:
-        List of period durations in seconds, one per optimization interval
-
-    """
+    """Convert tier configuration to list of period durations in seconds."""
     periods: list[int] = []
     for tier in [1, 2, 3, 4]:
         count = config[f"tier_{tier}_count"]

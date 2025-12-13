@@ -54,7 +54,7 @@ Configure the network through Settings → Devices & Services → Add Integratio
 Name: Sigenergy System
 Tier 1 Count: 5      # 5 × 1 min = 5 minutes high-resolution
 Tier 1 Duration: 1
-Tier 2 Count: 5      # 5 × 5 min = 25 minutes
+Tier 2 Count: 11      # 11 × 5 min = 55 minutes
 Tier 2 Duration: 5
 Tier 3 Count: 46     # 46 × 30 min ≈ 23 hours
 Tier 3 Duration: 30
