@@ -33,7 +33,6 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
     - entity_id, state, attributes, last_changed, last_updated, context
 
     Unstable fields that are removed:
-    - friendly_name (can vary based on runtime conditions)
     - last_changed, last_updated, context (timestamp-based, not relevant for snapshot comparison)
 
     Numeric values are rounded intelligently based on their unit's maximum absolute value
