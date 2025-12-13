@@ -96,6 +96,7 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
                             value = float(item["value"])
                             unit_values[unit].append(abs(value))
                         except (ValueError, TypeError):
+                            # Ignore non-numeric forecast values (e.g., "success" or None)
                             pass
 
     # Calculate decimal places for each unit
