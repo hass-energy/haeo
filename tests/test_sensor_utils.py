@@ -56,7 +56,7 @@ async def test_get_output_sensors_excludes_other_platforms(hass: HomeAssistant) 
     # Verify only HAEO sensor is included
     assert haeo_entry.entity_id in output_sensors
     assert other_entry.entity_id not in output_sensors
-    assert output_sensors[haeo_entry.entity_id]["state"] == "42"
+    assert output_sensors[haeo_entry.entity_id]["state"] == "42.0"
 
 
 async def test_get_output_sensors_excludes_entities_without_state(hass: HomeAssistant) -> None:
@@ -100,4 +100,4 @@ async def test_get_output_sensors_excludes_entities_without_state(hass: HomeAssi
     # Verify only the sensor with state is included
     assert with_state_entry.entity_id in output_sensors
     assert without_state_entry.entity_id not in output_sensors
-    assert output_sensors[with_state_entry.entity_id]["state"] == "50"
+    assert output_sensors[with_state_entry.entity_id]["state"] == "50.0"
