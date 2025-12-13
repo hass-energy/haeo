@@ -51,6 +51,7 @@ def get_network_config_schema(
     - Tier 4: Long-term intervals (default: 48 x 60 min = 48 hr)
 
     Total default: 110 periods covering ~72 hours
+
     """
     return vol.Schema(
         {
