@@ -243,24 +243,42 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     )
 
     # 5. Create connections from sections to internal node
-    # Get undercharge/overcharge costs (take first period value)
-    undercharge_cost = config["undercharge_cost"][0] if "undercharge_cost" in config else 0.0
-    overcharge_cost = config["overcharge_cost"][0] if "overcharge_cost" in config else 0.0
+    n_periods = len(config["capacity"])
 
-    for _idx, section_name in enumerate(section_names):
+    # Create time-varying early charge/discharge incentive arrays using linspace
+    # Charge incentive decreases over time (from -incentive to 0)
+    # Discharge cost increases over time (from incentive to 2*incentive)
+    charge_early_incentive = [
+        -early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+    ]
+    discharge_early_incentive = [
+        early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+    ]
+
+    # Get undercharge/overcharge cost arrays (or broadcast scalars to arrays)
+    undercharge_cost_array: list[float] = (
+        list(config["undercharge_cost"]) if "undercharge_cost" in config else [0.0] * n_periods
+    )
+    overcharge_cost_array: list[float] = (
+        list(config["overcharge_cost"]) if "overcharge_cost" in config else [0.0] * n_periods
+    )
+
+    for section_name in section_names:
         # Determine charge/discharge costs based on section
         if "undercharge" in section_name:
             # Undercharge: strong charge preference (3x), weak discharge + penalty
-            charge_price = -early_charge_incentive * 3  # Negative = benefit
-            discharge_price = early_charge_incentive * 1 + undercharge_cost
+            charge_price = [c * 3 for c in charge_early_incentive]
+            discharge_price = [
+                d * 1 + uc for d, uc in zip(discharge_early_incentive, undercharge_cost_array, strict=True)
+            ]
         elif "overcharge" in section_name:
             # Overcharge: weak charge + penalty, strong discharge preference (3x)
-            charge_price = -early_charge_incentive * 1 + overcharge_cost
-            discharge_price = early_charge_incentive * 3
+            charge_price = [c * 1 + oc for c, oc in zip(charge_early_incentive, overcharge_cost_array, strict=True)]
+            discharge_price = [d * 3 for d in discharge_early_incentive]
         else:
             # Normal: moderate preferences (2x)
-            charge_price = -early_charge_incentive * 2
-            discharge_price = early_charge_incentive * 2
+            charge_price = [c * 2 for c in charge_early_incentive]
+            discharge_price = [d * 2 for d in discharge_early_incentive]
 
         elements.append(
             {

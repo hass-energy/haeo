@@ -388,6 +388,7 @@ HAEO models batteries using multiple interconnected sections:
 4. **Network connection**: The central node connects to your network with efficiency and power limits
 
 This architecture allows HAEO to:
+
 - Prefer charging lower sections first (undercharge → normal → overcharge)
 - Prefer discharging higher sections first (overcharge → normal → undercharge)
 - Make economically rational trade-offs when grid conditions justify using extended ranges

@@ -1,4 +1,11 @@
-"""Adapter-layer tests using element-specific test data modules."""
+"""Adapter-layer tests using element-specific test data modules.
+
+These tests verify that:
+1. create_model_elements() transforms config data into correct model elements
+2. outputs() correctly maps model outputs back to device outputs
+
+Full optimization behavior tests (e.g., early charging) belong in integration/scenario tests.
+"""
 
 import pytest
 

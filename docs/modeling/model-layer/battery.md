@@ -122,17 +122,20 @@ $$
 Consider a 10 kWh battery section with initial charge of 4 kWh:
 
 **Initial state** ($t=0$):
+
 - $E_{\text{in}}(0) = 4.0$ kWh (constant)
 - $E_{\text{out}}(0) = 0.0$ kWh (constant)
 - Net energy = 4.0 kWh
 
 **After charging 2 kWh over 1 hour** ($t=1$):
+
 - $E_{\text{in}}(1) = 6.0$ kWh (increased by 2)
 - $E_{\text{out}}(1) = 0.0$ kWh (unchanged)
 - Net energy = 6.0 kWh
 - $P_{\text{charge}}(0) = (6.0 - 4.0) / 1.0 = 2.0$ kW
 
 **After discharging 3 kWh over next hour** ($t=2$):
+
 - $E_{\text{in}}(2) = 6.0$ kWh (unchanged)
 - $E_{\text{out}}(2) = 3.0$ kWh (increased by 3)
 - Net energy = 3.0 kWh

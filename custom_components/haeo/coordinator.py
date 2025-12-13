@@ -323,13 +323,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
         forecast_timestamps = self._generate_forecast_timestamps(periods_seconds)
 
-        # Load element configurations (convert entity IDs to values)
-        loaded_configs = await data_module.load_element_configs(
-            self.hass,
-            self._participant_configs,
-            forecast_timestamps,
-        )
-
         # Check that all required sensor data is available before loading
         missing_sensors: list[str] = []
         for name, element_config in self._participant_configs.items():
@@ -346,6 +339,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 translation_key="missing_sensors",
                 translation_placeholders={"unavailable_sensors": ", ".join(missing_sensors)},
             )
+
+        # Load element configurations (convert entity IDs to values)
+        loaded_configs = await data_module.load_element_configs(
+            self.hass,
+            self._participant_configs,
+            forecast_timestamps,
+        )
 
         # Build network with loaded configurations
         network = await data_module.load_network(
