@@ -15,9 +15,10 @@ graph LR
         BU -->|Connection<br/>charge/discharge costs| Node
         BN -->|Connection<br/>charge/discharge costs| Node
         BO -->|Connection<br/>charge/discharge costs| Node
-    end
 
-    Conn["Connection<br/>battery_main:connection<br/>(efficiency, power limits)"]
+        Conn["Connection<br/>battery_main:connection<br/>(efficiency, power limits)"]
+
+    end
     Target[Connection Target]
 
     Node --> Conn

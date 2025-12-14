@@ -29,7 +29,7 @@ type BatteryOutputName = (
     | BatteryConstraintName
 )
 
-# Battery constraint names (defined with walrus operator in frozenset)
+# Battery constraint names
 BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
     (
         BATTERY_POWER_BALANCE := "battery_power_balance",
@@ -40,10 +40,10 @@ BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
     )
 )
 
-# Battery power constraints (subset of all constraints)
+# Battery power constraints
 BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset((BATTERY_POWER_BALANCE,))
 
-# Battery output names (defined with walrus operator in frozenset)
+# Battery output names
 BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
     (
         BATTERY_POWER_CHARGE := "battery_power_charge",
@@ -58,8 +58,6 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
     """Battery entity for electrical system modeling.
 
     Represents a single battery section with cumulative energy tracking.
-    Multi-section batteries are composed at the element adapter layer using
-    multiple Battery instances connected through a common node.
     """
 
     def __init__(
@@ -136,11 +134,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         ]
 
     def cost(self) -> Sequence[LpAffineExpression]:
-        """Return the cost expressions of the battery.
-
-        Battery costs (charge/discharge pricing, early charge incentives) are now
-        handled by connections in the element adapter layer.
-        """
+        """Return the cost expressions of the battery."""
         return []
 
     def outputs(self) -> Mapping[BatteryOutputName, OutputData]:
