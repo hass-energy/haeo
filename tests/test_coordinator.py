@@ -271,8 +271,8 @@ async def test_async_update_data_returns_outputs(
     }
 
     generated_at = datetime(2024, 1, 1, 0, 15, tzinfo=UTC)
-    # Round to nearest minute (00:15), then add two 30-minute intervals
-    base_timestamp = int(datetime(2024, 1, 1, 0, 15, tzinfo=UTC).timestamp())
+    # Round to nearest 30-minute period (00:15 rounds to 00:00), then add two 30-minute intervals
+    base_timestamp = int(datetime(2024, 1, 1, 0, 0, tzinfo=UTC).timestamp())
     expected_forecast_times = (base_timestamp, base_timestamp + 30 * 60, base_timestamp + 2 * 30 * 60)
 
     # Mock connection adapter to return proper outputs

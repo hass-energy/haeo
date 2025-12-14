@@ -307,8 +307,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         Example: periods [60, 60, 300] starting at t=0 returns [0, 60, 120, 420]
         """
         epoch_seconds = dt_util.utcnow().timestamp()
-        # Round to nearest minute for clean timestamps
-        rounded_epoch = int(epoch_seconds // 60 * 60)
+        # Floor to current or most recent period boundary for clean timestamps
+        smallest_period = min(periods_seconds) if periods_seconds else 60
+        rounded_epoch = int(epoch_seconds // smallest_period * smallest_period)
 
         timestamps: list[int] = [rounded_epoch]
         for period in periods_seconds:

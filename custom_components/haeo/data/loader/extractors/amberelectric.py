@@ -76,7 +76,8 @@ class Parser:
 
         for i, item in enumerate(forecasts):
             # Round start time to nearest minute (Amber provides times 1 second into each period)
-            start = float(parse_datetime_to_timestamp(item["start_time"])) - 1.0
+            start_raw = float(parse_datetime_to_timestamp(item["start_time"]))
+            start = round(start_raw / 60.0) * 60.0
             price = item["per_kwh"]
 
             # Emit start of window
@@ -84,8 +85,9 @@ class Parser:
 
             # Determine end boundary (just before next window starts)
             if i + 1 < len(forecasts):
-                # Use next window's start time (already rounded by the loop above)
-                next_start = float(parse_datetime_to_timestamp(forecasts[i + 1]["start_time"])) - 1.0
+                # Use next window's start time (rounded to nearest minute)
+                next_start_raw = float(parse_datetime_to_timestamp(forecasts[i + 1]["start_time"]))
+                next_start = round(next_start_raw / 60.0) * 60.0
             elif "end_time" in item:
                 # Last window: use end_time + 1 second (to match Amber's pattern)
                 next_start = float(parse_datetime_to_timestamp(item["end_time"]))
