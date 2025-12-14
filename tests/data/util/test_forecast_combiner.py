@@ -131,6 +131,25 @@ type Payloads = dict[str, float | list[tuple[float, float]]]
             ],
             id="step_functions_combine",
         ),
+        pytest.param(
+            {
+                "sensor.step_with_gap": [
+                    # Previous window ends at 999.999...
+                    (np.nextafter(1000.0, -np.inf), 0.06),
+                    # Gap from 1000.0 to 1001.0 (1 second)
+                    # Next window starts at 1001.0
+                    (1001.0, 0.04),
+                    (np.nextafter(2001.0, -np.inf), 0.04),
+                ],
+            },
+            None,
+            [
+                (np.nextafter(1000.0, -np.inf), 0.06),
+                (1001.0, 0.04),
+                (np.nextafter(2001.0, -np.inf), 0.04),
+            ],
+            id="step_function_with_gap_preserved",
+        ),
     ],
 )
 def test_combine_sensor_payloads(
