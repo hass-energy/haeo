@@ -123,7 +123,7 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: GridConfigData
 ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
     """Map model outputs to grid-specific output names."""
 

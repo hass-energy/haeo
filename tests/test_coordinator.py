@@ -287,8 +287,25 @@ async def test_async_update_data_returns_outputs(
     # Mock empty outputs for grid
     mock_empty_outputs = MagicMock(return_value={})
 
+    # Create mock loaded configs (use subentry titles as keys)
+    mock_loaded_configs = {
+        "Test Battery": mock_battery_subentry.data,
+        "Test Grid": mock_grid_subentry.data,
+        "Battery to Grid": {
+            CONF_ELEMENT_TYPE: "connection",
+            CONF_NAME: "battery_to_grid",
+            CONF_SOURCE: "test_battery",
+            CONF_TARGET: "test_grid",
+        },
+    }
+
     # Patch the registry entries to use our mocked output functions
     with (
+        patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
+        patch(
+            "custom_components.haeo.coordinator.data_module.load_element_configs",
+            new_callable=AsyncMock,
+        ) as mock_load_configs,
         patch("custom_components.haeo.coordinator.data_module.load_network", new_callable=AsyncMock) as mock_load,
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
@@ -302,17 +319,21 @@ async def test_async_update_data_returns_outputs(
             },
         ),
     ):
+        mock_load_configs.return_value = mock_loaded_configs
         mock_load.return_value = fake_network
         mock_executor.return_value = 123.45
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         result = await coordinator._async_update_data()
 
-    mock_load.assert_awaited_once_with(
+    mock_load_configs.assert_awaited_once_with(
         hass,
+        coordinator._participant_configs,
+        expected_forecast_times,
+    )
+    mock_load.assert_awaited_once_with(
         mock_hub_entry,
         periods_seconds=[30 * 60, 30 * 60],  # Two 30-minute intervals
-        participants=coordinator._participant_configs,
-        forecast_times=expected_forecast_times,
+        participants=mock_loaded_configs,
     )
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
@@ -357,7 +378,15 @@ async def test_async_update_data_propagates_update_failed(
     mock_grid_subentry: ConfigSubentry,
 ) -> None:
     """Coordinator surfaces loader failures as UpdateFailed."""
-    with patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=UpdateFailed("missing data")):
+    with (
+        patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
+        patch(
+            "custom_components.haeo.coordinator.data_module.load_element_configs",
+            new_callable=AsyncMock,
+            return_value={},
+        ),
+        patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=UpdateFailed("missing data")),
+    ):
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         with pytest.raises(UpdateFailed, match="missing data"):
             await coordinator._async_update_data()
@@ -370,7 +399,15 @@ async def test_async_update_data_propagates_value_error(
     mock_grid_subentry: ConfigSubentry,
 ) -> None:
     """Coordinator allows unexpected errors to bubble up."""
-    with patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=ValueError("invalid config")):
+    with (
+        patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
+        patch(
+            "custom_components.haeo.coordinator.data_module.load_element_configs",
+            new_callable=AsyncMock,
+            return_value={},
+        ),
+        patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=ValueError("invalid config")),
+    ):
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         with pytest.raises(ValueError, match="invalid config"):
             await coordinator._async_update_data()
@@ -387,7 +424,7 @@ async def test_async_update_data_raises_on_missing_model_element(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     fake_network = Network(name="net", periods=[1.0] * 1)
 
-    def broken_outputs(_name: str, _outputs: object) -> dict[str, dict[str, OutputData]]:
+    def broken_outputs(_name: str, _outputs: object, _config: object) -> dict[str, dict[str, OutputData]]:
         msg = "missing model element"
         raise KeyError(msg)
 

@@ -17,7 +17,6 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.elements import (
@@ -33,22 +32,54 @@ from custom_components.haeo.schema import load as config_load
 _LOGGER = logging.getLogger(__name__)
 
 
-async def load_network(
+async def load_element_configs(
     hass: HomeAssistant,
+    participants: Mapping[str, ElementConfigSchema],
+    forecast_times: Sequence[int],
+) -> dict[str, ElementConfigData]:
+    """Load sensor values for all element configurations.
+
+    Converts ElementConfigSchema (with entity IDs) to ElementConfigData (with loaded values).
+
+    Args:
+        hass: Home Assistant instance
+        participants: Mapping of element names to configurations with entity IDs
+        forecast_times: Rounded timestamps for each optimization period (epoch seconds)
+
+    Returns:
+        Mapping of element names to loaded configurations with values
+
+    Raises:
+        ValueError: when required sensor/forecast data is missing
+
+    """
+    loaded_configs: dict[str, ElementConfigData] = {}
+    forecast_times_list = list(forecast_times)
+
+    for element_name, element_config in participants.items():
+        # Load all fields using the high-level config_load function
+        loaded_params: ElementConfigData = await config_load(
+            element_config,
+            hass=hass,
+            forecast_times=forecast_times_list,
+        )
+        loaded_configs[element_name] = loaded_params
+
+    return loaded_configs
+
+
+async def load_network(
     entry: ConfigEntry,
     *,
     periods_seconds: Sequence[int],
-    participants: Mapping[str, ElementConfigSchema],
-    forecast_times: Sequence[int],
+    participants: Mapping[str, ElementConfigData],
 ) -> Network:
     """Return a fully-populated `Network` ready for optimization.
 
     Args:
-        hass: Home Assistant instance
         entry: Config entry
         periods_seconds: Sequence of optimization period durations in seconds
-        participants: Mapping of validated element names to configurations
-        forecast_times: Rounded timestamps for each optimization period (epoch seconds)
+        participants: Mapping of element names to loaded configurations (with values)
 
     Raises:
         ValueError: when required sensor/forecast data is missing.
@@ -58,23 +89,6 @@ async def load_network(
         _LOGGER.warning("No participants configured for hub")
         msg = "No participants configured"
         raise ValueError(msg)
-
-    # Check that all required sensor data is available before loading
-    missing_sensors: list[str] = []
-    for name, element_config in participants.items():
-        # Check availability for entire config
-        if not config_available(
-            element_config,
-            hass=hass,
-            forecast_times=forecast_times,
-        ):
-            missing_sensors.append(name)
-
-    if missing_sensors:
-        raise UpdateFailed(
-            translation_key="missing_sensors",
-            translation_placeholders={"unavailable_sensors": ", ".join(missing_sensors)},
-        )
 
     # ==================================================================================
     # Unit boundary: seconds → hours
@@ -88,20 +102,9 @@ async def load_network(
     # Build network with periods in hours
     net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
 
-    # Get the data for each participant and add to the network
-    # This converts from Schema mode (with entity IDs) to Data mode (with loaded values)
-    forecast_times_list = list(forecast_times)
-
-    # Collect all model elements from all config elements first
+    # Collect all model elements from all config elements
     all_model_elements: list[dict[str, Any]] = []
-    for element_config in participants.values():
-        # Load all fields using the high-level config_load function
-        loaded_params: ElementConfigData = await config_load(
-            element_config,
-            hass=hass,
-            forecast_times=forecast_times_list,
-        )
-
+    for loaded_params in participants.values():
         # Use registry entry to create model elements from configuration element
         element_type = loaded_params[CONF_ELEMENT_TYPE]
         model_elements = ELEMENT_TYPES[element_type].create_model_elements(loaded_params)
@@ -127,3 +130,10 @@ async def load_network(
             raise ValueError(msg) from e
 
     return net
+
+
+__all__ = [
+    "config_available",
+    "load_element_configs",
+    "load_network",
+]

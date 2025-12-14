@@ -36,5 +36,5 @@ def test_outputs_mapping(
     """Verify adapter maps model outputs to device outputs."""
 
     entry = ELEMENT_TYPES[element_type]
-    result = entry.outputs(case["data"]["name"], case["model_outputs"])
+    result = entry.outputs(case["data"]["name"], case["model_outputs"], case["data"])
     assert result == case["outputs"]

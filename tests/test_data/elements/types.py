@@ -39,9 +39,9 @@ class InvalidModelCase[DataT: ElementConfigData](TypedDict):
 
 
 __all__ = [
+    "DataT",
     "ElementConfigData",
     "ElementConfigSchema",
-    "DataT",
     "ElementValidCase",
     "InvalidModelCase",
     "InvalidSchemaCase",
