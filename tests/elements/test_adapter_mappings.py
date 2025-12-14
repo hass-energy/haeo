@@ -37,4 +37,4 @@ def test_outputs_mapping(
 
     entry = ELEMENT_TYPES[element_type]
     result = entry.outputs(case["data"]["name"], case["model_outputs"])
-    assert result == pytest.approx(case["outputs"])
+    assert result == case["outputs"]
