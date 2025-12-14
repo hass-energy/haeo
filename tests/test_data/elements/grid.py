@@ -66,6 +66,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             grid_element.GRID_DEVICE_GRID: {
                 grid_element.GRID_POWER_EXPORT: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.4,), direction="-"),
                 grid_element.GRID_POWER_IMPORT: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,), direction="+"),
+                grid_element.GRID_POWER_ACTIVE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.1,), direction=None),
                 grid_element.GRID_POWER_MAX_EXPORT: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(3.0,)),
                 grid_element.GRID_POWER_MAX_IMPORT: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(5.0,)),
                 grid_element.GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
