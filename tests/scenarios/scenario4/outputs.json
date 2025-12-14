@@ -5,7 +5,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "AC Net",
       "element_type": "node",
       "forecast": [
@@ -132,7 +131,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "energy",
-      "direction": null,
       "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
@@ -514,7 +512,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
@@ -641,7 +638,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
@@ -768,7 +764,6 @@
     "attributes": {
       "advanced": true,
       "device_class": "energy",
-      "direction": null,
       "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
@@ -1152,7 +1147,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
@@ -1279,7 +1273,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
@@ -1406,7 +1399,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "power",
-      "direction": null,
       "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
@@ -1534,7 +1526,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
@@ -1917,7 +1908,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "battery",
-      "direction": null,
       "element_name": "Battery",
       "element_type": "battery",
       "forecast": [
@@ -2046,7 +2036,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Constant Load",
       "element_type": "load",
       "forecast": [
@@ -2429,7 +2418,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "DC Net",
       "element_type": "node",
       "forecast": [
@@ -2810,7 +2798,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
@@ -2937,7 +2924,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
@@ -3320,7 +3306,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "power",
-      "direction": null,
       "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
@@ -3704,7 +3689,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "power",
-      "direction": null,
       "element_name": "Inverter",
       "element_type": "connection",
       "forecast": [
@@ -4344,7 +4328,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Inverter",
       "element_type": "connection",
       "forecast": [
@@ -4471,7 +4454,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Inverter",
       "element_type": "connection",
       "forecast": [
@@ -4598,7 +4580,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Inverter",
       "element_type": "connection",
       "forecast": [
@@ -4719,20 +4700,16 @@
       "unit_of_measurement": "$/kW"
     }
   },
-  "sensor.mock_title_optimization_cost": {
-    "entity_id": "sensor.mock_title_optimization_cost",
-    "state": "-52.5",
-    "attributes": { "advanced": false, "device_class": "monetary", "direction": null, "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization Cost", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "EUR" }
-  },
+  "sensor.mock_title_optimization_cost": { "entity_id": "sensor.mock_title_optimization_cost", "state": "-52.5", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization Cost", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "EUR" } },
   "sensor.mock_title_optimization_duration": {
     "entity_id": "sensor.mock_title_optimization_duration",
     "state": "0.0",
-    "attributes": { "advanced": false, "device_class": "duration", "direction": null, "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization Duration", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" }
+    "attributes": { "advanced": false, "device_class": "duration", "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization Duration", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" }
   },
   "sensor.mock_title_optimization_status": {
     "entity_id": "sensor.mock_title_optimization_status",
     "state": "success",
-    "attributes": { "advanced": false, "device_class": "enum", "direction": null, "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization Status", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" }
+    "attributes": { "advanced": false, "device_class": "enum", "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization Status", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" }
   },
   "sensor.solar_forecast_limit_price_shadow": {
     "entity_id": "sensor.solar_forecast_limit_price_shadow",
@@ -4740,7 +4717,6 @@
     "attributes": {
       "advanced": false,
       "device_class": "monetary",
-      "direction": null,
       "element_name": "Solar",
       "element_type": "photovoltaics",
       "forecast": [
