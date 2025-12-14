@@ -41,7 +41,7 @@ INVALID_MODEL_PARAMS_BY_TYPE: Mapping[ElementType, Sequence[InvalidModelCase[Ele
 
 __all__ = [
     "ElementValidCase",
-    "INVALID_SCHEMAS_BY_TYPE",
     "INVALID_MODEL_PARAMS_BY_TYPE",
+    "INVALID_SCHEMAS_BY_TYPE",
     "VALID_CONFIGS_BY_TYPE",
 ]
