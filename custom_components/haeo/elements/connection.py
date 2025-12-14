@@ -19,7 +19,6 @@ from custom_components.haeo.model.connection import (
     CONNECTION_TIME_SLICE,
     ConnectionOutputName,
 )
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     ElementNameFieldData,
