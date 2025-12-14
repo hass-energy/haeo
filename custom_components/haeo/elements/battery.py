@@ -9,7 +9,7 @@ import numpy as np
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import connection as model_connection
-from custom_components.haeo.model.const import OUTPUT_TYPE_SOC
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SOC
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
 from custom_components.haeo.schema.fields import (
@@ -69,6 +69,7 @@ CONF_CONNECTION: Final = "connection"
 type BatteryOutputName = Literal[
     "battery_power_charge",
     "battery_power_discharge",
+    "battery_power_active",
     "battery_energy_stored",
     "battery_state_of_charge",
     "battery_power_balance",
@@ -84,6 +85,7 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
     (
         BATTERY_POWER_CHARGE := "battery_power_charge",
         BATTERY_POWER_DISCHARGE := "battery_power_discharge",
+        BATTERY_POWER_ACTIVE := "battery_power_active",
         BATTERY_ENERGY_STORED := "battery_energy_stored",
         BATTERY_STATE_OF_CHARGE := "battery_state_of_charge",
         BATTERY_POWER_BALANCE := "battery_power_balance",
@@ -380,6 +382,21 @@ def outputs(
         BATTERY_ENERGY_STORED: total_energy_stored,
         BATTERY_STATE_OF_CHARGE: aggregate_soc,
     }
+
+    # Active battery power (discharge - charge)
+    aggregate_outputs[BATTERY_POWER_ACTIVE] = replace(
+        aggregate_power_discharge,
+        values=[
+            d - c
+            for d, c in zip(
+                aggregate_power_discharge.values,
+                aggregate_power_charge.values,
+                strict=True,
+            )
+        ],
+        direction=None,
+        type=OUTPUT_TYPE_POWER,
+    )
 
     # Add node power balance as battery power balance
     if SOURCE_SINK_POWER_BALANCE in node_outputs:
