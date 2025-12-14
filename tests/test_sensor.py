@@ -422,8 +422,10 @@ async def test_async_setup_entry_creates_sub_device_sensors(
     assert len(sensors) == 1
 
     sensor = sensors[0]
-    # Check that it picked up the correct sub-device key
-    assert sensor.translation_key == sub_device_key
+    # Check that the sensor uses the output name as translation key (consistent with all sensors)
+    assert sensor.translation_key == LOAD_POWER
+    # Check that it's associated with the correct sub-device
+    assert sensor._device_key == sub_device_key
 
 
 def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> None:
