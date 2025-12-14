@@ -310,7 +310,6 @@ def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry
         "element_type": BATTERY_TYPE,
         "output_name": LOAD_POWER,
         "output_type": OUTPUT_TYPE_POWER,
-        "direction": None,
         "advanced": False,
     }
 
