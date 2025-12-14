@@ -142,10 +142,10 @@ def outputs(
     grid_outputs[GRID_POWER_ACTIVE] = replace(
         connection[CONNECTION_POWER_TARGET_SOURCE],
         values=[
-            e - i
-            for e, i in zip(
-                connection[CONNECTION_POWER_TARGET_SOURCE].values,
+            i - e
+            for i, e in zip(
                 connection[CONNECTION_POWER_SOURCE_TARGET].values,
+                connection[CONNECTION_POWER_TARGET_SOURCE].values,
                 strict=True,
             )
         ],
