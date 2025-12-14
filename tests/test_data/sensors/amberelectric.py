@@ -20,7 +20,7 @@ VALID: list[dict[str, Any]] = [
             ]
         },
         "expected_format": "amberelectric",
-        "expected_count": 1,
+        "expected_count": 2,
         "description": "Single Amber forecast entry",
     },
     {
@@ -43,7 +43,7 @@ VALID: list[dict[str, Any]] = [
             ]
         },
         "expected_format": "amberelectric",
-        "expected_count": 2,
+        "expected_count": 4,
         "description": "Multiple Amber forecast entries",
     },
     {
@@ -58,7 +58,7 @@ VALID: list[dict[str, Any]] = [
             ]
         },
         "expected_format": "amberelectric",
-        "expected_count": 1,
+        "expected_count": 2,
         "description": "Amber forecast with timezone conversion",
     },
     {
@@ -77,7 +77,7 @@ VALID: list[dict[str, Any]] = [
             ]
         },
         "expected_format": "amberelectric",
-        "expected_count": 2,
+        "expected_count": 4,
         "description": "Amber forecast with datetime objects instead of strings",
     },
 ]

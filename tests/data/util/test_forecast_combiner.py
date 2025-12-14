@@ -1,10 +1,11 @@
 """Tests for forecast payload combination utilities."""
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
 
-type Payloads = dict[str, float | list[tuple[int, float]]]
+type Payloads = dict[str, float | list[tuple[float, float]]]
 
 
 @pytest.mark.parametrize(
@@ -88,12 +89,54 @@ type Payloads = dict[str, float | list[tuple[int, float]]]
             [(0, 100.0), (500, 200.0), (1000, 200.0)],
             id="mixed_present_and_multiple_forecasts",
         ),
+        pytest.param(
+            {
+                "sensor.step": [
+                    (0.0, 10.0),
+                    (np.nextafter(1000.0, -np.inf), 10.0),
+                    (1000.0, 20.0),
+                    (np.nextafter(2000.0, -np.inf), 20.0),
+                ],
+            },
+            None,
+            [
+                (0.0, 10.0),
+                (np.nextafter(1000.0, -np.inf), 10.0),
+                (1000.0, 20.0),
+                (np.nextafter(2000.0, -np.inf), 20.0),
+            ],
+            id="step_function_preserved",
+        ),
+        pytest.param(
+            {
+                "sensor.step1": [
+                    (0.0, 10.0),
+                    (np.nextafter(1000.0, -np.inf), 10.0),
+                    (1000.0, 20.0),
+                    (np.nextafter(2000.0, -np.inf), 20.0),
+                ],
+                "sensor.step2": [
+                    (0.0, 5.0),
+                    (np.nextafter(1000.0, -np.inf), 5.0),
+                    (1000.0, 15.0),
+                    (np.nextafter(2000.0, -np.inf), 15.0),
+                ],
+            },
+            None,
+            [
+                (0.0, 15.0),
+                (np.nextafter(1000.0, -np.inf), 15.0),
+                (1000.0, 35.0),
+                (np.nextafter(2000.0, -np.inf), 35.0),
+            ],
+            id="step_functions_combine",
+        ),
     ],
 )
 def test_combine_sensor_payloads(
     payloads: Payloads,
     expected_present: float | None,
-    expected_forecast: list[tuple[int, float]],
+    expected_forecast: list[tuple[float, float]],
 ) -> None:
     """Test combining sensor payloads with various input configurations."""
     present_value, forecast_series = combine_sensor_payloads(payloads)

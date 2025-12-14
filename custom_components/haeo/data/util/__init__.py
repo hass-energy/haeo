@@ -2,5 +2,5 @@
 
 from collections.abc import Sequence
 
-ForecastSeries = Sequence[tuple[int, float]]
+ForecastSeries = Sequence[tuple[float, float]]
 SensorPayload = float | ForecastSeries

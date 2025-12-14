@@ -7,6 +7,7 @@ from typing import Literal, Protocol, TypedDict, TypeGuard
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
+import numpy as np
 
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
@@ -63,10 +64,37 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: AmberElectricState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
-        """Extract forecast data from Amber Electric pricing format."""
-        parsed: list[tuple[int, float]] = [
-            (parse_datetime_to_timestamp(item["start_time"]), item["per_kwh"]) for item in state.attributes["forecasts"]
-        ]
+    def extract(state: AmberElectricState) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass]:
+        """Extract forecast data from Amber Electric pricing format.
+
+        Emits boundary prices to create step functions: each window produces two points
+        (start, price) and (nextafter(next_start, -inf), price) to ensure constant pricing
+        within the window without linear interpolation.
+        """
+        forecasts = list(state.attributes["forecasts"])
+        parsed: list[tuple[float, float]] = []
+
+        for i, item in enumerate(forecasts):
+            start = float(parse_datetime_to_timestamp(item["start_time"]))
+            price = item["per_kwh"]
+
+            # Emit start of window
+            parsed.append((start, price))
+
+            # Determine end boundary (just before next window starts)
+            if i + 1 < len(forecasts):
+                # Use next window's start time
+                next_start = float(parse_datetime_to_timestamp(forecasts[i + 1]["start_time"]))
+            elif "end_time" in item:
+                # Last window: use end_time + 1 second (to match Amber's pattern)
+                next_start = float(parse_datetime_to_timestamp(item["end_time"])) + 1.0
+            else:
+                # Fallback: use duration if available, else default to 30 minutes
+                duration = item.get("duration", 30) * 60
+                next_start = start + duration
+
+            # Emit end of window (infinitesimally before next window)
+            parsed.append((np.nextafter(next_start, -np.inf), price))
+
         parsed.sort(key=lambda x: x[0])
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS
