@@ -21,6 +21,7 @@ class AmberForecastEntry(TypedDict):
     """Type definition for an Amber Electric forecast entry."""
 
     start_time: str | datetime
+    end_time: str | datetime
     per_kwh: float
 
 
@@ -57,11 +58,19 @@ class Parser:
         return all(
             isinstance(item, Mapping)
             and "start_time" in item
+            and "end_time" in item
             and "per_kwh" in item
             and isinstance(item["per_kwh"], (int, float))
             and is_parsable_to_datetime(item["start_time"])
+            and is_parsable_to_datetime(item["end_time"])
             for item in forecasts
         )
+
+    @staticmethod
+    def _round_to_minute(timestamp: str | datetime) -> float:
+        """Round timestamp to nearest minute (Amber provides times 1 second into each period)."""
+        raw = float(parse_datetime_to_timestamp(timestamp))
+        return round(raw / 60.0) * 60.0
 
     @staticmethod
     def extract(state: AmberElectricState) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass]:
@@ -74,30 +83,14 @@ class Parser:
         forecasts = list(state.attributes["forecasts"])
         parsed: list[tuple[float, float]] = []
 
-        for i, item in enumerate(forecasts):
-            # Round start time to nearest minute (Amber provides times 1 second into each period)
-            start_raw = float(parse_datetime_to_timestamp(item["start_time"]))
-            start = round(start_raw / 60.0) * 60.0
+        for item in forecasts:
+            start = Parser._round_to_minute(item["start_time"])
+            end = Parser._round_to_minute(item["end_time"])
             price = item["per_kwh"]
 
-            # Emit start of window
+            # Emit start of window and end of window
             parsed.append((start, price))
-
-            # Determine end boundary (just before next window starts)
-            if i + 1 < len(forecasts):
-                # Use next window's start time (rounded to nearest minute)
-                next_start_raw = float(parse_datetime_to_timestamp(forecasts[i + 1]["start_time"]))
-                next_start = round(next_start_raw / 60.0) * 60.0
-            elif "end_time" in item:
-                # Last window: use end_time + 1 second (to match Amber's pattern)
-                next_start = float(parse_datetime_to_timestamp(item["end_time"]))
-            else:
-                # Fallback: use duration if available, else default to 30 minutes
-                duration = item.get("duration", 30) * 60
-                next_start = start + duration
-
-            # Emit end of window (infinitesimally before next window)
-            parsed.append((np.nextafter(next_start, -np.inf), price))
+            parsed.append((np.nextafter(end, -np.inf), price))
 
         parsed.sort(key=lambda x: x[0])
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

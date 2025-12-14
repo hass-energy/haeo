@@ -54,6 +54,7 @@ VALID: list[dict[str, Any]] = [
                 {
                     "per_kwh": 0.13,
                     "start_time": "2025-10-05T21:00:01+10:00",
+                    "end_time": "2025-10-05T21:05:00+10:00",
                 }
             ]
         },
@@ -69,10 +70,12 @@ VALID: list[dict[str, Any]] = [
                 {
                     "per_kwh": 0.13,
                     "start_time": datetime(2025, 10, 5, 11, 0, 0, tzinfo=UTC),
+                    "end_time": datetime(2025, 10, 5, 11, 5, 0, tzinfo=UTC),
                 },
                 {
                     "per_kwh": 0.16,
                     "start_time": datetime(2025, 10, 5, 11, 30, 0, tzinfo=UTC),
+                    "end_time": datetime(2025, 10, 5, 11, 35, 0, tzinfo=UTC),
                 },
             ]
         },
@@ -108,9 +111,25 @@ INVALID: list[dict[str, Any]] = [
         "description": "Amber forecast with invalid/missing fields",
     },
     {
+        "entity_id": "sensor.amber_missing_end_time",
+        "state": "0.13",
+        "attributes": {
+            "forecasts": [
+                {
+                    "start_time": "2025-10-05T11:00:01+00:00",
+                    "per_kwh": 0.13,
+                    # Missing end_time
+                }
+            ]
+        },
+        "expected_format": None,
+        "expected_count": 0,
+        "description": "Amber forecast missing end_time",
+    },
+    {
         "entity_id": "sensor.amber_bad_timestamp",
         "state": "0.13",
-        "attributes": {"forecasts": [{"start_time": "not a timestamp", "per_kwh": 0.1}]},
+        "attributes": {"forecasts": [{"start_time": "not a timestamp", "end_time": "2025-10-05T11:05:00+00:00", "per_kwh": 0.1}]},
         "expected_format": None,
         "expected_count": 0,
         "description": "Amber forecast with invalid timestamp",
