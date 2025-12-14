@@ -1,6 +1,7 @@
 """Battery element configuration for HAEO integration."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
@@ -364,14 +365,17 @@ def outputs(
     aggregate_power_discharge = _sum_output_data(all_power_discharge)
     aggregate_energy_stored = _sum_output_data(all_energy_stored)
 
+    # Calculate total energy stored (including inaccessible energy below min SOC)
+    total_energy_stored = _calculate_total_energy(aggregate_energy_stored, config)
+
     # Calculate SOC from aggregate energy using capacity from config
-    aggregate_soc = _calculate_soc(aggregate_energy_stored, config)
+    aggregate_soc = _calculate_soc(total_energy_stored, config)
 
     # Build aggregate device outputs
     aggregate_outputs: dict[BatteryOutputName, OutputData] = {
         BATTERY_POWER_CHARGE: aggregate_power_charge,
         BATTERY_POWER_DISCHARGE: aggregate_power_discharge,
-        BATTERY_ENERGY_STORED: aggregate_energy_stored,
+        BATTERY_ENERGY_STORED: total_energy_stored,
         BATTERY_STATE_OF_CHARGE: aggregate_soc,
     }
 
@@ -387,20 +391,24 @@ def outputs(
         conn_data = connection_outputs.get(section_key, {})
 
         section_device_outputs: dict[BatteryOutputName, OutputData] = {
-            BATTERY_ENERGY_STORED: section_data[model_battery.BATTERY_ENERGY_STORED],
-            BATTERY_POWER_CHARGE: section_data[model_battery.BATTERY_POWER_CHARGE],
-            BATTERY_POWER_DISCHARGE: section_data[model_battery.BATTERY_POWER_DISCHARGE],
-            BATTERY_ENERGY_IN_FLOW: section_data[model_battery.BATTERY_ENERGY_IN_FLOW],
-            BATTERY_ENERGY_OUT_FLOW: section_data[model_battery.BATTERY_ENERGY_OUT_FLOW],
-            BATTERY_SOC_MAX: section_data[model_battery.BATTERY_SOC_MAX],
-            BATTERY_SOC_MIN: section_data[model_battery.BATTERY_SOC_MIN],
+            BATTERY_ENERGY_STORED: replace(section_data[model_battery.BATTERY_ENERGY_STORED], advanced=True),
+            BATTERY_POWER_CHARGE: replace(section_data[model_battery.BATTERY_POWER_CHARGE], advanced=True),
+            BATTERY_POWER_DISCHARGE: replace(section_data[model_battery.BATTERY_POWER_DISCHARGE], advanced=True),
+            BATTERY_ENERGY_IN_FLOW: replace(section_data[model_battery.BATTERY_ENERGY_IN_FLOW], advanced=True),
+            BATTERY_ENERGY_OUT_FLOW: replace(section_data[model_battery.BATTERY_ENERGY_OUT_FLOW], advanced=True),
+            BATTERY_SOC_MAX: replace(section_data[model_battery.BATTERY_SOC_MAX], advanced=True),
+            BATTERY_SOC_MIN: replace(section_data[model_battery.BATTERY_SOC_MIN], advanced=True),
         }
 
         # Add connection prices
         if model_connection.CONNECTION_PRICE_TARGET_SOURCE in conn_data:
-            section_device_outputs[BATTERY_CHARGE_PRICE] = conn_data[model_connection.CONNECTION_PRICE_TARGET_SOURCE]
+            section_device_outputs[BATTERY_CHARGE_PRICE] = replace(
+                conn_data[model_connection.CONNECTION_PRICE_TARGET_SOURCE], advanced=True
+            )
         if model_connection.CONNECTION_PRICE_SOURCE_TARGET in conn_data:
-            section_device_outputs[BATTERY_DISCHARGE_PRICE] = conn_data[model_connection.CONNECTION_PRICE_SOURCE_TARGET]
+            section_device_outputs[BATTERY_DISCHARGE_PRICE] = replace(
+                conn_data[model_connection.CONNECTION_PRICE_SOURCE_TARGET], advanced=True
+            )
 
         # Map to device name
         if section_key == "undercharge":
@@ -437,20 +445,8 @@ def _sum_output_data(outputs: list[OutputData]) -> OutputData:
     )
 
 
-def _calculate_soc(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
-    """Calculate SOC percentage from aggregate energy and total capacity.
-
-    SOC = (inaccessible_energy + aggregate_energy) / total_capacity * 100
-
-    Args:
-        aggregate_energy: Sum of energy stored across all battery sections
-        config: Battery configuration with capacity and percentage parameters
-
-    Returns:
-        OutputData with SOC percentage values
-
-    """
-    # Extract capacity from config (first period value)
+def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
+    """Calculate total energy stored including inaccessible energy below min SOC."""
     total_capacity = config["capacity"][0]
 
     # Calculate inaccessible energy (energy below undercharge threshold)
@@ -461,8 +457,22 @@ def _calculate_soc(aggregate_energy: OutputData, config: BatteryConfigData) -> O
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
     inaccessible_energy = unusable_ratio * total_capacity
 
-    # Calculate SOC = (inaccessible + accessible) / total * 100
-    soc_values = [((inaccessible_energy + e) / total_capacity * 100.0) for e in aggregate_energy.values]
+    # Add inaccessible energy to each value
+    total_values = [(inaccessible_energy + e) for e in aggregate_energy.values]
+
+    return OutputData(
+        type=aggregate_energy.type,
+        unit=aggregate_energy.unit,
+        values=tuple(total_values),
+    )
+
+
+def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:
+    """Calculate SOC percentage from aggregate energy and total capacity."""
+    total_capacity = config["capacity"][0]
+
+    # Calculate SOC = total_energy / total_capacity * 100
+    soc_values = [(e / total_capacity * 100.0) for e in total_energy.values]
 
     return OutputData(
         type=OUTPUT_TYPE_SOC,
