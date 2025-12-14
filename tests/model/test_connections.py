@@ -2,7 +2,8 @@
 
 from typing import Any
 
-from pulp import LpAffineExpression, LpMinimize, LpProblem, LpVariable, getSolver, lpSum
+from highspy import Highs
+from highspy.highs import highs_var
 import pytest
 
 from custom_components.haeo.model.connection import Connection
@@ -17,15 +18,22 @@ def _solve_connection_scenario(
     """Set up and solve an optimization scenario for a connection.
 
     Args:
-        element: The connection to test
+        element: The connection to test (must have _solver set)
         inputs: Configuration dict with power values and parameters, or None for no optimization
 
     Returns:
         Dict mapping output names to {type, unit, values}
 
     """
+    # Use the element's solver instance (set in constructor)
+    h = element._solver
+
+    # Always call build_constraints to set up constraints (variables already exist)
+    element.build_constraints()
+
     if inputs is None:
-        # No optimization - get outputs directly
+        # No optimization - just solve with no objective and get outputs directly
+        h.run()
         outputs = element.outputs()
         return {
             name: {
@@ -40,46 +48,42 @@ def _solve_connection_scenario(
     n_periods = element.n_periods
     periods = element.periods
 
-    problem = LpProblem(f"test_{element.name}", LpMinimize)
-
-    # Add element constraints
-    for constraint in element.constraints():
-        problem += constraint
-
     source_power = inputs.get("source_power", [None] * n_periods)
     target_power = inputs.get("target_power", [None] * n_periods)
     source_cost = inputs.get("source_cost", 0.0)
     target_cost = inputs.get("target_cost", 0.0)
 
-    # Create power variables: None = unbounded, float = fixed value as LpAffineExpression
-    source_vars = [
-        LpVariable(f"source_power_{i}") if val is None else LpAffineExpression(constant=val)
-        for i, val in enumerate(source_power)
-    ]
-    target_vars = [
-        LpVariable(f"target_power_{i}") if val is None else LpAffineExpression(constant=val)
-        for i, val in enumerate(target_power)
-    ]
+    # Create power variables: None = unbounded (free), float = fixed value
+    # Note: HiGHS defaults to lb=0, so we must explicitly set lb=-inf for free variables
+    neginf = float("-inf")
+    source_vars: list[highs_var] = []
+    target_vars: list[highs_var] = []
+
+    for i, val in enumerate(source_power):
+        if val is None:
+            source_vars.append(h.addVariable(lb=neginf, name=f"source_power_{i}"))
+        else:
+            source_vars.append(h.addVariable(lb=val, ub=val, name=f"source_power_{i}"))
+
+    for i, val in enumerate(target_power):
+        if val is None:
+            target_vars.append(h.addVariable(lb=neginf, name=f"target_power_{i}"))
+        else:
+            target_vars.append(h.addVariable(lb=val, ub=val, name=f"target_power_{i}"))
 
     # Power balance: net flow at each side
     for i in range(n_periods):
-        problem += source_vars[i] == element.power_source_target[i] - element.power_target_source[i]
-        problem += target_vars[i] == element.power_source_target[i] - element.power_target_source[i]
+        h.addConstr(source_vars[i] == element.power_source_target[i] - element.power_target_source[i])
+        h.addConstr(target_vars[i] == element.power_source_target[i] - element.power_target_source[i])
 
     # Objective function
     cost_terms = list(element.cost())
     if source_cost != 0.0:
-        cost_terms.append(lpSum(source_vars[i] * source_cost * periods[i] for i in range(n_periods)))
+        cost_terms.append(Highs.qsum(source_vars[i] * source_cost * periods[i] for i in range(n_periods)))
     if target_cost != 0.0:
-        cost_terms.append(lpSum(target_vars[i] * target_cost * periods[i] for i in range(n_periods)))
-    problem += lpSum(cost_terms)
+        cost_terms.append(Highs.qsum(target_vars[i] * target_cost * periods[i] for i in range(n_periods)))
 
-    # Solve
-    solver = getSolver("HiGHS", msg=0)
-    status = problem.solve(solver)
-    if status != 1:
-        msg = f"Optimization failed with status {status}"
-        raise ValueError(msg)
+    h.minimize(Highs.qsum(cost_terms))
 
     # Extract and return outputs
     outputs = element.outputs()
@@ -98,12 +102,13 @@ def _solve_connection_scenario(
     test_data.VALID_CONNECTION_CASES,
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
-def test_connection_outputs(case: ConnectionTestCase) -> None:
+def test_connection_outputs(case: ConnectionTestCase, solver: Highs) -> None:
     """Connection.get_outputs should report expected series for each connection type."""
 
-    # Create element using the factory
+    # Create element using the factory with the solver
     factory = case["factory"]
     data = case["data"].copy()
+    data["solver"] = solver
     element = factory(**data)
 
     # Run optimization scenario (or get outputs directly if no inputs)
@@ -126,9 +131,11 @@ def test_connection_outputs(case: ConnectionTestCase) -> None:
     test_data.INVALID_CONNECTION_CASES,
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
-def test_connection_validation(case: ConnectionTestCase) -> None:
+def test_connection_validation(case: ConnectionTestCase, solver: Highs) -> None:
     """Connection classes should validate input sequence lengths match n_periods."""
 
     assert "expected_error" in case
+    data = case["data"].copy()
+    data["solver"] = solver
     with pytest.raises(ValueError, match=case["expected_error"]):
-        case["factory"](**case["data"])
+        case["factory"](**data)

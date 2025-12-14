@@ -4,6 +4,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from highspy import Highs
+
 from .const import OutputType
 from .util import extract_values
 
@@ -15,8 +17,7 @@ class OutputData:
     Attributes:
         type: The output type (power, energy, SOC, etc.).
         unit: The unit of measurement for the output values (e.g., "W", "Wh", "%").
-        values: The sequence of output values. Accepts LP types (LpVariable, LpConstraint,
-            LpAffineExpression) which are automatically converted to floats.
+        values: The sequence of output values. HiGHS types are automatically extracted.
         direction: Power flow direction relative to the element.
             "+" = power flowing into element (charge, import, consumption) or toward target (connections).
             "-" = power flowing out of element (discharge, export, production) or toward source (connections).
@@ -39,16 +40,19 @@ class OutputData:
         direction: Literal["+", "-"] | None = None,
         *,
         advanced: bool = False,
+        solver: Highs | None = None,
     ) -> None:
-        """Initialize OutputData with automatic LP type conversion.
+        """Initialize OutputData with optional HiGHS value extraction.
 
         Args:
             type: The output type (power, energy, SOC, etc.).
             unit: The unit of measurement for the output values.
-            values: A single value or sequence of values. LP types are automatically
-                converted to floats, other types pass through unchanged.
+            values: A single value or sequence of values. HiGHS types are automatically
+                converted to floats if solver is provided, otherwise stored raw.
             direction: Power flow direction relative to the element.
             advanced: Whether the output is intended for advanced diagnostics only.
+            solver: The HiGHS solver instance for value extraction. If provided,
+                values are extracted immediately. If None, raw values are stored.
 
         """
         self.type = type
@@ -56,8 +60,8 @@ class OutputData:
         self.direction = direction
         self.advanced = advanced
 
-        # Normalize to a sequence (single values wrapped in tuple) and extract values
-        if isinstance(values, Sequence) and not isinstance(values, str):
-            self.values = extract_values(values)
-        else:
-            self.values = extract_values((values,))
+        # Normalize to a sequence (single values wrapped in tuple)
+        raw = tuple(values) if isinstance(values, Sequence) and not isinstance(values, str) else (values,)
+
+        # Extract values (with or without solver)
+        self.values = extract_values(raw, solver)

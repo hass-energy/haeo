@@ -2,7 +2,8 @@
 
 from typing import Any
 
-from pulp import LpAffineExpression, LpMinimize, LpProblem, LpVariable, getSolver, lpSum
+from highspy import Highs
+from highspy.highs import highs_linear_expression
 import pytest
 
 from custom_components.haeo.model.util import broadcast_to_sequence, extract_values
@@ -15,7 +16,7 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
     """Set up and solve an optimization scenario for an element.
 
     Args:
-        element: The element to test
+        element: The element to test (must have _solver set)
         inputs: Configuration dict with power values and parameters, or None for no optimization
 
     Returns:
@@ -27,25 +28,32 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         n_periods = element.n_periods
         periods = element.periods
 
-        problem = LpProblem(f"test_{element.name}", LpMinimize)
+        # Use the element's solver instance (set in constructor)
+        h = element._solver
 
         # Regular elements (Battery, Grid, PV, Load)
         power = inputs.get("power", [None] * n_periods)
 
         # Create the variables to inject power
-        power_inputs = [
-            LpVariable(f"test_in_{i}", lowBound=0.0) if val is None else LpAffineExpression(constant=max(val, 0.0))
-            for i, val in enumerate(power)
-        ]
-        power_outputs = [
-            LpVariable(f"test_out_{i}", lowBound=0.0) if val is None else LpAffineExpression(constant=max(-val, 0.0))
-            for i, val in enumerate(power)
-        ]
+        # For fixed values, use constant expressions (like PuLP's LpAffineExpression(constant=...))
+        # rather than fixed-bound variables, to match original behavior
+        power_inputs: list[highs_linear_expression] = []
+        power_outputs: list[highs_linear_expression] = []
+
+        for i, val in enumerate(power):
+            if val is None:
+                power_inputs.append(h.addVariable(lb=0.0, name=f"test_in_{i}"))
+                power_outputs.append(h.addVariable(lb=0.0, name=f"test_out_{i}"))
+            else:
+                # Fixed value - use constant expression (not fixed-bound variable)
+                power_inputs.append(highs_linear_expression(max(val, 0.0)))
+                power_outputs.append(highs_linear_expression(max(-val, 0.0)))
+
         total_power = [power_inputs[i] - power_outputs[i] for i in range(n_periods)]
 
         # Mock connection_power() to return the power variables
         # This allows elements to set up their own internal power balance constraints
-        def mock_connection_power(t: int) -> LpAffineExpression:
+        def mock_connection_power(t: int) -> highs_linear_expression:
             return total_power[t]
 
         element.connection_power = mock_connection_power
@@ -53,29 +61,21 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         # Call build_constraints() to set up power balance with mocked connection_power
         element.build_constraints()
 
-        # Add all element constraints (including the power balance from build_constraints)
-        for constraint in element.constraints():
-            problem += constraint
-
-        # Add costs for the injected power - using variable period durations
+        # Collect all cost terms
         input_cost = broadcast_to_sequence(inputs.get("input_cost", 0.0), n_periods)
         output_cost = broadcast_to_sequence(inputs.get("output_cost", 0.0), n_periods)
 
-        # Objective function
         cost_terms = [
             *element.cost(),
             *[input_cost[i] * power_inputs[i] * periods[i] for i in range(n_periods) if input_cost[i] != 0.0],
             *[output_cost[i] * power_outputs[i] * periods[i] for i in range(n_periods) if output_cost[i] != 0.0],
         ]
 
-        problem += lpSum(cost_terms)
-
-        # Solve
-        solver = getSolver("HiGHS", msg=0)
-        status = problem.solve(solver)
-        if status != 1:
-            msg = f"Optimization failed with status {status}"
-            raise ValueError(msg)
+        # Minimize
+        if cost_terms:
+            h.minimize(Highs.qsum(cost_terms))
+        else:
+            h.run()
 
     # Extract and return outputs
     outputs = element.outputs()
@@ -94,12 +94,13 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
     test_data.VALID_ELEMENT_CASES,
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
-def test_element_outputs(case: ElementTestCase) -> None:
+def test_element_outputs(case: ElementTestCase, solver: Highs) -> None:
     """Element.get_outputs should report expected series for each element type."""
 
-    # Create element using the factory
+    # Create element using the factory with the solver
     factory = case["factory"]
     data = case["data"].copy()
+    data["solver"] = solver
     element = factory(**data)
 
     # Run optimization scenario (or get outputs directly if no inputs)
@@ -114,7 +115,19 @@ def test_element_outputs(case: ElementTestCase) -> None:
         output = outputs[output_name]
         assert output["type"] == expected["type"]
         assert output["unit"] == expected["unit"]
-        assert output["values"] == pytest.approx(expected["values"], rel=1e-9, abs=1e-9)
+
+        # For shadow prices, compare absolute values to handle solver-dependent sign conventions
+        # and dual degeneracy (different solvers may distribute duals across binding constraints)
+        if output["type"] == "shadow_price":
+            actual_abs = tuple(abs(v) for v in output["values"])
+            expected_abs = tuple(abs(v) for v in expected["values"])
+            assert actual_abs == pytest.approx(expected_abs, rel=1e-6, abs=1e-6), (
+                f"{output_name}: absolute values differ\n"
+                f"  actual:   {output['values']}\n"
+                f"  expected: {expected['values']}"
+            )
+        else:
+            assert output["values"] == pytest.approx(expected["values"], rel=1e-9, abs=1e-9)
 
 
 @pytest.mark.parametrize(
@@ -122,23 +135,30 @@ def test_element_outputs(case: ElementTestCase) -> None:
     test_data.INVALID_ELEMENT_CASES,
     ids=lambda case: case["description"].lower().replace(" ", "_"),
 )
-def test_element_validation(case: ElementTestCase) -> None:
+def test_element_validation(case: ElementTestCase, solver: Highs) -> None:
     """Element classes should validate input sequence lengths match n_periods."""
 
     assert "expected_error" in case
+    data = case["data"].copy()
+    data["solver"] = solver
     with pytest.raises(ValueError, match=case["expected_error"]):
-        case["factory"](**case["data"])
+        case["factory"](**data)
 
 
-def test_extract_values_converts_lp_variables() -> None:
-    """extract_values should coerce PuLP variables to floats."""
+def test_extract_values_converts_highs_variables() -> None:
+    """extract_values should coerce HiGHS variables to floats."""
+    h = Highs()
+    output_off = False
+    h.setOptionValue("output_flag", output_off)
 
-    sequence = test_data.lp_sequence("test", 3)
-    result = extract_values(sequence)
+    variables, h = test_data.highs_sequence(h, "test", 3)
+    result = extract_values(variables, h)
 
     assert isinstance(result, tuple)
     assert len(result) == 3
     assert all(isinstance(value, float) for value in result)
+    # Values should be 1.0, 2.0, 3.0 (set in highs_sequence)
+    assert result == pytest.approx((1.0, 2.0, 3.0))
 
 
 def test_extract_values_handles_none() -> None:

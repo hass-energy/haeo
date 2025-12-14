@@ -1,14 +1,21 @@
 """Generic electrical entity for energy system modeling."""
 
-from collections.abc import Mapping, MutableSequence, Sequence
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Literal
 
-from pulp import LpAffineExpression, LpConstraint, lpSum
+from highspy import Highs
+from highspy.highs import highs_cons, highs_linear_expression, highs_var
 
 from .output_data import OutputData
 
 if TYPE_CHECKING:
     from .connection import Connection
+
+# Type alias for values that can be in constraint storage
+type ConstraintValue = highs_cons | Sequence[highs_cons]
+
+# Type alias for expression types (variables or expressions)
+type ExpressionValue = highs_var | highs_linear_expression | float
 
 
 class Element[OutputNameT: str, ConstraintNameT: str]:
@@ -21,20 +28,22 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
     - Price: $/kWh
     """
 
-    def __init__(self, name: str, periods: Sequence[float]) -> None:
+    def __init__(self, name: str, periods: Sequence[float], *, solver: Highs) -> None:
         """Initialize an element.
 
         Args:
             name: Name of the entity
             periods: Sequence of time period durations in hours (one per optimization interval)
+            solver: The HiGHS solver instance for creating variables and constraints
 
         """
         super().__init__()
         self.name = name
         self.periods = periods
+        self._solver = solver
 
         # Constraint storage - dictionary allows re-entrancy
-        self._constraints: dict[ConstraintNameT, LpConstraint | Sequence[LpConstraint]] = {}
+        self._constraints: dict[ConstraintNameT, ConstraintValue] = {}
 
         # Track connections for power balance
         self._connections: list[tuple[Connection, Literal["source", "target"]]] = []
@@ -54,7 +63,7 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         """
         self._connections.append((connection, end))
 
-    def connection_power(self, t: int) -> LpAffineExpression:
+    def connection_power(self, t: int) -> highs_linear_expression:
         """Return the net power from connections at time t.
 
         Positive means power flowing into this element from connections.
@@ -64,10 +73,10 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
             t: Time period index
 
         Returns:
-            Sum of connection powers (LP expression)
+            Sum of connection powers (HiGHS expression)
 
         """
-        terms: list[LpAffineExpression] = []
+        terms: list[highs_linear_expression] = []
 
         for conn, end in self._connections:
             if end == "source":
@@ -81,7 +90,7 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
                 # Power leaving target (negative)
                 terms.append(-conn.power_target_source[t])
 
-        return lpSum(terms) if terms else LpAffineExpression(constant=0.0)
+        return Highs.qsum(terms) if terms else highs_linear_expression(0.0)
 
     def build_constraints(self) -> None:
         """Build network-dependent constraints (e.g., power balance).
@@ -92,25 +101,27 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         Elements should use connection_power(t) to get the net power from
         connections when building their power balance constraints.
 
+        The solver is available via self._solver (set in __init__).
+
         Default implementation does nothing. Subclasses should override as needed.
         """
 
-    def constraints(self) -> Sequence[LpConstraint]:
-        """Return all constraints for this element.
+    def constraints(self) -> list[highs_cons]:
+        """Return all constraints from this element.
 
         Returns:
-            Flattened sequence of all stored constraints
+            A flat list of all constraints stored in this element.
 
         """
-        result: MutableSequence[LpConstraint] = []
-        for constraint_or_sequence in self._constraints.values():
-            if isinstance(constraint_or_sequence, Sequence):
-                result.extend(constraint_or_sequence)
+        result: list[highs_cons] = []
+        for value in self._constraints.values():
+            if isinstance(value, Sequence):
+                result.extend(value)
             else:
-                result.append(constraint_or_sequence)
+                result.append(value)
         return result
 
-    def cost(self) -> Sequence[LpAffineExpression]:
+    def cost(self) -> Sequence[ExpressionValue]:
         """Return the cost expressions of the entity.
 
         Returns a sequence of cost expressions for aggregation at the network level.

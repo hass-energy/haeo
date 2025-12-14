@@ -31,9 +31,10 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_normal_discharge_price": {"type": "price", "unit": "$/kWh", "values": (0.002, 0.003, 0.004)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (5.0, 2.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "battery_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.002, 0.001, 0.0)},
-            "battery_normal_energy_in_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
-            "battery_normal_energy_out_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (-0.0, 0.002, 0.004)},
+            # Shadow prices from HiGHS (may differ from PuLP due to dual degeneracy)
+            "battery_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.002, 0.001, 0.004)},
+            "battery_normal_energy_in_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.004)},
+            "battery_normal_energy_out_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.002, 0.0)},
             "battery_normal_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
             "battery_normal_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0, 0.0)},
         },

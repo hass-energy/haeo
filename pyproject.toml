@@ -5,7 +5,7 @@ description = "Home Assistant Energy Network Optimizer"
 readme = "README.md"
 requires-python = ">=3.13.2,<3.14"
 
-dependencies = ["homeassistant>=2025.4.4", "numpy>=2.2.2", "pulp[highs]>=3.3.0"]
+dependencies = ["homeassistant>=2025.4.4", "numpy>=2.2.2", "highspy>=1.12.0"]
 
 [dependency-groups]
 dev = [
@@ -70,15 +70,6 @@ split-on-trailing-comma = false
 
 [tool.ruff.lint.per-file-ignores]
 
-"stubs/**/*.pyi" = [
-    'N802',   # Function name should be lowercase - PuLP uses camelCase (e.g., getSolver)
-    'N803',   # Argument name should be lowercase - PuLP uses camelCase (e.g., lowBound)
-    'N815',   # Variable in class scope should not be mixedCase - PuLP uses mixed case
-    'A002',   # Argument shadows a Python builtin - stub files reflect actual API
-    'ARG001', # Unused function argument - stub signatures must match actual API
-    'ARG002', # Unused method argument - stub signatures must match actual API
-]
-
 "tests/**/*.py" = [
     'S101',    # Assert is allowed in tests
     'B011',    # Assert false is allowed in tests
@@ -89,6 +80,15 @@ split-on-trailing-comma = false
     'S110',    # Try-except-pass detected - test exception handling patterns differ from production code
     'SIM105',  # Use contextlib.suppress instead of try-except-pass - test exception handling patterns differ
     'BLE001',  # Do not catch blind exception - test code needs to handle various exception types
+]
+
+"stubs/**/*.pyi" = [
+    'N',       # Naming conventions must match external API
+    'D',       # Docstrings in stubs are optional
+    'A',       # Shadowing builtins is fine for type stubs
+    'PYI',     # Stub-specific rules - we're matching external API
+    'I',       # Import order doesn't matter in stubs
+    'PIE790',  # Allow ... in stub classes
 ]
 
 
