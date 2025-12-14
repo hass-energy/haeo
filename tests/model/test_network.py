@@ -188,9 +188,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     """Validate should reject connections that point to connection elements."""
     net = Network(name="net", periods=[1.0] * 1)
     # Non-connection element to satisfy target for conn2
-    net.elements["node"] = SourceSink(
-        name="node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True
-    )
+    net.elements["node"] = SourceSink(name="node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True)
 
     net.elements["conn2"] = Connection(
         name="conn2",

@@ -134,8 +134,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
 
         # Power balance: connection_power equals net battery power
         self._constraints[BATTERY_POWER_BALANCE] = h.addConstrs(
-            self.connection_power(t) == self.power_consumption[t] - self.power_production[t]
-            for t in range(n_periods)
+            self.connection_power(t) == self.power_consumption[t] - self.power_production[t] for t in range(n_periods)
         )
 
     def cost(self) -> Sequence[highs_linear_expression]:
