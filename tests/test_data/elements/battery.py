@@ -212,6 +212,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             battery_element.BATTERY_DEVICE_BATTERY: {
                 battery_element.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,)),
                 battery_element.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)),
+                battery_element.BATTERY_POWER_ACTIVE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(-0.5,)),
                 battery_element.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(2.0,)),
                 battery_element.BATTERY_STATE_OF_CHARGE: OutputData(type=OUTPUT_TYPE_SOC, unit="%", values=(50.0,)),
                 battery_element.BATTERY_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
