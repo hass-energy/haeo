@@ -51,7 +51,12 @@ class TimeSeriesLoader:
         forecast_times: Sequence[int],
         **_kwargs: Any,
     ) -> list[float]:
-        """Load sensor values and forecasts, returning interpolated values for ``forecast_times``."""
+        """Load sensor values and forecasts, returning interpolated values for ``forecast_times``.
+
+        When forecast_times is empty, returns an empty list without loading sensor data.
+        This allows structural validation and model element creation without requiring
+        actual sensor data to be available.
+        """
 
         entity_ids = _collect_sensor_ids(value)
 

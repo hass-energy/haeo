@@ -9,8 +9,6 @@ from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import UnitOfPower
 from homeassistant.core import State
 
-from custom_components.haeo.helpers.types import is_sequence
-
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,7 +52,7 @@ class Parser:
 
         detailed_forecast = state.attributes["detailedForecast"]
         if (
-            not (is_sequence(detailed_forecast) and not isinstance(detailed_forecast, (str, bytes)))
+            not (isinstance(detailed_forecast, Sequence) and not isinstance(detailed_forecast, (str, bytes)))
             or not detailed_forecast
         ):
             return False

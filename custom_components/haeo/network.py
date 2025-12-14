@@ -13,7 +13,7 @@ from .validation import collect_participant_configs, format_component_summary, v
 _LOGGER = logging.getLogger(__name__)
 
 
-def evaluate_network_connectivity(
+async def evaluate_network_connectivity(
     hass: HomeAssistant,
     entry: ConfigEntry,
     *,
@@ -22,13 +22,13 @@ def evaluate_network_connectivity(
     """Validate the network connectivity for an entry and manage repair issues."""
 
     participants = dict(participant_configs) if participant_configs is not None else collect_participant_configs(entry)
-    result = validate_network_topology(participants)
+    result = await validate_network_topology(hass, participants)
 
     if result.is_connected:
         dismiss_disconnected_network_issue(hass, entry.entry_id)
         return
 
-    create_disconnected_network_issue(hass, entry.entry_id, result.component_sets)
+    create_disconnected_network_issue(hass, entry.entry_id, result.components)
 
     summary = format_component_summary(result.components, separator=" | ")
     _LOGGER.warning(
