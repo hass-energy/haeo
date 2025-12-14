@@ -52,8 +52,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
         ],
         "model_outputs": {
             "grid_main:connection": {
-                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.4,), direction="-"),
-                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.3,), direction="+"),
+                connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
+                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
                 connection.CONNECTION_POWER_MAX_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(3.0,)),
                 connection.CONNECTION_POWER_MAX_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(5.0,)),
                 connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
@@ -64,9 +64,9 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
         },
         "outputs": {
             grid_element.GRID_DEVICE_GRID: {
-                grid_element.GRID_POWER_EXPORT: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.4,), direction="-"),
-                grid_element.GRID_POWER_IMPORT: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,), direction="+"),
-                grid_element.GRID_POWER_ACTIVE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.1,), direction=None),
+                grid_element.GRID_POWER_EXPORT: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(7.0,), direction="-"),
+                grid_element.GRID_POWER_IMPORT: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(5.0,), direction="+"),
+                grid_element.GRID_POWER_ACTIVE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(-2.0,), direction=None),
                 grid_element.GRID_POWER_MAX_EXPORT: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(3.0,)),
                 grid_element.GRID_POWER_MAX_IMPORT: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(5.0,)),
                 grid_element.GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
