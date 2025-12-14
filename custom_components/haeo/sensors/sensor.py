@@ -62,7 +62,6 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
             "element_type": self._element_type,
             "output_name": self._output_name,
             "output_type": self._output_type,
-            "direction": None,
             "advanced": False,
         }
         native_value: StateType | None = None
@@ -75,7 +74,8 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
             if output_data is not None:
                 self._output_type = output_data.type
                 attributes["output_type"] = self._output_type
-                attributes["direction"] = output_data.direction
+                if output_data.direction is not None:
+                    attributes["direction"] = output_data.direction
                 attributes["advanced"] = output_data.advanced
                 self._apply_output(output_data)
                 if output_data.state is not None:

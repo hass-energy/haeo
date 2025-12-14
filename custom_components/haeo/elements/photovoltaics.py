@@ -110,7 +110,7 @@ def create_model_elements(config: PhotovoltaicsConfigData) -> list[dict[str, Any
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: PhotovoltaicsConfigData
 ) -> Mapping[PhotovoltaicsDeviceName, Mapping[PhotovoltaicsOutputName, OutputData]]:
     """Map model outputs to photovoltaics-specific output names."""
 

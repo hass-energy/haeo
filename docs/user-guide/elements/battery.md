@@ -3,6 +3,8 @@
 Batteries are energy storage devices that can charge (store energy) and discharge (release energy).
 HAEO optimizes when to charge and discharge based on electricity prices, solar availability, and economic preferences.
 
+Internally, HAEO represents batteries using multiple interconnected sections (undercharge, normal, overcharge) with cost-based preferences to guide operation. This provides flexible, economically-rational battery behavior.
+
 For mathematical details, see [Battery Modeling](../../modeling/device-layer/battery.md).
 
 ## Configuration
@@ -375,6 +377,21 @@ It reflects the cost of power flowing through the battery connection point.
 ---
 
 Each sensor includes forecast attributes with future timestamped values for visualization and automations.
+
+## How It Works Internally
+
+HAEO models batteries using multiple interconnected sections:
+
+1. **Section creation**: Your battery is split into 1-3 sections (undercharge, normal, overcharge) based on your SOC percentage configuration
+2. **Central junction**: All sections connect to a central node that aggregates their power
+3. **Cost-based preferences**: Each section has different charge/discharge costs that guide the optimizer's behavior
+4. **Network connection**: The central node connects to your network with efficiency and power limits
+
+This architecture allows HAEO to:
+
+- Prefer charging lower sections first (undercharge → normal → overcharge)
+- Prefer discharging higher sections first (overcharge → normal → undercharge)
+- Make economically rational trade-offs when grid conditions justify using extended ranges
 
 ## When to Use Extended Operating Ranges
 

@@ -167,6 +167,10 @@ class Network:
 
         """
         result: list[highs_cons] = []
-        for element in self.elements.values():
-            result.extend(element.constraints())
+        for element_name, element in self.elements.items():
+            try:
+                result.extend(element.constraints())
+            except Exception as e:
+                msg = f"Failed to get constraints for element '{element_name}'"
+                raise ValueError(msg) from e
         return result

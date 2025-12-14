@@ -42,6 +42,7 @@ CONF_CONNECTION: Final = "connection"
 type GridOutputName = Literal[
     "grid_power_import",
     "grid_power_export",
+    "grid_power_active",
     "grid_power_max_import",
     "grid_power_max_export",
     "grid_price_import",
@@ -54,6 +55,7 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
     (
         GRID_POWER_IMPORT := "grid_power_import",
         GRID_POWER_EXPORT := "grid_power_export",
+        GRID_POWER_ACTIVE := "grid_power_active",
         GRID_POWER_MAX_IMPORT := "grid_power_max_import",
         GRID_POWER_MAX_EXPORT := "grid_power_max_export",
         GRID_PRICE_IMPORT := "grid_price_import",
@@ -123,7 +125,7 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: GridConfigData
 ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
     """Map model outputs to grid-specific output names."""
 
@@ -135,6 +137,21 @@ def outputs(
     # target_source = system to grid = EXPORT
     grid_outputs[GRID_POWER_EXPORT] = replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER)
     grid_outputs[GRID_POWER_IMPORT] = replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER)
+
+    # Active grid power (export - import)
+    grid_outputs[GRID_POWER_ACTIVE] = replace(
+        connection[CONNECTION_POWER_TARGET_SOURCE],
+        values=[
+            i - e
+            for i, e in zip(
+                connection[CONNECTION_POWER_SOURCE_TARGET].values,
+                connection[CONNECTION_POWER_TARGET_SOURCE].values,
+                strict=True,
+            )
+        ],
+        direction=None,
+        type=OUTPUT_TYPE_POWER,
+    )
 
     # Output the given inputs if they exist
     if CONNECTION_POWER_MAX_TARGET_SOURCE in connection:

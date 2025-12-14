@@ -1,11 +1,13 @@
 """Network and connection element configurations for HAEO integration."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import OUTPUT_TYPE_POWER_FLOW, ModelOutputName
 from custom_components.haeo.model.connection import CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES
 from custom_components.haeo.model.connection import (
+    CONNECTION_POWER_ACTIVE,
     CONNECTION_POWER_MAX_SOURCE_TARGET,
     CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_SOURCE_TARGET,
@@ -107,7 +109,7 @@ def create_model_elements(config: ConnectionConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: ConnectionConfigData
 ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
     """Map model outputs to connection-specific output names."""
     connection = outputs[name]
@@ -116,6 +118,21 @@ def outputs(
         CONNECTION_POWER_SOURCE_TARGET: connection[CONNECTION_POWER_SOURCE_TARGET],
         CONNECTION_POWER_TARGET_SOURCE: connection[CONNECTION_POWER_TARGET_SOURCE],
     }
+
+    # Active connection power (source_target - target_source)
+    connection_outputs[CONNECTION_POWER_ACTIVE] = replace(
+        connection[CONNECTION_POWER_SOURCE_TARGET],
+        values=[
+            st - ts
+            for st, ts in zip(
+                connection[CONNECTION_POWER_SOURCE_TARGET].values,
+                connection[CONNECTION_POWER_TARGET_SOURCE].values,
+                strict=True,
+            )
+        ],
+        direction=None,
+        type=OUTPUT_TYPE_POWER_FLOW,
+    )
 
     # Optional outputs (only present if configured)
     if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
@@ -152,6 +169,7 @@ __all__ = [
     "CONF_SOURCE",
     "CONF_TARGET",
     "CONNECTION_OUTPUT_NAMES",
+    "CONNECTION_POWER_ACTIVE",
     "CONNECTION_POWER_MAX_SOURCE_TARGET",
     "CONNECTION_POWER_MAX_TARGET_SOURCE",
     "CONNECTION_POWER_SOURCE_TARGET",
