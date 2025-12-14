@@ -20,6 +20,7 @@ type ConnectionOutputName = (
     Literal[
         "connection_power_source_target",
         "connection_power_target_source",
+        "connection_power_active",
         "connection_power_max_source_target",
         "connection_power_max_target_source",
         "connection_price_source_target",
@@ -32,6 +33,7 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
         CONNECTION_POWER_SOURCE_TARGET := "connection_power_source_target",
         CONNECTION_POWER_TARGET_SOURCE := "connection_power_target_source",
+        CONNECTION_POWER_ACTIVE := "connection_power_active",
         CONNECTION_POWER_MAX_SOURCE_TARGET := "connection_power_max_source_target",
         CONNECTION_POWER_MAX_TARGET_SOURCE := "connection_power_max_target_source",
         CONNECTION_PRICE_SOURCE_TARGET := "connection_price_source_target",

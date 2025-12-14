@@ -1,10 +1,12 @@
 """Battery element configuration for HAEO integration."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     BatterySOCFieldData,
@@ -63,6 +65,7 @@ CONF_CONNECTION: Final = "connection"
 type BatteryOutputName = Literal[
     "battery_power_charge",
     "battery_power_discharge",
+    "battery_power_active",
     "battery_energy_stored",
     "battery_state_of_charge",
     "battery_power_balance",
@@ -78,6 +81,7 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
     (
         BATTERY_POWER_CHARGE := "battery_power_charge",
         BATTERY_POWER_DISCHARGE := "battery_power_discharge",
+        BATTERY_POWER_ACTIVE := "battery_power_active",
         BATTERY_ENERGY_STORED := "battery_energy_stored",
         BATTERY_STATE_OF_CHARGE := "battery_state_of_charge",
         BATTERY_POWER_BALANCE := "battery_power_balance",
@@ -188,6 +192,21 @@ def outputs(
         BATTERY_STATE_OF_CHARGE: battery[model_battery.BATTERY_STATE_OF_CHARGE],
         BATTERY_POWER_BALANCE: battery[model_battery.BATTERY_POWER_BALANCE],
     }
+
+    # Active battery power (discharge - charge)
+    aggregate_outputs[BATTERY_POWER_ACTIVE] = replace(
+        battery[model_battery.BATTERY_POWER_DISCHARGE],
+        values=[
+            d - c
+            for d, c in zip(
+                battery[model_battery.BATTERY_POWER_DISCHARGE].values,
+                battery[model_battery.BATTERY_POWER_CHARGE].values,
+                strict=True,
+            )
+        ],
+        direction=None,
+        type=OUTPUT_TYPE_POWER,
+    )
 
     result: dict[BatteryDeviceName, dict[BatteryOutputName, OutputData]] = {BATTERY_DEVICE_BATTERY: aggregate_outputs}
 
