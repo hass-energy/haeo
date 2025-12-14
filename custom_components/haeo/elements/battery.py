@@ -4,6 +4,8 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
+import numpy as np
+
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import connection as model_connection
@@ -427,19 +429,13 @@ def _sum_output_data(outputs: list[OutputData]) -> OutputData:
         msg = "Cannot sum empty list of outputs"
         raise ValueError(msg)
 
-    # Get the first output as template
     first = outputs[0]
-
-    # Sum values
-    summed_values: list[float] = []
-    for i in range(len(first.values)):
-        total = sum(float(output.values[i]) for output in outputs)
-        summed_values.append(total)
+    summed_values = np.sum([o.values for o in outputs], axis=0)
 
     return OutputData(
         type=first.type,
         unit=first.unit,
-        values=tuple(summed_values),
+        values=tuple(summed_values.tolist()),
         direction=first.direction,
         advanced=first.advanced,
     )
@@ -447,35 +443,38 @@ def _sum_output_data(outputs: list[OutputData]) -> OutputData:
 
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate total energy stored including inaccessible energy below min SOC."""
-    total_capacity = config["capacity"][0]
+    capacity = np.array(config["capacity"])
 
-    # Calculate inaccessible energy (energy below undercharge threshold)
     min_ratio = config["min_charge_percentage"] / 100.0
     undercharge_ratio = (
         config.get("undercharge_percentage", min_ratio) / 100.0 if config.get("undercharge_percentage") else None
     )
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
-    inaccessible_energy = unusable_ratio * total_capacity
 
-    # Add inaccessible energy to each value
-    total_values = [(inaccessible_energy + e) for e in aggregate_energy.values]
+    # Fence-post: energy has n+1 values, capacity has n periods
+    # Use preceding capacity for each energy point (first uses first capacity)
+    fence_post_capacity = np.concatenate([[capacity[0]], capacity])
+    inaccessible_energy = unusable_ratio * fence_post_capacity
+    total_values = np.array(aggregate_energy.values) + inaccessible_energy
 
     return OutputData(
         type=aggregate_energy.type,
         unit=aggregate_energy.unit,
-        values=tuple(total_values),
+        values=tuple(total_values.tolist()),
     )
 
 
 def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate SOC percentage from aggregate energy and total capacity."""
-    total_capacity = config["capacity"][0]
+    capacity = np.array(config["capacity"])
 
-    # Calculate SOC = total_energy / total_capacity * 100
-    soc_values = [(e / total_capacity * 100.0) for e in total_energy.values]
+    # Fence-post: energy has n+1 values, capacity has n periods
+    # Use preceding capacity for each SOC point (first uses first capacity)
+    fence_post_capacity = np.concatenate([[capacity[0]], capacity])
+    soc_values = np.array(total_energy.values) / fence_post_capacity * 100.0
 
     return OutputData(
         type=OUTPUT_TYPE_SOC,
         unit="%",
-        values=tuple(soc_values),
+        values=tuple(soc_values.tolist()),
     )
