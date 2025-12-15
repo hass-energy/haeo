@@ -196,6 +196,30 @@ VALID_CASES: list[ConnectionTestCase] = [
             "connection_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
         },
     },
+    {
+        "description": "Connection with fixed power in reverse direction",
+        "factory": Connection,
+        "data": {
+            "name": "fixed_reverse",
+            "periods": [1.0] * 2,
+            "source": "load",
+            "target": "generator",
+            "max_power_target_source": 4.0,
+            "fixed_power": True,
+        },
+        "inputs": {
+            "source_power": [None, None],
+            "target_power": [None, None],
+            "source_cost": 0.0,
+            "target_cost": 0.0,
+        },
+        "expected_outputs": {
+            "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
+            "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (4.0, 4.0)},
+            "connection_power_max_target_source": {"type": "power_limit", "unit": "kW", "values": (4.0, 4.0)},
+            "connection_shadow_power_max_target_source": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
+        },
+    },
 ]
 
 INVALID_CASES: list[ConnectionTestCase] = []

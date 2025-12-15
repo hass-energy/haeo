@@ -94,7 +94,7 @@ Creates optimization model from config:
 
 ### Network Model (`model/`)
 
-LP representation using PuLP:
+LP representation using HiGHS:
 
 - **Element**: Base class for all model elements with power/energy variables
 - **Battery**: Storage with charge/discharge power, SOC constraints
@@ -107,7 +107,7 @@ LP representation using PuLP:
 
 ### Optimization
 
-Uses the HiGHS linear programming solver via PuLP to solve the energy optimization problem.
+Uses the HiGHS linear programming solver directly via the `highspy` Python bindings to solve the energy optimization problem.
 Minimizes cost while respecting all constraints, returning optimal cost and decision variable values.
 
 ### Sensors (`sensors/`)
@@ -128,7 +128,7 @@ Separate subsystem implementing the optimization model:
 
 **Design principles**:
 
-- Pure Python linear programming using PuLP
+- Pure Python linear programming using HiGHS via `highspy`
 - Elements generate their own variables and constraints
 - Network assembles elements and runs optimization
 - No Home Assistant dependencies in model layer
