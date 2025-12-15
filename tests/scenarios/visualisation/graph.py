@@ -158,8 +158,8 @@ def create_graph_visualization(
         _LOGGER.warning("No nodes to visualize")
         return
 
-    # Use spring layout for better visualization of grouped elements
-    pos = nx.spring_layout(graph, seed=42, k=2.0)  # type: ignore[no-untyped-call]
+    # Use spectral layout for better visual organization
+    pos = nx.spectral_layout(graph, scale=3.0)  # type: ignore[no-untyped-call]
 
     # Group nodes by parent device for drawing bounding boxes
     device_groups: dict[str, list[str]] = defaultdict(list)
@@ -183,7 +183,7 @@ def create_graph_visualization(
         ys = [p[1] for p in node_positions]
 
         # Calculate bounding box with padding
-        padding = 0.15
+        padding = 0.25
         min_x, max_x = min(xs) - padding, max(xs) + padding
         min_y, max_y = min(ys) - padding, max(ys) + padding
 
