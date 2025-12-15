@@ -144,22 +144,14 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         return []
 
     def extract_values(
-        self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | highs_cons | None
+        self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | None
     ) -> tuple[float, ...]:
         """Convert a sequence of HiGHS types to resolved values."""
         if sequence is None:
             return ()
 
-        # Handle single highs_cons (not iterable)
-        if isinstance(sequence, highs_cons):
-            return (self._solver.constrDual(sequence),)
-
         # Convert to numpy array for batch processing
         arr = np.asarray(sequence, dtype=object)
-
-        # Return empty tuple for empty arrays
-        if len(arr) == 0:
-            return ()
 
         # Check first item to determine type and use batch methods
         first_item = arr.flat[0]

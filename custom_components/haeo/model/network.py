@@ -111,10 +111,6 @@ class Network:
         # Validate network before optimization
         self.validate()
 
-        # Empty network has zero cost
-        if not self.elements:
-            return 0.0
-
         h = self._solver
 
         # Build constraints for all elements
