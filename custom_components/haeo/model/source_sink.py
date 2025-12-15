@@ -3,22 +3,16 @@
 from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
-from pulp import LpAffineExpression, LpVariable
-
-from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
+from .const import OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
 from .output_data import OutputData
 
 type SourceSinkConstraintName = Literal["source_sink_power_balance"]
 
-type SourceSinkOutputName = Literal["source_sink_power_in", "source_sink_power_out"] | SourceSinkConstraintName
+type SourceSinkOutputName = SourceSinkConstraintName
 
 SOURCE_SINK_OUTPUT_NAMES: Final[frozenset[SourceSinkOutputName]] = frozenset(
-    (
-        SOURCE_SINK_POWER_IN := "source_sink_power_in",
-        SOURCE_SINK_POWER_OUT := "source_sink_power_out",
-        SOURCE_SINK_POWER_BALANCE := "source_sink_power_balance",
-    )
+    (SOURCE_SINK_POWER_BALANCE := "source_sink_power_balance",)
 )
 
 
@@ -53,31 +47,34 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
 
         """
         super().__init__(name=name, periods=periods)
-        n_periods = len(periods)
 
-        # Element-agnostic power variables (only create if needed)
-        # power_in: positive when accepting power from network (sink behavior)
-        self.power_in = (
-            [LpVariable(name=f"{name}_power_in_{i}", lowBound=0) for i in range(n_periods)] if is_sink else None
-        )
-        # power_out: positive when providing power to network (source behavior)
-        self.power_out = (
-            [LpVariable(name=f"{name}_power_out_{i}", lowBound=0) for i in range(n_periods)] if is_source else None
-        )
+        # Store if we are a source and/or sink
+        self.is_source = is_source
+        self.is_sink = is_sink
 
     def build_constraints(self) -> None:
-        """Build network-dependent constraints for the source/sink.
+        """Bound the connection power based on source/sink behavior."""
 
-        This includes power balance constraints using connection_power().
-        Power limits and pricing are handled by the Connection to/from the source/sink.
-        """
-        zero = LpAffineExpression(constant=0.0)
-        power_in = self.power_in if self.power_in is not None else (zero,) * self.n_periods
-        power_out = self.power_out if self.power_out is not None else (zero,) * self.n_periods
+        # We don't need power variables explicitly defined here, a source is a lack of upper bound on power out,
+        # and a sink is a lack of upper bound on power in. We just need to enforce power balance with connection power.
 
-        self._constraints[SOURCE_SINK_POWER_BALANCE] = [
-            self.connection_power(t) + power_out[t] - power_in[t] == 0 for t in range(self.n_periods)
-        ]
+        if not self.is_source and not self.is_sink:
+            # Power balance is that connection power must be zero
+            self._constraints[SOURCE_SINK_POWER_BALANCE] = [
+                self.connection_power(t) == 0 for t in range(self.n_periods)
+            ]
+        if self.is_source and not self.is_sink:
+            # Only produce power therefore connection power can be less than or equal to zero
+            self._constraints[SOURCE_SINK_POWER_BALANCE] = [
+                self.connection_power(t) <= 0 for t in range(self.n_periods)
+            ]
+        if not self.is_source and self.is_sink:
+            # Only consume power therefore connection power can be >= 0
+            self._constraints[SOURCE_SINK_POWER_BALANCE] = [
+                self.connection_power(t) >= 0 for t in range(self.n_periods)
+            ]
+        if self.is_source and self.is_sink:  # Can both produce and consume power so there are no bounds:
+            pass
 
     def outputs(self) -> Mapping[SourceSinkOutputName, OutputData]:
         """Return element-agnostic outputs for the source/sink.
@@ -86,20 +83,12 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
         """
         outputs: dict[SourceSinkOutputName, OutputData] = {}
 
-        if self.power_in is not None:
-            outputs[SOURCE_SINK_POWER_IN] = OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_in, direction="-"
-            )
-        if self.power_out is not None:
-            outputs[SOURCE_SINK_POWER_OUT] = OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_out, direction="+"
-            )
-
         # All constraints are power balance for SourceSink
-        outputs[SOURCE_SINK_POWER_BALANCE] = OutputData(
-            type=OUTPUT_TYPE_SHADOW_PRICE,
-            unit="$/kW",
-            values=self._constraints[SOURCE_SINK_POWER_BALANCE],
-        )
+        if SOURCE_SINK_POWER_BALANCE in self._constraints:
+            outputs[SOURCE_SINK_POWER_BALANCE] = OutputData(
+                type=OUTPUT_TYPE_SHADOW_PRICE,
+                unit="$/kW",
+                values=self._constraints[SOURCE_SINK_POWER_BALANCE],
+            )
 
         return outputs
