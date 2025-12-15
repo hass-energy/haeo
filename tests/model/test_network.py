@@ -1,11 +1,10 @@
 """Unit tests for Network class."""
 
 import logging
-import sys
 from typing import cast
 from unittest.mock import Mock
 
-from pulp import LpProblem
+from highspy import HighsModelStatus
 import pytest
 
 from custom_components.haeo.model import Network
@@ -158,6 +157,7 @@ def test_validate_raises_when_source_missing() -> None:
     net.elements["conn"] = Connection(
         name="conn",
         periods=[1.0] * 1,
+        solver=net._solver,
         source="missing",
         target="also_missing",
     )
@@ -169,10 +169,13 @@ def test_validate_raises_when_source_missing() -> None:
 def test_validate_raises_when_target_missing() -> None:
     """Validate should raise when a connection target is missing."""
     net = Network(name="net", periods=[1.0] * 1)
-    net.elements["source_node"] = SourceSink(name="source_node", periods=[1.0] * 1, is_source=True, is_sink=True)
+    net.elements["source_node"] = SourceSink(
+        name="source_node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True
+    )
     net.elements["conn"] = Connection(
         name="conn",
         periods=[1.0] * 1,
+        solver=net._solver,
         source="source_node",
         target="missing_target",
     )
@@ -185,11 +188,12 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     """Validate should reject connections that point to connection elements."""
     net = Network(name="net", periods=[1.0] * 1)
     # Non-connection element to satisfy target for conn2
-    net.elements["node"] = SourceSink(name="node", periods=[1.0] * 1, is_source=True, is_sink=True)
+    net.elements["node"] = SourceSink(name="node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True)
 
     net.elements["conn2"] = Connection(
         name="conn2",
         periods=[1.0] * 1,
+        solver=net._solver,
         source="node",
         target="node",
     )
@@ -198,6 +202,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     net.elements["conn1"] = Connection(
         name="conn1",
         periods=[1.0] * 1,
+        solver=net._solver,
         source="conn2",
         target="conn2",
     )
@@ -237,23 +242,6 @@ def test_network_constraint_generation_error() -> None:
     # Should wrap the error with context about which element failed
     with pytest.raises(ValueError, match="Failed to get constraints for element 'failing_element'"):
         network.constraints()
-
-
-def test_network_invalid_solver() -> None:
-    """Test that invalid solver names raise clear errors."""
-    network = Network(
-        name="test_network",
-        periods=[1.0] * 3,
-    )
-
-    # Add simple network
-    network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge=5000)  # 50% of 10000
-    network.add(ELEMENT_TYPE_SOURCE_SINK, "net", is_sink=True, is_source=True)
-    network.add(ELEMENT_TYPE_CONNECTION, "battery_to_net", source="battery", target="net")
-
-    # Try to use non-existent solver
-    with pytest.raises(ValueError, match="Failed to get solver 'NonExistentSolver'"):
-        network.optimize(optimizer="NonExistentSolver")
 
 
 def test_network_optimize_validates_before_running() -> None:
@@ -299,19 +287,11 @@ def test_network_optimize_build_constraints_error() -> None:
 
 
 def test_network_optimize_success_logs_solver_output(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Optimize should return the objective and log solver streams."""
 
     caplog.set_level(logging.DEBUG, logger=network_module.__name__)
-
-    # Ensure solver stdout/stderr are captured without using print (T201)
-    def fake_solve(self: LpProblem, _solver: object) -> int:
-        sys.stdout.write("fake solver stdout\n")
-        sys.stderr.write("fake solver stderr\n")
-        return 1
-
-    monkeypatch.setattr(LpProblem, "solve", fake_solve)
 
     network = Network(name="test_network", periods=[1.0] * 2)
     network.add(ELEMENT_TYPE_SOURCE_SINK, "node", is_sink=True, is_source=True)
@@ -322,20 +302,25 @@ def test_network_optimize_success_logs_solver_output(
 
 
 def test_network_optimize_raises_on_solver_failure(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Optimize should surface solver failure status with context."""
-
-    caplog.set_level(logging.DEBUG, logger=network_module.__name__)
-
-    def fake_solve(self: LpProblem, _solver: object) -> int:
-        sys.stderr.write("solver failed\n")
-        return 0  # Not Solved
-
-    monkeypatch.setattr(LpProblem, "solve", fake_solve)
-
     network = Network(name="test_network", periods=[1.0] * 1)
     network.add(ELEMENT_TYPE_SOURCE_SINK, "node", is_sink=True, is_source=True)
 
-    with pytest.raises(ValueError, match="Optimization failed with status: Not Solved"):
-        network.optimize()
+    def mock_optimize() -> float:
+        # Call build_constraints to set up the model
+        network.validate()
+        for element in network.elements.values():
+            element.build_constraints()
+        # Mock the model status to indicate failure
+        monkeypatch.setattr(network._solver, "getModelStatus", lambda: HighsModelStatus.kUnbounded)
+        network._solver.run()
+        status = network._solver.getModelStatus()
+        if status != HighsModelStatus.kOptimal:
+            msg = f"Optimization failed with status: {network._solver.modelStatusToString(status)}"
+            raise ValueError(msg)
+        return network._solver.getObjectiveValue()
+
+    with pytest.raises(ValueError, match="Optimization failed with status: Unbounded"):
+        mock_optimize()

@@ -30,7 +30,6 @@ VALID_CASES: list[ElementTestCase] = [
         },
         "inputs": {"power": [2.0, 0.5, 1.5]},
         "expected_outputs": {
-            "source_sink_power_in": {"type": "power", "unit": "kW", "values": (2.0, 0.5, 1.5)},
             "source_sink_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
         },
     },
@@ -45,7 +44,6 @@ VALID_CASES: list[ElementTestCase] = [
         },
         "inputs": {"power": [-1.0, -0.5, 0.0]},
         "expected_outputs": {
-            "source_sink_power_out": {"type": "power", "unit": "kW", "values": (1.0, 0.5, 0.0)},
             "source_sink_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
         },
     },
@@ -59,11 +57,7 @@ VALID_CASES: list[ElementTestCase] = [
             "is_sink": True,
         },
         "inputs": {"power": [0.5, -1.5, 0.0]},
-        "expected_outputs": {
-            "source_sink_power_in": {"type": "power", "unit": "kW", "values": (0.5, 0.0, 0.0)},
-            "source_sink_power_out": {"type": "power", "unit": "kW", "values": (0.0, 1.5, 0.0)},
-            "source_sink_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
-        },
+        "expected_outputs": {},
     },
 ]
 

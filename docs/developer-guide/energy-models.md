@@ -60,7 +60,7 @@ This reduces the number of explicit constraints you need and improves solver per
 
 Each element must implement `outputs()` so the Home Assistant integration can discover the sensor data automatically.
 Return a tuple of `ElementOutput` dataclasses where `values` is the full time series as floats.
-Use `pulp.value()` to convert decision variables into numeric values and provide copies of any underlying lists so callers cannot mutate internal state.
+Extract the solution values from the HiGHS model and provide copies of any underlying lists so callers cannot mutate internal state.
 
 The base `Element` implementation already reports net power in kilowatts.
 Override the method when you need to expose extra information such as stored energy, state of charge, or forecast capacity.

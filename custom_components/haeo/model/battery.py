@@ -3,12 +3,13 @@
 from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
-from pulp import LpAffineExpression, LpVariable
+from highspy import Highs
+from highspy.highs import highs_linear_expression
 
 from .const import OUTPUT_TYPE_ENERGY, OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
 from .output_data import OutputData
-from .util import broadcast_to_sequence, extract_values
+from .util import broadcast_to_sequence
 
 # Type for battery constraint names
 type BatteryConstraintName = Literal[
@@ -17,6 +18,8 @@ type BatteryConstraintName = Literal[
     "battery_energy_out_flow",
     "battery_soc_max",
     "battery_soc_min",
+    "battery_initial_charge",
+    "battery_initial_discharge",
 ]
 
 # Type for all battery output names (union of base outputs and constraints)
@@ -37,6 +40,8 @@ BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
         BATTERY_ENERGY_OUT_FLOW := "battery_energy_out_flow",
         BATTERY_SOC_MAX := "battery_soc_max",
         BATTERY_SOC_MIN := "battery_soc_min",
+        BATTERY_INITIAL_CHARGE := "battery_initial_charge",
+        BATTERY_INITIAL_DISCHARGE := "battery_initial_discharge",
     )
 )
 
@@ -65,6 +70,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         name: str,
         periods: Sequence[float],
         *,
+        solver: Highs,
         capacity: Sequence[float] | float,
         initial_charge: float,
     ) -> None:
@@ -73,92 +79,90 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         Args:
             name: Name of the battery
             periods: Sequence of time period durations in hours
+            solver: The HiGHS solver instance for creating variables and constraints
             capacity: Battery capacity in kWh per period (T+1 values for energy boundaries)
             initial_charge: Initial charge in kWh
 
         """
-        super().__init__(name=name, periods=periods)
+        super().__init__(name=name, periods=periods, solver=solver)
         n_periods = self.n_periods
 
         # Broadcast capacity to n_periods + 1 (energy boundaries)
         self.capacity = broadcast_to_sequence(capacity, n_periods + 1)
 
-        # Initial charge is set as constant, not variable
-        self.energy_in: list[LpAffineExpression | LpVariable] = [
-            LpAffineExpression(constant=float(initial_charge)),
-            *[LpVariable(f"{name}_energy_in_t{t}", lowBound=0.0) for t in range(1, n_periods + 1)],
-        ]
-        # Initial discharge is always 0
-        self.energy_out: list[LpAffineExpression | LpVariable] = [
-            LpAffineExpression(constant=0.0),
-            *[LpVariable(f"{name}_energy_out_t{t}", lowBound=0.0) for t in range(1, n_periods + 1)],
-        ]
+        # Store initial charge for constraint
+        self.initial_charge = initial_charge
 
-        # Energy flow constraints (cumulative energy can only increase)
-        self._constraints[BATTERY_ENERGY_IN_FLOW] = [
-            self.energy_in[t + 1] >= self.energy_in[t] for t in range(n_periods)
-        ]
-        self._constraints[BATTERY_ENERGY_OUT_FLOW] = [
-            self.energy_out[t + 1] >= self.energy_out[t] for t in range(n_periods)
-        ]
+        # Create all energy variables (including initial state at t=0)
+        self.energy_in = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_in_", out_array=True)
+        self.energy_out = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_out_", out_array=True)
 
-        # SOC constraints (net energy must stay within capacity)
-        self._constraints[BATTERY_SOC_MAX] = [
-            self.energy_in[t + 1] - self.energy_out[t + 1] <= self.capacity[t + 1] for t in range(n_periods)
-        ]
-        self._constraints[BATTERY_SOC_MIN] = [
-            self.energy_in[t + 1] - self.energy_out[t + 1] >= 0 for t in range(n_periods)
-        ]
-
-        # Pre-calculate power and energy expressions to avoid recomputing them
-        self.power_consumption: Sequence[LpAffineExpression] = [
-            (self.energy_in[t + 1] - self.energy_in[t]) / self.periods[t] for t in range(n_periods)
-        ]
-        self.power_production: Sequence[LpAffineExpression] = [
-            (self.energy_out[t + 1] - self.energy_out[t]) / self.periods[t] for t in range(n_periods)
-        ]
-        self.stored_energy: Sequence[LpAffineExpression] = [
-            self.energy_in[t] - self.energy_out[t] for t in range(n_periods + 1)
-        ]
+        # Pre-calculate power and energy expressions
+        self.power_consumption = (self.energy_in[1:] - self.energy_in[:-1]) * (1.0 / self.periods)
+        self.power_production = (self.energy_out[1:] - self.energy_out[:-1]) * (1.0 / self.periods)
+        self.stored_energy = self.energy_in - self.energy_out
 
     def build_constraints(self) -> None:
         """Build network-dependent constraints for the battery.
 
         This includes power balance constraints using connection_power().
         """
+        h = self._solver
+
+        # Initial state constraints
+        self._constraints[BATTERY_INITIAL_CHARGE] = h.addConstr(self.energy_in[0] == self.initial_charge)
+        self._constraints[BATTERY_INITIAL_DISCHARGE] = h.addConstr(self.energy_out[0] == 0.0)
+
+        # Energy flow constraints (cumulative energy can only increase)
+        self._constraints[BATTERY_ENERGY_IN_FLOW] = h.addConstrs(self.energy_in[1:] >= self.energy_in[:-1])
+        self._constraints[BATTERY_ENERGY_OUT_FLOW] = h.addConstrs(self.energy_out[1:] >= self.energy_out[:-1])
+
+        # SOC constraints (net energy must stay within capacity)
+        self._constraints[BATTERY_SOC_MAX] = h.addConstrs(self.stored_energy[1:] <= self.capacity[1:])
+        self._constraints[BATTERY_SOC_MIN] = h.addConstrs(self.stored_energy[1:] >= 0)
 
         # Power balance: connection_power equals net battery power
-        self._constraints[BATTERY_POWER_BALANCE] = [
-            self.connection_power(t) == self.power_consumption[t] - self.power_production[t]
-            for t in range(self.n_periods)
-        ]
+        self._constraints[BATTERY_POWER_BALANCE] = h.addConstrs(
+            self.connection_power() == self.power_consumption - self.power_production
+        )
 
-    def cost(self) -> Sequence[LpAffineExpression]:
+    def cost(self) -> Sequence[highs_linear_expression]:
         """Return the cost expressions of the battery."""
         return []
 
     def outputs(self) -> Mapping[BatteryOutputName, OutputData]:
         """Return battery output specifications."""
-        # Get stored energy values
-        energy_values = extract_values(self.stored_energy)
-
         outputs: dict[BatteryOutputName, OutputData] = {
             BATTERY_POWER_CHARGE: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_consumption, direction="-"
+                type=OUTPUT_TYPE_POWER,
+                unit="kW",
+                values=self.extract_values(self.power_consumption),
+                direction="-",
             ),
             BATTERY_POWER_DISCHARGE: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=self.power_production, direction="+"
+                type=OUTPUT_TYPE_POWER,
+                unit="kW",
+                values=self.extract_values(self.power_production),
+                direction="+",
             ),
-            BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=energy_values),
+            BATTERY_ENERGY_STORED: OutputData(
+                type=OUTPUT_TYPE_ENERGY,
+                unit="kWh",
+                values=self.extract_values(self.stored_energy),
+            ),
         }
 
         # Add constraint shadow prices
         for constraint_name in self._constraints:
+            # Skip initial state constraints (internal implementation details)
+            if constraint_name in (BATTERY_INITIAL_CHARGE, BATTERY_INITIAL_DISCHARGE):
+                continue
+
             unit = "$/kW" if constraint_name in BATTERY_POWER_CONSTRAINTS else "$/kWh"
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit=unit,
-                values=self._constraints[constraint_name],
+                values=self.extract_values(self._constraints[constraint_name]),
             )
 
         return outputs

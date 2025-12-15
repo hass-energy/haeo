@@ -8,6 +8,6 @@
   "integration_type": "hub",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/hass-energy/haeo/issues",
-  "requirements": ["pulp>=3.3.0", "highspy>=1.12.0", "numpy>=1.21.0"],
+  "requirements": ["highspy>=1.12.0", "numpy>=1.21.0"],
   "version": "0.1.0"
 }
