@@ -348,11 +348,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             forecast_timestamps,
         )
 
-        # Build network with loaded configurations
+        # Build network with loaded configurations (reuse existing for warm start)
         network = await data_module.load_network(
             self.config_entry,
             periods_seconds=periods_seconds,
             participants=loaded_configs,
+            existing_network=self.network,
         )
 
         # Perform the optimization

@@ -334,6 +334,7 @@ async def test_async_update_data_returns_outputs(
         mock_hub_entry,
         periods_seconds=[30 * 60, 30 * 60],  # Two 30-minute intervals
         participants=mock_loaded_configs,
+        existing_network=None,  # First run has no existing network
     )
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)

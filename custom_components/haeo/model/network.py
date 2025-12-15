@@ -34,6 +34,7 @@ class Network:
     periods: Sequence[float]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
+    _constraints_built: bool = field(default=False, repr=False)
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
@@ -57,7 +58,13 @@ class Network:
         return len(self.periods)
 
     def add(self, element_type: str, name: str, **kwargs: object) -> Element[Any, Any]:
-        """Add an element to the network by type.
+        """Add a new element or update an existing one.
+
+        For new elements: Creates the element and registers connections.
+        For existing elements: Calls element.update() to modify parameters in-place.
+
+        This enables warm start optimization by reusing the existing model structure
+        and only updating parameter values via HiGHS in-place modification APIs.
 
         Args:
             element_type: Type of element as a string
@@ -65,9 +72,16 @@ class Network:
             **kwargs: Additional arguments specific to the element type
 
         Returns:
-            The created element
+            The created or updated element
 
         """
+        # Check if element already exists - if so, update it
+        if name in self.elements:
+            existing_element = self.elements[name]
+            existing_element.update(**kwargs)
+            return existing_element
+
+        # Create new element
         factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
             "connection": Connection,
@@ -104,6 +118,10 @@ class Network:
 
         After optimization, access optimized values directly from elements and connections.
 
+        On first call, builds constraints for all elements. On subsequent calls (warm start),
+        skips constraint building since they're already in the solver and have been updated
+        via element.update() calls.
+
         Returns:
             The total optimization cost
 
@@ -113,13 +131,15 @@ class Network:
 
         h = self._solver
 
-        # Build constraints for all elements
-        for element_name, element in self.elements.items():
-            try:
-                element.build_constraints()
-            except Exception as e:
-                msg = f"Failed to build constraints for element '{element_name}'"
-                raise ValueError(msg) from e
+        # Build constraints for all elements (only on first optimization)
+        if not self._constraints_built:
+            for element_name, element in self.elements.items():
+                try:
+                    element.build_constraints()
+                except Exception as e:
+                    msg = f"Failed to build constraints for element '{element_name}'"
+                    raise ValueError(msg) from e
+            self._constraints_built = True
 
         # Collect all cost expressions from elements and set objective
         costs = [c for element in self.elements.values() for c in element.cost()]

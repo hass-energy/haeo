@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
 from highspy import Highs
-from highspy.highs import highs_linear_expression
+from highspy.highs import highs_cons, highs_linear_expression
 
 from .const import OUTPUT_TYPE_ENERGY, OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
@@ -125,6 +125,52 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         self._constraints[BATTERY_POWER_BALANCE] = h.addConstrs(
             self.connection_power() == self.power_consumption - self.power_production
         )
+
+    def update(self, **kwargs: object) -> None:
+        """Update battery parameters in-place for warm start optimization.
+
+        Supports updating:
+        - capacity: Updates SOC max constraint bounds
+        - initial_charge: Updates initial charge constraint bounds
+
+        Args:
+            **kwargs: Parameter values to update
+
+        """
+        h = self._solver
+
+        # Update capacity if provided
+        if "capacity" in kwargs:
+            raw_capacity = kwargs["capacity"]
+            # Cast to expected type for broadcast_to_sequence
+            if isinstance(raw_capacity, (int, float)):
+                new_capacity = broadcast_to_sequence(float(raw_capacity), self.n_periods + 1)
+            elif isinstance(raw_capacity, Sequence):
+                new_capacity = broadcast_to_sequence(list(raw_capacity), self.n_periods + 1)
+            else:
+                new_capacity = None
+
+            if new_capacity is not None:
+                self.capacity = new_capacity
+                # Update SOC max constraint bounds: stored_energy[1:] <= capacity[1:]
+                # The constraint is: stored_energy - capacity <= 0, so upper bound is capacity value
+                soc_max_constraints = self._constraints.get(BATTERY_SOC_MAX)
+                if soc_max_constraints is not None and isinstance(soc_max_constraints, list):
+                    for i, cons in enumerate(soc_max_constraints):
+                        # Constraint form: stored_energy[i+1] <= capacity[i+1]
+                        # changeRowBounds(row_index, lower, upper) where upper = capacity[i+1]
+                        h.changeRowBounds(cons.index, -float("inf"), float(self.capacity[i + 1]))
+
+        # Update initial_charge if provided
+        if "initial_charge" in kwargs:
+            new_initial_charge = kwargs["initial_charge"]
+            if isinstance(new_initial_charge, (int, float)):
+                self.initial_charge = float(new_initial_charge)
+                # Update initial charge constraint: energy_in[0] == initial_charge
+                # Equality constraint has lower == upper == initial_charge
+                initial_charge_constraint = self._constraints.get(BATTERY_INITIAL_CHARGE)
+                if initial_charge_constraint is not None and isinstance(initial_charge_constraint, highs_cons):
+                    h.changeRowBounds(initial_charge_constraint.index, self.initial_charge, self.initial_charge)
 
     def cost(self) -> Sequence[highs_linear_expression]:
         """Return the cost expressions of the battery."""

@@ -73,13 +73,18 @@ async def load_network(
     *,
     periods_seconds: Sequence[int],
     participants: Mapping[str, ElementConfigData],
+    existing_network: Network | None = None,
 ) -> Network:
     """Return a fully-populated `Network` ready for optimization.
+
+    When existing_network is provided, updates it in-place for warm start optimization.
+    Otherwise creates a new network.
 
     Args:
         entry: Config entry
         periods_seconds: Sequence of optimization period durations in seconds
         participants: Mapping of element names to loaded configurations (with values)
+        existing_network: Optional existing network to update (for warm start)
 
     Raises:
         ValueError: when required sensor/forecast data is missing.
@@ -99,8 +104,11 @@ async def load_network(
     # ==================================================================================
     periods_hours = [s / 3600 for s in periods_seconds]
 
-    # Build network with periods in hours
-    net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
+    # Reuse existing network or create new one
+    if existing_network is not None:
+        net = existing_network
+    else:
+        net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
 
     # Collect all model elements from all config elements
     all_model_elements: list[dict[str, Any]] = []
