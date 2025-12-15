@@ -150,6 +150,7 @@ async def test_async_setup_entry_initializes_coordinator(
 
     class DummyCoordinator:
         def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+            super().__init__()
             self.hass = hass_param
             self.config_entry = entry_param
             self.async_config_entry_first_refresh = AsyncMock()
@@ -266,7 +267,7 @@ async def test_async_update_listener(
 
     monkeypatch.setattr("custom_components.haeo._ensure_network_subentry", mock_ensure)
 
-    def mock_evaluate(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
+    async def mock_evaluate(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
         nonlocal connectivity_called
         assert hass_arg is hass
         assert entry_arg is mock_hub_entry

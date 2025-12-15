@@ -1,4 +1,4 @@
-# Connection Modeling
+# Connection Model
 
 Connections model bidirectional power flow paths between elements with optional limits, efficiency losses, and transfer costs.
 
@@ -142,7 +142,7 @@ Prices can vary over time (peak/off-peak rates).
 
     Configure connections in your Home Assistant setup.
 
-    [:material-arrow-right: Connection configuration](../user-guide/elements/connections.md)
+    [:material-arrow-right: Connection configuration](../../user-guide/elements/connections.md)
 
 - :material-network:{ .lg .middle } **Network modeling**
 
@@ -150,7 +150,7 @@ Prices can vary over time (peak/off-peak rates).
 
     Understand how elements interact in the network model.
 
-    [:material-arrow-right: Network modeling overview](index.md)
+    [:material-arrow-right: Network modeling overview](../index.md)
 
 - :material-code-braces:{ .lg .middle } **Implementation**
 

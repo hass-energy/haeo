@@ -5,10 +5,19 @@ from typing import Any
 
 from homeassistant.components import system_health
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.util import slugify
 
-from .const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES, DOMAIN, OPTIMIZATION_STATUS_PENDING
-from .model import OUTPUT_NAME_OPTIMIZATION_COST, OUTPUT_NAME_OPTIMIZATION_DURATION, OUTPUT_NAME_OPTIMIZATION_STATUS
+from .const import (
+    CONF_TIER_1_COUNT,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_4_COUNT,
+    DOMAIN,
+    OPTIMIZATION_STATUS_PENDING,
+    OUTPUT_NAME_OPTIMIZATION_COST,
+    OUTPUT_NAME_OPTIMIZATION_DURATION,
+    OUTPUT_NAME_OPTIMIZATION_STATUS,
+    tiers_to_periods_seconds,
+)
 
 
 @callback
@@ -35,7 +44,7 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
     for entry in entries:
         entry_name = entry.title or entry.entry_id
         prefix = f"{entry_name}_"
-        hub_key = slugify(str(entry_name))
+        hub_key = entry_name
 
         # Get coordinator from runtime data
         coordinator = entry.runtime_data
@@ -74,12 +83,18 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
             )
         health_info[f"{prefix}outputs"] = outputs_count
 
-        horizon_hours = entry.data.get(CONF_HORIZON_HOURS)
-        if horizon_hours is not None:
-            health_info[f"{prefix}horizon_hours"] = horizon_hours
-
-        period_minutes = entry.data.get(CONF_PERIOD_MINUTES)
-        if period_minutes is not None:
-            health_info[f"{prefix}period_minutes"] = period_minutes
+        # Report total number of periods and horizon in minutes
+        total_periods = (
+            entry.data.get(CONF_TIER_1_COUNT, 0)
+            + entry.data.get(CONF_TIER_2_COUNT, 0)
+            + entry.data.get(CONF_TIER_3_COUNT, 0)
+            + entry.data.get(CONF_TIER_4_COUNT, 0)
+        )
+        if total_periods > 0:
+            health_info[f"{prefix}total_periods"] = total_periods
+            # Calculate total horizon in minutes from periods
+            periods_seconds = tiers_to_periods_seconds(entry.data)
+            horizon_minutes = sum(periods_seconds) // 60
+            health_info[f"{prefix}horizon_minutes"] = horizon_minutes
 
     return health_info

@@ -49,6 +49,7 @@ Users configure entities (batteries, grids, loads, generators) and connections b
 - **Property Access**: Always assume that accessed properties/fields which should exist directly and rely on errors occurring if they do not when they indicate a coding error and not a possibly None value. This is especially true in tests where you have added entities and then must access them later, having None checks there reduces readability and also makes the test more fragile to passing unexpectedly
 - **Clean Changes**: When making changes don't leave behind comments describing what was once there, comments should always describe code as it exists without reference to former code
 - **API Evolution**: When making changes don't leave behind backwards compatible interfaces for internal APIs there should always be a complete clean changeover
+- **Error Context**: The main branch is always clean with no errors or warnings. Any errors, warnings, or test failures you encounter are directly related to recent changes in the current branch/PR you're working on. These issues must be fixed as part of the work - they indicate problems introduced by the changes being made
 
 ### Testing Approach
 
@@ -84,7 +85,7 @@ uv run pytest -v --tb=short           # Verbose with short tracebacks
 # Code quality and linting
 uv run ruff check                      # Lint code
 uv run ruff format                     # Format code
-uv run mypy custom_components/         # Type checking
+uv run pyright                         # Type checking
 
 # Add new dependencies
 uv add requests                        # Runtime dependency
@@ -129,7 +130,7 @@ uv lock --upgrade                      # Update lock file
 
 - **Formatting**: Ruff
 - **Linting**: PyLint and Ruff
-- **Type Checking**: MyPy
+- **Type Checking**: Pyright
 - **Testing**: pytest with plain functions and fixtures
 - **Language**: American English for all code, comments, and documentation (use sentence case, including titles)
 - **Units**: Use SI units (seconds, watts, watt-hours, etc.) throughout all calculations and internal data structures. Only convert to user-friendly units (hours, minutes, kW, kWh) when displaying to users or accepting user input.

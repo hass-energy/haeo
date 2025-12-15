@@ -1,21 +1,18 @@
 """Network class for electrical system modeling and optimization."""
 
 from collections.abc import Callable, Sequence
-from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass, field
-import io
 import logging
 from typing import Any
 
-from pulp import LpConstraint, LpMinimize, LpProblem, LpStatus, getSolver, lpSum, value
+from highspy import Highs, HighsModelStatus
+from highspy.highs import highs_cons
 
 from .battery import Battery
 from .connection import Connection
 from .element import Element
-from .grid import Grid
-from .load import Load
 from .node import Node
-from .photovoltaics import Photovoltaics
+from .source_sink import SourceSink
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,16 +24,37 @@ class Network:
     All values use kW-based units for numerical stability:
     - Power: kW
     - Energy: kWh
-    - Time: hours
+    - Time: hours (variable-width intervals)
     - Price: $/kWh
 
-    Note: Period should be provided in hours (conversion from seconds happens at the data loading boundary layer).
+    Note: Periods should be provided in hours (conversion from seconds happens at the data loading boundary layer).
     """
 
     name: str
-    period: float  # Period in hours
-    n_periods: int
+    periods: Sequence[float]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
+    _solver: Highs = field(default_factory=Highs, repr=False)
+
+    def __post_init__(self) -> None:
+        """Set up the solver with logging callback."""
+        # Redirect HiGHS logging to Python logger at debug level
+        self._solver.cbLogging += self._log_callback
+
+        # Disable console output since we're capturing via callback
+        output_off = False
+        self._solver.setOptionValue("output_flag", output_off)
+        self._solver.setOptionValue("log_to_console", output_off)
+
+    @staticmethod
+    def _log_callback(_log_type: int, message: str) -> None:
+        """Log HiGHS messages to Python logger."""
+        if message:
+            _LOGGER.debug("HiGHS: %s", message.rstrip())
+
+    @property
+    def n_periods(self) -> int:
+        """Return the number of optimization periods."""
+        return len(self.periods)
 
     def add(self, element_type: str, name: str, **kwargs: object) -> Element[Any, Any]:
         """Add an element to the network by type.
@@ -52,15 +70,13 @@ class Network:
         """
         factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
-            "photovoltaics": Photovoltaics,
-            "load": Load,
-            "grid": Grid,
-            "node": Node,
             "connection": Connection,
+            "source_sink": SourceSink,
+            "node": Node,
         }
 
         factory = factories[element_type.lower()]
-        element = factory(name=name, period=self.period, n_periods=self.n_periods, **kwargs)
+        element = factory(name=name, periods=self.periods, solver=self._solver, **kwargs)
         self.elements[name] = element
 
         # Register connections immediately when adding Connection elements
@@ -69,38 +85,24 @@ class Network:
             source_element = self.elements.get(element.source)
             target_element = self.elements.get(element.target)
 
-            if source_element is not None and isinstance(source_element, Element):
+            if source_element is not None:
                 source_element.register_connection(element, "source")
-            if target_element is not None and isinstance(target_element, Element):
+            else:
+                msg = f"Failed to register connection {name} with source {element.source}: Not found or invalid"
+                raise ValueError(msg)
+
+            if target_element is not None:
                 target_element.register_connection(element, "target")
+            else:
+                msg = f"Failed to register connection {name} with target {element.target}: Not found or invalid"
+                raise ValueError(msg)
 
         return element
 
-    def constraints(self) -> Sequence[LpConstraint]:
-        """Return constraints for the network.
-
-        This aggregates all constraints stored in the elements after build_constraints()
-        has been called during the optimization phase.
-        """
-        constraints: list[LpConstraint] = []
-
-        # Add all constraints from elements
-        for element_name, element in self.elements.items():
-            try:
-                constraints.extend(element.constraints())
-            except Exception as e:
-                msg = f"Failed to get constraints for element '{element_name}'"
-                raise ValueError(msg) from e
-
-        return constraints
-
-    def optimize(self, optimizer: str = "HiGHS") -> float:
+    def optimize(self) -> float:
         """Solve the optimization problem and return the cost.
 
         After optimization, access optimized values directly from elements and connections.
-
-        Args:
-            optimizer: The solver to use for optimization (defaults to HiGHS)
 
         Returns:
             The total optimization cost
@@ -109,7 +111,9 @@ class Network:
         # Validate network before optimization
         self.validate()
 
-        # Compilation phase: build constraints for all elements
+        h = self._solver
+
+        # Build constraints for all elements
         for element_name, element in self.elements.items():
             try:
                 element.build_constraints()
@@ -117,43 +121,20 @@ class Network:
                 msg = f"Failed to build constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
-        # Create the LP problem
-        prob = LpProblem(f"{self.name}_optimization", LpMinimize)
+        # Collect all cost expressions from elements and set objective
+        costs = [c for element in self.elements.values() for c in element.cost()]
+        if costs:
+            h.minimize(Highs.qsum(costs))
+        else:
+            # No cost terms - just run to check feasibility
+            h.run()
 
-        # Add the objective function (minimize total cost)
-        prob += lpSum(c for element in self.elements.values() for c in element.cost())
+        # Check optimization status
+        status = h.getModelStatus()
+        if status == HighsModelStatus.kOptimal:
+            return h.getObjectiveValue()
 
-        # Add element constraints
-        for element in self.elements.values():
-            for constraint in element.constraints():
-                prob += constraint
-
-        # Get the specified solver
-        try:
-            solver = getSolver(optimizer, msg=0)
-        except Exception as e:
-            msg = f"Failed to get solver '{optimizer}': {e}"
-            raise ValueError(msg) from e
-
-        # Capture stdout and stderr during optimization
-        stdout_capture = io.StringIO()
-        stderr_capture = io.StringIO()
-
-        try:
-            with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
-                # Solve the problem
-                status = prob.solve(solver)
-        finally:
-            # Always log the captured output for debugging
-            if stdout_capture.getvalue().strip():
-                _LOGGER.debug("Optimization stdout: %s", stdout_capture.getvalue())
-            if stderr_capture.getvalue().strip():
-                _LOGGER.debug("Optimization stderr: %s", stderr_capture.getvalue())
-
-        if status == 1:  # Optimal solution found
-            return value(prob.objective) if prob.objective is not None else 0.0
-
-        msg = f"Optimization failed with status: {LpStatus[status]}"
+        msg = f"Optimization failed with status: {h.modelStatusToString(status)}"
         raise ValueError(msg)
 
     def validate(self) -> None:
@@ -173,3 +154,19 @@ class Network:
                 if isinstance(self.elements[element.target], Connection):
                     msg = f"Target element '{element.target}' is a connection"
                     raise ValueError(msg)  # noqa: TRY004 value error is appropriate here
+
+    def constraints(self) -> list[highs_cons]:
+        """Return all constraints from all elements in the network.
+
+        Returns:
+            A flat list of all constraints from all elements.
+
+        """
+        result: list[highs_cons] = []
+        for element_name, element in self.elements.items():
+            try:
+                result.extend(element.constraints())
+            except Exception as e:
+                msg = f"Failed to get constraints for element '{element_name}'"
+                raise ValueError(msg) from e
+        return result

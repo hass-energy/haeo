@@ -76,8 +76,8 @@ See [Testing Guide](testing.md#type-safety-philosophy) for detailed examples.
 
 ```bash
 uv run pytest
-uv run ruff check custom_components/ tests/
-uv run mypy custom_components/
+uv run ruff check
+uv run pyright
 ```
 
 All checks must pass before merging.

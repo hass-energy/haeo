@@ -4,6 +4,42 @@ HAEO follows Home Assistant integration patterns with specialized optimization c
 This guide focuses on HAEO-specific architecture.
 For Home Assistant fundamentals, see the [Home Assistant developer documentation](https://developers.home-assistant.io/).
 
+## Layered Architecture
+
+HAEO separates user configuration from mathematical modeling through two distinct layers:
+
+**Device Layer**: User-configured elements (Battery, Grid, Photovoltaics, Load, Node, Connection) that integrate with Home Assistant sensors and present user-friendly outputs.
+
+**Model Layer**: Mathematical building blocks (battery, source_sink, connection) that form the linear programming problem.
+
+The [Adapter Layer](adapter-layer.md) transforms between these layers, enabling composition where a single Device Layer element creates multiple Model Layer elements and devices.
+
+```mermaid
+graph LR
+    subgraph "Device Layer"
+        Config[User Configuration]
+    end
+
+    subgraph "Adapter Layer"
+        Adapt[Element Adapters]
+    end
+
+    subgraph "Model Layer"
+        Model[LP Model]
+    end
+
+    subgraph "Output"
+        Sensors[HA Sensors]
+    end
+
+    Config --> Adapt
+    Adapt --> Model
+    Model -->|optimize| Adapt
+    Adapt --> Sensors
+```
+
+See [Modeling Documentation](../modeling/index.md) for detailed layer descriptions.
+
 ## System Overview
 
 ```mermaid
@@ -11,11 +47,12 @@ graph TD
     CF[Config Flow] --> CE[Config Entry]
     CE --> Coord[Coordinator]
     Coord --> Loaders[Data Loaders]
-    Coord --> Builder[Network Builder]
-    Builder --> Model[Network Model]
+    Coord --> Adapt[Adapter Layer]
+    Adapt --> Model[Network Model]
     Model --> Optimizer[HiGHS Optimizer]
     Optimizer --> Results[Results]
-    Results --> Sensors[Sensors]
+    Results --> Adapt
+    Adapt --> Sensors[Sensors]
 ```
 
 ## Core Components
@@ -57,7 +94,7 @@ Creates optimization model from config:
 
 ### Network Model (`model/`)
 
-LP representation using PuLP:
+LP representation using HiGHS:
 
 - **Element**: Base class for all model elements with power/energy variables
 - **Battery**: Storage with charge/discharge power, SOC constraints
@@ -70,7 +107,7 @@ LP representation using PuLP:
 
 ### Optimization
 
-Uses the HiGHS linear programming solver via PuLP to solve the energy optimization problem.
+Uses the HiGHS linear programming solver directly via the `highspy` Python bindings to solve the energy optimization problem.
 Minimizes cost while respecting all constraints, returning optimal cost and decision variable values.
 
 ### Sensors (`sensors/`)
@@ -91,7 +128,7 @@ Separate subsystem implementing the optimization model:
 
 **Design principles**:
 
-- Pure Python linear programming using PuLP
+- Pure Python linear programming using HiGHS via `highspy`
 - Elements generate their own variables and constraints
 - Network assembles elements and runs optimization
 - No Home Assistant dependencies in model layer

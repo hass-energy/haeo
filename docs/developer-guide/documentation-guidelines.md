@@ -381,15 +381,21 @@ These templates ensure consistent structure across element documentation.
 
 ### Available templates
 
-**[Element user guide template](templates/element-user-guide-template.md)**
+**[User guide element template](templates/element-user-guide-template.md)**
 
 Use when documenting user-facing configuration for a new element type.
 Includes sections for configuration fields, examples, sensors created, and troubleshooting.
 
-**[Element modeling template](templates/element-modeling-template.md)**
+**[Model Layer template](templates/model-layer-template.md)**
 
-Use when documenting the mathematical formulation of a new element type.
+Use when documenting the mathematical formulation of a Model Layer element.
 Includes sections for decision variables, parameters, constraints, cost functions, and physical interpretation.
+
+**[Device Layer template](templates/device-layer-template.md)**
+
+Use when documenting how a Device Layer element composes Model Layer elements.
+Includes sections for composition diagram, parameter mapping, sensors created, and configuration examples.
+Shows what Model Layer elements THIS device creates (forward enumeration).
 
 ### Using templates
 
@@ -398,6 +404,14 @@ Includes sections for decision variables, parameters, constraints, cost function
 3. Replace all `[Element Name]` placeholders with the actual element name
 4. Fill in each section following the guidance provided in the template
 5. Remove any guidance comments before committing
+
+### Using templates
+
+1. Copy the appropriate template file from `docs/developer-guide/templates/`
+2. Rename to match your element: `battery.md`, `grid.md`, etc.
+3. Replace all `[Element Name]` placeholders with the actual element name
+4. Fill in each section following the guidance provided in the template
+5. Remove any template instruction notes before committing
 
 ### Template customization
 

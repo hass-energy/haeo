@@ -1,10 +1,11 @@
 """End-to-end tests for element subentry flows."""
 
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Literal, TypedDict, cast
-from unittest.mock import MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -14,16 +15,31 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
-    CONF_HORIZON_HOURS,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
-    CONF_PERIOD_MINUTES,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
+    DEFAULT_TIER_1_COUNT,
+    DEFAULT_TIER_1_DURATION,
+    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_4_DURATION,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import (
     ELEMENT_TYPES,
+    ElementOutputName,
     ElementRegistryEntry,
     ElementType,
     battery,
@@ -32,6 +48,7 @@ from custom_components.haeo.elements import (
     node,
 )
 from custom_components.haeo.flows.element import ElementSubentryFlow, create_subentry_flow_class
+from custom_components.haeo.model import OutputData
 from custom_components.haeo.schema.fields import NameFieldData, NameFieldSchema
 from tests.conftest import ElementTestData
 
@@ -145,11 +162,21 @@ class FlowTestElementFactory:
 def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElementFactory:
     """Register and return a synthetic element factory for flow testing."""
 
+    def mock_create_model_elements(config: Any) -> list[dict[str, Any]]:
+        return []
+
+    def mock_outputs(
+        name: str, outputs: Mapping[str, Mapping[Any, OutputData]]
+    ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
+        return {}
+
     entry = ElementRegistryEntry(
         schema=FlowTestElementConfigSchema,
         data=FlowTestElementConfigData,
         defaults={},
         translation_key=cast("ElementType", TEST_ELEMENT_TYPE),
+        create_model_elements=mock_create_model_elements,
+        outputs=mock_outputs,  # type: ignore[arg-type]
     )
     monkeypatch.setitem(ELEMENT_TYPES, cast("ElementType", TEST_ELEMENT_TYPE), entry)
     return FlowTestElementFactory()
@@ -164,8 +191,14 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            CONF_HORIZON_HOURS: 24,
-            CONF_PERIOD_MINUTES: 30,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         entry_id="test_hub_id",
     )
@@ -177,7 +210,7 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
 def connectivity_mock(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     """Patch connectivity evaluation during flow tests."""
 
-    mock = MagicMock()
+    mock = AsyncMock()
     monkeypatch.setattr(
         "custom_components.haeo.flows.element.evaluate_network_connectivity",
         mock,

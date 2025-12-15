@@ -52,8 +52,14 @@ Configure the network through Settings → Devices & Services → Add Integratio
 
 ```yaml
 Name: Sigenergy System
-Horizon Hours: 48
-Period Minutes: 5
+Tier 1 Count: 5      # 5 × 1 min = 5 minutes high-resolution
+Tier 1 Duration: 1
+Tier 2 Count: 11      # 11 × 5 min = 55 minutes
+Tier 2 Duration: 5
+Tier 3 Count: 46     # 46 × 30 min ≈ 23 hours
+Tier 3 Duration: 30
+Tier 4 Count: 48     # 48 × 60 min = 48 hours
+Tier 4 Duration: 60
 ```
 
 ### Step 2: Add DC Net

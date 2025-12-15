@@ -7,11 +7,23 @@ from homeassistant.helpers.translation import async_get_translations
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
-    CONF_HORIZON_HOURS,
     CONF_NAME,
-    CONF_PERIOD_MINUTES,
-    DEFAULT_HORIZON_HOURS,
-    DEFAULT_PERIOD_MINUTES,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
+    DEFAULT_TIER_1_COUNT,
+    DEFAULT_TIER_1_DURATION,
+    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
@@ -24,26 +36,34 @@ async def test_user_flow_success(hass: HomeAssistant) -> None:
     """Test successful hub creation via user flow."""
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
-    assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "user"
-    assert result["errors"] == {}
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "user"
+    assert result.get("errors") == {}
 
     # Configure with valid data
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         user_input={
             CONF_NAME: "Test Hub",
-            CONF_HORIZON_HOURS: 48,
-            CONF_PERIOD_MINUTES: 5,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     )
 
-    assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Test Hub"
-    assert result["data"][CONF_NAME] == "Test Hub"
-    assert result["data"]["integration_type"] == INTEGRATION_TYPE_HUB
-    assert result["data"][CONF_HORIZON_HOURS] == 48
-    assert result["data"][CONF_PERIOD_MINUTES] == 5
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    assert result.get("title") == "Test Hub"
+    data = result.get("data")
+    assert data is not None
+    assert data[CONF_NAME] == "Test Hub"
+    assert data["integration_type"] == INTEGRATION_TYPE_HUB
+    assert data[CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
+    assert data[CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
 
     # Verify entry was created
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -59,8 +79,14 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         data={
             "integration_type": INTEGRATION_TYPE_HUB,
             CONF_NAME: "Existing Hub",
-            CONF_HORIZON_HOURS: DEFAULT_HORIZON_HOURS,
-            CONF_PERIOD_MINUTES: DEFAULT_PERIOD_MINUTES,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         title="Existing Hub",
     )
@@ -73,26 +99,38 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         result["flow_id"],
         user_input={
             CONF_NAME: "Existing Hub",
-            CONF_HORIZON_HOURS: 24,
-            CONF_PERIOD_MINUTES: 10,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     )
 
-    assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {CONF_NAME: "name_exists"}
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("errors") == {CONF_NAME: "name_exists"}
 
     # Verify flow can recover from error
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         user_input={
             CONF_NAME: "New Hub",
-            CONF_HORIZON_HOURS: 24,
-            CONF_PERIOD_MINUTES: 10,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     )
 
-    assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["title"] == "New Hub"
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    assert result.get("title") == "New Hub"
 
 
 async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> None:
@@ -104,12 +142,18 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
         result["flow_id"],
         user_input={
             CONF_NAME: "Test Hub",
-            CONF_HORIZON_HOURS: 48,
-            CONF_PERIOD_MINUTES: 5,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     )
 
-    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     # Try to create hub with same name (case-insensitive, spaces normalized)
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
@@ -118,29 +162,36 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
         result["flow_id"],
         user_input={
             CONF_NAME: "test hub",  # Same name, different case
-            CONF_HORIZON_HOURS: 24,
-            CONF_PERIOD_MINUTES: 10,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     )
 
     # Should be rejected due to unique_id check
-    assert result["type"] == FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
+    assert result.get("type") == FlowResultType.ABORT
+    assert result.get("reason") == "already_configured"
 
 
 async def test_user_flow_default_values(hass: HomeAssistant) -> None:
     """Test that default values are suggested in the form."""
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
-    assert result["type"] == FlowResultType.FORM
-    assert result["data_schema"] is not None
+    assert result.get("type") == FlowResultType.FORM
+    data_schema = result.get("data_schema")
+    assert data_schema is not None
 
     # Check suggested values exist in the schema
-    schema_keys = {vol_key.schema: vol_key for vol_key in result["data_schema"].schema}
+    schema_keys = {vol_key.schema: vol_key for vol_key in data_schema.schema}
 
-    # Verify default values
-    assert schema_keys[CONF_HORIZON_HOURS].default() == DEFAULT_HORIZON_HOURS
-    assert schema_keys[CONF_PERIOD_MINUTES].default() == DEFAULT_PERIOD_MINUTES
+    # Verify default values for tier 1 (as representative sample)
+    assert schema_keys[CONF_TIER_1_COUNT].default() == DEFAULT_TIER_1_COUNT
+    assert schema_keys[CONF_TIER_1_DURATION].default() == DEFAULT_TIER_1_DURATION
 
 
 async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
@@ -151,8 +202,14 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
         data={
             "integration_type": INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            CONF_HORIZON_HOURS: DEFAULT_HORIZON_HOURS,
-            CONF_PERIOD_MINUTES: DEFAULT_PERIOD_MINUTES,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         entry_id="test_hub_id",
     )
@@ -178,11 +235,7 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
     hub_entry.add_to_hass(hass)
 
     translations = await async_get_translations(
-        hass,
-        "en",
-        "config_subentries",
-        integrations=[DOMAIN],
-        config_flow=True,
+        hass, "en", "config_subentries", integrations=[DOMAIN], config_flow=True
     )
 
     subentry_flows = HubConfigFlow.async_get_supported_subentry_types(hub_entry)
@@ -213,9 +266,9 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
         flow.handler = (hub_entry.entry_id, element_type)
 
         step_result = await flow.async_step_user(user_input=None)
-        assert step_result["type"] == FlowResultType.FORM
+        assert step_result.get("type") == FlowResultType.FORM
 
-        schema = step_result["data_schema"]
+        schema = step_result.get("data_schema")
         if schema is None:
             continue
 

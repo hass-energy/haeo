@@ -8,7 +8,17 @@ from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_ELEMENT_TYPE, CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES
+from .const import (
+    CONF_ELEMENT_TYPE,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
+)
 from .coordinator import extract_entity_ids_from_config
 from .elements import is_element_config_schema
 from .sensor_utils import get_output_sensors
@@ -26,8 +36,14 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
     # Build config section with participants
     config: dict[str, Any] = {
         "participants": {},
-        CONF_HORIZON_HOURS: config_entry.data.get(CONF_HORIZON_HOURS),
-        CONF_PERIOD_MINUTES: config_entry.data.get(CONF_PERIOD_MINUTES),
+        CONF_TIER_1_COUNT: config_entry.data.get(CONF_TIER_1_COUNT),
+        CONF_TIER_1_DURATION: config_entry.data.get(CONF_TIER_1_DURATION),
+        CONF_TIER_2_COUNT: config_entry.data.get(CONF_TIER_2_COUNT),
+        CONF_TIER_2_DURATION: config_entry.data.get(CONF_TIER_2_DURATION),
+        CONF_TIER_3_COUNT: config_entry.data.get(CONF_TIER_3_COUNT),
+        CONF_TIER_3_DURATION: config_entry.data.get(CONF_TIER_3_DURATION),
+        CONF_TIER_4_COUNT: config_entry.data.get(CONF_TIER_4_COUNT),
+        CONF_TIER_4_DURATION: config_entry.data.get(CONF_TIER_4_DURATION),
     }
 
     # Transform subentries into participants dict
@@ -58,8 +74,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
 
     # Get output sensors using common utility function
     # This filters to entities created by this config entry and cleans unstable fields
-    output_sensors = get_output_sensors(hass, config_entry)
-    outputs: dict[str, dict[str, Any]] = output_sensors
+    outputs = get_output_sensors(hass, config_entry)
 
     # Get HAEO version from integration metadata
     integration = await async_get_integration(hass, config_entry.domain)

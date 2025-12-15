@@ -1,29 +1,47 @@
-"""Test data aggregator for element configurations.
+"""Test data aggregator for element configurations."""
 
-This module aggregates test data from all element types and organizes them
-by element_type for easy access in parameterized tests.
-"""
+from collections.abc import Mapping, Sequence
 
-from typing import Any
+from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID, ELEMENT_TYPE_LOAD, ELEMENT_TYPE_NODE, ElementConfigData, ElementConfigSchema, ElementType, ELEMENT_TYPE_PHOTOVOLTAICS
 
-from . import battery, connection, grid, load, node, photovoltaics
+from . import battery as battery_data
+from . import connection as connection_data
+from . import grid as grid_data
+from . import load as load_data
+from . import node as node_data
+from . import photovoltaics as pv_data
+from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
 
-# Aggregate all valid configs by element type
-VALID_CONFIGS_BY_TYPE: dict[str, list[dict[str, Any]]] = {
-    "battery": battery.VALID,
-    "grid": grid.VALID,
-    "connection": connection.VALID,
-    "photovoltaics": photovoltaics.VALID,
-    "load": load.VALID,
-    "node": node.VALID,
+INVALID_SCHEMAS_BY_TYPE: Mapping[ElementType, Sequence[InvalidSchemaCase[ElementConfigSchema]]] = {
+    ELEMENT_TYPE_BATTERY: battery_data.INVALID_SCHEMA,
+    ELEMENT_TYPE_GRID: grid_data.INVALID_SCHEMA,
+    ELEMENT_TYPE_CONNECTION: connection_data.INVALID_SCHEMA,
+    ELEMENT_TYPE_PHOTOVOLTAICS: pv_data.INVALID_SCHEMA,
+    ELEMENT_TYPE_LOAD: load_data.INVALID_SCHEMA,
+    ELEMENT_TYPE_NODE: node_data.INVALID_SCHEMA,
 }
 
-# Aggregate all invalid configs by element type
-INVALID_CONFIGS_BY_TYPE: dict[str, list[dict[str, Any]]] = {
-    "battery": battery.INVALID,
-    "grid": grid.INVALID,
-    "connection": connection.INVALID,
-    "photovoltaics": photovoltaics.INVALID,
-    "load": load.INVALID,
-    "node": node.INVALID,
+VALID_CONFIGS_BY_TYPE: Mapping[ElementType, Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]]] = {
+    ELEMENT_TYPE_BATTERY: battery_data.VALID,
+    ELEMENT_TYPE_GRID: grid_data.VALID,
+    ELEMENT_TYPE_CONNECTION: connection_data.VALID,
+    ELEMENT_TYPE_PHOTOVOLTAICS: pv_data.VALID,
+    ELEMENT_TYPE_LOAD: load_data.VALID,
+    ELEMENT_TYPE_NODE: node_data.VALID,
 }
+
+INVALID_MODEL_PARAMS_BY_TYPE: Mapping[ElementType, Sequence[InvalidModelCase[ElementConfigData]]] = {
+    ELEMENT_TYPE_BATTERY: battery_data.INVALID_MODEL_PARAMS,
+    ELEMENT_TYPE_GRID: grid_data.INVALID_MODEL_PARAMS,
+    ELEMENT_TYPE_CONNECTION: connection_data.INVALID_MODEL_PARAMS,
+    ELEMENT_TYPE_PHOTOVOLTAICS: pv_data.INVALID_MODEL_PARAMS,
+    ELEMENT_TYPE_LOAD: load_data.INVALID_MODEL_PARAMS,
+    ELEMENT_TYPE_NODE: node_data.INVALID_MODEL_PARAMS,
+}
+
+__all__ = [
+    "ElementValidCase",
+    "INVALID_MODEL_PARAMS_BY_TYPE",
+    "INVALID_SCHEMAS_BY_TYPE",
+    "VALID_CONFIGS_BY_TYPE",
+]

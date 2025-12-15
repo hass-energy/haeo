@@ -3,27 +3,26 @@
 Elements are the building blocks of your HAEO energy network.
 Each element represents a physical device or logical component in your energy system.
 
+## Elements and Devices
+
+When you configure an element, HAEO may create multiple devices in Home Assistant.
+Elements can create one or more devices depending on their configuration.
+Each device has its own set of sensors showing optimization results.
+
+This composition allows HAEO to represent complex physical systems with multiple operational modes while keeping configuration simple.
+See individual element pages for which devices and sensors each element creates.
+
 !!! info "Elements vs Home Assistant Entities"
 
     In HAEO documentation:
 
-    - **Element** = A component in your energy optimization (battery, grid, solar, etc.)
-    - **Entity** = A Home Assistant sensor or device entity (e.g., `sensor.battery_power`)
+    - **Element** = A component you configure (battery, grid, solar, etc.)
+    - **Device** = A Home Assistant device created by an element (may be one or more per element)
+    - **Sensor** = A Home Assistant sensor entity on a device
 
-    This page describes HAEO elements. Each element creates several Home Assistant entities (sensors).
+    See individual element pages for which devices and sensors each element creates.
 
-## Element Types
-
-HAEO supports several element types for modeling your energy system:
-
-| Element Type                          | Description                                                               | Key Features                               |
-| ------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------ |
-| **[Battery](battery.md)**             | Energy storage with state of charge tracking                              | SOC tracking, efficiency, charge/discharge |
-| **[Grid](grid.md)**                   | Bi-directional grid connection                                            | Import/export, dynamic pricing             |
-| **[Photovoltaics](photovoltaics.md)** | Solar power generation                                                    | Forecast integration, curtailment          |
-| **[Load](load.md)**                   | Power consumption                                                         | Constant or forecast-based patterns        |
-| **[Node](node.md)**                   | Virtual power balance node                                                | Grouping connections, complex topologies   |
-| **[Connections](connections.md)**     | Power flow between elements (configuration, grouped here for convenience) | Directional flow limits                    |
+For the mathematical details of how elements are modeled, see the [Modeling Documentation](../../modeling/index.md).
 
 ## How Elements Work Together
 

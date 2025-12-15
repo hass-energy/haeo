@@ -25,17 +25,17 @@ def combine_sensor_payloads(payloads: Mapping[str, SensorPayload]) -> tuple[floa
         return (present_value, [])
 
     unique_timestamps = sorted({timestamp for series in forecast_series for timestamp, _ in series})
-    all_timestamps = np.array(unique_timestamps, dtype=np.int64)
+    all_timestamps = np.array(unique_timestamps, dtype=np.float64)
     total_values = np.zeros(all_timestamps.size, dtype=np.float64)
 
     for series in forecast_series:
-        timestamps = np.array([timestamp for timestamp, _ in series], dtype=np.int64)
+        timestamps = np.array([timestamp for timestamp, _ in series], dtype=np.float64)
         values = np.array([value for _, value in series], dtype=np.float64)
         interpolated = np.interp(all_timestamps, timestamps, values, left=0.0, right=0.0)
         total_values += interpolated
 
     combined_forecast = [
-        (int(timestamp), float(value))
+        (float(timestamp), float(value))
         for timestamp, value in zip(all_timestamps.tolist(), total_values.tolist(), strict=False)
     ]
 

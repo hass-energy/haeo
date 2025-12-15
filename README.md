@@ -178,16 +178,14 @@ Each sensor includes forecast attributes with timestamped future values.
 
 ## 🔧 Advanced Configuration
 
-### Choosing an Optimizer
+### Optimization Solver
 
-HAEO supports multiple linear programming solvers:
+HAEO uses the **HiGHS** linear programming solver directly via the `highspy` Python bindings:
 
-- **HiGHS** (Recommended): Fast, open-source, no external dependencies
-- **CBC**: COIN-OR solver, good for larger problems
-- **GLPK**: GNU Linear Programming Kit
-- **SCIP**: Academic solver with strong performance
-
-Install solvers via pip: `pip install pulp[highs]`
+- **Fast**: High-performance open-source solver
+- **Reliable**: Industry-standard optimization engine
+- **Integrated**: Direct Python bindings with no external dependencies
+- **Efficient**: Optimized for large-scale linear and mixed-integer programming
 
 ### Time Horizon and Resolution
 
@@ -235,8 +233,8 @@ uv sync
 uv run pytest
 
 # Run linters
-uv run ruff check custom_components/ tests/
-uv run mypy custom_components/
+uv run ruff check
+uv run pyright
 ```
 
 ## 🐛 Support
@@ -257,8 +255,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Built with [PuLP](https://github.com/coin-or/pulp) for linear programming
-- Inspired by the Home Assistant community's energy optimization needs
+- Built with [HiGHS](https://highs.dev/) for linear programming via the `highspy` Python bindings
+- Special mention to [EMHASS](https://github.com/davidusb-geek/emhass) for bringing out my competitive nature and proving that healthy competition drives innovation
 - Uses the Home Assistant integration framework
 
 ---

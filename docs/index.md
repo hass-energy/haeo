@@ -49,7 +49,7 @@ It works alongside other Home Assistant integrations that provide sensor data, a
 
 HAEO watches the sensors you configure and re-optimizes whenever inputs change.
 You choose the horizon and resolution through the UI to balance responsiveness with complexity.
-See the [configuration guide](user-guide/configuration.md#horizon-hours) for advice on selecting a horizon window.
+See the [configuration guide](user-guide/configuration.md#interval-tiers) for advice on selecting interval tiers.
 
 ### Built for the Home Assistant ecosystem
 
@@ -82,9 +82,8 @@ Perfect for **end users** who want to install and configure HAEO:
 For those interested in **how the optimization works**:
 
 - [Mathematical Modeling Overview](modeling/index.md) - Linear programming formulation and network structure
-- [Battery Model](modeling/battery.md) - Storage dynamics and constraints
-- [Grid Model](modeling/grid.md) - Import and export cost modeling
-- [Component Models](modeling/battery.md) - Element-by-element formulations
+- [Model Layer Elements](modeling/model-layer/index.md) - Battery, SourceSink, and Connection models
+- [Device Layer Elements](modeling/device-layer/index.md) - How user-configured elements compose models
 
 ### :material-code-braces: Developer Guide
 

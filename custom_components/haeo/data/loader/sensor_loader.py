@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant
 
 from .extractors import extract
 
-type ForecastSeries = Sequence[tuple[int, float]]
+type ForecastSeries = Sequence[tuple[float, float]]
 type SensorPayload = float | ForecastSeries
 
 

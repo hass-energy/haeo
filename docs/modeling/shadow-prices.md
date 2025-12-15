@@ -71,7 +71,7 @@ The magnitude indicates how valuable additional capacity would be at that point.
 
     Understand how battery constraints generate shadow prices for state-of-charge and energy balance.
 
-    [:material-arrow-right: Battery model](battery.md)
+    [:material-arrow-right: Battery model](model-layer/battery.md)
 
 - :material-transmission-tower:{ .lg .middle } **Grid modeling**
 
@@ -79,7 +79,7 @@ The magnitude indicates how valuable additional capacity would be at that point.
 
     See how import and export limits affect shadow prices at the grid connection.
 
-    [:material-arrow-right: Grid model](grid.md)
+    [:material-arrow-right: Grid model](device-layer/grid.md)
 
 - :material-network:{ .lg .middle } **Network overview**
 

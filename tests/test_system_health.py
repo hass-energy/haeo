@@ -7,16 +7,29 @@ from homeassistant.components.system_health import SystemHealthRegistration
 from homeassistant.core import HomeAssistant
 import pytest
 
-from custom_components.haeo.const import CONF_HORIZON_HOURS, CONF_PERIOD_MINUTES
-from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
-from custom_components.haeo.model.const import (
+from custom_components.haeo.const import (
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
+    DEFAULT_TIER_1_COUNT,
+    DEFAULT_TIER_1_DURATION,
+    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_4_DURATION,
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
-    OUTPUT_TYPE_COST,
-    OUTPUT_TYPE_DURATION,
-    OUTPUT_TYPE_STATUS,
 )
+from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.model.const import OUTPUT_TYPE_COST, OUTPUT_TYPE_DURATION, OUTPUT_TYPE_STATUS
 from custom_components.haeo.system_health import async_register, async_system_health_info
 
 
@@ -55,34 +68,31 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     coordinator.last_update_success = True
     coordinator.last_update_success_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     coordinator.data = {
-        "haeo_hub": {
+        "HAEO Hub": {
             OUTPUT_NAME_OPTIMIZATION_STATUS: CoordinatorOutput(
-                type=OUTPUT_TYPE_STATUS,
-                unit=None,
-                state="success",
-                forecast=None,
+                type=OUTPUT_TYPE_STATUS, unit=None, state="success", forecast=None
             ),
             OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
-                type=OUTPUT_TYPE_COST,
-                unit="$",
-                state=42.75,
-                forecast=None,
+                type=OUTPUT_TYPE_COST, unit="$", state=42.75, forecast=None
             ),
             OUTPUT_NAME_OPTIMIZATION_DURATION: CoordinatorOutput(
-                type=OUTPUT_TYPE_DURATION,
-                unit="s",
-                state=1.234,
-                forecast=None,
+                type=OUTPUT_TYPE_DURATION, unit="s", state=1.234, forecast=None
             ),
         },
-        "battery": {"soc": CoordinatorOutput(type=OUTPUT_TYPE_STATUS, unit=None, state=50, forecast=None)},
+        "Battery": {"soc": CoordinatorOutput(type=OUTPUT_TYPE_STATUS, unit=None, state=50, forecast=None)},
     }
 
     entry = MagicMock()
     entry.title = "HAEO Hub"
     entry.data = {
-        CONF_HORIZON_HOURS: 48,
-        CONF_PERIOD_MINUTES: 10,
+        CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+        CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+        CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+        CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+        CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+        CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+        CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+        CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
     }
     entry.runtime_data = coordinator
 
@@ -96,8 +106,9 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     assert info["HAEO Hub_last_optimization_duration"] == pytest.approx(1.234)
     assert info["HAEO Hub_last_optimization_time"] == "2024-01-01T12:00:00+00:00"
     assert info["HAEO Hub_outputs"] == 1
-    assert info["HAEO Hub_horizon_hours"] == 48
-    assert info["HAEO Hub_period_minutes"] == 10
+    # Check the tier-based configuration is reported
+    total_periods = DEFAULT_TIER_1_COUNT + DEFAULT_TIER_2_COUNT + DEFAULT_TIER_3_COUNT + DEFAULT_TIER_4_COUNT
+    assert info["HAEO Hub_total_periods"] == total_periods
 
 
 async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None:

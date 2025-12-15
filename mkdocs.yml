@@ -155,21 +155,30 @@ nav:
 
   - Mathematical Modeling:
       - modeling/index.md
-      - Battery: modeling/battery.md
-      - Grid: modeling/grid.md
-      - Loads: modeling/loads.md
-      - Photovoltaics: modeling/photovoltaics.md
-      - Connections: modeling/connections.md
-      - Node: modeling/node.md
+      - Model Layer:
+          - modeling/model-layer/index.md
+          - Battery: modeling/model-layer/battery.md
+          - SourceSink: modeling/model-layer/source-sink.md
+          - Connection: modeling/model-layer/connection.md
+      - Device Layer:
+          - modeling/device-layer/index.md
+          - Battery: modeling/device-layer/battery.md
+          - Grid: modeling/device-layer/grid.md
+          - Photovoltaics: modeling/device-layer/photovoltaics.md
+          - Load: modeling/device-layer/loads.md
+          - Node: modeling/device-layer/node.md
+          - Connection: modeling/device-layer/connection.md
       - Shadow Prices: modeling/shadow-prices.md
 
   - Developer Guide:
       - developer-guide/index.md
       - Documentation Guidelines:
           - developer-guide/documentation-guidelines.md
-          - Element Modeling Template: developer-guide/templates/element-modeling-template.md
           - Element User Guide Template: developer-guide/templates/element-user-guide-template.md
+          - Model Layer Template: developer-guide/templates/model-layer-template.md
+          - Device Layer Template: developer-guide/templates/device-layer-template.md
       - Architecture: developer-guide/architecture.md
+      - Adapter Layer: developer-guide/adapter-layer.md
       - Setup: developer-guide/setup.md
       - Units & Stability: developer-guide/units.md
       - Energy Models: developer-guide/energy-models.md

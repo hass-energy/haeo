@@ -62,7 +62,7 @@ bronze:
 
   dependency-transparency:
     status: done
-    comment: manifest.json lists pulp, highspy, and numpy as installation requirements
+    comment: manifest.json lists highspy and numpy as installation requirements
 
   appropriate-polling:
     status: done
@@ -201,7 +201,7 @@ gold:
 platinum:
   strict-typing:
     status: done
-    comment: pyproject.toml enables mypy strict mode and uv run mypy custom_components/haeo --strict completes without errors
+    comment: pyproject.toml enables pyright strict mode and uv run pyright completes without errors
 
   async-dependency:
     status: done

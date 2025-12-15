@@ -5,11 +5,11 @@ description = "Home Assistant Energy Network Optimizer"
 readme = "README.md"
 requires-python = ">=3.13.2,<3.14"
 
-dependencies = ["homeassistant>=2025.4.4", "numpy>=2.2.2", "pulp[highs]>=3.3.0"]
+dependencies = ["homeassistant>=2025.4.4", "numpy>=2.2.2", "highspy>=1.12.0"]
 
 [dependency-groups]
 dev = [
-    "freezegun==1.5.2",
+    "freezegun>=1.5.2",
     "matplotlib>=3.10.7",
     "networkx>=3.4.2",
     "mdformat-beautysh>=1.0.0",
@@ -26,10 +26,10 @@ dev = [
     "mkdocs-git-revision-date-localized-plugin>=1.3.0",
     "mkdocs-material>=9.5.47",
     "mkdocs>=1.6.1",
-    "mypy>=1.18.2",
-    "pytest-cov>=6.1.1,<=6.2.1",
-    "pytest-homeassistant-custom-component>=0.13.260,<=0.13.294",
-    "pytest>=8.3.5,<=9.0.1",
+    "pyright>=1.1.390",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "pytest-homeassistant-custom-component>=0.13.281",
     "ruff>=0.13.1",
     "setuptools>=80.9.0",
     "syrupy>=4.9.1",
@@ -49,7 +49,7 @@ ignore = [
     'COM812',  # Formatter already deals with trailing commas
     'D202',    # Blank lines after docstring are fine
     'D203',    # Don't put a newline between the class and docstring (D211 is used instead)
-    'D213',    # Multiline docstrings have an empty first line (Incompatible with D212)
+    'D213',    # Multiline doc strings have an empty first line (Incompatible with D212)
     'PLR0913', # Parameter limits are a something for code review not linting
     'PLR0915', # Too many statements is something for code review not linting
     'PLR0912', # Too many branches is something for code review not linting
@@ -71,15 +71,6 @@ split-on-trailing-comma = false
 
 [tool.ruff.lint.per-file-ignores]
 
-"stubs/**/*.pyi" = [
-    'N802',   # Function name should be lowercase - PuLP uses camelCase (e.g., getSolver)
-    'N803',   # Argument name should be lowercase - PuLP uses camelCase (e.g., lowBound)
-    'N815',   # Variable in class scope should not be mixedCase - PuLP uses mixed case
-    'A002',   # Argument shadows a Python builtin - stub files reflect actual API
-    'ARG001', # Unused function argument - stub signatures must match actual API
-    'ARG002', # Unused method argument - stub signatures must match actual API
-]
-
 "tests/**/*.py" = [
     'S101',    # Assert is allowed in tests
     'B011',    # Assert false is allowed in tests
@@ -92,37 +83,43 @@ split-on-trailing-comma = false
     'BLE001',  # Do not catch blind exception - test code needs to handle various exception types
 ]
 
+"stubs/**/*.pyi" = [
+    'N',       # Naming conventions must match external API
+    'D',       # Docstrings in stubs are optional
+    'A',       # Shadowing builtins is fine for type stubs
+    'PYI',     # Stub-specific rules - we're matching external API
+    'I',       # Import order doesn't matter in stubs
+    'PIE790',  # Allow ... in stub classes
+]
+
 
 [tool.pyright]
-stubPath = "stubs"
+# Type checking configuration with maximum strictness
+pythonVersion = "3.13"
 typeCheckingMode = "strict"
+stubPath = "stubs"
+include = ["tests", "custom_components"]
+extraPaths = ["."]
 
+# Disable errors that propagate from third-party incomplete types
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownLambdaType = false
+reportUnknownParameterType = false
+
+# Disable missing stubs warning
+reportMissingTypeStubs = false
+
+# Test-specific overrides - allow patterns common in testing
+[[tool.pyright.executionEnvironments]]
+root = "tests"
+reportPrivateUsage = "none"  # Tests intentionally access private methods for testing
 
 [tool.ruff.lint.pylint]
 max-args = 10
 max-branches = 15
 max-statements = 60
-
-[tool.mypy]
-strict = true
-python_version = "3.13"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_any_unimported = false
-follow_imports = "normal"
-follow_untyped_imports = true
-explicit_package_bases = true
-mypy_path = "stubs"
-
-[[tool.mypy.overrides]]
-# In our tests, we often overwrite methods on classes to mock out behavior.
-# This is a common pattern in Python, but mypy doesn't like it. This override
-# silences those errors, but only for the tests module.
-# See discussion here:
-# https://github.com/python/mypy/issues/2427
-disable_error_code = "method-assign"
-module = "tests.*"
 
 [tool.pytest.ini_options]
 timeout = 5
@@ -133,7 +130,6 @@ python_functions = ["test_*"]
 asyncio_mode = "auto"
 addopts = ["--strict-markers", "--strict-config", "--disable-warnings"]
 markers = [
-    "asyncio: marks tests as requiring asyncio (deselect with '-m \"not asyncio\"')",
     "scenario: marks tests as scenario tests (select with '-m \"scenario\"')",
 ]
 
@@ -143,7 +139,7 @@ omit = [
 ]
 
 [tool.mdformat]
-number = true      # Renumber ordered lists
+number = true                 # Renumber ordered lists
 end_of_line = "lf"
 exclude = ["node_modules/**"]
 

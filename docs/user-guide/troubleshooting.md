@@ -21,7 +21,7 @@ Optimization fails or warnings about insufficient forecast data.
 Ensure your forecast sensors provide data for the entire optimization horizon.
 
 **Example**: If horizon is 48 hours, forecasts must cover at least 48 hours.
-Refer to the [horizon guidance](configuration.md#horizon-hours) before changing that value.
+Refer to the [interval tier guidance](configuration.md#interval-tiers) before changing that value.
 
 #### Verify Forecast Sensors
 
@@ -36,9 +36,9 @@ Check sensor attributes in Developer Tools:
 If you can't get longer forecasts, reduce the horizon:
 
 1. Open HAEO configuration
-2. Reduce **Horizon Hours** to match your forecast length
+2. Reduce tier counts to match your forecast length
 3. Save and wait for optimization
-    Shorter horizons limit planning depth, so follow the [horizon guidance](configuration.md#horizon-hours) when you make this change.
+    Shorter horizons limit planning depth, so follow the [interval tier guidance](configuration.md#interval-tiers) when you make this change.
 
 #### Use Multiple Forecast Sensors
 
@@ -143,7 +143,7 @@ Optimization duration exceeds acceptable limits.
 
 If optimization takes too long:
 
-1. **Trim horizon cautiously**: Consider smaller horizons only after other steps and follow the [horizon guidance](configuration.md#horizon-hours) when you do.
+1. **Adjust interval tiers**: Consider reducing tier counts or increasing durations only after other steps and follow the [interval tier guidance](configuration.md#interval-tiers) when you do.
 2. **Increase period**: Use larger time steps (5min → 15min)
 3. **Simplify network**: Remove unnecessary elements
 

@@ -2,7 +2,20 @@
 
 HAEO uses linear programming to optimize energy flows across your network.
 This page explains the high-level architecture and mathematical foundations.
-For element-specific formulations, see the individual element pages.
+
+## Layered Architecture
+
+HAEO separates user configuration from mathematical modeling through a layered architecture:
+
+**Device Layer** (user-configured): Elements like Battery, Grid, Photovoltaics, and Load that users configure through Home Assistant.
+Each Device Layer element may create multiple Model Layer elements and multiple devices with sensors.
+See [Device Layer](device-layer/index.md).
+
+**Model Layer** (optimization): The mathematical building blocks that form the linear programming problem.
+These elements define decision variables, constraints, and cost terms.
+See [Model Layer](model-layer/index.md).
+
+This separation enables composition flexibility—a single Device Layer element can create multiple Model Layer elements to achieve complex behavior (e.g., Battery creates both a battery model for SOC tracking and a connection model for power flow).
 
 ## Linear Programming Overview
 
@@ -113,13 +126,22 @@ This validation ensures the network forms a valid directed graph before attempti
 
 ## Time Discretization
 
-The optimization horizon is divided into discrete periods:
+The optimization horizon is divided into discrete intervals with variable durations:
 
-- **Horizon**: Total optimization period (hours)
-- **Period**: Time step duration (minutes)
-- **Time steps**: $T = \text{Horizon} / \text{Period}$
+- **Tiers**: Groups of intervals with the same duration (up to 4 tiers)
+- **Intervals**: Individual time steps within each tier
+- **Duration**: Each tier specifies a duration in minutes for its intervals
+- **Time steps**: $T = \sum_{\text{tier}} \text{count}_{\text{tier}}$
 
-Each decision variable exists for every time step.
+For example, the default configuration creates:
+
+- Tier 1: 5 intervals × 1 minute = 5 minutes (high resolution near-term)
+- Tier 2: 5 intervals × 5 minutes = 25 minutes
+- Tier 3: 46 intervals × 30 minutes ≈ 23 hours
+- Tier 4: 48 intervals × 60 minutes = 48 hours (low resolution long-term)
+
+This yields $T = 104$ intervals spanning approximately 72 hours.
+Each decision variable exists for every time step, but interval durations vary.
 
 ## Power and Energy Discretization
 
@@ -157,14 +179,14 @@ This distinction matters for cost calculations.
 Prices apply to average power over intervals, which is then converted to energy:
 
 $$
-\text{Energy consumed} = P(t) \times \Delta t
+\text{Energy consumed} = P(t) \times \Delta t_t
 $$
 
 $$
-\text{Cost} = P(t) \times \Delta t \times \text{price}(t)
+\text{Cost} = P(t) \times \Delta t_t \times \text{price}(t)
 $$
 
-Where $\Delta t$ is the period duration in hours.
+Where $\Delta t_t$ is the duration of interval $t$ in hours (varies by tier).
 
 ## Decision Variables and Constraints
 
@@ -233,45 +255,32 @@ HAEO uses consistent units for numerical stability:
 This keeps values in similar numerical ranges, improving solver performance.
 See [units documentation](../developer-guide/units.md) for details.
 
-## Element Formulations
-
-This overview describes the mathematical framework and aggregation process.
-Each element type has detailed formulation documentation covering:
-
-- Decision variables introduced
-- Parameters from configuration or sensors
-- Constraints contributed to the optimization
-- Cost terms in the objective function
-- Physical interpretation
-
-The following pages provide complete mathematical models for each element type:
-
 ## Next Steps
 
 <div class="grid cards" markdown>
 
-- :material-battery-charging:{ .lg .middle } **Battery modeling**
+- :material-cube-outline:{ .lg .middle } **Model Layer**
 
     ---
 
-    Understand energy storage formulation with SOC dynamics and efficiency.
+    Mathematical building blocks for optimization.
 
-    [:material-arrow-right: Battery model](battery.md)
+    [:material-arrow-right: Model Layer elements](model-layer/index.md)
 
-- :material-transmission-tower:{ .lg .middle } **Grid modeling**
-
-    ---
-
-    Learn how bidirectional power flow and pricing work.
-
-    [:material-arrow-right: Grid model](grid.md)
-
-- :material-network:{ .lg .middle } **Connection modeling**
+- :material-devices:{ .lg .middle } **Device Layer**
 
     ---
 
-    Explore how power flows between elements with directional limits.
+    How user-configured elements compose models.
 
-    [:material-arrow-right: Connection model](connections.md)
+    [:material-arrow-right: Device Layer elements](device-layer/index.md)
+
+- :material-currency-usd:{ .lg .middle } **Shadow Prices**
+
+    ---
+
+    Interpret marginal values of constraints.
+
+    [:material-arrow-right: Shadow prices guide](shadow-prices.md)
 
 </div>

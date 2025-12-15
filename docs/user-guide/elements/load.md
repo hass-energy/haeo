@@ -195,14 +195,15 @@ Combine multiple consumption sources:
 
 ## Sensors Created
 
-These sensors provide visibility into load power consumption and the marginal cost of serving the load.
+A Load element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                            | Unit  | Description                        |
-| ------------------------------------------------- | ----- | ---------------------------------- |
-| [`sensor.{name}_power_consumed`](#power-consumed) | kW    | Power consumed by load             |
-| [`sensor.{name}_power_balance`](#power-balance)   | \$/kW | Marginal cost of serving this load |
+| Sensor                                                        | Unit  | Description                           |
+| ------------------------------------------------------------- | ----- | ------------------------------------- |
+| [`sensor.{name}_power`](#power)                               | kW    | Power consumed by load                |
+| [`sensor.{name}_power_possible`](#power-possible)             | kW    | Maximum possible load (from forecast) |
+| [`sensor.{name}_forecast_limit_price`](#forecast-limit-price) | \$/kW | Marginal cost of serving this load    |
 
-### Power Consumed
+### Power
 
 The optimal power consumed by this load at each time period.
 
@@ -215,7 +216,14 @@ The optimization determines how to supply this power (from grid, battery, or sol
 
 **Example**: A value of 2.5 kW means this load requires 2.5 kW at this time period, which the optimization must supply from available sources.
 
-### Power Balance
+### Power Possible
+
+The maximum possible load from the forecast configuration.
+
+For loads, this equals the power sensor since load consumption is fixed.
+Shows the value from the configured forecast sensor(s).
+
+### Forecast Limit Price
 
 The marginal cost of supplying power to this load at each time period.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.

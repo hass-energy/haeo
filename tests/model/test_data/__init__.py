@@ -3,47 +3,41 @@
 This module provides factory functions and utilities for creating test element instances.
 """
 
-from collections.abc import Sequence
-from typing import Any, cast
-
-from pulp import LpVariable
+from highspy import Highs
+from highspy.highs import highs_var
 
 from .connection_types import ConnectionTestCase
 from .element_types import ElementTestCase
 
 
-def fix_lp_variable(variable: LpVariable, value: float) -> None:
-    """Assign a fixed value to an LP variable using typed casts for mypy."""
+def highs_sequence(h: Highs, name: str, length: int) -> tuple[list[highs_var], Highs]:
+    """Return a sequence of HiGHS variables for tests with fixed values.
 
-    lp_variable = cast("Any", variable)
-    lp_variable.setInitialValue(value)
-    lp_variable.fixValue()
+    Args:
+        h: The HiGHS solver instance
+        name: Base name for variables
+        length: Number of variables to create
 
+    Returns:
+        Tuple of (list of variables, solved HiGHS instance)
 
-def lp_sequence(name: str, length: int) -> Sequence[LpVariable]:
-    """Return a sequence of PuLP variables for tests with fixed values."""
-
-    variables: list[LpVariable] = []
-    for index in range(length):
-        variable = LpVariable(f"{name}_{index}")
-        fix_lp_variable(variable, float(index + 1))
-        variables.append(variable)
-
-    return tuple(variables)
+    """
+    variables = [h.addVariable(lb=float(i + 1), ub=float(i + 1), name=f"{name}_{i}") for i in range(length)]
+    # Solve to get values
+    h.run()
+    return variables, h
 
 
 # Import modules after defining utilities to avoid circular imports
-from . import battery, connection, grid, load, node, photovoltaics  # noqa: E402
+from . import battery, connection, node, source_sink  # noqa: E402
 
 
 def _aggregate_element_cases() -> list[ElementTestCase]:
     """Aggregate valid element test cases."""
     return [
         *battery.VALID_CASES,
-        *load.VALID_CASES,
-        *grid.VALID_CASES,
+        *source_sink.VALID_CASES,
         *node.VALID_CASES,
-        *photovoltaics.VALID_CASES,
     ]
 
 
@@ -58,10 +52,8 @@ def _aggregate_invalid_element_cases() -> list[ElementTestCase]:
     """Aggregate invalid element test cases."""
     return [
         *battery.INVALID_CASES,
-        *load.INVALID_CASES,
-        *grid.INVALID_CASES,
+        *source_sink.INVALID_CASES,
         *node.INVALID_CASES,
-        *photovoltaics.INVALID_CASES,
     ]
 
 
@@ -85,10 +77,7 @@ __all__ = [
     "VALID_ELEMENT_CASES",
     "battery",
     "connection",
-    "fix_lp_variable",
-    "grid",
-    "load",
-    "lp_sequence",
+    "highs_sequence",
     "node",
-    "photovoltaics",
+    "source_sink",
 ]

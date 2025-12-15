@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import cast
+from typing import Literal, cast
 from unittest.mock import Mock
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
@@ -11,22 +11,21 @@ from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
-from homeassistant.util import slugify
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
-from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
-from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
-from custom_components.haeo.model import (
+from custom_components.haeo.const import (
+    CONF_ELEMENT_TYPE,
+    CONF_NAME,
+    DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
-    OUTPUT_TYPE_DURATION,
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_STATUS,
-    OutputType,
 )
-from custom_components.haeo.model.load import LOAD_POWER_CONSUMED
+from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
+from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
+from custom_components.haeo.elements.load import LOAD_POWER
+from custom_components.haeo.model import OUTPUT_TYPE_DURATION, OUTPUT_TYPE_POWER, OUTPUT_TYPE_STATUS, OutputType
 from custom_components.haeo.sensors import async_setup_entry
 from custom_components.haeo.sensors.sensor import HaeoSensor
 
@@ -35,7 +34,7 @@ class _DummyCoordinator:
     """Minimal coordinator stub for sensor tests."""
 
     def __init__(self) -> None:
-        self.data: dict[str, dict[str, CoordinatorOutput]] = {}
+        self.data: dict[str, dict[str, dict[str, CoordinatorOutput]]] = {}
         self.last_update_success = True
         self._listeners: list[Callable[[], None]] = []
 
@@ -57,6 +56,7 @@ def _make_output(
     device_class: SensorDeviceClass | None,
     state_class: SensorStateClass | None,
     options: tuple[str, ...] | None,
+    direction: Literal["+", "-"] | None = None,
 ) -> CoordinatorOutput:
     return CoordinatorOutput(
         type=type_,
@@ -67,6 +67,7 @@ def _make_output(
         device_class=device_class,
         state_class=state_class,
         options=options,
+        direction=direction,
     )
 
 
@@ -116,43 +117,47 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
     """Sensors inherit metadata supplied by coordinator outputs."""
 
     coordinator = _DummyCoordinator()
-    network_key = slugify(config_entry.title)
-    battery_key = slugify("Battery")
+    network_key = config_entry.title
+    battery_key = "Battery"
 
     coordinator.data = {
         network_key: {
-            OUTPUT_NAME_OPTIMIZATION_STATUS: _make_output(
-                type_=OUTPUT_TYPE_STATUS,
-                unit=None,
-                state="pending",
-                forecast=None,
-                entity_category=None,
-                device_class=SensorDeviceClass.ENUM,
-                state_class=None,
-                options=("failed", "pending", "success"),
-            ),
-            OUTPUT_NAME_OPTIMIZATION_DURATION: _make_output(
-                type_=OUTPUT_TYPE_DURATION,
-                unit=UnitOfTime.SECONDS,
-                state=12.3,
-                forecast=None,
-                entity_category=EntityCategory.DIAGNOSTIC,
-                device_class=SensorDeviceClass.DURATION,
-                state_class=SensorStateClass.MEASUREMENT,
-                options=None,
-            ),
+            network_key: {
+                OUTPUT_NAME_OPTIMIZATION_STATUS: _make_output(
+                    type_=OUTPUT_TYPE_STATUS,
+                    unit=None,
+                    state="pending",
+                    forecast=None,
+                    entity_category=None,
+                    device_class=SensorDeviceClass.ENUM,
+                    state_class=None,
+                    options=("failed", "pending", "success"),
+                ),
+                OUTPUT_NAME_OPTIMIZATION_DURATION: _make_output(
+                    type_=OUTPUT_TYPE_DURATION,
+                    unit=UnitOfTime.SECONDS,
+                    state=12.3,
+                    forecast=None,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    device_class=SensorDeviceClass.DURATION,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    options=None,
+                ),
+            },
         },
         battery_key: {
-            LOAD_POWER_CONSUMED: _make_output(
-                type_=OUTPUT_TYPE_POWER,
-                unit="kW",
-                state=1.5,
-                forecast=[ForecastPoint(time=datetime.now(tz=UTC), value=1.5)],
-                entity_category=None,
-                device_class=SensorDeviceClass.POWER,
-                state_class=SensorStateClass.MEASUREMENT,
-                options=None,
-            )
+            battery_key: {
+                LOAD_POWER: _make_output(
+                    type_=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    state=1.5,
+                    forecast=[ForecastPoint(time=datetime.now(tz=UTC), value=1.5)],
+                    entity_category=None,
+                    device_class=SensorDeviceClass.POWER,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    options=None,
+                )
+            },
         },
     }
     config_entry.runtime_data = coordinator
@@ -175,7 +180,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
     assert duration_sensor.device_class is SensorDeviceClass.DURATION
     assert duration_sensor.state_class is SensorStateClass.MEASUREMENT
 
-    power_sensor = next(sensor for sensor in sensors if sensor.translation_key == LOAD_POWER_CONSUMED)
+    power_sensor = next(sensor for sensor in sensors if sensor.translation_key == LOAD_POWER)
     assert power_sensor.native_unit_of_measurement == "kW"
     assert power_sensor.device_class is SensorDeviceClass.POWER
     assert power_sensor.state_class is SensorStateClass.MEASUREMENT
@@ -230,10 +235,11 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
     sensor = HaeoSensor(
         cast("HaeoDataUpdateCoordinator", coordinator),
         device_entry=device_entry,
-        element_key="battery",
+        subentry_key="battery",
+        device_key="battery",
         element_title="Battery",
         element_type=BATTERY_TYPE,
-        output_name=LOAD_POWER_CONSUMED,
+        output_name=LOAD_POWER,
         output_data=initial_output,
         unique_id="sensor-id",
     )
@@ -250,7 +256,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
         state_class=SensorStateClass.MEASUREMENT,
         options=None,
     )
-    coordinator.data = {"battery": {LOAD_POWER_CONSUMED: updated_output}}
+    coordinator.data = {"battery": {"battery": {LOAD_POWER: updated_output}}}
 
     sensor._handle_coordinator_update()
 
@@ -286,10 +292,11 @@ def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry
     sensor = HaeoSensor(
         cast("HaeoDataUpdateCoordinator", coordinator),
         device_entry=device_entry,
-        element_key="battery",
+        subentry_key="battery",
+        device_key="battery",
         element_title="Battery",
         element_type=BATTERY_TYPE,
-        output_name=LOAD_POWER_CONSUMED,
+        output_name=LOAD_POWER,
         output_data=initial_output,
         unique_id="sensor-id",
     )
@@ -303,9 +310,8 @@ def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry
     assert attributes == {
         "element_name": "Battery",
         "element_type": BATTERY_TYPE,
-        "output_name": LOAD_POWER_CONSUMED,
+        "output_name": LOAD_POWER,
         "output_type": OUTPUT_TYPE_POWER,
-        "direction": None,
         "advanced": False,
     }
 
@@ -328,10 +334,11 @@ def test_sensor_availability_follows_coordinator(device_entry: DeviceEntry) -> N
     sensor = HaeoSensor(
         cast("HaeoDataUpdateCoordinator", coordinator),
         device_entry=device_entry,
-        element_key="battery",
+        subentry_key="battery",
+        device_key="battery",
         element_title="Battery",
         element_type=BATTERY_TYPE,
-        output_name=LOAD_POWER_CONSUMED,
+        output_name=LOAD_POWER,
         output_data=output,
         unique_id="sensor-id",
     )
@@ -357,15 +364,16 @@ async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: Devi
         state_class=SensorStateClass.MEASUREMENT,
         options=None,
     )
-    coordinator.data = {"battery": {LOAD_POWER_CONSUMED: output}}
+    coordinator.data = {"battery": {"battery": {LOAD_POWER: output}}}
 
     sensor = HaeoSensor(
         cast("HaeoDataUpdateCoordinator", coordinator),
         device_entry=device_entry,
-        element_key="battery",
+        subentry_key="battery",
+        device_key="battery",
         element_title="Battery",
         element_type=BATTERY_TYPE,
-        output_name=LOAD_POWER_CONSUMED,
+        output_name=LOAD_POWER,
         output_data=output,
         unique_id="sensor-id",
     )
@@ -375,3 +383,134 @@ async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: Devi
     await sensor.async_added_to_hass()
 
     sensor._handle_coordinator_update.assert_called_once()
+
+
+async def test_async_setup_entry_creates_sub_device_sensors(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Sensors are created for sub-devices (e.g. nested components)."""
+
+    coordinator = _DummyCoordinator()
+    battery_key = "Battery"
+    sub_device_key = "Battery Sub"
+
+    coordinator.data = {
+        battery_key: {
+            sub_device_key: {
+                LOAD_POWER: _make_output(
+                    type_=OUTPUT_TYPE_POWER,
+                    unit="kW",
+                    state=1.0,
+                    forecast=None,
+                    entity_category=None,
+                    device_class=SensorDeviceClass.POWER,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    options=None,
+                )
+            },
+        },
+    }
+    config_entry.runtime_data = coordinator
+
+    async_add_entities = Mock()
+
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    async_add_entities.assert_called_once()
+    sensors = list(async_add_entities.call_args.args[0])
+    assert len(sensors) == 1
+
+    sensor = sensors[0]
+    # Check that the sensor uses the output name as translation key (consistent with all sensors)
+    assert sensor.translation_key == LOAD_POWER
+    # Check that it's associated with the correct sub-device
+    assert sensor._device_key == sub_device_key
+
+
+def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> None:
+    """Coordinator updates apply the direction attribute."""
+    coordinator = _DummyCoordinator()
+    initial_output = _make_output(
+        type_=OUTPUT_TYPE_POWER,
+        unit="kW",
+        state=1.0,
+        forecast=None,
+        entity_category=None,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+    )
+
+    sensor = HaeoSensor(
+        cast("HaeoDataUpdateCoordinator", coordinator),
+        device_entry=device_entry,
+        subentry_key="battery",
+        device_key="battery",
+        element_title="Battery",
+        element_type=BATTERY_TYPE,
+        output_name=LOAD_POWER,
+        output_data=initial_output,
+        unique_id="sensor-id",
+    )
+    sensor.async_write_ha_state = Mock()
+
+    updated_output = _make_output(
+        type_=OUTPUT_TYPE_POWER,
+        unit="kW",
+        state=1.0,
+        forecast=None,
+        entity_category=None,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+        direction="+",
+    )
+    coordinator.data = {"battery": {"battery": {LOAD_POWER: updated_output}}}
+
+    sensor._handle_coordinator_update()
+
+    attributes = sensor.extra_state_attributes
+    assert attributes is not None
+    assert attributes["direction"] == "+"
+
+
+def test_handle_coordinator_update_missing_output_clears_value(device_entry: DeviceEntry) -> None:
+    """If the specific output is missing from data, sensor value is cleared."""
+    coordinator = _DummyCoordinator()
+    initial_output = _make_output(
+        type_=OUTPUT_TYPE_POWER,
+        unit="kW",
+        state=1.0,
+        forecast=None,
+        entity_category=None,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+    )
+
+    sensor = HaeoSensor(
+        cast("HaeoDataUpdateCoordinator", coordinator),
+        device_entry=device_entry,
+        subentry_key="battery",
+        device_key="battery",
+        element_title="Battery",
+        element_type=BATTERY_TYPE,
+        output_name=LOAD_POWER,
+        output_data=initial_output,
+        unique_id="sensor-id",
+    )
+    sensor.async_write_ha_state = Mock()
+
+    # Case 1: Subentry exists, device exists, but output missing
+    coordinator.data = {"battery": {"battery": {}}}
+    sensor._handle_coordinator_update()
+    assert sensor.native_value is None
+
+    # Reset
+    sensor._apply_output(initial_output)
+
+    # Case 2: Subentry exists, device missing
+    coordinator.data = {"battery": {}}
+    sensor._handle_coordinator_update()
+    assert sensor.native_value is None

@@ -14,6 +14,7 @@ Cycling behavior (forecast shorter than horizon) is tested in test_forecast_cycl
 Tests use simple integer timestamps to avoid datetime complexity.
 """
 
+import numpy as np
 import pytest
 
 from custom_components.haeo.data.util.forecast_fuser import fuse_to_horizon
@@ -119,6 +120,24 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_horizon
             [0, 1000, 2000],  # Check present value replacement works with straddling forecast
             [15.0, 86.1611374407583],  # present@0 replaces first interval, then pure forecast average
             id="forecast_before_and_after_present_override",
+        ),
+        pytest.param(
+            50.0,
+            [
+                (0.0, 100.0),
+                (np.nextafter(1000.0, -np.inf), 100.0),
+                (1000.0, 200.0),
+                (np.nextafter(2000.0, -np.inf), 200.0),
+            ],
+            [0, 500, 1000, 1500, 2000],
+            # Interval [0,500]: present value override = 50.0
+            # Interval [500,1000]: trapezoidal from 500 to 1000, includes step at boundary
+            #   - Most of interval at 100, but includes point at t=1000 with value=200
+            #   - Result: ~150 (average of 100 and 200 at the boundary)
+            # Interval [1000,1500]: constant at 200
+            # Interval [1500,2000]: constant at 200
+            [50.0, 150.0, 200.0, 200.0],
+            id="step_function_integration",
         ),
     ],
 )

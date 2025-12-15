@@ -1,34 +1,36 @@
 """Node for electrical system modeling."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Final, Literal
+
+from highspy import Highs
 
 from .const import OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
 from .output_data import OutputData
 
-NODE_POWER_BALANCE: Final = "node_power_balance"
-
 type NodeConstraintName = Literal["node_power_balance"]
 
 type NodeOutputName = NodeConstraintName
 
-NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
+NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset(
+    (NODE_POWER_BALANCE := "node_power_balance",),
+)
 
 
 class Node(Element[NodeOutputName, NodeConstraintName]):
     """Node for electrical system modeling."""
 
-    def __init__(self, name: str, period: float, n_periods: int) -> None:
+    def __init__(self, name: str, periods: Sequence[float], *, solver: Highs) -> None:
         """Initialize a node.
 
         Args:
             name: Name of the node
-            period: Time period in hours (model units)
-            n_periods: Number of time periods
+            periods: Sequence of time period durations in hours (one per optimization interval)
+            solver: The HiGHS solver instance for creating variables and constraints
 
         """
-        super().__init__(name=name, period=period, n_periods=n_periods)
+        super().__init__(name=name, periods=periods, solver=solver)
 
     def build_constraints(self) -> None:
         """Build network-dependent constraints for the node.
@@ -36,7 +38,9 @@ class Node(Element[NodeOutputName, NodeConstraintName]):
         This includes power balance constraints using connection_power().
         Nodes are pure junctions with no generation or consumption.
         """
-        self._constraints[NODE_POWER_BALANCE] = [self.connection_power(t) == 0 for t in range(self.n_periods)]
+        h = self._solver
+
+        self._constraints[NODE_POWER_BALANCE] = h.addConstrs(self.connection_power() == 0)
 
     def outputs(self) -> Mapping[NodeOutputName, OutputData]:
         """Return node output specifications."""
@@ -46,7 +50,7 @@ class Node(Element[NodeOutputName, NodeConstraintName]):
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit="$/kW",
-                values=self._constraints[constraint_name],
+                values=self.extract_values(self._constraints[constraint_name]),
             )
 
         return outputs

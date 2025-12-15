@@ -2,6 +2,11 @@
 
 Connections define how power flows between elements in your network with support for bidirectional flow, efficiency losses, and transmission costs.
 
+!!! note "Implicit connections"
+
+    Many elements create implicit connections automatically.
+    You only need explicit Connection elements for additional power paths not covered by element defaults.
+
 ## Configuration
 
 | Field                        | Type                                     | Required | Default   | Description                                                            |
@@ -135,16 +140,22 @@ The optimizer will only schedule charging when the sensor value is non-zero.
 
 ## Sensors Created
 
-These sensors provide real-time visibility into power flow and capacity constraints between elements.
+A Connection element creates 1 device in Home Assistant with the following sensors.
+Not all sensors are created for every connection - only those relevant to the configuration.
 
-| Sensor                                                                | Unit  | Description                          |
-| --------------------------------------------------------------------- | ----- | ------------------------------------ |
-| [`sensor.{name}_power_flow_source_target`](#power-flow-source-target) | kW    | Power flowing from source to target  |
-| [`sensor.{name}_power_flow_target_source`](#power-flow-target-source) | kW    | Power flowing from target to source  |
-| [`sensor.{name}_max_power_source_target`](#max-power-source-target)   | \$/kW | Value of additional forward capacity |
-| [`sensor.{name}_max_power_target_source`](#max-power-target-source)   | \$/kW | Value of additional reverse capacity |
+| Sensor                                                                            | Unit   | Description                             |
+| --------------------------------------------------------------------------------- | ------ | --------------------------------------- |
+| [`sensor.{name}_power_source_target`](#power-source-target)                       | kW     | Power flowing from source to target     |
+| [`sensor.{name}_power_target_source`](#power-target-source)                       | kW     | Power flowing from target to source     |
+| [`sensor.{name}_power_max_source_target`](#power-max-source-target)               | kW     | Maximum forward power (when limited)    |
+| [`sensor.{name}_power_max_target_source`](#power-max-target-source)               | kW     | Maximum reverse power (when limited)    |
+| [`sensor.{name}_price_source_target`](#price-source-target)                       | \$/kWh | Forward transfer price                  |
+| [`sensor.{name}_price_target_source`](#price-target-source)                       | \$/kWh | Reverse transfer price                  |
+| [`sensor.{name}_shadow_power_max_source_target`](#shadow-power-max-source-target) | \$/kW  | Value of additional forward capacity    |
+| [`sensor.{name}_shadow_power_max_target_source`](#shadow-power-max-target-source) | \$/kW  | Value of additional reverse capacity    |
+| [`sensor.{name}_time_slice`](#time-slice)                                         | \$/kW  | Value of relaxing time-slice constraint |
 
-### Power Flow Source Target
+### Power Source Target
 
 The optimal power flowing from the source element to the target element.
 
@@ -154,7 +165,7 @@ The direction is determined by the connection configuration (source → target).
 
 **Example**: A value of 3.5 kW means 3.5 kW is flowing from the source element to the target element at this time period.
 
-### Power Flow Target Source
+### Power Target Source
 
 The optimal power flowing from the target element to the source element.
 
@@ -164,12 +175,33 @@ This represents reverse flow through the connection (target → source).
 
 **Example**: A value of 2.0 kW means 2.0 kW is flowing from the target element back to the source element at this time period.
 
-### Max Power Source Target
+### Power Max Source Target
+
+The configured maximum forward power limit from the sensor configuration.
+Only created when a forward power limit is configured.
+
+### Power Max Target Source
+
+The configured maximum reverse power limit from the sensor configuration.
+Only created when a reverse power limit is configured.
+
+### Price Source Target
+
+The configured price for power transfer in the forward direction.
+Only created when a forward price is configured.
+
+### Price Target Source
+
+The configured price for power transfer in the reverse direction.
+Only created when a reverse price is configured.
+
+### Shadow Power Max Source Target
 
 The marginal value of additional forward capacity (source → target).
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
 This shadow price shows how much the total system cost would decrease if the forward power limit were increased by 1 kW at this time period.
+Only created when a forward power limit is configured.
 
 **Interpretation**:
 
@@ -181,12 +213,13 @@ This shadow price shows how much the total system cost would decrease if the for
 
 **Example**: A value of 0.08 means that if the connection could transfer 1 kW more in the forward direction, the total system cost would decrease by \$0.08 at this time period.
 
-### Max Power Target Source
+### Shadow Power Max Target Source
 
 The marginal value of additional reverse capacity (target → source).
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
 This shadow price shows how much the total system cost would decrease if the reverse power limit were increased by 1 kW at this time period.
+Only created when a reverse power limit is configured.
 
 **Interpretation**:
 
@@ -197,6 +230,39 @@ This shadow price shows how much the total system cost would decrease if the rev
     - Helps identify bottlenecks where more reverse capacity would be valuable
 
 **Example**: A value of 0.12 means that if the connection could transfer 1 kW more in the reverse direction, the total system cost would decrease by \$0.12 at this time period.
+
+### Time Slice
+
+The marginal value of relaxing the time-slicing constraint.
+See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+This shadow price shows how much the total system cost would decrease if simultaneous bidirectional power flow were less restricted at this time period.
+Only created when both forward and reverse power limits are configured.
+
+The time-slicing constraint prevents full power flow in both directions simultaneously: `P_forward/P_max_forward + P_reverse/P_max_reverse ≤ 1.0`.
+This models real-world devices that share capacity between directions (e.g., an inverter that can't operate at full charge and discharge simultaneously).
+
+**Interpretation**:
+
+- **Zero value**: Connection is not constrained by time slicing (operating in only one direction or well below limits)
+- **Positive value**: Time slicing is constraining bidirectional operation
+    - The value shows how much system cost would decrease if the constraint were relaxed by 1% (allowing the sum to reach 1.01)
+    - Higher values indicate the connection could benefit from being able to operate more simultaneously in both directions
+    - Helps identify devices where increased bidirectional capacity would be valuable
+
+**Example**: A value of 0.15 means that if the connection could operate slightly more simultaneously in both directions (sum ≤ 1.01 instead of ≤ 1.0), the total system cost would decrease by \$0.15 at this time period.
+
+!!! warning "Unusual constraint binding"
+
+    A positive time-slice shadow price is unusual and typically indicates misconfiguration.
+    In most real-world scenarios, connections should not need to transfer power in both directions simultaneously.
+    If this constraint is binding, it often suggests arbitrage opportunities caused by:
+
+    - Inconsistent pricing across elements (e.g., different import/export prices creating profitable round-trip power flow)
+    - Efficiency values greater than 100% allowing energy creation through cycling
+    - Connection prices that don't reflect the true cost of bidirectional operation
+
+    Review your element configurations to ensure prices, efficiencies, and power limits accurately represent the physical system.
 
 ---
 
@@ -224,7 +290,7 @@ See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly)
 
     Understand the mathematical formulation of power flows.
 
-    [:material-arrow-right: Connection modeling](../../modeling/connections.md)
+    [:material-arrow-right: Connection modeling](../../modeling/device-layer/connection.md)
 
 - :material-circle-outline:{ .lg .middle } **Node modeling**
 
@@ -232,7 +298,7 @@ See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly)
 
     Learn about power balance at network nodes.
 
-    [:material-arrow-right: Node modeling](../../modeling/node.md)
+    [:material-arrow-right: Node modeling](../../modeling/device-layer/node.md)
 
 - :material-chart-line:{ .lg .middle } **Understand optimization**
 

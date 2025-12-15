@@ -4,8 +4,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
+import numpy as np
+
 from .const import OutputType
-from .util import extract_values
 
 
 @dataclass(slots=True)
@@ -15,8 +16,7 @@ class OutputData:
     Attributes:
         type: The output type (power, energy, SOC, etc.).
         unit: The unit of measurement for the output values (e.g., "W", "Wh", "%").
-        values: The sequence of output values. Accepts LP types (LpVariable, LpConstraint,
-            LpAffineExpression) which are automatically converted to floats.
+        values: The sequence of output values.
         direction: Power flow direction relative to the element.
             "+" = power flowing into element (charge, import, consumption) or toward target (connections).
             "-" = power flowing out of element (discharge, export, production) or toward source (connections).
@@ -40,13 +40,12 @@ class OutputData:
         *,
         advanced: bool = False,
     ) -> None:
-        """Initialize OutputData with automatic LP type conversion.
+        """Initialize OutputData.
 
         Args:
             type: The output type (power, energy, SOC, etc.).
             unit: The unit of measurement for the output values.
-            values: A single value or sequence of values. LP types are automatically
-                converted to floats, other types pass through unchanged.
+            values: A single value or sequence of values (already extracted from HiGHS types).
             direction: Power flow direction relative to the element.
             advanced: Whether the output is intended for advanced diagnostics only.
 
@@ -56,8 +55,13 @@ class OutputData:
         self.direction = direction
         self.advanced = advanced
 
-        # Normalize to a sequence (single values wrapped in tuple) and extract values
-        if isinstance(values, Sequence) and not isinstance(values, str):
-            self.values = extract_values(values)
+        # Normalize to a tuple
+        if isinstance(values, np.ndarray):
+            # Convert numpy arrays to tuple (flattens properly)
+            self.values = tuple(values.flat)
+        elif isinstance(values, Sequence) and not isinstance(values, str):
+            # Convert sequences to tuple
+            self.values = tuple(values)
         else:
-            self.values = extract_values((values,))
+            # Wrap single values in tuple
+            self.values = (values,)

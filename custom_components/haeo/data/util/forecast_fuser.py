@@ -61,7 +61,7 @@ def fuse_to_horizon(
     # We need at least 2 repetitions to ensure we can interpolate beyond the original forecast
     repeat_count = max(2, int(np.ceil((horizon_end - horizon_start) / cover_seconds)) + 1)
     block = [(timestamp + i * cover_seconds, value) for i in range(repeat_count) for (timestamp, value) in block]
-    block_array = np.array(block, dtype=[("timestamp", np.int64), ("value", np.float64)])
+    block_array = np.array(block, dtype=[("timestamp", np.float64), ("value", np.float64)])
 
     # Add horizon timestamps to block_array so we can compute exact cumulative values at those points
     # Combine block_array timestamps and horizon_times, removing duplicates
@@ -69,7 +69,7 @@ def fuse_to_horizon(
     all_values = np.interp(all_timestamps, block_array["timestamp"], block_array["value"])
 
     # Create expanded block array with all timestamps
-    expanded_block_array = np.empty(len(all_timestamps), dtype=[("timestamp", np.int64), ("value", np.float64)])
+    expanded_block_array = np.empty(len(all_timestamps), dtype=[("timestamp", np.float64), ("value", np.float64)])
     expanded_block_array["timestamp"] = all_timestamps
     expanded_block_array["value"] = all_values
 

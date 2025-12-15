@@ -42,7 +42,7 @@ async def test_evaluate_network_connectivity_connected(
     )
     hass.config_entries.async_add_subentry(config_entry, node_a)
 
-    evaluate_network_connectivity(hass, config_entry)
+    await evaluate_network_connectivity(hass, config_entry)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)
@@ -71,7 +71,7 @@ async def test_evaluate_network_connectivity_disconnected(
     hass.config_entries.async_add_subentry(config_entry, node_a)
     hass.config_entries.async_add_subentry(config_entry, node_b)
 
-    evaluate_network_connectivity(hass, config_entry)
+    await evaluate_network_connectivity(hass, config_entry)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)
@@ -101,7 +101,7 @@ async def test_evaluate_network_connectivity_resolves_issue(
     hass.config_entries.async_add_subentry(config_entry, node_a)
     hass.config_entries.async_add_subentry(config_entry, node_b)
 
-    evaluate_network_connectivity(hass, config_entry)
+    await evaluate_network_connectivity(hass, config_entry)
 
     # Connect the nodes and re-validate
     connection = ConfigSubentry(
@@ -119,7 +119,7 @@ async def test_evaluate_network_connectivity_resolves_issue(
     )
     hass.config_entries.async_add_subentry(config_entry, connection)
 
-    evaluate_network_connectivity(hass, config_entry)
+    await evaluate_network_connectivity(hass, config_entry)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)

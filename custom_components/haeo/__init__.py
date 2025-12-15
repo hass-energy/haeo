@@ -56,7 +56,7 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     from .network import evaluate_network_connectivity  # noqa: PLC0415
 
     await _ensure_network_subentry(hass, entry)
-    evaluate_network_connectivity(hass, entry)
+    await evaluate_network_connectivity(hass, entry)
     _LOGGER.info("HAEO configuration changed, reloading integration")
     await hass.config_entries.async_reload(entry.entry_id)
 
