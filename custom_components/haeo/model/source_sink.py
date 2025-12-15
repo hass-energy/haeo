@@ -87,7 +87,6 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
 
         Adapter layer maps these to element-specific names (grid_power_imported, load_power_consumed, etc.)
         """
-        solver = self._solver
         outputs: dict[SourceSinkOutputName, OutputData] = {}
 
         # All constraints are power balance for SourceSink
