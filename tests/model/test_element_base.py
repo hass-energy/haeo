@@ -3,7 +3,8 @@
 from unittest.mock import Mock
 
 from highspy import Highs
-from highspy.highs import highs_linear_expression
+import numpy as np
+import pytest
 
 from custom_components.haeo.model.connection import Connection
 from custom_components.haeo.model.node import Node
@@ -12,55 +13,75 @@ from custom_components.haeo.model.node import Node
 def test_connection_power_with_target_end(solver: Highs) -> None:
     """Test connection_power when element is registered as target end of connection.
 
-    This tests the elif end == "target" branch (line 74 in element.py).
+    As target: power_in = power_st * eff_st, power_out = -power_ts
+    Net power = power_st * eff_st - power_ts
     """
     h = solver
 
     # Create a simple node element
     node = Node(name="test_node", periods=[1.0] * 3, solver=h)
 
-    # Create a mock connection with HiGHS variables
+    # Create a mock connection with HiGHS variable arrays
     mock_connection = Mock(spec=Connection)
-    mock_connection.power_source_target = [h.addVariable(lb=0, name=f"power_st_{i}") for i in range(3)]
-    mock_connection.power_target_source = [h.addVariable(lb=0, name=f"power_ts_{i}") for i in range(3)]
-    mock_connection.efficiency_source_target = [0.95, 0.95, 0.95]
-    mock_connection.efficiency_target_source = [0.90, 0.90, 0.90]
+    mock_connection.power_source_target = h.addVariables(3, lb=0, ub=10, name_prefix="power_st_", out_array=True)
+    mock_connection.power_target_source = h.addVariables(3, lb=0, ub=10, name_prefix="power_ts_", out_array=True)
+    mock_connection.efficiency_source_target = np.array([0.95, 0.90, 0.85])
+    mock_connection.efficiency_target_source = np.array([0.80, 0.75, 0.70])
 
     # Register the connection with node as TARGET
     node.register_connection(mock_connection, "target")
 
-    # Call connection_power - should use the "target" branch
-    result = node.connection_power(0)
+    # Call connection_power - should return array for all periods
+    result = node.connection_power()
 
-    # Result should be a highs_linear_expression
-    assert isinstance(result, highs_linear_expression)
+    # Verify it's an array with 3 elements
+    assert len(result) == 3
+
+    # Set specific values and verify the calculation
+    # For target: net = power_st * eff_st - power_ts
+    h.addConstr(mock_connection.power_source_target[0] == 10.0)
+    h.addConstr(mock_connection.power_target_source[0] == 2.0)
+    h.minimize(result[0])  # Minimize to get the value
+
+    # Expected: 10 * 0.95 - 2 = 9.5 - 2 = 7.5
+    assert h.val(result[0]) == pytest.approx(7.5)
 
 
 def test_connection_power_with_source_end(solver: Highs) -> None:
     """Test connection_power when element is registered as source end of connection.
 
-    This tests the if end == "source" branch (line 69 in element.py).
+    As source: power_out = -power_st, power_in = power_ts * eff_ts
+    Net power = -power_st + power_ts * eff_ts
     """
     h = solver
 
     # Create a simple node element
     node = Node(name="test_node", periods=[1.0] * 3, solver=h)
 
-    # Create a mock connection with HiGHS variables
+    # Create a mock connection with HiGHS variable arrays
     mock_connection = Mock(spec=Connection)
-    mock_connection.power_source_target = [h.addVariable(lb=0, name=f"power_st_{i}") for i in range(3)]
-    mock_connection.power_target_source = [h.addVariable(lb=0, name=f"power_ts_{i}") for i in range(3)]
-    mock_connection.efficiency_source_target = [0.95, 0.95, 0.95]
-    mock_connection.efficiency_target_source = [0.90, 0.90, 0.90]
+    mock_connection.power_source_target = h.addVariables(3, lb=0, ub=10, name_prefix="power_st_", out_array=True)
+    mock_connection.power_target_source = h.addVariables(3, lb=0, ub=10, name_prefix="power_ts_", out_array=True)
+    mock_connection.efficiency_source_target = np.array([0.95, 0.90, 0.85])
+    mock_connection.efficiency_target_source = np.array([0.80, 0.75, 0.70])
 
     # Register the connection with node as SOURCE
     node.register_connection(mock_connection, "source")
 
-    # Call connection_power - should use the "source" branch
-    result = node.connection_power(0)
+    # Call connection_power - should return array for all periods
+    result = node.connection_power()
 
-    # Result should be a highs_linear_expression
-    assert isinstance(result, highs_linear_expression)
+    # Verify it's an array with 3 elements
+    assert len(result) == 3
+
+    # Set specific values and verify the calculation
+    # For source: net = -power_st + power_ts * eff_ts
+    h.addConstr(mock_connection.power_source_target[1] == 5.0)
+    h.addConstr(mock_connection.power_target_source[1] == 4.0)
+    h.minimize(result[1])  # Minimize to get the value
+
+    # Expected: -5 + 4 * 0.75 = -5 + 3 = -2
+    assert h.val(result[1]) == pytest.approx(-2.0)
 
 
 def test_constraints_with_single_constraint(solver: Highs) -> None:
@@ -96,7 +117,12 @@ def test_constraints_with_single_constraint(solver: Highs) -> None:
 
 
 def test_connection_power_with_multiple_connections(solver: Highs) -> None:
-    """Test connection_power with multiple connections including both source and target ends."""
+    """Test connection_power with multiple connections including both source and target ends.
+
+    Total net power = sum of all connection powers
+    conn1 (source): -power_st1 + power_ts1 * eff_ts1
+    conn2 (target): power_st2 * eff_st2 - power_ts2
+    """
     h = solver
 
     # Create a simple node element
@@ -104,24 +130,37 @@ def test_connection_power_with_multiple_connections(solver: Highs) -> None:
 
     # Create first mock connection (node as source)
     mock_conn1 = Mock(spec=Connection)
-    mock_conn1.power_source_target = [h.addVariable(lb=0, name=f"conn1_st_{i}") for i in range(3)]
-    mock_conn1.power_target_source = [h.addVariable(lb=0, name=f"conn1_ts_{i}") for i in range(3)]
-    mock_conn1.efficiency_source_target = [0.95] * 3
-    mock_conn1.efficiency_target_source = [0.90] * 3
+    mock_conn1.power_source_target = h.addVariables(3, lb=0, ub=10, name_prefix="conn1_st_", out_array=True)
+    mock_conn1.power_target_source = h.addVariables(3, lb=0, ub=10, name_prefix="conn1_ts_", out_array=True)
+    mock_conn1.efficiency_source_target = np.array([0.95, 0.90, 0.85])
+    mock_conn1.efficiency_target_source = np.array([0.80, 0.75, 0.70])
 
     # Create second mock connection (node as target)
     mock_conn2 = Mock(spec=Connection)
-    mock_conn2.power_source_target = [h.addVariable(lb=0, name=f"conn2_st_{i}") for i in range(3)]
-    mock_conn2.power_target_source = [h.addVariable(lb=0, name=f"conn2_ts_{i}") for i in range(3)]
-    mock_conn2.efficiency_source_target = [0.98] * 3
-    mock_conn2.efficiency_target_source = [0.92] * 3
+    mock_conn2.power_source_target = h.addVariables(3, lb=0, ub=10, name_prefix="conn2_st_", out_array=True)
+    mock_conn2.power_target_source = h.addVariables(3, lb=0, ub=10, name_prefix="conn2_ts_", out_array=True)
+    mock_conn2.efficiency_source_target = np.array([0.98, 0.96, 0.94])
+    mock_conn2.efficiency_target_source = np.array([0.92, 0.88, 0.84])
 
     # Register both connections
     node.register_connection(mock_conn1, "source")
     node.register_connection(mock_conn2, "target")
 
     # Call connection_power - should combine both connections
-    result = node.connection_power(0)
+    result = node.connection_power()
 
-    # Result should be a highs_linear_expression
-    assert isinstance(result, highs_linear_expression)
+    # Verify it's an array with 3 elements
+    assert len(result) == 3
+
+    # Set specific values and verify the combined calculation for period 2
+    # Expected calculation:
+    #   conn1 (source): -power_st1 + power_ts1 * eff_ts1 = -3 + 2 * 0.70 = -1.6
+    #   conn2 (target): power_st2 * eff_st2 - power_ts2 = 6 * 0.94 - 1 = 4.64
+    #   Total net power: -1.6 + 4.64 = 3.04
+    h.addConstr(mock_conn1.power_source_target[2] == 3.0)
+    h.addConstr(mock_conn1.power_target_source[2] == 2.0)
+    h.addConstr(mock_conn2.power_source_target[2] == 6.0)
+    h.addConstr(mock_conn2.power_target_source[2] == 1.0)
+    h.minimize(result[2])
+
+    assert h.val(result[2]) == pytest.approx(3.04)

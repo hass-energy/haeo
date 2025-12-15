@@ -4,7 +4,6 @@ from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
 from highspy import Highs
-from highspy.highs import highs_var
 
 from .const import OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
@@ -64,22 +63,19 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
         # We don't need power variables explicitly defined here, a source is a lack of upper bound on power out,
         # and a sink is a lack of upper bound on power in. We just need to enforce power balance with connection power.
 
+        conn_power = self.connection_power()
+
         if not self.is_source and not self.is_sink:
             # Power balance is that connection power must be zero
-            self._constraints[SOURCE_SINK_POWER_BALANCE] = h.addConstrs(
-                [self.connection_power(t) == 0 for t in range(self.n_periods)]
-            )
-        if self.is_source and not self.is_sink:
+            self._constraints[SOURCE_SINK_POWER_BALANCE] = h.addConstrs(conn_power == 0)
+        elif self.is_source and not self.is_sink:
             # Only produce power therefore connection power can be less than or equal to zero
-            self._constraints[SOURCE_SINK_POWER_BALANCE] = h.addConstrs(
-                [self.connection_power(t) <= 0 for t in range(self.n_periods)]
-            )
-        if not self.is_source and self.is_sink:
+            self._constraints[SOURCE_SINK_POWER_BALANCE] = h.addConstrs(conn_power <= 0)
+        elif not self.is_source and self.is_sink:
             # Only consume power therefore connection power can be >= 0
-            self._constraints[SOURCE_SINK_POWER_BALANCE] = h.addConstrs(
-                [self.connection_power(t) >= 0 for t in range(self.n_periods)]
-            )
-        if self.is_source and self.is_sink:  # Can both produce and consume power so there are no bounds:
+            self._constraints[SOURCE_SINK_POWER_BALANCE] = h.addConstrs(conn_power >= 0)
+        elif self.is_source and self.is_sink:
+            # Can both produce and consume power so there are no bounds
             pass
 
     def outputs(self) -> Mapping[SourceSinkOutputName, OutputData]:
@@ -94,7 +90,7 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
             outputs[SOURCE_SINK_POWER_BALANCE] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit="$/kW",
-                values=self._constraints[SOURCE_SINK_POWER_BALANCE],
+                values=self.extract_values(self._constraints[SOURCE_SINK_POWER_BALANCE]),
             )
 
         return outputs

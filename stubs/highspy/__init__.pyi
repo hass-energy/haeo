@@ -2,10 +2,25 @@
 
 from collections.abc import Callable, Iterable
 from enum import IntEnum
-from typing import Any
+from typing import Any, Literal, overload
 
 import numpy as np
 from numpy.typing import NDArray
+
+class HighspyArray(np.ndarray[Any, np.dtype[np.object_]]):
+    """HiGHS array type - numpy array subclass containing highs_var objects."""
+
+    def __mul__(self, other: float | NDArray[Any]) -> HighspyArray: ...
+    def __rmul__(self, other: float | NDArray[Any]) -> HighspyArray: ...
+    def __add__(self, other: HighspyArray | highs_var | highs_linear_expression | float) -> HighspyArray: ...
+    def __sub__(self, other: HighspyArray | highs_var | highs_linear_expression | float) -> HighspyArray: ...
+    def __le__(self, other: HighspyArray | highs_var | highs_linear_expression | float) -> HighspyArray: ...
+    def __ge__(self, other: HighspyArray | highs_var | highs_linear_expression | float) -> HighspyArray: ...
+    def __eq__(self, other: object) -> HighspyArray: ...  # type: ignore[override]
+    @overload
+    def __getitem__(self, key: int) -> highs_var: ...
+    @overload
+    def __getitem__(self, key: slice | NDArray[Any]) -> HighspyArray: ...
 
 class highs_var:
     """HiGHS variable type."""
@@ -80,11 +95,29 @@ class Highs:
         type: int = ...,
         name: str = ...,
     ) -> highs_var: ...
+    @overload
     def addVariables(
         self,
-        *args: Any,
-        **kwargs: Any,
-    ) -> list[highs_var]: ...
+        nvars: int,
+        lb: float | list[float] = ...,
+        ub: float | list[float] = ...,
+        obj: float | list[float] = ...,
+        type: int = ...,
+        name_prefix: str = ...,
+        *,
+        out_array: Literal[True],
+    ) -> HighspyArray: ...
+    @overload
+    def addVariables(
+        self,
+        nvars: int,
+        lb: float | list[float] = ...,
+        ub: float | list[float] = ...,
+        obj: float | list[float] = ...,
+        type: int = ...,
+        name_prefix: str = ...,
+        out_array: Literal[False] = ...,
+    ) -> dict[Any, highs_var]: ...
     def addConstr(
         self,
         constraint: highs_linear_expression,
@@ -92,7 +125,7 @@ class Highs:
     ) -> highs_cons: ...
     def addConstrs(
         self,
-        constraints: Iterable[highs_linear_expression],
+        constraints: Iterable[highs_linear_expression] | HighspyArray,
     ) -> list[highs_cons]: ...
     def minimize(
         self,
@@ -103,8 +136,16 @@ class Highs:
     def modelStatusToString(self, status: HighsModelStatus) -> str: ...
     def getObjectiveValue(self) -> float: ...
     def val(self, var: highs_var | highs_linear_expression) -> float: ...
+    def vals(
+        self,
+        idxs: Iterable[highs_var | highs_linear_expression] | HighspyArray | NDArray[Any],
+    ) -> NDArray[np.float64]: ...
     def constrDual(self, cons: highs_cons) -> float: ...
+    def constrDuals(
+        self,
+        cons: Iterable[highs_cons] | NDArray[Any],
+    ) -> NDArray[np.float64]: ...
     @staticmethod
     def qsum(
-        items: Iterable[highs_var | highs_linear_expression | float] | NDArray[np.object_],
+        items: Iterable[highs_var | highs_linear_expression | float | HighspyArray] | NDArray[np.object_],
     ) -> highs_linear_expression: ...

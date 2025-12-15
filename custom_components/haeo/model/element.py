@@ -1,15 +1,17 @@
 """Generic electrical entity for energy system modeling."""
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from highspy import Highs
-from highspy.highs import highs_cons, highs_linear_expression, highs_var
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression, highs_var
+import numpy as np
+from numpy.typing import NDArray
 
 from .output_data import OutputData
 
 if TYPE_CHECKING:
-    from .connection import Connection
+    from .connection import Connection  # Circular import
 
 # Type alias for values that can be in constraint storage
 type ConstraintValue = highs_cons | Sequence[highs_cons]
@@ -39,7 +41,7 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         """
         super().__init__()
         self.name = name
-        self.periods = periods
+        self.periods = np.asarray(periods)
         self._solver = solver
 
         # Constraint storage - dictionary allows re-entrancy
@@ -63,34 +65,39 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         """
         self._connections.append((connection, end))
 
-    def connection_power(self, t: int) -> highs_linear_expression:
-        """Return the net power from connections at time t.
+    def connection_power(self) -> HighspyArray | NDArray[Any]:
+        """Return the net power from connections for all time periods.
 
         Positive means power flowing into this element from connections.
         Negative means power flowing out of this element to connections.
 
-        Args:
-            t: Time period index
-
         Returns:
-            Sum of connection powers (HiGHS expression)
+            Array of connection powers for each time period (HiGHS array or numpy array of expressions)
 
         """
-        terms: list[highs_linear_expression] = []
+        if not self._connections:
+            # No connections - create zero-valued variables for all periods
+            # This ensures comparisons work properly with addConstrs
+            return self._solver.addVariables(
+                self.n_periods, lb=0, ub=0, name_prefix=f"{self.name}_no_conn_", out_array=True
+            )
+
+        # Accumulate power flows from all connections
+        total_power: HighspyArray | NDArray[Any] = np.zeros(self.n_periods, dtype=object)
 
         for conn, end in self._connections:
             if end == "source":
                 # Power leaving source (negative)
-                terms.append(-conn.power_source_target[t])
+                total_power = total_power - conn.power_source_target
                 # Power entering source from target (positive, with efficiency applied)
-                terms.append(conn.power_target_source[t] * conn.efficiency_target_source[t])
+                total_power = total_power + conn.power_target_source * conn.efficiency_target_source
             elif end == "target":
                 # Power entering target from source (positive, with efficiency applied)
-                terms.append(conn.power_source_target[t] * conn.efficiency_source_target[t])
+                total_power = total_power + conn.power_source_target * conn.efficiency_source_target
                 # Power leaving target (negative)
-                terms.append(-conn.power_target_source[t])
+                total_power = total_power - conn.power_target_source
 
-        return Highs.qsum(terms) if terms else highs_linear_expression(0.0)
+        return total_power
 
     def build_constraints(self) -> None:
         """Build network-dependent constraints (e.g., power balance).
@@ -98,7 +105,7 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         This method is called after all connections are registered and should
         create and store constraints in self._constraints dictionary.
 
-        Elements should use connection_power(t) to get the net power from
+        Elements should use connection_power() to get the net power from
         connections when building their power balance constraints.
 
         The solver is available via self._solver (set in __init__).
@@ -135,6 +142,33 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
 
         """
         return []
+
+    def extract_values(
+        self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | highs_cons | None
+    ) -> tuple[float, ...]:
+        """Convert a sequence of HiGHS types to resolved values."""
+        if sequence is None:
+            return ()
+
+        # Handle single highs_cons (not iterable)
+        if isinstance(sequence, highs_cons):
+            return (self._solver.constrDual(sequence),)
+
+        # Convert to numpy array for batch processing
+        arr = np.asarray(sequence, dtype=object)
+
+        # Return empty tuple for empty arrays
+        if len(arr) == 0:
+            return ()
+
+        # Check first item to determine type and use batch methods
+        first_item = arr.flat[0]
+        if isinstance(first_item, highs_cons):
+            # Use batch constraint dual extraction
+            return tuple(self._solver.constrDuals(arr).flat)
+
+        # Default: use batch value extraction (handles highs_var and highs_linear_expression)
+        return tuple(self._solver.vals(arr).flat)
 
     def outputs(self) -> Mapping[OutputNameT, OutputData]:
         """Return output specifications for the element.

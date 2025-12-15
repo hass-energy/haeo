@@ -4,12 +4,12 @@ from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
 from highspy import Highs
-from highspy.highs import highs_linear_expression, highs_var
+from highspy.highs import highs_linear_expression
 
 from .const import OUTPUT_TYPE_ENERGY, OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
 from .output_data import OutputData
-from .util import broadcast_to_sequence, extract_values
+from .util import broadcast_to_sequence
 
 # Type for battery constraint names
 type BatteryConstraintName = Literal[
@@ -18,6 +18,8 @@ type BatteryConstraintName = Literal[
     "battery_energy_out_flow",
     "battery_soc_max",
     "battery_soc_min",
+    "battery_initial_charge",
+    "battery_initial_discharge",
 ]
 
 # Type for all battery output names (union of base outputs and constraints)
@@ -38,6 +40,8 @@ BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
         BATTERY_ENERGY_OUT_FLOW := "battery_energy_out_flow",
         BATTERY_SOC_MAX := "battery_soc_max",
         BATTERY_SOC_MIN := "battery_soc_min",
+        BATTERY_INITIAL_CHARGE := "battery_initial_charge",
+        BATTERY_INITIAL_DISCHARGE := "battery_initial_discharge",
     )
 )
 
@@ -86,55 +90,40 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         # Broadcast capacity to n_periods + 1 (energy boundaries)
         self.capacity = broadcast_to_sequence(capacity, n_periods + 1)
 
-        # Initial charge is set as constant, not variable
-        self.energy_in: list[highs_linear_expression | highs_var] = [
-            highs_linear_expression(float(initial_charge)),
-            *[solver.addVariable(lb=0.0, name=f"{name}_energy_in_t{t}") for t in range(1, n_periods + 1)],
-        ]
-        # Initial discharge is always 0
-        self.energy_out: list[highs_linear_expression | highs_var] = [
-            highs_linear_expression(0.0),
-            *[solver.addVariable(lb=0.0, name=f"{name}_energy_out_t{t}") for t in range(1, n_periods + 1)],
-        ]
+        # Store initial charge for constraint
+        self.initial_charge = initial_charge
 
-        # Pre-calculate power and energy expressions to avoid recomputing them
-        self.power_consumption: list[highs_linear_expression] = [
-            (self.energy_in[t + 1] - self.energy_in[t]) * (1.0 / self.periods[t]) for t in range(n_periods)
-        ]
-        self.power_production: list[highs_linear_expression] = [
-            (self.energy_out[t + 1] - self.energy_out[t]) * (1.0 / self.periods[t]) for t in range(n_periods)
-        ]
-        self.stored_energy: list[highs_linear_expression] = [
-            self.energy_in[t] - self.energy_out[t] for t in range(n_periods + 1)
-        ]
+        # Create all energy variables (including initial state at t=0)
+        self.energy_in = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_in_", out_array=True)
+        self.energy_out = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_out_", out_array=True)
+
+        # Pre-calculate power and energy expressions
+        self.power_consumption = (self.energy_in[1:] - self.energy_in[:-1]) * (1.0 / self.periods)
+        self.power_production = (self.energy_out[1:] - self.energy_out[:-1]) * (1.0 / self.periods)
+        self.stored_energy = self.energy_in - self.energy_out
 
     def build_constraints(self) -> None:
         """Build network-dependent constraints for the battery.
 
         This includes power balance constraints using connection_power().
         """
-        n_periods = self.n_periods
         h = self._solver
 
+        # Initial state constraints
+        self._constraints[BATTERY_INITIAL_CHARGE] = h.addConstr(self.energy_in[0] == self.initial_charge)
+        self._constraints[BATTERY_INITIAL_DISCHARGE] = h.addConstr(self.energy_out[0] == 0.0)
+
         # Energy flow constraints (cumulative energy can only increase)
-        self._constraints[BATTERY_ENERGY_IN_FLOW] = h.addConstrs(
-            self.energy_in[t + 1] >= self.energy_in[t] for t in range(n_periods)
-        )
-        self._constraints[BATTERY_ENERGY_OUT_FLOW] = h.addConstrs(
-            self.energy_out[t + 1] >= self.energy_out[t] for t in range(n_periods)
-        )
+        self._constraints[BATTERY_ENERGY_IN_FLOW] = h.addConstrs(self.energy_in[1:] >= self.energy_in[:-1])
+        self._constraints[BATTERY_ENERGY_OUT_FLOW] = h.addConstrs(self.energy_out[1:] >= self.energy_out[:-1])
 
         # SOC constraints (net energy must stay within capacity)
-        self._constraints[BATTERY_SOC_MAX] = h.addConstrs(
-            self.energy_in[t + 1] - self.energy_out[t + 1] <= self.capacity[t + 1] for t in range(n_periods)
-        )
-        self._constraints[BATTERY_SOC_MIN] = h.addConstrs(
-            self.energy_in[t + 1] - self.energy_out[t + 1] >= 0 for t in range(n_periods)
-        )
+        self._constraints[BATTERY_SOC_MAX] = h.addConstrs(self.stored_energy[1:] <= self.capacity[1:])
+        self._constraints[BATTERY_SOC_MIN] = h.addConstrs(self.stored_energy[1:] >= 0)
 
         # Power balance: connection_power equals net battery power
         self._constraints[BATTERY_POWER_BALANCE] = h.addConstrs(
-            self.connection_power(t) == self.power_consumption[t] - self.power_production[t] for t in range(n_periods)
+            self.connection_power() == self.power_consumption - self.power_production
         )
 
     def cost(self) -> Sequence[highs_linear_expression]:
@@ -143,37 +132,37 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
 
     def outputs(self) -> Mapping[BatteryOutputName, OutputData]:
         """Return battery output specifications."""
-        # Get stored energy values
-        energy_values = extract_values(self.stored_energy, self._solver)
-
         outputs: dict[BatteryOutputName, OutputData] = {
             BATTERY_POWER_CHARGE: OutputData(
                 type=OUTPUT_TYPE_POWER,
                 unit="kW",
-                values=self.power_consumption,
-                solver=self._solver,
+                values=self.extract_values(self.power_consumption),
                 direction="-",
             ),
             BATTERY_POWER_DISCHARGE: OutputData(
                 type=OUTPUT_TYPE_POWER,
                 unit="kW",
-                values=self.power_production,
-                solver=self._solver,
+                values=self.extract_values(self.power_production),
                 direction="+",
             ),
             BATTERY_ENERGY_STORED: OutputData(
-                type=OUTPUT_TYPE_ENERGY, unit="kWh", values=energy_values, solver=self._solver
+                type=OUTPUT_TYPE_ENERGY,
+                unit="kWh",
+                values=self.extract_values(self.stored_energy),
             ),
         }
 
         # Add constraint shadow prices
         for constraint_name in self._constraints:
+            # Skip initial state constraints (internal implementation details)
+            if constraint_name in (BATTERY_INITIAL_CHARGE, BATTERY_INITIAL_DISCHARGE):
+                continue
+
             unit = "$/kW" if constraint_name in BATTERY_POWER_CONSTRAINTS else "$/kWh"
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit=unit,
-                values=self._constraints[constraint_name],
-                solver=self._solver,
+                values=self.extract_values(self._constraints[constraint_name]),
             )
 
         return outputs

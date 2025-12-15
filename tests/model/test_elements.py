@@ -3,10 +3,11 @@
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import highs_linear_expression
+from highspy.highs import HighspyArray
 import pytest
 
-from custom_components.haeo.model.util import broadcast_to_sequence, extract_values
+from custom_components.haeo.model.source_sink import SourceSink
+from custom_components.haeo.model.util import broadcast_to_sequence
 
 from . import test_data
 from .test_data.element_types import ElementTestCase, ElementTestCaseInputs
@@ -34,27 +35,24 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         # Regular elements (Battery, Grid, PV, Load)
         power = inputs.get("power", [None] * n_periods)
 
-        # Create the variables to inject power
-        # For fixed values, use constant expressions (like PuLP's LpAffineExpression(constant=...))
-        # rather than fixed-bound variables, to match original behavior
-        power_inputs: list[highs_linear_expression] = []
-        power_outputs: list[highs_linear_expression] = []
+        # Create HighspyArray variables to inject power
+        power_in_vars = h.addVariables(n_periods, lb=0.0, name_prefix="test_in_", out_array=True)
+        power_out_vars = h.addVariables(n_periods, lb=0.0, name_prefix="test_out_", out_array=True)
 
+        # For fixed values, add constraints to fix the variables
         for i, val in enumerate(power):
-            if val is None:
-                power_inputs.append(h.addVariable(lb=0.0, name=f"test_in_{i}"))
-                power_outputs.append(h.addVariable(lb=0.0, name=f"test_out_{i}"))
-            else:
-                # Fixed value - use constant expression (not fixed-bound variable)
-                power_inputs.append(highs_linear_expression(max(val, 0.0)))
-                power_outputs.append(highs_linear_expression(max(-val, 0.0)))
+            if val is not None:
+                # Fixed value - constrain the variables
+                h.addConstr(power_in_vars[i] == max(val, 0.0))
+                h.addConstr(power_out_vars[i] == max(-val, 0.0))
 
-        total_power = [power_inputs[i] - power_outputs[i] for i in range(n_periods)]
+        # Total power as HighspyArray
+        total_power = power_in_vars - power_out_vars
 
-        # Mock connection_power() to return the power variables
+        # Mock connection_power() to return the power array for all periods
         # This allows elements to set up their own internal power balance constraints
-        def mock_connection_power(t: int) -> highs_linear_expression:
-            return total_power[t]
+        def mock_connection_power() -> HighspyArray:
+            return total_power
 
         element.connection_power = mock_connection_power
 
@@ -67,8 +65,8 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
 
         cost_terms = [
             *element.cost(),
-            *[input_cost[i] * power_inputs[i] * periods[i] for i in range(n_periods) if input_cost[i] != 0.0],
-            *[output_cost[i] * power_outputs[i] * periods[i] for i in range(n_periods) if output_cost[i] != 0.0],
+            *[input_cost[i] * power_in_vars[i] * periods[i] for i in range(n_periods) if input_cost[i] != 0.0],
+            *[output_cost[i] * power_out_vars[i] * periods[i] for i in range(n_periods) if output_cost[i] != 0.0],
         ]
 
         # Minimize
@@ -146,13 +144,16 @@ def test_element_validation(case: ElementTestCase, solver: Highs) -> None:
 
 
 def test_extract_values_converts_highs_variables() -> None:
-    """extract_values should coerce HiGHS variables to floats."""
+    """Element.extract_values should coerce HiGHS variables to floats."""
     h = Highs()
     output_off = False
     h.setOptionValue("output_flag", output_off)
 
     variables, h = test_data.highs_sequence(h, "test", 3)
-    result = extract_values(variables, h)
+
+    # Create a simple element to test extract_values
+    element = SourceSink(name="test", periods=[1.0, 1.0, 1.0], solver=h)
+    result = element.extract_values(variables)
 
     assert isinstance(result, tuple)
     assert len(result) == 3
@@ -162,9 +163,10 @@ def test_extract_values_converts_highs_variables() -> None:
 
 
 def test_extract_values_handles_none() -> None:
-    """extract_values should return empty tuple for None input."""
-
-    result = extract_values(None)
+    """Element.extract_values should return empty tuple for None input."""
+    h = Highs()
+    element = SourceSink(name="test", periods=[1.0], solver=h)
+    result = element.extract_values(None)
 
     assert isinstance(result, tuple)
     assert len(result) == 0

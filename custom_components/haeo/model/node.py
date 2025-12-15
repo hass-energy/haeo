@@ -40,21 +40,17 @@ class Node(Element[NodeOutputName, NodeConstraintName]):
         """
         h = self._solver
 
-        self._constraints[NODE_POWER_BALANCE] = h.addConstrs(
-            self.connection_power(t) == 0 for t in range(self.n_periods)
-        )
+        self._constraints[NODE_POWER_BALANCE] = h.addConstrs(self.connection_power() == 0)
 
     def outputs(self) -> Mapping[NodeOutputName, OutputData]:
         """Return node output specifications."""
-        solver = self._solver
         outputs: dict[NodeOutputName, OutputData] = {}
 
         for constraint_name in self._constraints:
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit="$/kW",
-                values=self._constraints[constraint_name],
-                solver=solver,
+                values=self.extract_values(self._constraints[constraint_name]),
             )
 
         return outputs

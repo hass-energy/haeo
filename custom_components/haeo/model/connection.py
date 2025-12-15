@@ -5,6 +5,7 @@ from typing import Final, Literal
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
+import numpy as np
 
 from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_POWER_LIMIT, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
@@ -100,16 +101,16 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         # Store fixed_power flag for constraint building
         self._fixed_power = fixed_power
 
-        # Create power variables for each direction (both positive, bounds as constraints)
-        self.power_source_target = [h.addVariable(lb=0, name=f"{name}_power_st_{i}") for i in range(n_periods)]
-        self.power_target_source = [h.addVariable(lb=0, name=f"{name}_power_ts_{i}") for i in range(n_periods)]
+        # Create power variables
+        self.power_source_target = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_st_", out_array=True)
+        self.power_target_source = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_ts_", out_array=True)
 
         # Broadcast and convert efficiency to fraction (default 100% = 1.0)
-        st_eff_values = broadcast_to_sequence(efficiency_source_target, n_periods)
-        self.efficiency_source_target = [e / 100.0 for e in st_eff_values] if st_eff_values else [1.0] * n_periods
+        st_eff_values = broadcast_to_sequence(efficiency_source_target, n_periods) or np.ones(n_periods) * 100.0
+        self.efficiency_source_target = st_eff_values / 100.0
 
-        ts_eff_values = broadcast_to_sequence(efficiency_target_source, n_periods)
-        self.efficiency_target_source = [e / 100.0 for e in ts_eff_values] if ts_eff_values else [1.0] * n_periods
+        ts_eff_values = broadcast_to_sequence(efficiency_target_source, n_periods) or np.ones(n_periods) * 100.0
+        self.efficiency_target_source = ts_eff_values / 100.0
 
         # Store prices (None means no cost)
         self.price_source_target = broadcast_to_sequence(price_source_target, n_periods)
@@ -121,81 +122,75 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         Variables are created in __init__, this method only adds constraints.
         """
         h = self._solver
-        n_periods = self.n_periods
 
         # Add power constraints - equality if the power is fixed, inequality if only max bounds are provided
         if self.max_power_source_target is not None:
             if self._fixed_power:
                 self._constraints[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = h.addConstrs(
-                    self.power_source_target[t] == self.max_power_source_target[t] for t in range(n_periods)
+                    self.power_source_target == self.max_power_source_target
                 )
             else:
                 self._constraints[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = h.addConstrs(
-                    self.power_source_target[t] <= self.max_power_source_target[t] for t in range(n_periods)
+                    self.power_source_target <= self.max_power_source_target
                 )
 
         if self.max_power_target_source is not None:
             if self._fixed_power:
                 self._constraints[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = h.addConstrs(
-                    self.power_target_source[t] == self.max_power_target_source[t] for t in range(n_periods)
+                    self.power_target_source == self.max_power_target_source
                 )
             else:
                 self._constraints[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = h.addConstrs(
-                    self.power_target_source[t] <= self.max_power_target_source[t] for t in range(n_periods)
+                    self.power_target_source <= self.max_power_target_source
                 )
 
         # Time slicing constraint: prevent simultaneous full bidirectional power flow
         # This allows cycling but on a time-sliced basis (e.g., 50% forward, 50% backward)
-        # Note: HiGHS doesn't support expr/float, so multiply by inverse
         if self.max_power_source_target is not None and self.max_power_target_source is not None:
-            time_slice_exprs = [
-                (
-                    self.power_source_target[t] * (1.0 / self.max_power_source_target[t])
-                    + self.power_target_source[t] * (1.0 / self.max_power_target_source[t])
-                    <= 1.0
-                )
-                for t in range(n_periods)
-                if self.max_power_source_target[t] > 0 and self.max_power_target_source[t] > 0
-            ]
-            if time_slice_exprs:
-                self._constraints[CONNECTION_TIME_SLICE] = h.addConstrs(time_slice_exprs)
+            # Create constraints for all periods to maintain consistent structure
+            # For periods with zero max power, np.divide gives 0 (where=False)
+            # This makes the constraint 0 + 0 <= 1 (always satisfied)
+            normalized_st = self.power_source_target * np.divide(
+                1.0,
+                self.max_power_source_target,
+                out=np.zeros(self.n_periods),
+                where=self.max_power_source_target > 0,
+            )
+            normalized_ts = self.power_target_source * np.divide(
+                1.0,
+                self.max_power_target_source,
+                out=np.zeros(self.n_periods),
+                where=self.max_power_target_source > 0,
+            )
+            time_slice_exprs = normalized_st + normalized_ts <= 1.0
+            self._constraints[CONNECTION_TIME_SLICE] = h.addConstrs(time_slice_exprs)
 
     def cost(self) -> Sequence[highs_linear_expression]:
         """Return the cost expressions of the connection with transfer pricing."""
+
         costs: list[highs_linear_expression] = []
-        # Using variable period durations
         if self.price_source_target is not None:
-            costs.append(
-                Highs.qsum(
-                    price * power * period
-                    for price, power, period in zip(
-                        self.price_source_target, self.power_source_target, self.periods, strict=True
-                    )
-                )
-            )
+            costs.append(Highs.qsum(self.price_source_target * self.power_source_target * self.periods))
 
         if self.price_target_source is not None:
-            costs.append(
-                Highs.qsum(
-                    price * power * period
-                    for price, power, period in zip(
-                        self.price_target_source, self.power_target_source, self.periods, strict=True
-                    )
-                )
-            )
+            costs.append(Highs.qsum(self.price_target_source * self.power_target_source * self.periods))
 
         return costs
 
     def outputs(self) -> Mapping[ConnectionOutputName, OutputData]:
         """Return output specifications for the connection."""
-        solver = self._solver
-
         outputs: dict[ConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=self.power_source_target, direction="+", solver=solver
+                type=OUTPUT_TYPE_POWER_FLOW,
+                unit="kW",
+                values=self.extract_values(self.power_source_target),
+                direction="+",
             ),
             CONNECTION_POWER_TARGET_SOURCE: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=self.power_target_source, direction="-", solver=solver
+                type=OUTPUT_TYPE_POWER_FLOW,
+                unit="kW",
+                values=self.extract_values(self.power_target_source),
+                direction="-",
             ),
         }
 
@@ -238,8 +233,7 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,
                 unit="$/kW",
-                values=self._constraints[constraint_name],
-                solver=solver,
+                values=self.extract_values(self._constraints[constraint_name]),
             )
 
         return outputs
