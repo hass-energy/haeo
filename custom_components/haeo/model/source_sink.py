@@ -3,22 +3,16 @@
 from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
-from pulp import LpAffineExpression, LpVariable
-
-from .const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
+from .const import OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
 from .output_data import OutputData
 
 type SourceSinkConstraintName = Literal["source_sink_power_balance"]
 
-type SourceSinkOutputName = Literal["source_sink_power_in", "source_sink_power_out"] | SourceSinkConstraintName
+type SourceSinkOutputName = SourceSinkConstraintName
 
 SOURCE_SINK_OUTPUT_NAMES: Final[frozenset[SourceSinkOutputName]] = frozenset(
-    (
-        SOURCE_SINK_POWER_IN := "source_sink_power_in",
-        SOURCE_SINK_POWER_OUT := "source_sink_power_out",
-        SOURCE_SINK_POWER_BALANCE := "source_sink_power_balance",
-    )
+    (SOURCE_SINK_POWER_BALANCE := "source_sink_power_balance",)
 )
 
 
