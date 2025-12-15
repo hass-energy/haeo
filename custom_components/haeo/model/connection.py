@@ -106,10 +106,14 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
         self.power_target_source = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_ts_", out_array=True)
 
         # Broadcast and convert efficiency to fraction (default 100% = 1.0)
-        st_eff_values = broadcast_to_sequence(efficiency_source_target, n_periods) or np.ones(n_periods) * 100.0
+        st_eff_values = broadcast_to_sequence(efficiency_source_target, n_periods)
+        if st_eff_values is None:
+            st_eff_values = np.ones(n_periods) * 100.0
         self.efficiency_source_target = st_eff_values / 100.0
 
-        ts_eff_values = broadcast_to_sequence(efficiency_target_source, n_periods) or np.ones(n_periods) * 100.0
+        ts_eff_values = broadcast_to_sequence(efficiency_target_source, n_periods)
+        if ts_eff_values is None:
+            ts_eff_values = np.ones(n_periods) * 100.0
         self.efficiency_target_source = ts_eff_values / 100.0
 
         # Store prices (None means no cost)
