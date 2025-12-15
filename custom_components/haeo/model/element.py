@@ -143,9 +143,7 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         """
         return []
 
-    def extract_values(
-        self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | None
-    ) -> tuple[float, ...]:
+    def extract_values(self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | None) -> tuple[float, ...]:
         """Convert a sequence of HiGHS types to resolved values."""
         if sequence is None:
             return ()
