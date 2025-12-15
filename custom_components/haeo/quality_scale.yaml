@@ -62,7 +62,7 @@ bronze:
 
   dependency-transparency:
     status: done
-    comment: manifest.json lists pulp, highspy, and numpy as installation requirements
+    comment: manifest.json lists highspy and numpy as installation requirements
 
   appropriate-polling:
     status: done
