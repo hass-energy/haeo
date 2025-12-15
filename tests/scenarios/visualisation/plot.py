@@ -484,18 +484,22 @@ def create_shadow_price_visualization(
 
 
 def visualize_scenario_results(
-    output_sensors: Mapping[str, Mapping[str, Any]], scenario_name: str, output_dir: Path
+    output_sensors: Mapping[str, Mapping[str, Any]],
+    scenario_name: str,
+    output_dir: Path,
+    config: dict[str, Any],
 ) -> None:
     """Create comprehensive visualizations for HAEO scenario test results.
 
-    Creates both detailed optimization results visualization and summary metrics
-    for a given scenario test. Files are saved with the scenario name prefix.
+    Creates stacked area plots for optimization results, shadow price visualization,
+    and a network topology graph. Files are saved with the scenario name prefix.
 
     Args:
         output_sensors: Dict mapping entity_id to sensor state dict (from get_output_sensors
             or loaded from outputs.json).
         scenario_name: Name identifier for the scenario (used in output filenames)
         output_dir: Directory path where visualization files will be saved
+        config: Scenario configuration containing participants for graph visualization
 
     """
     output_dir_path = Path(output_dir)
@@ -507,3 +511,7 @@ def visualize_scenario_results(
 
     shadow_plot_path = output_dir_path / f"{scenario_name}_shadow_prices.svg"
     create_shadow_price_visualization(output_sensors, str(shadow_plot_path), f"{scenario_name.title()} Shadow Prices")
+
+    # Create network topology graph visualization
+    graph_plot_path = output_dir_path / f"{scenario_name}_network_topology.svg"
+    create_graph_visualization(config, str(graph_plot_path), f"{scenario_name.title()} Network Topology")
