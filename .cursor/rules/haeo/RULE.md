@@ -1,13 +1,13 @@
-# GitHub Copilot Instructions
+---
+description: "HAEO project context and agent behavioral rules - always applied"
+alwaysApply: true
+---
+
+# HAEO Project Rules
 
 This repository contains **HAEO** (Home Assistant Energy Optimizer) - a Python 3.13+ Home Assistant custom component for energy network optimization using linear programming.
 
-## Project overview
-
-HAEO optimizes energy usage across battery storage, grid import/export, loads, and generators using linear programming.
-The integration provides real-time optimization based on energy prices, forecasts, and system constraints.
-
-### Core components
+## Core components
 
 - **Network**: Container managing elements and connections, runs optimization
 - **Elements**: Battery, Grid, Load, Photovoltaics, Node - each with power/energy variables
@@ -16,7 +16,7 @@ The integration provides real-time optimization based on energy prices, forecast
 - **Coordinator**: Bridges HA entities with optimization network
 - **Sensors**: Expose optimization results to Home Assistant
 
-### Project structure
+## Project structure
 
 ```
 custom_components/haeo/     # Home Assistant integration
@@ -48,8 +48,6 @@ uv run pyright              # Type check
 ```
 
 ## Agent behavioral rules
-
-These rules apply to all AI agent interactions with this codebase:
 
 ### Clean changes
 
@@ -94,19 +92,8 @@ Use SI units throughout all calculations and internal data structures:
 
 Only convert to user-friendly units (kW, kWh, hours) when displaying to users or accepting user input.
 
-## Path-specific instructions
-
-This repository uses path-specific instruction files in `.github/instructions/` that apply additional context based on the files being edited.
-See that directory for domain-specific guidelines.
-
-## Documentation
-
-- [Documentation guidelines](../docs/developer-guide/documentation-guidelines.md) - Writing and maintaining docs
-- [Units guide](../docs/developer-guide/units.md) - Unit conversion and conventions
-- [Testing guide](../docs/developer-guide/testing.md) - Test patterns and scenarios
-
 ## Self-maintenance
 
-When the user provides feedback about systemic corrections (coding patterns, style issues, architectural decisions, or recurring mistakes), update the appropriate instruction file to capture that feedback for future sessions.
+When the user provides feedback about systemic corrections (coding patterns, style issues, architectural decisions, or recurring mistakes), update the appropriate rule file to capture that feedback for future sessions.
 
-See `.github/instructions/meta.instructions.md` for guidance on maintaining both Copilot instructions and Cursor rules in sync.
+See `.cursor/rules/meta/RULE.md` for guidance on maintaining both Cursor rules and Copilot instructions in sync.
