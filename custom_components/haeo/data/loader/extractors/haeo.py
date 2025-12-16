@@ -88,7 +88,7 @@ class Parser:
         return device_class is None or isinstance(device_class, str)
 
     @staticmethod
-    def extract(state: HaeoForecastState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass | None]:
+    def extract(state: HaeoForecastState) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass | None]:
         """Extract forecast data from HAEO forecast format.
 
         Expects list format: list of {"time": ..., "value": ...} dicts.

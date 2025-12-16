@@ -6,14 +6,14 @@ from typing import Any
 from homeassistant.util.dt import as_utc
 
 
-def parse_datetime_to_timestamp(value: Any) -> int:
+def parse_datetime_to_timestamp(value: Any) -> float:
     """Parse a datetime string or datetime object to UTC timestamp.
 
     Args:
         value: Either a datetime object or an ISO format datetime string
 
     Returns:
-        Unix timestamp in seconds
+        Unix timestamp in seconds as a float
 
     Raises:
         ValueError: If value is not a valid datetime string or datetime object
@@ -22,12 +22,12 @@ def parse_datetime_to_timestamp(value: Any) -> int:
     # Handle datetime objects directly
     if isinstance(value, datetime):
         dt = as_utc(value)
-        return int(dt.timestamp())
+        return dt.timestamp()
 
     # Handle string datetime values
     if isinstance(value, str):
         dt = as_utc(datetime.fromisoformat(value))
-        return int(dt.timestamp())
+        return dt.timestamp()
 
     msg = f"Expected datetime or string, got {type(value).__name__}"
     raise ValueError(msg)

@@ -35,7 +35,7 @@ _LOGGER = logging.getLogger(__name__)
 async def load_element_configs(
     hass: HomeAssistant,
     participants: Mapping[str, ElementConfigSchema],
-    forecast_times: Sequence[int],
+    forecast_times: Sequence[float],
 ) -> dict[str, ElementConfigData]:
     """Load sensor values for all element configurations.
 

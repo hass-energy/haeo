@@ -1,5 +1,6 @@
 """Schema utilities for HAEO type configurations."""
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, Unpack, cast, get_args, get_origin, get_type_hints
 from typing import get_origin as typing_get_origin
 
@@ -130,16 +131,15 @@ def available(
     return True
 
 
-async def load(config: "ElementConfigSchema", hass: HomeAssistant, forecast_times: list[int]) -> "ElementConfigData":
+async def load(
+    config: "ElementConfigSchema", hass: HomeAssistant, forecast_times: Sequence[float]
+) -> "ElementConfigData":
     """Load all fields in a config, converting from Schema to Data mode.
 
     Args:
         config: Schema mode config (with entity IDs)
         hass: Home Assistant instance
-        forecast_times: Time intervals for data aggregation. When empty ([]),
-            ConstantLoader fields (strings, numbers, booleans) pass through unchanged,
-            while TimeSeriesLoader fields (sensors) return empty lists. This is useful
-            for structural validation without loading actual sensor data.
+        forecast_times: Time intervals for data aggregation.
 
     Returns:
         Data mode config (with loaded values)
