@@ -169,6 +169,87 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
             time_slice_exprs = normalized_st + normalized_ts <= 1.0
             self._constraints[CONNECTION_TIME_SLICE] = h.addConstrs(time_slice_exprs)
 
+    def update(self, **kwargs: object) -> None:
+        """Update connection parameters in-place for warm start optimization.
+
+        Supports updating:
+        - max_power_source_target: Updates power limit constraint bounds
+        - max_power_target_source: Updates power limit constraint bounds
+        - price_source_target: Updates objective coefficients for source→target power variables
+        - price_target_source: Updates objective coefficients for target→source power variables
+
+        Note: efficiency updates are not supported (require coefficient changes in other elements'
+        constraints). If efficiency changes, a full network rebuild is needed.
+
+        Args:
+            **kwargs: Parameter values to update
+
+        """
+        h = self._solver
+
+        # Helper to cast kwargs values to proper types for broadcast_to_sequence
+        def cast_to_float_or_sequence(value: object) -> float | Sequence[float] | None:
+            if isinstance(value, (int, float)):
+                return float(value)
+            if isinstance(value, Sequence) and not isinstance(value, str):
+                return [float(v) for v in value]
+            return None
+
+        # Update max_power_source_target if provided
+        if "max_power_source_target" in kwargs:
+            raw_value = cast_to_float_or_sequence(kwargs["max_power_source_target"])
+            new_max = broadcast_to_sequence(raw_value, self.n_periods) if raw_value is not None else None
+            if new_max is not None:
+                self.max_power_source_target = new_max
+                power_max_constraints = self._constraints.get(CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET)
+                if power_max_constraints is not None and isinstance(power_max_constraints, list):
+                    for i, cons in enumerate(power_max_constraints):
+                        if self._fixed_power:
+                            # Equality constraint: lower == upper == max_power
+                            h.changeRowBounds(cons.index, float(new_max[i]), float(new_max[i]))
+                        else:
+                            # Inequality constraint: -inf <= power <= max_power
+                            h.changeRowBounds(cons.index, -float("inf"), float(new_max[i]))
+
+        # Update max_power_target_source if provided
+        if "max_power_target_source" in kwargs:
+            raw_value = cast_to_float_or_sequence(kwargs["max_power_target_source"])
+            new_max = broadcast_to_sequence(raw_value, self.n_periods) if raw_value is not None else None
+            if new_max is not None:
+                self.max_power_target_source = new_max
+                power_max_constraints = self._constraints.get(CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE)
+                if power_max_constraints is not None and isinstance(power_max_constraints, list):
+                    for i, cons in enumerate(power_max_constraints):
+                        if self._fixed_power:
+                            # Equality constraint: lower == upper == max_power
+                            h.changeRowBounds(cons.index, float(new_max[i]), float(new_max[i]))
+                        else:
+                            # Inequality constraint: -inf <= power <= max_power
+                            h.changeRowBounds(cons.index, -float("inf"), float(new_max[i]))
+
+        # Update price_source_target if provided
+        if "price_source_target" in kwargs:
+            raw_value = cast_to_float_or_sequence(kwargs["price_source_target"])
+            new_price = broadcast_to_sequence(raw_value, self.n_periods) if raw_value is not None else None
+            if new_price is not None:
+                self.price_source_target = new_price
+                # Update objective coefficients: price * power * period_duration
+                # Each variable's cost coefficient is price[i] * periods[i]
+                for i in range(self.n_periods):
+                    cost_coeff = float(new_price[i]) * float(self.periods[i])
+                    h.changeColCost(self.power_source_target[i].index, cost_coeff)
+
+        # Update price_target_source if provided
+        if "price_target_source" in kwargs:
+            raw_value = cast_to_float_or_sequence(kwargs["price_target_source"])
+            new_price = broadcast_to_sequence(raw_value, self.n_periods) if raw_value is not None else None
+            if new_price is not None:
+                self.price_target_source = new_price
+                # Update objective coefficients: price * power * period_duration
+                for i in range(self.n_periods):
+                    cost_coeff = float(new_price[i]) * float(self.periods[i])
+                    h.changeColCost(self.power_target_source[i].index, cost_coeff)
+
     def cost(self) -> Sequence[highs_linear_expression]:
         """Return the cost expressions of the connection with transfer pricing."""
 

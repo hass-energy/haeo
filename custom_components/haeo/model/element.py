@@ -113,6 +113,22 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         Default implementation does nothing. Subclasses should override as needed.
         """
 
+    def update(self, **kwargs: object) -> None:
+        """Update element parameters in-place for warm start optimization.
+
+        This method updates parameter values using HiGHS in-place modification APIs
+        (changeRowBounds, changeColCost, changeColBounds) without rebuilding the model.
+
+        Called by Network.add_or_update() when an element already exists.
+
+        Default implementation does nothing. Subclasses should override to handle
+        their specific updateable parameters.
+
+        Args:
+            **kwargs: Parameter values to update (same as constructor parameters)
+
+        """
+
     def constraints(self) -> list[highs_cons]:
         """Return all constraints from this element.
 

@@ -24,6 +24,11 @@ class HighspyArray(np.ndarray[Any, np.dtype[np.object_]]):
 
 class highs_var:
     """HiGHS variable type."""
+
+    @property
+    def index(self) -> int:
+        """Return the index of this variable in the solver model."""
+        ...
     def __add__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
     def __radd__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
     def __sub__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
@@ -38,7 +43,10 @@ class highs_var:
 class highs_cons:
     """HiGHS constraint type."""
 
-    ...
+    @property
+    def index(self) -> int:
+        """Return the index of this constraint in the solver model."""
+        ...
 
 class highs_linear_expression:
     """HiGHS linear expression type."""
@@ -145,6 +153,35 @@ class Highs:
         self,
         cons: Iterable[highs_cons] | NDArray[Any],
     ) -> NDArray[np.float64]: ...
+    def changeRowBounds(self, row: int, lower: float, upper: float) -> None:
+        """Change bounds for a constraint row.
+
+        Args:
+            row: Index of the constraint row
+            lower: New lower bound
+            upper: New upper bound
+
+        """
+        ...
+    def changeColCost(self, col: int, cost: float) -> None:
+        """Change objective coefficient for a variable column.
+
+        Args:
+            col: Index of the variable column
+            cost: New objective coefficient
+
+        """
+        ...
+    def changeColBounds(self, col: int, lower: float, upper: float) -> None:
+        """Change bounds for a variable column.
+
+        Args:
+            col: Index of the variable column
+            lower: New lower bound
+            upper: New upper bound
+
+        """
+        ...
     @staticmethod
     def qsum(
         items: Iterable[highs_var | highs_linear_expression | float | HighspyArray] | NDArray[np.object_],
