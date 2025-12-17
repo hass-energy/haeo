@@ -1,6 +1,6 @@
 ---
-description: "Scenario testing patterns"
-globs: ["tests/scenarios/**"]
+description: Scenario testing patterns
+globs: [tests/scenarios/**]
 alwaysApply: false
 ---
 
@@ -41,7 +41,7 @@ Integration configuration matching the config flow schema:
       "power_limit": 5000
     }
   },
-  "connections": [...]
+  "connections": []
 }
 ```
 
@@ -55,7 +55,9 @@ Home Assistant state data with required `now` timestamp:
   "states": {
     "sensor.solar_power": {
       "state": "3500",
-      "attributes": {"unit_of_measurement": "W"}
+      "attributes": {
+        "unit_of_measurement": "W"
+      }
     }
   }
 }
@@ -68,16 +70,9 @@ All datetime operations during the test see this frozen time.
 
 ## Running scenarios
 
-```bash
-# Run all scenario tests
-uv run pytest tests/scenarios/ -m scenario
-
-# Run specific scenario
-uv run pytest tests/scenarios/ -m scenario -k scenario1
-
-# Update snapshots
-uv run pytest tests/scenarios/ -m scenario --snapshot-update
-```
+- Scenarios require the `-m scenario` pytest marker
+- Use `-k scenario_name` to run specific scenarios
+- Use `--snapshot-update` to regenerate snapshots
 
 ## Creating new scenarios
 
@@ -91,6 +86,7 @@ uv run pytest tests/scenarios/ -m scenario --snapshot-update
 
 All scenarios share a single snapshot file using syrupy JSON extension.
 Snapshots capture:
+
 - Optimization results
 - Sensor states
 - Element configurations

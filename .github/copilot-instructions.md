@@ -30,22 +30,12 @@ tests/                      # Test suite
 docs/                       # Documentation
 ```
 
-## Development commands
+## Development tools
 
-```bash
-# Setup
-uv sync                     # Install all dependencies
-
-# Testing
-uv run pytest               # Run all tests
-uv run pytest tests/scenarios/ -m scenario  # Scenario tests only
-uv run pytest --cov         # With coverage
-
-# Code quality
-uv run ruff check           # Lint
-uv run ruff format          # Format
-uv run pyright              # Type check
-```
+- **Package manager**: uv (use `uv sync` for dependencies, `uv run` to execute tools)
+- **Testing**: pytest (scenarios use `-m scenario` marker)
+- **Linting/Formatting**: Ruff
+- **Type checking**: Pyright
 
 ## Agent behavioral rules
 
@@ -93,6 +83,20 @@ Use SI units throughout all calculations and internal data structures:
 - Time: seconds
 
 Only convert to user-friendly units (kW, kWh, hours) when displaying to users or accepting user input.
+
+### Translation and naming conventions
+
+HAEO follows Home Assistant's entity naming conventions for sensor translations.
+See `.github/instructions/translations.instructions.md` for detailed rules.
+
+Key patterns for sensor display names using sentence case (capital first letter, rest lowercase):
+
+1. **Power sensors**: Action + noun pattern ("Import power", "Charge power")
+2. **Price sensors**: Qualifier + price pattern ("Import price", "Export price")
+3. **Shadow price sensors**: Constraint + "shadow price" suffix ("Max import power shadow price")
+4. **Connection sensors**: Use parameterized translations with `{source}` and `{target}` placeholders
+
+Avoid special characters in translation display names as they are used in entity ID generation.
 
 ## Path-specific instructions
 

@@ -1,6 +1,6 @@
 ---
-description: "Manifest.json requirements"
-globs: ["**/manifest.json"]
+description: Manifest.json requirements
+globs: ['**/manifest.json']
 alwaysApply: false
 ---
 
@@ -14,10 +14,14 @@ Every `manifest.json` must include:
 {
   "domain": "haeo",
   "name": "HAEO",
-  "codeowners": ["@username"],
+  "codeowners": [
+    "@username"
+  ],
   "integration_type": "hub",
   "documentation": "https://github.com/hass-energy/haeo",
-  "requirements": ["pulp>=2.7.0"],
+  "requirements": [
+    "pulp>=2.7.0"
+  ],
   "version": "1.0.0"
 }
 ```
@@ -53,6 +57,7 @@ Specify connectivity method:
 ```
 
 Options:
+
 - `cloud_polling` - Cloud service, polling
 - `cloud_push` - Cloud service, push updates
 - `local_polling` - Local network, polling
@@ -66,13 +71,16 @@ For integrations that depend on other integrations:
 
 ```json
 {
-  "dependencies": ["other_integration"]
+  "dependencies": [
+    "other_integration"
+  ]
 }
 ```
 
 ## HACS compatibility
 
 For HACS distribution, ensure:
+
 - Version field is present
 - Requirements use valid PyPI package names
 - Documentation URL is accessible

@@ -1,5 +1,5 @@
 ---
-applyTo: "custom_components/haeo/model/**"
+applyTo: custom_components/haeo/model/**
 ---
 
 # Model layer development
@@ -15,6 +15,7 @@ Use SI units throughout all model calculations:
 - **Time**: seconds
 
 Only convert to user-friendly units (kW, kWh, hours) at the boundary when:
+
 - Displaying to users
 - Accepting user input
 - Interfacing with external APIs that use different units

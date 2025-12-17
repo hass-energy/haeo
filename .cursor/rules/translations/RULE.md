@@ -1,6 +1,6 @@
 ---
-description: "Translation and user-facing text standards"
-globs: ["**/translations/**", "**/strings.json"]
+description: Translation and user-facing text standards
+globs: ['**/translations/**', '**/strings.json']
 alwaysApply: false
 ---
 
@@ -75,7 +75,7 @@ All repair issues must be actionable:
 - Explain what to expect after following the steps
 
 ❌ Bad: "Update firmware"
-✅ Good: "Your device firmware version {version} is outdated. To update: 1) Open the manufacturer's app, 2) Navigate to device settings, 3) Select 'Update Firmware'."
+✅ Good: "Your device firmware version \{version} is outdated. To update: 1) Open the manufacturer's app, 2) Navigate to device settings, 3) Select 'Update Firmware'."
 
 ## Entity translations
 

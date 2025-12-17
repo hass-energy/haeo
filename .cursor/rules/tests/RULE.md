@@ -1,6 +1,6 @@
 ---
-description: "Testing standards and patterns"
-globs: ["tests/**"]
+description: Testing standards and patterns
+globs: [tests/**]
 alwaysApply: false
 ---
 
@@ -50,6 +50,7 @@ def mock_config_entry() -> MockConfigEntry:
         unique_id="test_unique_id",
     )
 
+
 @pytest.fixture
 async def init_integration(
     hass: HomeAssistant,
@@ -69,24 +70,17 @@ Test all paths:
 ```python
 async def test_user_flow_success(hass):
     """Test successful user flow."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
     assert result["type"] == FlowResultType.FORM
 
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={...}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={...})
     assert result["type"] == FlowResultType.CREATE_ENTRY
+
 
 async def test_flow_connection_error(hass, mock_api_error):
     """Test connection error handling."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input={...}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={...})
     assert result["errors"] == {"base": "cannot_connect"}
 ```
 
@@ -103,9 +97,7 @@ async def test_entities(
     mock_config_entry: MockConfigEntry,
 ) -> None:
     """Test sensor entities."""
-    await snapshot_platform(
-        hass, entity_registry, snapshot, mock_config_entry.entry_id
-    )
+    await snapshot_platform(hass, entity_registry, snapshot, mock_config_entry.entry_id)
 ```
 
 ## Mock patterns

@@ -1,6 +1,6 @@
 ---
-description: "Documentation standards"
-globs: ["docs/**"]
+description: Documentation standards
+globs: [docs/**]
 alwaysApply: false
 ---
 
@@ -24,6 +24,7 @@ They are endowed with reason and conscience.
 ```
 
 Break lines at semantic boundaries:
+
 - **Required**: After sentences (., !, ?)
 - **Recommended**: After independent clauses (,, ;, :, —)
 - **Optional**: After dependent clauses for clarity
@@ -39,6 +40,7 @@ Break lines at semantic boundaries:
 ## Diagrams
 
 Use mermaid for all diagrams:
+
 - Flowcharts for network topology
 - XY charts for time series data
 - State diagrams for operational modes

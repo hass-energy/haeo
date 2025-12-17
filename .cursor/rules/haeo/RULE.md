@@ -1,5 +1,5 @@
 ---
-description: "HAEO project context and agent behavioral rules - always applied"
+description: HAEO project context and agent behavioral rules - always applied
 alwaysApply: true
 ---
 
@@ -30,22 +30,12 @@ tests/                      # Test suite
 docs/                       # Documentation
 ```
 
-## Development commands
+## Development tools
 
-```bash
-# Setup
-uv sync                     # Install all dependencies
-
-# Testing
-uv run pytest               # Run all tests
-uv run pytest tests/scenarios/ -m scenario  # Scenario tests only
-uv run pytest --cov         # With coverage
-
-# Code quality
-uv run ruff check           # Lint
-uv run ruff format          # Format
-uv run pyright              # Type check
-```
+- **Package manager**: uv (use `uv sync` for dependencies, `uv run` to execute tools)
+- **Testing**: pytest (scenarios use `-m scenario` marker)
+- **Linting/Formatting**: Ruff
+- **Type checking**: Pyright
 
 ## Agent behavioral rules
 

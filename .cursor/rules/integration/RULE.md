@@ -1,6 +1,6 @@
 ---
-description: "Home Assistant integration patterns"
-globs: ["custom_components/haeo/**"]
+description: Home Assistant integration patterns
+globs: [custom_components/haeo/**]
 alwaysApply: false
 ---
 
@@ -38,6 +38,7 @@ class MyCoordinator(DataUpdateCoordinator[MyData]):
 ### Unique IDs
 
 Every entity must have a unique ID:
+
 ```python
 self._attr_unique_id = f"{entry.entry_id}-{element_id}-power"
 ```
@@ -63,9 +64,7 @@ class MySensor(SensorEntity):
 ```python
 async def async_added_to_hass(self) -> None:
     """Subscribe to events."""
-    self.async_on_remove(
-        self.coordinator.async_add_listener(self._handle_update)
-    )
+    self.async_on_remove(self.coordinator.async_add_listener(self._handle_update))
 ```
 
 ## Device registry
@@ -87,9 +86,8 @@ Implement diagnostic data collection:
 ```python
 TO_REDACT = [CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE]
 
-async def async_get_config_entry_diagnostics(
-    hass: HomeAssistant, entry: ConfigEntry
-) -> dict[str, Any]:
+
+async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     return async_redact_data(entry.data, TO_REDACT)
 ```
 
@@ -105,6 +103,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload config entry."""

@@ -1,6 +1,6 @@
 ---
-description: "Energy elements layer development"
-globs: ["custom_components/haeo/elements/**"]
+description: Energy elements layer development
+globs: [custom_components/haeo/elements/**]
 alwaysApply: false
 ---
 
@@ -11,6 +11,7 @@ The elements layer bridges Home Assistant configuration with the LP model layer.
 ## Element responsibilities
 
 Each element (Battery, Grid, Load, Photovoltaics, Node):
+
 - Loads data from Home Assistant sensors
 - Creates corresponding model layer elements
 - Extracts optimization results back to HA sensors

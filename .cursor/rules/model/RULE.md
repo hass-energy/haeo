@@ -1,6 +1,6 @@
 ---
-description: "LP model layer development standards"
-globs: ["custom_components/haeo/model/**"]
+description: LP model layer development standards
+globs: [custom_components/haeo/model/**]
 alwaysApply: false
 ---
 
@@ -17,6 +17,7 @@ Use SI units throughout all model calculations:
 - **Time**: seconds
 
 Only convert to user-friendly units (kW, kWh, hours) at the boundary when:
+
 - Displaying to users
 - Accepting user input
 - Interfacing with external APIs that use different units
