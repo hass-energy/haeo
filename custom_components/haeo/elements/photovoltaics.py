@@ -6,9 +6,7 @@ from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.connection import (
-    CONNECTION_POWER_MAX_SOURCE_TARGET,
     CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_PRICE_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
@@ -37,7 +35,6 @@ CONF_CONNECTION: Final = "connection"
 
 type PhotovoltaicsOutputName = Literal[
     "photovoltaics_power",
-    "photovoltaics_power_available",
     "photovoltaics_price",
     # Shadow prices
     "photovoltaics_forecast_limit",
@@ -46,7 +43,6 @@ type PhotovoltaicsOutputName = Literal[
 PHOTOVOLTAIC_OUTPUT_NAMES: Final[frozenset[PhotovoltaicsOutputName]] = frozenset(
     (
         PHOTOVOLTAICS_POWER := "photovoltaics_power",
-        PHOTOVOLTAICS_POWER_AVAILABLE := "photovoltaics_power_available",
         PHOTOVOLTAICS_PRICE := "photovoltaics_price",
         # Shadow prices
         PHOTOVOLTAICS_FORECAST_LIMIT := "photovoltaics_forecast_limit",
@@ -109,20 +105,16 @@ def create_model_elements(config: PhotovoltaicsConfigData) -> list[dict[str, Any
     ]
 
 
-def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: PhotovoltaicsConfigData
+def updates(
+    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: PhotovoltaicsConfigData
 ) -> Mapping[PhotovoltaicsDeviceName, Mapping[PhotovoltaicsOutputName, OutputData]]:
-    """Map model outputs to photovoltaics-specific output names."""
+    """Provide state updates for photovoltaics output sensors."""
+    connection = model_outputs[f"{name}:connection"]
 
-    connection = outputs[f"{name}:connection"]
-
-    pv_outputs: dict[PhotovoltaicsOutputName, OutputData] = {
+    pv_updates: dict[PhotovoltaicsOutputName, OutputData] = {
+        # Output sensors from optimization
         PHOTOVOLTAICS_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER),
-        PHOTOVOLTAICS_POWER_AVAILABLE: connection[CONNECTION_POWER_MAX_SOURCE_TARGET],
         PHOTOVOLTAICS_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
     }
 
-    if CONNECTION_PRICE_SOURCE_TARGET in connection:
-        pv_outputs[PHOTOVOLTAICS_PRICE] = connection[CONNECTION_PRICE_SOURCE_TARGET]
-
-    return {PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS: pv_outputs}
+    return {PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS: pv_updates}

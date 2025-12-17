@@ -77,8 +77,8 @@ def test_element_optimization(
     # Collect model outputs from all network elements
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
 
-    # Get aggregated device outputs using the element adapter
-    result = entry.outputs(data["name"], model_outputs, data)
+    # Get aggregated device updates using the element adapter
+    result = entry.updates(data["name"], model_outputs, data)
 
     # Verify the adapter produces all expected device outputs
     expected_outputs = case["outputs"]

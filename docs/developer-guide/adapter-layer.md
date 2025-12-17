@@ -94,13 +94,68 @@ When adapters create multiple model elements or devices, they use a naming conve
 
 This prevents naming collisions and groups related components visually.
 
+## Output and Input Names
+
+Each element type defines two categories of sensor outputs through typed constants:
+
+### OUTPUT_NAMES
+
+**Computed outputs** from the optimization model.
+These represent decision variables or derived values that the optimizer calculates:
+
+- Power flows (import, export, charge, discharge)
+- State of charge and energy stored
+- Shadow prices (constraint marginal values)
+
+Each element defines its output names as a `frozenset`:
+
+```python
+type GridOutputName = Literal[
+    "grid_power_import",
+    "grid_power_export",
+    "grid_power_active",
+    "grid_power_max_import_price",
+    "grid_power_max_export_price",
+]
+
+GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(...)
+```
+
+### Input Entities
+
+**Configuration-derived inputs** are handled differently from optimization outputs.
+Rather than passing through the adapter layer, input values are exposed directly as Number or Switch entities.
+
+The `schema/input_fields.py` module extracts input field metadata from ConfigSchema:
+
+- Power fields become Number entities with kW units
+- Price fields become Number entities with $/kWh units
+- Boolean fields become Switch entities
+
+Input entities:
+- Created directly from subentry config (not coordinator data)
+- Support DRIVEN mode (mirrors external sensor) or EDITABLE mode (user-controlled)
+- Persist state across restarts using RestoreNumber/RestoreEntity
+
+### Aggregated Name Sets
+
+The element registry aggregates output names for translation validation:
+
+```python
+# All output sensor names across elements
+ELEMENT_OUTPUT_NAMES: frozenset[ElementOutputName]
+```
+
+This set validates that all sensor names have corresponding translation keys.
+Input entity translation keys are derived from the schema field names.
+
 ## Adding New Element Types
 
 To add a new Device Layer element:
 
 1. Define configuration schema in `elements/{element}.py`
 2. Implement `create_model_elements()` returning model element specifications
-3. Implement `outputs()` mapping model results to device outputs
+3. Implement `updates()` mapping model results to device outputs
 4. Register in `elements/__init__.py` `ELEMENT_TYPES` dictionary
 5. Add translations in `translations/en.json`
 

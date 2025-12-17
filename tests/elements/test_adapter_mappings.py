@@ -30,11 +30,11 @@ def test_create_model_elements(
 
 
 @pytest.mark.parametrize(("element_type", "case"), _all_valid_cases(), ids=_valid_case_id)
-def test_outputs_mapping(
+def test_updates_mapping(
     element_type: ElementType, case: ElementValidCase[ElementConfigSchema, ElementConfigData]
 ) -> None:
-    """Verify adapter maps model outputs to device outputs."""
+    """Verify adapter maps model outputs to device sensor states."""
 
     entry = ELEMENT_TYPES[element_type]
-    result = entry.outputs(case["data"]["name"], case["model_outputs"], case["data"])
+    result = entry.updates(case["data"]["name"], case["model_outputs"], case["data"])
     assert result == case["outputs"]

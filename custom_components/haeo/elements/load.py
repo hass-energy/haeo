@@ -6,7 +6,6 @@ from typing import Any, Final, Literal, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.connection import (
-    CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
@@ -28,13 +27,11 @@ CONF_CONNECTION: Final = "connection"
 
 type LoadOutputName = Literal[
     "load_power",
-    "load_power_possible",
     "load_forecast_limit_price",
 ]
 LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     (
         LOAD_POWER := "load_power",
-        LOAD_POWER_POSSIBLE := "load_power_possible",
         # Shadow prices
         LOAD_FORECAST_LIMIT_PRICE := "load_forecast_limit_price",
     )
@@ -89,18 +86,16 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
     return elements
 
 
-def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: LoadConfigData
+def updates(
+    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: LoadConfigData
 ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
-    """Map model outputs to load-specific output names."""
+    """Provide state updates for load output sensors."""
+    connection = model_outputs[f"{name}:connection"]
 
-    connection = outputs[f"{name}:connection"]
-
-    load_outputs: dict[LoadOutputName, OutputData] = {
+    load_updates: dict[LoadOutputName, OutputData] = {
+        # Output sensors from optimization
         LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER),
-        LOAD_POWER_POSSIBLE: connection[CONNECTION_POWER_MAX_TARGET_SOURCE],
-        # Only the max limit has meaning, the source sink power balance is always zero as it will never influence cost
         LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
     }
 
-    return {LOAD_DEVICE_LOAD: load_outputs}
+    return {LOAD_DEVICE_LOAD: load_updates}

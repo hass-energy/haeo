@@ -117,11 +117,13 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
 
 
 def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, SensorStateDict]:
-    """Get all output sensors created by this config entry.
+    """Get all output entities created by this config entry.
 
     Returns a dict mapping entity_id to a cleaned sensor state dict.
     Uses State.as_dict() to get complete state information including:
     - entity_id, state, attributes, last_changed, last_updated, context
+
+    Includes sensors, number entities, and switch entities from HAEO.
 
     Unstable fields that are removed:
     - last_changed, last_updated, context (timestamp-based, not relevant for snapshot comparison)
@@ -133,9 +135,9 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
 
     output_sensors: dict[str, SensorStateDict] = {}
 
-    # Collect sensor data
+    # Collect entity data
     for entity_entry in er.async_entries_for_config_entry(entity_registry, config_entry.entry_id):
-        # Only include sensors from our domain
+        # Only include entities from our domain (sensor, number, switch platforms)
         if entity_entry.platform != DOMAIN:
             continue
 

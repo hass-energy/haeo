@@ -35,6 +35,7 @@ from .const import (
 )
 from .elements import (
     ELEMENT_TYPES,
+    ElementConfigData,
     ElementConfigSchema,
     ElementDeviceName,
     ElementOutputName,
@@ -236,7 +237,10 @@ def _build_coordinator_output(
     )
 
 
-type SubentryDevices = dict[ElementDeviceName, dict[ElementOutputName | NetworkOutputName, CoordinatorOutput]]
+type SubentryDevices = dict[
+    ElementDeviceName,
+    dict[ElementOutputName | NetworkOutputName, CoordinatorOutput],
+]
 type CoordinatorData = dict[str, SubentryDevices]
 
 
@@ -251,6 +255,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Runtime attributes exposed to other integration modules
         self.network: Network | None = None
+        self.loaded_configs: dict[str, ElementConfigData] | None = None
+        self.forecast_timestamps: tuple[float, ...] | None = None
 
         self._participant_configs: dict[str, ElementConfigSchema] = {
             participant.name: participant.config for participant in collect_element_subentries(config_entry)
@@ -327,6 +333,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             forecast_timestamps,
         )
 
+        # Store loaded configs and forecast timestamps for entity updates
+        self.loaded_configs = loaded_configs
+        self.forecast_timestamps = forecast_timestamps
+
         # Build network with loaded configurations
         network = await data_module.load_network(
             self.config_entry,
@@ -371,20 +381,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             element_name: element.outputs() for element_name, element in network.elements.items()
         }
 
-        # Process each config element using its outputs function to transform model outputs into device outputs
+        # Process each config element using its updates function to get input and output sensor states
         for element_name, element_config in self._participant_configs.items():
             element_type = element_config["element_type"]
-            outputs_fn = ELEMENT_TYPES[element_type].outputs
+            updates_fn = ELEMENT_TYPES[element_type].updates
 
-            # outputs function returns {device_name: {output_name: OutputData}}
+            # updates function returns {device_name: {sensor_name: OutputData}}
             # May return multiple devices per config element (e.g., battery regions)
             try:
-                adapter_outputs: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = outputs_fn(
+                adapter_updates: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = updates_fn(
                     element_name, model_outputs, loaded_configs[element_name]
                 )
             except KeyError:
                 _LOGGER.exception(
-                    "Failed to get outputs for config element %r (type=%r): missing model element. "
+                    "Failed to get sensor updates for config element %r (type=%r): missing model element. "
                     "Available model elements: %s",
                     element_name,
                     element_type,
@@ -392,20 +402,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 )
                 raise
 
-            # Process each device's outputs, grouping under the subentry (element_name)
+            # Process each device's sensor updates, grouping under the subentry (element_name)
             subentry_devices: SubentryDevices = {}
-            for device_name, device_outputs in adapter_outputs.items():
-                processed_outputs: dict[ElementOutputName, CoordinatorOutput] = {
-                    output_name: _build_coordinator_output(
-                        output_name,
-                        output_data,
+            for device_name, device_updates in adapter_updates.items():
+                processed_updates: dict[ElementOutputName | NetworkOutputName, CoordinatorOutput] = {
+                    sensor_name: _build_coordinator_output(
+                        sensor_name,
+                        sensor_data,
                         forecast_times=forecast_timestamps,
                     )
-                    for output_name, output_data in device_outputs.items()
+                    for sensor_name, sensor_data in device_updates.items()
                 }
 
-                if processed_outputs:
-                    subentry_devices[device_name] = processed_outputs
+                if processed_updates:
+                    subentry_devices[device_name] = processed_updates
 
             if subentry_devices:
                 result[element_name] = subentry_devices

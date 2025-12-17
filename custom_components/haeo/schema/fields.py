@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Final, Literal, Unpack
 
+from homeassistant.components.number import NumberDeviceClass
 from homeassistant.const import CURRENCY_DOLLAR, PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.selector import (
     BooleanSelector,
@@ -35,6 +36,13 @@ class FieldMeta(ABC):
     field_type: str
     loader: Loader
 
+    # UI Metadata
+    min: float | None = None
+    max: float | None = None
+    step: float | None = None
+    unit: str | None = None
+    device_class: NumberDeviceClass | None = None
+
     def create_schema(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
         """Return the voluptuous validators for this field."""
         return self._get_field_validators(**schema_params)
@@ -50,17 +58,21 @@ class PowerFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    min: float = 0.0
+    step: float = 0.001
+    unit: str = UnitOfPower.KILO_WATT
+    device_class: NumberDeviceClass = NumberDeviceClass.POWER
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
-            vol.Range(min=0, min_included=True, msg="Value must be positive"),
+            vol.Range(min=self.min, min_included=True, msg="Value must be positive"),
             NumberSelector(
                 NumberSelectorConfig(
                     mode=NumberSelectorMode.BOX,
-                    min=0,
-                    step=0.001,
-                    unit_of_measurement=UnitOfPower.KILO_WATT,
+                    min=self.min,
+                    step=self.step,
+                    unit_of_measurement=self.unit,
                 )
             ),
         )
@@ -100,17 +112,21 @@ class EnergyFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    min: float = 0.0
+    step: float = 0.001
+    unit: str = UnitOfEnergy.KILO_WATT_HOUR
+    device_class: NumberDeviceClass = NumberDeviceClass.ENERGY
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
-            vol.Range(min=0, min_included=True, msg="Value must be positive"),
+            vol.Range(min=self.min, min_included=True, msg="Value must be positive"),
             NumberSelector(
                 NumberSelectorConfig(
                     mode=NumberSelectorMode.BOX,
-                    min=0,
-                    step=0.001,
-                    unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    min=self.min,
+                    step=self.step,
+                    unit_of_measurement=self.unit,
                 )
             ),
         )
@@ -122,6 +138,9 @@ class PriceFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    step: float = 0.001
+    unit: str = f"{CURRENCY_DOLLAR}/{UnitOfEnergy.KILO_WATT_HOUR}"
+    device_class: NumberDeviceClass = NumberDeviceClass.MONETARY
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
@@ -129,8 +148,8 @@ class PriceFieldMeta(FieldMeta):
             NumberSelector(
                 NumberSelectorConfig(
                     mode=NumberSelectorMode.BOX,
-                    step=0.001,
-                    unit_of_measurement=f"{CURRENCY_DOLLAR}/{UnitOfEnergy.KILO_WATT_HOUR}",
+                    step=self.step,
+                    unit_of_measurement=self.unit,
                 )
             ),
         )
@@ -142,9 +161,12 @@ class PercentageFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    min: float | None = 0.0
+    max: float | None = 100.0
+    unit: str | None = PERCENTAGE
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
-        return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
+        return vol.All(vol.Coerce(float), vol.Range(min=self.min, max=self.max, msg="Value must be between 0 and 100"))
 
 
 @dataclass(frozen=True)
@@ -205,12 +227,15 @@ class PowerFlowFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    step: float = 0.001
+    unit: str = UnitOfPower.KILO_WATT
+    device_class: NumberDeviceClass = NumberDeviceClass.POWER
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
             NumberSelector(
-                NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=0.001, unit_of_measurement=UnitOfPower.KILO_WATT)
+                NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=self.step, unit_of_measurement=self.unit)
             ),
         )
 
@@ -221,9 +246,13 @@ class BatterySOCFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    min: float | None = 0.0
+    max: float | None = 100.0
+    unit: str | None = PERCENTAGE
+    device_class: NumberDeviceClass | None = NumberDeviceClass.BATTERY
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
-        return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
+        return vol.All(vol.Coerce(float), vol.Range(min=self.min, max=self.max, msg="Value must be between 0 and 100"))
 
 
 # Define unit sets for sensor filtering

@@ -165,8 +165,8 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
     def mock_create_model_elements(config: Any) -> list[dict[str, Any]]:
         return []
 
-    def mock_outputs(
-        name: str, outputs: Mapping[str, Mapping[Any, OutputData]]
+    def mock_updates(
+        name: str, model_outputs: Mapping[str, Mapping[Any, OutputData]]
     ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
         return {}
 
@@ -176,7 +176,7 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
         defaults={},
         translation_key=cast("ElementType", TEST_ELEMENT_TYPE),
         create_model_elements=mock_create_model_elements,
-        outputs=mock_outputs,  # type: ignore[arg-type]
+        updates=mock_updates,  # type: ignore[arg-type]
     )
     monkeypatch.setitem(ELEMENT_TYPES, cast("ElementType", TEST_ELEMENT_TYPE), entry)
     return FlowTestElementFactory()

@@ -10,8 +10,8 @@ Adapter Pattern:
     Model Elements (pure optimization) →
     Model.optimize() →
     Model Outputs (element-agnostic) →
-    Adapter.outputs() →
-    Device Outputs (user-friendly sensors)
+    Adapter.updates() →
+    Device Sensor States (input and output sensors)
 
 Sub-element Naming Convention:
     Adapters may create multiple model elements and devices from a single config element.
@@ -121,7 +121,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
 
 type CreateModelElementsFn = Callable[[Any], list[dict[str, Any]]]
 
-type OutputsFn = Callable[
+type UpdatesFn = Callable[
     [str, Mapping[str, Mapping[ModelOutputName, OutputData]], Any],
     Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]],
 ]
@@ -130,11 +130,11 @@ type OutputsFn = Callable[
 class ElementRegistryEntry(NamedTuple):
     """Registry entry for an element type.
 
-    The create_model_elements and outputs fields are callables that:
+    The create_model_elements and updates fields are callables that:
         - create_model_elements(config) -> list[dict[str, Any]]
             Transforms config element to model elements
-        - outputs(name, model_outputs, config) -> dict[str, dict[str, Any]]
-            Transforms model outputs to device outputs with access to original config
+        - updates(name, model_outputs, config) -> dict[str, dict[str, Any]]
+            Provides state updates for input and output sensors
     """
 
     schema: type[Any]
@@ -142,7 +142,7 @@ class ElementRegistryEntry(NamedTuple):
     defaults: dict[str, Any]
     translation_key: ElementType
     create_model_elements: CreateModelElementsFn
-    outputs: OutputsFn
+    updates: UpdatesFn
 
 
 ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
@@ -152,7 +152,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=battery.CONFIG_DEFAULTS,
         translation_key=battery.ELEMENT_TYPE,
         create_model_elements=battery.create_model_elements,
-        outputs=cast("OutputsFn", battery.outputs),
+        updates=cast("UpdatesFn", battery.updates),
     ),
     connection.ELEMENT_TYPE: ElementRegistryEntry(
         schema=connection.ConnectionConfigSchema,
@@ -160,7 +160,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=connection.CONFIG_DEFAULTS,
         translation_key=connection.ELEMENT_TYPE,
         create_model_elements=connection.create_model_elements,
-        outputs=cast("OutputsFn", connection.outputs),
+        updates=cast("UpdatesFn", connection.updates),
     ),
     photovoltaics.ELEMENT_TYPE: ElementRegistryEntry(
         schema=photovoltaics.PhotovoltaicsConfigSchema,
@@ -168,7 +168,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=photovoltaics.CONFIG_DEFAULTS,
         translation_key=photovoltaics.ELEMENT_TYPE,
         create_model_elements=photovoltaics.create_model_elements,
-        outputs=cast("OutputsFn", photovoltaics.outputs),
+        updates=cast("UpdatesFn", photovoltaics.updates),
     ),
     grid.ELEMENT_TYPE: ElementRegistryEntry(
         schema=grid.GridConfigSchema,
@@ -176,7 +176,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=grid.CONFIG_DEFAULTS,
         translation_key=grid.ELEMENT_TYPE,
         create_model_elements=grid.create_model_elements,
-        outputs=cast("OutputsFn", grid.outputs),
+        updates=cast("UpdatesFn", grid.updates),
     ),
     load.ELEMENT_TYPE: ElementRegistryEntry(
         schema=load.LoadConfigSchema,
@@ -184,7 +184,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=load.CONFIG_DEFAULTS,
         translation_key=load.ELEMENT_TYPE,
         create_model_elements=load.create_model_elements,
-        outputs=cast("OutputsFn", load.outputs),
+        updates=cast("UpdatesFn", load.updates),
     ),
     node.ELEMENT_TYPE: ElementRegistryEntry(
         schema=node.NodeConfigSchema,
@@ -192,7 +192,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         defaults=node.CONFIG_DEFAULTS,
         translation_key=node.ELEMENT_TYPE,
         create_model_elements=node.create_model_elements,
-        outputs=cast("OutputsFn", node.outputs),
+        updates=cast("UpdatesFn", node.updates),
     ),
 }
 
@@ -243,6 +243,7 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
 
 __all__ = [
     "ELEMENT_DEVICE_NAMES",
+    "ELEMENT_OUTPUT_NAMES",
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
     "ELEMENT_TYPE_CONNECTION",
@@ -254,9 +255,10 @@ __all__ = [
     "ElementConfigData",
     "ElementConfigSchema",
     "ElementDeviceName",
+    "ElementOutputName",
     "ElementRegistryEntry",
     "ElementType",
-    "OutputsFn",
+    "UpdatesFn",
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "is_element_config_schema",

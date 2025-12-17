@@ -7,7 +7,6 @@ from custom_components.haeo.model import connection as connection_element
 from custom_components.haeo.model.const import (
     OUTPUT_TYPE_POWER,
     OUTPUT_TYPE_POWER_FLOW,
-    OUTPUT_TYPE_POWER_LIMIT,
     OUTPUT_TYPE_SHADOW_PRICE,
 )
 from custom_components.haeo.model.output_data import OutputData
@@ -50,14 +49,12 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
         "model_outputs": {
             "pv_main:connection": {
                 connection_element.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(2.0,), direction="+"),
-                connection_element.CONNECTION_POWER_MAX_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
                 connection_element.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
         "outputs": {
             pv_element.PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS: {
                 pv_element.PHOTOVOLTAICS_POWER: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction="+"),
-                pv_element.PHOTOVOLTAICS_POWER_AVAILABLE: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
                 pv_element.PHOTOVOLTAICS_FORECAST_LIMIT: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },

@@ -9,6 +9,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.elements import ELEMENT_OUTPUT_NAMES
 from custom_components.haeo.sensors.sensor import HaeoSensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,24 +53,26 @@ async def async_setup_entry(
                     config_entry_id=config_entry.entry_id,
                     config_subentry_id=subentry.subentry_id,
                     translation_key=device_name,
-                    translation_placeholders={"name": subentry.title},
+                    translation_placeholders=translation_placeholders,
                 )
 
                 for output_name, output_data in device_outputs.items():
-                    entities.append(
-                        HaeoSensor(
-                            coordinator,
-                            device_entry=device_entry,
-                            subentry_key=subentry.title,
-                            device_key=device_name,
-                            element_title=subentry.title,
-                            element_type=subentry.subentry_type,
-                            output_name=output_name,
-                            output_data=output_data,
-                            unique_id=f"{config_entry.entry_id}_{device_id_suffix}_{output_name}",
-                            translation_placeholders=translation_placeholders,
+                    # Only create sensors for optimization outputs
+                    if output_name in ELEMENT_OUTPUT_NAMES:
+                        entities.append(
+                            HaeoSensor(
+                                coordinator,
+                                device_entry=device_entry,
+                                subentry_key=subentry.title,
+                                device_key=device_name,
+                                element_title=subentry.title,
+                                element_type=subentry.subentry_type,
+                                output_name=output_name,
+                                output_data=output_data,
+                                unique_id=f"{config_entry.entry_id}_{device_id_suffix}_{output_name}",
+                                translation_placeholders=translation_placeholders,
+                            )
                         )
-                    )
 
     if entities:
         async_add_entities(entities)

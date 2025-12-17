@@ -2,6 +2,10 @@
 
 Parses forecast data from HAEO's own output format, which uses a "forecast"
 attribute containing a mapping of datetime keys to float values.
+
+For config entities in editable mode (user provides input), we skip the forecast
+attribute to prevent feedback loops. The config entity's current state is treated
+as a constant value rather than a forecast source.
 """
 
 from collections.abc import Mapping, Sequence
@@ -16,6 +20,10 @@ from homeassistant.core import State
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
+
+# Config mode value for editable entities - matches ConfigEntityMode.EDITABLE.value
+# Defined here to avoid circular import with config_entities module
+_CONFIG_MODE_EDITABLE = "editable"
 
 Format = Literal["haeo"]
 DOMAIN: Format = "haeo"
@@ -53,7 +61,18 @@ class Parser:
 
     @staticmethod
     def detect(state: State) -> TypeGuard[HaeoForecastState]:
-        """Check if data matches HAEO forecast format and narrow type."""
+        """Check if data matches HAEO forecast format and narrow type.
+
+        Excludes editable config entities to prevent feedback loops.
+        When a config entity is in editable mode (user provides input),
+        we skip the forecast attribute and treat it as a simple float value.
+        """
+        # Check for config_mode attribute - skip editable config entities
+        # to prevent feedback loops where forecast dominates user input
+        config_mode = state.attributes.get("config_mode")
+        if config_mode == _CONFIG_MODE_EDITABLE:
+            return False
+
         # Check for required forecast attribute
         if "forecast" not in state.attributes:
             return False

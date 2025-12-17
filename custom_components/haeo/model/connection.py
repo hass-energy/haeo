@@ -7,7 +7,7 @@ from highspy import Highs
 from highspy.highs import highs_linear_expression
 import numpy as np
 
-from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_POWER_LIMIT, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE
+from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_SHADOW_PRICE
 from .element import Element
 from .output_data import OutputData
 from .util import broadcast_to_sequence
@@ -22,11 +22,6 @@ type ConnectionOutputName = (
     Literal[
         "connection_power_source_target",
         "connection_power_target_source",
-        "connection_power_active",
-        "connection_power_max_source_target",
-        "connection_power_max_target_source",
-        "connection_price_source_target",
-        "connection_price_target_source",
     ]
     | ConnectionConstraintName
 )
@@ -35,11 +30,6 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
     (
         CONNECTION_POWER_SOURCE_TARGET := "connection_power_source_target",
         CONNECTION_POWER_TARGET_SOURCE := "connection_power_target_source",
-        CONNECTION_POWER_ACTIVE := "connection_power_active",
-        CONNECTION_POWER_MAX_SOURCE_TARGET := "connection_power_max_source_target",
-        CONNECTION_POWER_MAX_TARGET_SOURCE := "connection_power_max_target_source",
-        CONNECTION_PRICE_SOURCE_TARGET := "connection_price_source_target",
-        CONNECTION_PRICE_TARGET_SOURCE := "connection_price_target_source",
         # Constraints
         CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET := "connection_shadow_power_max_source_target",
         CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE := "connection_shadow_power_max_target_source",
@@ -197,40 +187,6 @@ class Connection(Element[ConnectionOutputName, ConnectionConstraintName]):
                 direction="-",
             ),
         }
-
-        # Output max power limits if provided
-        if self.max_power_source_target is not None:
-            outputs[CONNECTION_POWER_MAX_SOURCE_TARGET] = OutputData(
-                type=OUTPUT_TYPE_POWER_LIMIT,
-                unit="kW",
-                values=self.max_power_source_target,
-                direction="+",
-            )
-
-        if self.max_power_target_source is not None:
-            outputs[CONNECTION_POWER_MAX_TARGET_SOURCE] = OutputData(
-                type=OUTPUT_TYPE_POWER_LIMIT,
-                unit="kW",
-                values=self.max_power_target_source,
-                direction="-",
-            )
-
-        # Output price data if provided
-        if self.price_source_target is not None:
-            outputs[CONNECTION_PRICE_SOURCE_TARGET] = OutputData(
-                type=OUTPUT_TYPE_PRICE,
-                unit="$/kWh",
-                values=self.price_source_target,
-                direction="+",
-            )
-
-        if self.price_target_source is not None:
-            outputs[CONNECTION_PRICE_TARGET_SOURCE] = OutputData(
-                type=OUTPUT_TYPE_PRICE,
-                unit="$/kWh",
-                values=self.price_target_source,
-                direction="-",
-            )
 
         # Output constraint shadow prices
         for constraint_name in self._constraints:
