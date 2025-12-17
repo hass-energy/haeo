@@ -1,26 +1,27 @@
 ---
 applyTo: custom_components/haeo/model/**
+description: Model layer LP formulation standards
+globs: [custom_components/haeo/model/**]
+alwaysApply: false
 ---
 
 # Model layer development
 
 The model layer contains the linear programming formulation for energy optimization.
 
-## Units (SI internally)
+## Units
 
-Use SI units throughout all model calculations:
+Use SI-derived units scaled for numerical stability throughout all model calculations:
 
-- **Power**: Watts (W)
-- **Energy**: Watt-hours (Wh)
-- **Time**: seconds
+- **Power**: kilowatts (kW)
+- **Energy**: kilowatt-hours (kWh)
+- **Time**: hours (model layer uses hours; rest of codebase uses seconds)
 
-Only convert to user-friendly units (kW, kWh, hours) at the boundary when:
+This scaling keeps values in the ideal range for LP solvers (0.01 to 1000).
+The adapter layer handles conversion between model time (hours) and Home Assistant time (seconds).
+See [units.md](../../docs/developer-guide/units.md) for rationale and conversion utilities.
 
-- Displaying to users
-- Accepting user input
-- Interfacing with external APIs that use different units
-
-See [units.md](../../docs/developer-guide/units.md) for conversion utilities.
+When model updates or documentation changes are made, ensure the corresponding documentation in `docs/modeling/` is updated.
 
 ## Model patterns
 

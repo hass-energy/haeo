@@ -1,3 +1,8 @@
+---
+description: HAEO project context and agent behavioral rules - always applied
+alwaysApply: true
+---
+
 # GitHub Copilot Instructions
 
 This repository contains **HAEO** (Home Assistant Energy Optimizer) - a Python 3.13+ Home Assistant custom component for energy network optimization using linear programming.
@@ -9,23 +14,29 @@ The integration provides real-time optimization based on energy prices, forecast
 
 ### Core components
 
-- **Network**: Container managing elements and connections, runs optimization
-- **Elements**: Battery, Grid, Load, Photovoltaics, Node - each with power/energy variables
-- **Connections**: Define power flow constraints between elements
-- **Model**: Linear programming formulation with constraints and cost functions
-- **Coordinator**: Bridges HA entities with optimization network
-- **Sensors**: Expose optimization results to Home Assistant
+The integration follows a layered architecture:
+
+- **Model layer** (`model/`): LP formulation with elements, constraints, and cost functions
+- **Elements layer** (`elements/`): Bridges HA configuration with model layer via adapters
+- **Coordinator** (`coordinator.py`): Orchestrates data loading, optimization, and result extraction
+- **Sensors** (`sensors/`): Expose optimization results to Home Assistant
+- **Config flows** (`flows/`): Subentry-based configuration for hub and elements
+
+See [architecture guide](../docs/developer-guide/architecture.md) for detailed component interactions.
 
 ### Project structure
 
 ```
 custom_components/haeo/     # Home Assistant integration
 ├── model/                  # LP model (constraints, variables, optimization)
-├── elements/               # Energy elements (battery, grid, load, node, pv)
-├── flows/                  # Config flow steps
+├── elements/               # Element adapters (schema, data, adapter, extractor)
+├── schema/                 # Field metadata and schema generation
+├── flows/                  # Config flow implementations
 ├── sensors/                # Sensor implementations
-└── translations/           # i18n strings
+├── data/                   # Data loading utilities
+└── translations/           # i18n strings (en.json)
 tests/                      # Test suite
+├── model/                  # Model layer tests with test_data
 ├── scenarios/              # End-to-end scenario tests
 docs/                       # Documentation
 ```
@@ -33,8 +44,8 @@ docs/                       # Documentation
 ## Development tools
 
 - **Package manager**: uv (use `uv sync` for dependencies, `uv run` to execute tools)
-- **Testing**: pytest (scenarios use `-m scenario` marker)
-- **Linting/Formatting**: Ruff
+- **Testing**: pytest (scenarios require `-m scenario` marker and are skipped in CI)
+- **Linting/Formatting**: Ruff (Python), Prettier (JSON), mdformat (Markdown)
 - **Type checking**: Pyright
 
 ## Agent behavioral rules
@@ -68,26 +79,50 @@ Having None checks there reduces readability and makes the test more fragile to 
 
 - **Python**: 3.13+ with modern features (pattern matching, `str | None` syntax, f-strings, dataclasses)
 - **Type hints**: Required on all functions, methods, and variables
-- **Formatting**: Ruff
+- **Typing philosophy**: Type at boundaries, use TypedDict/TypeGuard for narrowing, prefer types over runtime checks
+- **Formatting**: Ruff (Python), Prettier (JSON), mdformat (Markdown)
 - **Linting**: Ruff
 - **Type checking**: Pyright
 - **Language**: American English for all code, comments, and documentation
-- **Testing**: pytest with >95% coverage target
+- **Testing**: pytest with coverage enforced by codecov on changed lines
 
-### SI units internally
+See [typing philosophy](../docs/developer-guide/typing.md) for detailed type patterns.
 
-Use SI units throughout all calculations and internal data structures:
+### Units
 
-- Power: Watts (W)
-- Energy: Watt-hours (Wh)
-- Time: seconds
+Use SI-derived units scaled for numerical stability:
 
-Only convert to user-friendly units (kW, kWh, hours) when displaying to users or accepting user input.
+- Power: kilowatts (kW)
+- Energy: kilowatt-hours (kWh)
+- Time: hours (model layer) / seconds (rest of code)
+
+The model layer uses hours for time to keep LP solver values in the ideal range.
+The rest of the codebase uses seconds for time (Home Assistant convention).
+See [units guide](../docs/developer-guide/units.md) for rationale.
+
+### Subentry naming conventions
+
+When working with element subentries:
+
+- `subentry.title` MUST match the element's `name` field
+- `subentry.subentry_type` MUST match the element's `element_type` field
+- In `participants` dictionaries, keys represent element names (matching `subentry.title`)
+
+These invariants are enforced throughout the codebase and must be maintained.
 
 ### Translation and naming conventions
 
 HAEO follows Home Assistant's entity naming conventions for sensor translations.
 See `.github/instructions/translations.instructions.md` for detailed rules.
+
+### Version matching
+
+The version number must be consistent across:
+
+- `pyproject.toml` (`version = "x.y.z"`)
+- `custom_components/haeo/manifest.json` (`"version": "x.y.z"`)
+
+When updating version numbers, update both files together.
 
 Key patterns for sensor display names using sentence case (capital first letter, rest lowercase):
 

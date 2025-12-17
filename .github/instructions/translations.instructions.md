@@ -1,8 +1,13 @@
 ---
-applyTo: '**/translations/**,**/strings.json'
+applyTo: '**/translations/**'
+description: Translation and user-facing text standards
+globs: ['**/translations/**']
+alwaysApply: false
 ---
 
 # Translation and user-facing text
+
+HAEO uses `translations/en.json` as a custom integration (not `strings.json` like core integrations).
 
 ## Writing style
 

@@ -180,6 +180,7 @@ nav:
       - Architecture: developer-guide/architecture.md
       - Adapter Layer: developer-guide/adapter-layer.md
       - Setup: developer-guide/setup.md
+      - Typing Philosophy: developer-guide/typing.md
       - Units & Stability: developer-guide/units.md
       - Energy Models: developer-guide/energy-models.md
       - Coordinator: developer-guide/coordinator.md

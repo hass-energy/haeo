@@ -1,45 +1,58 @@
 ---
 applyTo: custom_components/haeo/elements/**
+description: Elements layer development standards
+globs: [custom_components/haeo/elements/**]
+alwaysApply: false
 ---
 
 # Elements layer development
 
 The elements layer bridges Home Assistant configuration with the LP model layer.
+Element types are registered in the `ELEMENT_TYPES` registry which defines the schema, data, adapter, and extractor for each type.
 
-## Element responsibilities
+When modifying elements, ensure corresponding updates to:
 
-Each element (Battery, Grid, Load, Photovoltaics, Node):
+- `docs/user-guide/elements/` for user-facing configuration
+- `docs/modeling/device-layer/` for mathematical formulation
 
-- Loads data from Home Assistant sensors
-- Creates corresponding model layer elements
-- Extracts optimization results back to HA sensors
+## Element pattern
+
+Each element type follows a consistent pattern:
+
+- **Schema TypedDict**: Defines UI configuration fields with entity IDs
+- **Data TypedDict**: Defines loaded values after sensor data extraction
+- **Adapter function**: Creates model layer elements from loaded data
+- **Extractor function**: Converts optimization results to sensor data
 
 ## Data loading
 
-- Use the data loading utilities in `data/`
-- Handle missing sensor data gracefully
-- Validate loaded data before passing to model
+- Field types use the schema system (FieldMeta + Loaders) defined in `schema/`
+- Loaders handle sensor data extraction and constant value conversion
+- Data availability is validated during config flow via `evaluate_network_connectivity()`
 
 ## Model creation
 
-- Create model elements with appropriate parameters
-- Map HA configuration to model parameters
-- Use SI units when creating model elements (convert from user input if needed)
+- Adapter functions receive Data mode TypedDict with loaded values
+- Create model elements using kW/kWh/hours units (see [units](../../docs/developer-guide/units.md))
+- Map HA configuration fields to model parameters
 
 ## Result extraction
 
-- Extract optimization results from model
-- Create sensors to expose results to HA
-- Use appropriate device classes and units for sensors
+- Extractor functions receive optimization results and return sensor data
+- Use the output type system for consistent sensor creation
+- Results are keyed by output name for sensor lookup
 
 ## Sensor patterns
 
 - Use generic property detection instead of element type checking
-- Use translation keys for sensor names
+- Use translation keys for sensor names (see translations.instructions.md)
 - Set appropriate entity categories (e.g., DIAGNOSTIC for internal values)
 
-## Error handling
+## Adding new element types
 
-- Catch data loading failures
-- Set element as unavailable when data is missing
-- Log meaningful error messages
+1. Define Schema and Data TypedDicts with Annotated field types
+2. Implement adapter function to create model elements
+3. Implement extractor function to convert results to sensor data
+4. Register in `ELEMENT_TYPES` with schema, data, defaults, adapter, and extractor
+5. Add translations in `translations/en.json`
+6. Document in `docs/user-guide/elements/` and `docs/modeling/device-layer/`

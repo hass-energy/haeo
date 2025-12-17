@@ -1,10 +1,18 @@
 ---
 applyTo: docs/**
+description: Documentation standards
+globs: [docs/**]
+alwaysApply: false
 ---
 
 # Documentation standards
 
 See [documentation-guidelines.md](../../docs/developer-guide/documentation-guidelines.md) for comprehensive guidelines.
+
+## Formatting tools
+
+- **Markdown**: mdformat for consistent formatting
+- **JSON**: Prettier for consistent formatting
 
 ## Core principles
 

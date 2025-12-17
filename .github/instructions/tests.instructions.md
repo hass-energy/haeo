@@ -1,26 +1,61 @@
 ---
 applyTo: tests/**
+description: Testing standards
+globs: [tests/**]
+alwaysApply: false
 ---
 
 # Testing standards
 
 ## Coverage requirements
 
-- Target >95% test coverage for all modules
-- 100% coverage for config flows
+Coverage is enforced by codecov which ensures coverage does not decrease from main on changed lines.
+Focus on testing behavior and edge cases, not achieving arbitrary coverage percentages.
 
-## Best practices
+## Test style
 
-- Use pytest fixtures from `tests.common`
-- Mock all external dependencies
-- Use snapshot testing for complex data structures
-- Never access `hass.data` directly - use fixtures and proper integration setup
-- Test through integration setup, not entities in isolation
-- Verify entities are properly registered with devices
+Use function-style pytest tests, not class-based test organization:
+
+```python
+# ✅ Good - function style
+def test_battery_charges_correctly() -> None:
+    battery = create_battery(capacity=10.0)
+    result = battery.charge(5.0)
+    assert result.soc == 0.5
+
+
+# ❌ Bad - class style
+class TestBattery:
+    def test_charges_correctly(self) -> None: ...
+```
+
+## Parametrized data-driven tests
+
+Use parametrized tests with test data modules rather than many similar test functions:
+
+```python
+@pytest.mark.parametrize("case", VALID_ELEMENT_CASES, ids=lambda c: c["description"])
+def test_element_outputs(case: ElementTestCase) -> None:
+    element = case["factory"](case["data"])
+    outputs = element.outputs()
+    assert outputs == case["expected_outputs"]
+```
+
+## Model test data structure
+
+Model element tests use a data-driven pattern in `tests/model/test_data/`:
+
+- Each element module defines `VALID_CASES` and `INVALID_CASES` lists
+- Cases are aggregated in `__init__.py` for parametrized tests
+- Factory functions create element instances with fixed LP variable values
+- Test cases specify inputs and expected outputs
+
+If lines cannot be covered by exercising input data, it implies those lines are unreachable.
+Add test cases to the data modules rather than creating element-specific test files.
 
 ## Property access in tests
 
-When you have created entities in a test, access their properties directly without None checks:
+Access properties directly without None checks when you have created the entities:
 
 ```python
 # ✅ Good - direct access
@@ -61,9 +96,25 @@ async def init_integration(
     return mock_config_entry
 ```
 
+## Snapshot testing
+
+Use snapshots for complex data structures and entity states:
+
+```python
+@pytest.mark.usefixtures("init_integration")
+async def test_entities(
+    hass: HomeAssistant,
+    snapshot: SnapshotAssertion,
+    entity_registry: er.EntityRegistry,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """Test sensor entities."""
+    await snapshot_platform(hass, entity_registry, snapshot, mock_config_entry.entry_id)
+```
+
 ## Config flow testing
 
-Test all paths:
+Test both success paths and error handling:
 
 ```python
 async def test_user_flow_success(hass):
@@ -80,32 +131,4 @@ async def test_flow_connection_error(hass, mock_api_error):
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={...})
     assert result["errors"] == {"base": "cannot_connect"}
-```
-
-## Snapshot testing
-
-Use snapshots for entity states:
-
-```python
-@pytest.mark.usefixtures("init_integration")
-async def test_entities(
-    hass: HomeAssistant,
-    snapshot: SnapshotAssertion,
-    entity_registry: er.EntityRegistry,
-    mock_config_entry: MockConfigEntry,
-) -> None:
-    """Test sensor entities."""
-    await snapshot_platform(hass, entity_registry, snapshot, mock_config_entry.entry_id)
-```
-
-## Mock patterns
-
-```python
-@pytest.fixture
-def mock_api() -> Generator[MagicMock]:
-    """Mock the API client."""
-    with patch("custom_components.haeo.MyClient") as mock:
-        client = mock.return_value
-        client.get_data.return_value = {"value": 100}
-        yield client
 ```

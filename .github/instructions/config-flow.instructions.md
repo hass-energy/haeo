@@ -1,12 +1,25 @@
 ---
 applyTo: '**/config_flow.py,**/flows/**'
+description: Config flow development standards
+globs: ['**/config_flow.py', '**/flows/**']
+alwaysApply: false
 ---
 
 # Config flow development
 
+HAEO uses Home Assistant's ConfigSubentry architecture for element management.
+See [config flow documentation](../../docs/developer-guide/config-flow.md) for detailed patterns.
+
+## Subentry flow pattern
+
+Element flows are created dynamically from the `ELEMENT_TYPES` registry using `create_subentry_flow_class()`.
+Each element type's schema class defines the form fields via TypedDict + Annotated + FieldMeta pattern.
+
+When modifying config flows, changes to the flow or schema may require corresponding updates to `docs/developer-guide/config-flow.md`.
+
 ## Version control
 
-Always set version numbers:
+Always set version numbers on config flows:
 
 ```python
 class ConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -16,7 +29,7 @@ class ConfigFlow(ConfigFlow, domain=DOMAIN):
 
 ## Unique ID management
 
-Prevent duplicate entries:
+Prevent duplicate entries using unique IDs or data matching:
 
 ```python
 await self.async_set_unique_id(device_unique_id)
@@ -29,81 +42,44 @@ self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
 ## Data storage
 
 - Connection-critical config → `ConfigEntry.data`
-- Non-critical settings → `ConfigEntry.options`
+- User-editable settings → `ConfigEntry.options`
 
-## Naming rules
+## Naming
 
-- ❌ Do NOT allow users to set config entry names in config flows
-- Names are automatically generated or customized later in UI
+Users can name their config entries and elements.
+Element names must be unique within a hub and are validated during the flow.
 
-## Polling rules
+## Data loading validation
 
-- ❌ Do NOT allow user-configurable polling intervals
-- Integration determines intervals programmatically
-
-## Connection testing
-
-Always test connection during config flow:
+Validate that entity references work during the config flow.
+The `evaluate_network_connectivity()` function tests that configured sensors can be loaded:
 
 ```python
-try:
-    await client.get_data()
-except MyException:
-    errors["base"] = "cannot_connect"
+participant_configs[new_config[CONF_NAME]] = new_config
+await evaluate_network_connectivity(self.hass, hub_entry, participant_configs=participant_configs)
 ```
+
+This ensures entity IDs are valid and loaders can extract data before saving the configuration.
 
 ## Error handling
 
-Define errors in `strings.json` under `config.error`:
+Define errors in translation files under `config.error`.
+HAEO uses `en.json` (not `strings.json`) as a custom integration:
 
 ```json
 {
   "config": {
     "error": {
       "cannot_connect": "Failed to connect",
-      "invalid_auth": "Invalid authentication"
+      "name_exists": "An element with this name already exists"
     }
   }
 }
-```
-
-## Reauthentication
-
-Implement `async_step_reauth` for credential updates:
-
-```python
-async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
-    """Handle reauthentication."""
-    return await self.async_step_reauth_confirm()
-
-
-async def async_step_reauth_confirm(self, user_input=None) -> ConfigFlowResult:
-    if user_input:
-        # Verify new credentials match same account
-        await self.async_set_unique_id(user_id)
-        self._abort_if_unique_id_mismatch(reason="wrong_account")
-        return self.async_update_reload_and_abort(
-            self._get_reauth_entry(), data_updates={CONF_API_TOKEN: user_input[CONF_API_TOKEN]}
-        )
-    return self.async_show_form(step_id="reauth_confirm", data_schema=SCHEMA)
-```
-
-## Reconfiguration
-
-Implement `async_step_reconfigure` for config updates without removal:
-
-```python
-async def async_step_reconfigure(self, user_input=None) -> ConfigFlowResult:
-    """Handle reconfiguration."""
-    # Prevent changing underlying account
-    self._abort_if_unique_id_mismatch()
-    ...
 ```
 
 ## Step naming
 
 Use standard step names:
 
-- `async_step_user` - User-initiated flow
-- `async_step_reauth` - Reauthentication
-- `async_step_reconfigure` - Reconfiguration
+- `async_step_user` - User-initiated flow (new element creation)
+- `async_step_reconfigure` - Reconfiguration of existing element

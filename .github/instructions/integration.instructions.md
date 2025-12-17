@@ -1,55 +1,42 @@
 ---
 applyTo: custom_components/haeo/**
+description: Home Assistant integration development standards
+globs: ['custom_components/haeo/**']
+alwaysApply: false
 ---
 
 # Home Assistant integration development
 
 ## Coordinator pattern
 
-Use DataUpdateCoordinator for data management:
-
-```python
-class MyCoordinator(DataUpdateCoordinator[MyData]):
-    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
-        super().__init__(
-            hass,
-            logger=LOGGER,
-            name=DOMAIN,
-            update_interval=timedelta(minutes=5),
-            config_entry=config_entry,  # Always pass config_entry
-        )
-
-    async def _async_update_data(self) -> MyData:
-        try:
-            return await self._fetch_data()
-        except ApiError as err:
-            raise UpdateFailed(f"API error: {err}") from err
-```
+HAEO uses DataUpdateCoordinator for optimization scheduling.
+The coordinator loads data from sensors, runs optimization, and exposes results.
 
 - Pass `config_entry` to coordinator constructor
-- Use `UpdateFailed` for API errors
-- Use `ConfigEntryAuthFailed` for auth issues
+- Use `UpdateFailed` for data loading or optimization errors
 - Integration determines update interval (not user-configurable)
 
 ## Entity development
 
 ### Unique IDs
 
-Every entity must have a unique ID:
+Every entity must have a unique ID constructed from stable identifiers:
 
 ```python
 self._attr_unique_id = f"{entry.entry_id}-{element_id}-power"
 ```
 
-Acceptable sources: config entry ID, device serial numbers, MAC addresses.
-Never use: IP addresses, hostnames, device names.
+Acceptable sources: config entry ID, subentry ID, device serial numbers.
+Never use: IP addresses, hostnames, user-provided names.
 
 ### Entity naming
+
+Use translation keys for all entity names:
 
 ```python
 class MySensor(SensorEntity):
     _attr_has_entity_name = True
-    _attr_translation_key = "battery_power"  # Use translation keys
+    _attr_translation_key = "battery_power"
 ```
 
 ### State handling
@@ -67,23 +54,40 @@ async def async_added_to_hass(self) -> None:
 
 ## Device registry
 
-Group related entities under devices:
+Group related entities under devices using translation keys:
 
 ```python
 _attr_device_info = DeviceInfo(
     identifiers={(DOMAIN, device_id)},
-    name=device_name,
-    manufacturer="HAEO",
+    translation_key="battery",  # Use translation key for device name
+)
+```
+
+## Exception handling
+
+All exceptions that may reach the user must use Home Assistant exception types with translations.
+Never raise generic exceptions that would show "unknown error" in the UI.
+
+- `ConfigEntryNotReady`: Device offline or temporary failure
+- `ConfigEntryError`: Unresolvable setup problems
+- `UpdateFailed`: Data loading or optimization errors
+- `HomeAssistantError`: User-facing errors with translation support
+
+For service calls and user actions, use `HomeAssistantError` with a translation key:
+
+```python
+raise HomeAssistantError(
+    translation_domain=DOMAIN,
+    translation_key="optimization_failed",
 )
 ```
 
 ## Diagnostics
 
-Implement diagnostic data collection:
+Implement diagnostic data collection with redaction:
 
 ```python
 TO_REDACT = [CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE]
-
 
 async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     return async_redact_data(entry.data, TO_REDACT)
@@ -102,15 +106,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
-
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 ```
-
-## Exception types
-
-- `ConfigEntryNotReady`: Device offline or temporary failure
-- `ConfigEntryAuthFailed`: Authentication problems
-- `ConfigEntryError`: Unresolvable setup problems
-- `UpdateFailed`: API errors during coordinator update

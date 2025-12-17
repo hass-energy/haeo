@@ -1,5 +1,8 @@
 ---
 applyTo: '**/*.py'
+description: Python coding standards for HAEO
+globs: ['**/*.py']
+alwaysApply: false
 ---
 
 # Python coding standards
@@ -22,6 +25,14 @@ applyTo: '**/*.py'
     ```python
     type MyConfigEntry = ConfigEntry[MyClient]
     ```
+
+## Typing philosophy
+
+Type objects at boundaries as early as possible.
+Use TypedDict and TypeGuard to narrow types early and use throughout.
+Prefer the type system over runtime checks - tests should never verify things the type checker can identify.
+
+See [typing philosophy](../../docs/developer-guide/typing.md) for detailed patterns.
 
 ## Async programming
 
