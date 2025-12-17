@@ -20,6 +20,7 @@ def load_config(raw_data: dict[str, Any]) -> BatteryConfigData:
         # ... validation happens here
     )
 
+
 # ❌ Bad: Pass untyped data through the system
 def process_config(raw_data: dict[str, Any]) -> None:
     """Delay typing until deep in the call stack."""
@@ -37,6 +38,7 @@ If a condition can be verified by the type checker, don't write a runtime check 
 def process_battery(battery: Battery) -> None:
     """Battery type guarantees required fields exist."""
     print(battery.capacity)  # Type checker knows this exists
+
 
 # ❌ Bad: Runtime check for something types could handle
 def process_battery(element: Element) -> None:
@@ -57,6 +59,7 @@ def test_battery_charges_correctly() -> None:
     battery = create_battery(capacity=10.0)
     result = battery.charge(5.0)
     assert result.soc == 0.5
+
 
 # ❌ Bad: Test verifies type invariants
 def test_battery_has_capacity() -> None:
@@ -79,17 +82,21 @@ HAEO uses a dual TypedDict pattern for element configuration:
 ```python
 class BatteryConfigSchema(TypedDict):
     """Schema mode: entity IDs for UI configuration."""
+
     element_type: Literal["battery"]
-    name: str
-    capacity: str  # Entity ID like "sensor.battery_capacity"
+    name: NameFieldSchema  # Annotated type for name field
+    capacity: EnergySensorFieldSchema  # Annotated type with loader metadata
+
 
 class BatteryConfigData(TypedDict):
     """Data mode: loaded values for optimization."""
+
     element_type: Literal["battery"]
-    name: str
-    capacity: float  # Actual value in kWh
+    name: NameFieldData  # Loaded name value
+    capacity: EnergySensorFieldData  # Loaded float value in kWh
 ```
 
+Fields use `Annotated` types that attach `FieldMeta` metadata for validation and loading.
 The `load()` function converts from Schema mode to Data mode, performing type narrowing at the boundary.
 
 ## TypeGuard for narrowing
@@ -99,9 +106,11 @@ Use TypeGuard to narrow types when the type checker cannot infer the narrowing a
 ```python
 from typing import TypeGuard
 
+
 def is_battery_config(config: ElementConfigData) -> TypeGuard[BatteryConfigData]:
     """Narrow element config to battery-specific type."""
     return config["element_type"] == "battery"
+
 
 def process_element(config: ElementConfigData) -> None:
     if is_battery_config(config):
@@ -119,8 +128,9 @@ from typing import Annotated
 # Field type aliases combine base type with metadata
 PowerSensorFieldSchema = Annotated[
     str | list[str],
-    FieldMeta(field_type="sensor", loader=TimeSeriesLoader(), ...)
+    SensorFieldMeta(accepted_units=[UnitSpec(...)], multiple=True),
 ]
+
 
 class PhotovoltaicsConfigSchema(TypedDict):
     power: PowerSensorFieldSchema  # Entity ID(s) with attached loader metadata
@@ -177,7 +187,7 @@ These assertions:
 
 <div class="grid cards" markdown>
 
--   :material-sitemap:{ .lg .middle } **Architecture**
+- :material-sitemap:{ .lg .middle } **Architecture**
 
     ---
 
@@ -185,7 +195,7 @@ These assertions:
 
     [:material-arrow-right: Architecture guide](architecture.md)
 
--   :material-cog:{ .lg .middle } **Config Flow**
+- :material-cog:{ .lg .middle } **Config Flow**
 
     ---
 
@@ -193,7 +203,7 @@ These assertions:
 
     [:material-arrow-right: Config flow guide](config-flow.md)
 
--   :material-test-tube:{ .lg .middle } **Testing**
+- :material-test-tube:{ .lg .middle } **Testing**
 
     ---
 

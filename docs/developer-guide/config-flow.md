@@ -140,11 +140,11 @@ All element types are registered in `custom_components/haeo/elements/__init__.py
 ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
     "battery": ElementRegistryEntry(
         schema=BatteryConfigSchema,  # TypedDict for UI configuration
-        data=BatteryConfigData,      # TypedDict for loaded values
-        defaults={...},              # Default field values
-        translation_key="battery",   # For UI localization
-        adapter=create_battery,      # Creates model elements
-        extract=extract_battery,     # Extracts optimization results
+        data=BatteryConfigData,  # TypedDict for loaded values
+        defaults={...},  # Default field values
+        translation_key="battery",  # For UI localization
+        adapter=create_battery,  # Creates model elements
+        extract=extract_battery,  # Extracts optimization results
     ),
     # ... other element types
 }
@@ -172,13 +172,14 @@ Each element type has two TypedDict definitions:
 - Produced by the `load()` function during coordinator updates
 
 ```python
-# Schema mode: entity IDs
+# Schema mode: entity IDs with Annotated metadata
 class BatteryConfigSchema(TypedDict):
-    capacity: str  # "sensor.battery_capacity"
+    capacity: EnergySensorFieldSchema  # Annotated[str | list[str], SensorFieldMeta(...)]
+
 
 # Data mode: loaded values
 class BatteryConfigData(TypedDict):
-    capacity: float  # 13.5 (kWh)
+    capacity: EnergySensorFieldData  # Annotated[TimeSeries | float, ...]
 ```
 
 ### Field Metadata with Annotated
@@ -189,10 +190,8 @@ Fields use `Annotated` types to attach metadata without changing the base type:
 from typing import Annotated
 
 # Define field type with metadata
-EnergySensorFieldSchema = Annotated[
-    str | list[str],
-    SensorFieldMeta(accepted_units=[UnitSpec(...)], multiple=True)
-]
+EnergySensorFieldSchema = Annotated[str | list[str], SensorFieldMeta(accepted_units=[UnitSpec(...)], multiple=True)]
+
 
 class BatteryConfigSchema(TypedDict):
     capacity: EnergySensorFieldSchema  # Entity ID with attached metadata
@@ -208,16 +207,16 @@ The `FieldMeta` subclasses provide:
 
 Field types are defined in `custom_components/haeo/schema/fields.py`:
 
-| Field Meta Class | Purpose | Base Type |
-|-----------------|---------|-----------|
-| `PowerFieldMeta` | Constant power values | `float` |
-| `EnergyFieldMeta` | Constant energy values | `float` |
-| `PriceFieldMeta` | Constant price values | `float` |
-| `PercentageFieldMeta` | Percentage values (0-100) | `float` |
-| `BooleanFieldMeta` | Boolean flags | `bool` |
-| `NameFieldMeta` | Free-form text names | `str` |
-| `ElementNameFieldMeta` | References to other elements | `str` |
-| `SensorFieldMeta` | Entity sensor references | `str \| list[str]` |
+| Field Meta Class       | Purpose                      | Base Type          |
+| ---------------------- | ---------------------------- | ------------------ |
+| `PowerFieldMeta`       | Constant power values        | `float`            |
+| `EnergyFieldMeta`      | Constant energy values       | `float`            |
+| `PriceFieldMeta`       | Constant price values        | `float`            |
+| `PercentageFieldMeta`  | Percentage values (0-100)    | `float`            |
+| `BooleanFieldMeta`     | Boolean flags                | `bool`             |
+| `NameFieldMeta`        | Free-form text names         | `str`              |
+| `ElementNameFieldMeta` | References to other elements | `str`              |
+| `SensorFieldMeta`      | Entity sensor references     | `str \| list[str]` |
 
 ### Data Loading Flow
 
