@@ -1,7 +1,7 @@
 ---
 applyTo: custom_components/haeo/**
 description: Home Assistant integration development standards
-globs: ['custom_components/haeo/**']
+globs: [custom_components/haeo/**]
 alwaysApply: false
 ---
 
@@ -89,6 +89,7 @@ Implement diagnostic data collection with redaction:
 ```python
 TO_REDACT = [CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE]
 
+
 async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     return async_redact_data(entry.data, TO_REDACT)
 ```
@@ -105,6 +106,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload config entry."""

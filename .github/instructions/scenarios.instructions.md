@@ -42,8 +42,7 @@ Hub configuration and element participants:
   "participants": {
     "Battery": {
       "element_type": "battery",
-      "name": "Battery",
-      ...
+      "name": "Battery"
     }
   }
 }

@@ -21,12 +21,10 @@ HAEO uses two parallel AI instruction systems that share the same source files:
 All instruction files use combined frontmatter containing both Copilot and Cursor formats:
 
 ```yaml
----
-applyTo: "glob/pattern/**"
+applyTo: glob/pattern/**
 description: Rule description
-globs: ["glob/pattern/**"]
+globs: [glob/pattern/**]
 alwaysApply: false
----
 ```
 
 This allows Cursor rules to be symlinks to the Copilot instruction files.
