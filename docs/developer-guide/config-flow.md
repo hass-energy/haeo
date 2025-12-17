@@ -125,7 +125,112 @@ Each element type has its own flow class in `custom_components/haeo/flows/`:
 - `ForecastLoadConfigFlow` - Forecast-based load configuration
 - `NodeConfigFlow` - Network node configuration
 
-Each flow defines element-specific schema fields, defaults, and validation logic.## Options Flow
+Each flow defines element-specific schema fields, defaults, and validation logic.
+
+## Field Schema System
+
+HAEO uses a typed schema system to define element configuration fields.
+The schema system provides type safety, validation, and data loading from Home Assistant entities.
+
+### ELEMENT_TYPES Registry
+
+All element types are registered in `custom_components/haeo/elements/__init__.py`:
+
+```python
+ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
+    "battery": ElementRegistryEntry(
+        schema=BatteryConfigSchema,  # TypedDict for UI configuration
+        data=BatteryConfigData,  # TypedDict for loaded values
+        defaults={...},  # Default field values
+        translation_key="battery",  # For UI localization
+        adapter=create_battery,  # Creates model elements
+        extract=extract_battery,  # Extracts optimization results
+    ),
+    # ... other element types
+}
+```
+
+The registry provides:
+
+- **Schema/Data class pairs**: Dual TypedDict pattern for type safety
+- **Default values**: Pre-populated fields in the UI
+- **Adapter functions**: Convert loaded data to model elements
+- **Result extractors**: Convert optimization results to sensor data
+
+### Schema vs Data Mode
+
+Each element type has two TypedDict definitions:
+
+**Schema mode** (`*ConfigSchema`): What the user enters in the UI
+
+- Contains entity IDs as strings
+- Used during config flow form display and validation
+
+**Data mode** (`*ConfigData`): What the optimizer uses
+
+- Contains loaded numeric values
+- Produced by the `load()` function during coordinator updates
+
+```python
+# Schema mode: entity IDs with Annotated metadata
+class BatteryConfigSchema(TypedDict):
+    capacity: EnergySensorFieldSchema  # Annotated[str | list[str], SensorFieldMeta(...)]
+
+
+# Data mode: loaded values
+class BatteryConfigData(TypedDict):
+    capacity: EnergySensorFieldData  # Annotated[TimeSeries | float, ...]
+```
+
+### Field Metadata with Annotated
+
+Fields use `Annotated` types to attach metadata without changing the base type:
+
+```python
+from typing import Annotated
+
+# Define field type with metadata
+EnergySensorFieldSchema = Annotated[str | list[str], SensorFieldMeta(accepted_units=[UnitSpec(...)], multiple=True)]
+
+
+class BatteryConfigSchema(TypedDict):
+    capacity: EnergySensorFieldSchema  # Entity ID with attached metadata
+```
+
+The `FieldMeta` subclasses provide:
+
+- **`field_type`**: "constant" or "sensor" for loader selection
+- **`loader`**: Instance that loads data from entities
+- **`create_schema()`**: Returns Voluptuous validators for the config flow
+
+### Available Field Types
+
+Field types are defined in `custom_components/haeo/schema/fields.py`:
+
+| Field Meta Class       | Purpose                      | Base Type          |
+| ---------------------- | ---------------------------- | ------------------ |
+| `PowerFieldMeta`       | Constant power values        | `float`            |
+| `EnergyFieldMeta`      | Constant energy values       | `float`            |
+| `PriceFieldMeta`       | Constant price values        | `float`            |
+| `PercentageFieldMeta`  | Percentage values (0-100)    | `float`            |
+| `BooleanFieldMeta`     | Boolean flags                | `bool`             |
+| `NameFieldMeta`        | Free-form text names         | `str`              |
+| `ElementNameFieldMeta` | References to other elements | `str`              |
+| `SensorFieldMeta`      | Entity sensor references     | `str \| list[str]` |
+
+### Data Loading Flow
+
+The schema system integrates with data loading:
+
+1. User enters entity IDs in config flow (Schema mode)
+2. Voluptuous validators ensure valid entity selection
+3. On coordinator update, `load()` converts Schema → Data mode
+4. Each field's loader extracts values from Home Assistant entities
+5. Adapter functions receive Data mode config to create model elements
+
+For details on loaders, see [Data Loading](data-loading.md).
+
+## Options Flow
 
 The options flow allows users to edit hub optimization settings after initial setup.
 Elements are managed as separate config entries (added/edited/removed through the main integration flow), not through the options flow.

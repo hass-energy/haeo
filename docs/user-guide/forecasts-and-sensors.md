@@ -284,7 +284,9 @@ Format detection is automatic—you don't need to specify the integration type.
 ## Creating Custom Forecast Sensors
 
 You can create custom forecast sensors using Home Assistant templates.
-The forecast must be a list of dictionaries with timestamp and value keys.
+The forecast must be a list of dictionaries with time and value keys.
+Times should be either DateTime objects or ISO8601 compatible strings.
+Time strings without a timezone are treated as the local time of Home Assistant instance.
 
 **Example**: Custom load forecast sensor:
 
@@ -297,11 +299,11 @@ template:
         device_class: power
         attributes:
           forecast:
-            - timestamp: '{{ (now() + timedelta(hours=1)).isoformat() }}'
+            - time: '{{ (now() + timedelta(hours=1)).isoformat() }}'
               value: 2.5
-            - timestamp: '{{ (now() + timedelta(hours=2)).isoformat() }}'
+            - time: '{{ (now() + timedelta(hours=2)).isoformat() }}'
               value: 3.0
-            - timestamp: '{{ (now() + timedelta(hours=3)).isoformat() }}'
+            - time: '{{ (now() + timedelta(hours=3)).isoformat() }}'
               value: 2.8
 ```
 

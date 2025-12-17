@@ -124,20 +124,20 @@ For more examples and sensor creation, see the [Forecasts and Sensors guide](../
 
 A Grid element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                            | Unit   | Description                         |
-| ----------------------------------------------------------------- | ------ | ----------------------------------- |
-| [`sensor.{name}_power_import`](#power-import)                     | kW     | Power imported from grid            |
-| [`sensor.{name}_power_export`](#power-export)                     | kW     | Power exported to grid              |
-| [`sensor.{name}_price_import`](#price-import)                     | \$/kWh | Current import price                |
-| [`sensor.{name}_price_export`](#price-export)                     | \$/kWh | Current export price                |
-| [`sensor.{name}_power_max_import`](#power-max-import)             | kW     | Maximum import power (when limited) |
-| [`sensor.{name}_power_max_export`](#power-max-export)             | kW     | Maximum export power (when limited) |
-| [`sensor.{name}_power_max_import_price`](#power-max-import-price) | \$/kW  | Value of additional import capacity |
-| [`sensor.{name}_power_max_export_price`](#power-max-export-price) | \$/kW  | Value of additional export capacity |
+| Sensor                                                                   | Unit   | Description                         |
+| ------------------------------------------------------------------------ | ------ | ----------------------------------- |
+| [`sensor.{name}_power_import`](#import-power)                            | kW     | Power imported from grid            |
+| [`sensor.{name}_power_export`](#export-power)                            | kW     | Power exported to grid              |
+| [`sensor.{name}_price_import`](#import-price)                            | \$/kWh | Current import price                |
+| [`sensor.{name}_price_export`](#export-price)                            | \$/kWh | Current export price                |
+| [`sensor.{name}_power_max_import`](#max-import-power)                    | kW     | Maximum import power (when limited) |
+| [`sensor.{name}_power_max_export`](#max-export-power)                    | kW     | Maximum export power (when limited) |
+| [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kW  | Value of additional import capacity |
+| [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kW  | Value of additional export capacity |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
 
-### Power Import
+### Import Power
 
 The optimal power being imported from the grid at each time period.
 
@@ -147,7 +147,7 @@ A value of 0 means no import is occurring (either self-sufficient or exporting).
 
 **Example**: A value of 3.5 kW means the optimization determined that importing 3.5 kW from the grid at this time minimizes total system cost.
 
-### Power Export
+### Export Power
 
 The optimal power being exported to the grid at each time period.
 
@@ -157,7 +157,7 @@ A value of 0 means no export is occurring (either self-consuming all generation 
 
 **Example**: A value of 2.1 kW means the optimization determined that exporting 2.1 kW to the grid at this time maximizes total system value (typically during high export prices or excess generation).
 
-### Price Import
+### Import Price
 
 The current electricity import price from the configured import price sensor(s).
 
@@ -166,7 +166,7 @@ Higher prices incentivize reducing imports by using battery storage or shifting 
 
 **Example**: A value of 0.25 means you're currently paying \$0.25 per kWh for imported electricity.
 
-### Price Export
+### Export Price
 
 The current electricity export price from the configured export price sensor(s).
 
@@ -175,21 +175,21 @@ Higher prices incentivize increasing exports by discharging batteries or curtail
 
 **Example**: A value of 0.10 means you're currently receiving \$0.10 per kWh for exported electricity.
 
-### Power Max Import
+### Max Import Power
 
 The configured maximum import power limit.
 Only created when an import limit is configured.
 
 Shows the power limit used in the optimization.
 
-### Power Max Export
+### Max Export Power
 
 The configured maximum export power limit.
 Only created when an export limit is configured.
 
 Shows the power limit used in the optimization.
 
-### Power Max Import Price
+### Max Import Power Shadow Price
 
 The marginal value of additional import capacity.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -206,7 +206,7 @@ This shadow price shows how much the total system cost would decrease if the imp
 
 **Example**: A value of 0.15 means that if you could import 1 kW more, the total system cost would decrease by \$0.15 at this time period.
 
-### Power Max Export Price
+### Max Export Power Shadow Price
 
 The marginal value of additional export capacity.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.

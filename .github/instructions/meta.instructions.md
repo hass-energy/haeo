@@ -1,0 +1,150 @@
+---
+applyTo: .github/instructions/**,.cursor/rules/**
+description: Meta-rules for maintaining instruction and rule files
+globs: [.github/instructions/**, .cursor/rules/**]
+alwaysApply: false
+---
+
+# Meta-rules for instruction maintenance
+
+This file governs how to maintain the instruction and rule files themselves.
+
+## Dual system architecture
+
+HAEO uses two parallel AI instruction systems that share the same source files:
+
+- **GitHub Copilot**: `.github/instructions/*.instructions.md` (source files)
+- **Cursor**: `.cursor/rules/*/RULE.md` (symlinks to source files)
+
+### Combined frontmatter
+
+All instruction files use combined frontmatter containing both Copilot and Cursor formats:
+
+```yaml
+applyTo: glob/pattern/**
+description: Rule description
+globs: [glob/pattern/**]
+alwaysApply: false
+```
+
+This allows Cursor rules to be symlinks to the Copilot instruction files.
+
+### Current symlink structure
+
+Each Cursor rule directory contains a `RULE.md` symlink pointing to the corresponding Copilot instruction:
+
+| Cursor Rule      | Symlink Target                                         |
+| ---------------- | ------------------------------------------------------ |
+| `haeo/RULE.md`   | `../../../.github/copilot-instructions.md`             |
+| `python/RULE.md` | `../../../.github/instructions/python.instructions.md` |
+| `model/RULE.md`  | `../../../.github/instructions/model.instructions.md`  |
+| (etc.)           | (etc.)                                                 |
+
+## Keeping systems in sync
+
+Since Cursor rules are symlinks, updating a Copilot instruction automatically updates the corresponding Cursor rule.
+No manual synchronization is needed.
+
+When adding a new instruction file:
+
+1. Create the file in `.github/instructions/` with combined frontmatter
+2. Create the corresponding directory in `.cursor/rules/`
+3. Create a symlink: `ln -s ../../../.github/instructions/name.instructions.md .cursor/rules/name/RULE.md`
+
+## Self-maintenance process
+
+When the user provides feedback about systemic corrections:
+
+1. **Identify scope**: Is this Python-specific? Integration-specific? Project-wide?
+2. **Find target files**: Match to the appropriate instruction/rule files
+3. **Check for duplicates**: Ensure this isn't already covered elsewhere
+4. **Add actionable guideline**: Write as a directive
+5. **Update both systems**: Update both Copilot instruction AND Cursor rule
+
+## Rule content guidelines
+
+### Use semantic line breaks
+
+All instruction files should follow semantic line break conventions.
+One sentence per line, with optional breaks at clause boundaries for clarity.
+
+### Don't enumerate groups
+
+When providing guidance about a category of things, describe the category pattern rather than listing members.
+Enumeration creates brittle rules that become outdated when the codebase changes.
+
+```markdown
+<!-- ❌ Bad: Enumeration -->
+Each element (Battery, Grid, Load, Photovoltaics, Node) must have...
+
+<!-- ✅ Good: Pattern description -->
+Each element type registered in ELEMENT_TYPES must have...
+```
+
+The test for good grouping: if you can't identify the group without enumerating it, it's not a well-defined group.
+
+### Actionable content
+
+Every rule must be something the agent can act on.
+Remove marketing text and feature lists without guidance.
+
+### Explanatory background
+
+Background context is allowed when it improves decision-making.
+"We use uv" is useful context; "uv is fast" is marketing.
+
+### Concise
+
+Keep each rule file focused.
+If a rule file exceeds ~500 lines, consider splitting.
+
+### DRY
+
+Link to documentation for detailed explanations.
+Rules contain directives; docs contain explanations.
+
+## What makes a good rule
+
+| ✅ Good Rule                                 | ❌ Bad Rule                                         |
+| -------------------------------------------- | --------------------------------------------------- |
+| "Use `str \| None` not `Optional[str]`"      | "Python has several ways to express optional types" |
+| "Keep try blocks minimal"                    | "Error handling is important"                       |
+| "Use `asyncio.gather()` for multiple awaits" | "Async programming has many benefits"               |
+| "Elements are registered in ELEMENT_TYPES"   | "Battery, Grid, Load, PV, Node are elements"        |
+
+## When to update rules vs documentation
+
+| Update Rules When...               | Update Docs When...                |
+| ---------------------------------- | ---------------------------------- |
+| Adding a new directive             | Explaining why a pattern exists    |
+| Changing a coding standard         | Providing extended examples        |
+| Adding anti-patterns to avoid      | Documenting architecture decisions |
+| Agent-specific behavioral guidance | Human-readable tutorials           |
+
+## File format reference
+
+### Copilot instructions
+
+```markdown
+---
+applyTo: "glob/pattern/**"
+---
+
+# Title
+
+Content...
+```
+
+### Cursor rules
+
+```markdown
+---
+description: "Brief description"
+globs: ["glob/pattern/**"]
+alwaysApply: false
+---
+
+# Title
+
+Content...
+```

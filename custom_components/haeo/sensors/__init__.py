@@ -37,6 +37,9 @@ async def async_setup_entry(
             # Get all devices under this subentry (may be multiple, e.g., battery regions)
             subentry_devices = coordinator.data.get(subentry.title, {})
 
+            # Pass subentry data as translation placeholders (convert all values to strings)
+            translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+
             for device_name, device_outputs in subentry_devices.items():
                 # Create a unique device identifier that includes device name for sub-devices
                 is_sub_device = device_name != subentry.title
@@ -64,6 +67,7 @@ async def async_setup_entry(
                             output_name=output_name,
                             output_data=output_data,
                             unique_id=f"{config_entry.entry_id}_{device_id_suffix}_{output_name}",
+                            translation_placeholders=translation_placeholders,
                         )
                     )
 
