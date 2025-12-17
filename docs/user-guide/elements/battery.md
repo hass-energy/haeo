@@ -270,8 +270,8 @@ These sensors appear on the main battery device:
 
 | Sensor                                                       | Unit  | Description                                  |
 | ------------------------------------------------------------ | ----- | -------------------------------------------- |
-| [`sensor.{name}_power_charge`](#power-charge)                | kW    | Charging power                               |
-| [`sensor.{name}_power_discharge`](#power-discharge)          | kW    | Discharging power                            |
+| [`sensor.{name}_power_charge`](#charge-power)                | kW    | Charging power                               |
+| [`sensor.{name}_power_discharge`](#discharge-power)          | kW    | Discharging power                            |
 | [`sensor.{name}_energy_stored`](#energy-stored)              | kWh   | Current energy level                         |
 | [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %     | State of charge percentage                   |
 | [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kW | Marginal value of power at battery terminals |
@@ -283,8 +283,8 @@ These sensors appear on region-specific devices (undercharge, normal, overcharge
 | Sensor                                                                       | Unit   | Description                       |
 | ---------------------------------------------------------------------------- | ------ | --------------------------------- |
 | [`sensor.{name}_{region}_energy_stored`](#energy-stored-by-region)           | kWh    | Energy in this region             |
-| [`sensor.{name}_{region}_power_charge`](#power-chargedischarge-by-region)    | kW     | Charging power in this region     |
-| [`sensor.{name}_{region}_power_discharge`](#power-chargedischarge-by-region) | kW     | Discharging power in this region  |
+| [`sensor.{name}_{region}_power_charge`](#chargedischarge-power-by-region)    | kW     | Charging power in this region     |
+| [`sensor.{name}_{region}_power_discharge`](#chargedischarge-power-by-region) | kW     | Discharging power in this region  |
 | [`sensor.{name}_{region}_charge_price`](#chargedischarge-price-by-region)    | \$/kWh | Charging price in this region     |
 | [`sensor.{name}_{region}_discharge_price`](#chargedischarge-price-by-region) | \$/kWh | Discharging price in this region  |
 | [`sensor.{name}_{region}_energy_in_flow`](#energy-flow-by-region)            | kWh    | Energy flowing into this region   |
@@ -292,7 +292,7 @@ These sensors appear on region-specific devices (undercharge, normal, overcharge
 | [`sensor.{name}_{region}_soc_max`](#soc-bounds-by-region)                    | %      | Maximum SOC for this region       |
 | [`sensor.{name}_{region}_soc_min`](#soc-bounds-by-region)                    | %      | Minimum SOC for this region       |
 
-### Power Charge
+### Charge Power
 
 The optimal charging power for this battery at each time period.
 
@@ -302,7 +302,7 @@ A value of 0 means the battery is not charging.
 
 **Example**: A value of 3.2 kW means the battery is charging at an average rate of 3.2 kW during this period, limited by the configured max charge power or other system constraints.
 
-### Power Discharge
+### Discharge Power
 
 The optimal discharging power for this battery at each time period.
 
@@ -335,7 +335,7 @@ Provides a convenient percentage view of the battery level.
 Shows energy stored in each region: undercharge (below min SOC), normal (min to max SOC), or overcharge (above max SOC).
 A nonzero value in undercharge or overcharge regions indicates the battery is operating outside its normal range.
 
-### Power Charge/Discharge (by region)
+### Charge/Discharge Power (by region)
 
 Shows power flowing into or out of each region.
 Undercharge discharge incurs penalties; overcharge charge incurs penalties.

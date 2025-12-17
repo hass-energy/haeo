@@ -48,16 +48,16 @@ The adapter transforms user configuration into model parameters:
 
 ### Grid Device
 
-| Sensor                   | Unit   | Update    | Description                         |
-| ------------------------ | ------ | --------- | ----------------------------------- |
-| `power_imported`         | kW     | Real-time | Power imported from grid            |
-| `power_exported`         | kW     | Real-time | Power exported to grid              |
-| `price_import`           | \$/kWh | Real-time | Current import price                |
-| `price_export`           | \$/kWh | Real-time | Current export price                |
-| `power_max_import`       | kW     | Real-time | Maximum import power (when limited) |
-| `power_max_export`       | kW     | Real-time | Maximum export power (when limited) |
-| `power_max_import_price` | \$/kW  | Real-time | Value of additional import capacity |
-| `power_max_export_price` | \$/kW  | Real-time | Value of additional export capacity |
+| Sensor                   | Unit     | Update    | Description                     |
+| ------------------------ | -------- | --------- | ------------------------------- |
+| `power_import`           | kW       | Real-time | Import power                    |
+| `power_export`           | kW       | Real-time | Export power                    |
+| `price_import`           | \\\$/kWh | Real-time | Import price                    |
+| `price_export`           | \\\$/kWh | Real-time | Export price                    |
+| `power_max_import`       | kW       | Real-time | Max import power (when limited) |
+| `power_max_export`       | kW       | Real-time | Max export power (when limited) |
+| `power_max_import_price` | \\\$/kW  | Real-time | Max import power shadow price   |
+| `power_max_export_price` | \\\$/kW  | Real-time | Max export power shadow price   |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
 

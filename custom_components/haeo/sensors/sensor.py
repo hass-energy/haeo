@@ -31,6 +31,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         output_name: ElementOutputName,
         output_data: CoordinatorOutput,
         unique_id: str,
+        translation_placeholders: dict[str, str] | None = None,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
@@ -46,6 +47,8 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
         self._attr_translation_key = output_name
         self._attr_unique_id = unique_id
+        if translation_placeholders is not None:
+            self._attr_translation_placeholders = translation_placeholders
         self._apply_output(output_data)
 
     @property
