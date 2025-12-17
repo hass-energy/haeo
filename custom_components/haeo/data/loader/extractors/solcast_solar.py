@@ -67,12 +67,12 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: SolcastSolarState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
+    def extract(state: SolcastSolarState) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass]:
         """Extract forecast data from Solcast solar forecast format.
 
         State has been validated by detect(), so all entries are guaranteed to be valid.
         """
-        parsed: list[tuple[int, float]] = [
+        parsed: list[tuple[float, float]] = [
             (parse_datetime_to_timestamp(item["period_start"]), item["pv_estimate"])
             for item in state.attributes["detailedForecast"]
         ]

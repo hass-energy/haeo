@@ -48,7 +48,7 @@ class TimeSeriesLoader:
         *,
         hass: HomeAssistant,
         value: Any,
-        forecast_times: Sequence[int],
+        forecast_times: Sequence[float],
         **_kwargs: Any,
     ) -> list[float]:
         """Load sensor values and forecasts, returning interpolated values for ``forecast_times``.

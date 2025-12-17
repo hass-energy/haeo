@@ -16,8 +16,8 @@ from .const import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
-    tiers_to_periods_seconds,
 )
+from .util.forecast_times import tiers_to_periods_seconds
 
 
 @callback

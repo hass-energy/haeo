@@ -1,6 +1,5 @@
 """Constants for the Home Assistant Energy Optimizer integration."""
 
-from collections.abc import Mapping
 from typing import Final, Literal
 
 # Integration domain
@@ -52,16 +51,6 @@ DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"
 OPTIMIZATION_STATUS_FAILED: Final = "failed"
 OPTIMIZATION_STATUS_PENDING: Final = "pending"
-
-
-def tiers_to_periods_seconds(config: Mapping[str, int]) -> list[int]:
-    """Convert tier configuration to list of period durations in seconds."""
-    periods: list[int] = []
-    for tier in [1, 2, 3, 4]:
-        count = config[f"tier_{tier}_count"]
-        duration_seconds = config[f"tier_{tier}_duration"] * 60  # minutes to seconds
-        periods.extend([duration_seconds] * count)
-    return periods
 
 
 type NetworkOutputName = Literal[

@@ -32,7 +32,6 @@ from .const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
     NetworkOutputName,
-    tiers_to_periods_seconds,
 )
 from .elements import (
     ELEMENT_TYPES,
@@ -59,6 +58,7 @@ from .model import (
 )
 from .repairs import dismiss_optimization_failure_issue
 from .schema import get_field_meta
+from .util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -181,7 +181,7 @@ def _build_coordinator_output(
     output_name: ElementOutputName,
     output_data: OutputData,
     *,
-    forecast_times: tuple[int, ...] | None,
+    forecast_times: tuple[float, ...] | None,
 ) -> CoordinatorOutput:
     """Convert model output values into coordinator state and forecast.
 
@@ -295,34 +295,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._state_change_unsub()
             self._state_change_unsub = None
 
-    @staticmethod
-    def _generate_forecast_timestamps(periods_seconds: Sequence[int]) -> tuple[int, ...]:
-        """Return forecast timestamps representing all fence posts (period boundaries).
-
-        Generates n_periods+1 timestamps representing the start of each period plus
-        the end of the final period. These are the "fence posts" in the fence post problem.
-
-        With variable-width intervals, each period can have a different duration.
-
-        Example: periods [60, 60, 300] starting at t=0 returns [0, 60, 120, 420]
-        """
-        epoch_seconds = dt_util.utcnow().timestamp()
-        # Floor to current or most recent period boundary for clean timestamps
-        smallest_period = min(periods_seconds) if periods_seconds else 60
-        rounded_epoch = int(epoch_seconds // smallest_period * smallest_period)
-
-        timestamps: list[int] = [rounded_epoch]
-        for period in periods_seconds:
-            timestamps.append(timestamps[-1] + period)
-        return tuple(timestamps)
-
     async def _async_update_data(self) -> CoordinatorData:
         """Update data from Home Assistant entities and run optimization."""
         start_time = time.time()
 
         # Convert tier configuration to list of period durations in seconds
         periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
-        forecast_timestamps = self._generate_forecast_timestamps(periods_seconds)
+        forecast_timestamps = generate_forecast_timestamps(periods_seconds)
 
         # Check that all required sensor data is available before loading
         missing_sensors: list[str] = []

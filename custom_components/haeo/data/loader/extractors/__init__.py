@@ -38,7 +38,7 @@ FORMATS: dict[ExtractorFormat, DataExtractor] = {
 class ExtractedData(NamedTuple):
     """Container for extracted data and metadata."""
 
-    data: Sequence[tuple[int, float]] | float
+    data: Sequence[tuple[float, float]] | float
     """Extracted forecast data, either a sequence of (timestamp, value) tuples or a single float value."""
     unit: str | None
     """Unit of measurement after conversion to base units. (None if unknown)"""
@@ -48,7 +48,7 @@ def extract(state: State) -> ExtractedData:
     """Extract data from a State object and convert to base units."""
 
     # Extract raw data and unit
-    data: Sequence[tuple[int, float]] | float
+    data: Sequence[tuple[float, float]] | float
     unit: str | StrEnum | None
     device_class: SensorDeviceClass | None
 

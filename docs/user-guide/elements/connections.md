@@ -143,19 +143,22 @@ The optimizer will only schedule charging when the sensor value is non-zero.
 A Connection element creates 1 device in Home Assistant with the following sensors.
 Not all sensors are created for every connection - only those relevant to the configuration.
 
-| Sensor                                                                            | Unit   | Description                             |
-| --------------------------------------------------------------------------------- | ------ | --------------------------------------- |
-| [`sensor.{name}_power_source_target`](#power-source-target)                       | kW     | Power flowing from source to target     |
-| [`sensor.{name}_power_target_source`](#power-target-source)                       | kW     | Power flowing from target to source     |
-| [`sensor.{name}_power_max_source_target`](#power-max-source-target)               | kW     | Maximum forward power (when limited)    |
-| [`sensor.{name}_power_max_target_source`](#power-max-target-source)               | kW     | Maximum reverse power (when limited)    |
-| [`sensor.{name}_price_source_target`](#price-source-target)                       | \$/kWh | Forward transfer price                  |
-| [`sensor.{name}_price_target_source`](#price-target-source)                       | \$/kWh | Reverse transfer price                  |
-| [`sensor.{name}_shadow_power_max_source_target`](#shadow-power-max-source-target) | \$/kW  | Value of additional forward capacity    |
-| [`sensor.{name}_shadow_power_max_target_source`](#shadow-power-max-target-source) | \$/kW  | Value of additional reverse capacity    |
-| [`sensor.{name}_time_slice`](#time-slice)                                         | \$/kW  | Value of relaxing time-slice constraint |
+The sensor display names use the actual source and target element names configured for the connection.
+For example, a connection from "Battery" to "Grid" would show "Battery to Grid Power" instead of generic "Source to Target".
 
-### Power Source Target
+| Sensor                                                                                     | Unit   | Description                             |
+| ------------------------------------------------------------------------------------------ | ------ | --------------------------------------- |
+| [`sensor.{name}_power_source_target`](#source-to-target-power)                             | kW     | Power flowing from source to target     |
+| [`sensor.{name}_power_target_source`](#target-to-source-power)                             | kW     | Power flowing from target to source     |
+| [`sensor.{name}_power_max_source_target`](#max-source-to-target-power)                     | kW     | Maximum forward power (when limited)    |
+| [`sensor.{name}_power_max_target_source`](#max-target-to-source-power)                     | kW     | Maximum reverse power (when limited)    |
+| [`sensor.{name}_price_source_target`](#source-to-target-price)                             | \$/kWh | Forward transfer price                  |
+| [`sensor.{name}_price_target_source`](#target-to-source-price)                             | \$/kWh | Reverse transfer price                  |
+| [`sensor.{name}_shadow_power_max_source_target`](#max-source-to-target-power-shadow-price) | \$/kW  | Value of additional forward capacity    |
+| [`sensor.{name}_shadow_power_max_target_source`](#max-target-to-source-power-shadow-price) | \$/kW  | Value of additional reverse capacity    |
+| [`sensor.{name}_time_slice`](#time-slice-shadow-price)                                     | \$/kW  | Value of relaxing time-slice constraint |
+
+### Source to Target Power
 
 The optimal power flowing from the source element to the target element.
 
@@ -165,7 +168,7 @@ The direction is determined by the connection configuration (source → target).
 
 **Example**: A value of 3.5 kW means 3.5 kW is flowing from the source element to the target element at this time period.
 
-### Power Target Source
+### Target to Source Power
 
 The optimal power flowing from the target element to the source element.
 
@@ -175,27 +178,27 @@ This represents reverse flow through the connection (target → source).
 
 **Example**: A value of 2.0 kW means 2.0 kW is flowing from the target element back to the source element at this time period.
 
-### Power Max Source Target
+### Max Source to Target Power
 
 The configured maximum forward power limit from the sensor configuration.
 Only created when a forward power limit is configured.
 
-### Power Max Target Source
+### Max Target to Source Power
 
 The configured maximum reverse power limit from the sensor configuration.
 Only created when a reverse power limit is configured.
 
-### Price Source Target
+### Source to Target Price
 
 The configured price for power transfer in the forward direction.
 Only created when a forward price is configured.
 
-### Price Target Source
+### Target to Source Price
 
 The configured price for power transfer in the reverse direction.
 Only created when a reverse price is configured.
 
-### Shadow Power Max Source Target
+### Max Source to Target Power Shadow Price
 
 The marginal value of additional forward capacity (source → target).
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -213,7 +216,7 @@ Only created when a forward power limit is configured.
 
 **Example**: A value of 0.08 means that if the connection could transfer 1 kW more in the forward direction, the total system cost would decrease by \$0.08 at this time period.
 
-### Shadow Power Max Target Source
+### Max Target to Source Power Shadow Price
 
 The marginal value of additional reverse capacity (target → source).
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -231,7 +234,7 @@ Only created when a reverse power limit is configured.
 
 **Example**: A value of 0.12 means that if the connection could transfer 1 kW more in the reverse direction, the total system cost would decrease by \$0.12 at this time period.
 
-### Time Slice
+### Time Slice Shadow Price
 
 The marginal value of relaxing the time-slicing constraint.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.

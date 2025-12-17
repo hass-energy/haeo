@@ -1,1 +1,6 @@
 * text=auto eol=lf
+
+# Generated files - hidden by default in diffs and excluded from language statistics
+tests/scenarios/*/visualizations/*.svg linguist-generated
+tests/scenarios/*/outputs.json linguist-generated
+tests/scenarios/*/inputs.json linguist-generated

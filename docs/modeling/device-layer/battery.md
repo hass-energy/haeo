@@ -132,27 +132,27 @@ The adapter aggregates model outputs to user-friendly sensor names:
 
 **Aggregate device outputs**:
 
-| Model Output(s)                           | Sensor Name       | Description                      |
-| ----------------------------------------- | ----------------- | -------------------------------- |
-| Sum of section `BATTERY_POWER_CHARGE`     | `power_charge`    | Total charging power             |
-| Sum of section `BATTERY_POWER_DISCHARGE`  | `power_discharge` | Total discharging power          |
-| Sum of section `BATTERY_ENERGY_STORED`    | `energy_stored`   | Total energy stored              |
-| Calculated from total energy and capacity | `state_of_charge` | SOC percentage                   |
-| Node `SOURCE_SINK_POWER_BALANCE`          | `power_balance`   | Shadow price at battery junction |
+| Model Output(s)                           | Sensor Name       | Description                |
+| ----------------------------------------- | ----------------- | -------------------------- |
+| Sum of section `BATTERY_POWER_CHARGE`     | `power_charge`    | Charge power               |
+| Sum of section `BATTERY_POWER_DISCHARGE`  | `power_discharge` | Discharge power            |
+| Sum of section `BATTERY_ENERGY_STORED`    | `energy_stored`   | Energy stored              |
+| Calculated from total energy and capacity | `state_of_charge` | State of charge            |
+| Node `SOURCE_SINK_POWER_BALANCE`          | `power_balance`   | Power balance shadow price |
 
 **Section device outputs** (undercharge, normal, overcharge):
 
-| Model Output(s)                             | Sensor Name       | Description                       |
-| ------------------------------------------- | ----------------- | --------------------------------- |
-| Section `BATTERY_ENERGY_STORED`             | `energy_stored`   | Energy in this section            |
-| Section `BATTERY_POWER_CHARGE`              | `power_charge`    | Charging power in this section    |
-| Section `BATTERY_POWER_DISCHARGE`           | `power_discharge` | Discharging power in this section |
-| Connection `CONNECTION_PRICE_TARGET_SOURCE` | `charge_price`    | Charging cost for this section    |
-| Connection `CONNECTION_PRICE_SOURCE_TARGET` | `discharge_price` | Discharging cost for this section |
-| Section `BATTERY_ENERGY_IN_FLOW`            | `energy_in_flow`  | Shadow price: energy in flow      |
-| Section `BATTERY_ENERGY_OUT_FLOW`           | `energy_out_flow` | Shadow price: energy out flow     |
-| Section `BATTERY_SOC_MAX`                   | `soc_max`         | Shadow price: section capacity    |
-| Section `BATTERY_SOC_MIN`                   | `soc_min`         | Shadow price: section minimum     |
+| Model Output(s)                             | Sensor Name       | Description                      |
+| ------------------------------------------- | ----------------- | -------------------------------- |
+| Section `BATTERY_ENERGY_STORED`             | `energy_stored`   | Energy stored in this section    |
+| Section `BATTERY_POWER_CHARGE`              | `power_charge`    | Charge power in this section     |
+| Section `BATTERY_POWER_DISCHARGE`           | `power_discharge` | Discharge power in this section  |
+| Connection `CONNECTION_PRICE_TARGET_SOURCE` | `charge_price`    | Charge price for this section    |
+| Connection `CONNECTION_PRICE_SOURCE_TARGET` | `discharge_price` | Discharge price for this section |
+| Section `BATTERY_ENERGY_IN_FLOW`            | `energy_in_flow`  | Energy in flow shadow price      |
+| Section `BATTERY_ENERGY_OUT_FLOW`           | `energy_out_flow` | Energy out flow shadow price     |
+| Section `BATTERY_SOC_MAX`                   | `soc_max`         | SOC max shadow price             |
+| Section `BATTERY_SOC_MIN`                   | `soc_min`         | SOC min shadow price             |
 
 See [Battery Configuration](../../user-guide/elements/battery.md#sensors-created) for complete sensor documentation.
 

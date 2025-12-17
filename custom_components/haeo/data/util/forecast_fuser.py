@@ -12,7 +12,7 @@ from . import ForecastSeries
 def fuse_to_horizon(
     present_value: float | None,
     forecast_series: ForecastSeries,
-    horizon_times: Sequence[int],
+    horizon_times: Sequence[float],
 ) -> list[float]:
     """Fuse a combined forecast into interval values aligned with the requested horizon.
 
