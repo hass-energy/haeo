@@ -8,15 +8,15 @@
   "tier_4_count": 48,
   "tier_4_duration": 60,
   "participants": {
-    "AC Net": {
-      "name": "AC Net",
+    "Switchboard": {
+      "name": "Switchboard",
       "element_type": "node"
     },
     "Battery": {
       "name": "Battery",
       "element_type": "battery",
       "capacity": "sensor.sigen_plant_rated_energy_capacity",
-      "connection": "DC Net",
+      "connection": "Inverter",
       "discharge_cost": ["input_number.battery_discharge_cost"],
       "early_charge_incentive": 0.001,
       "efficiency": 99.0,
@@ -29,17 +29,13 @@
     "Constant Load": {
       "name": "Constant Load",
       "element_type": "load",
-      "connection": "AC Net",
+      "connection": "Switchboard",
       "forecast": ["input_number.constant_load_power"]
-    },
-    "DC Net": {
-      "name": "DC Net",
-      "element_type": "node"
     },
     "Grid": {
       "name": "Grid",
       "element_type": "grid",
-      "connection": "AC Net",
+      "connection": "Switchboard",
       "export_limit": 30,
       "export_price": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
       "import_limit": 55,
@@ -47,16 +43,15 @@
     },
     "Inverter": {
       "name": "Inverter",
-      "element_type": "connection",
-      "max_power_source_target": "sensor.sigen_plant_max_active_power",
-      "max_power_target_source": "sensor.sigen_plant_max_active_power",
-      "source": "DC Net",
-      "target": "AC Net"
+      "element_type": "inverter",
+      "connection": "Switchboard",
+      "max_power_dc_to_ac": "sensor.sigen_plant_max_active_power",
+      "max_power_ac_to_dc": "sensor.sigen_plant_max_active_power"
     },
     "Solar": {
       "name": "Solar",
       "element_type": "solar",
-      "connection": "DC Net",
+      "connection": "Inverter",
       "curtailment": true,
       "forecast": [
         "sensor.solcast_pv_forecast_forecast_day_3",
