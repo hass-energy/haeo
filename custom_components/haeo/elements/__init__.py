@@ -59,9 +59,9 @@ ELEMENT_TYPE_LOAD: Final = load.ELEMENT_TYPE
 ELEMENT_TYPE_NODE: Final = node.ELEMENT_TYPE
 
 ElementConfigSchema = (
-    battery.BatteryConfigSchema
+    inverter.InverterConfigSchema
+    | battery.BatteryConfigSchema
     | grid.GridConfigSchema
-    | inverter.InverterConfigSchema
     | load.LoadConfigSchema
     | photovoltaics.PhotovoltaicsConfigSchema
     | node.NodeConfigSchema

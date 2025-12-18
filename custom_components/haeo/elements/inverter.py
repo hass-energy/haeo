@@ -23,8 +23,6 @@ from custom_components.haeo.schema.fields import (
     NameFieldSchema,
     PercentageFieldData,
     PercentageFieldSchema,
-    PercentageSensorFieldData,
-    PercentageSensorFieldSchema,
     PowerSensorFieldData,
     PowerSensorFieldSchema,
 )
