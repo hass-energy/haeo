@@ -8,10 +8,6 @@
   "tier_4_count": 48,
   "tier_4_duration": 60,
   "participants": {
-    "Switchboard": {
-      "name": "Switchboard",
-      "element_type": "node"
-    },
     "Battery": {
       "name": "Battery",
       "element_type": "battery",
@@ -45,8 +41,8 @@
       "name": "Inverter",
       "element_type": "inverter",
       "connection": "Switchboard",
-      "max_power_dc_to_ac": "sensor.sigen_plant_max_active_power",
-      "max_power_ac_to_dc": "sensor.sigen_plant_max_active_power"
+      "max_power_ac_to_dc": "sensor.sigen_plant_max_active_power",
+      "max_power_dc_to_ac": "sensor.sigen_plant_max_active_power"
     },
     "Solar": {
       "name": "Solar",
@@ -58,6 +54,10 @@
         "sensor.solcast_pv_forecast_forecast_today",
         "sensor.solcast_pv_forecast_forecast_tomorrow"
       ]
+    },
+    "Switchboard": {
+      "name": "Switchboard",
+      "element_type": "node"
     }
   }
 }
