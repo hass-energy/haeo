@@ -7,10 +7,19 @@ from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ElementConfigSchema, is_element_config_schema
+from custom_components.haeo.elements import (
+    ELEMENT_TYPE_CONNECTION,
+    ELEMENT_TYPE_NODE,
+    ElementConfigSchema,
+    is_element_config_schema,
+)
 from custom_components.haeo.network import evaluate_network_connectivity
 from custom_components.haeo.schema import schema_for_type
 from custom_components.haeo.validation import collect_participant_configs
+
+# Element types that should NOT have a default name pre-filled
+# These are generic/structural elements where users typically have multiple instances
+_NO_DEFAULT_NAME_TYPES = frozenset({ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE})
 
 
 class ElementSubentryFlow(ConfigSubentryFlow):
@@ -57,11 +66,14 @@ class ElementSubentryFlow(ConfigSubentryFlow):
 
                 return self.async_create_entry(title=name, data=new_config)
 
-        # Get translated default name for this element type
-        translations = await async_get_translations(
-            self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
-        )
-        default_name = translations.get(f"component.{DOMAIN}.config_subentries.{self.element_type}.flow_title", "")
+        # Get translated default name for element types that typically have a single instance
+        suggested_values = self.defaults
+        if self.element_type not in _NO_DEFAULT_NAME_TYPES:
+            translations = await async_get_translations(
+                self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
+            )
+            default_name = translations.get(f"component.{DOMAIN}.config_subentries.{self.element_type}.flow_title", "")
+            suggested_values = {CONF_NAME: default_name, **self.defaults}
 
         # Show the form to the user
         schema = schema_for_type(
@@ -70,8 +82,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             participants=self._get_non_connection_element_names(),
             current_element_name=None,
         )
-        defaults_with_name = {CONF_NAME: default_name, **self.defaults}
-        schema = self.add_suggested_values_to_schema(schema, defaults_with_name)
+        schema = self.add_suggested_values_to_schema(schema, suggested_values)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
