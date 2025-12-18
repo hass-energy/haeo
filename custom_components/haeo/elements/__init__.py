@@ -154,6 +154,22 @@ class ElementRegistryEntry(NamedTuple):
 
 
 ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
+    grid.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=grid.GridConfigSchema,
+        data=grid.GridConfigData,
+        defaults=grid.CONFIG_DEFAULTS,
+        translation_key=grid.ELEMENT_TYPE,
+        create_model_elements=grid.create_model_elements,
+        outputs=cast("OutputsFn", grid.outputs),
+    ),
+    load.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=load.LoadConfigSchema,
+        data=load.LoadConfigData,
+        defaults=load.CONFIG_DEFAULTS,
+        translation_key=load.ELEMENT_TYPE,
+        create_model_elements=load.create_model_elements,
+        outputs=cast("OutputsFn", load.outputs),
+    ),
     inverter.ELEMENT_TYPE: ElementRegistryEntry(
         schema=inverter.InverterConfigSchema,
         data=inverter.InverterConfigData,
@@ -161,6 +177,14 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=inverter.ELEMENT_TYPE,
         create_model_elements=inverter.create_model_elements,
         outputs=cast("OutputsFn", inverter.outputs),
+    ),
+    photovoltaics.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=photovoltaics.PhotovoltaicsConfigSchema,
+        data=photovoltaics.PhotovoltaicsConfigData,
+        defaults=photovoltaics.CONFIG_DEFAULTS,
+        translation_key=photovoltaics.ELEMENT_TYPE,
+        create_model_elements=photovoltaics.create_model_elements,
+        outputs=cast("OutputsFn", photovoltaics.outputs),
     ),
     battery.ELEMENT_TYPE: ElementRegistryEntry(
         schema=battery.BatteryConfigSchema,
@@ -177,30 +201,6 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=connection.ELEMENT_TYPE,
         create_model_elements=connection.create_model_elements,
         outputs=cast("OutputsFn", connection.outputs),
-    ),
-    photovoltaics.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=photovoltaics.PhotovoltaicsConfigSchema,
-        data=photovoltaics.PhotovoltaicsConfigData,
-        defaults=photovoltaics.CONFIG_DEFAULTS,
-        translation_key=photovoltaics.ELEMENT_TYPE,
-        create_model_elements=photovoltaics.create_model_elements,
-        outputs=cast("OutputsFn", photovoltaics.outputs),
-    ),
-    grid.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=grid.GridConfigSchema,
-        data=grid.GridConfigData,
-        defaults=grid.CONFIG_DEFAULTS,
-        translation_key=grid.ELEMENT_TYPE,
-        create_model_elements=grid.create_model_elements,
-        outputs=cast("OutputsFn", grid.outputs),
-    ),
-    load.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=load.LoadConfigSchema,
-        data=load.LoadConfigData,
-        defaults=load.CONFIG_DEFAULTS,
-        translation_key=load.ELEMENT_TYPE,
-        create_model_elements=load.create_model_elements,
-        outputs=cast("OutputsFn", load.outputs),
     ),
     node.ELEMENT_TYPE: ElementRegistryEntry(
         schema=node.NodeConfigSchema,
