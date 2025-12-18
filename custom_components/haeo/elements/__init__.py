@@ -36,7 +36,7 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import schema_for_type
 
-from . import battery, connection, grid, load, node, photovoltaics
+from . import battery, connection, grid, inverter, load, node, photovoltaics
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,10 +45,12 @@ type ElementType = Literal[
     "connection",
     "photovoltaics",
     "grid",
+    "inverter",
     "load",
     "node",
 ]
 
+ELEMENT_TYPE_INVERTER: Final = inverter.ELEMENT_TYPE
 ELEMENT_TYPE_BATTERY: Final = battery.ELEMENT_TYPE
 ELEMENT_TYPE_CONNECTION: Final = connection.ELEMENT_TYPE
 ELEMENT_TYPE_PHOTOVOLTAICS: Final = photovoltaics.ELEMENT_TYPE
@@ -59,6 +61,7 @@ ELEMENT_TYPE_NODE: Final = node.ELEMENT_TYPE
 ElementConfigSchema = (
     battery.BatteryConfigSchema
     | grid.GridConfigSchema
+    | inverter.InverterConfigSchema
     | load.LoadConfigSchema
     | photovoltaics.PhotovoltaicsConfigSchema
     | node.NodeConfigSchema
@@ -66,7 +69,8 @@ ElementConfigSchema = (
 )
 
 ElementConfigData = (
-    battery.BatteryConfigData
+    inverter.InverterConfigData
+    | battery.BatteryConfigData
     | grid.GridConfigData
     | load.LoadConfigData
     | photovoltaics.PhotovoltaicsConfigData
@@ -76,7 +80,8 @@ ElementConfigData = (
 
 
 type ElementOutputName = (
-    battery.BatteryOutputName
+    inverter.InverterOutputName
+    | battery.BatteryOutputName
     | connection.ConnectionOutputName
     | grid.GridOutputName
     | load.LoadOutputName
@@ -86,7 +91,8 @@ type ElementOutputName = (
 )
 
 ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
-    battery.BATTERY_OUTPUT_NAMES
+    inverter.INVERTER_OUTPUT_NAMES
+    | battery.BATTERY_OUTPUT_NAMES
     | connection.CONNECTION_OUTPUT_NAMES
     | grid.GRID_OUTPUT_NAMES
     | load.LOAD_OUTPUT_NAMES
@@ -98,7 +104,8 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
 # Device translation keys for devices
 # These are the translation keys used for devices created by adapters
 type ElementDeviceName = (
-    battery.BatteryDeviceName
+    inverter.InverterDeviceName
+    | battery.BatteryDeviceName
     | connection.ConnectionDeviceName
     | grid.GridDeviceName
     | load.LoadDeviceName
@@ -110,7 +117,8 @@ type ElementDeviceName = (
 NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(("network",))
 
 ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
-    battery.BATTERY_DEVICE_NAMES
+    inverter.INVERTER_DEVICE_NAMES
+    | battery.BATTERY_DEVICE_NAMES
     | connection.CONNECTION_DEVICE_NAMES
     | grid.GRID_DEVICE_NAMES
     | load.LOAD_DEVICE_NAMES
@@ -146,6 +154,14 @@ class ElementRegistryEntry(NamedTuple):
 
 
 ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
+    inverter.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=inverter.InverterConfigSchema,
+        data=inverter.InverterConfigData,
+        defaults=inverter.CONFIG_DEFAULTS,
+        translation_key=inverter.ELEMENT_TYPE,
+        create_model_elements=inverter.create_model_elements,
+        outputs=cast("OutputsFn", inverter.outputs),
+    ),
     battery.ELEMENT_TYPE: ElementRegistryEntry(
         schema=battery.BatteryConfigSchema,
         data=battery.BatteryConfigData,
@@ -247,6 +263,7 @@ __all__ = [
     "ELEMENT_TYPE_BATTERY",
     "ELEMENT_TYPE_CONNECTION",
     "ELEMENT_TYPE_GRID",
+    "ELEMENT_TYPE_INVERTER",
     "ELEMENT_TYPE_LOAD",
     "ELEMENT_TYPE_NODE",
     "ELEMENT_TYPE_PHOTOVOLTAICS",

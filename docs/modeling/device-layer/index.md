@@ -54,6 +54,14 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Grid modeling](grid.md)
 
+- :material-swap-horizontal:{ .lg .middle } **Inverter**
+
+    ---
+
+    Bidirectional DC/AC power conversion with DC bus.
+
+    [:material-arrow-right: Inverter modeling](inverter.md)
+
 - :material-weather-sunny:{ .lg .middle } **Photovoltaics**
 
     ---
