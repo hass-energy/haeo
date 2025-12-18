@@ -7,9 +7,8 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.translation import async_get_translations
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK, ELEMENT_TYPE_NODE
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, ELEMENT_TYPE_NETWORK
 
 from .coordinator import HaeoDataUpdateCoordinator
 
@@ -25,6 +24,9 @@ async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) 
 
     The Network subentry represents the optimization network and holds
     the optimization sensors (Cost, Status, Duration).
+
+    This handles backward compatibility for hubs created before subentries
+    were included in async_create_entry.
 
     Args:
         hass: Home Assistant instance
@@ -52,36 +54,6 @@ async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) 
     _LOGGER.debug("Network subentry created successfully")
 
 
-async def _create_initial_switchboard_node(hass: HomeAssistant, hub_entry: ConfigEntry) -> None:
-    """Create the default Switchboard node for a new hub.
-
-    This is only called during initial hub setup (not on reloads or updates).
-    The Switchboard node provides a central connection point for the energy network.
-    Its name is resolved from the defaults.switchboard_node_name translation key.
-
-    Args:
-        hass: Home Assistant instance
-        hub_entry: The hub config entry
-
-    """
-    # Resolve the switchboard node name from translations
-    translations = await async_get_translations(hass, hass.config.language, "config", integrations=[DOMAIN])
-    switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
-
-    # Create Switchboard node subentry
-    _LOGGER.info("Creating Switchboard node subentry for hub %s", hub_entry.entry_id)
-
-    node_subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: switchboard_name, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE}),
-        subentry_type=ELEMENT_TYPE_NODE,
-        title=switchboard_name,
-        unique_id=None,
-    )
-
-    hass.config_entries.async_add_subentry(hub_entry, node_subentry)
-    _LOGGER.debug("Switchboard node subentry created successfully")
-
-
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
     """Handle options update or subentry changes."""
     from .network import evaluate_network_connectivity  # noqa: PLC0415
@@ -96,15 +68,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     """Set up Home Assistant Energy Optimizer from a config entry."""
     _LOGGER.info("Setting up HAEO integration")
 
-    # Check if this is a fresh hub (no subentries yet) before adding any
-    is_fresh_hub = len(entry.subentries) == 0
-
-    # Ensure Network subentry exists (auto-create if missing)
+    # Ensure Network subentry exists (auto-create if missing for backward compatibility)
     await _ensure_network_subentry(hass, entry)
-
-    # Create Switchboard node only for fresh hubs (not on reloads/updates)
-    if is_fresh_hub:
-        await _create_initial_switchboard_node(hass, entry)
 
     # Store coordinator in runtime data first (required for platform setup)
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
