@@ -25,9 +25,6 @@ async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) 
     The Network subentry represents the optimization network and holds
     the optimization sensors (Cost, Status, Duration).
 
-    This handles backward compatibility for hubs created before subentries
-    were included in async_create_entry.
-
     Args:
         hass: Home Assistant instance
         hub_entry: The hub config entry
@@ -68,7 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     """Set up Home Assistant Energy Optimizer from a config entry."""
     _LOGGER.info("Setting up HAEO integration")
 
-    # Ensure Network subentry exists (auto-create if missing for backward compatibility)
+    # Ensure Network subentry exists (auto-create if missing)
     await _ensure_network_subentry(hass, entry)
 
     # Store coordinator in runtime data first (required for platform setup)
