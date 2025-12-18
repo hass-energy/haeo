@@ -46,7 +46,7 @@ def create_model_elements(config: NodeConfigData) -> list[dict[str, Any]]:
     return [{"element_type": "source_sink", "name": config["name"], "is_source": False, "is_sink": False}]
 
 
-def updates(
+def outputs(
     name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: NodeConfigData
 ) -> Mapping[NodeDeviceName, Mapping[NodeOutputName, OutputData]]:
     """Provide state updates for node output sensors."""

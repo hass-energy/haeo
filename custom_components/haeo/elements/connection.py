@@ -121,7 +121,7 @@ def create_model_elements(config: ConnectionConfigData) -> list[dict[str, Any]]:
     ]
 
 
-def updates(
+def outputs(
     name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: ConnectionConfigData
 ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
     """Provide state updates for connection output sensors."""
@@ -185,5 +185,5 @@ __all__ = [
     "ConnectionConfigSchema",
     "ConnectionOutputName",
     "create_model_elements",
-    "updates",
+    "outputs",
 ]

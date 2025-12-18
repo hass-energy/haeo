@@ -313,7 +313,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     return elements
 
 
-def updates(
+def outputs(
     name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: BatteryConfigData
 ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
     """Provide state updates for battery output sensors."""

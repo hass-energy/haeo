@@ -36,5 +36,5 @@ def test_updates_mapping(
     """Verify adapter maps model outputs to device sensor states."""
 
     entry = ELEMENT_TYPES[element_type]
-    result = entry.updates(case["data"]["name"], case["model_outputs"], case["data"])
+    result = entry.outputs(case["data"]["name"], case["model_outputs"], case["data"])
     assert result == case["outputs"]

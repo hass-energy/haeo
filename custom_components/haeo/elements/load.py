@@ -86,7 +86,7 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
     return elements
 
 
-def updates(
+def outputs(
     name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: LoadConfigData
 ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
     """Provide state updates for load output sensors."""

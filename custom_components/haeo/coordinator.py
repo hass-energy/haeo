@@ -381,20 +381,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             element_name: element.outputs() for element_name, element in network.elements.items()
         }
 
-        # Process each config element using its updates function to get input and output sensor states
+        # Process each config element using its outputs function to get output sensor states
         for element_name, element_config in self._participant_configs.items():
             element_type = element_config["element_type"]
-            updates_fn = ELEMENT_TYPES[element_type].updates
+            outputs_fn = ELEMENT_TYPES[element_type].outputs
 
-            # updates function returns {device_name: {sensor_name: OutputData}}
+            # outputs function returns {device_name: {sensor_name: OutputData}}
             # May return multiple devices per config element (e.g., battery regions)
             try:
-                adapter_updates: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = updates_fn(
+                adapter_outputs: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = outputs_fn(
                     element_name, model_outputs, loaded_configs[element_name]
                 )
             except KeyError:
                 _LOGGER.exception(
-                    "Failed to get sensor updates for config element %r (type=%r): missing model element. "
+                    "Failed to get sensor outputs for config element %r (type=%r): missing model element. "
                     "Available model elements: %s",
                     element_name,
                     element_type,
@@ -402,20 +402,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 )
                 raise
 
-            # Process each device's sensor updates, grouping under the subentry (element_name)
+            # Process each device's sensor outputs, grouping under the subentry (element_name)
             subentry_devices: SubentryDevices = {}
-            for device_name, device_updates in adapter_updates.items():
-                processed_updates: dict[ElementOutputName | NetworkOutputName, CoordinatorOutput] = {
+            for device_name, device_outputs in adapter_outputs.items():
+                processed_outputs: dict[ElementOutputName | NetworkOutputName, CoordinatorOutput] = {
                     sensor_name: _build_coordinator_output(
                         sensor_name,
                         sensor_data,
                         forecast_times=forecast_timestamps,
                     )
-                    for sensor_name, sensor_data in device_updates.items()
+                    for sensor_name, sensor_data in device_outputs.items()
                 }
 
-                if processed_updates:
-                    subentry_devices[device_name] = processed_updates
+                if processed_outputs:
+                    subentry_devices[device_name] = processed_outputs
 
             if subentry_devices:
                 result[element_name] = subentry_devices

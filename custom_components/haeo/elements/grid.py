@@ -112,7 +112,7 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
     ]
 
 
-def updates(
+def outputs(
     name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: GridConfigData
 ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
     """Provide state updates for grid output sensors."""
