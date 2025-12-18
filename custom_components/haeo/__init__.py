@@ -52,9 +52,10 @@ async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) 
     _LOGGER.debug("Network subentry created successfully")
 
 
-async def _ensure_switchboard_node_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) -> None:
-    """Ensure a default Switchboard node subentry exists for the hub.
+async def _create_initial_switchboard_node(hass: HomeAssistant, hub_entry: ConfigEntry) -> None:
+    """Create the default Switchboard node for a new hub.
 
+    This is only called during initial hub setup (not on reloads or updates).
     The Switchboard node provides a central connection point for the energy network.
     Its name is resolved from the defaults.switchboard_node_name translation key.
 
@@ -66,12 +67,6 @@ async def _ensure_switchboard_node_subentry(hass: HomeAssistant, hub_entry: Conf
     # Resolve the switchboard node name from translations
     translations = await async_get_translations(hass, hass.config.language, "config", integrations=[DOMAIN])
     switchboard_name = translations.get(f"component.{DOMAIN}.defaults.switchboard_node_name", "Switchboard")
-
-    # Check if a node with this name already exists
-    for subentry in hub_entry.subentries.values():
-        if subentry.title == switchboard_name:
-            _LOGGER.debug("Switchboard node subentry already exists for hub %s", hub_entry.entry_id)
-            return
 
     # Create Switchboard node subentry
     _LOGGER.info("Creating Switchboard node subentry for hub %s", hub_entry.entry_id)
@@ -92,7 +87,6 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     from .network import evaluate_network_connectivity  # noqa: PLC0415
 
     await _ensure_network_subentry(hass, entry)
-    await _ensure_switchboard_node_subentry(hass, entry)
     await evaluate_network_connectivity(hass, entry)
     _LOGGER.info("HAEO configuration changed, reloading integration")
     await hass.config_entries.async_reload(entry.entry_id)
@@ -102,11 +96,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     """Set up Home Assistant Energy Optimizer from a config entry."""
     _LOGGER.info("Setting up HAEO integration")
 
+    # Check if this is a fresh hub (no subentries yet) before adding any
+    is_fresh_hub = len(entry.subentries) == 0
+
     # Ensure Network subentry exists (auto-create if missing)
     await _ensure_network_subentry(hass, entry)
 
-    # Ensure Switchboard node subentry exists (auto-create if missing)
-    await _ensure_switchboard_node_subentry(hass, entry)
+    # Create Switchboard node only for fresh hubs (not on reloads/updates)
+    if is_fresh_hub:
+        await _create_initial_switchboard_node(hass, entry)
 
     # Store coordinator in runtime data first (required for platform setup)
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
