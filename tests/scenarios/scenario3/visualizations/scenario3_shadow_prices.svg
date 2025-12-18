@@ -820,24 +820,24 @@ L 226.151839 150.04256
 L 238.984617 150.04256 
 L 238.984617 149.69028 
 L 245.401007 149.69028 
-L 245.401007 181.689072 
-L 258.233785 181.689072 
-L 258.233785 192.903327 
-L 264.650174 192.903327 
-L 264.650174 207.699099 
-L 360.896013 207.757812 
-L 360.896013 201.827761 
-L 367.312402 201.827761 
+L 245.401007 180.690944 
+L 251.817396 180.690944 
+L 251.817396 181.043225 
+L 258.233785 181.043225 
+L 258.233785 199.126946 
+L 264.650174 199.126946 
+L 264.650174 201.827761 
+L 271.066564 201.827761 
+L 271.066564 207.757812 
+L 367.312402 207.757812 
 L 367.312402 196.191277 
 L 373.728791 196.191277 
-L 373.728791 195.604143 
-L 380.145181 195.604143 
+L 373.728791 189.967658 
+L 380.145181 189.967658 
 L 380.145181 181.630359 
 L 386.56157 181.630359 
-L 386.56157 172.177504 
-L 392.977959 172.177504 
-L 392.977959 169.183122 
-L 399.394348 169.183122 
+L 386.56157 175.817734 
+L 399.394348 175.817734 
 L 399.394348 161.315529 
 L 405.810738 161.315529 
 L 405.810738 154.093784 
@@ -848,16 +848,14 @@ L 534.138523 100.312328
 L 546.971301 100.312328 
 L 546.971301 155.561618 
 L 559.80408 155.561618 
-L 559.80408 166.247453 
-L 572.636858 166.247453 
-L 572.636858 198.833379 
-L 585.469636 198.833379 
-L 585.469636 207.757812 
+L 559.80408 178.812116 
+L 572.636858 178.812116 
+L 572.636858 207.699099 
 L 675.299086 207.757812 
 L 675.299086 184.624741 
 L 688.131864 184.624741 
-L 688.131864 152.625949 
-L 700.964643 152.625949 
+L 688.131864 139.532865 
+L 700.964643 139.532865 
 L 700.964643 115.81266 
 L 713.797421 115.81266 
 L 713.797421 100.429755 
@@ -866,14 +864,14 @@ L 842.125206 100.312328
 L 854.957985 100.312328 
 L 854.957985 155.561618 
 L 867.790763 155.561618 
-L 867.790763 178.812116 
-L 880.623542 178.812116 
+L 867.790763 166.247453 
+L 880.623542 166.247453 
 L 880.623542 207.699099 
 L 983.28577 207.757812 
 L 983.28577 184.624741 
 L 996.118548 184.624741 
-L 996.118548 139.532865 
-L 1008.951327 139.532865 
+L 996.118548 152.625949 
+L 1008.951327 152.625949 
 L 1008.951327 129.375451 
 L 1021.784105 129.375451 
 L 1021.784105 129.375451 
@@ -1087,19 +1085,19 @@ L 1008.951327 116.752074
 L 1021.784105 116.752074 
 L 1021.784105 105.009398 
 L 1021.784105 105.009398 
-" clip-path="url(#peeb3ba160f)" style="fill: none; stroke-dasharray: 9.6,2.4,1.5,2.4; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 1.5"/>
+" clip-path="url(#peeb3ba160f)" style="fill: none; stroke-dasharray: 9.6,2.4,1.5,2.4; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 1.5"/>
    </g>
    <g id="line2d_28">
     <path d="M 110.656832 207.757812 
 L 1021.784105 207.757812 
 L 1021.784105 207.757812 
-" clip-path="url(#peeb3ba160f)" style="fill: none; stroke-dasharray: 12.8,3.2,2,3.2; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 2"/>
+" clip-path="url(#peeb3ba160f)" style="fill: none; stroke-dasharray: 12.8,3.2,2,3.2; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 2"/>
    </g>
    <g id="line2d_29">
     <path d="M 110.656832 207.757812 
 L 1021.784105 207.757812 
 L 1021.784105 207.757812 
-" clip-path="url(#peeb3ba160f)" style="fill: none; stroke-dasharray: 1.5,2.475; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 1.5"/>
+" clip-path="url(#peeb3ba160f)" style="fill: none; stroke-dasharray: 1.5,2.475; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 1.5"/>
    </g>
    <g id="line2d_30">
     <path d="M 110.656832 209.930208 
@@ -1297,7 +1295,7 @@ L 1008.951327 116.752074
 L 1021.784105 116.752074 
 L 1021.784105 105.009398 
 L 1021.784105 105.009398 
-" clip-path="url(#peeb3ba160f)" style="fill: none; stroke: #7f7f7f; stroke-width: 1.5; stroke-linecap: square"/>
+" clip-path="url(#peeb3ba160f)" style="fill: none; stroke: #a0a0a0; stroke-width: 1.5; stroke-linecap: square"/>
    </g>
    <g id="line2d_32">
     <path d="M 65.100469 207.757812 
@@ -1902,7 +1900,7 @@ L 82.200469 117.868906
 L 82.200469 117.868906 
 L 91.200469 117.868906 
 L 91.200469 117.868906 
-" style="fill: none; stroke-dasharray: 9.6,2.4,1.5,2.4; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 1.5"/>
+" style="fill: none; stroke-dasharray: 9.6,2.4,1.5,2.4; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 1.5"/>
     </g>
     <g id="text_19">
      <!-- Inverter inverter_dc_bus_power_balance -->
@@ -1994,7 +1992,7 @@ L 82.200469 131.329531
 L 82.200469 131.329531 
 L 91.200469 131.329531 
 L 91.200469 131.329531 
-" style="fill: none; stroke-dasharray: 12.8,3.2,2,3.2; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 2"/>
+" style="fill: none; stroke-dasharray: 12.8,3.2,2,3.2; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 2"/>
     </g>
     <g id="text_20">
      <!-- Inverter inverter_max_power_ac_to_dc_price -->
@@ -2049,7 +2047,7 @@ L 82.200469 144.790156
 L 82.200469 144.790156 
 L 91.200469 144.790156 
 L 91.200469 144.790156 
-" style="fill: none; stroke-dasharray: 1.5,2.475; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 1.5"/>
+" style="fill: none; stroke-dasharray: 1.5,2.475; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 1.5"/>
     </g>
     <g id="text_21">
      <!-- Inverter inverter_max_power_dc_to_ac_price -->
@@ -2143,7 +2141,7 @@ L 82.200469 171.711406
 L 82.200469 171.711406 
 L 91.200469 171.711406 
 L 91.200469 171.711406 
-" style="fill: none; stroke: #7f7f7f; stroke-width: 1.5; stroke-linecap: square"/>
+" style="fill: none; stroke: #a0a0a0; stroke-width: 1.5; stroke-linecap: square"/>
     </g>
     <g id="text_23">
      <!-- Switchboard node_power_balance -->
