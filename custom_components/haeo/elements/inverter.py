@@ -21,6 +21,8 @@ from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
     NameFieldData,
     NameFieldSchema,
+    PercentageFieldData,
+    PercentageFieldSchema,
     PercentageSensorFieldData,
     PercentageSensorFieldSchema,
     PowerSensorFieldData,
@@ -79,8 +81,8 @@ class InverterConfigSchema(TypedDict):
     max_power_ac_to_dc: PowerSensorFieldSchema
 
     # Optional fields
-    efficiency_dc_to_ac: NotRequired[PercentageSensorFieldSchema]
-    efficiency_ac_to_dc: NotRequired[PercentageSensorFieldSchema]
+    efficiency_dc_to_ac: NotRequired[PercentageFieldSchema]
+    efficiency_ac_to_dc: NotRequired[PercentageFieldSchema]
 
 
 class InverterConfigData(TypedDict):
@@ -93,11 +95,14 @@ class InverterConfigData(TypedDict):
     max_power_ac_to_dc: PowerSensorFieldData
 
     # Optional fields
-    efficiency_dc_to_ac: NotRequired[PercentageSensorFieldData]
-    efficiency_ac_to_dc: NotRequired[PercentageSensorFieldData]
+    efficiency_dc_to_ac: NotRequired[PercentageFieldData]
+    efficiency_ac_to_dc: NotRequired[PercentageFieldData]
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {}
+CONFIG_DEFAULTS: dict[str, Any] = {
+    "efficiency_dc_to_ac": 100.0,
+    "efficiency_ac_to_dc": 100.0,
+}
 
 
 def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
