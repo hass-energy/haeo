@@ -16,7 +16,6 @@ CONF_UPDATE_INTERVAL_MINUTES: Final = "update_interval_minutes"
 CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
 
 ELEMENT_TYPE_NETWORK: Final = "network"
-ELEMENT_TYPE_NODE: Final = "node"
 
 # Interval tier configuration (4 tiers with count and duration each)
 # Each tier specifies: count = number of intervals, duration = minutes per interval
