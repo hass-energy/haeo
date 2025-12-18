@@ -95,7 +95,7 @@ After creating your hub, add elements to represent your devices through the Home
 | Element Type | Description                              | Use Case                      |
 | ------------ | ---------------------------------------- | ----------------------------- |
 | **Battery**  | Energy storage with SOC tracking         | Home batteries, EV as storage |
-| **Grid**     | Bi-directional grid connection           | Main grid, separate meters    |
+| **Grid**     | Bi-directional grid                      | Main grid, separate meters    |
 | **Solar**    | Solar generation                         | Rooftop solar, ground-mount   |
 | **Load**     | Power consumption (constant or variable) | All consumption patterns      |
 | **Net**      | Virtual power balance node               | Grouping connection points    |
