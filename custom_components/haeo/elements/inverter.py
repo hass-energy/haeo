@@ -141,13 +141,8 @@ def outputs(
 
     # source_target = DC to AC (inverting)
     # target_source = AC to DC (rectifying)
-    # Use power_flow type to indicate these are internal flows, not primary element outputs
-    inverter_outputs[INVERTER_POWER_DC_TO_AC] = replace(
-        connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER_FLOW
-    )
-    inverter_outputs[INVERTER_POWER_AC_TO_DC] = replace(
-        connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER_FLOW
-    )
+    inverter_outputs[INVERTER_POWER_DC_TO_AC] = connection[CONNECTION_POWER_SOURCE_TARGET]
+    inverter_outputs[INVERTER_POWER_AC_TO_DC] = connection[CONNECTION_POWER_TARGET_SOURCE]
 
     # Active inverter power (DC to AC - AC to DC)
     inverter_outputs[INVERTER_POWER_ACTIVE] = replace(
