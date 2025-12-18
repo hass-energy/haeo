@@ -58,7 +58,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
                 # Resolve the switchboard node name from translations
                 translations = await async_get_translations(
-                    self.hass, self.hass.config.language, "config", integrations=[DOMAIN]
+                    self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
                 )
                 switchboard_name = translations[f"component.{DOMAIN}.common.switchboard_node_name"]
 
