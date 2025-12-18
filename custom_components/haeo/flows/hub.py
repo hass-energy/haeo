@@ -6,9 +6,11 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, ConfigSubentryFlow
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
+from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
+    CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -20,9 +22,10 @@ from custom_components.haeo.const import (
     CONF_TIER_4_DURATION,
     CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
 
 from . import get_network_config_schema
 from .element import create_subentry_flow_class
@@ -53,7 +56,13 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(f"haeo_hub_{hub_name.lower().replace(' ', '_')}")
                 self._abort_if_unique_id_configured()
 
-                # Create the hub entry
+                # Resolve the switchboard node name from translations
+                translations = await async_get_translations(
+                    self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
+                )
+                switchboard_name = translations[f"component.{DOMAIN}.common.switchboard_node_name"]
+
+                # Create the hub entry with initial subentries
                 return self.async_create_entry(
                     title=hub_name,
                     data={
@@ -75,6 +84,22 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_UPDATE_INTERVAL_MINUTES: user_input[CONF_UPDATE_INTERVAL_MINUTES],
                         CONF_DEBOUNCE_SECONDS: user_input[CONF_DEBOUNCE_SECONDS],
                     },
+                    subentries=[
+                        # Network subentry for optimization sensors
+                        {
+                            "data": {CONF_NAME: hub_name, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK},
+                            "subentry_type": ELEMENT_TYPE_NETWORK,
+                            "title": hub_name,
+                            "unique_id": None,
+                        },
+                        # Switchboard node as central connection point
+                        {
+                            "data": {CONF_NAME: switchboard_name, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE},
+                            "subentry_type": ELEMENT_TYPE_NODE,
+                            "title": switchboard_name,
+                            "unique_id": None,
+                        },
+                    ],
                 )
 
         # Show form with network configuration
