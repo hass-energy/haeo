@@ -26,7 +26,7 @@ Sub-element Naming Convention:
 
 from collections.abc import Callable, Mapping
 import logging
-from typing import Any, Final, Literal, NamedTuple, TypeGuard, cast
+from typing import Any, Final, Literal, NamedTuple, OrderedDict, TypeGuard, cast
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 import voluptuous as vol
@@ -153,64 +153,66 @@ class ElementRegistryEntry(NamedTuple):
     outputs: OutputsFn
 
 
-ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
-    inverter.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=inverter.InverterConfigSchema,
-        data=inverter.InverterConfigData,
-        defaults=inverter.CONFIG_DEFAULTS,
-        translation_key=inverter.ELEMENT_TYPE,
-        create_model_elements=inverter.create_model_elements,
-        outputs=cast("OutputsFn", inverter.outputs),
-    ),
-    battery.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=battery.BatteryConfigSchema,
-        data=battery.BatteryConfigData,
-        defaults=battery.CONFIG_DEFAULTS,
-        translation_key=battery.ELEMENT_TYPE,
-        create_model_elements=battery.create_model_elements,
-        outputs=cast("OutputsFn", battery.outputs),
-    ),
-    connection.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=connection.ConnectionConfigSchema,
-        data=connection.ConnectionConfigData,
-        defaults=connection.CONFIG_DEFAULTS,
-        translation_key=connection.ELEMENT_TYPE,
-        create_model_elements=connection.create_model_elements,
-        outputs=cast("OutputsFn", connection.outputs),
-    ),
-    photovoltaics.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=photovoltaics.PhotovoltaicsConfigSchema,
-        data=photovoltaics.PhotovoltaicsConfigData,
-        defaults=photovoltaics.CONFIG_DEFAULTS,
-        translation_key=photovoltaics.ELEMENT_TYPE,
-        create_model_elements=photovoltaics.create_model_elements,
-        outputs=cast("OutputsFn", photovoltaics.outputs),
-    ),
-    grid.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=grid.GridConfigSchema,
-        data=grid.GridConfigData,
-        defaults=grid.CONFIG_DEFAULTS,
-        translation_key=grid.ELEMENT_TYPE,
-        create_model_elements=grid.create_model_elements,
-        outputs=cast("OutputsFn", grid.outputs),
-    ),
-    load.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=load.LoadConfigSchema,
-        data=load.LoadConfigData,
-        defaults=load.CONFIG_DEFAULTS,
-        translation_key=load.ELEMENT_TYPE,
-        create_model_elements=load.create_model_elements,
-        outputs=cast("OutputsFn", load.outputs),
-    ),
-    node.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=node.NodeConfigSchema,
-        data=node.NodeConfigData,
-        defaults=node.CONFIG_DEFAULTS,
-        translation_key=node.ELEMENT_TYPE,
-        create_model_elements=node.create_model_elements,
-        outputs=cast("OutputsFn", node.outputs),
-    ),
-}
+ELEMENT_TYPES: OrderedDict[ElementType, ElementRegistryEntry] = OrderedDict(
+    {
+        grid.ELEMENT_TYPE: ElementRegistryEntry(
+            schema=grid.GridConfigSchema,
+            data=grid.GridConfigData,
+            defaults=grid.CONFIG_DEFAULTS,
+            translation_key=grid.ELEMENT_TYPE,
+            create_model_elements=grid.create_model_elements,
+            outputs=cast("OutputsFn", grid.outputs),
+        ),
+        load.ELEMENT_TYPE: ElementRegistryEntry(
+            schema=load.LoadConfigSchema,
+            data=load.LoadConfigData,
+            defaults=load.CONFIG_DEFAULTS,
+            translation_key=load.ELEMENT_TYPE,
+            create_model_elements=load.create_model_elements,
+            outputs=cast("OutputsFn", load.outputs),
+        ),
+        inverter.ELEMENT_TYPE: ElementRegistryEntry(
+            schema=inverter.InverterConfigSchema,
+            data=inverter.InverterConfigData,
+            defaults=inverter.CONFIG_DEFAULTS,
+            translation_key=inverter.ELEMENT_TYPE,
+            create_model_elements=inverter.create_model_elements,
+            outputs=cast("OutputsFn", inverter.outputs),
+        ),
+        photovoltaics.ELEMENT_TYPE: ElementRegistryEntry(
+            schema=photovoltaics.PhotovoltaicsConfigSchema,
+            data=photovoltaics.PhotovoltaicsConfigData,
+            defaults=photovoltaics.CONFIG_DEFAULTS,
+            translation_key=photovoltaics.ELEMENT_TYPE,
+            create_model_elements=photovoltaics.create_model_elements,
+            outputs=cast("OutputsFn", photovoltaics.outputs),
+        ),
+        battery.ELEMENT_TYPE: ElementRegistryEntry(
+            schema=battery.BatteryConfigSchema,
+            data=battery.BatteryConfigData,
+            defaults=battery.CONFIG_DEFAULTS,
+            translation_key=battery.ELEMENT_TYPE,
+            create_model_elements=battery.create_model_elements,
+            outputs=cast("OutputsFn", battery.outputs),
+        ),
+        connection.ELEMENT_TYPE: ElementRegistryEntry(
+            schema=connection.ConnectionConfigSchema,
+            data=connection.ConnectionConfigData,
+            defaults=connection.CONFIG_DEFAULTS,
+            translation_key=connection.ELEMENT_TYPE,
+            create_model_elements=connection.create_model_elements,
+            outputs=cast("OutputsFn", connection.outputs),
+        ),
+        node.ELEMENT_TYPE: ElementRegistryEntry(
+            schema=node.NodeConfigSchema,
+            data=node.NodeConfigData,
+            defaults=node.CONFIG_DEFAULTS,
+            translation_key=node.ELEMENT_TYPE,
+            create_model_elements=node.create_model_elements,
+            outputs=cast("OutputsFn", node.outputs),
+        ),
+    }
+)
 
 
 class ValidatedElementSubentry(NamedTuple):

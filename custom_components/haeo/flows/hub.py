@@ -1,7 +1,7 @@
 """Hub configuration flow for HAEO integration."""
 
 import logging
-from typing import Any
+from typing import Any, OrderedDict
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, ConfigSubentryFlow
 from homeassistant.const import CONF_NAME
@@ -119,15 +119,19 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     @classmethod
     @callback
-    def async_get_supported_subentry_types(cls, config_entry: ConfigEntry) -> dict[str, type[ConfigSubentryFlow]]:
+    def async_get_supported_subentry_types(
+        cls, config_entry: ConfigEntry
+    ) -> OrderedDict[str, type[ConfigSubentryFlow]]:
         """Return subentries supported by this integration."""
         _ = config_entry  # Unused but required by signature
 
         # Register regular element flows
-        flows: dict[str, type[ConfigSubentryFlow]] = {
-            element_type: create_subentry_flow_class(element_type, entry.schema, entry.defaults)
-            for element_type, entry in ELEMENT_TYPES.items()
-        }
+        flows: OrderedDict[str, type[ConfigSubentryFlow]] = OrderedDict(
+            {
+                element_type: create_subentry_flow_class(element_type, entry.schema, entry.defaults)
+                for element_type, entry in ELEMENT_TYPES.items()
+            }
+        )
 
         # Note that the Network subentry is not included here as it can't be added/removed like other elements
 
