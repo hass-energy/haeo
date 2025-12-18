@@ -60,7 +60,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 translations = await async_get_translations(
                     self.hass, self.hass.config.language, "config", integrations=[DOMAIN]
                 )
-                switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
+                switchboard_name = translations[f"component.{DOMAIN}.common.switchboard_node_name"]
 
                 # Create the hub entry with initial subentries
                 return self.async_create_entry(
