@@ -12,16 +12,20 @@ from custom_components.haeo.elements.inverter import (
 VALID_DATA = [
     {
         "description": "Basic inverter configuration",
-        "config": {CONF_NAME: "Test Inverter"},
-    },
-    {
-        "description": "Inverter with efficiency and power limits",
         "config": {
-            CONF_NAME: "Hybrid Inverter",
-            CONF_EFFICIENCY_DC_TO_AC: ["sensor.inverter_efficiency"],
-            CONF_EFFICIENCY_AC_TO_DC: ["sensor.inverter_efficiency"],
+            CONF_NAME: "Test Inverter",
             CONF_MAX_POWER_DC_TO_AC: ["sensor.inverter_max_power"],
             CONF_MAX_POWER_AC_TO_DC: ["sensor.inverter_max_power"],
+        },
+    },
+    {
+        "description": "Inverter with efficiency",
+        "config": {
+            CONF_NAME: "Hybrid Inverter",
+            CONF_MAX_POWER_DC_TO_AC: ["sensor.inverter_max_power"],
+            CONF_MAX_POWER_AC_TO_DC: ["sensor.inverter_max_power"],
+            CONF_EFFICIENCY_DC_TO_AC: ["sensor.inverter_efficiency"],
+            CONF_EFFICIENCY_AC_TO_DC: ["sensor.inverter_efficiency"],
         },
     },
 ]
@@ -29,7 +33,11 @@ VALID_DATA = [
 INVALID_DATA = [
     {
         "description": "Empty name should fail validation",
-        "config": {CONF_NAME: ""},
+        "config": {
+            CONF_NAME: "",
+            CONF_MAX_POWER_DC_TO_AC: ["sensor.inverter_max_power"],
+            CONF_MAX_POWER_AC_TO_DC: ["sensor.inverter_max_power"],
+        },
         "error": "cannot be empty",
     },
 ]

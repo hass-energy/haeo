@@ -75,12 +75,12 @@ class InverterConfigSchema(TypedDict):
     element_type: Literal["inverter"]
     name: NameFieldSchema
     connection: ElementNameFieldSchema  # AC side node to connect to
+    max_power_dc_to_ac: PowerSensorFieldSchema
+    max_power_ac_to_dc: PowerSensorFieldSchema
 
     # Optional fields
     efficiency_dc_to_ac: NotRequired[PercentageSensorFieldSchema]
     efficiency_ac_to_dc: NotRequired[PercentageSensorFieldSchema]
-    max_power_dc_to_ac: NotRequired[PowerSensorFieldSchema]
-    max_power_ac_to_dc: NotRequired[PowerSensorFieldSchema]
 
 
 class InverterConfigData(TypedDict):
@@ -89,12 +89,12 @@ class InverterConfigData(TypedDict):
     element_type: Literal["inverter"]
     name: NameFieldData
     connection: ElementNameFieldData  # AC side node to connect to
+    max_power_dc_to_ac: PowerSensorFieldData
+    max_power_ac_to_dc: PowerSensorFieldData
 
     # Optional fields
     efficiency_dc_to_ac: NotRequired[PercentageSensorFieldData]
     efficiency_ac_to_dc: NotRequired[PercentageSensorFieldData]
-    max_power_dc_to_ac: NotRequired[PowerSensorFieldData]
-    max_power_ac_to_dc: NotRequired[PowerSensorFieldData]
 
 
 CONFIG_DEFAULTS: dict[str, Any] = {}
@@ -119,10 +119,10 @@ def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
             "name": f"{name}:connection",
             "source": name,
             "target": config["connection"],
+            "max_power_source_target": config["max_power_dc_to_ac"],
+            "max_power_target_source": config["max_power_ac_to_dc"],
             "efficiency_source_target": config.get("efficiency_dc_to_ac"),
             "efficiency_target_source": config.get("efficiency_ac_to_dc"),
-            "max_power_source_target": config.get("max_power_dc_to_ac"),
-            "max_power_target_source": config.get("max_power_ac_to_dc"),
         },
     ]
 
@@ -163,12 +163,10 @@ def outputs(
     # DC bus power balance shadow price
     inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[SOURCE_SINK_POWER_BALANCE]
 
-    # Output the power limits if they exist
-    if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
-        inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
-        inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
-    if CONNECTION_POWER_MAX_TARGET_SOURCE in connection:
-        inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
-        inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
+    # Power limits
+    inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+    inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+    inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
+    inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 
     return {INVERTER_DEVICE_INVERTER: inverter_outputs}
