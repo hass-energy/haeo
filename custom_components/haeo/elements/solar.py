@@ -55,9 +55,7 @@ SOLAR_OUTPUT_NAMES: Final[frozenset[SolarOutputName]] = frozenset(
 
 type SolarDeviceName = Literal["solar"]
 
-SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset(
-    (SOLAR_DEVICE_SOLAR := ELEMENT_TYPE,)
-)
+SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset((SOLAR_DEVICE_SOLAR := ELEMENT_TYPE,))
 
 
 class SolarConfigSchema(TypedDict):
