@@ -183,6 +183,38 @@
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     },
+    "inverter": {
+      "flow_title": "Inverter",
+      "entry_type": "Inverter",
+      "initiate_flow": { "user": "Inverter", "reconfigure": "Inverter" },
+      "step": {
+        "user": {
+          "title": "Add Inverter",
+          "description": "Set up a bidirectional inverter with DC bus for battery and solar connections",
+          "data": {
+            "connection": "AC Connection",
+            "efficiency_ac_to_dc": "AC to DC efficiency (Optional)",
+            "efficiency_dc_to_ac": "DC to AC efficiency (Optional)",
+            "max_power_ac_to_dc": "Max AC to DC power",
+            "max_power_dc_to_ac": "Max DC to AC power",
+            "name": "Inverter Name"
+          }
+        },
+        "reconfigure": {
+          "title": "Edit Inverter",
+          "description": "Update inverter configuration",
+          "data": {
+            "connection": "AC Connection",
+            "efficiency_ac_to_dc": "AC to DC efficiency (Optional)",
+            "efficiency_dc_to_ac": "DC to AC efficiency (Optional)",
+            "max_power_ac_to_dc": "Max AC to DC power",
+            "max_power_dc_to_ac": "Max DC to AC power",
+            "name": "Inverter Name"
+          }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+    },
     "load": {
       "flow_title": "Load",
       "entry_type": "Load",
@@ -263,6 +295,7 @@
     "battery_device_undercharge": { "name": "{name} Undercharge Region" },
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
+    "inverter": { "name": "{name}" },
     "load": { "name": "{name}" },
     "network": { "name": "{name}" },
     "node": { "name": "{name}" },
@@ -293,6 +326,10 @@
       "grid_export_price": { "name": "Export price" },
       "grid_import_limit": { "name": "Import limit" },
       "grid_import_price": { "name": "Import price" },
+      "inverter_efficiency_ac_to_dc": { "name": "AC to DC efficiency" },
+      "inverter_efficiency_dc_to_ac": { "name": "DC to AC efficiency" },
+      "inverter_max_power_ac_to_dc": { "name": "Max AC to DC power" },
+      "inverter_max_power_dc_to_ac": { "name": "Max DC to AC power" },
       "load_forecast": { "name": "Forecast" },
       "photovoltaics_forecast": { "name": "Forecast" },
       "photovoltaics_price_production": { "name": "Production price" }
@@ -321,6 +358,12 @@
       "grid_power_import": { "name": "Import power" },
       "grid_power_max_export_price": { "name": "Max export power shadow price" },
       "grid_power_max_import_price": { "name": "Max import power shadow price" },
+      "inverter_dc_bus_power_balance": { "name": "DC bus power balance shadow price" },
+      "inverter_max_power_ac_to_dc_price": { "name": "Max AC to DC power shadow price" },
+      "inverter_max_power_dc_to_ac_price": { "name": "Max DC to AC power shadow price" },
+      "inverter_power_ac_to_dc": { "name": "AC to DC power" },
+      "inverter_power_active": { "name": "Active power" },
+      "inverter_power_dc_to_ac": { "name": "DC to AC power" },
       "load_forecast_limit_price": { "name": "Forecast limit shadow price" },
       "load_power": { "name": "Power" },
       "network_optimization_cost": { "name": "Optimization cost" },

@@ -1,7 +1,7 @@
 """Tests for HAEO system health reporting."""
 
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 from homeassistant.components.system_health import SystemHealthRegistration
 from homeassistant.core import HomeAssistant
@@ -55,9 +55,8 @@ async def test_system_health_coordinator_not_initialized(hass: HomeAssistant) ->
     entry.title = "HAEO Hub"
     entry.runtime_data = None
 
-    hass.config_entries.async_entries = MagicMock(return_value=[entry])
-
-    info = await async_system_health_info(hass)
+    with patch.object(hass.config_entries, "async_entries", return_value=[entry]):
+        info = await async_system_health_info(hass)
     assert info["HAEO Hub_status"] == "coordinator_not_initialized"
 
 
@@ -96,9 +95,8 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     }
     entry.runtime_data = coordinator
 
-    hass.config_entries.async_entries = MagicMock(return_value=[entry])
-
-    info = await async_system_health_info(hass)
+    with patch.object(hass.config_entries, "async_entries", return_value=[entry]):
+        info = await async_system_health_info(hass)
 
     assert info["HAEO Hub_status"] == "ok"
     assert info["HAEO Hub_optimization_status"] == "success"
@@ -124,9 +122,8 @@ async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None
     entry.data = {}
     entry.runtime_data = coordinator
 
-    hass.config_entries.async_entries = MagicMock(return_value=[entry])
-
-    info = await async_system_health_info(hass)
+    with patch.object(hass.config_entries, "async_entries", return_value=[entry]):
+        info = await async_system_health_info(hass)
 
     assert info["HAEO Hub_status"] == "update_failed"
     assert info["HAEO Hub_outputs"] == 0
