@@ -119,7 +119,7 @@ The element flow base class is in `custom_components/haeo/flows/element.py`.
 Each element type has its own flow class in `custom_components/haeo/flows/`:
 
 - `BatteryConfigFlow` - Battery element configuration
-- `GridConfigFlow` - Grid connection configuration
+- `GridConfigFlow` - Grid configuration
 - `SolarConfigFlow` - Solar system configuration
 - `ConstantLoadConfigFlow` - Constant load configuration
 - `ForecastLoadConfigFlow` - Forecast-based load configuration

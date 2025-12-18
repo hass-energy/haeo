@@ -152,12 +152,12 @@
       }
     },
     "grid": {
-      "flow_title": "Grid Connection",
-      "entry_type": "Grid Connection",
-      "initiate_flow": { "user": "Grid Connection", "reconfigure": "Grid Connection" },
+      "flow_title": "Grid",
+      "entry_type": "Grid",
+      "initiate_flow": { "user": "Grid", "reconfigure": "Grid" },
       "step": {
         "user": {
-          "title": "Add Grid Connection",
+          "title": "Add Grid",
           "description": "Set up grid import/export parameters and pricing",
           "data": {
             "connection": "Connection",
@@ -165,19 +165,19 @@
             "export_price": "Export Price Sensors",
             "import_limit": "Import Limit (Optional)",
             "import_price": "Import Price Sensors",
-            "name": "Grid Connection Name"
+            "name": "Grid Name"
           }
         },
         "reconfigure": {
-          "title": "Edit Grid Connection",
-          "description": "Update grid connection configuration",
+          "title": "Edit Grid",
+          "description": "Update grid configuration",
           "data": {
             "connection": "Connection",
             "export_limit": "Export Limit (Optional)",
             "export_price": "Export Price Sensors",
             "import_limit": "Import Limit (Optional)",
             "import_price": "Import Price Sensors",
-            "name": "Grid Connection Name"
+            "name": "Grid Name"
           }
         }
       },
