@@ -17,10 +17,6 @@ from custom_components.haeo.network import evaluate_network_connectivity
 from custom_components.haeo.schema import schema_for_type
 from custom_components.haeo.validation import collect_participant_configs
 
-# Element types that should NOT have a default name pre-filled
-# These are generic/structural elements where users typically have multiple instances
-_NO_DEFAULT_NAME_TYPES = frozenset({ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE})
-
 
 class ElementSubentryFlow(ConfigSubentryFlow):
     """Generic reusable subentry flow for HAEO elements.
@@ -66,9 +62,9 @@ class ElementSubentryFlow(ConfigSubentryFlow):
 
                 return self.async_create_entry(title=name, data=new_config)
 
-        # Get translated default name for element types that typically have a single instance
+        # Default names for element types which are likely to have a single instance
         suggested_values = self.defaults
-        if self.element_type not in _NO_DEFAULT_NAME_TYPES:
+        if self.element_type not in [ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE]:
             translations = await async_get_translations(
                 self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
             )
