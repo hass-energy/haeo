@@ -107,11 +107,11 @@ while the AC side connects to your home's AC network.
 ### Configuration Guidelines
 
 - **Efficiency Values**: Typical modern inverters achieve 95-98% efficiency.
-  Set slightly lower values to account for real-world losses.
+    Set slightly lower values to account for real-world losses.
 - **Separate Efficiencies**: Rectifying (AC to DC) efficiency may differ from inverting (DC to AC).
-  Measure or consult specifications for accurate values.
+    Measure or consult specifications for accurate values.
 - **Power Limits**: Configure limits matching your inverter's continuous power rating.
-  Peak/surge ratings should not be used as they are not sustainable.
+    Peak/surge ratings should not be used as they are not sustainable.
 - **DC Bus Connections**: Other elements (batteries, PV) should connect to the inverter's DC bus by specifying the inverter name as their connection target.
 
 ## Next Steps
