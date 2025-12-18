@@ -174,6 +174,7 @@ async def test_scenarios(
             output_sensors,
             scenario_path.name,
             scenario_path / "visualizations",
+            scenario_config,
         )
 
         # Compare actual outputs with expected outputs using snapshot

@@ -129,6 +129,47 @@ uv run pytest tests/scenarios/test_scenarios.py::test_scenarios[scenario1] -m sc
 uv run pytest tests/scenarios/test_scenarios.py -m scenario --snapshot-update
 ```
 
+## Visualizations
+
+Each scenario test automatically generates three types of visualizations in the `visualizations/` subdirectory:
+
+### Network Topology Graph
+
+**File**: `{scenario_name}_graph.svg` (and `.png`)
+
+Shows the network structure with:
+
+- **Nodes**: Elements (battery, photovoltaics, grid, load, node) with type-specific colors
+- **Edges**: Connections showing power flow with labels showing current power and min/max bounds
+- **Layout**: Deterministic spectral layout using NetworkX (arrangement based on graph structure)
+
+Example power labels:
+
+- `19.2kW` - Current power of 19.2kW, no limits configured
+- `-5.0 < 5.0kW < 10.0` - Current power of 5.0kW with min/max bounds
+
+All SVG files are deterministic and can be committed to version control.
+PNG files are auto-generated but ignored by git (see `.gitignore`).
+
+### Optimization Results
+
+**File**: `{scenario_name}_optimization.svg` (and `.png`)
+
+Stacked area chart showing:
+
+- Production, consumption, and available power over time
+- State of charge (SOC) for batteries
+- Price forecasts for grid import/export
+
+### Shadow Prices
+
+**File**: `{scenario_name}_shadow_prices.svg` (and `.png`)
+
+Line chart showing optimization shadow prices:
+
+- Constraint shadow prices indicate where the optimization is constrained
+- Helps identify bottlenecks in the energy network
+
 ## Common Issues
 
 - **Token expired**: Generate new token in Home Assistant UI
