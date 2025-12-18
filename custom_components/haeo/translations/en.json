@@ -91,7 +91,7 @@
             "discharge_cost": "Discharge Cost (Optional)",
             "early_charge_incentive": "Early Charge Incentive",
             "efficiency": "One-way Efficiency",
-            "initial_charge_percentage": "Current Charge Sensor",
+            "initial_charge_percentage": "State of Charge Charge Sensor",
             "max_charge_percentage": "Max Charge Level",
             "max_charge_power": "Max Charging Power",
             "max_discharge_power": "Max Discharging Power",
