@@ -74,7 +74,7 @@ This minimizes your total energy cost over a configurable time horizon (default 
 ### Supported Devices
 
 - **Battery**: Energy storage with configurable capacity, charge/discharge rates, and efficiency
-- **Grid**: Bi-directional grid connection with import/export limits and pricing
+- **Grid**: Bi-directional grid with import/export limits and pricing
 - **Solar**: Solar generation with optional curtailment
 - **Constant Load**: Fixed power loads
 - **Forecast Load**: Variable loads with forecast data
@@ -132,7 +132,7 @@ After creating your network, you can add devices through the integration's optio
 
 #### Grid Configuration
 
-- **Name**: Identifier for grid connection
+- **Name**: Identifier for grid
 - **Import/Export Limits**: Maximum power in kW (optional)
 - **Import/Export Prices**: Fixed prices OR forecast sensor entities
     - Use live sensors for real-time pricing

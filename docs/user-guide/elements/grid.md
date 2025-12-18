@@ -7,7 +7,7 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 
 | Field                             | Type                                     | Required | Default | Description                                                |
 | --------------------------------- | ---------------------------------------- | -------- | ------- | ---------------------------------------------------------- |
-| **[Name](#name)**                 | String                                   | Yes      | -       | Unique identifier for this grid connection                 |
+| **[Name](#name)**                 | String                                   | Yes      | -       | Unique identifier for this grid                            |
 | **[Import Price](#import-price)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Price per kWh for importing electricity from grid (\$/kWh) |
 | **[Export Price](#export-price)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
 | **[Import Limit](#import-limit)** | Number (kW)                              | No       | -       | Maximum import power from grid                             |
@@ -15,7 +15,7 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 
 ## Name
 
-Unique identifier for this grid connection within your HAEO configuration.
+Unique identifier for this grid within your HAEO configuration.
 Used to create sensor entity IDs and identify the grid in connections.
 
 **Examples**: "Main Grid", "Grid Connection", "Utility"
@@ -112,7 +112,7 @@ Use single sensor or input_number for constant pricing:
 
 | Field            | Value                           |
 | ---------------- | ------------------------------- |
-| **Name**         | Grid Connection                 |
+| **Name**         | Grid                            |
 | **Import Price** | input_number.fixed_import_price |
 | **Export Price** | input_number.fixed_export_price |
 | **Import Limit** | 20                              |
