@@ -6,10 +6,10 @@ from typing import Any, NotRequired, Required, get_args, get_origin, get_type_hi
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
-from .config_entities.resolver import get_config_entity_id
 from .const import (
     CONF_ELEMENT_TYPE,
     CONF_TIER_1_COUNT,
@@ -20,6 +20,7 @@ from .const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
+    DOMAIN,
 )
 from .coordinator import extract_entity_ids_from_config
 from .elements import ELEMENT_TYPES, is_element_config_schema
@@ -94,16 +95,11 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
                     )
 
                     if not is_entity_provided:
-                        # Look up the config entity's current state
+                        # Look up the input entity's current state
                         platform = "switch" if isinstance(field_meta, BooleanFieldMeta) else "number"
-                        input_name = f"{element_type}_{field_name}"
-                        entity_id = get_config_entity_id(
-                            hass,
-                            config_entry.entry_id,
-                            subentry.subentry_id,
-                            input_name,
-                            platform=platform,
-                        )
+                        entity_registry = er.async_get(hass)
+                        unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_name}"
+                        entity_id = entity_registry.async_get_entity_id(platform, DOMAIN, unique_id)
                         if entity_id:
                             state = hass.states.get(entity_id)
                             if state is not None:
