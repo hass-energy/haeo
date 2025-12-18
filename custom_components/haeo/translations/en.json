@@ -104,7 +104,8 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "connection": {
       "flow_title": "Connection",
@@ -149,7 +150,8 @@
         "min_power_too_high": "Minimum power must be less than or equal to maximum power",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
-      }
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "grid": {
       "flow_title": "Grid Connection",
@@ -181,7 +183,8 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "inverter": {
       "flow_title": "Inverter",
@@ -213,7 +216,8 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "load": {
       "flow_title": "Load",
@@ -231,13 +235,15 @@
           "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {
       "flow_title": "Network",
       "entry_type": "Network",
       "initiate_flow": { "user": "Network", "reconfigure": "Network" },
-      "step": {}
+      "step": {},
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "node": {
       "flow_title": "Node",
@@ -255,7 +261,8 @@
           "data": { "name": "Node Name" }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "solar": {
       "flow_title": "Solar",
@@ -285,7 +292,8 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
   "common": { "switchboard_node_name": "Switchboard" },

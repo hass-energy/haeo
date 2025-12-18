@@ -316,9 +316,7 @@ async def test_element_flow_reconfigure_success(
 
     flow = _create_flow(hass, hub_entry, element_type)
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
-    flow.async_update_reload_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"}
-    )
+    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
     result = await flow.async_step_reconfigure(user_input=None)
     assert result.get("type") == FlowResultType.FORM
@@ -329,7 +327,7 @@ async def test_element_flow_reconfigure_success(
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
 
-    update_kwargs = flow.async_update_reload_and_abort.call_args.kwargs
+    update_kwargs = flow.async_update_and_abort.call_args.kwargs
     assert update_kwargs["data"][CONF_ELEMENT_TYPE] == element_type
 
 
@@ -351,9 +349,7 @@ async def test_element_flow_reconfigure_rename(
 
     flow = _create_flow(hass, hub_entry, element_type)
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
-    flow.async_update_reload_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"}
-    )
+    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
     renamed_input = deepcopy(existing_config)
     original_name = renamed_input[CONF_NAME]
@@ -363,7 +359,7 @@ async def test_element_flow_reconfigure_rename(
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
 
-    update_kwargs = flow.async_update_reload_and_abort.call_args.kwargs
+    update_kwargs = flow.async_update_and_abort.call_args.kwargs
     assert update_kwargs["title"] == renamed_input[CONF_NAME]
 
 
@@ -482,9 +478,7 @@ async def test_element_flow_reconfigure_invokes_connectivity_validation(
 
     flow = _create_flow(hass, hub_entry, element_type)
     flow._get_reconfigure_subentry = Mock(return_value=subentry)
-    flow.async_update_reload_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"}
-    )
+    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
     await flow.async_step_reconfigure(user_input=existing_config)
 

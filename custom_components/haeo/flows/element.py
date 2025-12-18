@@ -93,7 +93,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                 participant_configs[updated_config[CONF_NAME]] = updated_config
                 await evaluate_network_connectivity(self.hass, hub_entry, participant_configs=participant_configs)
 
-                return self.async_update_reload_and_abort(
+                return self.async_update_and_abort(
                     hub_entry,
                     subentry,
                     title=str(new_name),
