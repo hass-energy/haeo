@@ -66,7 +66,7 @@ async def _create_initial_switchboard_node(hass: HomeAssistant, hub_entry: Confi
     """
     # Resolve the switchboard node name from translations
     translations = await async_get_translations(hass, hass.config.language, "config", integrations=[DOMAIN])
-    switchboard_name = translations.get(f"component.{DOMAIN}.defaults.switchboard_node_name", "Switchboard")
+    switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
 
     # Create Switchboard node subentry
     _LOGGER.info("Creating Switchboard node subentry for hub %s", hub_entry.entry_id)

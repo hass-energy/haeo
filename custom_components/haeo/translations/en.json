@@ -288,7 +288,7 @@
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     }
   },
-  "defaults": { "switchboard_node_name": "Switchboard" },
+  "common": { "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
     "battery_device_normal": { "name": "{name} Normal Region" },
