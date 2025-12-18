@@ -3,8 +3,9 @@
 from typing import Any, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.helpers.translation import async_get_translations
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ElementConfigSchema, is_element_config_schema
 from custom_components.haeo.network import evaluate_network_connectivity
@@ -56,6 +57,12 @@ class ElementSubentryFlow(ConfigSubentryFlow):
 
                 return self.async_create_entry(title=name, data=new_config)
 
+        # Get translated default name for this element type
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
+        )
+        default_name = translations.get(f"component.{DOMAIN}.config_subentries.{self.element_type}.flow_title", "")
+
         # Show the form to the user
         schema = schema_for_type(
             self.schema_cls,
@@ -63,7 +70,8 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             participants=self._get_non_connection_element_names(),
             current_element_name=None,
         )
-        schema = self.add_suggested_values_to_schema(schema, self.defaults)
+        defaults_with_name = {CONF_NAME: default_name, **self.defaults}
+        schema = self.add_suggested_values_to_schema(schema, defaults_with_name)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
