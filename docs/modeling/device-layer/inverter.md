@@ -91,20 +91,27 @@ The `max_power_*` sensors are only created when the corresponding limit is confi
 Connect batteries and solar panels to the inverter's DC bus, with the AC side connecting to the home bus where loads and grid are attached.
 
 **DC-Coupled Solar + Battery**:
-When solar and battery share a DC bus, the inverter handles all DC/AC conversion. This models systems where solar feeds the battery directly on the DC side.
+When solar and battery share a DC bus, the inverter handles all DC/AC conversion.
+This models systems where solar feeds the battery directly on the DC side.
 
 **Asymmetric Power Ratings**:
-Some inverters have different power ratings for inverting vs. rectifying. Configure separate `max_power_dc_to_ac` and `max_power_ac_to_dc` to model this.
+Some inverters have different power ratings for inverting vs. rectifying.
+Configure separate `max_power_dc_to_ac` and `max_power_ac_to_dc` to model this.
 
 ## Physical Interpretation
 
-The Inverter represents a power electronics device that converts between DC and AC power. The DC bus acts as a junction point where DC devices (batteries, solar panels with DC output) connect, while the AC side connects to your home's AC network.
+The Inverter represents a power electronics device that converts between DC and AC power.
+The DC bus acts as a junction point where DC devices (batteries, solar panels with DC output) connect,
+while the AC side connects to your home's AC network.
 
 ### Configuration Guidelines
 
-- **Efficiency Values**: Typical modern inverters achieve 95-98% efficiency. Set slightly lower values to account for real-world losses.
-- **Separate Efficiencies**: Rectifying (AC to DC) efficiency may differ from inverting (DC to AC). Measure or consult specifications for accurate values.
-- **Power Limits**: Configure limits matching your inverter's continuous power rating. Peak/surge ratings should not be used as they are not sustainable.
+- **Efficiency Values**: Typical modern inverters achieve 95-98% efficiency.
+  Set slightly lower values to account for real-world losses.
+- **Separate Efficiencies**: Rectifying (AC to DC) efficiency may differ from inverting (DC to AC).
+  Measure or consult specifications for accurate values.
+- **Power Limits**: Configure limits matching your inverter's continuous power rating.
+  Peak/surge ratings should not be used as they are not sustainable.
 - **DC Bus Connections**: Other elements (batteries, PV) should connect to the inverter's DC bus by specifying the inverter name as their connection target.
 
 ## Next Steps
