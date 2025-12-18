@@ -70,11 +70,11 @@
             "discharge_cost": "Discharge Cost (Optional)",
             "early_charge_incentive": "Early Charge Incentive",
             "efficiency": "Round-trip Efficiency",
-            "initial_charge_percentage": "Current Charge Sensor",
-            "max_charge_percentage": "Maximum Charge Level",
-            "max_charge_power": "Maximum Charge Power",
-            "max_discharge_power": "Maximum Discharge Power",
-            "min_charge_percentage": "Minimum Charge Level",
+            "initial_charge_percentage": "State of Charge Charge Sensor",
+            "max_charge_percentage": "Max Charge Level",
+            "max_charge_power": "Max Charging Power",
+            "max_discharge_power": "Max Discharging Power",
+            "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
             "overcharge_cost": "Overcharge Cost (Optional)",
             "overcharge_percentage": "Overcharge Percentage (Optional)",
@@ -91,11 +91,11 @@
             "discharge_cost": "Discharge Cost (Optional)",
             "early_charge_incentive": "Early Charge Incentive",
             "efficiency": "One-way Efficiency",
-            "initial_charge_percentage": "Current Charge Sensor",
-            "max_charge_percentage": "Maximum Charge Level",
-            "max_charge_power": "Maximum Charge Power",
-            "max_discharge_power": "Maximum Discharge Power",
-            "min_charge_percentage": "Minimum Charge Level",
+            "initial_charge_percentage": "State of Charge Charge Sensor",
+            "max_charge_percentage": "Max Charge Level",
+            "max_charge_power": "Max Charging Power",
+            "max_discharge_power": "Max Discharging Power",
+            "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
             "overcharge_cost": "Overcharge Cost (Optional)",
             "overcharge_percentage": "Overcharge Percentage (Optional)",
@@ -104,7 +104,8 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "connection": {
       "flow_title": "Connection",
@@ -149,7 +150,8 @@
         "min_power_too_high": "Minimum power must be less than or equal to maximum power",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
-      }
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "grid": {
       "flow_title": "Grid",
@@ -181,7 +183,8 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "inverter": {
       "flow_title": "Inverter",
@@ -213,7 +216,8 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "load": {
       "flow_title": "Load",
@@ -231,13 +235,15 @@
           "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {
       "flow_title": "Network",
       "entry_type": "Network",
       "initiate_flow": { "user": "Network", "reconfigure": "Network" },
-      "step": {}
+      "step": {},
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "node": {
       "flow_title": "Node",
@@ -255,7 +261,8 @@
           "data": { "name": "Node Name" }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "solar": {
       "flow_title": "Solar",
@@ -285,7 +292,8 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
   "common": { "switchboard_node_name": "Switchboard" },
