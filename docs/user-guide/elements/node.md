@@ -139,7 +139,7 @@ For hybrid (AC/DC) inverter systems, use separate AC and DC nodes with a connect
 ```mermaid
 graph LR
     Battery[Battery] <--> DC[DC Node]
-    Solar[Photovoltaics] --> DC
+    Solar[Solar] --> DC
     DC <-->|Inverter| AC[AC Node]
     Grid[Grid] <--> AC
     AC --> Load[Load]

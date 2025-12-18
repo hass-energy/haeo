@@ -68,7 +68,7 @@ Override the method when you need to expose extra information such as stored ene
 **Expected outputs by element type:**
 
 - **Battery models**: `power`, `energy`, and `soc`
-- **Photovoltaic models**: `power` and `available_power` (based on forecast limits)
+- **Solar models**: `power` and `available_power` (based on forecast limits)
 - **Load models**: `power` only
 - **Grid models**: `power` and `cost`
 
@@ -76,7 +76,7 @@ Keeping the output contract consistent means new model components immediately su
 See existing implementations in `custom_components/haeo/model/` for examples:
 
 - `battery.py` - Energy storage with SOC tracking
-- `photovoltaics.py` - Solar generation with forecast limits
+- `solar.py` - Solar generation with forecast limits
 - `grid.py` - Grid import/export with pricing
 - `constant_load.py` - Fixed power consumption
 - `forecast_load.py` - Time-varying consumption

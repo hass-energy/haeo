@@ -7,7 +7,7 @@ This separation enables composition flexibility where a single configuration cre
 
 HAEO separates user configuration from optimization modeling through distinct layers:
 
-- **Device Layer**: User-configured elements (Battery, Grid, Photovoltaics, Load, Node, Connection) with Home Assistant sensor integration
+- **Device Layer**: User-configured elements (Battery, Grid, Solar, Load, Node, Connection) with Home Assistant sensor integration
 - **Model Layer**: Mathematical building blocks (battery, source_sink, connection) forming the linear programming problem
 - **Adapter Layer**: Transformation logic connecting these layers
 
@@ -64,7 +64,7 @@ Most Device Layer elements create multiple Model Layer elements:
 | -------------- | ---------------------------- |
 | Battery        | `battery` + `connection`     |
 | Grid           | `source_sink` + `connection` |
-| Photovoltaics  | `source_sink` + `connection` |
+| Solar          | `source_sink` + `connection` |
 | Load           | `source_sink` + `connection` |
 | Node           | `source_sink` only           |
 | Connection     | `connection` only            |

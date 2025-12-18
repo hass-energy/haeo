@@ -27,7 +27,7 @@ class SourceSink(Element[SourceSinkOutputName, SourceSinkConstraintName]):
     Behavior is controlled by is_source and is_sink flags:
     - is_source=True, is_sink=True: Can both produce and consume (Grid)
     - is_source=False, is_sink=True: Can only consume (Load)
-    - is_source=True, is_sink=False: Can only produce (Photovoltaics)
+    - is_source=True, is_sink=False: Can only produce (Solar)
     - is_source=False, is_sink=False: Pure junction with no generation/consumption (Node)
     """
 

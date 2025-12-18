@@ -132,7 +132,7 @@ PowerSensorFieldSchema = Annotated[
 ]
 
 
-class PhotovoltaicsConfigSchema(TypedDict):
+class SolarConfigSchema(TypedDict):
     power: PowerSensorFieldSchema  # Entity ID(s) with attached loader metadata
 ```
 

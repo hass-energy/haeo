@@ -34,7 +34,7 @@ Example layout:
 
 ```mermaid
 graph TD
-    Solar[Photovoltaics] --> Net[Node]
+    Solar[Solar] --> Net[Node]
     Grid[Grid] <--> Net
     Net --> Battery[Battery]
     Battery --> Load[Load]
@@ -70,11 +70,11 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Grid guide](grid.md)
 
-- :material-weather-sunny:{ .lg .middle } __Photovoltaics configuration__
+- :material-weather-sunny:{ .lg .middle } __Solar configuration__
 
     Solar generation with curtailment options.
 
-    [:material-arrow-right: Photovoltaics guide](photovoltaics.md)
+    [:material-arrow-right: Solar guide](solar.md)
 
 - :material-gauge:{ .lg .middle } __Load configuration__
 

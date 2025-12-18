@@ -142,12 +142,12 @@ while the AC side connects to your home's AC network.
 
     [:material-arrow-right: Battery modeling](battery.md)
 
-- :material-weather-sunny:{ .lg .middle } **Photovoltaics modeling**
+- :material-weather-sunny:{ .lg .middle } **Solar modeling**
 
     ---
 
     Connect solar panels to the inverter's DC bus.
 
-    [:material-arrow-right: Photovoltaics modeling](photovoltaics.md)
+    [:material-arrow-right: Solar modeling](solar.md)
 
 </div>

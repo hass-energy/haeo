@@ -62,13 +62,13 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Inverter modeling](inverter.md)
 
-- :material-weather-sunny:{ .lg .middle } **Photovoltaics**
+- :material-weather-sunny:{ .lg .middle } **Solar**
 
     ---
 
     Solar generation with optional curtailment.
 
-    [:material-arrow-right: Photovoltaics modeling](photovoltaics.md)
+    [:material-arrow-right: Solar modeling](solar.md)
 
 - :material-gauge:{ .lg .middle } **Load**
 
