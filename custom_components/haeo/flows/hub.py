@@ -1,7 +1,8 @@
 """Hub configuration flow for HAEO integration."""
 
+from collections import OrderedDict
 import logging
-from typing import Any, OrderedDict
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, ConfigSubentryFlow
 from homeassistant.const import CONF_NAME

@@ -24,9 +24,10 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
+from collections import OrderedDict
 from collections.abc import Callable, Mapping
 import logging
-from typing import Any, Final, Literal, NamedTuple, OrderedDict, TypeGuard, cast
+from typing import Any, Final, Literal, NamedTuple, TypeGuard, cast
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 import voluptuous as vol
