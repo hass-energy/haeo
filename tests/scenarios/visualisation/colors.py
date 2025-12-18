@@ -5,7 +5,7 @@ in the HAEO energy optimization visualizations.
 """
 
 # Define color palettes
-_PHOTOVOLTAICS_PALETTE = [
+_SOLAR_PALETTE = [
     "#ff7f0e",  # Orange (primary)
     "#ffbb78",  # Light orange
     "#ff9933",  # Medium orange
@@ -49,7 +49,7 @@ _FALLBACK_PALETTE = [
 # Multiple element types can share the same palette by referencing the same list
 # This defines which types are grouped together for color assignment
 ELEMENT_COLOR_PALETTES: dict[str, list[str]] = {
-    "photovoltaics": _PHOTOVOLTAICS_PALETTE,
+    "solar": _SOLAR_PALETTE,
     "battery": _BATTERY_PALETTE,
     "grid": _GRID_PALETTE,
     "load": _LOAD_PALETTE,
@@ -77,8 +77,8 @@ class ColorMapper:
         """Get the color for a specific element.
 
         Args:
-            element_name: The name of the element (e.g., "Photovoltaics Array 1")
-            element_type: The type of element (e.g., "photovoltaics", "battery", "load")
+            element_name: The name of the element (e.g., "Solar Array 1")
+            element_type: The type of element (e.g., "solar", "battery", "load")
 
         Returns:
             Hex color code for the element

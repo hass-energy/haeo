@@ -1,31 +1,31 @@
-"""Test data and validation for photovoltaics flow configuration."""
+"""Test data and validation for solar flow configuration."""
 
 from custom_components.haeo.const import CONF_NAME
-from custom_components.haeo.elements.photovoltaics import CONF_CURTAILMENT, CONF_FORECAST, CONF_PRICE_PRODUCTION
+from custom_components.haeo.elements.solar import CONF_CURTAILMENT, CONF_FORECAST, CONF_PRICE_PRODUCTION
 
-# Test data for photovoltaics flow
+# Test data for solar flow
 VALID_DATA = [
     {
-        "description": "Basic photovoltaics configuration",
+        "description": "Basic solar configuration",
         "config": {
-            CONF_NAME: "Test Photovoltaics",
+            CONF_NAME: "Test Solar",
             CONF_FORECAST: ["sensor.solar_power"],
             CONF_CURTAILMENT: False,
         },
     },
     {
-        "description": "Curtailable photovoltaics configuration",
+        "description": "Curtailable solar configuration",
         "config": {
-            CONF_NAME: "Curtailable Photovoltaics",
+            CONF_NAME: "Curtailable Solar",
             CONF_FORECAST: ["sensor.solar_power"],
             CONF_CURTAILMENT: True,
             CONF_PRICE_PRODUCTION: 0.03,
         },
     },
     {
-        "description": "Photovoltaics with forecast sensors",
+        "description": "Solar with forecast sensors",
         "config": {
-            CONF_NAME: "Solar Photovoltaics",
+            CONF_NAME: "Rooftop Solar",
             CONF_FORECAST: ["sensor.solar_power"],
             CONF_CURTAILMENT: True,
             CONF_PRICE_PRODUCTION: 0.04,

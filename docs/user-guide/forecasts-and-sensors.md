@@ -15,7 +15,7 @@ HAEO automatically detects what data each sensor exposes and combines everything
 
 ## How HAEO Uses Sensor Data
 
-When you configure an element like a grid or photovoltaics system, you provide one or more sensor entity IDs.
+When you configure an element like a grid or solar system, you provide one or more sensor entity IDs.
 HAEO reads these sensors and extracts either:
 
 - **Present value**: The current sensor reading at the moment optimization starts (for simple sensors)
@@ -138,7 +138,7 @@ This makes it easy to model multiple solar arrays, price components, or load sou
 
 ### Visual Example: Combining Two Solar Arrays
 
-When you configure two solar arrays for a photovoltaics element, HAEO sums their forecasts at each timestamp.
+When you configure two solar arrays for a solar element, HAEO sums their forecasts at each timestamp.
 This example uses real data from an east-facing and west-facing array:
 
 <div class="grid grid-cols-2 gap-4">

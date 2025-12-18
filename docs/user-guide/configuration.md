@@ -96,7 +96,7 @@ After creating your hub, add elements to represent your devices through the Home
 | ----------------- | ---------------------------------------- | ----------------------------- |
 | **Battery**       | Energy storage with SOC tracking         | Home batteries, EV as storage |
 | **Grid**          | Bi-directional grid connection           | Main grid, separate meters    |
-| **Photovoltaics** | Solar generation                         | Rooftop solar, ground-mount   |
+| **Solar**         | Solar generation                         | Rooftop solar, ground-mount   |
 | **Load**          | Power consumption (constant or variable) | All consumption patterns      |
 | **Net**           | Virtual power balance node               | Grouping connection points    |
 
@@ -113,7 +113,7 @@ Add them from the same hub page as elements by selecting **Connection** from the
 graph LR
     Grid[Grid] <--> Net[Main Node]
     Net <--> Battery[Battery]
-    Solar[Photovoltaics] --> Net
+    Solar[Solar] --> Net
     Net --> Load[Load]
 ```
 
@@ -121,7 +121,7 @@ This network requires four connections:
 
 1. Grid ↔ Main Node (bidirectional: import and export)
 2. Battery ↔ Main Node (bidirectional: charge and discharge)
-3. Photovoltaics → Main Node (unidirectional: generation only)
+3. Solar → Main Node (unidirectional: generation only)
 4. Main Node → Load (unidirectional: consumption only)
 
 See the [Connections guide](elements/connections.md) for detailed information and examples.
@@ -196,7 +196,7 @@ Use these resources to expand your configuration and understand the results.
 
 - :material-cog-transfer-outline:{ .lg .middle } __Configure individual elements__
 
-    Set up batteries, grids, photovoltaics, and loads with detailed guidance.
+    Set up batteries, grids, solar, and loads with detailed guidance.
 
     [:material-arrow-right: Element guides](elements/index.md)
 

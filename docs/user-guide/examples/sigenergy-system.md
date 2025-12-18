@@ -105,7 +105,7 @@ Configure the Sigenergy battery on the DC side:
     Replace `sensor.sigen_plant_battery_state_of_charge` with your actual Sigenergy SOC sensor.
     Find it in Developer Tools → States.
 
-### Step 5: Add Solar (Photovoltaics)
+### Step 5: Add Solar
 
 Configure solar arrays with forecast sensors for each orientation:
 

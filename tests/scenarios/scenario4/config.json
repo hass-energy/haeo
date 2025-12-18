@@ -55,7 +55,7 @@
     },
     "Solar": {
       "name": "Solar",
-      "element_type": "photovoltaics",
+      "element_type": "solar",
       "connection": "DC Net",
       "curtailment": true,
       "forecast": [

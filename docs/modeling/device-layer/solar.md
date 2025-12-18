@@ -1,6 +1,6 @@
-# Photovoltaics Modeling
+# Solar Modeling
 
-The Photovoltaics device composes a [SourceSink](../model-layer/source-sink.md) (power source only) with an implicit [Connection](../model-layer/connection.md) to model solar generation with optional curtailment.
+The Solar device composes a [SourceSink](../model-layer/source-sink.md) (power source only) with an implicit [Connection](../model-layer/connection.md) to model solar generation with optional curtailment.
 
 ## Model Elements Created
 
@@ -24,7 +24,7 @@ graph LR
 
 ## Devices Created
 
-Photovoltaics creates 1 device in Home Assistant:
+Solar creates 1 device in Home Assistant:
 
 | Device  | Name     | Created When | Purpose                              |
 | ------- | -------- | ------------ | ------------------------------------ |
@@ -40,12 +40,12 @@ The adapter transforms user configuration into model parameters:
 | `production_price`   | Connection    | `price_source_target`     | Cost/revenue per kWh generated (default: 0)  |
 | `enable_curtailment` | Connection    | `fixed_power`             | false if curtailment enabled, true otherwise |
 | `connection`         | Connection    | `target`                  | Node to connect to                           |
-| —                    | SourceSink    | `is_source=true`          | PV provides power                            |
-| —                    | SourceSink    | `is_sink=false`           | PV cannot consume power                      |
+| —                    | SourceSink    | `is_source=true`          | Solar provides power                         |
+| —                    | SourceSink    | `is_sink=false`           | Solar cannot consume power                   |
 
 ## Sensors Created
 
-### Photovoltaics Device
+### Solar Device
 
 | Sensor            | Unit  | Update    | Description                             |
 | ----------------- | ----- | --------- | --------------------------------------- |
@@ -53,7 +53,7 @@ The adapter transforms user configuration into model parameters:
 | `power_available` | kW    | Real-time | Maximum available solar power           |
 | `forecast_limit`  | \$/kW | Real-time | Value of additional generation capacity |
 
-See [Photovoltaics Configuration](../../user-guide/elements/photovoltaics.md#sensors-created) for detailed sensor documentation.
+See [Solar Configuration](../../user-guide/elements/solar.md#sensors-created) for detailed sensor documentation.
 
 ## Configuration Examples
 
@@ -91,7 +91,7 @@ Curtailment allows optimizer to stay within export limits while managing battery
 
 ## Physical Interpretation
 
-Photovoltaics represents a solar generation system that produces power based on weather forecasts and system capacity.
+Solar represents a solar generation system that produces power based on weather forecasts and system capacity.
 
 ### Configuration Guidelines
 
@@ -114,19 +114,19 @@ Photovoltaics represents a solar generation system that produces power based on 
 
 <div class="grid cards" markdown>
 
-- :material-file-document:{ .lg .middle } **Photovoltaics configuration**
+- :material-file-document:{ .lg .middle } **Solar configuration**
 
     ---
 
     Configure solar generation in your Home Assistant setup.
 
-    [:material-arrow-right: Photovoltaics configuration](../../user-guide/elements/photovoltaics.md)
+    [:material-arrow-right: Solar configuration](../../user-guide/elements/solar.md)
 
 - :material-power-plug:{ .lg .middle } **SourceSink model**
 
     ---
 
-    Underlying model element for Photovoltaics.
+    Underlying model element for Solar.
 
     [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
 

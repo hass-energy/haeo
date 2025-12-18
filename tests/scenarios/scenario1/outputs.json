@@ -4718,7 +4718,7 @@
       "advanced": false,
       "device_class": "monetary",
       "element_name": "Solar",
-      "element_type": "photovoltaics",
+      "element_type": "solar",
       "forecast": [
         { "time": "2025-10-05T03:59:00.000000-0700", "value": -0.001 },
         { "time": "2025-10-05T04:00:00.000000-0700", "value": -0.0007 },
@@ -4832,7 +4832,7 @@
         { "time": "2025-10-08T02:59:00.000000-0700", "value": -0.1902 }
       ],
       "friendly_name": "Solar Forecast limit shadow price",
-      "output_name": "photovoltaics_forecast_limit",
+      "output_name": "solar_forecast_limit",
       "output_type": "shadow_price",
       "unit_of_measurement": "$/kW"
     }
@@ -4845,7 +4845,7 @@
       "device_class": "power",
       "direction": "+",
       "element_name": "Solar",
-      "element_type": "photovoltaics",
+      "element_type": "solar",
       "forecast": [
         { "time": "2025-10-05T03:59:00.000000-0700", "value": 0.0 },
         { "time": "2025-10-05T04:00:00.000000-0700", "value": 0.0 },
@@ -4959,7 +4959,7 @@
         { "time": "2025-10-08T02:59:00.000000-0700", "value": 0.0 }
       ],
       "friendly_name": "Solar Power",
-      "output_name": "photovoltaics_power",
+      "output_name": "solar_power",
       "output_type": "power",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
@@ -4973,7 +4973,7 @@
       "device_class": "power",
       "direction": "+",
       "element_name": "Solar",
-      "element_type": "photovoltaics",
+      "element_type": "solar",
       "forecast": [
         { "time": "2025-10-05T03:59:00.000000-0700", "value": 0.0 },
         { "time": "2025-10-05T04:00:00.000000-0700", "value": 0.0 },
@@ -5087,7 +5087,7 @@
         { "time": "2025-10-08T02:59:00.000000-0700", "value": 0.0 }
       ],
       "friendly_name": "Solar Power available",
-      "output_name": "photovoltaics_power_available",
+      "output_name": "solar_power_available",
       "output_type": "power_limit",
       "state_class": "measurement",
       "unit_of_measurement": "kW"

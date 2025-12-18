@@ -116,7 +116,7 @@ Used to connect multiple elements at a common point (Kirchhoff's law).
 
     ---
 
-    Configure Grid, Photovoltaics, Load, and Node elements.
+    Configure Grid, Solar, Load, and Node elements.
 
     [:material-arrow-right: Elements overview](../../user-guide/elements/index.md)
 

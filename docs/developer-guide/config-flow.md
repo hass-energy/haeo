@@ -120,7 +120,7 @@ Each element type has its own flow class in `custom_components/haeo/flows/`:
 
 - `BatteryConfigFlow` - Battery element configuration
 - `GridConfigFlow` - Grid connection configuration
-- `PhotovoltaicsConfigFlow` - PV system configuration
+- `SolarConfigFlow` - Solar system configuration
 - `ConstantLoadConfigFlow` - Constant load configuration
 - `ForecastLoadConfigFlow` - Forecast-based load configuration
 - `NodeConfigFlow` - Network node configuration

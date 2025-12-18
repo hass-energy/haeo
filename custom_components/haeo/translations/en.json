@@ -257,30 +257,30 @@
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     },
-    "photovoltaics": {
-      "flow_title": "Photovoltaics",
-      "entry_type": "Photovoltaics",
-      "initiate_flow": { "user": "Photovoltaics", "reconfigure": "Photovoltaics" },
+    "solar": {
+      "flow_title": "Solar",
+      "entry_type": "Solar",
+      "initiate_flow": { "user": "Solar", "reconfigure": "Solar" },
       "step": {
         "user": {
-          "title": "Add Photovoltaics",
-          "description": "Set up photovoltaics forecasting and parameters",
+          "title": "Add Solar",
+          "description": "Set up solar forecasting and parameters",
           "data": {
             "connection": "Connection",
             "curtailment": "Allow Curtailment (Optional)",
             "forecast": "Forecast Sensors",
-            "name": "Photovoltaics Name",
+            "name": "Solar Name",
             "price_production": "Production Price (Optional)"
           }
         },
         "reconfigure": {
-          "title": "Edit Photovoltaics",
-          "description": "Update photovoltaics configuration",
+          "title": "Edit Solar",
+          "description": "Update solar configuration",
           "data": {
             "connection": "Connection",
             "curtailment": "Allow Curtailment (Optional)",
             "forecast": "Forecast Sensors",
-            "name": "Photovoltaics Name",
+            "name": "Solar Name",
             "price_production": "Production Price (Optional)"
           }
         }
@@ -300,7 +300,7 @@
     "load": { "name": "{name}" },
     "network": { "name": "{name}" },
     "node": { "name": "{name}" },
-    "photovoltaics": { "name": "{name}" }
+    "solar": { "name": "{name}" }
   },
   "entity": {
     "sensor": {
@@ -350,10 +350,10 @@
       "network_optimization_duration": { "name": "Optimization duration" },
       "network_optimization_status": { "name": "Optimization status" },
       "node_power_balance": { "name": "Power balance shadow price" },
-      "photovoltaics_forecast_limit": { "name": "Forecast limit shadow price" },
-      "photovoltaics_power": { "name": "Power" },
-      "photovoltaics_power_available": { "name": "Power available" },
-      "photovoltaics_price": { "name": "Price" }
+      "solar_forecast_limit": { "name": "Forecast limit shadow price" },
+      "solar_power": { "name": "Power" },
+      "solar_power_available": { "name": "Power available" },
+      "solar_price": { "name": "Price" }
     }
   },
   "exceptions": {

@@ -80,7 +80,7 @@ from custom_components.haeo.elements.grid import (
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
 )
-from custom_components.haeo.elements.photovoltaics import PHOTOVOLTAICS_POWER
+from custom_components.haeo.elements.solar import SOLAR_POWER
 from custom_components.haeo.model import (
     OUTPUT_TYPE_COST,
     OUTPUT_TYPE_DURATION,
@@ -539,7 +539,7 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
     base_time = datetime(2024, 6, 1, tzinfo=UTC)
     forecast_times = (int(base_time.timestamp()), int((base_time + timedelta(minutes=30)).timestamp()))
     output = _build_coordinator_output(
-        PHOTOVOLTAICS_POWER,
+        SOLAR_POWER,
         OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.2, 3.4)),
         forecast_times=forecast_times,
     )
@@ -559,7 +559,7 @@ def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.M
     monkeypatch.setattr("custom_components.haeo.coordinator.datetime", _ErrorDatetime)
 
     output = _build_coordinator_output(
-        PHOTOVOLTAICS_POWER, OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0)), forecast_times=(1, 2)
+        SOLAR_POWER, OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0)), forecast_times=(1, 2)
     )
 
     assert output.forecast is None
@@ -583,7 +583,7 @@ def test_build_coordinator_output_skips_forecast_for_single_value() -> None:
     """Single-value outputs should not emit forecast entries."""
 
     output = _build_coordinator_output(
-        PHOTOVOLTAICS_POWER,
+        SOLAR_POWER,
         OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(5.0,)),
         forecast_times=(1, 2),
     )

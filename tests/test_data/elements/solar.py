@@ -1,8 +1,8 @@
-"""Test data for photovoltaics element configuration."""
+"""Test data for solar element configuration."""
 
 from collections.abc import Sequence
 
-from custom_components.haeo.elements import photovoltaics as pv_element
+from custom_components.haeo.elements import solar as solar_element
 from custom_components.haeo.model import connection as connection_element
 from custom_components.haeo.model.const import (
     OUTPUT_TYPE_POWER,
@@ -16,18 +16,18 @@ from .types import ElementConfigData, ElementConfigSchema, ElementValidCase, Inv
 
 VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
     {
-        "description": "Adapter mapping photovoltaics case",
-        "element_type": "photovoltaics",
-        "schema": pv_element.PhotovoltaicsConfigSchema(
-            element_type="photovoltaics",
+        "description": "Adapter mapping solar case",
+        "element_type": "solar",
+        "schema": solar_element.SolarConfigSchema(
+            element_type="solar",
             name="pv_main",
             connection="network",
             forecast=["sensor.pv_forecast_1", "sensor.pv_forecast_2"],
             price_production=0.15,
             curtailment=False,
         ),
-        "data": pv_element.PhotovoltaicsConfigData(
-            element_type="photovoltaics",
+        "data": solar_element.SolarConfigData(
+            element_type="solar",
             name="pv_main",
             connection="network",
             forecast=[2.0, 1.5],
@@ -55,10 +55,10 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             }
         },
         "outputs": {
-            pv_element.PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS: {
-                pv_element.PHOTOVOLTAICS_POWER: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction="+"),
-                pv_element.PHOTOVOLTAICS_POWER_AVAILABLE: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
-                pv_element.PHOTOVOLTAICS_FORECAST_LIMIT: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+            solar_element.SOLAR_DEVICE_SOLAR: {
+                solar_element.SOLAR_POWER: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction="+"),
+                solar_element.SOLAR_POWER_AVAILABLE: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
+                solar_element.SOLAR_FORECAST_LIMIT: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
     },
@@ -67,9 +67,9 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
 # Invalid schema-only cases
 INVALID_SCHEMA: Sequence[InvalidSchemaCase[ElementConfigSchema]] = [
     {
-        "description": "Photovoltaics missing connection",
+        "description": "Solar missing connection",
         "schema": {
-            "element_type": "photovoltaics",
+            "element_type": "solar",
             "name": "pv_bad",
             "connection": "",
             "forecast": ["sensor.pv1", "sensor.pv2"],

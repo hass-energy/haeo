@@ -75,7 +75,7 @@ This minimizes your total energy cost over a configurable time horizon (default 
 
 - **Battery**: Energy storage with configurable capacity, charge/discharge rates, and efficiency
 - **Grid**: Bi-directional grid connection with import/export limits and pricing
-- **Photovoltaics**: Solar generation with optional curtailment
+- **Solar**: Solar generation with optional curtailment
 - **Constant Load**: Fixed power loads
 - **Forecast Load**: Variable loads with forecast data
 - **Node**: Virtual metering points for grouping energy flows
@@ -138,7 +138,7 @@ After creating your network, you can add devices through the integration's optio
     - Use live sensors for real-time pricing
     - Use forecast sensors for time-of-use optimization
 
-#### Photovoltaics Configuration
+#### Solar Configuration
 
 - **Name**: Identifier for solar system
 - **Forecast Sensors**: Entity IDs providing power forecast

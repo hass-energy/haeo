@@ -15,7 +15,7 @@ from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 import numpy as np
 
-from custom_components.haeo.elements import ELEMENT_TYPE_PHOTOVOLTAICS, ElementType
+from custom_components.haeo.elements import ELEMENT_TYPE_SOLAR, ElementType
 from custom_components.haeo.model.const import (
     OUTPUT_TYPE_POWER,
     OUTPUT_TYPE_POWER_LIMIT,
@@ -110,7 +110,7 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
             entry["production"] = forecast
         elif output_type == OUTPUT_TYPE_POWER and direction == "-":
             entry["consumption"] = forecast
-        elif output_type == OUTPUT_TYPE_POWER_LIMIT and direction == "+" and element_type == ELEMENT_TYPE_PHOTOVOLTAICS:
+        elif output_type == OUTPUT_TYPE_POWER_LIMIT and direction == "+" and element_type == ELEMENT_TYPE_SOLAR:
             entry["available"] = forecast
         elif output_type == OUTPUT_TYPE_SOC:
             entry["soc"] = forecast
