@@ -288,6 +288,7 @@
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
     }
   },
+  "defaults": { "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
     "battery_device_normal": { "name": "{name} Normal Region" },
@@ -377,8 +378,5 @@
       "title": "Optimization failed",
       "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. Issues with the selected solver\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your network configuration for conflicting constraints\n4. Try a different optimization solver in the integration settings\n5. This issue will automatically dismiss when optimization succeeds"
     }
-  },
-  "defaults": {
-    "switchboard_node_name": "Switchboard"
   }
 }
