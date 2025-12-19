@@ -1655,30 +1655,15 @@ wheels = [
 
 [[package]]
 name = "mdformat-footnote"
-version = "0.1.2"
+version = "0.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mdformat" },
     { name = "mdit-py-plugins" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/27/25/08e1feac080165330278f31f605f28a963ef51864aee8306dd2039b55a61/mdformat_footnote-0.1.2.tar.gz", hash = "sha256:d8e6a7fece0f902f0c7dfbd009c093182b9b523527ae48f57f57506d79ccb4ec", size = 3358, upload-time = "2025-10-19T09:36:34.381Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/90/7f4b2729af8d691a57518e8202e90c3a638714437b5e753662982f744cb5/mdformat_footnote-0.1.1.tar.gz", hash = "sha256:3b85c4c84119f15f0b651df89c99a4f6f119fc46dca6b33f7edf4f09655d1126", size = 5224, upload-time = "2022-02-16T09:17:58.647Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/99/47/07544df46d55284cc1862acd49dc30f984e4e5cb1630becbf216692f30b6/mdformat_footnote-0.1.2-py3-none-any.whl", hash = "sha256:fe23888fc8ddb68c080bae9787a65bb1e51253f5de2bea2633feffdb095e59cd", size = 4139, upload-time = "2025-10-19T09:36:33.362Z" },
-]
-
-[[package]]
-name = "mdformat-front-matters"
-version = "2.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "mdformat" },
-    { name = "mdit-py-plugins" },
-    { name = "ruamel-yaml" },
-    { name = "toml" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/53/008805510d3006d9aec6c602fa40305750cb96daba8ea9abae477149909b/mdformat_front_matters-2.0.0.tar.gz", hash = "sha256:46efabe93707699120c67d4b33b51fdb4cfe0e040acfb0f8212eb33c9a3e8a9a", size = 12576, upload-time = "2025-12-04T11:44:52.265Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/00/05/4c197c000dab41f1f58290221a4c02bd57804ff42e9374d3dd0f5408aa40/mdformat_front_matters-2.0.0-py3-none-any.whl", hash = "sha256:8ea92d23d1e9427fe6548b9044e5fbf7bcf6c217941f1a9442e0efd8b0a76e61", size = 13411, upload-time = "2025-12-04T11:44:51.209Z" },
+    { url = "https://files.pythonhosted.org/packages/93/aa/4736dc47867c60236a9992f2f779e85e5331e65e648434d6362c3ed2dae0/mdformat_footnote-0.1.1-py3-none-any.whl", hash = "sha256:30063aaa0f74c36257c2e80fa0cf00d7c71a5277f27e98109e8765ae8678a95b", size = 4120, upload-time = "2022-02-16T09:17:53.63Z" },
 ]
 
 [[package]]
@@ -1712,7 +1697,7 @@ wheels = [
 
 [[package]]
 name = "mdformat-mkdocs"
-version = "5.1.1"
+version = "4.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mdformat" },
@@ -1720,26 +1705,26 @@ dependencies = [
     { name = "mdit-py-plugins" },
     { name = "more-itertools" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/2a/73a7bfb64418f09a8048177fe1f639e11e2bf533b4701352a55315f2c321/mdformat_mkdocs-5.1.1.tar.gz", hash = "sha256:073020e987452e384a1ecad09c8585df17acd11ea1f647df528f3a0266a49d26", size = 26953, upload-time = "2025-11-29T20:54:08.133Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/95/61a5d23f0b232a12b55772d7564e27eb796f86b9577f21de1cfa631253ce/mdformat_mkdocs-4.4.2.tar.gz", hash = "sha256:347f44f78dd72b8e174aead88f46ae4205188ddcc0acac061e97a1dbcae064f5", size = 29385, upload-time = "2025-10-26T23:38:52.15Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/a6/21055e6151c3336127e1f6e48050a9a1db38581a683dec239becf8e748aa/mdformat_mkdocs-5.1.1-py3-none-any.whl", hash = "sha256:3638db42347ac7f40286c5ea52bf3643f3a5b519b832d7a5d2de1bbf0688c05e", size = 37038, upload-time = "2025-11-29T20:54:06.626Z" },
+    { url = "https://files.pythonhosted.org/packages/e3/80/b7391f2f03a867bfe90245aaad5eeda240d36e5d110755fd49a84ff5ea4f/mdformat_mkdocs-4.4.2-py3-none-any.whl", hash = "sha256:c923318ce4079fed2a2c11b6dd4e411b6a83ba8640f68f5dc84e1955d26ba5c0", size = 33226, upload-time = "2025-10-26T23:38:50.663Z" },
 ]
 
 [[package]]
 name = "mdformat-myst"
-version = "0.3.0"
+version = "0.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mdformat" },
     { name = "mdformat-footnote" },
-    { name = "mdformat-front-matters" },
-    { name = "mdformat-gfm" },
+    { name = "mdformat-frontmatter" },
+    { name = "mdformat-tables" },
     { name = "mdit-py-plugins" },
     { name = "ruamel-yaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a8/e1/e41d0a8acb2485c9da0fb194545c9827ce1399534110a5e45c465221318f/mdformat_myst-0.3.0.tar.gz", hash = "sha256:8195dec075683cac689c5586a5e4c6700ec8d6df0f9bc34a1e2f3514d5e745b0", size = 30032, upload-time = "2025-11-27T18:52:26.466Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/01/6b/7066324956682e7a2046bd214ce8be2b668984a214b2ad16846b9ef23952/mdformat_myst-0.2.2.tar.gz", hash = "sha256:9c09a9c3f4073ac7bb74159fab5d4c66fc8276e6638da05d5610ea81f803361e", size = 29993, upload-time = "2025-08-19T15:27:29.591Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/7b/2e8b6fa15fc47f5a512ebbe4bba4e2d5dfc988092269fc1cd3d22c9dad45/mdformat_myst-0.3.0-py3-none-any.whl", hash = "sha256:45e305cb1e742e712c0a8410315c351f3ab43e702d979d4f0eea9d9831245adc", size = 7088, upload-time = "2025-11-27T18:52:25.618Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/ef/e54faea14a3225193e05f4ca3da8ce4727ed9034b1113b0f33e372bbe50b/mdformat_myst-0.2.2-py3-none-any.whl", hash = "sha256:c290caee7092dae864173042e2c5e89db429dbc0d1dc885d4750d7ed57ca966c", size = 7082, upload-time = "2025-08-19T15:27:28.026Z" },
 ]
 
 [[package]]
@@ -3151,15 +3136,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/36/65/7e75caea90bc73c1dd8d40438adf1a7bc26af3b8d0a6705ea190462506e1/tokenizers-0.22.1-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:a0f307d490295717726598ef6fa4f24af9d484809223bbc253b201c740a06390", size = 9681250, upload-time = "2025-09-19T09:49:21.501Z" },
     { url = "https://files.pythonhosted.org/packages/30/2c/959dddef581b46e6209da82df3b78471e96260e2bc463f89d23b1bf0e52a/tokenizers-0.22.1-cp39-abi3-win32.whl", hash = "sha256:b5120eed1442765cd90b903bb6cfef781fd8fe64e34ccaecbae4c619b7b12a82", size = 2472003, upload-time = "2025-09-19T09:49:27.089Z" },
     { url = "https://files.pythonhosted.org/packages/b3/46/e33a8c93907b631a99377ef4c5f817ab453d0b34f93529421f42ff559671/tokenizers-0.22.1-cp39-abi3-win_amd64.whl", hash = "sha256:65fd6e3fb11ca1e78a6a93602490f134d1fdeb13bcef99389d5102ea318ed138", size = 2674684, upload-time = "2025-09-19T09:49:24.953Z" },
-]
-
-[[package]]
-name = "toml"
-version = "0.10.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f", size = 22253, upload-time = "2020-11-01T01:40:22.204Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b", size = 16588, upload-time = "2020-11-01T01:40:20.672Z" },
 ]
 
 [[package]]
