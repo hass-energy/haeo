@@ -3,12 +3,7 @@
 import logging
 from typing import Any
 
-from homeassistant.config_entries import (
-    ConfigEntry,
-    ConfigFlow,
-    ConfigFlowResult,
-    ConfigSubentryFlow,
-)
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, ConfigSubentryFlow
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers.translation import async_get_translations
@@ -33,12 +28,7 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
 
-from . import (
-    HORIZON_PRESET_CUSTOM,
-    HORIZON_PRESETS,
-    get_custom_tiers_schema,
-    get_hub_setup_schema,
-)
+from . import HORIZON_PRESET_CUSTOM, HORIZON_PRESETS, get_custom_tiers_schema, get_hub_setup_schema
 from .element import create_subentry_flow_class
 from .options import HubOptionsFlow
 
@@ -55,26 +45,20 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         """Initialize the config flow."""
         self._user_input: dict[str, Any] = {}
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step for hub creation with simplified options."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
             # Validate that the name is unique
             hub_name = user_input[CONF_NAME]
-            existing_names = [
-                entry.title for entry in self.hass.config_entries.async_entries(DOMAIN)
-            ]
+            existing_names = [entry.title for entry in self.hass.config_entries.async_entries(DOMAIN)]
 
             if hub_name in existing_names:
                 errors[CONF_NAME] = "name_exists"
             else:
                 # Check unique_id to prevent duplicates
-                await self.async_set_unique_id(
-                    f"haeo_hub_{hub_name.lower().replace(' ', '_')}"
-                )
+                await self.async_set_unique_id(f"haeo_hub_{hub_name.lower().replace(' ', '_')}")
                 self._abort_if_unique_id_configured()
 
                 # Store user input for later
@@ -94,9 +78,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_custom_tiers(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_custom_tiers(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle custom tier configuration step."""
         if user_input is not None:
             # Merge custom tier config with stored user input
@@ -136,9 +118,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         translations = await async_get_translations(
             self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
         )
-        switchboard_name = translations[
-            f"component.{DOMAIN}.common.switchboard_node_name"
-        ]
+        switchboard_name = translations[f"component.{DOMAIN}.common.switchboard_node_name"]
 
         # Create the hub entry with initial subentries
         return self.async_create_entry(
@@ -158,9 +138,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_TIER_4_DURATION: tier_config[CONF_TIER_4_DURATION],
                 CONF_TIER_4_UNTIL: tier_config[CONF_TIER_4_UNTIL],
                 # Update and debounce settings
-                CONF_UPDATE_INTERVAL_MINUTES: self._user_input[
-                    CONF_UPDATE_INTERVAL_MINUTES
-                ],
+                CONF_UPDATE_INTERVAL_MINUTES: self._user_input[CONF_UPDATE_INTERVAL_MINUTES],
                 CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],
             },
             subentries=[
@@ -195,17 +173,13 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     @classmethod
     @callback
-    def async_get_supported_subentry_types(
-        cls, config_entry: ConfigEntry
-    ) -> dict[str, type[ConfigSubentryFlow]]:
+    def async_get_supported_subentry_types(cls, config_entry: ConfigEntry) -> dict[str, type[ConfigSubentryFlow]]:
         """Return subentries supported by this integration."""
         _ = config_entry  # Unused but required by signature
 
         # Register regular element flows
         flows: dict[str, type[ConfigSubentryFlow]] = {
-            element_type: create_subentry_flow_class(
-                element_type, entry.schema, entry.defaults
-            )
+            element_type: create_subentry_flow_class(element_type, entry.schema, entry.defaults)
             for element_type, entry in ELEMENT_TYPES.items()
         }
 

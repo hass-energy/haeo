@@ -48,9 +48,7 @@ INVALID_DATA = [
 
 async def test_user_step_translations_loadable(hass: HomeAssistant) -> None:
     """Test that initial user step translations can be loaded."""
-    translations = await async_get_translations(
-        hass, "en", "config", integrations=[DOMAIN], config_flow=True
-    )
+    translations = await async_get_translations(hass, "en", "config", integrations=[DOMAIN], config_flow=True)
 
     # Check that key config flow translations exist
     assert f"component.{DOMAIN}.config.step.user.title" in translations
@@ -60,19 +58,12 @@ async def test_user_step_translations_loadable(hass: HomeAssistant) -> None:
 
 async def test_custom_tiers_step_translations_loadable(hass: HomeAssistant) -> None:
     """Test that custom_tiers step translations can be loaded."""
-    translations = await async_get_translations(
-        hass, "en", "config", integrations=[DOMAIN], config_flow=True
-    )
+    translations = await async_get_translations(hass, "en", "config", integrations=[DOMAIN], config_flow=True)
 
     # Check that custom_tiers step translations exist
     assert f"component.{DOMAIN}.config.step.custom_tiers.title" in translations
-    assert (
-        f"component.{DOMAIN}.config.step.custom_tiers.data.tier_1_duration"
-        in translations
-    )
-    assert (
-        f"component.{DOMAIN}.config.step.custom_tiers.data.tier_1_until" in translations
-    )
+    assert f"component.{DOMAIN}.config.step.custom_tiers.data.tier_1_duration" in translations
+    assert f"component.{DOMAIN}.config.step.custom_tiers.data.tier_1_until" in translations
 
 
 async def test_user_step_form_has_translations(hass: HomeAssistant) -> None:
@@ -86,9 +77,7 @@ async def test_user_step_form_has_translations(hass: HomeAssistant) -> None:
     assert result.get("step_id") == "user"
 
     # Get translations
-    translations = await async_get_translations(
-        hass, "en", "config", integrations=[DOMAIN], config_flow=True
-    )
+    translations = await async_get_translations(hass, "en", "config", integrations=[DOMAIN], config_flow=True)
 
     # Verify all form fields have translations
     data_schema = result.get("data_schema")
@@ -97,24 +86,18 @@ async def test_user_step_form_has_translations(hass: HomeAssistant) -> None:
     for key in schema:
         field_name = key.schema
         translation_key = f"component.{DOMAIN}.config.step.user.data.{field_name}"
-        assert translation_key in translations, (
-            f"Missing translation for field '{field_name}'"
-        )
+        assert translation_key in translations, f"Missing translation for field '{field_name}'"
 
 
 async def test_config_error_translations_exist(hass: HomeAssistant) -> None:
     """Test that error translations can be loaded."""
-    translations = await async_get_translations(
-        hass, "en", "config", integrations=[DOMAIN], config_flow=True
-    )
+    translations = await async_get_translations(hass, "en", "config", integrations=[DOMAIN], config_flow=True)
     assert f"component.{DOMAIN}.config.error.name_exists" in translations
 
 
 async def test_config_abort_translations_exist(hass: HomeAssistant) -> None:
     """Test that abort reason translations can be loaded."""
-    translations = await async_get_translations(
-        hass, "en", "config", integrations=[DOMAIN], config_flow=True
-    )
+    translations = await async_get_translations(hass, "en", "config", integrations=[DOMAIN], config_flow=True)
     assert f"component.{DOMAIN}.config.abort.already_configured" in translations
 
 
@@ -175,12 +158,8 @@ async def test_schema_coerces_floats_to_integers(hass: HomeAssistant) -> None:
     validated_data = schema(test_data)
 
     # Verify that floats were coerced to integers
-    assert isinstance(validated_data[CONF_TIER_1_DURATION], int), (
-        "tier_1_duration should be coerced to int"
-    )
-    assert isinstance(validated_data[CONF_TIER_1_UNTIL], int), (
-        "tier_1_until should be coerced to int"
-    )
+    assert isinstance(validated_data[CONF_TIER_1_DURATION], int), "tier_1_duration should be coerced to int"
+    assert isinstance(validated_data[CONF_TIER_1_UNTIL], int), "tier_1_until should be coerced to int"
     assert validated_data[CONF_TIER_1_DURATION] == 1
     assert validated_data[CONF_TIER_1_UNTIL] == 5
 

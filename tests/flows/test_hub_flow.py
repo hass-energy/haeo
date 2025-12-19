@@ -45,9 +45,7 @@ from custom_components.haeo.flows.hub import HubConfigFlow
 
 async def test_user_flow_success_with_preset(hass: HomeAssistant) -> None:
     """Test successful hub creation via user flow with a preset."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
@@ -88,9 +86,7 @@ async def test_user_flow_success_with_preset(hass: HomeAssistant) -> None:
 
 async def test_user_flow_custom_preset_shows_second_step(hass: HomeAssistant) -> None:
     """Test that selecting Custom preset shows the custom_tiers step."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
@@ -121,9 +117,7 @@ async def test_user_flow_custom_preset_shows_second_step(hass: HomeAssistant) ->
 
 async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None:
     """Test that completing custom_tiers step creates the entry."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
     # First step: select Custom
     result = await hass.config_entries.flow.async_configure(
@@ -172,9 +166,7 @@ async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None
 
 async def test_user_flow_different_presets(hass: HomeAssistant) -> None:
     """Test that different presets apply correct tier values."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
     # Use 5-day preset
     result = await hass.config_entries.flow.async_configure(
@@ -219,9 +211,7 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
     existing_entry.add_to_hass(hass)
 
     # Try to create hub with same name
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -254,9 +244,7 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
 async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> None:
     """Test that unique_id prevents duplicate hub configurations."""
     # Create first hub
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -271,9 +259,7 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     # Try to create hub with same name (case-insensitive, spaces normalized)
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -292,9 +278,7 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
 
 async def test_user_flow_default_values(hass: HomeAssistant) -> None:
     """Test that default values are suggested in the form."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
     assert result.get("type") == FlowResultType.FORM
     data_schema = result.get("data_schema")
@@ -370,9 +354,7 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
         base_key = f"component.{DOMAIN}.config_subentries.{element_type}"
 
         for suffix in common_suffixes:
-            assert f"{base_key}.{suffix}" in translations, (
-                f"Missing translation key {base_key}.{suffix}"
-            )
+            assert f"{base_key}.{suffix}" in translations, f"Missing translation key {base_key}.{suffix}"
 
         flow = flow_class()
         assert isinstance(flow, ElementSubentryFlow)

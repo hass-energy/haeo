@@ -116,9 +116,7 @@ def get_hub_setup_schema() -> vol.Schema:
                 vol.Length(min=1, msg="Name cannot be empty"),
                 vol.Length(max=255, msg="Name cannot be longer than 255 characters"),
             ),
-            vol.Required(
-                CONF_HORIZON_PRESET, default=HORIZON_PRESET_5_DAYS
-            ): SelectSelector(
+            vol.Required(CONF_HORIZON_PRESET, default=HORIZON_PRESET_5_DAYS): SelectSelector(
                 SelectSelectorConfig(
                     options=HORIZON_PRESET_OPTIONS,
                     mode=SelectSelectorMode.DROPDOWN,
@@ -130,9 +128,7 @@ def get_hub_setup_schema() -> vol.Schema:
                 default=DEFAULT_UPDATE_INTERVAL_MINUTES,
             ): vol.All(
                 NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=120, step=1, mode=NumberSelectorMode.SLIDER
-                    ),
+                    NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.SLIDER),
                 ),
                 vol.Coerce(int),
             ),
@@ -141,9 +137,7 @@ def get_hub_setup_schema() -> vol.Schema:
                 default=DEFAULT_DEBOUNCE_SECONDS,
             ): vol.All(
                 NumberSelector(
-                    NumberSelectorConfig(
-                        min=0, max=30, step=1, mode=NumberSelectorMode.SLIDER
-                    ),
+                    NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.SLIDER),
                 ),
                 vol.Coerce(int),
             ),
@@ -166,17 +160,11 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
             # Tier 1: Fine-grained near-term intervals
             vol.Required(
                 CONF_TIER_1_DURATION,
-                default=config_entry.data.get(
-                    CONF_TIER_1_DURATION, DEFAULT_TIER_1_DURATION
-                )
+                default=config_entry.data.get(CONF_TIER_1_DURATION, DEFAULT_TIER_1_DURATION)
                 if config_entry
                 else DEFAULT_TIER_1_DURATION,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=60, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
@@ -185,27 +173,17 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
                 if config_entry
                 else DEFAULT_TIER_1_UNTIL,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=60, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             # Tier 2: Short-term intervals
             vol.Required(
                 CONF_TIER_2_DURATION,
-                default=config_entry.data.get(
-                    CONF_TIER_2_DURATION, DEFAULT_TIER_2_DURATION
-                )
+                default=config_entry.data.get(CONF_TIER_2_DURATION, DEFAULT_TIER_2_DURATION)
                 if config_entry
                 else DEFAULT_TIER_2_DURATION,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=60, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
@@ -214,27 +192,17 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
                 if config_entry
                 else DEFAULT_TIER_2_UNTIL,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=120, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             # Tier 3: Medium-term intervals
             vol.Required(
                 CONF_TIER_3_DURATION,
-                default=config_entry.data.get(
-                    CONF_TIER_3_DURATION, DEFAULT_TIER_3_DURATION
-                )
+                default=config_entry.data.get(CONF_TIER_3_DURATION, DEFAULT_TIER_3_DURATION)
                 if config_entry
                 else DEFAULT_TIER_3_DURATION,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=120, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
@@ -243,27 +211,17 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
                 if config_entry
                 else DEFAULT_TIER_3_UNTIL,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=2880, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=2880, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             # Tier 4: Long-term intervals
             vol.Required(
                 CONF_TIER_4_DURATION,
-                default=config_entry.data.get(
-                    CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION
-                )
+                default=config_entry.data.get(CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION)
                 if config_entry
                 else DEFAULT_TIER_4_DURATION,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=240, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=240, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
@@ -272,11 +230,7 @@ def get_custom_tiers_schema(config_entry: ConfigEntry | None = None) -> vol.Sche
                 if config_entry
                 else DEFAULT_TIER_4_UNTIL,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=10080, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=10080, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
         }
@@ -307,27 +261,19 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
             ),
             vol.Required(
                 CONF_UPDATE_INTERVAL_MINUTES,
-                default=config_entry.data.get(
-                    CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES
-                ),
+                default=config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES),
             ): vol.All(
                 NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=120, step=1, mode=NumberSelectorMode.SLIDER
-                    ),
+                    NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.SLIDER),
                 ),
                 vol.Coerce(int),
             ),
             vol.Required(
                 CONF_DEBOUNCE_SECONDS,
-                default=config_entry.data.get(
-                    CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS
-                ),
+                default=config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS),
             ): vol.All(
                 NumberSelector(
-                    NumberSelectorConfig(
-                        min=0, max=30, step=1, mode=NumberSelectorMode.SLIDER
-                    ),
+                    NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.SLIDER),
                 ),
                 vol.Coerce(int),
             ),
@@ -364,9 +310,7 @@ def get_network_config_schema(
                         str,
                         vol.Strip,
                         vol.Length(min=1, msg="Name cannot be empty"),
-                        vol.Length(
-                            max=255, msg="Name cannot be longer than 255 characters"
-                        ),
+                        vol.Length(max=255, msg="Name cannot be longer than 255 characters"),
                     ),
                 }
                 if config_entry is None
@@ -375,17 +319,11 @@ def get_network_config_schema(
             # Tier 1: Fine-grained near-term intervals
             vol.Required(
                 CONF_TIER_1_DURATION,
-                default=config_entry.data.get(
-                    CONF_TIER_1_DURATION, DEFAULT_TIER_1_DURATION
-                )
+                default=config_entry.data.get(CONF_TIER_1_DURATION, DEFAULT_TIER_1_DURATION)
                 if config_entry
                 else DEFAULT_TIER_1_DURATION,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=60, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
@@ -394,27 +332,17 @@ def get_network_config_schema(
                 if config_entry
                 else DEFAULT_TIER_1_UNTIL,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=60, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             # Tier 2: Short-term intervals
             vol.Required(
                 CONF_TIER_2_DURATION,
-                default=config_entry.data.get(
-                    CONF_TIER_2_DURATION, DEFAULT_TIER_2_DURATION
-                )
+                default=config_entry.data.get(CONF_TIER_2_DURATION, DEFAULT_TIER_2_DURATION)
                 if config_entry
                 else DEFAULT_TIER_2_DURATION,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=60, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
@@ -423,27 +351,17 @@ def get_network_config_schema(
                 if config_entry
                 else DEFAULT_TIER_2_UNTIL,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=120, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             # Tier 3: Medium-term intervals
             vol.Required(
                 CONF_TIER_3_DURATION,
-                default=config_entry.data.get(
-                    CONF_TIER_3_DURATION, DEFAULT_TIER_3_DURATION
-                )
+                default=config_entry.data.get(CONF_TIER_3_DURATION, DEFAULT_TIER_3_DURATION)
                 if config_entry
                 else DEFAULT_TIER_3_DURATION,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=120, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
@@ -452,27 +370,17 @@ def get_network_config_schema(
                 if config_entry
                 else DEFAULT_TIER_3_UNTIL,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=2880, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=2880, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             # Tier 4: Long-term intervals
             vol.Required(
                 CONF_TIER_4_DURATION,
-                default=config_entry.data.get(
-                    CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION
-                )
+                default=config_entry.data.get(CONF_TIER_4_DURATION, DEFAULT_TIER_4_DURATION)
                 if config_entry
                 else DEFAULT_TIER_4_DURATION,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=240, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=240, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             vol.Required(
@@ -481,41 +389,29 @@ def get_network_config_schema(
                 if config_entry
                 else DEFAULT_TIER_4_UNTIL,
             ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=10080, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
+                NumberSelector(NumberSelectorConfig(min=1, max=10080, step=1, mode=NumberSelectorMode.BOX)),
                 vol.Coerce(int),
             ),
             # Update and debounce settings
             vol.Required(
                 CONF_UPDATE_INTERVAL_MINUTES,
-                default=config_entry.data.get(
-                    CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES
-                )
+                default=config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES)
                 if config_entry
                 else DEFAULT_UPDATE_INTERVAL_MINUTES,
             ): vol.All(
                 NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=120, step=1, mode=NumberSelectorMode.SLIDER
-                    ),
+                    NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.SLIDER),
                 ),
                 vol.Coerce(int),
             ),
             vol.Required(
                 CONF_DEBOUNCE_SECONDS,
-                default=config_entry.data.get(
-                    CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS
-                )
+                default=config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS)
                 if config_entry
                 else DEFAULT_DEBOUNCE_SECONDS,
             ): vol.All(
                 NumberSelector(
-                    NumberSelectorConfig(
-                        min=0, max=30, step=1, mode=NumberSelectorMode.SLIDER
-                    ),
+                    NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.SLIDER),
                 ),
                 vol.Coerce(int),
             ),
