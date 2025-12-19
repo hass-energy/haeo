@@ -68,7 +68,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           git clean -d -f -x
-          uv run mdformat .
+          uv run mdformat $(git ls-files '*.md' '*.mdx')
           git diff \
             | reviewdog -f=diff -name="mdformat" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
