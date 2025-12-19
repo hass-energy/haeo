@@ -61,18 +61,20 @@ Configure the network through Settings → Devices & Services → Add Integratio
 | **Tier 4 Count**    | 48               |
 | **Tier 4 Duration** | 60               |
 
-After submitting, you should see a Switchboard element already exists. This is the AC power balance point where grid and loads connect.
+After submitting, you should see a Switchboard element already exists.
+This is the AC power balance point where grid and loads connect.
 
 ### Step 2: Add Inverter
 
-The Inverter element models your hybrid inverter with its built-in DC bus. Battery and solar will connect to this element.
+The Inverter element models your hybrid inverter with its built-in DC bus.
+Battery and solar will connect to this element.
 
-| Field                  | Value                        |
-| ---------------------- | ---------------------------- |
-| **Name**               | Inverter                     |
-| **AC Connection**      | Switchboard                  |
-| **Max DC to AC power** | Sigen Plant Max Active Power |
-| **Max AC to DC power** | Sigen Plant Max Active Power |
+| Field                  | Value                          |
+| ---------------------- | ------------------------------ |
+| **Name**               | Inverter                       |
+| **AC Connection**      | Switchboard                    |
+| **Max DC to AC power** | `Sigen Plant Max Active Power` |
+| **Max AC to DC power** | `Sigen Plant Max Active Power` |
 
 !!! tip "Selecting Sensors"
 
@@ -83,19 +85,19 @@ The Inverter element models your hybrid inverter with its built-in DC bus. Batte
 
 Configure the Sigenergy battery, connecting to the Inverter's DC side:
 
-| Field                         | Value                                   |
-| ----------------------------- | --------------------------------------- |
-| **Name**                      | Battery                                 |
-| **Connection**                | Inverter                                |
-| **Capacity**                  | Sigen Plant Rated Energy Capacity       |
-| **Current Charge Percentage** | Sigen Plant Battery State of Charge     |
-| **Min Charge Percentage**     | 10                                      |
-| **Max Charge Percentage**     | 100                                     |
-| **Efficiency**                | 99                                      |
-| **Max Charge Power**          | Sigen Plant Ess Rated Charging Power    |
-| **Max Discharge Power**       | Sigen Plant Ess Rated Discharging Power |
-| **Early Charge Incentive**    | 0.001                                   |
-| **Discharge Cost**            | *(optional)*                            |
+| Field                         | Value                                     |
+| ----------------------------- | ----------------------------------------- |
+| **Name**                      | Battery                                   |
+| **Connection**                | Inverter                                  |
+| **Capacity**                  | `Sigen Plant Rated Energy Capacity`       |
+| **Current Charge Percentage** | `Sigen Plant Battery State of Charge`     |
+| **Min Charge Percentage**     | 10                                        |
+| **Max Charge Percentage**     | 100                                       |
+| **Efficiency**                | 99                                        |
+| **Max Charge Power**          | `Sigen Plant Ess Rated Charging Power`    |
+| **Max Discharge Power**       | `Sigen Plant Ess Rated Discharging Power` |
+| **Early Charge Incentive**    | 0.001                                     |
+| **Discharge Cost**            | *(optional)*                              |
 
 !!! tip "Searching for Battery Sensors"
 
@@ -117,7 +119,8 @@ Configure solar arrays with forecast sensors for each orientation, connecting to
 | **Forecast**    | *(see below)* |
 | **Curtailment** | Yes           |
 
-For the Forecast field, use the "Add entity" button to select multiple sensors. With Open-Meteo Solar Forecast for four orientations, search and select:
+For the Forecast field, use the "Add entity" button to select multiple sensors.
+With Open-Meteo Solar Forecast for four orientations, search and select:
 
 1. Search "East solar" → Select "East solar production forecast...today"
 2. Click "Add entity"
@@ -136,34 +139,35 @@ For the Forecast field, use the "Add entity" button to select multiple sensors. 
 
 Configure grid with pricing and limits, connecting to the Switchboard:
 
-| Field            | Value                |
-| ---------------- | -------------------- |
-| **Name**         | Grid                 |
-| **Connection**   | Switchboard          |
-| **Import Price** | Home - General Price |
-| **Export Price** | Home - Feed In Price |
-| **Import Limit** | 55                   |
-| **Export Limit** | 30                   |
+| Field            | Value                  |
+| ---------------- | ---------------------- |
+| **Name**         | Grid                   |
+| **Connection**   | Switchboard            |
+| **Import Price** | `Home - General Price` |
+| **Export Price** | `Home - Feed In Price` |
+| **Import Limit** | 55                     |
+| **Export Limit** | 30                     |
 
 !!! tip "Finding Price Sensors"
 
     Search for "General Price" for import pricing and "Feed In" for export pricing.
-    Your integration may use different naming - look for sensors with price forecast attributes.
+    Your integration may use different naming.
+    Look for sensors with price forecast attributes.
 
 ### Step 6: Add Load
 
 Configure the base load consumption, connecting to the Switchboard:
 
-| Field          | Value                      |
-| -------------- | -------------------------- |
-| **Name**       | Load                       |
-| **Connection** | Switchboard                |
-| **Forecast**   | Sigen Plant Consumed Power |
+| Field          | Value                        |
+| -------------- | ---------------------------- |
+| **Name**       | Load                         |
+| **Connection** | Switchboard                  |
+| **Forecast**   | `Sigen Plant Consumed Power` |
 
 !!! tip "Load Sensors"
 
     Search for "consumed" to find consumption forecast sensors.
-    If you don't have a load forecast, create an input_number helper for constant load:
+    If you don't have a load forecast, create an `input_number` helper for constant load:
 
     1. Settings → Devices & Services → Helpers
     2. Create Helper → Number
