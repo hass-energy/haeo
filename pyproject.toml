@@ -9,8 +9,10 @@ dependencies = ["homeassistant>=2025.12.2", "numpy>=2.3.2", "highspy>=1.12.0"]
 
 [dependency-groups]
 dev = [
+    "beautifulsoup4>=4.14.3",
     "freezegun>=1.5.2",
     "matplotlib>=3.10.8",
+    "playwright>=1.57.0",
     "mdformat-beautysh>=1.0.0",
     "mdformat-config>=0.2.1",
     "mdformat-footnote>=0.1.1",
@@ -130,6 +132,7 @@ asyncio_mode = "auto"
 addopts = ["--strict-markers", "--strict-config", "--disable-warnings"]
 markers = [
     "scenario: marks tests as scenario tests (select with '-m \"scenario\"')",
+    "browser: marks tests as browser automation tests (select with '-m \"browser\"')",
 ]
 
 [tool.coverage.run]
