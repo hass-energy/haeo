@@ -1,0 +1,12 @@
+{
+  "inputs": [],
+  "servers": {
+    "microsoft/playwright-mcp": {
+      "args": ["@playwright/mcp@latest"],
+      "command": "npx",
+      "gallery": "https://api.mcp.github.com",
+      "type": "stdio",
+      "version": "0.0.1-seed"
+    }
+  }
+}
