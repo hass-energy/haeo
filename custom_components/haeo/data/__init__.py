@@ -17,6 +17,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+import numpy as np
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.elements import (
@@ -68,6 +69,61 @@ async def load_element_configs(
     return loaded_configs
 
 
+def calculate_required_energy(
+    participants: Mapping[str, ElementConfigData],
+    periods_hours: Sequence[float],
+) -> list[float]:
+    """Calculate the required energy at each timestep.
+
+    This is calculated BEFORE optimization so model elements can use it.
+
+    The required energy represents the total future energy that must come from
+    dispatchable sources (battery, grid, generator) to meet load that exceeds
+    uncontrollable generation (solar, wind).
+
+    Returns:
+        List of required energy values (kWh) at each timestep boundary (n_periods + 1).
+        Each value represents the total energy required from dispatchable sources
+        from that point until the end of the horizon.
+
+    """
+    n_periods = len(periods_hours)
+
+    if n_periods == 0:
+        return [0.0]
+
+    # Aggregate all load forecasts
+    total_load = np.zeros(n_periods)
+    for config in participants.values():
+        if config.get("element_type") == "load":
+            forecast = config.get("forecast")
+            if forecast is not None:
+                total_load += np.array(forecast)
+
+    # Aggregate all uncontrollable generation (solar, future: wind, etc.)
+    total_uncontrollable = np.zeros(n_periods)
+    for config in participants.values():
+        if config.get("element_type") == "solar":
+            forecast = config.get("forecast")
+            if forecast is not None:
+                total_uncontrollable += np.array(forecast)
+
+    # Calculate net power (positive = surplus, negative = requires dispatchable)
+    net_power = total_uncontrollable - total_load
+
+    # Extract only requirements (negative values become positive energy requirements)
+    required_power = np.maximum(0.0, -net_power)  # kW
+    required_interval = required_power * np.array(periods_hours)  # kWh
+
+    # Reverse cumulative sum: how much required energy from t to end
+    required_energy = np.cumsum(required_interval[::-1])[::-1]
+
+    # Add terminal zero (at end of horizon, no future requirement)
+    required_energy = np.concatenate([required_energy, [0.0]])
+
+    return required_energy.tolist()
+
+
 async def load_network(
     entry: ConfigEntry,
     *,
@@ -99,8 +155,15 @@ async def load_network(
     # ==================================================================================
     periods_hours = [s / 3600 for s in periods_seconds]
 
-    # Build network with periods in hours
-    net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
+    # Calculate required energy BEFORE building network (available to model elements)
+    required_energy = calculate_required_energy(participants, periods_hours)
+
+    # Build network with periods in hours and required_energy available
+    net = Network(
+        name=f"haeo_network_{entry.entry_id}",
+        periods=periods_hours,
+        required_energy=required_energy,
+    )
 
     # Collect all model elements from all config elements
     all_model_elements: list[dict[str, Any]] = []
@@ -133,6 +196,7 @@ async def load_network(
 
 
 __all__ = [
+    "calculate_required_energy",
     "config_available",
     "load_element_configs",
     "load_network",

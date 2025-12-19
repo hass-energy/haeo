@@ -357,6 +357,7 @@
       "network_optimization_cost": { "name": "Optimization cost" },
       "network_optimization_duration": { "name": "Optimization duration" },
       "network_optimization_status": { "name": "Optimization status" },
+      "network_required_energy": { "name": "Required energy" },
       "node_power_balance": { "name": "Power balance shadow price" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
       "solar_power": { "name": "Power" },

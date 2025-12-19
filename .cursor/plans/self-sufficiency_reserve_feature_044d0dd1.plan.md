@@ -4,25 +4,25 @@ overview: Add a "Required Energy" calculation to the data loading layer, making 
 todos:
   - id: const-output
     content: Add NETWORK_REQUIRED_ENERGY output name constant to const.py
-    status: pending
+    status: completed
   - id: calculate-required
     content: Add required energy calculation function in data/__init__.py
-    status: pending
+    status: completed
   - id: network-store
     content: Store required_energy on Network object so model elements can access it
-    status: pending
+    status: completed
   - id: coordinator
     content: Include required energy in CoordinatorData after optimization
-    status: pending
+    status: completed
   - id: sensor
     content: Add required energy sensor entity to sensor.py
-    status: pending
+    status: completed
   - id: tests
     content: Add tests for required energy calculation
-    status: pending
+    status: completed
   - id: translations
     content: Add translation strings for new sensor
-    status: pending
+    status: completed
 ---
 
 # Required Energy Sensor

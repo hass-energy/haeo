@@ -57,12 +57,14 @@ type NetworkOutputName = Literal[
     "network_optimization_cost",
     "network_optimization_status",
     "network_optimization_duration",
+    "network_required_energy",
 ]
 NETWORK_OUTPUT_NAMES: Final[frozenset[NetworkOutputName]] = frozenset(
     [
         OUTPUT_NAME_OPTIMIZATION_COST := "network_optimization_cost",
         OUTPUT_NAME_OPTIMIZATION_STATUS := "network_optimization_status",
         OUTPUT_NAME_OPTIMIZATION_DURATION := "network_optimization_duration",
+        OUTPUT_NAME_REQUIRED_ENERGY := "network_required_energy",
     ]
 )
 
