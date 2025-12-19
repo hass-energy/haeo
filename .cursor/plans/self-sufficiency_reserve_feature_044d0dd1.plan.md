@@ -91,17 +91,17 @@ The value naturally:
 
 | Time | Load | Solar | Net Power | Required (interval) | Required Energy (cumulative) |
 
-|------|------|-------|-----------|---------------------|------------------------------|
+|\------|------|-------|-----------|---------------------|------------------------------|
 
-| 6pm  | 2 kW | 0 kW  | -2 kW     | 4 kWh (2h)          | 11 kWh |
+| 6pm | 2 kW | 0 kW | -2 kW | 4 kWh (2h) | 11 kWh |
 
-| 8pm  | 1 kW | 0 kW  | -1 kW     | 4 kWh (4h)          | 7 kWh  |
+| 8pm | 1 kW | 0 kW | -1 kW | 4 kWh (4h) | 7 kWh |
 
-| 12am | 0.5 kW | 0 kW | -0.5 kW  | 3 kWh (6h)          | 3 kWh  |
+| 12am | 0.5 kW | 0 kW | -0.5 kW | 3 kWh (6h) | 3 kWh |
 
-| 6am  | 1 kW | 2 kW  | +1 kW     | 0 kWh               | 0 kWh  |
+| 6am | 1 kW | 2 kW | +1 kW | 0 kWh | 0 kWh |
 
-| 10am | 1 kW | 5 kW  | +4 kWh    | 0 kWh               | 0 kWh  |
+| 10am | 1 kW | 5 kW | +4 kWh | 0 kWh | 0 kWh |
 
 At 6pm, you need **11 kWh** from dispatchable sources to meet load until solar returns.
 
@@ -111,6 +111,7 @@ The required energy is calculated in the **data loading layer** (before optimiza
 
 1. Model elements can use it as input for constraints
 2. It can be exposed as a sensor output after optimization
+
 ```mermaid
 flowchart TD
     subgraph DataLoading [Data Loading Layer - BEFORE Optimization]
@@ -136,7 +137,6 @@ flowchart TD
     Network --> CoordData
     CoordData --> Sensor
 ```
-
 
 ## Key Files to Modify
 

@@ -56,13 +56,13 @@ for t in range(n_periods + 1):
 
 | Period | Load | Solar | Net Energy | Running Balance | Max Drawdown |
 
-|--------|------|-------|------------|-----------------|--------------|
+|\--------|------|-------|------------|-----------------|--------------|
 
-| 6-8pm  | 2kW  | 0kW   | -4 kWh     | [-4, +4, +1]    | 4 kWh        |
+| 6-8pm | 2kW | 0kW | -4 kWh | [-4, +4, +1] | 4 kWh |
 
-| 8-12am | 1kW  | 3kW   | +8 kWh     | [+8, +5]        | 0 kWh        |
+| 8-12am | 1kW | 3kW | +8 kWh | [+8, +5] | 0 kWh |
 
-| 12-6am | 0.5kW| 0kW   | -3 kWh     | [-3]            | 3 kWh        |
+| 12-6am | 0.5kW| 0kW | -3 kWh | [-3] | 3 kWh |
 
 Result: `[4, 0, 3, 0]` instead of `[7, 3, 3, 0]`
 
