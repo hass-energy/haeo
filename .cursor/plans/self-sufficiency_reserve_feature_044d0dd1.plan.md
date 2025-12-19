@@ -1,6 +1,6 @@
 ---
 name: Required Energy Sensor
-overview: Add a virtual "Required Energy" sensor to the network that shows the total future energy required from dispatchable sources to satisfy upcoming loads.
+overview: Add a "Required Energy" calculation to the data loading layer, making it available to the optimization algorithm and exposing it as a sensor.
 todos:
   - id: const-output
     content: Add NETWORK_REQUIRED_ENERGY output name constant to const.py
@@ -8,8 +8,11 @@ todos:
   - id: calculate-required
     content: Add required energy calculation function in data/__init__.py
     status: pending
+  - id: network-store
+    content: Store required_energy on Network object so model elements can access it
+    status: pending
   - id: coordinator
-    content: Calculate and include required energy in CoordinatorData
+    content: Include required energy in CoordinatorData after optimization
     status: pending
   - id: sensor
     content: Add required energy sensor entity to sensor.py
@@ -28,11 +31,13 @@ Reference: [GitHub Issue #60](https://github.com/hass-energy/haeo/issues/60)
 
 ## Overview
 
-Add a virtual **Required Energy** sensor to the network. This sensor represents the total future energy required from dispatchable sources (battery, grid, generator) to satisfy upcoming fixed loads, given current forecasts.
+Add a **Required Energy** calculation to the data loading layer. This value represents the total future energy required from dispatchable sources (battery, grid, generator) to satisfy upcoming fixed loads.
+
+**Key architectural requirement:** The calculation happens BEFORE optimization so that model elements (e.g., batteries) can use it as input for constraints. It is also exposed as a sensor output for user visibility.
 
 ## Primary Use Case: Dynamic Battery Reserve
 
-The sensor can be used as a **dynamic minimum reserve level** for a battery. By setting the battery's minimum state-of-charge equal to the required energy, the system can:
+The required energy can be used as a **dynamic minimum reserve level** for a battery. By setting the battery's minimum state-of-charge equal to the required energy, the system can:
 
 - Ensure the battery **retains enough energy** to cover future load that uncontrollable sources cannot meet
 - **Release** stored energy only when doing so will not jeopardize future demand
@@ -70,9 +75,9 @@ Compute the reverse cumulative sum so each time point reflects:
 required_energy[t] = sum(required[i] for i in t..T)
 ```
 
-### Resulting Sensor Behaviour
+### Resulting Behaviour
 
-At any timestamp `t`, the sensor outputs:
+At any timestamp `t`, the value represents:
 
 **"Energy required from now until the end of the forecast horizon that must come from dispatchable sources (battery, grid, generator)."**
 
@@ -96,35 +101,42 @@ The value naturally:
 
 | 6am  | 1 kW | 2 kW  | +1 kW     | 0 kWh               | 0 kWh  |
 
-| 10am | 1 kW | 5 kW  | +4 kW     | 0 kWh               | 0 kWh  |
+| 10am | 1 kW | 5 kW  | +4 kWh    | 0 kWh               | 0 kWh  |
 
 At 6pm, you need **11 kWh** from dispatchable sources to meet load until solar returns.
 
 ## Architecture
 
+The required energy is calculated in the **data loading layer** (before optimization) so that:
+
+1. Model elements can use it as input for constraints
+2. It can be exposed as a sensor output after optimization
 ```mermaid
 flowchart TD
-    subgraph Inputs [Element Forecasts]
-        Load[Load Forecasts]
-        Solar[Solar Forecasts]
+    subgraph DataLoading [Data Loading Layer - BEFORE Optimization]
+        LoadConfigs[Load Element Configs]
+        CalcRequired[calculate_required_energy]
+        Network[Network Object]
     end
 
-    subgraph Calculation [Required Energy Calculation]
-        NetPower["net_power = solar - load"]
-        RequiredOnly["required = max(0, -net_power) × period"]
-        ReverseCumsum["required_energy = reverse_cumsum(required)"]
+    subgraph Optimization [Optimization Layer]
+        Battery[Battery Element]
+        Constraints[Future: Reserve Constraints]
     end
 
-    subgraph Output [Sensor Output]
+    subgraph Output [After Optimization]
+        CoordData[CoordinatorData]
         Sensor["sensor.haeo_hub_required_energy"]
     end
 
-    Load --> NetPower
-    Solar --> NetPower
-    NetPower --> RequiredOnly
-    RequiredOnly --> ReverseCumsum
-    ReverseCumsum --> Sensor
+    LoadConfigs --> CalcRequired
+    CalcRequired -->|"required_energy[]"| Network
+    Network -->|"network.required_energy"| Battery
+    Battery -.->|"Future: use for min SOC"| Constraints
+    Network --> CoordData
+    CoordData --> Sensor
 ```
+
 
 ## Key Files to Modify
 
@@ -132,11 +144,13 @@ flowchart TD
 
 2. **[`custom_components/haeo/data/__init__.py`](custom_components/haeo/data/__init__.py)** - Add `calculate_required_energy()` function
 
-3. **[`custom_components/haeo/coordinator.py`](custom_components/haeo/coordinator.py)** - Calculate required energy and include in `CoordinatorData`
+3. **[`custom_components/haeo/model/network.py`](custom_components/haeo/model/network.py)** - Add `required_energy` field to Network dataclass
 
-4. **[`custom_components/haeo/sensor.py`](custom_components/haeo/sensor.py)** - Add `HaeoRequiredEnergySensor` entity
+4. **[`custom_components/haeo/coordinator.py`](custom_components/haeo/coordinator.py)** - Include required energy in `CoordinatorData`
 
-5. **[`custom_components/haeo/translations/en.json`](custom_components/haeo/translations/en.json)** - Add translation strings
+5. **[`custom_components/haeo/sensor.py`](custom_components/haeo/sensor.py)** - Add `HaeoRequiredEnergySensor` entity
+
+6. **[`custom_components/haeo/translations/en.json`](custom_components/haeo/translations/en.json)** - Add translation strings
 
 ## Implementation Details
 
@@ -160,6 +174,8 @@ def calculate_required_energy(
     periods_hours: Sequence[float],
 ) -> list[float]:
     """Calculate the required energy at each timestep.
+
+    This is calculated BEFORE optimization so model elements can use it.
 
     Returns:
         List of required energy values (kWh) at each timestep boundary (n_periods + 1).
@@ -196,19 +212,68 @@ def calculate_required_energy(
     return required_energy.tolist()
 ```
 
-### Coordinator (`coordinator.py`)
+### Network Model (`model/network.py`)
 
-In `_async_update_data()`, after loading configs:
+Add `required_energy` as an optional field that's set during network construction:
 
 ```python
-# Calculate required energy
-required_energy = calculate_required_energy(loaded_configs, periods_hours)
+@dataclass
+class Network:
+    """Network class for electrical system modeling."""
+
+    name: str
+    periods: Sequence[float]
+    elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
+    required_energy: Sequence[float] | None = None  # NEW: Available to model elements
+    _solver: Highs = field(default_factory=Highs, repr=False)
 ```
 
-Add to `CoordinatorData`:
+### Data Loading (`data/__init__.py`)
+
+In `load_network()`, calculate and pass to Network:
 
 ```python
-required_energy: list[float]  # kWh at each timestep boundary
+async def load_network(
+    entry: ConfigEntry,
+    *,
+    periods_seconds: Sequence[int],
+    participants: Mapping[str, ElementConfigData],
+) -> Network:
+    # ... existing code ...
+    periods_hours = [s / 3600 for s in periods_seconds]
+
+    # Calculate required energy BEFORE building network
+    required_energy = calculate_required_energy(participants, periods_hours)
+
+    # Build network with required_energy available
+    net = Network(
+        name=f"haeo_network_{entry.entry_id}",
+        periods=periods_hours,
+        required_energy=required_energy,  # NEW
+    )
+
+    # ... rest of existing code ...
+```
+
+### Coordinator (`coordinator.py`)
+
+After optimization, include in `CoordinatorData`:
+
+```python
+@dataclass
+class CoordinatorData:
+    # ... existing fields ...
+    required_energy: list[float]  # kWh at each timestep boundary
+```
+
+In `_async_update_data()`:
+
+```python
+# After network.optimize()
+return CoordinatorData(
+    # ... existing fields ...
+    required_energy=list(network.required_energy),
+)
 ```
 
 ### Sensor Entity (`sensor.py`)
@@ -234,6 +299,22 @@ class HaeoRequiredEnergySensor(CoordinatorEntity, SensorEntity):
         }
 ```
 
-## Future Enhancement
+## Future Use by Optimization
 
-Once this sensor exists, a future enhancement could allow it to be used as input to a battery's `min_charge_percentage` field, enabling dynamic reserve management based on actual forecast conditions rather than a static percentage.
+With `required_energy` stored on the Network object, future enhancements can access it from model elements:
+
+```python
+# In Battery.build_constraints() - FUTURE
+def build_constraints(self) -> None:
+    # ... existing constraints ...
+
+    # Future: Use network's required_energy for dynamic reserve
+    if self._network.required_energy is not None:
+        # Distribute by capacity and add reserve constraint
+        ...
+```
+
+This architecture ensures the calculation is done once, stored centrally, and accessible to both:
+
+- Model elements (for constraints)
+- Sensor output (for user visibility)
