@@ -1,217 +1,239 @@
 ---
-name: Self-Sufficiency Reserve Feature
-overview: Add a hub-level reserve_factor that penalizes depleting batteries below a calculated reserve threshold, distributed proportionally by battery capacity.
+name: Required Energy Sensor
+overview: Add a virtual "Required Energy" sensor to the network that shows the total future energy required from dispatchable sources to satisfy upcoming loads.
 todos:
-  - id: const-config
-    content: Add CONF_RESERVE_FACTOR constant and default to const.py
+  - id: const-output
+    content: Add NETWORK_REQUIRED_ENERGY output name constant to const.py
     status: pending
-  - id: hub-flow
-    content: Add reserve_factor field to hub config flow schema in flows/__init__.py
+  - id: calculate-required
+    content: Add required energy calculation function in data/__init__.py
     status: pending
-  - id: model-battery
-    content: Add reserve_target, reserve_penalty params and shortfall variables to Battery model
+  - id: coordinator
+    content: Calculate and include required energy in CoordinatorData
     status: pending
-  - id: adapter-battery
-    content: Add reserve outputs to battery adapter (target, shortfall, shadow price)
-    status: pending
-  - id: data-loading
-    content: Calculate system reserve and distribute to batteries by capacity ratio
+  - id: sensor
+    content: Add required energy sensor entity to sensor.py
     status: pending
   - id: tests
-    content: Add tests for reserve calculation and soft constraint behavior
+    content: Add tests for required energy calculation
     status: pending
   - id: translations
-    content: Add translation strings for new hub config option and battery sensors
+    content: Add translation strings for new sensor
     status: pending
 ---
 
-# Self-Sufficiency Reserve Feature
+# Required Energy Sensor
+
+Reference: [GitHub Issue #60](https://github.com/hass-energy/haeo/issues/60)
 
 ## Overview
 
-Add a **hub-level** `reserve_factor` (0-100%) configuration. When set, the optimizer calculates the total system reserve requirement based on aggregated load and solar forecasts, then distributes it to each battery proportionally by capacity. Depleting below the reserve incurs a soft penalty cost.
+Add a virtual **Required Energy** sensor to the network. This sensor represents the total future energy required from dispatchable sources (battery, grid, generator) to satisfy upcoming fixed loads, given current forecasts.
 
-## Mathematical Model
+## Primary Use Case: Dynamic Battery Reserve
 
-### System-Level Reserve Calculation
+The sensor can be used as a **dynamic minimum reserve level** for a battery. By setting the battery's minimum state-of-charge equal to the required energy, the system can:
 
-```
-net_load[t] = sum(all_loads) - sum(all_solar)  # kW
-energy[t] = net_load[t] * period[t]  # kWh per interval
-cumulative[t] = sum(energy[i] for i in t..T)  # Reverse cumsum: energy needed from t to end
-system_reserve[t] = reserve_factor * max(0, cumulative[t])  # kWh
-```
+- Ensure the battery **retains enough energy** to cover future load that uncontrollable sources cannot meet
+- **Release** stored energy only when doing so will not jeopardize future demand
+- Avoid overly aggressive discharge early in the day when requirements are still ahead
 
-### Per-Battery Distribution
+## Algorithm
 
-```
-total_capacity = sum(battery.capacity for all batteries)
-battery.reserve_target[t] = (battery.capacity / total_capacity) * system_reserve[t]
-```
-
-### Soft Penalty
+### Step 1: Calculate Net Forecasted Power Per Interval
 
 ```
-shortfall[t] = max(0, reserve_target[t] - stored_energy[t])
-penalty = penalty_rate * sum(shortfall)
+net_power[t] = uncontrollable_generation[t] - load_forecast[t]
 ```
 
-The `penalty_rate` is derived from grid import prices (e.g., 2x max import price).
+Where `uncontrollable_generation` includes solar (and future: wind, etc.)
+
+- Positive → generation surplus
+- Negative → requires dispatchable energy
+
+### Step 2: Extract Required Energy Per Interval
+
+Only count intervals where load exceeds uncontrollable generation:
+
+```
+required[t] = max(0, -net_power[t]) * period[t]  # kWh
+```
+
+### Step 3: Reverse Cumulative Sum
+
+Compute the reverse cumulative sum so each time point reflects:
+
+*"From this moment forward, this is the amount of energy required from dispatchable sources."*
+
+```python
+# For each timestep, sum required energy from t to end of horizon
+required_energy[t] = sum(required[i] for i in t..T)
+```
+
+### Resulting Sensor Behaviour
+
+At any timestamp `t`, the sensor outputs:
+
+**"Energy required from now until the end of the forecast horizon that must come from dispatchable sources (battery, grid, generator)."**
+
+The value naturally:
+
+- Drops to zero when future uncontrollable generation covers all remaining load
+- Rises when upcoming fixed loads exceed forecasted generation
+- Decreases over time as requirements are met
+
+## Example
+
+| Time | Load | Solar | Net Power | Required (interval) | Required Energy (cumulative) |
+
+|------|------|-------|-----------|---------------------|------------------------------|
+
+| 6pm  | 2 kW | 0 kW  | -2 kW     | 4 kWh (2h)          | 11 kWh |
+
+| 8pm  | 1 kW | 0 kW  | -1 kW     | 4 kWh (4h)          | 7 kWh  |
+
+| 12am | 0.5 kW | 0 kW | -0.5 kW  | 3 kWh (6h)          | 3 kWh  |
+
+| 6am  | 1 kW | 2 kW  | +1 kW     | 0 kWh               | 0 kWh  |
+
+| 10am | 1 kW | 5 kW  | +4 kW     | 0 kWh               | 0 kWh  |
+
+At 6pm, you need **11 kWh** from dispatchable sources to meet load until solar returns.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    subgraph HubConfig [Hub Configuration]
-        ReserveFactor["reserve_factor (0-100%)"]
+    subgraph Inputs [Element Forecasts]
+        Load[Load Forecasts]
+        Solar[Solar Forecasts]
     end
 
-    subgraph DataLoading [Data Loading Layer]
-        AggLoad[Aggregate Load Forecasts]
-        AggSolar[Aggregate Solar Forecasts]
-        CalcNet[Calculate Net Load]
-        CalcReserve[Calculate System Reserve]
-        Distribute[Distribute by Capacity]
+    subgraph Calculation [Required Energy Calculation]
+        NetPower["net_power = solar - load"]
+        RequiredOnly["required = max(0, -net_power) × period"]
+        ReverseCumsum["required_energy = reverse_cumsum(required)"]
     end
 
-    subgraph Batteries [Per Battery]
-        BatA["Battery A\nreserve_target_a"]
-        BatB["Battery B\nreserve_target_b"]
+    subgraph Output [Sensor Output]
+        Sensor["sensor.haeo_hub_required_energy"]
     end
 
-    ReserveFactor --> CalcReserve
-    AggLoad --> CalcNet
-    AggSolar --> CalcNet
-    CalcNet --> CalcReserve
-    CalcReserve --> Distribute
-    Distribute --> BatA
-    Distribute --> BatB
+    Load --> NetPower
+    Solar --> NetPower
+    NetPower --> RequiredOnly
+    RequiredOnly --> ReverseCumsum
+    ReverseCumsum --> Sensor
 ```
 
 ## Key Files to Modify
 
-1. **[`custom_components/haeo/const.py`](custom_components/haeo/const.py)** - Add `CONF_RESERVE_FACTOR` and `DEFAULT_RESERVE_FACTOR`
+1. **[`custom_components/haeo/const.py`](custom_components/haeo/const.py)** - Add `NETWORK_REQUIRED_ENERGY` output name
 
-2. **[`custom_components/haeo/flows/__init__.py`](custom_components/haeo/flows/__init__.py)** - Add `reserve_factor` to hub config schema with slider (0-100%)
+2. **[`custom_components/haeo/data/__init__.py`](custom_components/haeo/data/__init__.py)** - Add `calculate_required_energy()` function
 
-3. **[`custom_components/haeo/model/battery.py`](custom_components/haeo/model/battery.py)** - Add optional `reserve_target` and `reserve_penalty` parameters; create shortfall variables and penalty cost term
+3. **[`custom_components/haeo/coordinator.py`](custom_components/haeo/coordinator.py)** - Calculate required energy and include in `CoordinatorData`
 
-4. **[`custom_components/haeo/elements/battery.py`](custom_components/haeo/elements/battery.py)** - Add output sensors for reserve target, shortfall, and shadow price
+4. **[`custom_components/haeo/sensor.py`](custom_components/haeo/sensor.py)** - Add `HaeoRequiredEnergySensor` entity
 
-5. **[`custom_components/haeo/data/__init__.py`](custom_components/haeo/data/__init__.py)** - Calculate system reserve, distribute to batteries by capacity
-
-6. **Translations** - Update for new hub config option and battery sensors
+5. **[`custom_components/haeo/translations/en.json`](custom_components/haeo/translations/en.json)** - Add translation strings
 
 ## Implementation Details
 
 ### Constants (`const.py`)
 
 ```python
-CONF_RESERVE_FACTOR: Final = "reserve_factor"
-DEFAULT_RESERVE_FACTOR: Final = 0  # 0% = pure profit optimization
+# Add to NetworkOutputName type
+type NetworkOutputName = Literal[
+    "network_optimization_cost",
+    "network_required_energy",  # NEW
+]
+
+NETWORK_REQUIRED_ENERGY: Final = "network_required_energy"
 ```
 
-### Hub Config Flow (`flows/__init__.py`)
-
-Add to `get_network_config_schema()`:
+### Required Energy Calculation (`data/__init__.py`)
 
 ```python
-vol.Required(
-    CONF_RESERVE_FACTOR,
-    default=config_entry.data.get(CONF_RESERVE_FACTOR, DEFAULT_RESERVE_FACTOR)
-    if config_entry else DEFAULT_RESERVE_FACTOR,
-): vol.All(
-    NumberSelector(NumberSelectorConfig(min=0, max=100, step=1, mode=NumberSelectorMode.SLIDER)),
-    vol.Coerce(int),
-),
-```
-
-### Model Layer (`model/battery.py`)
-
-Add new optional parameters:
-
-```python
-def __init__(
-    self,
-    ...,
-    reserve_target: Sequence[float] | None = None,
-    reserve_penalty: float = 0.0,
-) -> None:
-    ...
-    self.reserve_target = broadcast_to_sequence(reserve_target, n_periods + 1) if reserve_target else None
-    self.reserve_penalty = reserve_penalty
-
-    if self.reserve_target is not None:
-        self.shortfall = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_shortfall_")
-    else:
-        self.shortfall = None
-```
-
-In `build_constraints()`:
-
-```python
-if self.reserve_target is not None:
-    self._constraints[BATTERY_RESERVE_SHORTFALL] = h.addConstrs(
-        self.shortfall >= self.reserve_target - self.stored_energy
-    )
-```
-
-In `cost()`:
-
-```python
-if self.shortfall is not None:
-    costs.append(self.reserve_penalty * Highs.qsum(self.shortfall))
-```
-
-### Data Loading (`data/__init__.py`)
-
-New function to calculate and distribute reserve:
-
-```python
-def calculate_battery_reserves(
+def calculate_required_energy(
     participants: Mapping[str, ElementConfigData],
-    reserve_factor: float,  # 0.0 to 1.0
     periods_hours: Sequence[float],
-) -> dict[str, tuple[Sequence[float], float]]:
-    """Calculate reserve targets for each battery.
+) -> list[float]:
+    """Calculate the required energy at each timestep.
 
     Returns:
-        Mapping of battery name to (reserve_target, penalty_rate)
+        List of required energy values (kWh) at each timestep boundary (n_periods + 1).
+        Each value represents the total energy required from dispatchable sources
+        from that point until the end of the horizon.
     """
-    # 1. Aggregate all load forecasts
-    total_load = aggregate_element_forecasts(participants, "load", "forecast")
+    n_periods = len(periods_hours)
 
-    # 2. Aggregate all solar forecasts
-    total_solar = aggregate_element_forecasts(participants, "solar", "forecast")
+    # Aggregate all load forecasts
+    total_load = np.zeros(n_periods)
+    for config in participants.values():
+        if config["element_type"] == "load":
+            total_load += np.array(config["forecast"])
 
-    # 3. Calculate net load energy per period
-    net_load = np.array(total_load) - np.array(total_solar)
-    energy = net_load * np.array(periods_hours)
+    # Aggregate all uncontrollable generation (solar, future: wind, etc.)
+    total_uncontrollable = np.zeros(n_periods)
+    for config in participants.values():
+        if config["element_type"] == "solar":
+            total_uncontrollable += np.array(config["forecast"])
 
-    # 4. Reverse cumulative sum (how much energy needed from t to end)
-    cumulative = np.cumsum(energy[::-1])[::-1]
-    cumulative = np.concatenate([cumulative, [0.0]])  # Add terminal zero
+    # Calculate net power (positive = surplus, negative = requires dispatchable)
+    net_power = total_uncontrollable - total_load
 
-    # 5. Apply reserve factor
-    system_reserve = reserve_factor * np.maximum(0, cumulative)
+    # Extract only requirements (negative values become positive energy requirements)
+    required_power = np.maximum(0, -net_power)  # kW
+    required_interval = required_power * np.array(periods_hours)  # kWh
 
-    # 6. Get total battery capacity and penalty rate
-    total_capacity = sum_battery_capacities(participants)
-    penalty_rate = calculate_penalty_rate(participants)  # 2x max import price
+    # Reverse cumulative sum: how much required energy from t to end
+    required_energy = np.cumsum(required_interval[::-1])[::-1]
 
-    # 7. Distribute to each battery by capacity
-    result = {}
-    for name, config in participants.items():
-        if config["element_type"] == "battery":
-            capacity = config["capacity"][0]
-            share = capacity / total_capacity
-            result[name] = (share * system_reserve, penalty_rate)
+    # Add terminal zero (at end of horizon, no future requirement)
+    required_energy = np.concatenate([required_energy, [0.0]])
 
-    return result
+    return required_energy.tolist()
 ```
 
-### New Battery Outputs
+### Coordinator (`coordinator.py`)
 
-- `battery_reserve_target` - The calculated reserve target for this battery
-- `battery_reserve_shortfall` - Optimized shortfall (how much below target)
-- `battery_reserve_shortfall_price` - Shadow price of the shortfall constraint
+In `_async_update_data()`, after loading configs:
+
+```python
+# Calculate required energy
+required_energy = calculate_required_energy(loaded_configs, periods_hours)
+```
+
+Add to `CoordinatorData`:
+
+```python
+required_energy: list[float]  # kWh at each timestep boundary
+```
+
+### Sensor Entity (`sensor.py`)
+
+```python
+class HaeoRequiredEnergySensor(CoordinatorEntity, SensorEntity):
+    """Sensor showing the current required energy from dispatchable sources."""
+
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    @property
+    def native_value(self) -> float:
+        """Return the current required energy (first timestep)."""
+        return self.coordinator.data.required_energy[0]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the full required energy forecast as an attribute."""
+        return {
+            "forecast": self.coordinator.data.required_energy,
+        }
+```
+
+## Future Enhancement
+
+Once this sensor exists, a future enhancement could allow it to be used as input to a battery's `min_charge_percentage` field, enabling dynamic reserve management based on actual forecast conditions rather than a static percentage.
