@@ -60,59 +60,253 @@ class SigenergyGuide:
     output_dir: Path
     step_number: int = 0
     results: list[dict[str, Any]] = field(default_factory=list)
+    debug_indicators: bool = True  # Enable full-screen crosshairs for debugging
 
     @property
     def url(self) -> str:
         """Get the Home Assistant URL."""
         return self.hass.url
 
-    def capture(self, name: str) -> None:
-        """Capture PNG screenshot of current page state."""
+    def _show_click_indicator(self, x: float, y: float) -> None:
+        """Inject a visual click indicator at the given position.
+
+        Uses a <dialog> with showModal() to place indicator in the top layer,
+        which renders above all other elements including other dialogs.
+
+        When debug_indicators is True, also draws full-screen crosshairs.
+        """
+        # Remove any existing indicator first
+        self.page.evaluate("""
+            const existing = document.getElementById('click-indicator-dialog');
+            if (existing) {
+                existing.close();
+                existing.remove();
+            }
+        """)
+
+        # Create a dialog element and show it modally to get into the top layer
+        self.page.evaluate(
+            """([x, y, debug]) => {
+            const dialog = document.createElement('dialog');
+            dialog.id = 'click-indicator-dialog';
+            dialog.style.cssText = `
+                position: fixed;
+                inset: 0;
+                width: 100vw;
+                height: 100vh;
+                max-width: 100vw;
+                max-height: 100vh;
+                margin: 0;
+                padding: 0;
+                border: none;
+                background: transparent;
+                pointer-events: none;
+                overflow: visible;
+            `;
+
+            // Remove the default ::backdrop styling
+            const style = document.createElement('style');
+            style.textContent = '#click-indicator-dialog::backdrop { background: transparent; }';
+            dialog.appendChild(style);
+
+            // Add the circle indicator
+            const circle = document.createElement('div');
+            circle.style.cssText = `
+                position: fixed;
+                left: ${x - 15}px;
+                top: ${y - 15}px;
+                width: 30px;
+                height: 30px;
+                border: 3px solid #ff0000;
+                border-radius: 50%;
+                background: rgba(255, 0, 0, 0.2);
+                pointer-events: none;
+                box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            `;
+            dialog.appendChild(circle);
+
+            // Add crosshairs in debug mode
+            if (debug) {
+                const hLine = document.createElement('div');
+                hLine.style.cssText = `
+                    position: fixed;
+                    left: 0;
+                    top: ${y}px;
+                    width: 100vw;
+                    height: 2px;
+                    background: rgba(255, 0, 0, 0.7);
+                    pointer-events: none;
+                `;
+                dialog.appendChild(hLine);
+
+                const vLine = document.createElement('div');
+                vLine.style.cssText = `
+                    position: fixed;
+                    left: ${x}px;
+                    top: 0;
+                    width: 2px;
+                    height: 100vh;
+                    background: rgba(255, 0, 0, 0.7);
+                    pointer-events: none;
+                `;
+                dialog.appendChild(vLine);
+            }
+
+            document.body.appendChild(dialog);
+            dialog.showModal();
+        }""",
+            [x, y, self.debug_indicators],
+        )
+
+    def _remove_click_indicator(self) -> None:
+        """Remove the click indicator dialog."""
+        self.page.evaluate("""
+            const existing = document.getElementById('click-indicator-dialog');
+            if (existing) {
+                existing.close();
+                existing.remove();
+            }
+        """)
+
+    def _get_element_center(self, locator: Any) -> tuple[float, float] | None:
+        """Get the center position of an element."""
+        try:
+            box = locator.bounding_box(timeout=1000)
+            if box:
+                return (box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        except Exception:
+            pass
+        return None
+
+    def _scroll_into_view(self, locator: Any) -> None:
+        """Scroll element into view, centered in viewport."""
+        try:
+            locator.scroll_into_view_if_needed(timeout=1000)
+            self.page.wait_for_timeout(100)  # Brief pause after scroll
+        except Exception:
+            pass
+
+    def _capture_with_indicator(self, name: str, x: float, y: float) -> None:
+        """Capture screenshot with click indicator at specified position."""
         self.step_number += 1
         filename = f"{self.step_number:02d}_{name}"
         _LOGGER.info("Capturing: %s", filename)
 
-        # Save PNG
+        self._show_click_indicator(x, y)
+        png_path = self.output_dir / f"{filename}.png"
+        self.page.screenshot(path=str(png_path))
+        self._remove_click_indicator()
+
+        self.results.append({"step": self.step_number, "name": name, "png": str(png_path)})
+
+    def capture(self, name: str) -> None:
+        """Capture PNG screenshot of current page state (no indicator)."""
+        self.step_number += 1
+        filename = f"{self.step_number:02d}_{name}"
+        _LOGGER.info("Capturing: %s", filename)
+
         png_path = self.output_dir / f"{filename}.png"
         self.page.screenshot(path=str(png_path))
 
-        self.results.append(
-            {
-                "step": self.step_number,
-                "name": name,
-                "png": str(png_path),
-            }
-        )
+        self.results.append({"step": self.step_number, "name": name, "png": str(png_path)})
 
-    def click_button(self, name: str, *, timeout: int = DEFAULT_TIMEOUT) -> None:
-        """Click a button by its accessible name."""
-        self.page.get_by_role("button", name=name).click(timeout=timeout)
+    def click_button(self, name: str, *, timeout: int = DEFAULT_TIMEOUT, capture_name: str | None = None) -> None:
+        """Click a button by its accessible name.
+
+        If capture_name is provided, captures before (with indicator) and after (result).
+        """
+        button = self.page.get_by_role("button", name=name)
+
+        if capture_name:
+            self._scroll_into_view(button)
+            self.capture(f"{capture_name}_before")
+            pos = self._get_element_center(button)
+            if pos:
+                self._capture_with_indicator(f"{capture_name}_click", *pos)
+
+        button.click(timeout=timeout)
         self.page.wait_for_timeout(SHORT_WAIT * 1000)
 
-    def fill_textbox(self, name: str, value: str) -> None:
-        """Fill a textbox by its accessible name."""
-        self.page.get_by_role("textbox", name=name).fill(value)
+        if capture_name:
+            self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+            self.capture(f"{capture_name}_result")
 
-    def fill_spinbutton(self, name: str, value: str) -> None:
-        """Fill a spinbutton (numeric input) by its accessible name."""
+    def fill_textbox(self, name: str, value: str, *, capture_name: str | None = None) -> None:
+        """Fill a textbox by its accessible name.
+
+        If capture_name is provided, captures before (with indicator) and after (filled).
+        """
+        textbox = self.page.get_by_role("textbox", name=name)
+
+        if capture_name:
+            self._scroll_into_view(textbox)
+            self.capture(f"{capture_name}_before")
+            pos = self._get_element_center(textbox)
+            if pos:
+                self._capture_with_indicator(f"{capture_name}_field", *pos)
+
+        textbox.fill(value)
+
+        if capture_name:
+            self.capture(f"{capture_name}_filled")
+
+    def fill_spinbutton(self, name: str, value: str, *, capture_name: str | None = None) -> None:
+        """Fill a spinbutton (numeric input) by its accessible name.
+
+        If capture_name is provided, captures before (with indicator) and after (filled).
+        """
         spinbutton = self.page.get_by_role("spinbutton", name=name)
+
+        if capture_name:
+            self._scroll_into_view(spinbutton)
+            self.capture(f"{capture_name}_before")
+            pos = self._get_element_center(spinbutton)
+            if pos:
+                self._capture_with_indicator(f"{capture_name}_field", *pos)
+
         spinbutton.clear()
         spinbutton.fill(value)
 
-    def select_combobox_option(self, combobox_name: str, option_text: str) -> None:
+        if capture_name:
+            self.capture(f"{capture_name}_filled")
+
+    def select_combobox_option(self, combobox_name: str, option_text: str, *, capture_name: str | None = None) -> None:
         """Select an option from a combobox dropdown.
 
         Comboboxes in HA need to be clicked to open, then an option selected.
+        If capture_name is provided, captures the selection flow.
         """
         # Click to open the dropdown
-        self.page.get_by_role("combobox", name=combobox_name).click()
+        combobox = self.page.get_by_role("combobox", name=combobox_name)
+
+        if capture_name:
+            self._scroll_into_view(combobox)
+            self.capture(f"{capture_name}_before")
+            pos = self._get_element_center(combobox)
+            if pos:
+                self._capture_with_indicator(f"{capture_name}_dropdown", *pos)
+
+        combobox.click()
         self.page.wait_for_timeout(SHORT_WAIT * 1000)
 
         # Click the option
-        self.page.get_by_role("option", name=option_text).click()
+        option = self.page.get_by_role("option", name=option_text)
+
+        if capture_name:
+            self._scroll_into_view(option)
+            pos = self._get_element_center(option)
+            if pos:
+                self._capture_with_indicator(f"{capture_name}_option", *pos)
+
+        option.click()
         self.page.wait_for_timeout(SHORT_WAIT * 1000)
 
-    def select_entity(self, field_label: str, search_term: str, entity_name: str) -> None:
+        if capture_name:
+            self.capture(f"{capture_name}_selected")
+
+    def select_entity(
+        self, field_label: str, search_term: str, entity_name: str, *, capture_name: str | None = None
+    ) -> None:
         """Select an entity from picker dialog.
 
         Entity pickers in Home Assistant use custom web components with Shadow DOM.
@@ -120,6 +314,7 @@ class SigenergyGuide:
 
         We identify the correct picker by the field label appearing before it,
         then use HA's component selectors.
+        If capture_name is provided, captures the selection flow.
         """
         # Home Assistant entity pickers use ha-selector components
         # Find the ha-selector that contains our field label
@@ -128,6 +323,14 @@ class SigenergyGuide:
 
         # Click the ha-combo-box-item inside (which shows "Select an entity")
         picker = selector.locator("ha-combo-box-item").first
+
+        if capture_name:
+            self._scroll_into_view(picker)
+            self.capture(f"{capture_name}_before")
+            pos = self._get_element_center(picker)
+            if pos:
+                self._capture_with_indicator(f"{capture_name}_picker", *pos)
+
         picker.click()
         self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
@@ -146,14 +349,34 @@ class SigenergyGuide:
         search_input.fill(search_term)
         self.page.wait_for_timeout(1000)  # Wait 1s for search results to populate
 
+        if capture_name:
+            self.capture(f"{capture_name}_search")
+
         # Click the matching item in the dialog's results
         # HA uses different selectors: listitem in some dialogs, ha-combo-box-item in others
         try:
-            entity_dialog.get_by_role("listitem").filter(has_text=entity_name).first.click(timeout=1000)
+            result_item = entity_dialog.get_by_role("listitem").filter(has_text=entity_name).first
+            if capture_name:
+                self._scroll_into_view(result_item)
+                self.capture(f"{capture_name}_select_before")
+                pos = self._get_element_center(result_item)
+                if pos:
+                    self._capture_with_indicator(f"{capture_name}_select", *pos)
+            result_item.click(timeout=1000)
         except Exception:
             # Fall back to ha-combo-box-item
-            entity_dialog.locator("ha-combo-box-item").filter(has_text=entity_name).first.click(timeout=DEFAULT_TIMEOUT)
+            result_item = entity_dialog.locator("ha-combo-box-item").filter(has_text=entity_name).first
+            if capture_name:
+                self._scroll_into_view(result_item)
+                self.capture(f"{capture_name}_select_before")
+                pos = self._get_element_center(result_item)
+                if pos:
+                    self._capture_with_indicator(f"{capture_name}_select", *pos)
+            result_item.click(timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_timeout(SHORT_WAIT * 1000)
+
+        if capture_name:
+            self.capture(f"{capture_name}_result")
 
     def add_another_entity(self, field_label: str, search_term: str, entity_name: str) -> None:
         """Add another entity to a multi-select field.
@@ -181,20 +404,40 @@ class SigenergyGuide:
         # Click the matching item in the dialog's results
         # HA uses different selectors: listitem in some dialogs, ha-combo-box-item in others
         try:
-            dialog.get_by_role("listitem").filter(has_text=entity_name).first.click(timeout=1000)
+            result_item = dialog.get_by_role("listitem").filter(has_text=entity_name).first
+            result_item.click(timeout=1000)
         except Exception:
             # Fall back to ha-combo-box-item
-            dialog.locator("ha-combo-box-item").filter(has_text=entity_name).first.click(timeout=DEFAULT_TIMEOUT)
+            result_item = dialog.locator("ha-combo-box-item").filter(has_text=entity_name).first
+            result_item.click(timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_timeout(SHORT_WAIT * 1000)
 
-    def close_network_dialog(self) -> None:
+    def close_network_dialog(self, *, capture_name: str | None = None) -> None:
         """Close the network creation dialog (has 'Skip and finish' button)."""
-        self.page.get_by_role("button", name="Skip and finish").click(timeout=DEFAULT_TIMEOUT)
+        button = self.page.get_by_role("button", name="Skip and finish")
+
+        if capture_name:
+            self._scroll_into_view(button)
+            self.capture(f"{capture_name}_before")
+            pos = self._get_element_center(button)
+            if pos:
+                self._capture_with_indicator(f"{capture_name}_click", *pos)
+
+        button.click(timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
-    def close_element_dialog(self) -> None:
+    def close_element_dialog(self, *, capture_name: str | None = None) -> None:
         """Close the element creation dialog (has 'Finish' button)."""
-        self.page.get_by_role("button", name="Finish").click(timeout=DEFAULT_TIMEOUT)
+        button = self.page.get_by_role("button", name="Finish")
+
+        if capture_name:
+            self._scroll_into_view(button)
+            self.capture(f"{capture_name}_before")
+            pos = self._get_element_center(button)
+            if pos:
+                self._capture_with_indicator(f"{capture_name}_click", *pos)
+
+        button.click(timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
 
@@ -211,7 +454,11 @@ def add_haeo_integration(guide: SigenergyGuide) -> None:
     guide.capture("integrations_page")
 
     # Click the first "Add integration" button (inside ha-button, not the FAB)
-    guide.page.locator("ha-button").get_by_role("button", name="Add integration").click()
+    add_btn = guide.page.locator("ha-button").get_by_role("button", name="Add integration")
+    pos = guide._get_element_center(add_btn)
+    if pos:
+        guide._capture_with_indicator("add_integration_click", *pos)
+    add_btn.click()
     guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
     # Wait for the dialog search box to appear
@@ -226,6 +473,9 @@ def add_haeo_integration(guide: SigenergyGuide) -> None:
 
     # Click on the HAEO integration result
     haeo_item = guide.page.locator("ha-integration-list-item", has_text="Home Assistant Energy Optimizer")
+    pos = guide._get_element_center(haeo_item)
+    if pos:
+        guide._capture_with_indicator("select_haeo_click", *pos)
     haeo_item.click(timeout=DEFAULT_TIMEOUT)
 
     # Wait for the HAEO Network Setup dialog
@@ -234,16 +484,13 @@ def add_haeo_integration(guide: SigenergyGuide) -> None:
 
     guide.capture("network_form")
 
-    # Fill network name
-    guide.fill_textbox("Network Name*", NETWORK_NAME)
+    # Fill network name with capture
+    guide.fill_textbox("Network Name*", NETWORK_NAME, capture_name="network_name")
 
-    guide.capture("network_filled")
+    # Submit with capture
+    guide.click_button("Submit", capture_name="network_submit")
 
-    guide.click_button("Submit")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
-
-    guide.capture("network_created")
-    guide.close_network_dialog()
+    guide.close_network_dialog(capture_name="network_close")
 
     _LOGGER.info("HAEO integration added")
 
@@ -252,33 +499,29 @@ def add_inverter(guide: SigenergyGuide) -> None:
     """Add Inverter element."""
     _LOGGER.info("Adding Inverter...")
 
-    guide.capture("before_inverter")
-
-    # Click the Inverter button in the toolbar
-    guide.click_button("Inverter")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+    # Click the Inverter button in the toolbar with capture
+    guide.click_button("Inverter", capture_name="inverter_add")
 
     # Wait for the dialog to appear
     guide.page.wait_for_selector("text=Add Inverter", timeout=DEFAULT_TIMEOUT)
-    guide.capture("inverter_form")
 
-    # Fill inverter name (already has default "Inverter")
-    guide.fill_textbox("Inverter Name*", "Inverter")
+    # Fill inverter name
+    guide.fill_textbox("Inverter Name*", "Inverter", capture_name="inverter_name")
 
-    # Select AC Connection - must explicitly click to select even if default shows
-    guide.select_combobox_option("AC Connection*", "Switchboard")
+    # Select AC Connection with capture
+    guide.select_combobox_option("AC Connection*", "Switchboard", capture_name="inverter_connection")
 
-    # Select power sensors
-    guide.select_entity("Max DC to AC power", "max active power", "Sigen Plant Max Active Power")
-    guide.select_entity("Max AC to DC power", "max active power", "Sigen Plant Max Active Power")
+    # Select power sensors with capture
+    guide.select_entity(
+        "Max DC to AC power", "max active power", "Sigen Plant Max Active Power", capture_name="inverter_dc_ac"
+    )
+    guide.select_entity(
+        "Max AC to DC power", "max active power", "Sigen Plant Max Active Power", capture_name="inverter_ac_dc"
+    )
 
-    guide.capture("inverter_filled")
-
-    guide.click_button("Submit")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
-
-    guide.capture("inverter_created")
-    guide.close_element_dialog()
+    # Submit with capture
+    guide.click_button("Submit", capture_name="inverter_submit")
+    guide.close_element_dialog(capture_name="inverter_close")
 
     _LOGGER.info("Inverter added")
 
@@ -287,36 +530,37 @@ def add_battery(guide: SigenergyGuide) -> None:
     """Add Battery element."""
     _LOGGER.info("Adding Battery...")
 
-    guide.click_button("Battery")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+    guide.click_button("Battery", capture_name="battery_add")
 
     # Wait for the dialog to fully load
     guide.page.wait_for_selector("text=Add Battery", timeout=DEFAULT_TIMEOUT)
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)  # Extra wait for form to render
-    guide.capture("battery_form")
-
-    guide.fill_textbox("Battery Name*", "Battery")
-    guide.select_combobox_option("Connection*", "Inverter")
-
-    # Entity selections
-    guide.select_entity("Capacity", "rated energy", "Rated Energy Capacity")
-    guide.select_entity("State of Charge Charge Sensor", "state of charge", "Battery State of Charge")
-    guide.select_entity("Max Charging Power", "rated charging", "Rated Charging Power")
-    guide.select_entity("Max Discharging Power", "rated discharging", "Rated Discharging Power")
-
-    # Fill numeric fields
-    guide.fill_spinbutton("Min Charge Level*", "10")
-    guide.fill_spinbutton("Max Charge Level*", "100")
-    guide.fill_spinbutton("Round-trip Efficiency*", "99")
-    guide.fill_spinbutton("Early Charge Incentive", "0.001")
-
-    guide.capture("battery_filled")
-
-    guide.click_button("Submit")
     guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
-    guide.capture("battery_created")
-    guide.close_element_dialog()
+    # Fill name with capture
+    guide.fill_textbox("Battery Name*", "Battery", capture_name="battery_name")
+
+    # Select connection
+    guide.select_combobox_option("Connection*", "Inverter", capture_name="battery_connection")
+
+    # Entity selections with captures
+    guide.select_entity("Capacity", "rated energy", "Rated Energy Capacity", capture_name="battery_capacity")
+    guide.select_entity(
+        "State of Charge Charge Sensor", "state of charge", "Battery State of Charge", capture_name="battery_soc"
+    )
+    guide.select_entity("Max Charging Power", "rated charging", "Rated Charging Power", capture_name="battery_charge")
+    guide.select_entity(
+        "Max Discharging Power", "rated discharging", "Rated Discharging Power", capture_name="battery_discharge"
+    )
+
+    # Fill numeric fields with capture
+    guide.fill_spinbutton("Min Charge Level*", "10", capture_name="battery_min_soc")
+    guide.fill_spinbutton("Max Charge Level*", "100", capture_name="battery_max_soc")
+    guide.fill_spinbutton("Round-trip Efficiency*", "99", capture_name="battery_efficiency")
+    guide.fill_spinbutton("Early Charge Incentive", "0.001", capture_name="battery_incentive")
+
+    # Submit
+    guide.click_button("Submit", capture_name="battery_submit")
+    guide.close_element_dialog(capture_name="battery_close")
 
     _LOGGER.info("Battery added")
 
@@ -325,30 +569,25 @@ def add_solar(guide: SigenergyGuide) -> None:
     """Add Solar element with multiple forecast sensors."""
     _LOGGER.info("Adding Solar...")
 
-    guide.click_button("Solar")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+    guide.click_button("Solar", capture_name="solar_add")
 
     guide.page.wait_for_selector("text=Add Solar", timeout=DEFAULT_TIMEOUT)
-    guide.capture("solar_form")
 
-    guide.fill_textbox("Solar Name*", "Solar")
-    guide.select_combobox_option("Connection*", "Inverter")
+    guide.fill_textbox("Solar Name*", "Solar", capture_name="solar_name")
+    guide.select_combobox_option("Connection*", "Inverter", capture_name="solar_connection")
 
-    # First forecast sensor - search for "east solar" to find East solar production forecast
-    guide.select_entity("Forecast Sensors", "east solar today", "East solar production forecast")
+    # First forecast sensor
+    guide.select_entity(
+        "Forecast Sensors", "east solar today", "East solar production forecast", capture_name="solar_forecast"
+    )
 
-    # Add the other three array forecasts
+    # Add the other three array forecasts (no extra captures - too many screenshots)
     guide.add_another_entity("Forecast Sensors", "north solar today", "North solar production forecast")
     guide.add_another_entity("Forecast Sensors", "south solar today", "South solar prediction forecast")
     guide.add_another_entity("Forecast Sensors", "west solar today", "West solar production forecast")
 
-    guide.capture("solar_filled")
-
-    guide.click_button("Submit")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
-
-    guide.capture("solar_created")
-    guide.close_element_dialog()
+    guide.click_button("Submit", capture_name="solar_submit")
+    guide.close_element_dialog(capture_name="solar_close")
 
     _LOGGER.info("Solar added")
 
@@ -357,34 +596,31 @@ def add_grid(guide: SigenergyGuide) -> None:
     """Add Grid element."""
     _LOGGER.info("Adding Grid...")
 
-    guide.click_button("Grid")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+    guide.click_button("Grid", capture_name="grid_add")
 
     guide.page.wait_for_selector("text=Add Grid", timeout=DEFAULT_TIMEOUT)
-    guide.capture("grid_form")
 
-    guide.fill_textbox("Grid Name*", "Grid")
-    guide.select_combobox_option("Connection*", "Switchboard")
+    guide.fill_textbox("Grid Name*", "Grid", capture_name="grid_name")
+    guide.select_combobox_option("Connection*", "Switchboard", capture_name="grid_connection")
 
-    # Import price: current price sensor plus forecast sensor
-    guide.select_entity("Import Price Sensors", "general price", "Home - General Price")
+    # Import price with capture
+    guide.select_entity(
+        "Import Price Sensors", "general price", "Home - General Price", capture_name="grid_import_price"
+    )
     guide.add_another_entity("Import Price Sensors", "general forecast", "Home - General Forecast")
 
-    # Export price: current price sensor plus forecast sensor
-    guide.select_entity("Export Price Sensors", "feed in price", "Home - Feed In Price")
+    # Export price
+    guide.select_entity(
+        "Export Price Sensors", "feed in price", "Home - Feed In Price", capture_name="grid_export_price"
+    )
     guide.add_another_entity("Export Price Sensors", "feed in forecast", "Home - Feed In Forecast")
 
     # Fill limits
-    guide.fill_spinbutton("Import Limit (Optional)", "55")
-    guide.fill_spinbutton("Export Limit (Optional)", "30")
+    guide.fill_spinbutton("Import Limit (Optional)", "55", capture_name="grid_import_limit")
+    guide.fill_spinbutton("Export Limit (Optional)", "30", capture_name="grid_export_limit")
 
-    guide.capture("grid_filled")
-
-    guide.click_button("Submit")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
-
-    guide.capture("grid_created")
-    guide.close_element_dialog()
+    guide.click_button("Submit", capture_name="grid_submit")
+    guide.close_element_dialog(capture_name="grid_close")
 
     _LOGGER.info("Grid added")
 
@@ -393,24 +629,17 @@ def add_load(guide: SigenergyGuide) -> None:
     """Add Load element."""
     _LOGGER.info("Adding Load...")
 
-    guide.click_button("Load")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
+    guide.click_button("Load", capture_name="load_add")
 
     guide.page.wait_for_selector("text=Add Load", timeout=DEFAULT_TIMEOUT)
-    guide.capture("load_form")
 
-    guide.fill_textbox("Load Name*", "Constant Load")
-    guide.select_combobox_option("Connection*", "Switchboard")
+    guide.fill_textbox("Load Name*", "Constant Load", capture_name="load_name")
+    guide.select_combobox_option("Connection*", "Switchboard", capture_name="load_connection")
 
-    guide.select_entity("Forecast Sensors", "constant load", "Constant Load Power")
+    guide.select_entity("Forecast Sensors", "constant load", "Constant Load Power", capture_name="load_forecast")
 
-    guide.capture("load_filled")
-
-    guide.click_button("Submit")
-    guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
-
-    guide.capture("load_created")
-    guide.close_element_dialog()
+    guide.click_button("Submit", capture_name="load_submit")
+    guide.close_element_dialog(capture_name="load_close")
 
     _LOGGER.info("Load added")
 
