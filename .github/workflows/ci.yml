@@ -115,6 +115,30 @@ jobs:
       - name: Run hassfest validation
         uses: home-assistant/actions/hassfest@87c064c607f3c5cc673a24258d0c98d23033bfc3 # master
 
+  version-check:
+    name: Version consistency check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+
+      - name: Check HAEO version consistency
+        run: |
+          PYPROJECT=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          MANIFEST=$(jq -r '.version' custom_components/haeo/manifest.json)
+          echo "pyproject.toml=$PYPROJECT manifest.json=$MANIFEST"
+          [[ "$PYPROJECT" == "$MANIFEST" ]]
+
+      - name: Check Home Assistant version consistency
+        run: |
+          PYPROJECT=$(uv run python -c "import tomllib, re; deps=tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies']; print(re.search(r'homeassistant>=(\d+\.\d+\.\d+)', str(deps)).group(1))")
+          HACS=$(jq -r '.homeassistant' hacs.json)
+          echo "pyproject.toml=$PYPROJECT hacs.json=$HACS"
+          [[ "$PYPROJECT" == "$HACS" ]]
+
   hacs: # https://github.com/hacs/action
     name: HACS validation
     runs-on: ubuntu-latest
