@@ -87,10 +87,10 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: LoadConfigData
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: LoadConfigData
 ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
     """Provide state updates for load output sensors."""
-    connection = model_outputs[f"{name}:connection"]
+    connection = outputs[f"{name}:connection"]
 
     load_updates: dict[LoadOutputName, OutputData] = {
         # Output sensors from optimization

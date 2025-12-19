@@ -122,10 +122,10 @@ def create_model_elements(config: ConnectionConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: ConnectionConfigData
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: ConnectionConfigData
 ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
     """Provide state updates for connection output sensors."""
-    connection = model_outputs[name]
+    connection = outputs[name]
 
     connection_outputs: dict[ConnectionOutputName, OutputData] = {
         CONNECTION_POWER_SOURCE_TARGET: connection[CONNECTION_POWER_SOURCE_TARGET],

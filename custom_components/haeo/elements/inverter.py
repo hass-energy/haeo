@@ -125,11 +125,11 @@ def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: InverterConfigData
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: InverterConfigData
 ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
     """Provide state updates for inverter output sensors."""
-    connection = model_outputs[f"{name}:connection"]
-    dc_bus = model_outputs[name]
+    connection = outputs[f"{name}:connection"]
+    dc_bus = outputs[name]
 
     inverter_outputs: dict[InverterOutputName, OutputData] = {}
 

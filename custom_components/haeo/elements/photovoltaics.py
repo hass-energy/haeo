@@ -106,10 +106,10 @@ def create_model_elements(config: PhotovoltaicsConfigData) -> list[dict[str, Any
 
 
 def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: PhotovoltaicsConfigData
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: PhotovoltaicsConfigData
 ) -> Mapping[PhotovoltaicsDeviceName, Mapping[PhotovoltaicsOutputName, OutputData]]:
     """Provide state updates for photovoltaics output sensors."""
-    connection = model_outputs[f"{name}:connection"]
+    connection = outputs[f"{name}:connection"]
 
     pv_updates: dict[PhotovoltaicsOutputName, OutputData] = {
         # Output sensors from optimization

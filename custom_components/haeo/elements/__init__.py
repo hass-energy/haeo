@@ -141,8 +141,8 @@ class ElementRegistryEntry(NamedTuple):
     The create_model_elements and outputs fields are callables that:
         - create_model_elements(config) -> list[dict[str, Any]]
             Transforms config element to model elements
-        - outputs(name, model_outputs, config) -> dict[str, dict[str, Any]]
-            Provides state updates for output sensors
+        - outputs(name, outputs, config) -> dict[str, dict[str, Any]]
+            Transforms model outputs to device outputs with access to original config
     """
 
     schema: type[Any]

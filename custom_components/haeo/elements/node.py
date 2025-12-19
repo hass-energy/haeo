@@ -47,10 +47,10 @@ def create_model_elements(config: NodeConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: NodeConfigData
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: NodeConfigData
 ) -> Mapping[NodeDeviceName, Mapping[NodeOutputName, OutputData]]:
     """Provide state updates for node output sensors."""
-    source_sink = model_outputs[name]
+    source_sink = outputs[name]
 
     # Map SourceSink power_balance to node_power_balance
     node_outputs: dict[NodeOutputName, OutputData] = {

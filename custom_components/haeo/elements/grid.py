@@ -113,10 +113,10 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: GridConfigData
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: GridConfigData
 ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
     """Provide state updates for grid output sensors."""
-    connection = model_outputs[f"{name}:connection"]
+    connection = outputs[f"{name}:connection"]
 
     grid_outputs: dict[GridOutputName, OutputData] = {}
 

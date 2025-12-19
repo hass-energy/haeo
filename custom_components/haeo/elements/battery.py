@@ -314,7 +314,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: BatteryConfigData
+    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: BatteryConfigData
 ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
     """Provide state updates for battery output sensors."""
     # Collect section outputs
@@ -323,25 +323,25 @@ def outputs(
 
     # Check for undercharge section
     undercharge_name = f"{name}:undercharge"
-    if undercharge_name in model_outputs:
-        section_outputs["undercharge"] = model_outputs[undercharge_name]
+    if undercharge_name in outputs:
+        section_outputs["undercharge"] = outputs[undercharge_name]
         section_names.append("undercharge")
 
     # Normal section (always present)
     normal_name = f"{name}:normal"
-    if normal_name in model_outputs:
-        section_outputs["normal"] = model_outputs[normal_name]
+    if normal_name in outputs:
+        section_outputs["normal"] = outputs[normal_name]
         section_names.append("normal")
 
     # Check for overcharge section
     overcharge_name = f"{name}:overcharge"
-    if overcharge_name in model_outputs:
-        section_outputs["overcharge"] = model_outputs[overcharge_name]
+    if overcharge_name in outputs:
+        section_outputs["overcharge"] = outputs[overcharge_name]
         section_names.append("overcharge")
 
     # Get node outputs for power balance
     node_name = f"{name}:node"
-    node_outputs = model_outputs.get(node_name, {})
+    node_outputs = outputs.get(node_name, {})
 
     # Calculate aggregate outputs
     # Sum power charge/discharge across all sections
