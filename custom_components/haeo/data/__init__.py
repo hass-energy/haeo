@@ -73,18 +73,19 @@ def calculate_required_energy(
     participants: Mapping[str, ElementConfigData],
     periods_hours: Sequence[float],
 ) -> list[float]:
-    """Calculate the required energy at each timestep.
+    """Calculate the required energy at each timestep using maximum drawdown.
 
     This is calculated BEFORE optimization so model elements can use it.
 
-    The required energy represents the total future energy that must come from
-    dispatchable sources (battery, grid, generator) to meet load that exceeds
-    uncontrollable generation (solar, wind).
+    The required energy represents the maximum battery capacity needed at each
+    timestep to survive until solar (or other uncontrollable generation) recharges
+    the battery. This uses a "maximum drawdown" approach that accounts for solar
+    surplus periods that can recharge the battery.
 
     Returns:
         List of required energy values (kWh) at each timestep boundary (n_periods + 1).
-        Each value represents the total energy required from dispatchable sources
-        from that point until the end of the horizon.
+        Each value represents the maximum battery drawdown from that point forward
+        before solar recharges the battery.
 
     """
     n_periods = len(periods_hours)
@@ -108,20 +109,26 @@ def calculate_required_energy(
             if forecast is not None:
                 total_uncontrollable += np.array(forecast)
 
-    # Calculate net power (positive = surplus, negative = requires dispatchable)
+    # Calculate NET power (positive = surplus, negative = deficit)
     net_power = total_uncontrollable - total_load
+    net_energy = net_power * np.array(periods_hours)  # kWh per interval
 
-    # Extract only requirements (negative values become positive energy requirements)
-    required_power = np.maximum(0.0, -net_power)  # kW
-    required_interval = required_power * np.array(periods_hours)  # kWh
+    # For each timestep, find the maximum drawdown from that point forward
+    # This is the deepest point the battery would drain to before solar recharges it
+    required_energy: list[float] = []
+    for t in range(n_periods + 1):
+        if t >= n_periods:
+            # At end of horizon, no future requirement
+            required_energy.append(0.0)
+        else:
+            # Calculate running balance from t forward
+            future_net = net_energy[t:]
+            running_balance = np.cumsum(future_net)
+            # Maximum drawdown is the most negative point in the running balance
+            max_drawdown = min(0.0, float(np.min(running_balance)))
+            required_energy.append(abs(max_drawdown))
 
-    # Reverse cumulative sum: how much required energy from t to end
-    required_energy = np.cumsum(required_interval[::-1])[::-1]
-
-    # Add terminal zero (at end of horizon, no future requirement)
-    required_energy = np.concatenate([required_energy, [0.0]])
-
-    return required_energy.tolist()
+    return required_energy
 
 
 async def load_network(

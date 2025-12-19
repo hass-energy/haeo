@@ -1,15 +1,15 @@
 """Unit tests for required energy calculation.
 
-The required energy represents the total future energy that must come from
-dispatchable sources (battery, grid, generator) to meet load that exceeds
-uncontrollable generation (solar, wind).
+The required energy represents the maximum battery capacity needed at each
+timestep to survive until solar (or other uncontrollable generation) recharges
+the battery.
 
-The calculation:
+The calculation uses a "maximum drawdown" approach:
 1. Aggregates all load forecasts
 2. Aggregates all uncontrollable generation (solar)
-3. Computes net power = uncontrollable - load
-4. Extracts only the deficit (where load > generation)
-5. Performs a reverse cumulative sum to get "energy required from now to horizon end"
+3. Computes net energy = (solar - load) * period (can be positive or negative)
+4. For each timestep, finds the maximum drawdown from that point forward
+   (the deepest point the battery would drain to before being recharged)
 """
 
 import pytest
@@ -43,8 +43,10 @@ class TestCalculateRequiredEnergy:
 
         result = calculate_required_energy(participants, periods_hours)
 
-        # Interval energies: [2.0, 1.0, 0.5] kWh
-        # Reverse cumsum: [3.5, 1.5, 0.5, 0.0]
+        # Net energy = -load = [-2.0, -1.0, -0.5] kWh (all deficit, no solar)
+        # From t=0: running balance = [-2, -3, -3.5], max drawdown = 3.5
+        # From t=1: running balance = [-1, -1.5], max drawdown = 1.5
+        # From t=2: running balance = [-0.5], max drawdown = 0.5
         assert result == pytest.approx([3.5, 1.5, 0.5, 0.0])
 
     def test_solar_covers_all_load(self) -> None:
@@ -82,10 +84,10 @@ class TestCalculateRequiredEnergy:
 
         result = calculate_required_energy(participants, periods_hours)
 
-        # Net power = solar - load = [-2.0, -1.0, +1.0]
-        # Required power (deficit only) = [2.0, 1.0, 0.0]
-        # Required energy = required_power * period = [2.0, 1.0, 0.0]
-        # Reverse cumsum = [3.0, 1.0, 0.0, 0.0]
+        # Net energy = (solar - load) * period = [-2.0, -1.0, +1.0] kWh
+        # From t=0: running balance = [-2, -3, -2], max drawdown = 3
+        # From t=1: running balance = [-1, 0], max drawdown = 1
+        # From t=2: running balance = [+1], max drawdown = 0
         assert result == pytest.approx([3.0, 1.0, 0.0, 0.0])
 
     def test_overnight_scenario(self) -> None:
@@ -105,9 +107,12 @@ class TestCalculateRequiredEnergy:
         result = calculate_required_energy(participants, periods_hours)
 
         # Net power = solar - load = [-2.0, -1.0, -0.5, +1.0, +4.0]
-        # Required power = [2.0, 1.0, 0.5, 0.0, 0.0]
-        # Required energy = [4.0, 4.0, 3.0, 0.0, 0.0] (power * period)
-        # Reverse cumsum = [11.0, 7.0, 3.0, 0.0, 0.0, 0.0]
+        # Net energy = net_power * period = [-4.0, -4.0, -3.0, +4.0, +16.0] kWh
+        # From t=0: running balance = [-4, -8, -11, -7, +9], max drawdown = 11
+        # From t=1: running balance = [-4, -7, -3, +13], max drawdown = 7
+        # From t=2: running balance = [-3, +1, +17], max drawdown = 3
+        # From t=3: running balance = [+4, +20], max drawdown = 0
+        # From t=4: running balance = [+16], max drawdown = 0
         assert result == pytest.approx([11.0, 7.0, 3.0, 0.0, 0.0, 0.0])
 
     def test_multiple_loads_and_solar(self) -> None:
@@ -134,12 +139,10 @@ class TestCalculateRequiredEnergy:
 
         result = calculate_required_energy(participants, periods_hours)
 
-        # Total load = [3.0, 2.0]
-        # Total solar = [1.0, 1.0]
-        # Net power = solar - load = [-2.0, -1.0]
-        # Required power = [2.0, 1.0]
-        # Required energy = [2.0, 1.0]
-        # Reverse cumsum = [3.0, 1.0, 0.0]
+        # Total load = [3.0, 2.0], Total solar = [1.0, 1.0]
+        # Net energy = (solar - load) * period = [-2.0, -1.0] kWh
+        # From t=0: running balance = [-2, -3], max drawdown = 3
+        # From t=1: running balance = [-1], max drawdown = 1
         assert result == pytest.approx([3.0, 1.0, 0.0])
 
     def test_ignores_non_load_solar_elements(self) -> None:
@@ -163,8 +166,9 @@ class TestCalculateRequiredEnergy:
         result = calculate_required_energy(participants, periods_hours)
 
         # Only load counts, no solar
-        # Required energy = [2.0, 2.0]
-        # Reverse cumsum = [4.0, 2.0, 0.0]
+        # Net energy = [-2.0, -2.0] kWh
+        # From t=0: running balance = [-2, -4], max drawdown = 4
+        # From t=1: running balance = [-2], max drawdown = 2
         assert result == pytest.approx([4.0, 2.0, 0.0])
 
     def test_variable_period_lengths(self) -> None:
@@ -180,9 +184,10 @@ class TestCalculateRequiredEnergy:
 
         result = calculate_required_energy(participants, periods_hours)
 
-        # Required energy per interval = 1 kW * period
-        # = [0.0833..., 0.5, 1.0] kWh
-        # Reverse cumsum = [1.5833..., 1.5, 1.0, 0.0]
+        # Net energy = -1 kW * period = [-0.0833, -0.5, -1.0] kWh
+        # From t=0: running balance = [-0.0833, -0.5833, -1.5833], max drawdown = 1.5833
+        # From t=1: running balance = [-0.5, -1.5], max drawdown = 1.5
+        # From t=2: running balance = [-1.0], max drawdown = 1.0
         expected = [
             5 / 60 + 30 / 60 + 60 / 60,  # 1.5833...
             30 / 60 + 60 / 60,  # 1.5
@@ -222,3 +227,64 @@ class TestCalculateRequiredEnergy:
 
         # Should return zeros since no forecast data
         assert result == pytest.approx([0.0, 0.0, 0.0])
+
+    def test_solar_recharge_in_middle_reduces_requirement(self) -> None:
+        """Test that solar surplus in the middle recharges the battery.
+
+        This is the key test for the maximum drawdown algorithm:
+        - Evening: 2kW load, no solar = -2 kWh deficit
+        - Midday: 1kW load, 3kW solar = +2 kWh surplus (recharges battery)
+        - Night: 1kW load, no solar = -1 kWh deficit
+
+        Old algorithm (sum of deficits) would give [3, 1, 1, 0] - wrong!
+        New algorithm (max drawdown) gives [2, 0, 1, 0] - correct!
+
+        At t=0, the battery only needs 2 kWh to survive until midday solar,
+        which then recharges it. The night deficit requires a fresh 1 kWh.
+        """
+        participants = {
+            "my_load": {
+                "element_type": "load",
+                "forecast": [2.0, 1.0, 1.0],  # kW
+            },
+            "my_solar": {
+                "element_type": "solar",
+                "forecast": [0.0, 3.0, 0.0],  # Midday solar burst
+            },
+        }
+        periods_hours = [1.0, 1.0, 1.0]
+
+        result = calculate_required_energy(participants, periods_hours)
+
+        # Net energy = (solar - load) * period = [-2.0, +2.0, -1.0] kWh
+        # From t=0: running balance = [-2, 0, -1], max drawdown = 2 (not 3!)
+        # From t=1: running balance = [+2, +1], max drawdown = 0 (surplus)
+        # From t=2: running balance = [-1], max drawdown = 1
+        assert result == pytest.approx([2.0, 0.0, 1.0, 0.0])
+
+    def test_multiple_drawdown_peaks(self) -> None:
+        """Test scenario with multiple deficit peaks separated by solar surplus.
+
+        Pattern: deficit -> surplus -> deeper deficit -> surplus
+        The algorithm should find the deepest drawdown from each starting point.
+        """
+        participants = {
+            "my_load": {
+                "element_type": "load",
+                "forecast": [1.0, 0.5, 3.0, 0.5],  # kW
+            },
+            "my_solar": {
+                "element_type": "solar",
+                "forecast": [0.0, 2.0, 0.0, 3.0],  # kW
+            },
+        }
+        periods_hours = [1.0, 1.0, 1.0, 1.0]
+
+        result = calculate_required_energy(participants, periods_hours)
+
+        # Net energy = [-1.0, +1.5, -3.0, +2.5] kWh
+        # From t=0: running balance = [-1, +0.5, -2.5, 0], max drawdown = 2.5
+        # From t=1: running balance = [+1.5, -1.5, +1], max drawdown = 1.5
+        # From t=2: running balance = [-3, -0.5], max drawdown = 3
+        # From t=3: running balance = [+2.5], max drawdown = 0
+        assert result == pytest.approx([2.5, 1.5, 3.0, 0.0, 0.0])
