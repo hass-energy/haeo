@@ -19,19 +19,22 @@ from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
-    CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
+    CONF_TIER_1_UNTIL,
     CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
+    CONF_TIER_2_UNTIL,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
+    CONF_TIER_3_UNTIL,
     CONF_TIER_4_DURATION,
+    CONF_TIER_4_UNTIL,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_2_UNTIL,
     DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_3_UNTIL,
     DEFAULT_TIER_4_DURATION,
+    DEFAULT_TIER_4_UNTIL,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
@@ -99,14 +102,14 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Power Network",
-            CONF_TIER_1_COUNT: 2,  # 2 intervals of 30 min = 1 hour horizon
-            CONF_TIER_1_DURATION: 30,
-            CONF_TIER_2_COUNT: 0,
+            CONF_TIER_1_DURATION: 30,  # 30 min intervals
+            CONF_TIER_1_UNTIL: 60,  # until 1 hour = 2 intervals
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: 0,
+            CONF_TIER_2_UNTIL: 60,  # Same as tier 1 until = 0 additional periods
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: 0,
+            CONF_TIER_3_UNTIL: 60,  # Same as tier 2 until = 0 additional periods
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            CONF_TIER_4_UNTIL: 60,  # Same as tier 3 until = 0 additional periods
             CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
             CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },

@@ -8,22 +8,22 @@ from homeassistant.core import HomeAssistant
 import pytest
 
 from custom_components.haeo.const import (
-    CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
+    CONF_TIER_1_UNTIL,
     CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
+    CONF_TIER_2_UNTIL,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
+    CONF_TIER_3_UNTIL,
     CONF_TIER_4_DURATION,
-    DEFAULT_TIER_1_COUNT,
+    CONF_TIER_4_UNTIL,
     DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_1_UNTIL,
     DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_2_UNTIL,
     DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_3_UNTIL,
     DEFAULT_TIER_4_DURATION,
+    DEFAULT_TIER_4_UNTIL,
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
@@ -84,14 +84,14 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     entry = MagicMock()
     entry.title = "HAEO Hub"
     entry.data = {
-        CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
         CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-        CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+        CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
         CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-        CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+        CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
         CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-        CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+        CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
         CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
     }
     entry.runtime_data = coordinator
 
@@ -104,9 +104,8 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     assert info["HAEO Hub_last_optimization_duration"] == pytest.approx(1.234)
     assert info["HAEO Hub_last_optimization_time"] == "2024-01-01T12:00:00+00:00"
     assert info["HAEO Hub_outputs"] == 1
-    # Check the tier-based configuration is reported
-    total_periods = DEFAULT_TIER_1_COUNT + DEFAULT_TIER_2_COUNT + DEFAULT_TIER_3_COUNT + DEFAULT_TIER_4_COUNT
-    assert info["HAEO Hub_total_periods"] == total_periods
+    # Check the tier-based configuration is reported (110 periods with default config)
+    assert info["HAEO Hub_total_periods"] == 110
 
 
 async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None:
@@ -119,7 +118,16 @@ async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None
 
     entry = MagicMock()
     entry.title = "HAEO Hub"
-    entry.data = {}
+    entry.data = {
+        CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+        CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
+        CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+        CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
+        CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+        CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
+        CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
+    }
     entry.runtime_data = coordinator
 
     with patch.object(hass.config_entries, "async_entries", return_value=[entry]):

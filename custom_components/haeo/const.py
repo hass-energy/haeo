@@ -17,31 +17,31 @@ CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
 
 ELEMENT_TYPE_NETWORK: Final = "network"
 
-# Interval tier configuration (4 tiers with count and duration each)
-# Each tier specifies: count = number of intervals, duration = minutes per interval
-CONF_TIER_1_COUNT: Final = "tier_1_count"
+# Interval tier configuration (4 tiers with duration and until each)
+# Each tier specifies: duration = minutes per interval, until = cumulative time in minutes
 CONF_TIER_1_DURATION: Final = "tier_1_duration"
-CONF_TIER_2_COUNT: Final = "tier_2_count"
+CONF_TIER_1_UNTIL: Final = "tier_1_until"
 CONF_TIER_2_DURATION: Final = "tier_2_duration"
-CONF_TIER_3_COUNT: Final = "tier_3_count"
+CONF_TIER_2_UNTIL: Final = "tier_2_until"
 CONF_TIER_3_DURATION: Final = "tier_3_duration"
-CONF_TIER_4_COUNT: Final = "tier_4_count"
+CONF_TIER_3_UNTIL: Final = "tier_3_until"
 CONF_TIER_4_DURATION: Final = "tier_4_duration"
+CONF_TIER_4_UNTIL: Final = "tier_4_until"
 
-# Default tier values: (count, duration_minutes)
-# Tier 1: 5 intervals of 1 minute = 5 minutes total
-# Tier 2: 11 intervals of 5 minutes = 55 minutes total (60 min cumulative)
-# Tier 3: 46 intervals of 30 minutes = 23 hours total (24 hr cumulative)
-# Tier 4: 48 intervals of 60 minutes = 48 hours total (72 hr cumulative)
-# Total: 110 periods covering ~72 hours
-DEFAULT_TIER_1_COUNT: Final = 5
+# Default tier values: (duration_minutes, until_minutes)
+# Tier 1: 1 minute slices until 5 minutes → 5 periods
+# Tier 2: 5 minute slices until 60 minutes → 11 periods
+# Tier 3: 30 minute slices until 1440 minutes (1 day) → 46 periods
+# Tier 4: 60 minute slices until 4320 minutes (3 days) → 48 periods
+# Total: 110 periods covering 72 hours
 DEFAULT_TIER_1_DURATION: Final = 1
-DEFAULT_TIER_2_COUNT: Final = 11
+DEFAULT_TIER_1_UNTIL: Final = 5
 DEFAULT_TIER_2_DURATION: Final = 5
-DEFAULT_TIER_3_COUNT: Final = 46
+DEFAULT_TIER_2_UNTIL: Final = 60
 DEFAULT_TIER_3_DURATION: Final = 30
-DEFAULT_TIER_4_COUNT: Final = 48
+DEFAULT_TIER_3_UNTIL: Final = 1440  # 1 day
 DEFAULT_TIER_4_DURATION: Final = 60
+DEFAULT_TIER_4_UNTIL: Final = 4320  # 3 days
 
 # Other defaults
 DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default

@@ -10,14 +10,14 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_ELEMENT_TYPE,
-    CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
+    CONF_TIER_1_UNTIL,
     CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
+    CONF_TIER_2_UNTIL,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
+    CONF_TIER_3_UNTIL,
     CONF_TIER_4_DURATION,
+    CONF_TIER_4_UNTIL,
 )
 from .coordinator import extract_entity_ids_from_config
 from .elements import is_element_config_schema
@@ -36,14 +36,14 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
     # Build config section with participants
     config: dict[str, Any] = {
         "participants": {},
-        CONF_TIER_1_COUNT: config_entry.data.get(CONF_TIER_1_COUNT),
         CONF_TIER_1_DURATION: config_entry.data.get(CONF_TIER_1_DURATION),
-        CONF_TIER_2_COUNT: config_entry.data.get(CONF_TIER_2_COUNT),
+        CONF_TIER_1_UNTIL: config_entry.data.get(CONF_TIER_1_UNTIL),
         CONF_TIER_2_DURATION: config_entry.data.get(CONF_TIER_2_DURATION),
-        CONF_TIER_3_COUNT: config_entry.data.get(CONF_TIER_3_COUNT),
+        CONF_TIER_2_UNTIL: config_entry.data.get(CONF_TIER_2_UNTIL),
         CONF_TIER_3_DURATION: config_entry.data.get(CONF_TIER_3_DURATION),
-        CONF_TIER_4_COUNT: config_entry.data.get(CONF_TIER_4_COUNT),
+        CONF_TIER_3_UNTIL: config_entry.data.get(CONF_TIER_3_UNTIL),
         CONF_TIER_4_DURATION: config_entry.data.get(CONF_TIER_4_DURATION),
+        CONF_TIER_4_UNTIL: config_entry.data.get(CONF_TIER_4_UNTIL),
     }
 
     # Transform subentries into participants dict

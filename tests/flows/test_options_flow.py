@@ -10,24 +10,24 @@ from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
-    CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
+    CONF_TIER_1_UNTIL,
     CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
+    CONF_TIER_2_UNTIL,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
+    CONF_TIER_3_UNTIL,
     CONF_TIER_4_DURATION,
+    CONF_TIER_4_UNTIL,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
-    DEFAULT_TIER_1_COUNT,
     DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_1_UNTIL,
     DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_2_UNTIL,
     DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_3_UNTIL,
     DEFAULT_TIER_4_DURATION,
+    DEFAULT_TIER_4_UNTIL,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
@@ -43,13 +43,13 @@ async def test_options_flow_init(hass: HomeAssistant) -> None:
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
             CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
             CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
@@ -64,7 +64,7 @@ async def test_options_flow_init(hass: HomeAssistant) -> None:
 
     assert result["data_schema"] is not None
     schema_keys = {vol_key.schema: vol_key for vol_key in result["data_schema"].schema}
-    assert schema_keys[CONF_TIER_1_COUNT].default() == DEFAULT_TIER_1_COUNT
+    assert schema_keys[CONF_TIER_1_UNTIL].default() == DEFAULT_TIER_1_UNTIL
     assert schema_keys[CONF_TIER_1_DURATION].default() == DEFAULT_TIER_1_DURATION
 
 
@@ -75,13 +75,13 @@ async def test_options_flow_configure_network_success(hass: HomeAssistant) -> No
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
             CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
             CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
@@ -98,13 +98,13 @@ async def test_options_flow_configure_network_success(hass: HomeAssistant) -> No
         await hass.config_entries.options.async_configure(
             result["flow_id"],
             user_input={
-                CONF_TIER_1_COUNT: 10,
+                CONF_TIER_1_UNTIL: 10,
                 CONF_TIER_1_DURATION: 2,
-                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+                CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
                 CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+                CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
                 CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+                CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
                 CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
                 CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
                 CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
@@ -113,5 +113,5 @@ async def test_options_flow_configure_network_success(hass: HomeAssistant) -> No
     )
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert entry.data[CONF_TIER_1_COUNT] == 10
+    assert entry.data[CONF_TIER_1_UNTIL] == 10
     assert entry.data[CONF_TIER_1_DURATION] == 2

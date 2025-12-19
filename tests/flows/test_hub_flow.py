@@ -8,22 +8,22 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
     CONF_NAME,
-    CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
+    CONF_TIER_1_UNTIL,
     CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
+    CONF_TIER_2_UNTIL,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
+    CONF_TIER_3_UNTIL,
     CONF_TIER_4_DURATION,
-    DEFAULT_TIER_1_COUNT,
+    CONF_TIER_4_UNTIL,
     DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_1_UNTIL,
     DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_2_UNTIL,
     DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_3_UNTIL,
     DEFAULT_TIER_4_DURATION,
+    DEFAULT_TIER_4_UNTIL,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
@@ -45,13 +45,13 @@ async def test_user_flow_success(hass: HomeAssistant) -> None:
         result["flow_id"],
         user_input={
             CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     )
@@ -62,7 +62,7 @@ async def test_user_flow_success(hass: HomeAssistant) -> None:
     assert data is not None
     assert data[CONF_NAME] == "Test Hub"
     assert data["integration_type"] == INTEGRATION_TYPE_HUB
-    assert data[CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
+    assert data[CONF_TIER_1_UNTIL] == DEFAULT_TIER_1_UNTIL
     assert data[CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
 
     # Verify entry was created
@@ -79,13 +79,13 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         data={
             "integration_type": INTEGRATION_TYPE_HUB,
             CONF_NAME: "Existing Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         title="Existing Hub",
@@ -99,13 +99,13 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         result["flow_id"],
         user_input={
             CONF_NAME: "Existing Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     )
@@ -118,13 +118,13 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         result["flow_id"],
         user_input={
             CONF_NAME: "New Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     )
@@ -142,13 +142,13 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
         result["flow_id"],
         user_input={
             CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     )
@@ -162,13 +162,13 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
         result["flow_id"],
         user_input={
             CONF_NAME: "test hub",  # Same name, different case
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     )
@@ -190,7 +190,7 @@ async def test_user_flow_default_values(hass: HomeAssistant) -> None:
     schema_keys = {vol_key.schema: vol_key for vol_key in data_schema.schema}
 
     # Verify default values for tier 1 (as representative sample)
-    assert schema_keys[CONF_TIER_1_COUNT].default() == DEFAULT_TIER_1_COUNT
+    assert schema_keys[CONF_TIER_1_UNTIL].default() == DEFAULT_TIER_1_UNTIL
     assert schema_keys[CONF_TIER_1_DURATION].default() == DEFAULT_TIER_1_DURATION
 
 
@@ -202,13 +202,13 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
         data={
             "integration_type": INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         entry_id="test_hub_id",

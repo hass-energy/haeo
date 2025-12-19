@@ -8,14 +8,14 @@ from homeassistant.config_entries import ConfigFlowResult
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
-    CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
+    CONF_TIER_1_UNTIL,
     CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
+    CONF_TIER_2_UNTIL,
     CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
+    CONF_TIER_3_UNTIL,
     CONF_TIER_4_DURATION,
+    CONF_TIER_4_UNTIL,
     CONF_UPDATE_INTERVAL_MINUTES,
 )
 
@@ -32,14 +32,14 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             new_data = self.config_entry.data.copy()
             # Tier configuration
-            new_data[CONF_TIER_1_COUNT] = user_input[CONF_TIER_1_COUNT]
             new_data[CONF_TIER_1_DURATION] = user_input[CONF_TIER_1_DURATION]
-            new_data[CONF_TIER_2_COUNT] = user_input[CONF_TIER_2_COUNT]
+            new_data[CONF_TIER_1_UNTIL] = user_input[CONF_TIER_1_UNTIL]
             new_data[CONF_TIER_2_DURATION] = user_input[CONF_TIER_2_DURATION]
-            new_data[CONF_TIER_3_COUNT] = user_input[CONF_TIER_3_COUNT]
+            new_data[CONF_TIER_2_UNTIL] = user_input[CONF_TIER_2_UNTIL]
             new_data[CONF_TIER_3_DURATION] = user_input[CONF_TIER_3_DURATION]
-            new_data[CONF_TIER_4_COUNT] = user_input[CONF_TIER_4_COUNT]
+            new_data[CONF_TIER_3_UNTIL] = user_input[CONF_TIER_3_UNTIL]
             new_data[CONF_TIER_4_DURATION] = user_input[CONF_TIER_4_DURATION]
+            new_data[CONF_TIER_4_UNTIL] = user_input[CONF_TIER_4_UNTIL]
             # Update and debounce settings
             new_data[CONF_UPDATE_INTERVAL_MINUTES] = user_input[CONF_UPDATE_INTERVAL_MINUTES]
             new_data[CONF_DEBOUNCE_SECONDS] = user_input[CONF_DEBOUNCE_SECONDS]
