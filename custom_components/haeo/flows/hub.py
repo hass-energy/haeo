@@ -117,6 +117,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         # Get tier values from preset or from custom input
         if horizon_preset and horizon_preset != HORIZON_PRESET_CUSTOM:
             tier_config = HORIZON_PRESETS[horizon_preset]
+            stored_preset = horizon_preset
         else:
             # Custom values were provided in _user_input
             tier_config = {
@@ -129,6 +130,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_TIER_4_DURATION: self._user_input[CONF_TIER_4_DURATION],
                 CONF_TIER_4_UNTIL: self._user_input[CONF_TIER_4_UNTIL],
             }
+            stored_preset = HORIZON_PRESET_CUSTOM
 
         # Resolve the switchboard node name from translations
         translations = await async_get_translations(
@@ -144,6 +146,8 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             data={
                 CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
                 CONF_NAME: hub_name,
+                # Store the chosen preset for the options flow
+                CONF_HORIZON_PRESET: stored_preset,
                 # Tier configuration
                 CONF_TIER_1_DURATION: tier_config[CONF_TIER_1_DURATION],
                 CONF_TIER_1_UNTIL: tier_config[CONF_TIER_1_UNTIL],

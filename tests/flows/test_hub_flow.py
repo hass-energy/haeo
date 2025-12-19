@@ -71,6 +71,9 @@ async def test_user_flow_success_with_preset(hass: HomeAssistant) -> None:
     assert data[CONF_NAME] == "Test Hub"
     assert data["integration_type"] == INTEGRATION_TYPE_HUB
 
+    # Verify preset is stored in entry data
+    assert data[CONF_HORIZON_PRESET] == HORIZON_PRESET_3_DAYS
+
     # Verify preset values were applied
     preset_values = HORIZON_PRESETS[HORIZON_PRESET_3_DAYS]
     assert data[CONF_TIER_1_DURATION] == preset_values[CONF_TIER_1_DURATION]
@@ -155,6 +158,9 @@ async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None
     assert result.get("title") == "Custom Hub"
     data = result.get("data")
     assert data is not None
+
+    # Verify preset is stored as custom
+    assert data[CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM
 
     # Verify custom values were used
     assert data[CONF_TIER_1_DURATION] == 2
@@ -297,8 +303,8 @@ async def test_user_flow_default_values(hass: HomeAssistant) -> None:
     # Check suggested values exist in the schema
     schema_keys = {vol_key.schema: vol_key for vol_key in data_schema.schema}
 
-    # Verify default horizon preset is 3 days
-    assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_3_DAYS
+    # Verify default horizon preset is 5 days
+    assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_5_DAYS
 
 
 async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:

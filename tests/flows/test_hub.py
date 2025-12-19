@@ -20,7 +20,7 @@ from custom_components.haeo.const import (
     DOMAIN,
 )
 from custom_components.haeo.flows import (
-    HORIZON_PRESET_3_DAYS,
+    HORIZON_PRESET_5_DAYS,
     get_custom_tiers_schema,
     get_hub_setup_schema,
     get_network_config_schema,
@@ -186,10 +186,10 @@ async def test_schema_coerces_floats_to_integers(hass: HomeAssistant) -> None:
 
 
 async def test_hub_setup_schema_default_preset(hass: HomeAssistant) -> None:
-    """Test that the hub setup schema defaults to 3 days preset."""
+    """Test that the hub setup schema defaults to 5 days preset."""
     schema = get_hub_setup_schema()
 
     # Find the horizon_preset field
     schema_keys = {vol_key.schema: vol_key for vol_key in schema.schema}
     assert CONF_HORIZON_PRESET in schema_keys, "CONF_HORIZON_PRESET not found in schema"
-    assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_3_DAYS
+    assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_5_DAYS
