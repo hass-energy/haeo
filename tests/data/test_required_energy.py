@@ -12,9 +12,13 @@ The calculation uses a "maximum drawdown" approach:
    (the deepest point the battery would drain to before being recharged)
 """
 
+from collections.abc import Mapping
+from typing import cast
+
 import pytest
 
 from custom_components.haeo.data import calculate_required_energy
+from custom_components.haeo.elements import ElementConfigData
 
 
 class TestCalculateRequiredEnergy:
@@ -33,12 +37,15 @@ class TestCalculateRequiredEnergy:
 
     def test_load_only_no_solar(self) -> None:
         """Test with load only, no solar - all load becomes required energy."""
-        participants = {
-            "my_load": {
-                "element_type": "load",
-                "forecast": [2.0, 1.0, 0.5],  # kW
-            }
-        }
+        participants = cast(
+            Mapping[str, ElementConfigData],
+            {
+                "my_load": {
+                    "element_type": "load",
+                    "forecast": [2.0, 1.0, 0.5],  # kW
+                }
+            },
+        )
         periods_hours = [1.0, 1.0, 1.0]  # 1 hour each
 
         result = calculate_required_energy(participants, periods_hours)
@@ -51,16 +58,19 @@ class TestCalculateRequiredEnergy:
 
     def test_solar_covers_all_load(self) -> None:
         """Test with solar exceeding load - no required energy."""
-        participants = {
-            "my_load": {
-                "element_type": "load",
-                "forecast": [1.0, 1.0, 1.0],  # kW
+        participants = cast(
+            Mapping[str, ElementConfigData],
+            {
+                "my_load": {
+                    "element_type": "load",
+                    "forecast": [1.0, 1.0, 1.0],  # kW
+                },
+                "my_solar": {
+                    "element_type": "solar",
+                    "forecast": [2.0, 2.0, 2.0],  # kW (exceeds load)
+                },
             },
-            "my_solar": {
-                "element_type": "solar",
-                "forecast": [2.0, 2.0, 2.0],  # kW (exceeds load)
-            },
-        }
+        )
         periods_hours = [1.0, 1.0, 1.0]
 
         result = calculate_required_energy(participants, periods_hours)
@@ -70,16 +80,19 @@ class TestCalculateRequiredEnergy:
 
     def test_solar_partially_covers_load(self) -> None:
         """Test with solar partially covering load."""
-        participants = {
-            "my_load": {
-                "element_type": "load",
-                "forecast": [3.0, 2.0, 1.0],  # kW
+        participants = cast(
+            Mapping[str, ElementConfigData],
+            {
+                "my_load": {
+                    "element_type": "load",
+                    "forecast": [3.0, 2.0, 1.0],  # kW
+                },
+                "my_solar": {
+                    "element_type": "solar",
+                    "forecast": [1.0, 1.0, 2.0],  # kW
+                },
             },
-            "my_solar": {
-                "element_type": "solar",
-                "forecast": [1.0, 1.0, 2.0],  # kW
-            },
-        }
+        )
         periods_hours = [1.0, 1.0, 1.0]
 
         result = calculate_required_energy(participants, periods_hours)
@@ -92,16 +105,19 @@ class TestCalculateRequiredEnergy:
 
     def test_overnight_scenario(self) -> None:
         """Test realistic overnight scenario where solar drops to zero."""
-        participants = {
-            "my_load": {
-                "element_type": "load",
-                "forecast": [2.0, 1.0, 0.5, 1.0, 1.0],  # Evening to morning
+        participants = cast(
+            Mapping[str, ElementConfigData],
+            {
+                "my_load": {
+                    "element_type": "load",
+                    "forecast": [2.0, 1.0, 0.5, 1.0, 1.0],  # Evening to morning
+                },
+                "my_solar": {
+                    "element_type": "solar",
+                    "forecast": [0.0, 0.0, 0.0, 2.0, 5.0],  # No solar until morning
+                },
             },
-            "my_solar": {
-                "element_type": "solar",
-                "forecast": [0.0, 0.0, 0.0, 2.0, 5.0],  # No solar until morning
-            },
-        }
+        )
         periods_hours = [2.0, 4.0, 6.0, 4.0, 4.0]  # Variable length periods
 
         result = calculate_required_energy(participants, periods_hours)
@@ -117,24 +133,27 @@ class TestCalculateRequiredEnergy:
 
     def test_multiple_loads_and_solar(self) -> None:
         """Test with multiple load and solar elements - they should aggregate."""
-        participants = {
-            "load_1": {
-                "element_type": "load",
-                "forecast": [1.0, 1.0],
+        participants = cast(
+            Mapping[str, ElementConfigData],
+            {
+                "load_1": {
+                    "element_type": "load",
+                    "forecast": [1.0, 1.0],
+                },
+                "load_2": {
+                    "element_type": "load",
+                    "forecast": [2.0, 1.0],
+                },
+                "solar_1": {
+                    "element_type": "solar",
+                    "forecast": [0.5, 0.5],
+                },
+                "solar_2": {
+                    "element_type": "solar",
+                    "forecast": [0.5, 0.5],
+                },
             },
-            "load_2": {
-                "element_type": "load",
-                "forecast": [2.0, 1.0],
-            },
-            "solar_1": {
-                "element_type": "solar",
-                "forecast": [0.5, 0.5],
-            },
-            "solar_2": {
-                "element_type": "solar",
-                "forecast": [0.5, 0.5],
-            },
-        }
+        )
         periods_hours = [1.0, 1.0]
 
         result = calculate_required_energy(participants, periods_hours)
@@ -147,20 +166,23 @@ class TestCalculateRequiredEnergy:
 
     def test_ignores_non_load_solar_elements(self) -> None:
         """Test that battery, grid, and other elements are ignored."""
-        participants = {
-            "my_load": {
-                "element_type": "load",
-                "forecast": [2.0, 2.0],
+        participants = cast(
+            Mapping[str, ElementConfigData],
+            {
+                "my_load": {
+                    "element_type": "load",
+                    "forecast": [2.0, 2.0],
+                },
+                "my_battery": {
+                    "element_type": "battery",
+                    "capacity": [10.0, 10.0],  # Should be ignored
+                },
+                "my_grid": {
+                    "element_type": "grid",
+                    "import_price": [0.30, 0.30],  # Should be ignored
+                },
             },
-            "my_battery": {
-                "element_type": "battery",
-                "capacity": [10.0, 10.0],  # Should be ignored
-            },
-            "my_grid": {
-                "element_type": "grid",
-                "import_price": [0.30, 0.30],  # Should be ignored
-            },
-        }
+        )
         periods_hours = [1.0, 1.0]
 
         result = calculate_required_energy(participants, periods_hours)
@@ -173,12 +195,15 @@ class TestCalculateRequiredEnergy:
 
     def test_variable_period_lengths(self) -> None:
         """Test with variable-length periods (like the tier system)."""
-        participants = {
-            "my_load": {
-                "element_type": "load",
-                "forecast": [1.0, 1.0, 1.0],  # 1 kW constant
+        participants = cast(
+            Mapping[str, ElementConfigData],
+            {
+                "my_load": {
+                    "element_type": "load",
+                    "forecast": [1.0, 1.0, 1.0],  # 1 kW constant
+                },
             },
-        }
+        )
         # Tier-like periods: 5 min, 30 min, 60 min (in hours)
         periods_hours = [5 / 60, 30 / 60, 60 / 60]
 
@@ -198,12 +223,15 @@ class TestCalculateRequiredEnergy:
 
     def test_terminal_value_is_zero(self) -> None:
         """Test that the last value (end of horizon) is always zero."""
-        participants = {
-            "my_load": {
-                "element_type": "load",
-                "forecast": [10.0, 10.0, 10.0],
+        participants = cast(
+            Mapping[str, ElementConfigData],
+            {
+                "my_load": {
+                    "element_type": "load",
+                    "forecast": [10.0, 10.0, 10.0],
+                },
             },
-        }
+        )
         periods_hours = [1.0, 1.0, 1.0]
 
         result = calculate_required_energy(participants, periods_hours)
@@ -215,12 +243,15 @@ class TestCalculateRequiredEnergy:
 
     def test_missing_forecast_key_handled(self) -> None:
         """Test that elements without forecast key are handled gracefully."""
-        participants = {
-            "my_load": {
-                "element_type": "load",
-                # No "forecast" key
+        participants = cast(
+            Mapping[str, ElementConfigData],
+            {
+                "my_load": {
+                    "element_type": "load",
+                    # No "forecast" key
+                },
             },
-        }
+        )
         periods_hours = [1.0, 1.0]
 
         result = calculate_required_energy(participants, periods_hours)
@@ -242,16 +273,19 @@ class TestCalculateRequiredEnergy:
         At t=0, the battery only needs 2 kWh to survive until midday solar,
         which then recharges it. The night deficit requires a fresh 1 kWh.
         """
-        participants = {
-            "my_load": {
-                "element_type": "load",
-                "forecast": [2.0, 1.0, 1.0],  # kW
+        participants = cast(
+            Mapping[str, ElementConfigData],
+            {
+                "my_load": {
+                    "element_type": "load",
+                    "forecast": [2.0, 1.0, 1.0],  # kW
+                },
+                "my_solar": {
+                    "element_type": "solar",
+                    "forecast": [0.0, 3.0, 0.0],  # Midday solar burst
+                },
             },
-            "my_solar": {
-                "element_type": "solar",
-                "forecast": [0.0, 3.0, 0.0],  # Midday solar burst
-            },
-        }
+        )
         periods_hours = [1.0, 1.0, 1.0]
 
         result = calculate_required_energy(participants, periods_hours)
@@ -268,16 +302,19 @@ class TestCalculateRequiredEnergy:
         Pattern: deficit -> surplus -> deeper deficit -> surplus
         The algorithm should find the deepest drawdown from each starting point.
         """
-        participants = {
-            "my_load": {
-                "element_type": "load",
-                "forecast": [1.0, 0.5, 3.0, 0.5],  # kW
+        participants = cast(
+            Mapping[str, ElementConfigData],
+            {
+                "my_load": {
+                    "element_type": "load",
+                    "forecast": [1.0, 0.5, 3.0, 0.5],  # kW
+                },
+                "my_solar": {
+                    "element_type": "solar",
+                    "forecast": [0.0, 2.0, 0.0, 3.0],  # kW
+                },
             },
-            "my_solar": {
-                "element_type": "solar",
-                "forecast": [0.0, 2.0, 0.0, 3.0],  # kW
-            },
-        }
+        )
         periods_hours = [1.0, 1.0, 1.0, 1.0]
 
         result = calculate_required_energy(participants, periods_hours)

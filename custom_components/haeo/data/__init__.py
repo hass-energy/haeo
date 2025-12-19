@@ -101,10 +101,8 @@ async def load_network(
     # ==================================================================================
     periods_hours = [s / 3600 for s in periods_seconds]
 
-    # Calculate required energy BEFORE building network (available to model elements)
     required_energy = calculate_required_energy(participants, periods_hours)
 
-    # Build network with periods in hours and required_energy available
     net = Network(
         name=f"haeo_network_{entry.entry_id}",
         periods=periods_hours,
