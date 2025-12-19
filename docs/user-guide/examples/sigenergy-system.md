@@ -49,17 +49,17 @@ Before starting this configuration, ensure you have:
 
 Configure the network through Settings → Devices & Services → Add Integration → HAEO:
 
-| Field              | Value            |
-| ------------------ | ---------------- |
-| **Name**           | Sigenergy System |
-| **Tier 1 Count**   | 5                |
-| **Tier 1 Duration**| 1                |
-| **Tier 2 Count**   | 11               |
-| **Tier 2 Duration**| 5                |
-| **Tier 3 Count**   | 46               |
-| **Tier 3 Duration**| 30               |
-| **Tier 4 Count**   | 48               |
-| **Tier 4 Duration**| 60               |
+| Field               | Value            |
+| ------------------- | ---------------- |
+| **Name**            | Sigenergy System |
+| **Tier 1 Count**    | 5                |
+| **Tier 1 Duration** | 1                |
+| **Tier 2 Count**    | 11               |
+| **Tier 2 Duration** | 5                |
+| **Tier 3 Count**    | 46               |
+| **Tier 3 Duration** | 30               |
+| **Tier 4 Count**    | 48               |
+| **Tier 4 Duration** | 60               |
 
 After submitting, you should see a Switchboard element already exists. This is the AC power balance point where grid and loads connect.
 
@@ -67,12 +67,12 @@ After submitting, you should see a Switchboard element already exists. This is t
 
 The Inverter element models your hybrid inverter with its built-in DC bus. Battery and solar will connect to this element.
 
-| Field                  | Value                            |
-| ---------------------- | -------------------------------- |
-| **Name**               | Inverter                         |
-| **AC Connection**      | Switchboard                      |
-| **Max DC to AC power** | Sigen Plant Max Active Power     |
-| **Max AC to DC power** | Sigen Plant Max Active Power     |
+| Field                  | Value                        |
+| ---------------------- | ---------------------------- |
+| **Name**               | Inverter                     |
+| **AC Connection**      | Switchboard                  |
+| **Max DC to AC power** | Sigen Plant Max Active Power |
+| **Max AC to DC power** | Sigen Plant Max Active Power |
 
 !!! tip "Selecting Sensors"
 
@@ -83,19 +83,19 @@ The Inverter element models your hybrid inverter with its built-in DC bus. Batte
 
 Configure the Sigenergy battery, connecting to the Inverter's DC side:
 
-| Field                         | Value                                     |
-| ----------------------------- | ----------------------------------------- |
-| **Name**                      | Battery                                   |
-| **Connection**                | Inverter                                  |
-| **Capacity**                  | Sigen Plant Rated Energy Capacity         |
-| **Current Charge Percentage** | Sigen Plant Battery State of Charge       |
-| **Min Charge Percentage**     | 10                                        |
-| **Max Charge Percentage**     | 100                                       |
-| **Efficiency**                | 99                                        |
-| **Max Charge Power**          | Sigen Plant Ess Rated Charging Power      |
-| **Max Discharge Power**       | Sigen Plant Ess Rated Discharging Power   |
-| **Early Charge Incentive**    | 0.001                                     |
-| **Discharge Cost**            | *(optional)*                              |
+| Field                         | Value                                   |
+| ----------------------------- | --------------------------------------- |
+| **Name**                      | Battery                                 |
+| **Connection**                | Inverter                                |
+| **Capacity**                  | Sigen Plant Rated Energy Capacity       |
+| **Current Charge Percentage** | Sigen Plant Battery State of Charge     |
+| **Min Charge Percentage**     | 10                                      |
+| **Max Charge Percentage**     | 100                                     |
+| **Efficiency**                | 99                                      |
+| **Max Charge Power**          | Sigen Plant Ess Rated Charging Power    |
+| **Max Discharge Power**       | Sigen Plant Ess Rated Discharging Power |
+| **Early Charge Incentive**    | 0.001                                   |
+| **Discharge Cost**            | *(optional)*                            |
 
 !!! tip "Searching for Battery Sensors"
 
@@ -110,12 +110,12 @@ Configure the Sigenergy battery, connecting to the Inverter's DC side:
 
 Configure solar arrays with forecast sensors for each orientation, connecting to the Inverter's DC side:
 
-| Field            | Value          |
-| ---------------- | -------------- |
-| **Name**         | Solar          |
-| **Connection**   | Inverter       |
-| **Forecast**     | *(see below)*  |
-| **Curtailment**  | Yes            |
+| Field           | Value         |
+| --------------- | ------------- |
+| **Name**        | Solar         |
+| **Connection**  | Inverter      |
+| **Forecast**    | *(see below)* |
+| **Curtailment** | Yes           |
 
 For the Forecast field, use the "Add entity" button to select multiple sensors. With Open-Meteo Solar Forecast for four orientations, search and select:
 
@@ -184,7 +184,7 @@ After completing configuration:
 In the HAEO integration page, you should see:
 
 | Element               | Type     | Entities |
-|-----------------------|----------|----------|
+| --------------------- | -------- | -------- |
 | Sigenergy System      | Network  | 3        |
 | Switchboard           | Node     | 1        |
 | Inverter              | Inverter | 8        |
