@@ -4,10 +4,18 @@
     "step": {
       "user": {
         "title": "HAEO Network Setup",
-        "description": "Create a new HAEO optimization network with dynamic interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity. Default: 110 periods covering ~72 hours.",
+        "description": "Create a new HAEO optimization network. Choose a planning horizon that matches your forecast data availability.",
         "data": {
           "debounce_seconds": "Debounce Window (seconds)",
+          "horizon_preset": "Planning Horizon",
           "name": "Network Name",
+          "update_interval_minutes": "Update Interval (minutes)"
+        }
+      },
+      "custom_tiers": {
+        "title": "Custom Tier Configuration",
+        "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
+        "data": {
           "tier_1_duration": "Tier 1 Slice Size (minutes)",
           "tier_1_until": "Tier 1 Until (minutes)",
           "tier_2_duration": "Tier 2 Slice Size (minutes)",
@@ -15,13 +23,23 @@
           "tier_3_duration": "Tier 3 Slice Size (minutes)",
           "tier_3_until": "Tier 3 Until (minutes)",
           "tier_4_duration": "Tier 4 Slice Size (minutes)",
-          "tier_4_until": "Tier 4 Until (minutes)",
-          "update_interval_minutes": "Update Interval (minutes)"
+          "tier_4_until": "Tier 4 Until (minutes)"
         }
       }
     },
     "error": { "name_exists": "A network with this name already exists" },
     "abort": { "already_configured": "Network already configured" }
+  },
+  "selector": {
+    "horizon_preset": {
+      "options": {
+        "2_days": "2 days",
+        "3_days": "3 days (recommended)",
+        "5_days": "5 days",
+        "7_days": "7 days",
+        "custom": "Custom"
+      }
+    }
   },
   "options": {
     "step": {
