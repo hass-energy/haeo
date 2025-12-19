@@ -158,23 +158,20 @@ class SigenergyGuide:
     def add_another_entity(self, field_label: str, search_term: str, entity_name: str) -> None:
         """Add another entity to a multi-select field.
 
-        For fields that accept multiple entities, a button appears after first selection.
-        Uses the same HA component selectors as select_entity.
+        For fields that accept multiple entities, an "Add entity" button appears after first selection.
+        Uses the same HA dialog pattern as select_entity.
         """
-        # Find the ha-selector containing this field and click its add button
+        # Find the ha-selector containing this field
         selector = self.page.locator(f"ha-selector:has-text('{field_label}')")
-        add_btn = selector.get_by_role("button").first
-        add_btn.click()
+
+        # Click the "Add entity" button within the selector
+        add_btn = selector.get_by_role("button", name="Add entity")
+        add_btn.click(timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
-        # Wait for a dialog to appear - HA uses either field-named dialogs or "Select option"
-        dialog = self.page.get_by_role("dialog", name=field_label)
-        try:
-            dialog.wait_for(timeout=500)
-        except Exception:
-            # Fall back to generic dialog name
-            dialog = self.page.get_by_role("dialog", name="Select option")
-            dialog.wait_for(timeout=DEFAULT_TIMEOUT)
+        # Wait for a dialog to appear - HA uses "Select option" as the dialog name
+        dialog = self.page.get_by_role("dialog", name="Select option")
+        dialog.wait_for(timeout=DEFAULT_TIMEOUT)
 
         # Fill the search textbox within the dialog
         search_input = dialog.get_by_role("textbox", name="Search")
@@ -338,10 +335,12 @@ def add_solar(guide: SigenergyGuide) -> None:
     guide.select_combobox_option("Connection*", "Inverter")
 
     # First forecast sensor - search for "east solar" to find East solar production forecast
-    guide.select_entity("Forecast Sensors", "east solar", "East solar production forecast")
+    guide.select_entity("Forecast Sensors", "east solar today", "East solar production forecast")
 
-    # Multi-entity picker for additional forecast sensors is not yet implemented
-    # For now, just use a single forecast sensor
+    # Add the other three array forecasts
+    guide.add_another_entity("Forecast Sensors", "north solar today", "North solar production forecast")
+    guide.add_another_entity("Forecast Sensors", "south solar today", "South solar prediction forecast")
+    guide.add_another_entity("Forecast Sensors", "west solar today", "West solar production forecast")
 
     guide.capture("solar_filled")
 
@@ -367,10 +366,13 @@ def add_grid(guide: SigenergyGuide) -> None:
     guide.fill_textbox("Grid Name*", "Grid")
     guide.select_combobox_option("Connection*", "Switchboard")
 
-    # Entity selections - single sensor for now (multi-entity picker not yet implemented)
+    # Import price: current price sensor plus forecast sensor
     guide.select_entity("Import Price Sensors", "general price", "Home - General Price")
+    guide.add_another_entity("Import Price Sensors", "general forecast", "Home - General Forecast")
 
+    # Export price: current price sensor plus forecast sensor
     guide.select_entity("Export Price Sensors", "feed in price", "Home - Feed In Price")
+    guide.add_another_entity("Export Price Sensors", "feed in forecast", "Home - Feed In Forecast")
 
     # Fill limits
     guide.fill_spinbutton("Import Limit (Optional)", "55")

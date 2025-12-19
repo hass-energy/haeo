@@ -17,36 +17,32 @@ This avoids needing config files, YAML, or packages - just load states from JSON
 from __future__ import annotations
 
 import asyncio
-import json
-import socket
-import tempfile
-import threading
 from collections.abc import Generator
 from contextlib import closing, contextmanager
 from dataclasses import dataclass, field
+import json
 from pathlib import Path
+import socket
+import tempfile
+import threading
 from typing import TYPE_CHECKING, Any
 
+from homeassistant import loader
 from homeassistant.auth import auth_manager_from_config
 from homeassistant.auth.models import Credentials
 from homeassistant.config_entries import ConfigEntries
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import CoreState, HomeAssistant
-from homeassistant.helpers import (
-    area_registry as ar,
-    category_registry as cr,
-    device_registry as dr,
-    entity,
-    entity_registry as er,
-    floor_registry as fr,
-    issue_registry as ir,
-    label_registry as lr,
-    restore_state as rs,
-    translation,
-)
-from homeassistant import loader
+from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import category_registry as cr
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity, translation
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import floor_registry as fr
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import label_registry as lr
+from homeassistant.helpers import restore_state as rs
 from homeassistant.setup import async_setup_component
-from homeassistant.util import dt as dt_util
 
 if TYPE_CHECKING:
     from playwright.sync_api import BrowserContext
@@ -94,6 +90,7 @@ class LiveHomeAssistant:
             entity_id: Entity ID like "sensor.power"
             state: State value
             attributes: Optional attributes dict
+
         """
 
         async def _set() -> None:
@@ -107,6 +104,7 @@ class LiveHomeAssistant:
 
         Args:
             states: List of dicts with entity_id, state, and optional attributes
+
         """
 
         async def _set_all() -> None:
@@ -126,6 +124,7 @@ class LiveHomeAssistant:
 
         Args:
             states_file: Path to JSON file with state definitions
+
         """
         with states_file.open() as f:
             states = json.load(f)
@@ -140,6 +139,7 @@ class LiveHomeAssistant:
 
         Returns:
             Result of the coroutine
+
         """
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return future.result(timeout=timeout)
@@ -152,11 +152,14 @@ class LiveHomeAssistant:
 
         Args:
             context: Playwright BrowserContext to inject auth into
+
         """
+
+        from playwright.sync_api import Request, Route
 
         # Add Authorization header to all API requests
         # HA frontend uses websocket for most communication but REST for some
-        def add_auth_header(route, request):
+        def add_auth_header(route: Route, request: Request) -> None:
             headers = {**request.headers, "Authorization": f"Bearer {self.access_token}"}
             route.continue_(headers=headers)
 
@@ -173,7 +176,6 @@ class LiveHomeAssistant:
             "token_type": "Bearer",
             "expires_in": 1800,  # 30 minutes
         }
-        import json
 
         init_script = f"""
             localStorage.setItem('hassTokens', JSON.stringify({json.dumps(token_data)}));
@@ -197,6 +199,7 @@ async def _setup_home_assistant_async(
 
     Returns:
         Tuple of (HomeAssistant instance, access_token for authentication)
+
     """
     hass = HomeAssistant(config_dir)
 
@@ -285,9 +288,8 @@ async def _setup_home_assistant_async(
         "key": "onboarding",
         "data": {"done": ["user", "core_config", "analytics", "integration"]},
     }
-    import json as json_module
 
-    onboarding_storage.write_text(json_module.dumps(onboarding_data))
+    onboarding_storage.write_text(json.dumps(onboarding_data))
 
     # Set up HTTP on ephemeral port
     http_config = {
@@ -354,7 +356,7 @@ def _run_hass_thread(
 @contextmanager
 def live_home_assistant(
     timeout: float = 60.0,
-) -> Generator[LiveHomeAssistant, None, None]:
+) -> Generator[LiveHomeAssistant]:
     """Context manager for a live Home Assistant instance.
 
     Starts HA on an ephemeral port in a background thread and yields
@@ -375,6 +377,7 @@ def live_home_assistant(
             # Inject auth into Playwright context
             hass.inject_auth(browser_context)
             # Use Playwright to interact with hass.url
+
     """
     port = _find_free_port()
 
@@ -454,6 +457,7 @@ def load_states_from_json(path: Path) -> list[dict[str, Any]]:
 
     Returns:
         List of state dictionaries
+
     """
     with path.open() as f:
         return json.load(f)
