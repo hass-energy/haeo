@@ -8,11 +8,19 @@ The approach:
 1. Copy the bundle to config/www/ (served at /local/)
 2. Use page.evaluate() to fetch the bundle as text
 3. Extract and eval the script content in JavaScript
-4. Call singlefile.getPageData() to capture the page
-5. Post-process to strip interactive attributes (href, onclick, etc.)
+4. Pre-process DOM to handle popovers and menus
+5. Call singlefile.getPageData() to capture the page
+6. Post-process to strip interactive attributes (href, onclick, etc.)
 
 This captures the current authenticated page state, unlike the CLI
 which opens a new tab without session cookies.
+
+DOM Pre-processing:
+- Fixes MDC dropdown menus (ha-select with mwc-menu-surface)
+- Fixes ha-dialog elements that are open
+- Fixes popover elements (native Popover API doesn't serialize state)
+- Inlines computed positions for absolute/fixed elements using CSS custom properties
+- Adds CSS to hide number input spin buttons for static display
 """
 
 from __future__ import annotations
@@ -37,6 +45,21 @@ _BUNDLE_PATH = (
 _HA_WWW_PATH = Path(__file__).parent.parent.parent / "config" / "www"
 _HA_BUNDLE_NAME = "single-file-bundle.js"
 _HA_BUNDLE_URL = f"/local/{_HA_BUNDLE_NAME}"
+
+# CSS rules to inject for static display
+_STATIC_DISPLAY_CSS = """
+/* Hide number input spin buttons for static display */
+input::-webkit-inner-spin-button,
+input::-webkit-outer-spin-button {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    margin: 0 !important;
+}
+input[type="number"] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+}
+"""
 
 # Regex patterns to strip interactive attributes from HTML
 # These patterns match attributes that would make the HTML interactive
@@ -185,11 +208,201 @@ def _inject_singlefile(page: Page) -> bool:
     return result.get("success", False)
 
 
+def _preprocess_dom(page: Page, static_css: str) -> dict[str, int]:
+    """Pre-process DOM to fix elements that don't serialize correctly.
+
+    This handles:
+    - MDC dropdown menus (ha-select with mwc-menu-surface hidden attribute)
+    - ha-dialog elements that are open but may not serialize
+    - Native Popover API elements that show display:none when serialized
+    - Menu/popover position values that use CSS custom properties
+    - Injecting CSS for static display (hiding spin buttons, etc.)
+
+    Home Assistant uses Material Design Components (MDC) for dropdowns.
+    When a dropdown is open, the mwc-menu-surface element should have its
+    'hidden' attribute removed and visibility forced. We detect open menus
+    by checking their computed visibility and dimensions.
+
+    The Native Popover API renders popovers in the browser's "top layer",
+    which is outside the normal DOM. When serializing, these elements
+    appear with display:none. We detect open popovers using :popover-open
+    and convert them to regular visible divs.
+
+    Args:
+        page: The Playwright page to modify.
+        static_css: CSS rules to inject for static display.
+
+    Returns:
+        Dict with counts of elements fixed.
+
+    """
+    return page.evaluate(
+        """(staticCss) => {
+            const stats = { popoversFixed: 0, positionsFixed: 0, cssInjected: 0, mdcMenusFixed: 0, dialogsFixed: 0 };
+
+            // Inject static display CSS
+            if (staticCss) {
+                const style = document.createElement('style');
+                style.id = 'singlefile-static-css';
+                style.textContent = staticCss;
+                document.head.appendChild(style);
+                stats.cssInjected = 1;
+            }
+
+            // Helper to traverse all shadow roots
+            function walkShadowRoots(root, callback) {
+                callback(root);
+                root.querySelectorAll('*').forEach(el => {
+                    if (el.shadowRoot) {
+                        walkShadowRoots(el.shadowRoot, callback);
+                    }
+                });
+            }
+
+// Fix MDC dropdown menus (ha-select, ha-menu)
+            // These use mwc-menu-surface with a 'hidden' attribute that needs
+            // to be removed and visibility forced for open dropdowns.
+            // We detect open dropdowns by checking if the menu surface is visible.
+            walkShadowRoots(document, (root) => {
+                root.querySelectorAll('mwc-menu-surface').forEach(menuSurface => {
+                    const computed = getComputedStyle(menuSurface);
+                    const rect = menuSurface.getBoundingClientRect();
+                    
+                    // A menu is "open" if it's visible and has dimensions
+                    const isVisible = computed.display !== 'none' &&
+                                      rect.width > 0 && rect.height > 0;
+                    const hasHidden = menuSurface.hasAttribute('hidden');
+                    
+                    if (isVisible || (!hasHidden && rect.width > 0)) {
+                        if (hasHidden) {
+                            menuSurface.removeAttribute('hidden');
+                        }
+                        
+                        // Fix inner shadow root surface
+                        if (menuSurface.shadowRoot) {
+                            const innerSurface = menuSurface.shadowRoot.querySelector('.mdc-menu-surface');
+                            if (innerSurface) {
+                                innerSurface.classList.add('mdc-menu-surface--open');
+                                innerSurface.style.display = 'inline-block';
+                                innerSurface.style.opacity = '1';
+                                innerSurface.style.transform = 'scale(1)';
+                            }
+                        }
+                        
+                        menuSurface.style.display = 'inline-block';
+                        
+                        if (rect.top !== 0 || rect.left !== 0) {
+                            menuSurface.style.position = 'fixed';
+                            menuSurface.style.top = rect.top + 'px';
+                            menuSurface.style.left = rect.left + 'px';
+                            menuSurface.style.zIndex = '9999';
+                        }
+                        
+                        stats.mdcMenusFixed++;
+                    }
+                });
+            });
+
+            // Fix ha-dialog elements that are open
+            walkShadowRoots(document, (root) => {
+                root.querySelectorAll('ha-dialog, dialog[open]').forEach(dialog => {
+                    const computed = getComputedStyle(dialog);
+                    const rect = dialog.getBoundingClientRect();
+                    
+                    if (rect.width > 0 && rect.height > 0 && computed.display !== 'none') {
+                        dialog.style.display = 'block';
+                        dialog.style.visibility = 'visible';
+                        dialog.style.opacity = '1';
+                        
+                        if (computed.position === 'fixed' || computed.position === 'absolute') {
+                            dialog.style.position = 'fixed';
+                            dialog.style.top = rect.top + 'px';
+                            dialog.style.left = rect.left + 'px';
+                            dialog.style.width = rect.width + 'px';
+                            dialog.style.height = rect.height + 'px';
+                            dialog.style.zIndex = '9999';
+                        }
+                        
+                        stats.dialogsFixed++;
+                    }
+                });
+            });
+
+            // Fix popover elements - the Native Popover API renders them in
+            // the browser's "top layer" which doesn't serialize properly.
+            // We use :popover-open to detect which popovers are currently shown.
+            walkShadowRoots(document, (root) => {
+                root.querySelectorAll('[popover]').forEach(el => {
+                    try {
+                        // Check if this popover is currently open/shown
+                        // The :popover-open pseudo-class indicates browser is showing it
+                        if (el.matches(':popover-open')) {
+                            // Capture computed position before we modify anything
+                            const computed = getComputedStyle(el);
+                            const rect = el.getBoundingClientRect();
+
+                            // Remove popover attribute so it becomes a normal element
+                            el.removeAttribute('popover');
+
+                            // Force visibility and display
+                            el.style.display = 'block';
+                            el.style.visibility = 'visible';
+                            el.style.opacity = '1';
+
+                            // If it was positioned by the popover API, inline the position
+                            // Popovers in top-layer use position:fixed relative to viewport
+                            if (computed.position === 'fixed' || computed.position === 'absolute') {
+                                el.style.position = 'fixed';
+                                el.style.top = rect.top + 'px';
+                                el.style.left = rect.left + 'px';
+                                el.style.width = rect.width + 'px';
+                                el.style.zIndex = '9999';
+                            }
+
+                            stats.popoversFixed++;
+                        }
+                    } catch (e) {
+                        // :popover-open may not be supported in all contexts
+                    }
+                });
+
+                // For absolute/fixed elements, inline computed positions
+                // CSS custom properties may not serialize correctly
+                root.querySelectorAll('.menu, [role="menu"], [role="listbox"]').forEach(el => {
+                    const computed = getComputedStyle(el);
+                    const position = computed.position;
+
+                    if ((position === 'absolute' || position === 'fixed') &&
+                        computed.display !== 'none') {
+                        const rect = el.getBoundingClientRect();
+                        // Only inline if we have valid positions
+                        if (rect.top !== 0 || rect.left !== 0) {
+                            if (!el.style.top) el.style.top = rect.top + 'px';
+                            if (!el.style.left) el.style.left = rect.left + 'px';
+                            stats.positionsFixed++;
+                        }
+                    }
+                });
+            });
+
+            return stats;
+        }""",
+        static_css,
+    )
+
+
 def capture_html(page: Page, path: Path, *, timeout: int = 30000) -> bool:
     """Capture the current page as a self-contained HTML file.
 
     This loads SingleFile by fetching and evaluating the bundle, then
     calls getPageData() to serialize the DOM with all resources inlined.
+
+    Pre-processing fixes:
+    - MDC dropdown menus (ha-select with mwc-menu-surface)
+    - ha-dialog elements that are open
+    - Native Popover API elements that show display:none when serialized
+    - Menu/popover position values using CSS custom properties
+    - Injects CSS to hide number input spin buttons
 
     Args:
         page: The Playwright page to capture
@@ -207,6 +420,9 @@ def capture_html(page: Page, path: Path, *, timeout: int = 30000) -> bool:
     try:
         # Set page timeout for the operations
         page.set_default_timeout(timeout)
+
+        # Pre-process DOM to fix popovers, menus, and inject static CSS
+        _preprocess_dom(page, _STATIC_DISPLAY_CSS)
 
         # Inject SingleFile
         if not _inject_singlefile(page):
