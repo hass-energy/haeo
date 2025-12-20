@@ -112,7 +112,8 @@ async def load_network(
     blackout_duration_hours = entry.data.get(CONF_BLACKOUT_DURATION_HOURS, DEFAULT_BLACKOUT_DURATION_HOURS)
 
     # Calculate required energy with optional horizon limit for blackout protection
-    max_horizon_hours = blackout_duration_hours if blackout_protection else None
+    # A duration of 0 means unlimited (look at entire remaining horizon)
+    max_horizon_hours = blackout_duration_hours if blackout_protection and blackout_duration_hours > 0 else None
     energy_result = calculate_required_energy(participants, periods_hours, max_horizon_hours)
 
     net = Network(

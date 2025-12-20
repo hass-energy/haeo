@@ -6,7 +6,7 @@
         "title": "HAEO Network Setup",
         "description": "Create a new HAEO optimization network with dynamic interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity. Default: 110 periods covering ~72 hours.",
         "data": {
-          "blackout_duration_hours": "Blackout Duration (hours)",
+          "blackout_duration_hours": "Blackout Duration (hours, 0 = unlimited)",
           "blackout_protection": "Enable Blackout Protection",
           "debounce_seconds": "Debounce Window (seconds)",
           "name": "Network Name",
@@ -31,7 +31,7 @@
         "title": "Network Settings",
         "description": "Configure dynamic interval tiers and update settings. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
         "data": {
-          "blackout_duration_hours": "Blackout Duration (hours)",
+          "blackout_duration_hours": "Blackout Duration (hours, 0 = unlimited)",
           "blackout_protection": "Enable Blackout Protection",
           "debounce_seconds": "Debounce Window (seconds)",
           "tier_1_count": "Tier 1 Count (fine-grained)",

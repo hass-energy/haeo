@@ -189,7 +189,7 @@ def get_network_config_schema(
                 else DEFAULT_BLACKOUT_DURATION_HOURS,
             ): vol.All(
                 NumberSelector(
-                    NumberSelectorConfig(min=1, max=48, step=0.5, mode=NumberSelectorMode.BOX),
+                    NumberSelectorConfig(min=0, max=48, step=0.5, mode=NumberSelectorMode.BOX),
                 ),
                 vol.Coerce(float),
             ),
