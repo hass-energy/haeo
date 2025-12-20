@@ -7,6 +7,7 @@ from typing import Any
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons
+import numpy as np
 
 from .battery import Battery
 from .connection import Connection
@@ -149,6 +150,7 @@ class Network:
 
         Enforces stored_energy >= required_energy during deficit periods (load > solar).
         This ensures the battery has enough charge to survive a grid outage.
+        The constraint is capped at total battery capacity to ensure feasibility.
         """
         if self.required_energy is None or self.net_power is None:
             _LOGGER.warning("Blackout protection enabled but required_energy or net_power not set")
@@ -168,16 +170,25 @@ class Network:
         for battery in batteries[1:]:
             total_stored = total_stored + battery.stored_energy
 
+        # Calculate total battery capacity at each timestep boundary (T+1 values)
+        # Sum capacity across all battery sections
+        total_capacity = np.zeros(self.n_periods + 1)
+        for battery in batteries:
+            total_capacity += np.array(battery.capacity)
+
         # Add constraint for each deficit period (where net_power < 0)
         # The constraint is applied at the START of each deficit period (stored_energy[t])
         for t, net_pwr in enumerate(self.net_power):
             if net_pwr < 0:  # Deficit period: load > solar
                 required = self.required_energy[t]
-                if required > 0:
-                    h.addConstr(total_stored[t] >= required)
+                # Cap at battery capacity to ensure feasibility
+                max_required = min(required, total_capacity[t])
+                if max_required > 0:
+                    h.addConstr(total_stored[t] >= max_required)
                     _LOGGER.debug(
-                        "Blackout protection: period %d (deficit), stored_energy >= %.2f kWh",
+                        "Blackout protection: period %d (deficit), stored_energy >= %.2f kWh (capped from %.2f)",
                         t,
+                        max_required,
                         required,
                     )
 

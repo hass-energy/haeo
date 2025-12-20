@@ -16,6 +16,8 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
+    CONF_BLACKOUT_DURATION_HOURS,
+    CONF_BLACKOUT_PROTECTION,
     CONF_ELEMENT_TYPE,
     CONF_NAME,
     CONF_TIER_1_COUNT,
@@ -26,6 +28,8 @@ from custom_components.haeo.const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
+    DEFAULT_BLACKOUT_DURATION_HOURS,
+    DEFAULT_BLACKOUT_PROTECTION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
@@ -89,6 +93,10 @@ async def test_scenarios(
                 CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
                 CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
                 CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
+                CONF_BLACKOUT_PROTECTION: scenario_config.get("blackout_protection", DEFAULT_BLACKOUT_PROTECTION),
+                CONF_BLACKOUT_DURATION_HOURS: scenario_config.get(
+                    "blackout_duration_hours", DEFAULT_BLACKOUT_DURATION_HOURS
+                ),
             },
         )
         mock_config_entry.add_to_hass(hass)
