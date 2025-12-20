@@ -38,7 +38,7 @@ class TestCalculateRequiredEnergy:
     def test_load_only_no_solar(self) -> None:
         """Test with load only, no solar - all load becomes required energy."""
         participants = cast(
-            Mapping[str, ElementConfigData],
+            "Mapping[str, ElementConfigData]",
             {
                 "my_load": {
                     "element_type": "load",
@@ -59,7 +59,7 @@ class TestCalculateRequiredEnergy:
     def test_solar_covers_all_load(self) -> None:
         """Test with solar exceeding load - no required energy."""
         participants = cast(
-            Mapping[str, ElementConfigData],
+            "Mapping[str, ElementConfigData]",
             {
                 "my_load": {
                     "element_type": "load",
@@ -81,7 +81,7 @@ class TestCalculateRequiredEnergy:
     def test_solar_partially_covers_load(self) -> None:
         """Test with solar partially covering load."""
         participants = cast(
-            Mapping[str, ElementConfigData],
+            "Mapping[str, ElementConfigData]",
             {
                 "my_load": {
                     "element_type": "load",
@@ -106,7 +106,7 @@ class TestCalculateRequiredEnergy:
     def test_overnight_scenario(self) -> None:
         """Test realistic overnight scenario where solar drops to zero."""
         participants = cast(
-            Mapping[str, ElementConfigData],
+            "Mapping[str, ElementConfigData]",
             {
                 "my_load": {
                     "element_type": "load",
@@ -134,7 +134,7 @@ class TestCalculateRequiredEnergy:
     def test_multiple_loads_and_solar(self) -> None:
         """Test with multiple load and solar elements - they should aggregate."""
         participants = cast(
-            Mapping[str, ElementConfigData],
+            "Mapping[str, ElementConfigData]",
             {
                 "load_1": {
                     "element_type": "load",
@@ -167,7 +167,7 @@ class TestCalculateRequiredEnergy:
     def test_ignores_non_load_solar_elements(self) -> None:
         """Test that battery, grid, and other elements are ignored."""
         participants = cast(
-            Mapping[str, ElementConfigData],
+            "Mapping[str, ElementConfigData]",
             {
                 "my_load": {
                     "element_type": "load",
@@ -196,7 +196,7 @@ class TestCalculateRequiredEnergy:
     def test_variable_period_lengths(self) -> None:
         """Test with variable-length periods (like the tier system)."""
         participants = cast(
-            Mapping[str, ElementConfigData],
+            "Mapping[str, ElementConfigData]",
             {
                 "my_load": {
                     "element_type": "load",
@@ -224,7 +224,7 @@ class TestCalculateRequiredEnergy:
     def test_terminal_value_is_zero(self) -> None:
         """Test that the last value (end of horizon) is always zero."""
         participants = cast(
-            Mapping[str, ElementConfigData],
+            "Mapping[str, ElementConfigData]",
             {
                 "my_load": {
                     "element_type": "load",
@@ -244,7 +244,7 @@ class TestCalculateRequiredEnergy:
     def test_missing_forecast_key_handled(self) -> None:
         """Test that elements without forecast key are handled gracefully."""
         participants = cast(
-            Mapping[str, ElementConfigData],
+            "Mapping[str, ElementConfigData]",
             {
                 "my_load": {
                     "element_type": "load",
@@ -274,7 +274,7 @@ class TestCalculateRequiredEnergy:
         which then recharges it. The night deficit requires a fresh 1 kWh.
         """
         participants = cast(
-            Mapping[str, ElementConfigData],
+            "Mapping[str, ElementConfigData]",
             {
                 "my_load": {
                     "element_type": "load",
@@ -303,7 +303,7 @@ class TestCalculateRequiredEnergy:
         The algorithm should find the deepest drawdown from each starting point.
         """
         participants = cast(
-            Mapping[str, ElementConfigData],
+            "Mapping[str, ElementConfigData]",
             {
                 "my_load": {
                     "element_type": "load",
