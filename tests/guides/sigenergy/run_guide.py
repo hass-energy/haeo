@@ -34,6 +34,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from tests.guides.ha_runner import LiveHomeAssistant, live_home_assistant  # noqa: E402
+from tests.guides.singlefile_capture import capture_html  # noqa: E402
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -195,12 +196,24 @@ class SigenergyGuide:
         self._show_click_indicator(x, y)
         png_path = self.output_dir / f"{filename}.png"
         self.page.screenshot(path=str(png_path))
+
+        # Also capture HTML snapshot
+        html_path = self.output_dir / f"{filename}.html"
+        self._capture_html(html_path)
+
         self._remove_click_indicator()
 
-        self.results.append({"step": self.step_number, "name": name, "png": str(png_path)})
+        self.results.append(
+            {
+                "step": self.step_number,
+                "name": name,
+                "png": str(png_path),
+                "html": str(html_path),
+            }
+        )
 
     def capture(self, name: str) -> None:
-        """Capture PNG screenshot of current page state (no indicator)."""
+        """Capture PNG screenshot and HTML snapshot of current page state."""
         self.step_number += 1
         filename = f"{self.step_number:02d}_{name}"
         _LOGGER.info("Capturing: %s", filename)
@@ -208,7 +221,31 @@ class SigenergyGuide:
         png_path = self.output_dir / f"{filename}.png"
         self.page.screenshot(path=str(png_path))
 
-        self.results.append({"step": self.step_number, "name": name, "png": str(png_path)})
+        # Also capture HTML snapshot
+        html_path = self.output_dir / f"{filename}.html"
+        self._capture_html(html_path)
+
+        self.results.append(
+            {
+                "step": self.step_number,
+                "name": name,
+                "png": str(png_path),
+                "html": str(html_path),
+            }
+        )
+
+    def _capture_html(self, path: Path) -> None:
+        """Capture static HTML snapshot using SingleFile JavaScript injection.
+
+        SingleFile creates a self-contained HTML file with all resources
+        (styles, images, fonts) embedded inline. We inject the SingleFile
+        JavaScript directly into the current page context to capture the
+        authenticated state (unlike CLI which opens a new unauthenticated tab).
+
+        The HTML captures the current DOM state including any open dialogs
+        or form inputs. The PNG screenshot captures exact visual state.
+        """
+        capture_html(self.page, path)
 
     def click_button(self, name: str, *, timeout: int = DEFAULT_TIMEOUT, capture_name: str | None = None) -> None:
         """Click a button by its accessible name.
@@ -698,7 +735,11 @@ def run_guide(hass: LiveHomeAssistant, output_dir: Path, *, headless: bool = Tru
 
     """
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        # Use remote debugging port so SingleFile CLI can capture HTML snapshots
+        browser = p.chromium.launch(
+            headless=headless,
+            args=["--remote-debugging-port=9222"],
+        )
         context = browser.new_context(viewport={"width": 1280, "height": 800})
 
         # Note: inject_auth sets up localStorage but HA may still redirect to login

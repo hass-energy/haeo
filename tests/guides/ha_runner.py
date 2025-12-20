@@ -22,6 +22,7 @@ from contextlib import closing, contextmanager
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+import shutil
 import socket
 import tempfile
 import threading
@@ -391,6 +392,15 @@ def live_home_assistant(
         haeo_source = PROJECT_ROOT / "custom_components" / "haeo"
         haeo_target = custom_components / "haeo"
         haeo_target.symlink_to(haeo_source)
+
+        # Copy SingleFile bundle to www directory for HTML captures
+        www_dir = Path(temp_dir) / "www"
+        www_dir.mkdir()
+        singlefile_bundle = (
+            PROJECT_ROOT / "node_modules" / "single-file-cli" / "lib" / "single-file-bundle.js"
+        )
+        if singlefile_bundle.exists():
+            shutil.copy2(singlefile_bundle, www_dir / "single-file-bundle.js")
 
         hass_holder: list[HomeAssistant] = []
         token_holder: list[tuple[str, str]] = []

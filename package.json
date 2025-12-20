@@ -4,5 +4,8 @@
   "dependencies": {
     "prettier": "^3.7.3",
     "prettier-plugin-sort-json": "^4.1.1"
+  },
+  "devDependencies": {
+    "single-file-cli": "^2.0.83"
   }
 }
