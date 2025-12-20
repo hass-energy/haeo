@@ -1,29 +1,24 @@
 """Calculate required energy using maximum drawdown algorithm.
 
-The required energy represents the maximum battery capacity needed at each
-timestep to survive until solar (or other uncontrollable generation) recharges
-the battery.
+The required energy represents the minimum battery capacity needed at each
+timestep to survive until solar (or other uncontrollable generation) arrives.
 """
 
 from collections.abc import Mapping, Sequence
 
 import numpy as np
 
-from custom_components.haeo.elements import ElementConfigData
+from custom_components.haeo.elements import ELEMENT_TYPE_LOAD, ELEMENT_TYPE_SOLAR, ElementConfigData
 
 
 def calculate_required_energy(
-    participants: Mapping[str, ElementConfigData],
+    elements: Mapping[str, ElementConfigData],
     periods_hours: Sequence[float],
 ) -> list[float]:
     """Calculate the required energy at each timestep using maximum drawdown.
 
-    This is calculated BEFORE optimization so model elements can use it.
-
-    The required energy represents the maximum battery capacity needed at each
-    timestep to survive until solar (or other uncontrollable generation) recharges
-    the battery. This uses a "maximum drawdown" approach that accounts for solar
-    surplus periods that can recharge the battery.
+    The required energy represents the minimum energy needed (via battery storage or grid access) at each
+    timestep to survive until solar arrives (or other uncontrollable generation).
 
     Returns:
         List of required energy values (kWh) at each timestep boundary (n_periods + 1).
@@ -33,27 +28,22 @@ def calculate_required_energy(
     """
     n_periods = len(periods_hours)
 
-    if n_periods == 0:
-        return [0.0]
-
-    # Aggregate all load forecasts
+    # Add up all forecasted load
     total_load = np.zeros(n_periods)
-    for config in participants.values():
-        if config.get("element_type") == "load":
-            forecast = config.get("forecast")
-            if forecast is not None:
-                total_load += np.array(forecast)
+    for config in elements.values():
+        if config["element_type"] == ELEMENT_TYPE_LOAD:
+            forecast = config["forecast"]
+            total_load += np.array(forecast)
 
-    # Aggregate all uncontrollable generation (solar, future: wind, etc.)
-    total_uncontrollable = np.zeros(n_periods)
-    for config in participants.values():
-        if config.get("element_type") == "solar":
-            forecast = config.get("forecast")
-            if forecast is not None:
-                total_uncontrollable += np.array(forecast)
+    # Add up all forecasted solar
+    total_solar = np.zeros(n_periods)
+    for config in elements.values():
+        if config["element_type"] == ELEMENT_TYPE_SOLAR:
+            forecast = config["forecast"]
+            total_solar += np.array(forecast)
 
     # Calculate NET power (positive = surplus, negative = deficit)
-    net_power = total_uncontrollable - total_load
+    net_power = total_solar - total_load
     net_energy = net_power * np.array(periods_hours)  # kWh per interval
 
     # For each timestep, find the maximum drawdown from that point forward

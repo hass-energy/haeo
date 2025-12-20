@@ -241,24 +241,6 @@ class TestCalculateRequiredEnergy:
         # Should have n_periods + 1 values
         assert len(result) == 4
 
-    def test_missing_forecast_key_handled(self) -> None:
-        """Test that elements without forecast key are handled gracefully."""
-        participants = cast(
-            "Mapping[str, ElementConfigData]",
-            {
-                "my_load": {
-                    "element_type": "load",
-                    # No "forecast" key
-                },
-            },
-        )
-        periods_hours = [1.0, 1.0]
-
-        result = calculate_required_energy(participants, periods_hours)
-
-        # Should return zeros since no forecast data
-        assert result == pytest.approx([0.0, 0.0, 0.0])
-
     def test_solar_missing_forecast_key_handled(self) -> None:
         """Test that solar elements without forecast key are handled gracefully."""
         participants = cast(
