@@ -216,11 +216,17 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
 
         # Use required_energy directly as per-timestep capacity
         # Cap each value at the total battery capacity to ensure feasibility
-        # The undercharge capacity tracks required_energy directly, allowing energy
-        # above the requirement to flow to the normal section and be used
-        # The high discharge cost ($1000/kWh) on the undercharge section prevents
-        # discharging from it; network-level penalty enforces total stored >= required
-        undercharge_capacity: list[float] = [min(re, capacity) for re in required_energy]
+        undercharge_capacity_raw = [min(re, capacity) for re in required_energy]
+
+        # Make capacity NON-DECREASING forward in time
+        # This prevents the SOC_MAX constraint from forcing discharge when required_energy shrinks.
+        # Energy stays in undercharge and can only exit through the priced connection,
+        # which makes the undercharge_cost effective at protecting the reserve.
+        undercharge_capacity: list[float] = []
+        running_max = 0.0
+        for cap in undercharge_capacity_raw:
+            running_max = max(running_max, cap)
+            undercharge_capacity.append(running_max)
 
         # Store for normal section calculation
         dynamic_undercharge_capacity = undercharge_capacity
