@@ -30,7 +30,7 @@
       "export_limit": 30.0,
       "export_price": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
       "import_limit": 30.0,
-      "import_price": ["input_number.grid_import_premium"]
+      "import_price": ["sensor.home_general_price", "sensor.home_general_forecast"]
     },
     "Inverter": {
       "name": "Inverter",
@@ -55,9 +55,7 @@
       "forecast": [
         "sensor.solcast_pv_forecast_forecast_today",
         "sensor.solcast_pv_forecast_forecast_tomorrow",
-        "sensor.solcast_pv_forecast_forecast_day_3",
-        "sensor.solcast_pv_forecast_forecast_day_4",
-        "sensor.solcast_pv_forecast_forecast_day_5"
+        "sensor.solcast_pv_forecast_forecast_day_3"
       ]
     },
     "Switchboard": {
