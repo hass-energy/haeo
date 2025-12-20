@@ -267,17 +267,17 @@ def _preprocess_dom(page: Page, static_css: str) -> dict[str, int]:
                 root.querySelectorAll('mwc-menu-surface').forEach(menuSurface => {
                     const computed = getComputedStyle(menuSurface);
                     const rect = menuSurface.getBoundingClientRect();
-                    
+
                     // A menu is "open" if it's visible and has dimensions
                     const isVisible = computed.display !== 'none' &&
                                       rect.width > 0 && rect.height > 0;
                     const hasHidden = menuSurface.hasAttribute('hidden');
-                    
+
                     if (isVisible || (!hasHidden && rect.width > 0)) {
                         if (hasHidden) {
                             menuSurface.removeAttribute('hidden');
                         }
-                        
+
                         // Fix inner shadow root surface
                         if (menuSurface.shadowRoot) {
                             const innerSurface = menuSurface.shadowRoot.querySelector('.mdc-menu-surface');
@@ -288,16 +288,16 @@ def _preprocess_dom(page: Page, static_css: str) -> dict[str, int]:
                                 innerSurface.style.transform = 'scale(1)';
                             }
                         }
-                        
+
                         menuSurface.style.display = 'inline-block';
-                        
+
                         if (rect.top !== 0 || rect.left !== 0) {
                             menuSurface.style.position = 'fixed';
                             menuSurface.style.top = rect.top + 'px';
                             menuSurface.style.left = rect.left + 'px';
                             menuSurface.style.zIndex = '9999';
                         }
-                        
+
                         stats.mdcMenusFixed++;
                     }
                 });
@@ -308,12 +308,12 @@ def _preprocess_dom(page: Page, static_css: str) -> dict[str, int]:
                 root.querySelectorAll('ha-dialog, dialog[open]').forEach(dialog => {
                     const computed = getComputedStyle(dialog);
                     const rect = dialog.getBoundingClientRect();
-                    
+
                     if (rect.width > 0 && rect.height > 0 && computed.display !== 'none') {
                         dialog.style.display = 'block';
                         dialog.style.visibility = 'visible';
                         dialog.style.opacity = '1';
-                        
+
                         if (computed.position === 'fixed' || computed.position === 'absolute') {
                             dialog.style.position = 'fixed';
                             dialog.style.top = rect.top + 'px';
@@ -322,7 +322,7 @@ def _preprocess_dom(page: Page, static_css: str) -> dict[str, int]:
                             dialog.style.height = rect.height + 'px';
                             dialog.style.zIndex = '9999';
                         }
-                        
+
                         stats.dialogsFixed++;
                     }
                 });
