@@ -34,6 +34,8 @@ class Network:
     periods: Sequence[float]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
     required_energy: Sequence[float] | None = None  # kWh at each timestep boundary, available to model elements
+    blackout_protection: bool = False  # Enable blackout protection constraints
+    net_power: Sequence[float] | None = None  # kW per period, positive = surplus, negative = deficit
     _solver: Highs = field(default_factory=Highs, repr=False)
 
     def __post_init__(self) -> None:
@@ -122,6 +124,10 @@ class Network:
                 msg = f"Failed to build constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
+        # Build blackout protection constraints if enabled
+        if self.blackout_protection:
+            self._build_blackout_protection_constraints()
+
         # Collect all cost expressions from elements and set objective
         costs = [c for element in self.elements.values() for c in element.cost()]
         if costs:
@@ -137,6 +143,43 @@ class Network:
 
         msg = f"Optimization failed with status: {h.modelStatusToString(status)}"
         raise ValueError(msg)
+
+    def _build_blackout_protection_constraints(self) -> None:
+        """Build blackout protection constraints.
+
+        Enforces stored_energy >= required_energy during deficit periods (load > solar).
+        This ensures the battery has enough charge to survive a grid outage.
+        """
+        if self.required_energy is None or self.net_power is None:
+            _LOGGER.warning("Blackout protection enabled but required_energy or net_power not set")
+            return
+
+        # Find all Battery elements and sum their stored_energy
+        batteries = [e for e in self.elements.values() if isinstance(e, Battery)]
+        if not batteries:
+            _LOGGER.warning("Blackout protection enabled but no batteries found")
+            return
+
+        h = self._solver
+
+        # Sum stored_energy across all batteries (n_periods + 1 values)
+        # Each battery's stored_energy is an array of expressions
+        total_stored = batteries[0].stored_energy
+        for battery in batteries[1:]:
+            total_stored = total_stored + battery.stored_energy
+
+        # Add constraint for each deficit period (where net_power < 0)
+        # The constraint is applied at the START of each deficit period (stored_energy[t])
+        for t, net_pwr in enumerate(self.net_power):
+            if net_pwr < 0:  # Deficit period: load > solar
+                required = self.required_energy[t]
+                if required > 0:
+                    h.addConstr(total_stored[t] >= required)
+                    _LOGGER.debug(
+                        "Blackout protection: period %d (deficit), stored_energy >= %.2f kWh",
+                        t,
+                        required,
+                    )
 
     def validate(self) -> None:
         """Validate the network."""

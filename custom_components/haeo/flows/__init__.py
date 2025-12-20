@@ -3,10 +3,17 @@
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
+from homeassistant.helpers.selector import (
+    BooleanSelector,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+)
 import voluptuous as vol
 
 from custom_components.haeo.const import (
+    CONF_BLACKOUT_DURATION_HOURS,
+    CONF_BLACKOUT_PROTECTION,
     CONF_DEBOUNCE_SECONDS,
     CONF_NAME,
     CONF_TIER_1_COUNT,
@@ -18,6 +25,8 @@ from custom_components.haeo.const import (
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
     CONF_UPDATE_INTERVAL_MINUTES,
+    DEFAULT_BLACKOUT_DURATION_HOURS,
+    DEFAULT_BLACKOUT_PROTECTION,
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_TIER_1_COUNT,
     DEFAULT_TIER_1_DURATION,
@@ -165,6 +174,24 @@ def get_network_config_schema(
                     NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.SLIDER),
                 ),
                 vol.Coerce(int),
+            ),
+            # Blackout protection settings
+            vol.Required(
+                CONF_BLACKOUT_PROTECTION,
+                default=config_entry.data.get(CONF_BLACKOUT_PROTECTION, DEFAULT_BLACKOUT_PROTECTION)
+                if config_entry
+                else DEFAULT_BLACKOUT_PROTECTION,
+            ): BooleanSelector(),
+            vol.Required(
+                CONF_BLACKOUT_DURATION_HOURS,
+                default=config_entry.data.get(CONF_BLACKOUT_DURATION_HOURS, DEFAULT_BLACKOUT_DURATION_HOURS)
+                if config_entry
+                else DEFAULT_BLACKOUT_DURATION_HOURS,
+            ): vol.All(
+                NumberSelector(
+                    NumberSelectorConfig(min=1, max=48, step=0.5, mode=NumberSelectorMode.BOX),
+                ),
+                vol.Coerce(float),
             ),
         }
     )

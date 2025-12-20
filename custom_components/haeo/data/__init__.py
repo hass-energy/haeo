@@ -18,7 +18,13 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.const import (
+    CONF_BLACKOUT_DURATION_HOURS,
+    CONF_BLACKOUT_PROTECTION,
+    CONF_ELEMENT_TYPE,
+    DEFAULT_BLACKOUT_DURATION_HOURS,
+    DEFAULT_BLACKOUT_PROTECTION,
+)
 from custom_components.haeo.elements import (
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPES,
@@ -101,12 +107,20 @@ async def load_network(
     # ==================================================================================
     periods_hours = [s / 3600 for s in periods_seconds]
 
-    required_energy = calculate_required_energy(participants, periods_hours)
+    # Read blackout protection settings from config entry
+    blackout_protection = entry.data.get(CONF_BLACKOUT_PROTECTION, DEFAULT_BLACKOUT_PROTECTION)
+    blackout_duration_hours = entry.data.get(CONF_BLACKOUT_DURATION_HOURS, DEFAULT_BLACKOUT_DURATION_HOURS)
+
+    # Calculate required energy with optional horizon limit for blackout protection
+    max_horizon_hours = blackout_duration_hours if blackout_protection else None
+    energy_result = calculate_required_energy(participants, periods_hours, max_horizon_hours)
 
     net = Network(
         name=f"haeo_network_{entry.entry_id}",
         periods=periods_hours,
-        required_energy=required_energy,
+        required_energy=energy_result.required_energy,
+        blackout_protection=blackout_protection,
+        net_power=energy_result.net_power,
     )
 
     # Collect all model elements from all config elements

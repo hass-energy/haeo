@@ -7,6 +7,8 @@ from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 
 from custom_components.haeo.const import (
+    CONF_BLACKOUT_DURATION_HOURS,
+    CONF_BLACKOUT_PROTECTION,
     CONF_DEBOUNCE_SECONDS,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -43,6 +45,9 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             # Update and debounce settings
             new_data[CONF_UPDATE_INTERVAL_MINUTES] = user_input[CONF_UPDATE_INTERVAL_MINUTES]
             new_data[CONF_DEBOUNCE_SECONDS] = user_input[CONF_DEBOUNCE_SECONDS]
+            # Blackout protection settings
+            new_data[CONF_BLACKOUT_PROTECTION] = user_input[CONF_BLACKOUT_PROTECTION]
+            new_data[CONF_BLACKOUT_DURATION_HOURS] = user_input[CONF_BLACKOUT_DURATION_HOURS]
             self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
             return self.async_create_entry(title="", data={})
 

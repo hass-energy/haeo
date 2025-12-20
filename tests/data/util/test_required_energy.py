@@ -25,13 +25,15 @@ def test_empty_participants_returns_zero() -> None:
     """Test that empty participants returns a single zero value."""
     result = calculate_required_energy({}, [1.0, 1.0, 1.0])
     # n_periods + 1 values, all zeros since no load or solar
-    assert result == [0.0, 0.0, 0.0, 0.0]
+    assert result.required_energy == [0.0, 0.0, 0.0, 0.0]
+    assert result.net_power == [0.0, 0.0, 0.0]
 
 
 def test_empty_periods_returns_single_zero() -> None:
     """Test that empty periods returns a single zero value."""
     result = calculate_required_energy({}, [])
-    assert result == [0.0]
+    assert result.required_energy == [0.0]
+    assert result.net_power == []
 
 
 def test_load_only_no_solar() -> None:
@@ -53,7 +55,8 @@ def test_load_only_no_solar() -> None:
     # From t=0: running balance = [-2, -3, -3.5], max drawdown = 3.5
     # From t=1: running balance = [-1, -1.5], max drawdown = 1.5
     # From t=2: running balance = [-0.5], max drawdown = 0.5
-    assert result == pytest.approx([3.5, 1.5, 0.5, 0.0])
+    assert result.required_energy == pytest.approx([3.5, 1.5, 0.5, 0.0])
+    assert result.net_power == pytest.approx([-2.0, -1.0, -0.5])
 
 
 def test_solar_covers_all_load() -> None:
@@ -76,7 +79,8 @@ def test_solar_covers_all_load() -> None:
     result = calculate_required_energy(participants, periods_hours)
 
     # Solar exceeds load in all periods, so no required energy
-    assert result == pytest.approx([0.0, 0.0, 0.0, 0.0])
+    assert result.required_energy == pytest.approx([0.0, 0.0, 0.0, 0.0])
+    assert result.net_power == pytest.approx([1.0, 1.0, 1.0])  # surplus in all periods
 
 
 def test_solar_partially_covers_load() -> None:
@@ -102,7 +106,8 @@ def test_solar_partially_covers_load() -> None:
     # From t=0: running balance = [-2, -3, -2], max drawdown = 3
     # From t=1: running balance = [-1, 0], max drawdown = 1
     # From t=2: running balance = [+1], max drawdown = 0
-    assert result == pytest.approx([3.0, 1.0, 0.0, 0.0])
+    assert result.required_energy == pytest.approx([3.0, 1.0, 0.0, 0.0])
+    assert result.net_power == pytest.approx([-2.0, -1.0, 1.0])
 
 
 def test_overnight_scenario() -> None:
@@ -131,7 +136,8 @@ def test_overnight_scenario() -> None:
     # From t=2: running balance = [-3, +1, +17], max drawdown = 3
     # From t=3: running balance = [+4, +20], max drawdown = 0
     # From t=4: running balance = [+16], max drawdown = 0
-    assert result == pytest.approx([11.0, 7.0, 3.0, 0.0, 0.0, 0.0])
+    assert result.required_energy == pytest.approx([11.0, 7.0, 3.0, 0.0, 0.0, 0.0])
+    assert result.net_power == pytest.approx([-2.0, -1.0, -0.5, 1.0, 4.0])
 
 
 def test_multiple_loads_and_solar() -> None:
@@ -165,7 +171,8 @@ def test_multiple_loads_and_solar() -> None:
     # Net energy = (solar - load) * period = [-2.0, -1.0] kWh
     # From t=0: running balance = [-2, -3], max drawdown = 3
     # From t=1: running balance = [-1], max drawdown = 1
-    assert result == pytest.approx([3.0, 1.0, 0.0])
+    assert result.required_energy == pytest.approx([3.0, 1.0, 0.0])
+    assert result.net_power == pytest.approx([-2.0, -1.0])
 
 
 def test_ignores_non_load_solar_elements() -> None:
@@ -195,7 +202,8 @@ def test_ignores_non_load_solar_elements() -> None:
     # Net energy = [-2.0, -2.0] kWh
     # From t=0: running balance = [-2, -4], max drawdown = 4
     # From t=1: running balance = [-2], max drawdown = 2
-    assert result == pytest.approx([4.0, 2.0, 0.0])
+    assert result.required_energy == pytest.approx([4.0, 2.0, 0.0])
+    assert result.net_power == pytest.approx([-2.0, -2.0])
 
 
 def test_variable_period_lengths() -> None:
@@ -224,7 +232,8 @@ def test_variable_period_lengths() -> None:
         60 / 60,  # 1.0
         0.0,
     ]
-    assert result == pytest.approx(expected)
+    assert result.required_energy == pytest.approx(expected)
+    assert result.net_power == pytest.approx([-1.0, -1.0, -1.0])
 
 
 def test_terminal_value_is_zero() -> None:
@@ -243,9 +252,10 @@ def test_terminal_value_is_zero() -> None:
     result = calculate_required_energy(participants, periods_hours)
 
     # The last value should always be 0 (no future requirement at end of horizon)
-    assert result[-1] == 0.0
+    assert result.required_energy[-1] == 0.0
     # Should have n_periods + 1 values
-    assert len(result) == 4
+    assert len(result.required_energy) == 4
+    assert len(result.net_power) == 3
 
 
 def test_solar_recharge_in_middle_reduces_requirement() -> None:
@@ -283,7 +293,8 @@ def test_solar_recharge_in_middle_reduces_requirement() -> None:
     # From t=0: running balance = [-2, 0, -1], max drawdown = 2 (not 3!)
     # From t=1: running balance = [+2, +1], max drawdown = 0 (surplus)
     # From t=2: running balance = [-1], max drawdown = 1
-    assert result == pytest.approx([2.0, 0.0, 1.0, 0.0])
+    assert result.required_energy == pytest.approx([2.0, 0.0, 1.0, 0.0])
+    assert result.net_power == pytest.approx([-2.0, 2.0, -1.0])
 
 
 def test_multiple_drawdown_peaks() -> None:
@@ -314,4 +325,69 @@ def test_multiple_drawdown_peaks() -> None:
     # From t=1: running balance = [+1.5, -1.5, +1], max drawdown = 1.5
     # From t=2: running balance = [-3, -0.5], max drawdown = 3
     # From t=3: running balance = [+2.5], max drawdown = 0
-    assert result == pytest.approx([2.5, 1.5, 3.0, 0.0, 0.0])
+    assert result.required_energy == pytest.approx([2.5, 1.5, 3.0, 0.0, 0.0])
+    assert result.net_power == pytest.approx([-1.0, 1.5, -3.0, 2.5])
+
+
+def test_max_horizon_hours_limits_lookahead() -> None:
+    """Test that max_horizon_hours limits the lookahead window.
+
+    With a 2-hour lookahead, the algorithm only considers the next 2 hours
+    of net energy, not the entire horizon.
+    """
+    participants = cast(
+        "Mapping[str, ElementConfigData]",
+        {
+            "my_load": {
+                "element_type": "load",
+                "forecast": [2.0, 1.0, 3.0, 1.0],  # kW
+            },
+            "my_solar": {
+                "element_type": "solar",
+                "forecast": [0.0, 0.0, 0.0, 0.0],  # No solar
+            },
+        },
+    )
+    periods_hours = [1.0, 1.0, 1.0, 1.0]  # 1 hour each
+
+    # Without horizon limit: max drawdown from t=0 is entire horizon = 7 kWh
+    result_unlimited = calculate_required_energy(participants, periods_hours)
+    assert result_unlimited.required_energy == pytest.approx([7.0, 5.0, 4.0, 1.0, 0.0])
+
+    # With 2-hour horizon limit: max drawdown from t=0 is only first 2 hours = 3 kWh
+    result_limited = calculate_required_energy(participants, periods_hours, max_horizon_hours=2.0)
+    # From t=0: look ahead 2 hours, net = [-2, -1], running = [-2, -3], drawdown = 3
+    # From t=1: look ahead 2 hours, net = [-1, -3], running = [-1, -4], drawdown = 4
+    # From t=2: look ahead 2 hours, net = [-3, -1], running = [-3, -4], drawdown = 4
+    # From t=3: look ahead 1 hour (only 1 left), net = [-1], running = [-1], drawdown = 1
+    assert result_limited.required_energy == pytest.approx([3.0, 4.0, 4.0, 1.0, 0.0])
+
+
+def test_max_horizon_hours_partial_period() -> None:
+    """Test max_horizon_hours with variable period lengths.
+
+    When horizon limit falls within a period, it includes that whole period.
+    """
+    participants = cast(
+        "Mapping[str, ElementConfigData]",
+        {
+            "my_load": {
+                "element_type": "load",
+                "forecast": [1.0, 1.0, 1.0],  # kW constant
+            },
+        },
+    )
+    # Periods: 0.5h, 1.0h, 2.0h
+    periods_hours = [0.5, 1.0, 2.0]
+
+    # 1.5-hour horizon: should include first two periods (0.5 + 1.0 = 1.5h)
+    result = calculate_required_energy(participants, periods_hours, max_horizon_hours=1.5)
+
+    # From t=0: look ahead until cumulative >= 1.5h, so periods 0,1 (0.5+1.0=1.5)
+    #   net = [-0.5, -1.0], running = [-0.5, -1.5], drawdown = 1.5
+    # From t=1: look ahead 1.5h, periods 1,2 (1.0+2.0 > 1.5, but need at least 1.0h from period 1)
+    #   Cumulative: 1.0h from period 1 < 1.5, add period 2 -> 3.0h >= 1.5
+    #   So looks at periods 1,2: net = [-1.0, -2.0], running = [-1.0, -3.0], drawdown = 3.0
+    # From t=2: look ahead 1.5h, only period 2 (2.0h >= 1.5)
+    #   net = [-2.0], running = [-2.0], drawdown = 2.0
+    assert result.required_energy == pytest.approx([1.5, 3.0, 2.0, 0.0])
