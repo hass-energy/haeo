@@ -139,6 +139,8 @@ class BatteryConfigData(TypedDict):
     overcharge_percentage: NotRequired[BatterySOCFieldData]
     undercharge_cost: NotRequired[PriceSensorsFieldData]
     overcharge_cost: NotRequired[PriceSensorsFieldData]
+    # Dynamic required energy for blackout protection (injected by load_network)
+    required_energy: NotRequired[list[float]]
 
 
 CONFIG_DEFAULTS: dict[str, Any] = {
@@ -154,6 +156,11 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
 
     Creates 1-3 battery sections, an internal node, connections from sections to node,
     and a connection from node to target.
+
+    When required_energy is provided (blackout protection), the undercharge section
+    capacity is set dynamically per-timestep to match the required energy for
+    blackout survival. The undercharge_cost mechanism makes discharging from this
+    section expensive, naturally keeping it charged.
     """
     name = config["name"]
     elements: list[dict[str, Any]] = []
@@ -165,9 +172,6 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     # Convert percentages to ratios
     min_ratio = config["min_charge_percentage"] / 100.0
     max_ratio = config["max_charge_percentage"] / 100.0
-    undercharge_ratio = (
-        config.get("undercharge_percentage", min_ratio) / 100.0 if config.get("undercharge_percentage") else None
-    )
     overcharge_ratio = (
         config.get("overcharge_percentage", max_ratio) / 100.0 if config.get("overcharge_percentage") else None
     )
@@ -176,8 +180,22 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     # Calculate early charge/discharge incentives
     early_charge_incentive: float = config.get("early_charge_incentive", CONFIG_DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE])
 
+    # Check if dynamic undercharge sizing is enabled (required_energy provided)
+    required_energy = config.get("required_energy")
+    has_dynamic_undercharge = required_energy is not None and config.get("undercharge_cost") is not None
+
+    # Determine undercharge ratio for static mode (when no required_energy)
+    undercharge_ratio = (
+        config.get("undercharge_percentage", min_ratio) / 100.0 if config.get("undercharge_percentage") else None
+    )
+
     # Determine unusable ratio (inaccessible energy)
-    unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
+    # For dynamic mode, use min_ratio as the base (required_energy extends below it)
+    # For static mode, use undercharge_ratio if set
+    if has_dynamic_undercharge:
+        unusable_ratio = min_ratio
+    else:
+        unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
 
     # Calculate initial charge in kWh (remove unusable percentage)
     initial_charge = max((initial_soc_ratio - unusable_ratio) * capacity, 0.0)
@@ -185,8 +203,34 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     # Create battery sections
     section_names: list[str] = []
 
-    # 1. Undercharge section (if configured)
-    if undercharge_ratio is not None and config.get("undercharge_cost") is not None:
+    # 1. Undercharge section (dynamic or static)
+    if has_dynamic_undercharge:
+        # Dynamic mode: undercharge capacity = required_energy per timestep
+        # required_energy has n_periods + 1 values (fence-post for energy boundaries)
+        assert required_energy is not None  # Guaranteed by has_dynamic_undercharge check
+        section_name = f"{name}:undercharge"
+        section_names.append(section_name)
+
+        # Use required_energy directly as per-timestep capacity
+        # Cap each value at the total battery capacity to ensure feasibility
+        undercharge_capacity = [min(re, capacity) for re in required_energy]
+
+        # Initial charge for undercharge section: how much of current charge fits in undercharge
+        section_initial_charge = min(initial_charge, undercharge_capacity[0])
+
+        elements.append(
+            {
+                "element_type": "battery",
+                "name": section_name,
+                "capacity": undercharge_capacity,
+                "initial_charge": section_initial_charge,
+            }
+        )
+
+        initial_charge = max(initial_charge - section_initial_charge, 0.0)
+
+    elif undercharge_ratio is not None and config.get("undercharge_cost") is not None:
+        # Static mode: undercharge capacity based on percentage
         section_name = f"{name}:undercharge"
         section_names.append(section_name)
         undercharge_capacity = (min_ratio - undercharge_ratio) * capacity

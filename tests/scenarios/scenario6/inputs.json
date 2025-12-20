@@ -634,5 +634,13 @@
       "state_class": "total",
       "unit_of_measurement": "kWh"
     }
+  },
+  {
+    "entity_id": "input_number.battery_undercharge_cost",
+    "state": "0.1",
+    "attributes": {
+      "unit_of_measurement": "$/kWh",
+      "friendly_name": "Battery Undercharge Cost"
+    }
   }
 ]

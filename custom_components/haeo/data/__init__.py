@@ -26,6 +26,7 @@ from custom_components.haeo.const import (
     DEFAULT_BLACKOUT_PROTECTION,
 )
 from custom_components.haeo.elements import (
+    ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPES,
     ElementConfigData,
@@ -129,6 +130,13 @@ async def load_network(
     for loaded_params in participants.values():
         # Use registry entry to create model elements from configuration element
         element_type = loaded_params[CONF_ELEMENT_TYPE]
+
+        # For battery elements, inject required_energy when blackout protection is enabled
+        # This enables dynamic undercharge sizing based on energy needs
+        if element_type == ELEMENT_TYPE_BATTERY and blackout_protection:
+            loaded_params = dict(loaded_params)  # Make a mutable copy
+            loaded_params["required_energy"] = energy_result.required_energy
+
         model_elements = ELEMENT_TYPES[element_type].create_model_elements(loaded_params)
         all_model_elements.extend(model_elements)
 
