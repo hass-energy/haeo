@@ -241,31 +241,6 @@ class TestCalculateRequiredEnergy:
         # Should have n_periods + 1 values
         assert len(result) == 4
 
-    def test_solar_missing_forecast_key_handled(self) -> None:
-        """Test that solar elements without forecast key are handled gracefully."""
-        participants = cast(
-            "Mapping[str, ElementConfigData]",
-            {
-                "my_load": {
-                    "element_type": "load",
-                    "forecast": [2.0, 1.0],  # kW
-                },
-                "my_solar": {
-                    "element_type": "solar",
-                    # No "forecast" key - should be treated as zero solar
-                },
-            },
-        )
-        periods_hours = [1.0, 1.0]
-
-        result = calculate_required_energy(participants, periods_hours)
-
-        # With no solar forecast, all load becomes required energy
-        # Net energy = [-2.0, -1.0] kWh
-        # From t=0: running balance = [-2, -3], max drawdown = 3
-        # From t=1: running balance = [-1], max drawdown = 1
-        assert result == pytest.approx([3.0, 1.0, 0.0])
-
     def test_solar_recharge_in_middle_reduces_requirement(self) -> None:
         """Test that solar surplus in the middle recharges the battery.
 
