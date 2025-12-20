@@ -1,8 +1,4 @@
-"""Calculate required energy using maximum drawdown algorithm.
-
-The required energy represents the minimum energy needed (e.g. battery storage) at each
-timestep to remain self-sufficient for the rest of the optimization horizon.
-"""
+"""Calculate required energy using maximum drawdown algorithm."""
 
 from collections.abc import Mapping, Sequence
 
@@ -19,6 +15,12 @@ def calculate_required_energy(
 
     The required energy represents the minimum energy needed (e.g. battery storage) at each
     timestep to remain self-sufficient for the rest of the optimization horizon.
+
+    Given a typical grid-connected solar + battery system, energy will have to be eventually
+    imported from the grid if the required energy storage is not met.
+
+    This value can also be used to determine how much excess energy is within storage at any
+    given timestep.
 
     Returns:
         List of required energy values (kWh) at each timestep boundary (n_periods + 1).
