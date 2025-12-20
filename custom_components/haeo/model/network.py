@@ -124,11 +124,22 @@ class Network:
                 msg = f"Failed to build constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
-        # Note: Blackout protection is now handled via dynamic undercharge sizing
-        # in the battery element creation, not via hard constraints here.
+        # Add blackout protection constraint if enabled
+        # This ensures total battery stored energy >= required_energy at each timestep
+        if self.blackout_protection and self.required_energy is not None:
+            self._add_blackout_protection_constraints()
 
         # Collect all cost expressions from elements and set objective
         costs = [c for element in self.elements.values() for c in element.cost()]
+
+        # Add blackout protection penalty cost if applicable
+        if hasattr(self, "_blackout_shortfall"):
+            # Penalty cost: $1000/kWh for energy below required
+            # This makes it extremely expensive to be below required_energy
+            blackout_penalty = 1000.0
+            for t in range(1, self.n_periods + 1):
+                costs.append(blackout_penalty * self._blackout_shortfall[t])
+
         if costs:
             h.minimize(Highs.qsum(costs))
         else:
@@ -142,6 +153,56 @@ class Network:
 
         msg = f"Optimization failed with status: {h.modelStatusToString(status)}"
         raise ValueError(msg)
+
+    def _add_blackout_protection_constraints(self) -> None:
+        """Add soft penalty for battery energy below required_energy.
+
+        Instead of a hard constraint (which would be infeasible if starting
+        below required_energy), we add a penalty cost for the shortfall.
+        This works together with the undercharge_cost mechanism.
+
+        The penalty is proportional to how much energy is below required_energy.
+        """
+        if self.required_energy is None:
+            return
+
+        h = self._solver
+
+        # Find all battery elements (excluding internal sections, use top-level batteries)
+        # Battery sections are named like "Battery:normal", "Battery:undercharge", etc.
+        # We need to sum all sections that belong to the same physical battery
+        battery_sections: dict[str, list[Battery]] = {}
+        for element_name, element in self.elements.items():
+            if isinstance(element, Battery):
+                # Extract base battery name (before the first colon)
+                base_name = element_name.split(":")[0]
+                if base_name not in battery_sections:
+                    battery_sections[base_name] = []
+                battery_sections[base_name].append(element)
+
+        # For each physical battery, add soft penalty for energy below required
+        for sections in battery_sections.values():
+            if not sections:
+                continue
+
+            # Create slack variables for shortfall at each timestep
+            # shortfall[t] >= required_energy[t] - total_stored[t]
+            # shortfall[t] >= 0
+            shortfall = h.addVariables(self.n_periods + 1, lb=0.0, name_prefix="blackout_shortfall_", out_array=True)
+
+            # Add constraints: shortfall[t] >= required[t] - stored[t]
+            # stored_energy has n_periods + 1 values (fence-post for energy boundaries)
+            for t in range(1, self.n_periods + 1):
+                total_stored = h.qsum(section.stored_energy[t] for section in sections)
+                # Total capacity at this timestep (sum of section capacities)
+                total_capacity = sum(section.capacity[t] for section in sections)
+                # Cap required_energy at total capacity
+                min_required = min(self.required_energy[t], total_capacity)
+                # shortfall >= required - stored (will be 0 when stored >= required)
+                h.addConstr(shortfall[t] >= min_required - total_stored)
+
+            # Store shortfall variables for cost calculation
+            self._blackout_shortfall = shortfall
 
     def validate(self) -> None:
         """Validate the network."""

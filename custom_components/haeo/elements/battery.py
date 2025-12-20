@@ -213,7 +213,17 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
 
         # Use required_energy directly as per-timestep capacity
         # Cap each value at the total battery capacity to ensure feasibility
-        undercharge_capacity = [min(re, capacity) for re in required_energy]
+        undercharge_capacity_raw = [min(re, capacity) for re in required_energy]
+
+        # Make capacity NON-DECREASING forward in time
+        # This prevents the SOC_MAX constraint from forcing discharge when required_energy shrinks
+        # (e.g., as we approach midday when solar is abundant)
+        # Once energy enters the undercharge section, it should be able to stay there
+        undercharge_capacity: list[float] = []
+        running_max = 0.0
+        for cap in undercharge_capacity_raw:
+            running_max = max(running_max, cap)
+            undercharge_capacity.append(running_max)
 
         # Initial charge for undercharge section: how much of current charge fits in undercharge
         section_initial_charge = min(initial_charge, undercharge_capacity[0])
@@ -233,14 +243,14 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
         # Static mode: undercharge capacity based on percentage
         section_name = f"{name}:undercharge"
         section_names.append(section_name)
-        undercharge_capacity = (min_ratio - undercharge_ratio) * capacity
-        section_initial_charge = min(initial_charge, undercharge_capacity)
+        static_undercharge_capacity = (min_ratio - undercharge_ratio) * capacity
+        section_initial_charge = min(initial_charge, static_undercharge_capacity)
 
         elements.append(
             {
                 "element_type": "battery",
                 "name": section_name,
-                "capacity": undercharge_capacity,
+                "capacity": static_undercharge_capacity,
                 "initial_charge": section_initial_charge,
             }
         )

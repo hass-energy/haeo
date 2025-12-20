@@ -62,8 +62,12 @@ def _try_parse_float(value: Any) -> float | None:
 def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
     """Apply intelligent rounding to numeric values in output sensors.
 
-    Analyzes all numeric values by unit and rounds them to approximately 4 significant figures,
-    reducing noise from floating-point precision while preserving measurement accuracy.
+    Analyzes all numeric values PER SENSOR (not per unit) and rounds them to approximately
+    4 significant figures, reducing noise from floating-point precision while preserving
+    measurement accuracy.
+
+    This per-sensor approach prevents high-value sensors (e.g., $1000 undercharge cost) from
+    affecting the precision of low-value sensors (e.g., $0.15 grid price) that share the same unit.
 
     Modifies output_sensors in place by rounding:
     - State values (if numeric strings)
@@ -73,38 +77,29 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
         output_sensors: Dict mapping entity_id to sensor state dict.
 
     """
-    # First pass: gather all numeric values by unit
-    unit_values: dict[str | None, list[float]] = {}
-
     for entity_data in output_sensors.values():
-        unit = entity_data["attributes"].get("unit_of_measurement")
-        if unit not in unit_values:
-            unit_values[unit] = []
+        # Collect all numeric values for this specific sensor
+        sensor_values: list[float] = []
 
         # Collect state value if numeric
         state_val = _try_parse_float(entity_data["state"])
         if state_val is not None:
-            unit_values[unit].append(abs(state_val))
+            sensor_values.append(abs(state_val))
 
         # Collect forecast values
         for item in entity_data["attributes"].get("forecast", []):
             val = _try_parse_float(item["value"])
             if val is not None:
-                unit_values[unit].append(abs(val))
+                sensor_values.append(abs(val))
 
-    # Calculate decimal places for each unit
-    unit_decimal_places: dict[str | None, int] = {
-        unit: _get_decimal_places(max(values)) if values else _DEFAULT_DECIMAL_PLACES
-        for unit, values in unit_values.items()
-    }
-
-    # Second pass: apply rounding to all numeric values
-    for entity_data in output_sensors.values():
-        unit = entity_data["attributes"].get("unit_of_measurement")
-        decimal_places = unit_decimal_places.get(unit, _DEFAULT_DECIMAL_PLACES)
+        # Calculate decimal places based on this sensor's max value
+        if sensor_values:
+            max_val = max(sensor_values)
+            decimal_places = _get_decimal_places(max_val)
+        else:
+            decimal_places = _DEFAULT_DECIMAL_PLACES
 
         # Round the state if it's numeric
-        state_val = _try_parse_float(entity_data["state"])
         if state_val is not None:
             rounded_val = round(state_val, decimal_places) + 0.0  # Makes -0.0 into 0.0
             entity_data["state"] = str(rounded_val)
