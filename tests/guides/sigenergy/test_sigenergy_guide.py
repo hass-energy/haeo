@@ -10,14 +10,15 @@ Run with:
 
 from __future__ import annotations
 
+import datetime
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
+from homeassistant.util import dt as dt_util
 
 # Add project root to path for imports
-import sys
-
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -29,7 +30,22 @@ from tests.guides.sigenergy.run_guide import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _restore_timezone() -> None:
+    """Restore dt_util.DEFAULT_TIME_ZONE after test.
+
+    The live HA instance sets the timezone to ZoneInfo('UTC') via
+    async_set_time_zone(), but pytest-homeassistant-custom-component
+    expects datetime.timezone.utc at teardown.
+    """
+    yield
+    # Reset to datetime.UTC which is what the pytest plugin expects
+    dt_util.set_default_time_zone(datetime.UTC)
+
+
 @pytest.mark.guide
+@pytest.mark.enable_socket
+@pytest.mark.timeout(300)  # 5 minutes for full guide run
 def test_sigenergy_guide() -> None:
     """Test the complete Sigenergy setup guide.
 
@@ -45,7 +61,7 @@ def test_sigenergy_guide() -> None:
         shutil.rmtree(SCREENSHOTS_DIR)
     SCREENSHOTS_DIR.mkdir(parents=True)
 
-    with live_home_assistant(timeout=60) as hass:
+    with live_home_assistant(timeout=120) as hass:
         # Load entity states from scenario1
         hass.load_states_from_file(INPUTS_FILE)
 
@@ -56,7 +72,12 @@ def test_sigenergy_guide() -> None:
         assert len(results) > 0, "No screenshots captured"
 
         # Verify expected elements were created by checking config entries
-        config_entries = hass.run_coro(hass.hass.config_entries.async_entries("haeo"))
+        # Note: async_entries is synchronous despite its name (HA convention for callback methods)
+
+        async def get_entries() -> list:
+            return hass.hass.config_entries.async_entries("haeo")
+
+        config_entries = hass.run_coro(get_entries())
         assert len(config_entries) > 0, "No HAEO config entries created"
 
         # Check that we have the hub entry

@@ -9,6 +9,7 @@ The approach:
 2. Use page.evaluate() to fetch the bundle as text
 3. Extract and eval the script content in JavaScript
 4. Call singlefile.getPageData() to capture the page
+5. Post-process to strip interactive attributes (href, onclick, etc.)
 
 This captures the current authenticated page state, unlike the CLI
 which opens a new tab without session cookies.
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+import re
 import shutil
 from typing import TYPE_CHECKING
 
@@ -35,6 +37,51 @@ _BUNDLE_PATH = (
 _HA_WWW_PATH = Path(__file__).parent.parent.parent / "config" / "www"
 _HA_BUNDLE_NAME = "single-file-bundle.js"
 _HA_BUNDLE_URL = f"/local/{_HA_BUNDLE_NAME}"
+
+# Regex patterns to strip interactive attributes from HTML
+# These patterns match attributes that would make the HTML interactive
+_INTERACTIVE_ATTR_PATTERNS = [
+    # href attributes on links (keep other attrs)
+    re.compile(r'\s+href="[^"]*"', re.IGNORECASE),
+    re.compile(r"\s+href='[^']*'", re.IGNORECASE),
+    # Event handlers
+    re.compile(r'\s+on\w+="[^"]*"', re.IGNORECASE),
+    re.compile(r"\s+on\w+='[^']*'", re.IGNORECASE),
+    # Form actions
+    re.compile(r'\s+action="[^"]*"', re.IGNORECASE),
+    re.compile(r"\s+action='[^']*'", re.IGNORECASE),
+    # Form methods
+    re.compile(r'\s+method="[^"]*"', re.IGNORECASE),
+    re.compile(r"\s+method='[^']*'", re.IGNORECASE),
+    # Contenteditable
+    re.compile(r'\s+contenteditable="[^"]*"', re.IGNORECASE),
+    re.compile(r"\s+contenteditable='[^']*'", re.IGNORECASE),
+    re.compile(r"\s+contenteditable(?=[>\s])", re.IGNORECASE),
+    # Draggable
+    re.compile(r'\s+draggable="[^"]*"', re.IGNORECASE),
+    re.compile(r"\s+draggable='[^']*'", re.IGNORECASE),
+    # Tabindex (prevents keyboard navigation)
+    re.compile(r'\s+tabindex="[^"]*"', re.IGNORECASE),
+    re.compile(r"\s+tabindex='[^']*'", re.IGNORECASE),
+]
+
+
+def _sanitize_html(html: str) -> str:
+    """Remove interactive attributes from HTML to make it a static snapshot.
+
+    This strips href, onclick, and other attributes that would make
+    the captured HTML behave interactively when viewed in a browser.
+
+    Args:
+        html: The raw HTML content.
+
+    Returns:
+        Sanitized HTML with interactive attributes removed.
+
+    """
+    for pattern in _INTERACTIVE_ATTR_PATTERNS:
+        html = pattern.sub("", html)
+    return html
 
 
 def _ensure_bundle_available() -> bool:
@@ -206,6 +253,8 @@ def capture_html(page: Page, path: Path, *, timeout: int = 30000) -> bool:
         )
 
         if html_content:
+            # Sanitize to remove interactive attributes
+            html_content = _sanitize_html(html_content)
             path.write_text(html_content)
             return True
         _LOGGER.warning("SingleFile returned empty content")

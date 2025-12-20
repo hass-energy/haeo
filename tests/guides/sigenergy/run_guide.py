@@ -68,104 +68,128 @@ class SigenergyGuide:
         """Get the Home Assistant URL."""
         return self.hass.url
 
-    def _show_click_indicator(self, x: float, y: float) -> None:
-        """Inject a visual click indicator at the given position.
+    def _ensure_click_indicator_styles(self) -> None:
+        """Inject the click indicator stylesheet if not already present.
 
-        Uses a <dialog> with showModal() to place indicator in the top layer,
-        which renders above all other elements including other dialogs.
-
-        When debug_indicators is True, also draws full-screen crosshairs.
+        Uses a class-based approach so the indicator styling can be toggled
+        off later by removing or disabling the stylesheet.
         """
-        # Remove any existing indicator first
         self.page.evaluate("""
-            const existing = document.getElementById('click-indicator-dialog');
-            if (existing) {
-                existing.close();
-                existing.remove();
+            if (!document.getElementById('click-indicator-styles')) {
+                const style = document.createElement('style');
+                style.id = 'click-indicator-styles';
+                style.textContent = `
+                    /* Click target indicator - applied via data-click-target attribute */
+                    [data-click-target] {
+                        box-shadow:
+                            0 0 0 3px rgba(255, 0, 0, 0.9),
+                            0 0 0 5px white,
+                            0 0 0 7px rgba(255, 0, 0, 0.9),
+                            0 0 15px 5px rgba(255, 0, 0, 0.4) !important;
+                        outline: none !important;
+                    }
+                `;
+                document.head.appendChild(style);
             }
         """)
 
-        # Create a dialog element and show it modally to get into the top layer
-        self.page.evaluate(
-            """([x, y, debug]) => {
-            const dialog = document.createElement('dialog');
-            dialog.id = 'click-indicator-dialog';
-            dialog.style.cssText = `
-                position: fixed;
-                inset: 0;
-                width: 100vw;
-                height: 100vh;
-                max-width: 100vw;
-                max-height: 100vh;
-                margin: 0;
-                padding: 0;
-                border: none;
-                background: transparent;
-                pointer-events: none;
-                overflow: visible;
-            `;
+    def _show_click_indicator(self, locator: Any) -> None:
+        """Mark the target element as a click target using a data attribute.
 
-            // Remove the default ::backdrop styling
-            const style = document.createElement('style');
-            style.textContent = '#click-indicator-dialog::backdrop { background: transparent; }';
-            dialog.appendChild(style);
+        The indicator styling is applied via CSS using [data-click-target].
+        This approach doesn't modify ancestor elements and works regardless
+        of overflow settings since box-shadow is drawn outside the element.
 
-            // Add the circle indicator
-            const circle = document.createElement('div');
-            circle.style.cssText = `
-                position: fixed;
-                left: ${x - 15}px;
-                top: ${y - 15}px;
-                width: 30px;
-                height: 30px;
-                border: 3px solid #ff0000;
-                border-radius: 50%;
-                background: rgba(255, 0, 0, 0.2);
-                pointer-events: none;
-                box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
-            `;
-            dialog.appendChild(circle);
+        When debug_indicators is True, also draws full-screen crosshairs in a
+        separate top-layer dialog.
+        """
+        # Remove any existing indicators first
+        self._remove_click_indicator()
 
-            // Add crosshairs in debug mode
-            if (debug) {
-                const hLine = document.createElement('div');
-                hLine.style.cssText = `
-                    position: fixed;
-                    left: 0;
-                    top: ${y}px;
-                    width: 100vw;
-                    height: 2px;
-                    background: rgba(255, 0, 0, 0.7);
-                    pointer-events: none;
-                `;
-                dialog.appendChild(hLine);
+        # Ensure stylesheet is present
+        self._ensure_click_indicator_styles()
 
-                const vLine = document.createElement('div');
-                vLine.style.cssText = `
-                    position: fixed;
-                    left: ${x}px;
-                    top: 0;
-                    width: 2px;
-                    height: 100vh;
-                    background: rgba(255, 0, 0, 0.7);
-                    pointer-events: none;
-                `;
-                dialog.appendChild(vLine);
-            }
+        # Get the element handle and add the data attribute
+        element = locator.element_handle(timeout=1000)
+        if not element:
+            return
 
-            document.body.appendChild(dialog);
-            dialog.showModal();
-        }""",
-            [x, y, self.debug_indicators],
-        )
+        # Mark the element as a click target
+        element.evaluate("(el) => el.setAttribute('data-click-target', 'true')")
+
+        # Add crosshairs in debug mode using a separate top-layer dialog
+        if self.debug_indicators:
+            pos = self._get_element_center(locator)
+            if pos:
+                x, y = pos
+                self.page.evaluate(
+                    """([x, y]) => {
+                    const dialog = document.createElement('dialog');
+                    dialog.id = 'click-indicator-crosshairs';
+                    dialog.style.cssText = `
+                        position: fixed;
+                        inset: 0;
+                        width: 100vw;
+                        height: 100vh;
+                        max-width: 100vw;
+                        max-height: 100vh;
+                        margin: 0;
+                        padding: 0;
+                        border: none;
+                        background: transparent;
+                        pointer-events: none;
+                        overflow: visible;
+                    `;
+
+                    // Remove the default ::backdrop styling
+                    const style = document.createElement('style');
+                    style.textContent = '#click-indicator-crosshairs::backdrop { background: transparent; }';
+                    dialog.appendChild(style);
+
+                    const hLine = document.createElement('div');
+                    hLine.style.cssText = `
+                        position: fixed;
+                        left: 0;
+                        top: ${y}px;
+                        width: 100vw;
+                        height: 2px;
+                        background: rgba(255, 0, 0, 0.7);
+                        pointer-events: none;
+                    `;
+                    dialog.appendChild(hLine);
+
+                    const vLine = document.createElement('div');
+                    vLine.style.cssText = `
+                        position: fixed;
+                        left: ${x}px;
+                        top: 0;
+                        width: 2px;
+                        height: 100vh;
+                        background: rgba(255, 0, 0, 0.7);
+                        pointer-events: none;
+                    `;
+                    dialog.appendChild(vLine);
+
+                    document.body.appendChild(dialog);
+                    dialog.showModal();
+                }""",
+                    [x, y],
+                )
 
     def _remove_click_indicator(self) -> None:
-        """Remove the click indicator dialog."""
+        """Remove click indicator from any marked elements."""
         self.page.evaluate("""
-            const existing = document.getElementById('click-indicator-dialog');
-            if (existing) {
-                existing.close();
-                existing.remove();
+            // Remove the data attribute from any marked elements
+            const marked = document.querySelectorAll('[data-click-target]');
+            for (const el of marked) {
+                el.removeAttribute('data-click-target');
+            }
+
+            // Remove crosshairs dialog
+            const crosshairs = document.getElementById('click-indicator-crosshairs');
+            if (crosshairs) {
+                crosshairs.close();
+                crosshairs.remove();
             }
         """)
 
@@ -187,13 +211,13 @@ class SigenergyGuide:
         except Exception:
             pass
 
-    def _capture_with_indicator(self, name: str, x: float, y: float) -> None:
-        """Capture screenshot with click indicator at specified position."""
+    def _capture_with_indicator(self, name: str, locator: Any) -> None:
+        """Capture screenshot with click indicator attached to the target element."""
         self.step_number += 1
         filename = f"{self.step_number:02d}_{name}"
         _LOGGER.info("Capturing: %s", filename)
 
-        self._show_click_indicator(x, y)
+        self._show_click_indicator(locator)
         png_path = self.output_dir / f"{filename}.png"
         self.page.screenshot(path=str(png_path))
 
@@ -257,9 +281,7 @@ class SigenergyGuide:
         if capture_name:
             self._scroll_into_view(button)
             self.capture(f"{capture_name}_before")
-            pos = self._get_element_center(button)
-            if pos:
-                self._capture_with_indicator(f"{capture_name}_click", *pos)
+            self._capture_with_indicator(f"{capture_name}_click", button)
 
         button.click(timeout=timeout)
         self.page.wait_for_timeout(SHORT_WAIT * 1000)
@@ -278,9 +300,7 @@ class SigenergyGuide:
         if capture_name:
             self._scroll_into_view(textbox)
             self.capture(f"{capture_name}_before")
-            pos = self._get_element_center(textbox)
-            if pos:
-                self._capture_with_indicator(f"{capture_name}_field", *pos)
+            self._capture_with_indicator(f"{capture_name}_field", textbox)
 
         textbox.fill(value)
 
@@ -297,9 +317,7 @@ class SigenergyGuide:
         if capture_name:
             self._scroll_into_view(spinbutton)
             self.capture(f"{capture_name}_before")
-            pos = self._get_element_center(spinbutton)
-            if pos:
-                self._capture_with_indicator(f"{capture_name}_field", *pos)
+            self._capture_with_indicator(f"{capture_name}_field", spinbutton)
 
         spinbutton.clear()
         spinbutton.fill(value)
@@ -319,9 +337,7 @@ class SigenergyGuide:
         if capture_name:
             self._scroll_into_view(combobox)
             self.capture(f"{capture_name}_before")
-            pos = self._get_element_center(combobox)
-            if pos:
-                self._capture_with_indicator(f"{capture_name}_dropdown", *pos)
+            self._capture_with_indicator(f"{capture_name}_dropdown", combobox)
 
         combobox.click()
         self.page.wait_for_timeout(SHORT_WAIT * 1000)
@@ -331,9 +347,7 @@ class SigenergyGuide:
 
         if capture_name:
             self._scroll_into_view(option)
-            pos = self._get_element_center(option)
-            if pos:
-                self._capture_with_indicator(f"{capture_name}_option", *pos)
+            self._capture_with_indicator(f"{capture_name}_option", option)
 
         option.click()
         self.page.wait_for_timeout(SHORT_WAIT * 1000)
@@ -364,9 +378,7 @@ class SigenergyGuide:
         if capture_name:
             self._scroll_into_view(picker)
             self.capture(f"{capture_name}_before")
-            pos = self._get_element_center(picker)
-            if pos:
-                self._capture_with_indicator(f"{capture_name}_picker", *pos)
+            self._capture_with_indicator(f"{capture_name}_picker", picker)
 
         picker.click()
         self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
@@ -396,9 +408,7 @@ class SigenergyGuide:
             if capture_name:
                 self._scroll_into_view(result_item)
                 self.capture(f"{capture_name}_select_before")
-                pos = self._get_element_center(result_item)
-                if pos:
-                    self._capture_with_indicator(f"{capture_name}_select", *pos)
+                self._capture_with_indicator(f"{capture_name}_select", result_item)
             result_item.click(timeout=1000)
         except Exception:
             # Fall back to ha-combo-box-item
@@ -406,9 +416,7 @@ class SigenergyGuide:
             if capture_name:
                 self._scroll_into_view(result_item)
                 self.capture(f"{capture_name}_select_before")
-                pos = self._get_element_center(result_item)
-                if pos:
-                    self._capture_with_indicator(f"{capture_name}_select", *pos)
+                self._capture_with_indicator(f"{capture_name}_select", result_item)
             result_item.click(timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_timeout(SHORT_WAIT * 1000)
 
@@ -456,9 +464,7 @@ class SigenergyGuide:
         if capture_name:
             self._scroll_into_view(button)
             self.capture(f"{capture_name}_before")
-            pos = self._get_element_center(button)
-            if pos:
-                self._capture_with_indicator(f"{capture_name}_click", *pos)
+            self._capture_with_indicator(f"{capture_name}_click", button)
 
         button.click(timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
@@ -470,9 +476,7 @@ class SigenergyGuide:
         if capture_name:
             self._scroll_into_view(button)
             self.capture(f"{capture_name}_before")
-            pos = self._get_element_center(button)
-            if pos:
-                self._capture_with_indicator(f"{capture_name}_click", *pos)
+            self._capture_with_indicator(f"{capture_name}_click", button)
 
         button.click(timeout=DEFAULT_TIMEOUT)
         self.page.wait_for_timeout(MEDIUM_WAIT * 1000)
@@ -492,9 +496,7 @@ def add_haeo_integration(guide: SigenergyGuide) -> None:
 
     # Click the first "Add integration" button (inside ha-button, not the FAB)
     add_btn = guide.page.locator("ha-button").get_by_role("button", name="Add integration")
-    pos = guide._get_element_center(add_btn)
-    if pos:
-        guide._capture_with_indicator("add_integration_click", *pos)
+    guide._capture_with_indicator("add_integration_click", add_btn)
     add_btn.click()
     guide.page.wait_for_timeout(MEDIUM_WAIT * 1000)
 
@@ -510,9 +512,7 @@ def add_haeo_integration(guide: SigenergyGuide) -> None:
 
     # Click on the HAEO integration result
     haeo_item = guide.page.locator("ha-integration-list-item", has_text="Home Assistant Energy Optimizer")
-    pos = guide._get_element_center(haeo_item)
-    if pos:
-        guide._capture_with_indicator("select_haeo_click", *pos)
+    guide._capture_with_indicator("select_haeo_click", haeo_item)
     haeo_item.click(timeout=DEFAULT_TIMEOUT)
 
     # Wait for the HAEO Network Setup dialog
@@ -702,6 +702,15 @@ def login_to_ha(guide: SigenergyGuide) -> None:
     # Navigate to home page first
     guide.page.goto(guide.url)
     guide.page.wait_for_load_state("networkidle")
+
+    _LOGGER.info("Current URL after navigation: %s", guide.page.url)
+
+    # Check if we're in onboarding - handle onboarding redirect first
+    if "/onboarding" in guide.page.url:
+        msg = (
+            f"Home Assistant is in onboarding mode (URL: {guide.page.url}). Onboarding should be bypassed by ha_runner."
+        )
+        raise RuntimeError(msg)
 
     # Check if we're on the login page
     if "/auth/authorize" in guide.page.url:

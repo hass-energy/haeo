@@ -202,6 +202,22 @@ async def _setup_home_assistant_async(
         Tuple of (HomeAssistant instance, access_token for authentication)
 
     """
+    # Pre-populate onboarding storage to mark all steps complete
+    # This MUST be done BEFORE the HomeAssistant instance is created,
+    # because the StoreManager scans the storage directory during initialization
+    # and caches which files exist. If we write the file after that scan,
+    # the onboarding component won't see it.
+    storage_dir = Path(config_dir) / ".storage"
+    storage_dir.mkdir(exist_ok=True)
+    onboarding_storage = storage_dir / "onboarding"
+    onboarding_data = {
+        "version": 4,
+        "minor_version": 1,
+        "key": "onboarding",
+        "data": {"done": ["user", "core_config", "analytics", "integration"]},
+    }
+    onboarding_storage.write_text(json.dumps(onboarding_data))
+
     hass = HomeAssistant(config_dir)
 
     # Basic configuration
@@ -278,30 +294,25 @@ async def _setup_home_assistant_async(
     # Store refresh token ID for frontend auth
     refresh_token_id = refresh_token.id
 
-    # Pre-populate onboarding storage to mark all steps complete
-    # This must be done before the onboarding component loads
-    storage_dir = Path(config_dir) / ".storage"
-    storage_dir.mkdir(exist_ok=True)
-    onboarding_storage = storage_dir / "onboarding"
-    onboarding_data = {
-        "version": 4,
-        "minor_version": 1,
-        "key": "onboarding",
-        "data": {"done": ["user", "core_config", "analytics", "integration"]},
-    }
-
-    onboarding_storage.write_text(json.dumps(onboarding_data))
-
     # Set up HTTP on ephemeral port
     http_config = {
         "server_port": port,
     }
 
-    # Set up components in order (onboarding will see all steps done and skip)
+    # Set up components in order (onboarding will see all steps done and skip
+    # because we pre-populated the storage file)
     assert await async_setup_component(hass, "http", {"http": http_config})
     assert await async_setup_component(hass, "websocket_api", {})
     assert await async_setup_component(hass, "auth", {})
     assert await async_setup_component(hass, "onboarding", {})
+
+    # Verify onboarding is bypassed
+    from homeassistant.components.onboarding import async_is_onboarded
+
+    if not async_is_onboarded(hass):
+        msg = "Onboarding bypass failed - check storage file format and timing"
+        raise RuntimeError(msg)
+
     assert await async_setup_component(hass, "frontend", {})
     assert await async_setup_component(hass, "config", {})
 
