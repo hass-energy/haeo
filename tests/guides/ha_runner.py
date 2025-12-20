@@ -396,9 +396,7 @@ def live_home_assistant(
         # Copy SingleFile bundle to www directory for HTML captures
         www_dir = Path(temp_dir) / "www"
         www_dir.mkdir()
-        singlefile_bundle = (
-            PROJECT_ROOT / "node_modules" / "single-file-cli" / "lib" / "single-file-bundle.js"
-        )
+        singlefile_bundle = PROJECT_ROOT / "node_modules" / "single-file-cli" / "lib" / "single-file-bundle.js"
         if singlefile_bundle.exists():
             shutil.copy2(singlefile_bundle, www_dir / "single-file-bundle.js")
 
