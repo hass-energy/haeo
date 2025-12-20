@@ -982,19 +982,19 @@ L 793.02381 206.343994
 L 793.02381 207.757812 
 L 1030.376293 207.757812 
 L 1030.376293 207.757812 
-" clip-path="url(#p5d0a629806)" style="fill: none; stroke-dasharray: 7.4,3.2; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 2"/>
+" clip-path="url(#p5d0a629806)" style="fill: none; stroke-dasharray: 7.4,3.2; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 2"/>
    </g>
    <g id="line2d_35">
     <path d="M 119.24902 207.757812 
 L 1030.376293 207.757812 
 L 1030.376293 207.757812 
-" clip-path="url(#p5d0a629806)" style="fill: none; stroke-dasharray: 9.6,2.4,1.5,2.4; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 1.5"/>
+" clip-path="url(#p5d0a629806)" style="fill: none; stroke-dasharray: 9.6,2.4,1.5,2.4; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 1.5"/>
    </g>
    <g id="line2d_36">
     <path d="M 119.24902 207.757812 
 L 1030.376293 207.757812 
 L 1030.376293 207.757812 
-" clip-path="url(#p5d0a629806)" style="fill: none; stroke-dasharray: 12.8,3.2,2,3.2; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 2"/>
+" clip-path="url(#p5d0a629806)" style="fill: none; stroke-dasharray: 12.8,3.2,2,3.2; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 2"/>
    </g>
    <g id="line2d_37">
     <path d="M 119.24902 205.495703 
@@ -1066,7 +1066,7 @@ L 793.02381 206.343994
 L 793.02381 207.757812 
 L 1030.376293 207.757812 
 L 1030.376293 207.757812 
-" clip-path="url(#p5d0a629806)" style="fill: none; stroke: #7f7f7f; stroke-width: 1.5; stroke-linecap: square"/>
+" clip-path="url(#p5d0a629806)" style="fill: none; stroke: #a0a0a0; stroke-width: 1.5; stroke-linecap: square"/>
    </g>
    <g id="line2d_40">
     <path d="M 73.692656 207.757812 
@@ -1564,7 +1564,7 @@ L 90.792656 104.408281
 L 90.792656 104.408281 
 L 99.792656 104.408281 
 L 99.792656 104.408281 
-" style="fill: none; stroke-dasharray: 7.4,3.2; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 2"/>
+" style="fill: none; stroke-dasharray: 7.4,3.2; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 2"/>
     </g>
     <g id="text_22">
      <!-- Inverter inverter_dc_bus_power_balance -->
@@ -1656,7 +1656,7 @@ L 90.792656 117.868906
 L 90.792656 117.868906 
 L 99.792656 117.868906 
 L 99.792656 117.868906 
-" style="fill: none; stroke-dasharray: 9.6,2.4,1.5,2.4; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 1.5"/>
+" style="fill: none; stroke-dasharray: 9.6,2.4,1.5,2.4; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 1.5"/>
     </g>
     <g id="text_23">
      <!-- Inverter inverter_max_power_ac_to_dc_price -->
@@ -1711,7 +1711,7 @@ L 90.792656 131.329531
 L 90.792656 131.329531 
 L 99.792656 131.329531 
 L 99.792656 131.329531 
-" style="fill: none; stroke-dasharray: 12.8,3.2,2,3.2; stroke-dashoffset: 0; stroke: #a0a0a0; stroke-width: 2"/>
+" style="fill: none; stroke-dasharray: 12.8,3.2,2,3.2; stroke-dashoffset: 0; stroke: #7f7f7f; stroke-width: 2"/>
     </g>
     <g id="text_24">
      <!-- Inverter inverter_max_power_dc_to_ac_price -->
@@ -1880,7 +1880,7 @@ L 90.792656 171.711406
 L 90.792656 171.711406 
 L 99.792656 171.711406 
 L 99.792656 171.711406 
-" style="fill: none; stroke: #7f7f7f; stroke-width: 1.5; stroke-linecap: square"/>
+" style="fill: none; stroke: #a0a0a0; stroke-width: 1.5; stroke-linecap: square"/>
     </g>
     <g id="text_27">
      <!-- Switchboard node_power_balance -->
