@@ -203,6 +203,9 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     # Create battery sections
     section_names: list[str] = []
 
+    # Track dynamic undercharge capacity for normal section sizing
+    dynamic_undercharge_capacity: list[float] | None = None
+
     # 1. Undercharge section (dynamic or static)
     if has_dynamic_undercharge:
         # Dynamic mode: undercharge capacity = required_energy per timestep
@@ -213,17 +216,14 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
 
         # Use required_energy directly as per-timestep capacity
         # Cap each value at the total battery capacity to ensure feasibility
-        undercharge_capacity_raw = [min(re, capacity) for re in required_energy]
+        # The undercharge capacity tracks required_energy directly, allowing energy
+        # above the requirement to flow to the normal section and be used
+        # The high discharge cost ($1000/kWh) on the undercharge section prevents
+        # discharging from it; network-level penalty enforces total stored >= required
+        undercharge_capacity: list[float] = [min(re, capacity) for re in required_energy]
 
-        # Make capacity NON-DECREASING forward in time
-        # This prevents the SOC_MAX constraint from forcing discharge when required_energy shrinks
-        # (e.g., as we approach midday when solar is abundant)
-        # Once energy enters the undercharge section, it should be able to stay there
-        undercharge_capacity: list[float] = []
-        running_max = 0.0
-        for cap in undercharge_capacity_raw:
-            running_max = max(running_max, cap)
-            undercharge_capacity.append(running_max)
+        # Store for normal section calculation
+        dynamic_undercharge_capacity = undercharge_capacity
 
         # Initial charge for undercharge section: how much of current charge fits in undercharge
         section_initial_charge = min(initial_charge, undercharge_capacity[0])
@@ -258,10 +258,24 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
         initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
     # 2. Normal section (always present)
+    # For dynamic undercharge mode, normal section gets remaining capacity after undercharge
+    # For static mode, normal section gets (max_ratio - min_ratio) * capacity
     section_name = f"{name}:normal"
     section_names.append(section_name)
-    normal_capacity = (max_ratio - min_ratio) * capacity
-    section_initial_charge = min(initial_charge, normal_capacity)
+
+    # Calculate base normal capacity
+    base_normal_capacity = (max_ratio - min_ratio) * capacity
+
+    if has_dynamic_undercharge and dynamic_undercharge_capacity is not None:
+        # Dynamic mode: normal capacity = total accessible capacity - undercharge capacity
+        # dynamic_undercharge_capacity is a list; normal gets remaining capacity at each timestep
+        normal_capacity_values = [max(base_normal_capacity - uc, 0.0) for uc in dynamic_undercharge_capacity]
+        normal_capacity: float | list[float] = normal_capacity_values
+        section_initial_charge = min(initial_charge, normal_capacity_values[0])
+    else:
+        # Static mode: normal section gets full (max_ratio - min_ratio) * capacity
+        normal_capacity = base_normal_capacity
+        section_initial_charge = min(initial_charge, normal_capacity)
 
     elements.append(
         {
