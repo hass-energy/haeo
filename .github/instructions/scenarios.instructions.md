@@ -37,14 +37,8 @@ Hub configuration and element participants:
 
 ```json
 {
-  "tier_1_count": 5,
-  "tier_1_duration": 1,
-  "tier_2_count": 11,
-  "tier_2_duration": 5,
-  "tier_3_count": 46,
-  "tier_3_duration": 30,
-  "tier_4_count": 48,
-  "tier_4_duration": 60,
+  "tier_1_count": 12,
+  "tier_1_duration": 5,
   "participants": {
     "Battery": {
       "element_type": "battery",

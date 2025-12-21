@@ -46,7 +46,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         self._user_input: dict[str, Any] = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Handle the initial step for hub creation with simplified options."""
+        """Handle the initial step for hub creation."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
