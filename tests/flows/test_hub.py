@@ -19,11 +19,7 @@ from custom_components.haeo.const import (
     CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
 )
-from custom_components.haeo.flows import (
-    HORIZON_PRESET_5_DAYS,
-    get_custom_tiers_schema,
-    get_hub_setup_schema,
-)
+from custom_components.haeo.flows import HORIZON_PRESET_5_DAYS, get_custom_tiers_schema, get_hub_setup_schema
 from custom_components.haeo.flows.hub import HubConfigFlow
 
 # Test data for hub flow

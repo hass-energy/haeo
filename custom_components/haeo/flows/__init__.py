@@ -67,8 +67,10 @@ def _create_horizon_preset(days: int) -> dict[str, int]:
     - Tier 4: 60-minute intervals for the remainder
 
     """
-    if days < 2:
-        raise ValueError("Horizon must be at least 2 days")
+    min_days = 2
+    if days < min_days:
+        msg = f"Horizon must be at least {min_days} days"
+        raise ValueError(msg)
 
     total_minutes = days * 24 * 60
 

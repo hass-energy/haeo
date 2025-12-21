@@ -6,11 +6,7 @@ from typing import Any
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 
-from custom_components.haeo.const import (
-    CONF_DEBOUNCE_SECONDS,
-    CONF_HORIZON_PRESET,
-    CONF_UPDATE_INTERVAL_MINUTES,
-)
+from custom_components.haeo.const import CONF_DEBOUNCE_SECONDS, CONF_HORIZON_PRESET, CONF_UPDATE_INTERVAL_MINUTES
 
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_options_schema, get_tier_config
 
@@ -55,9 +51,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
 
     async def _save_options(self) -> ConfigFlowResult:
         """Save the options with tier configuration."""
-        tier_config, stored_preset = get_tier_config(
-            self._user_input, self._user_input.get(CONF_HORIZON_PRESET)
-        )
+        tier_config, stored_preset = get_tier_config(self._user_input, self._user_input.get(CONF_HORIZON_PRESET))
 
         # Update config entry data with new values
         new_data = {
