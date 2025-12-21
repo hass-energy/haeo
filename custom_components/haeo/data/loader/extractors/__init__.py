@@ -12,7 +12,12 @@ from .utils import EntityMetadata, base_unit_for_device_class, convert_to_base_u
 
 # Union of all domain literal types from the extractor modules
 ExtractorFormat = (
-    aemo_nem.Format | amber2mqtt.Format | amberelectric.Format | haeo.Format | open_meteo_solar_forecast.Format | solcast_solar.Format
+    aemo_nem.Format
+    | amber2mqtt.Format
+    | amberelectric.Format
+    | haeo.Format
+    | open_meteo_solar_forecast.Format
+    | solcast_solar.Format
 )
 
 # Union of all Extractor class types
