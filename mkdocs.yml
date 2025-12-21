@@ -159,6 +159,7 @@ nav:
       - Model Layer:
           - modeling/model-layer/index.md
           - Battery: modeling/model-layer/battery.md
+          - Battery Balance Connection: modeling/model-layer/battery-balance-connection.md
           - SourceSink: modeling/model-layer/source-sink.md
           - Connection: modeling/model-layer/connection.md
       - Device Layer:

@@ -43,9 +43,17 @@ The total objective is the sum of all element cost contributions.
 
     ---
 
-    Energy storage with multi-section SOC tracking.
+    Energy storage with cumulative energy tracking.
 
     [:material-arrow-right: Battery formulation](battery.md)
+
+- :material-scale-balance:{ .lg .middle } **Balance connection model**
+
+    ---
+
+    Energy redistribution between battery sections.
+
+    [:material-arrow-right: Balance connection formulation](battery-balance-connection.md)
 
 - :material-power-plug:{ .lg .middle } **SourceSink model**
 
