@@ -14,6 +14,7 @@ from custom_components.haeo.const import (
     DEFAULT_BLACKOUT_PROTECTION,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
+    NETWORK_DEVICE_NETWORK,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,10 +51,10 @@ async def async_setup_entry(
 
     # Get or create the Network device (same identifier pattern as sensors)
     device_entry = dr.async_get_or_create(
-        identifiers={(DOMAIN, f"{config_entry.entry_id}_{network_subentry.subentry_id}")},
+        identifiers={(DOMAIN, f"{config_entry.entry_id}_{network_subentry.subentry_id}_{NETWORK_DEVICE_NETWORK}")},
         config_entry_id=config_entry.entry_id,
         config_subentry_id=network_subentry.subentry_id,
-        translation_key="network",
+        translation_key=NETWORK_DEVICE_NETWORK,
         translation_placeholders={"name": network_subentry.title},
     )
 
@@ -62,7 +63,7 @@ async def async_setup_entry(
         HaeoBlackoutSlackPenalty(
             config_entry=config_entry,
             device_entry=device_entry,
-            unique_id=f"{config_entry.entry_id}_{network_subentry.subentry_id}_{BLACKOUT_SLACK_PENALTY_KEY}",
+            unique_id=f"{config_entry.entry_id}_{network_subentry.subentry_id}_{NETWORK_DEVICE_NETWORK}_{BLACKOUT_SLACK_PENALTY_KEY}",
         )
     ]
 
