@@ -246,6 +246,21 @@ All sensors include a `forecast` attribute containing future optimized values fo
 For constant loads, the forecast shows the same value for all periods.
 For variable loads, the forecast reflects the configured sensor forecast values.
 
+## Input Entities
+
+The Load element's Forecast field is always **driven** by the configured sensor(s).
+Unlike other elements with numeric configuration fields, Load does not create editable input entities because consumption is determined by your forecast sensors.
+
+The load sensors themselves show the consumption values the optimizer uses.
+To change load consumption patterns, update the underlying forecast sensor or `input_number` helper you configured.
+
+!!! tip "Using Input Numbers for Adjustable Loads"
+
+    For loads you want to adjust at runtime, configure the Forecast field with an `input_number` helper.
+    Changes to the helper value take effect at the next optimization cycle.
+
+See [Runtime Configuration](../forecasts-and-sensors.md#runtime-configuration-with-input-entities) for details on how HAEO handles different configuration modes.
+
 ## Troubleshooting
 
 ### Sensor Not Found

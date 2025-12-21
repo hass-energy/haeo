@@ -165,6 +165,26 @@ It indicates whether more solar generation would be beneficial or detrimental.
 
 All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
+## Input Entities
+
+Solar configuration fields create input entities for runtime adjustment.
+These entities appear in the solar device's config section.
+
+| Entity                                   | Type   | Description                      |
+| ---------------------------------------- | ------ | -------------------------------- |
+| `number.{name}_production_price`         | Number | Production cost (\$/kWh)         |
+| `switch.{name}_allow_curtailment`        | Switch | Allow generation curtailment     |
+
+**Mode behavior**:
+
+- If you configured the Forecast field with a sensor entity ID, the forecast is **driven** by that sensor
+- If you configured Production Price with a sensor, that input is **driven** (read-only)
+- Boolean fields like Curtailment are always **editable**
+
+The curtailment switch allows you to enable or disable curtailment at runtime without reconfiguring the element.
+All input entities include a `forecast` attribute showing the value across the optimization horizon.
+See [Runtime Configuration](../forecasts-and-sensors.md#runtime-configuration-with-input-entities) for details.
+
 ## Troubleshooting
 
 ### Sensor Not Found

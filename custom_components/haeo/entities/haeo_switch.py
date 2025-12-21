@@ -1,20 +1,24 @@
 """Input switch entity for HAEO runtime configuration."""
 
+from datetime import datetime
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import EntityCategory
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.schema.input_fields import InputFieldInfo
 
 from .mode import ConfigEntityMode
+
+if TYPE_CHECKING:
+    from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,7 +31,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
 
     Supports two modes:
     - Editable: User controls the value, persisted with RestoreEntity
-    - Driven: Mirrors an external entity's boolean state
+    - Driven: Value and forecast come from coordinator's loaded config (extractor output)
     """
 
     _attr_should_poll = False
@@ -75,12 +79,18 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
             if isinstance(config_value, bool):
                 self._attr_is_on = config_value
             else:
-                self._attr_is_on = bool(config_value) if config_value is not None else False
+                self._attr_is_on = (
+                    bool(config_value) if config_value is not None else False
+                )
 
         # Entity attributes
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
+        self._attr_unique_id = (
+            f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
+        )
         self._attr_translation_key = field_info.translation_key
-        self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+        self._attr_translation_placeholders = {
+            k: str(v) for k, v in subentry.data.items()
+        }
 
         # Device info
         self._attr_device_info = DeviceInfo(
@@ -89,8 +99,9 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
 
         # Note: device_class not used for switches since InputFieldInfo is number-focused
 
-        # Unsubscribe callback for Driven mode
+        # Unsubscribe callbacks for state change and coordinator listeners
         self._unsub_state_change: Any = None
+        self._unsub_coordinator: Any = None
 
         # Set extra state attributes
         self._update_extra_attributes()
@@ -100,11 +111,13 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         """Return the current entity mode."""
         return self._entity_mode
 
-    def _update_extra_attributes(self, *, forecast: list[dict[str, Any]] | None = None) -> None:
+    def _update_extra_attributes(
+        self, *, forecast: list[dict[str, Any]] | None = None
+    ) -> None:
         """Update extra state attributes.
 
         Args:
-            forecast: Forecast data to include in attributes (from source entity in Driven mode)
+            forecast: Forecast data to include in attributes (from coordinator's loaded config)
 
         """
         attrs: dict[str, Any] = {
@@ -119,6 +132,10 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
             attrs["forecast"] = forecast
         self._attr_extra_state_attributes = attrs
 
+    def _get_coordinator(self) -> "HaeoDataUpdateCoordinator | None":
+        """Get the coordinator from the config entry."""
+        return getattr(self._config_entry, "runtime_data", None)
+
     async def async_added_to_hass(self) -> None:
         """Handle entity being added to Home Assistant."""
         await super().async_added_to_hass()
@@ -128,15 +145,15 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
             last_state = await self.async_get_last_state()
             if last_state is not None:
                 self._attr_is_on = last_state.state == "on"
-        elif self._entity_mode == ConfigEntityMode.DRIVEN and self._source_entity_id:
-            # Subscribe to source entity changes
-            self._unsub_state_change = async_track_state_change_event(
-                self.hass,
-                [self._source_entity_id],
-                self._handle_source_state_change,
+
+        # Subscribe to coordinator updates to get forecast from loaded configs
+        coordinator = self._get_coordinator()
+        if coordinator is not None:
+            self._unsub_coordinator = coordinator.async_add_listener(
+                self._handle_coordinator_update
             )
-            # Get initial value from source
-            self._update_from_source()
+            # Get initial forecast from coordinator if available
+            self._handle_coordinator_update()
 
     async def async_will_remove_from_hass(self) -> None:
         """Handle entity being removed from Home Assistant."""
@@ -146,36 +163,94 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
             self._unsub_state_change()
             self._unsub_state_change = None
 
+        if self._unsub_coordinator:
+            self._unsub_coordinator()
+            self._unsub_coordinator = None
+
     @callback
-    def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
-        """Handle state change of source entity in Driven mode."""
-        self._update_from_source()
+    def _handle_coordinator_update(self) -> None:
+        """Handle coordinator update to get forecast from loaded configs.
+
+        The forecast comes from the extractor output (loaded config values),
+        not from the source entity directly. This ensures the forecast reflects
+        what the optimizer actually uses.
+
+        In driven mode, the state is also updated from the first loaded value.
+        In editable mode, the state remains user-controlled.
+        """
+        coordinator = self._get_coordinator()
+        if coordinator is None or coordinator.loaded_configs is None:
+            return
+
+        # Get loaded values for this field from coordinator
+        loaded_config = coordinator.loaded_configs.get(self._element_name)
+        if loaded_config is None:
+            return
+
+        field_values = loaded_config.get(self._field_name)
+        if field_values is None:
+            return
+
+        # Build forecast from loaded values and timestamps
+        forecast = self._build_forecast_from_loaded_values(
+            field_values, coordinator.forecast_timestamps
+        )
+
+        # In driven mode, update state from first loaded value
+        if self._entity_mode == ConfigEntityMode.DRIVEN:
+            if isinstance(field_values, list | tuple) and len(field_values) > 0:
+                self._attr_is_on = bool(field_values[0])
+            elif isinstance(field_values, bool):
+                self._attr_is_on = field_values
+
+        self._update_extra_attributes(forecast=forecast)
         self.async_write_ha_state()
 
-    @callback
-    def _update_from_source(self) -> None:
-        """Update value from source entity."""
-        if not self._source_entity_id:
-            return
+    def _build_forecast_from_loaded_values(
+        self,
+        values: Any,
+        forecast_timestamps: tuple[float, ...] | None,
+    ) -> list[dict[str, Any]] | None:
+        """Build forecast attribute from loaded config values.
 
-        state = self.hass.states.get(self._source_entity_id)
-        if state is None or state.state in ("unknown", "unavailable"):
-            self._attr_is_on = False
-            # Clear forecast when source unavailable
-            self._update_extra_attributes(forecast=None)
-            return
+        Args:
+            values: Loaded values from config (list/tuple for time series, scalar for constants)
+            forecast_timestamps: Timestamps for each period from coordinator
 
-        self._attr_is_on = state.state == "on"
+        Returns:
+            List of forecast points with time and value, or None if not applicable
 
-        # Copy forecast from source entity if available
-        forecast = state.attributes.get("forecast")
-        self._update_extra_attributes(forecast=forecast)
+        """
+        if forecast_timestamps is None:
+            return None
+
+        # Handle scalar values (constant across all periods)
+        if isinstance(values, bool):
+            values = [values] * len(forecast_timestamps)
+        elif not isinstance(values, list | tuple):
+            return None
+
+        if len(values) == 0:
+            return None
+
+        # Only create forecast if we have multiple values
+        if len(values) <= 1:
+            return None
+
+        local_tz = dt_util.get_default_time_zone()
+        return [
+            {
+                "time": datetime.fromtimestamp(timestamp, tz=local_tz).isoformat(),
+                "value": value,
+            }
+            for timestamp, value in zip(forecast_timestamps, values, strict=False)
+        ]
 
     async def async_turn_on(self, **_kwargs: Any) -> None:
         """Turn the switch on.
 
         In Editable mode: stores the value and triggers coordinator refresh.
-        In Driven mode: ignored - value is controlled by source entity.
+        In Driven mode: ignored - value is controlled by coordinator.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
             _LOGGER.debug("Ignoring turn_on in Driven mode for %s", self.entity_id)
@@ -185,7 +260,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         self.async_write_ha_state()
 
         # Trigger coordinator refresh if available
-        coordinator = getattr(self._config_entry, "runtime_data", None)
+        coordinator = self._get_coordinator()
         if coordinator is not None:
             await coordinator.async_request_refresh()
 
@@ -193,7 +268,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         """Turn the switch off.
 
         In Editable mode: stores the value and triggers coordinator refresh.
-        In Driven mode: ignored - value is controlled by source entity.
+        In Driven mode: ignored - value is controlled by coordinator.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
             _LOGGER.debug("Ignoring turn_off in Driven mode for %s", self.entity_id)
@@ -203,7 +278,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         self.async_write_ha_state()
 
         # Trigger coordinator refresh if available
-        coordinator = getattr(self._config_entry, "runtime_data", None)
+        coordinator = self._get_coordinator()
         if coordinator is not None:
             await coordinator.async_request_refresh()
 

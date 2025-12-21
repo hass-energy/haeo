@@ -363,6 +363,39 @@ Useful for verifying configuration and debugging.
 The marginal value of power at the battery terminals.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
+## Input Entities
+
+Battery configuration fields create input entities for runtime adjustment.
+These entities appear in the battery device's config section.
+
+| Entity                                       | Type   | Description                       |
+| -------------------------------------------- | ------ | --------------------------------- |
+| `number.{name}_capacity`                     | Number | Battery capacity (kWh)            |
+| `number.{name}_efficiency`                   | Number | Round-trip efficiency (%)         |
+| `number.{name}_min_charge_percentage`        | Number | Preferred minimum SOC (%)         |
+| `number.{name}_max_charge_percentage`        | Number | Preferred maximum SOC (%)         |
+| `number.{name}_max_charge_power`             | Number | Maximum charge power (kW)         |
+| `number.{name}_max_discharge_power`          | Number | Maximum discharge power (kW)      |
+| `number.{name}_early_charge_incentive`       | Number | Early charge preference (\$/kWh)  |
+| `number.{name}_discharge_cost`               | Number | Discharge degradation cost (\$/kWh) |
+
+Additional entities appear when extended ranges are configured:
+
+| Entity                                       | Type   | Description                       |
+| -------------------------------------------- | ------ | --------------------------------- |
+| `number.{name}_undercharge_percentage`       | Number | Hard minimum SOC (%)              |
+| `number.{name}_overcharge_percentage`        | Number | Hard maximum SOC (%)              |
+| `number.{name}_undercharge_cost`             | Number | Undercharge penalty (\$/kWh)      |
+| `number.{name}_overcharge_cost`              | Number | Overcharge penalty (\$/kWh)       |
+
+**Mode behavior**:
+
+- If you configured a field with a sensor entity ID, the input entity is **driven** (read-only, shows sensor value)
+- If you configured a constant value, the input entity is **editable** (you can adjust it at runtime)
+
+All input entities include a `forecast` attribute showing the value across the optimization horizon.
+See [Runtime Configuration](../forecasts-and-sensors.md#runtime-configuration-with-input-entities) for details.
+
 This shadow price represents the economic value of 1 kW of additional power capacity at the battery.
 It reflects the cost of power flowing through the battery connection point.
 

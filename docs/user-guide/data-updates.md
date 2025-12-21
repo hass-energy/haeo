@@ -16,9 +16,32 @@ HAEO runs a new optimisation when any of the following happens:
 - Fresh data arrives from a tracked entity.
 - The regular schedule reaches the next planned check-in.
 - You request a manual refresh from the Home Assistant interface or an automation.
+- An editable input entity value changes (see below).
 
 To avoid starting several runs in quick succession, HAEO briefly waits for related updates to settle before it recomputes.
 If another change appears while a run is already in progress, HAEO queues a follow-up pass so the final result still reflects every update.
+
+## Input entity updates
+
+HAEO creates input entities (number and switch) for configurable element fields.
+When you change an editable input entity value, HAEO includes that new value in the next optimization.
+
+**How changes propagate**:
+
+1. You adjust an input entity (e.g., `number.main_battery_min_charge_percentage`)
+2. HAEO detects the value change
+3. A new optimization runs with the updated value
+4. All output sensors update to reflect the new optimal schedule
+5. The input entity's `forecast` attribute updates to show the new value across the horizon
+
+**Editable vs driven entities**:
+
+- **Editable** input entities respond to your changes immediately
+- **Driven** input entities track their configured sensor; your changes are overwritten at the next coordinator update
+
+Changes to editable input entities have the same effect as changing any other tracked sensor—they trigger a new optimization with the updated data.
+
+See [Runtime Configuration](forecasts-and-sensors.md#runtime-configuration-with-input-entities) for details on input entity modes.
 
 ## Manual refresh options
 

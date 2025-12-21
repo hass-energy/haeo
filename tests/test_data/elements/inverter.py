@@ -6,6 +6,7 @@ from custom_components.haeo.elements import inverter as inverter_element
 from custom_components.haeo.model import connection
 from custom_components.haeo.model.const import (
     OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_POWER_FLOW,
     OUTPUT_TYPE_SHADOW_PRICE,
 )
 from custom_components.haeo.model.output_data import OutputData
@@ -65,7 +66,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 inverter_element.INVERTER_DC_BUS_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
                 inverter_element.INVERTER_POWER_DC_TO_AC: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(5.0,), direction="+"),
                 inverter_element.INVERTER_POWER_AC_TO_DC: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(3.0,), direction="-"),
-                inverter_element.INVERTER_POWER_ACTIVE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction=None),
+                inverter_element.INVERTER_POWER_ACTIVE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(2.0,), direction=None),
                 inverter_element.INVERTER_MAX_POWER_DC_TO_AC_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
                 inverter_element.INVERTER_MAX_POWER_AC_TO_DC_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
@@ -117,7 +118,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 inverter_element.INVERTER_DC_BUS_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
                 inverter_element.INVERTER_POWER_DC_TO_AC: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(5.0,), direction="+"),
                 inverter_element.INVERTER_POWER_AC_TO_DC: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(3.0,), direction="-"),
-                inverter_element.INVERTER_POWER_ACTIVE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction=None),
+                inverter_element.INVERTER_POWER_ACTIVE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(2.0,), direction=None),
                 inverter_element.INVERTER_MAX_POWER_DC_TO_AC_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
                 inverter_element.INVERTER_MAX_POWER_AC_TO_DC_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }

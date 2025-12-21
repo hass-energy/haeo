@@ -126,6 +126,30 @@ This network requires four connections:
 
 See the [Connections guide](elements/connections.md) for detailed information and examples.
 
+## Runtime Configuration Entities
+
+HAEO creates input entities for element configuration fields that support runtime adjustment.
+These entities let you modify parameters without reconfiguring elements.
+
+**What gets created**:
+
+- **Number entities** for numeric fields (capacity, efficiency, power limits, costs)
+- **Switch entities** for boolean fields (curtailment)
+
+**Where to find them**:
+
+- Navigate to the device page for any element
+- Look in the **Configuration** entity category
+- Entities named `{platform}.{element_name}_{field_name}`
+
+**Two modes**:
+
+- **Editable**: You can change the value through the UI, automations, or scripts
+- **Driven**: Value tracks a configured sensor (read-only)
+
+Input entity changes trigger a new optimization.
+See [Runtime Configuration](forecasts-and-sensors.md#runtime-configuration-with-input-entities) for detailed behavior.
+
 ## Viewing Configuration
 
 ### Integration page

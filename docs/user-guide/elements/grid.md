@@ -227,6 +227,30 @@ This shadow price shows how much the total system cost would decrease if the exp
 
 All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
+## Input Entities
+
+Grid configuration fields create input entities for runtime adjustment.
+These entities appear in the grid device's config section.
+
+| Entity                              | Type   | Description                    |
+| ----------------------------------- | ------ | ------------------------------ |
+| `number.{name}_import_limit`        | Number | Maximum import power (kW)      |
+| `number.{name}_export_limit`        | Number | Maximum export power (kW)      |
+
+**Mode behavior**:
+
+- If you configured Import Price or Export Price with sensor entity IDs, those prices are **driven** by the sensors and shown in the price output sensors
+- If you configured limits with constant values, those input entities are **editable** at runtime
+
+Adjusting import/export limits at runtime is useful for:
+
+- Temporary grid constraints (utility demand response events)
+- Testing different capacity scenarios
+- Seasonal adjustments to feed-in limits
+
+All input entities include a `forecast` attribute showing the value across the optimization horizon.
+See [Runtime Configuration](../forecasts-and-sensors.md#runtime-configuration-with-input-entities) for details.
+
 ## Troubleshooting
 
 ### Sensor Not Found

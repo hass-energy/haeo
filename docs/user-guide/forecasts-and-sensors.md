@@ -316,40 +316,102 @@ template:
 
 HAEO will detect this as a simple forecast format and extract the data.
 
-## Using Input Numbers for Constants
+## Runtime Configuration with Input Entities
 
-For constant values that don't change over time (fixed prices, baseline loads, power limits), use [input_number helpers](https://www.home-assistant.io/integrations/input_number/) instead of creating custom sensors.
+HAEO creates input entities (number and switch) for element configuration fields that support runtime adjustment.
+These entities allow you to configure values directly in the Home Assistant UI without providing external sensors.
 
-**Creating an input_number**:
+### How Input Entities Work
 
-1. Navigate to **Settings** → **Devices & Services** → **Helpers**
-2. Click **Create Helper** button
-3. Select **Number**
-4. Configure:
-    - **Name**: Descriptive name (e.g., "Base Load Power", "Fixed Import Price")
-    - **Unit of measurement**: Match the element's expected unit (kW, \$/kWh, %, etc.)
-    - **Minimum/Maximum**: Set reasonable bounds
-    - **Initial value**: Set your desired constant
-5. Click **Create**
+Each configurable field on an element (such as battery capacity, efficiency, or solar curtailment) becomes an input entity in Home Assistant.
+The entity operates in one of two modes depending on how you configure the field:
 
-**Using in HAEO configuration**:
+| Mode       | Configuration                | State Source        | Forecast Source          | User Control |
+| ---------- | ---------------------------- | ------------------- | ------------------------ | ------------ |
+| **Driven** | Sensor entity ID provided    | First loaded value  | Loaded sensor data       | Read-only    |
+| **Editable** | No sensor entity ID provided | User input          | User value (repeated)    | Full control |
 
-Reference the input_number entity ID anywhere HAEO accepts a sensor:
+**Driven mode**: When you configure a field with a sensor entity ID, the input entity displays the loaded value and forecast from that sensor.
+The entity is read-only because the sensor controls the value.
 
-| Field                       | Value                           |
-| --------------------------- | ------------------------------- |
-| **Forecast**                | input_number.base_load_power    |
-| **Import Price**            | input_number.fixed_import_price |
-| **Max Power Source→Target** | input_number.inverter_rating    |
+**Editable mode**: When you leave the sensor field empty (or configure only a constant value), HAEO creates an editable input entity.
+You can adjust this value through the Home Assistant UI, automations, or scripts.
+Your value is used directly in optimization.
 
-HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
+### Forecast Attributes on Input Entities
 
-**Benefits**:
+All input entities include a `forecast` attribute showing what the optimizer actually uses.
+This allows you to:
 
-- Easy to adjust through Home Assistant UI
-- No template sensor configuration required
-- Clear, simple configuration
-- Can be controlled via automations or scripts
+- **Visualize optimization inputs** alongside optimization outputs
+- **Verify values** before and during optimization
+- **Plot time series** even for constant values
+
+For **driven** entities, the forecast shows the actual time series from your configured sensor(s).
+For **editable** entities, the forecast shows your configured value repeated across all optimization periods.
+
+### Finding Input Entities
+
+Input entities appear in the device page for each configured element.
+They use the entity category `config` so they're grouped separately from output sensors.
+
+**Entity naming pattern**: `{platform}.{element_name}_{field_name}`
+
+Examples:
+
+- `number.main_battery_capacity` - Battery capacity
+- `number.main_battery_efficiency` - Battery efficiency
+- `switch.rooftop_solar_allow_curtailment` - Solar curtailment toggle
+
+### Common Use Cases
+
+**Adjust battery capacity for testing**:
+
+1. Configure battery without a capacity sensor
+2. Find `number.{battery_name}_capacity` in Home Assistant
+3. Adjust value to test different scenarios
+
+**Runtime efficiency tuning**:
+
+1. Start with default efficiency value
+2. Monitor actual performance
+3. Adjust `number.{battery_name}_efficiency` based on observations
+
+**Seasonal SOC preferences**:
+
+1. Create an automation that adjusts `number.{battery_name}_min_soc` based on season
+2. Higher minimum SOC in winter for backup power
+3. Lower minimum SOC in summer for maximum cycling
+
+### Driven Mode with Sensors
+
+When you provide sensor entity IDs, the input entity automatically tracks the sensor:
+
+| Field        | Value                      |
+| ------------ | -------------------------- |
+| **Capacity** | sensor.battery_usable_kwh  |
+
+The `number.{battery_name}_capacity` entity:
+
+- Shows the current value from the sensor
+- Includes forecast attribute with time series data
+- Updates automatically when the sensor changes
+- Cannot be edited (driven by the sensor)
+
+### Input Entities vs Input Number Helpers
+
+HAEO input entities are different from Home Assistant's `input_number` helpers:
+
+| Feature                | HAEO Input Entity                  | HA Input Number Helper                |
+| ---------------------- | ---------------------------------- | ------------------------------------- |
+| **Created by**         | HAEO automatically                 | User manually creates                 |
+| **Validation**         | Element-specific limits            | User-defined limits                   |
+| **Forecast attribute** | Shows optimizer input over horizon | No forecast attribute                 |
+| **Integration**        | Linked to HAEO elements            | Independent helper entity             |
+| **Entity category**    | `config`                           | N/A                                   |
+
+You can still use `input_number` helpers as sensors in HAEO configuration if you prefer the manual approach.
+HAEO treats them like any other sensor, reading the current value and repeating it across the optimization horizon.
 
 ## Troubleshooting
 
