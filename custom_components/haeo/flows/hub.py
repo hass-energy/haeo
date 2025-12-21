@@ -13,14 +13,14 @@ from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_HORIZON_PRESET,
     CONF_INTEGRATION_TYPE,
+    CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
-    CONF_TIER_1_UNTIL,
+    CONF_TIER_2_COUNT,
     CONF_TIER_2_DURATION,
-    CONF_TIER_2_UNTIL,
+    CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
-    CONF_TIER_3_UNTIL,
+    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    CONF_TIER_4_UNTIL,
     CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
@@ -103,14 +103,14 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         else:
             # Custom values were provided in _user_input
             tier_config = {
+                CONF_TIER_1_COUNT: self._user_input[CONF_TIER_1_COUNT],
                 CONF_TIER_1_DURATION: self._user_input[CONF_TIER_1_DURATION],
-                CONF_TIER_1_UNTIL: self._user_input[CONF_TIER_1_UNTIL],
+                CONF_TIER_2_COUNT: self._user_input[CONF_TIER_2_COUNT],
                 CONF_TIER_2_DURATION: self._user_input[CONF_TIER_2_DURATION],
-                CONF_TIER_2_UNTIL: self._user_input[CONF_TIER_2_UNTIL],
+                CONF_TIER_3_COUNT: self._user_input[CONF_TIER_3_COUNT],
                 CONF_TIER_3_DURATION: self._user_input[CONF_TIER_3_DURATION],
-                CONF_TIER_3_UNTIL: self._user_input[CONF_TIER_3_UNTIL],
+                CONF_TIER_4_COUNT: self._user_input[CONF_TIER_4_COUNT],
                 CONF_TIER_4_DURATION: self._user_input[CONF_TIER_4_DURATION],
-                CONF_TIER_4_UNTIL: self._user_input[CONF_TIER_4_UNTIL],
             }
             stored_preset = HORIZON_PRESET_CUSTOM
 
@@ -128,15 +128,18 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_NAME: hub_name,
                 # Store the chosen preset for the options flow
                 CONF_HORIZON_PRESET: stored_preset,
-                # Tier configuration
+                # Tier 1: Fine-grained near-term intervals
+                CONF_TIER_1_COUNT: tier_config[CONF_TIER_1_COUNT],
                 CONF_TIER_1_DURATION: tier_config[CONF_TIER_1_DURATION],
-                CONF_TIER_1_UNTIL: tier_config[CONF_TIER_1_UNTIL],
+                # Tier 2: Short-term intervals
+                CONF_TIER_2_COUNT: tier_config[CONF_TIER_2_COUNT],
                 CONF_TIER_2_DURATION: tier_config[CONF_TIER_2_DURATION],
-                CONF_TIER_2_UNTIL: tier_config[CONF_TIER_2_UNTIL],
+                # Tier 3: Medium-term intervals
+                CONF_TIER_3_COUNT: tier_config[CONF_TIER_3_COUNT],
                 CONF_TIER_3_DURATION: tier_config[CONF_TIER_3_DURATION],
-                CONF_TIER_3_UNTIL: tier_config[CONF_TIER_3_UNTIL],
+                # Tier 4: Long-term intervals
+                CONF_TIER_4_COUNT: tier_config[CONF_TIER_4_COUNT],
                 CONF_TIER_4_DURATION: tier_config[CONF_TIER_4_DURATION],
-                CONF_TIER_4_UNTIL: tier_config[CONF_TIER_4_UNTIL],
                 # Update and debounce settings
                 CONF_UPDATE_INTERVAL_MINUTES: self._user_input[CONF_UPDATE_INTERVAL_MINUTES],
                 CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],

@@ -9,13 +9,13 @@ from custom_components.haeo.const import (
     CONF_HORIZON_PRESET,
     CONF_NAME,
     CONF_TIER_1_DURATION,
-    CONF_TIER_1_UNTIL,
+    CONF_TIER_1_COUNT,
     CONF_TIER_2_DURATION,
-    CONF_TIER_2_UNTIL,
+    CONF_TIER_2_COUNT,
     CONF_TIER_3_DURATION,
-    CONF_TIER_3_UNTIL,
+    CONF_TIER_3_COUNT,
     CONF_TIER_4_DURATION,
-    CONF_TIER_4_UNTIL,
+    CONF_TIER_4_COUNT,
     CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
 )
@@ -63,7 +63,7 @@ async def test_custom_tiers_step_translations_loadable(hass: HomeAssistant) -> N
     # Check that custom_tiers step translations exist
     assert f"component.{DOMAIN}.config.step.custom_tiers.title" in translations
     assert f"component.{DOMAIN}.config.step.custom_tiers.data.tier_1_duration" in translations
-    assert f"component.{DOMAIN}.config.step.custom_tiers.data.tier_1_until" in translations
+    assert f"component.{DOMAIN}.config.step.custom_tiers.data.tier_1_count" in translations
 
 
 async def test_user_step_form_has_translations(hass: HomeAssistant) -> None:
@@ -116,7 +116,7 @@ async def test_hub_setup_schema_has_expected_fields(hass: HomeAssistant) -> None
 
     # Verify tier fields are NOT in the simplified schema
     assert CONF_TIER_1_DURATION not in field_names
-    assert CONF_TIER_1_UNTIL not in field_names
+    assert CONF_TIER_1_COUNT not in field_names
 
 
 async def test_custom_tiers_schema_has_tier_fields(hass: HomeAssistant) -> None:
@@ -128,40 +128,40 @@ async def test_custom_tiers_schema_has_tier_fields(hass: HomeAssistant) -> None:
 
     # Verify all tier fields are present
     assert CONF_TIER_1_DURATION in field_names
-    assert CONF_TIER_1_UNTIL in field_names
+    assert CONF_TIER_1_COUNT in field_names
     assert CONF_TIER_2_DURATION in field_names
-    assert CONF_TIER_2_UNTIL in field_names
+    assert CONF_TIER_2_COUNT in field_names
     assert CONF_TIER_3_DURATION in field_names
-    assert CONF_TIER_3_UNTIL in field_names
+    assert CONF_TIER_3_COUNT in field_names
     assert CONF_TIER_4_DURATION in field_names
-    assert CONF_TIER_4_UNTIL in field_names
+    assert CONF_TIER_4_COUNT in field_names
 
 
 async def test_schema_coerces_floats_to_integers(hass: HomeAssistant) -> None:
-    """Test that the schema coerces float values to integers for tier durations and until values."""
+    """Test that the schema coerces float values to integers for tier counts and durations."""
     schema = get_network_config_schema()
 
     # Simulate float values that might come from JSON or UI
     test_data = {
         CONF_NAME: "Test Hub",
+        CONF_TIER_1_COUNT: 5.0,  # Float input
         CONF_TIER_1_DURATION: 1.0,  # Float input
-        CONF_TIER_1_UNTIL: 5.0,  # Float input
+        CONF_TIER_2_COUNT: 11.0,
         CONF_TIER_2_DURATION: 5.0,
-        CONF_TIER_2_UNTIL: 60.0,
+        CONF_TIER_3_COUNT: 46.0,
         CONF_TIER_3_DURATION: 30.0,
-        CONF_TIER_3_UNTIL: 1440.0,
+        CONF_TIER_4_COUNT: 48.0,
         CONF_TIER_4_DURATION: 60.0,
-        CONF_TIER_4_UNTIL: 4320.0,
     }
 
     # Validate and coerce the data
     validated_data = schema(test_data)
 
     # Verify that floats were coerced to integers
+    assert isinstance(validated_data[CONF_TIER_1_COUNT], int), "tier_1_count should be coerced to int"
     assert isinstance(validated_data[CONF_TIER_1_DURATION], int), "tier_1_duration should be coerced to int"
-    assert isinstance(validated_data[CONF_TIER_1_UNTIL], int), "tier_1_until should be coerced to int"
+    assert validated_data[CONF_TIER_1_COUNT] == 5
     assert validated_data[CONF_TIER_1_DURATION] == 1
-    assert validated_data[CONF_TIER_1_UNTIL] == 5
 
 
 async def test_hub_setup_schema_default_preset(hass: HomeAssistant) -> None:

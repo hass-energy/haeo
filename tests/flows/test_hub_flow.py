@@ -11,23 +11,23 @@ from custom_components.haeo.const import (
     CONF_HORIZON_PRESET,
     CONF_NAME,
     CONF_TIER_1_DURATION,
-    CONF_TIER_1_UNTIL,
+    CONF_TIER_1_COUNT,
     CONF_TIER_2_DURATION,
-    CONF_TIER_2_UNTIL,
+    CONF_TIER_2_COUNT,
     CONF_TIER_3_DURATION,
-    CONF_TIER_3_UNTIL,
+    CONF_TIER_3_COUNT,
     CONF_TIER_4_DURATION,
-    CONF_TIER_4_UNTIL,
+    CONF_TIER_4_COUNT,
     CONF_UPDATE_INTERVAL_MINUTES,
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_1_UNTIL,
+    DEFAULT_TIER_1_COUNT,
     DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_2_UNTIL,
+    DEFAULT_TIER_2_COUNT,
     DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_3_UNTIL,
+    DEFAULT_TIER_3_COUNT,
     DEFAULT_TIER_4_DURATION,
-    DEFAULT_TIER_4_UNTIL,
+    DEFAULT_TIER_4_COUNT,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
@@ -75,8 +75,8 @@ async def test_user_flow_success_with_preset(hass: HomeAssistant) -> None:
     # Verify preset values were applied
     preset_values = HORIZON_PRESETS[HORIZON_PRESET_3_DAYS]
     assert data[CONF_TIER_1_DURATION] == preset_values[CONF_TIER_1_DURATION]
-    assert data[CONF_TIER_1_UNTIL] == preset_values[CONF_TIER_1_UNTIL]
-    assert data[CONF_TIER_4_UNTIL] == preset_values[CONF_TIER_4_UNTIL]
+    assert data[CONF_TIER_1_COUNT] == preset_values[CONF_TIER_1_COUNT]
+    assert data[CONF_TIER_4_COUNT] == preset_values[CONF_TIER_4_COUNT]
 
     # Verify entry was created
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -111,8 +111,8 @@ async def test_user_flow_custom_preset_shows_second_step(hass: HomeAssistant) ->
     assert data_schema is not None
     field_names = {key.schema for key in data_schema.schema}
     assert CONF_TIER_1_DURATION in field_names
-    assert CONF_TIER_1_UNTIL in field_names
-    assert CONF_TIER_4_UNTIL in field_names
+    assert CONF_TIER_1_COUNT in field_names
+    assert CONF_TIER_4_COUNT in field_names
 
 
 async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None:
@@ -133,18 +133,18 @@ async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None
     assert result.get("step_id") == "custom_tiers"
 
     # Second step: provide custom tier values
-    custom_tier_4_until = 5760  # 4 days
+    custom_tier_4_count = 96  # 96 intervals of 120 min = 8 days
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         user_input={
+            CONF_TIER_1_COUNT: 10,
             CONF_TIER_1_DURATION: 2,
-            CONF_TIER_1_UNTIL: 10,
+            CONF_TIER_2_COUNT: 12,
             CONF_TIER_2_DURATION: 10,
-            CONF_TIER_2_UNTIL: 120,
+            CONF_TIER_3_COUNT: 24,
             CONF_TIER_3_DURATION: 60,
-            CONF_TIER_3_UNTIL: 1440,
+            CONF_TIER_4_COUNT: custom_tier_4_count,
             CONF_TIER_4_DURATION: 120,
-            CONF_TIER_4_UNTIL: custom_tier_4_until,
         },
     )
 
@@ -157,9 +157,9 @@ async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None
     assert data[CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM
 
     # Verify custom values were used
+    assert data[CONF_TIER_1_COUNT] == 10
     assert data[CONF_TIER_1_DURATION] == 2
-    assert data[CONF_TIER_1_UNTIL] == 10
-    assert data[CONF_TIER_4_UNTIL] == custom_tier_4_until
+    assert data[CONF_TIER_4_COUNT] == custom_tier_4_count
     assert data[CONF_UPDATE_INTERVAL_MINUTES] == 10
     assert data[CONF_DEBOUNCE_SECONDS] == 3
 
@@ -185,8 +185,8 @@ async def test_user_flow_different_presets(hass: HomeAssistant) -> None:
 
     # Verify 5-day preset values
     preset_values = HORIZON_PRESETS[HORIZON_PRESET_5_DAYS]
-    assert data[CONF_TIER_4_UNTIL] == preset_values[CONF_TIER_4_UNTIL]
-    assert data[CONF_TIER_4_UNTIL] == 7200  # 5 days in minutes
+    assert data[CONF_TIER_4_COUNT] == preset_values[CONF_TIER_4_COUNT]
+    assert data[CONF_TIER_4_COUNT] == 96  # 96 intervals of 60 min for 5 days
 
 
 async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
@@ -197,13 +197,13 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         data={
             "integration_type": INTEGRATION_TYPE_HUB,
             CONF_NAME: "Existing Hub",
-            CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         title="Existing Hub",
@@ -299,13 +299,13 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
         data={
             "integration_type": INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            CONF_TIER_1_UNTIL: DEFAULT_TIER_1_UNTIL,
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_UNTIL: DEFAULT_TIER_2_UNTIL,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
             CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_UNTIL: DEFAULT_TIER_3_UNTIL,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
             CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_UNTIL: DEFAULT_TIER_4_UNTIL,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         entry_id="test_hub_id",

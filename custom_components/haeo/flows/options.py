@@ -9,14 +9,14 @@ from homeassistant.config_entries import ConfigFlowResult
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_PRESET,
+    CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
-    CONF_TIER_1_UNTIL,
+    CONF_TIER_2_COUNT,
     CONF_TIER_2_DURATION,
-    CONF_TIER_2_UNTIL,
+    CONF_TIER_3_COUNT,
     CONF_TIER_3_DURATION,
-    CONF_TIER_3_UNTIL,
+    CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    CONF_TIER_4_UNTIL,
     CONF_UPDATE_INTERVAL_MINUTES,
 )
 
@@ -72,28 +72,28 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         else:
             # Custom values were provided in _user_input
             tier_config = {
+                CONF_TIER_1_COUNT: self._user_input[CONF_TIER_1_COUNT],
                 CONF_TIER_1_DURATION: self._user_input[CONF_TIER_1_DURATION],
-                CONF_TIER_1_UNTIL: self._user_input[CONF_TIER_1_UNTIL],
+                CONF_TIER_2_COUNT: self._user_input[CONF_TIER_2_COUNT],
                 CONF_TIER_2_DURATION: self._user_input[CONF_TIER_2_DURATION],
-                CONF_TIER_2_UNTIL: self._user_input[CONF_TIER_2_UNTIL],
+                CONF_TIER_3_COUNT: self._user_input[CONF_TIER_3_COUNT],
                 CONF_TIER_3_DURATION: self._user_input[CONF_TIER_3_DURATION],
-                CONF_TIER_3_UNTIL: self._user_input[CONF_TIER_3_UNTIL],
+                CONF_TIER_4_COUNT: self._user_input[CONF_TIER_4_COUNT],
                 CONF_TIER_4_DURATION: self._user_input[CONF_TIER_4_DURATION],
-                CONF_TIER_4_UNTIL: self._user_input[CONF_TIER_4_UNTIL],
             }
             stored_preset = HORIZON_PRESET_CUSTOM
 
         # Update config entry data with new values
         new_data = self.config_entry.data.copy()
         new_data[CONF_HORIZON_PRESET] = stored_preset
+        new_data[CONF_TIER_1_COUNT] = tier_config[CONF_TIER_1_COUNT]
         new_data[CONF_TIER_1_DURATION] = tier_config[CONF_TIER_1_DURATION]
-        new_data[CONF_TIER_1_UNTIL] = tier_config[CONF_TIER_1_UNTIL]
+        new_data[CONF_TIER_2_COUNT] = tier_config[CONF_TIER_2_COUNT]
         new_data[CONF_TIER_2_DURATION] = tier_config[CONF_TIER_2_DURATION]
-        new_data[CONF_TIER_2_UNTIL] = tier_config[CONF_TIER_2_UNTIL]
+        new_data[CONF_TIER_3_COUNT] = tier_config[CONF_TIER_3_COUNT]
         new_data[CONF_TIER_3_DURATION] = tier_config[CONF_TIER_3_DURATION]
-        new_data[CONF_TIER_3_UNTIL] = tier_config[CONF_TIER_3_UNTIL]
+        new_data[CONF_TIER_4_COUNT] = tier_config[CONF_TIER_4_COUNT]
         new_data[CONF_TIER_4_DURATION] = tier_config[CONF_TIER_4_DURATION]
-        new_data[CONF_TIER_4_UNTIL] = tier_config[CONF_TIER_4_UNTIL]
         new_data[CONF_UPDATE_INTERVAL_MINUTES] = self._user_input[CONF_UPDATE_INTERVAL_MINUTES]
         new_data[CONF_DEBOUNCE_SECONDS] = self._user_input[CONF_DEBOUNCE_SECONDS]
 

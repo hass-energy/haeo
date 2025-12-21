@@ -6,28 +6,12 @@ from homeassistant.util import dt as dt_util
 
 
 def tiers_to_periods_seconds(config: Mapping[str, int]) -> list[int]:
-    """Convert tier configuration to list of period durations in seconds.
-
-    Each tier specifies:
-    - duration: minutes per interval
-    - until: cumulative time in minutes at end of this tier
-
-    The count for each tier is calculated as:
-    - Tier 1: until / duration
-    - Tier N: (until - previous_until) / duration
-
-    """
+    """Convert tier configuration to list of period durations in seconds."""
     periods: list[int] = []
-    previous_until = 0
     for tier in [1, 2, 3, 4]:
-        duration_minutes = config[f"tier_{tier}_duration"]
-        until_minutes = config[f"tier_{tier}_until"]
-        duration_seconds = duration_minutes * 60
-        # Calculate count from (until - previous_until) / duration
-        tier_span = until_minutes - previous_until
-        count = tier_span // duration_minutes
+        count = config[f"tier_{tier}_count"]
+        duration_seconds = config[f"tier_{tier}_duration"] * 60  # minutes to seconds
         periods.extend([duration_seconds] * count)
-        previous_until = until_minutes
     return periods
 
 
@@ -68,7 +52,7 @@ def generate_forecast_timestamps_from_config(config: Mapping[str, int]) -> tuple
     starting from the current time rounded to the smallest period boundary.
 
     Args:
-        config: Tier configuration with tier_N_duration and tier_N_until keys.
+        config: Tier configuration with tier_N_count and tier_N_duration keys.
 
     Returns:
         Tuple of timestamps for each fence post.

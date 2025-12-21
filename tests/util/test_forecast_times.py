@@ -25,56 +25,56 @@ TIER_TEST_CASES: dict[str, TierTestCase] = {
     "single_tier": {
         "description": "single tier with 3 intervals of 60 seconds",
         "config": {
+            "tier_1_count": 3,
             "tier_1_duration": 1,  # 1 minute = 60 seconds
-            "tier_1_until": 3,  # 3 minutes → 3 periods
+            "tier_2_count": 0,
             "tier_2_duration": 5,
-            "tier_2_until": 3,  # no additional time
+            "tier_3_count": 0,
             "tier_3_duration": 30,
-            "tier_3_until": 3,
+            "tier_4_count": 0,
             "tier_4_duration": 60,
-            "tier_4_until": 3,
         },
         "expected": [60, 60, 60],
     },
     "multiple_tiers": {
         "description": "multiple tiers with different intervals",
         "config": {
+            "tier_1_count": 2,
             "tier_1_duration": 1,  # 60 seconds each
-            "tier_1_until": 2,  # 2 minutes → 2 periods
+            "tier_2_count": 1,
             "tier_2_duration": 5,  # 300 seconds
-            "tier_2_until": 7,  # 7 - 2 = 5 minutes → 1 period
+            "tier_3_count": 0,
             "tier_3_duration": 30,
-            "tier_3_until": 7,
+            "tier_4_count": 0,
             "tier_4_duration": 60,
-            "tier_4_until": 7,
         },
         "expected": [60, 60, 300],
     },
     "all_tiers": {
         "description": "all four tiers populated",
         "config": {
+            "tier_1_count": 1,
             "tier_1_duration": 1,  # 60s
-            "tier_1_until": 1,  # 1 min → 1 period
+            "tier_2_count": 1,
             "tier_2_duration": 5,  # 300s
-            "tier_2_until": 6,  # 6 - 1 = 5 min → 1 period
+            "tier_3_count": 1,
             "tier_3_duration": 30,  # 1800s
-            "tier_3_until": 36,  # 36 - 6 = 30 min → 1 period
+            "tier_4_count": 1,
             "tier_4_duration": 60,  # 3600s
-            "tier_4_until": 96,  # 96 - 36 = 60 min → 1 period
         },
         "expected": [60, 300, 1800, 3600],
     },
     "empty_tiers": {
-        "description": "all tiers with zero count (all until values equal)",
+        "description": "all tiers with zero count",
         "config": {
+            "tier_1_count": 0,
             "tier_1_duration": 1,
-            "tier_1_until": 0,
+            "tier_2_count": 0,
             "tier_2_duration": 5,
-            "tier_2_until": 0,
+            "tier_3_count": 0,
             "tier_3_duration": 30,
-            "tier_3_until": 0,
+            "tier_4_count": 0,
             "tier_4_duration": 60,
-            "tier_4_until": 0,
         },
         "expected": [],
     },
@@ -160,14 +160,14 @@ def test_generate_forecast_timestamps_default_start_time() -> None:
 def test_generate_forecast_timestamps_from_config() -> None:
     """Verify timestamps generated from config use proper rounding."""
     config = {
+        "tier_1_count": 2,
         "tier_1_duration": 1,  # 60 seconds each
-        "tier_1_until": 2,  # 2 minutes → 2 periods
+        "tier_2_count": 0,
         "tier_2_duration": 5,
-        "tier_2_until": 2,  # no additional periods
+        "tier_3_count": 0,
         "tier_3_duration": 30,
-        "tier_3_until": 2,
+        "tier_4_count": 0,
         "tier_4_duration": 60,
-        "tier_4_until": 2,
     }
 
     # Mock utcnow to return a known time

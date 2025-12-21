@@ -16,14 +16,14 @@
         "title": "Custom Tier Configuration",
         "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
         "data": {
-          "tier_1_duration": "Tier 1 Slice Size (minutes)",
-          "tier_1_until": "Tier 1 Until (minutes)",
-          "tier_2_duration": "Tier 2 Slice Size (minutes)",
-          "tier_2_until": "Tier 2 Until (minutes)",
-          "tier_3_duration": "Tier 3 Slice Size (minutes)",
-          "tier_3_until": "Tier 3 Until (minutes)",
-          "tier_4_duration": "Tier 4 Slice Size (minutes)",
-          "tier_4_until": "Tier 4 Until (minutes)"
+          "tier_1_count": "Tier 1 Count (fine-grained)",
+          "tier_1_duration": "Tier 1 Duration (minutes)",
+          "tier_2_count": "Tier 2 Count (short-term)",
+          "tier_2_duration": "Tier 2 Duration (minutes)",
+          "tier_3_count": "Tier 3 Count (medium-term)",
+          "tier_3_duration": "Tier 3 Duration (minutes)",
+          "tier_4_count": "Tier 4 Count (long-term)",
+          "tier_4_duration": "Tier 4 Duration (minutes)"
         }
       }
     },
@@ -36,14 +36,14 @@
         "title": "Custom Tier Configuration",
         "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
         "data": {
-          "tier_1_duration": "Tier 1 Slice Size (minutes)",
-          "tier_1_until": "Tier 1 Until (minutes)",
-          "tier_2_duration": "Tier 2 Slice Size (minutes)",
-          "tier_2_until": "Tier 2 Until (minutes)",
-          "tier_3_duration": "Tier 3 Slice Size (minutes)",
-          "tier_3_until": "Tier 3 Until (minutes)",
-          "tier_4_duration": "Tier 4 Slice Size (minutes)",
-          "tier_4_until": "Tier 4 Until (minutes)"
+          "tier_1_count": "Tier 1 Count (fine-grained)",
+          "tier_1_duration": "Tier 1 Duration (minutes)",
+          "tier_2_count": "Tier 2 Count (short-term)",
+          "tier_2_duration": "Tier 2 Duration (minutes)",
+          "tier_3_count": "Tier 3 Count (medium-term)",
+          "tier_3_duration": "Tier 3 Duration (minutes)",
+          "tier_4_count": "Tier 4 Count (long-term)",
+          "tier_4_duration": "Tier 4 Duration (minutes)"
         }
       },
       "init": {
