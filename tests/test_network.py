@@ -11,14 +11,14 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_NAME,
-    CONF_TIER_1_DURATION,
     CONF_TIER_1_COUNT,
-    CONF_TIER_2_DURATION,
+    CONF_TIER_1_DURATION,
     CONF_TIER_2_COUNT,
-    CONF_TIER_3_DURATION,
+    CONF_TIER_2_DURATION,
     CONF_TIER_3_COUNT,
-    CONF_TIER_4_DURATION,
+    CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
     DOMAIN,
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE
