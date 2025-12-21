@@ -63,7 +63,9 @@ STACKED_FORECAST_TYPES: Final = ("production", "consumption", "available")
 ACTIVITY_EPSILON: Final = 1e-6
 
 
-def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> dict[str, ForecastData]:
+def extract_forecast_data(
+    output_sensors: Mapping[str, Mapping[str, Any]],
+) -> dict[str, ForecastData]:
     """Extract forecast data from output sensors dict for visualization."""
     # Create color mapper to assign consistent colors to elements
     color_mapper = ColorMapper()
@@ -74,8 +76,8 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
     for sensor_data in output_sensors.values():
         attrs = sensor_data.get("attributes", {})
 
-        # Skip if not a proper HAEO sensor with forecast
-        if not {"element_name", "element_type", "output_type"} <= attrs.keys():
+        # Must have element_name and element_type
+        if "element_name" not in attrs or "element_type" not in attrs:
             continue
 
         # Skip advanced sensors
@@ -88,12 +90,11 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
 
         element_name = attrs["element_name"]
         element_type = attrs["element_type"]
-        output_type = attrs["output_type"]
-        output_name = attrs.get("output_name", "")
-        direction = attrs.get("direction")
 
         # Parse forecast: list of {"time": ISO string or datetime, "value": number}
-        forecast: Sequence[tuple[float, float]] = sorted(_parse_forecast_items(forecast_attr))
+        forecast: Sequence[tuple[float, float]] = sorted(
+            _parse_forecast_items(forecast_attr)
+        )
 
         entry = forecast_data.setdefault(
             element_name,
@@ -103,30 +104,50 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
             },
         )
 
-        # Use type+direction to categorize outputs
-        # "+" = adding power to graph (production/supply)
-        # "-" = taking power away (consumption)
-        if output_type == OUTPUT_TYPE_POWER and direction == "+":
-            entry["production"] = forecast
-        elif output_type == OUTPUT_TYPE_POWER and direction == "-":
-            entry["consumption"] = forecast
-        elif output_type == OUTPUT_TYPE_POWER_LIMIT and direction == "+" and element_type == ELEMENT_TYPE_SOLAR:
-            entry["available"] = forecast
-        elif output_type == OUTPUT_TYPE_SOC:
-            entry["soc"] = forecast
-        elif output_type == OUTPUT_TYPE_PRICE and direction == "+":
-            entry["production_price"] = forecast
-        elif output_type == OUTPUT_TYPE_PRICE and direction == "-":
-            entry["consumption_price"] = forecast
-        elif output_type == OUTPUT_TYPE_SHADOW_PRICE:
-            shadow_prices = entry.setdefault("shadow_prices", {})
-            # Use output_name as the key (matches translation_key)
-            shadow_prices[output_name] = forecast
+        # Handle output sensors (have output_type attribute)
+        output_type = attrs.get("output_type")
+        if output_type is not None:
+            output_name = attrs.get("output_name", "")
+            direction = attrs.get("direction")
+
+            # Use type+direction to categorize outputs
+            # "+" = adding power to graph (production/supply)
+            # "-" = taking power away (consumption)
+            if output_type == OUTPUT_TYPE_POWER and direction == "+":
+                entry["production"] = forecast
+            elif output_type == OUTPUT_TYPE_POWER and direction == "-":
+                entry["consumption"] = forecast
+            elif (
+                output_type == OUTPUT_TYPE_POWER_LIMIT
+                and direction == "+"
+                and element_type == ELEMENT_TYPE_SOLAR
+            ):
+                entry["available"] = forecast
+            elif output_type == OUTPUT_TYPE_SOC:
+                entry["soc"] = forecast
+            elif output_type == OUTPUT_TYPE_PRICE and direction == "+":
+                entry["production_price"] = forecast
+            elif output_type == OUTPUT_TYPE_PRICE and direction == "-":
+                entry["consumption_price"] = forecast
+            elif output_type == OUTPUT_TYPE_SHADOW_PRICE:
+                shadow_prices = entry.setdefault("shadow_prices", {})
+                # Use output_name as the key (matches translation_key)
+                shadow_prices[output_name] = forecast
+            continue
+
+        # Handle input entities (have field_name attribute instead of output_type)
+        field_name = attrs.get("field_name")
+        if field_name is not None:
+            # Solar forecast field represents available power
+            if element_type == ELEMENT_TYPE_SOLAR and field_name == "forecast":
+                entry["available"] = forecast
 
     return forecast_data
 
 
-def _parse_forecast_items(forecast_attr: list[Mapping[str, Any]]) -> list[tuple[float, float]]:
+def _parse_forecast_items(
+    forecast_attr: list[Mapping[str, Any]],
+) -> list[tuple[float, float]]:
     """Parse forecast items handling both datetime objects and ISO strings.
 
     Args:
@@ -140,12 +161,18 @@ def _parse_forecast_items(forecast_attr: list[Mapping[str, Any]]) -> list[tuple[
     for item in forecast_attr:
         time_val = item["time"]
         # Handle both datetime objects (from hass.states) and ISO strings (from outputs.json)
-        timestamp = isoparse(time_val).timestamp() if isinstance(time_val, str) else time_val.timestamp()
+        timestamp = (
+            isoparse(time_val).timestamp()
+            if isinstance(time_val, str)
+            else time_val.timestamp()
+        )
         result.append((timestamp, float(item["value"])))
     return result
 
 
-def _compute_activity_metrics(forecast_data: dict[str, ForecastData]) -> dict[str, tuple[float, int, int]]:
+def _compute_activity_metrics(
+    forecast_data: dict[str, ForecastData],
+) -> dict[str, tuple[float, int, int]]:
     """Return coverage and transition metrics for stacked plotting order."""
 
     all_timestamps: set[float] = set()
@@ -173,21 +200,35 @@ def _compute_activity_metrics(forecast_data: dict[str, ForecastData]) -> dict[st
                 continue
 
             interpolated.append(
-                np.abs(np.interp(ordered_timestamps, series_array[:, 0], series_array[:, 1], left=0.0, right=0.0))
+                np.abs(
+                    np.interp(
+                        ordered_timestamps,
+                        series_array[:, 0],
+                        series_array[:, 1],
+                        left=0.0,
+                        right=0.0,
+                    )
+                )
             )
 
         if not interpolated:
             metrics[name] = (0.0, len(ordered_timestamps), len(ordered_timestamps))
             continue
 
-        combined = interpolated[0] if len(interpolated) == 1 else np.maximum.reduce(interpolated)
+        combined = (
+            interpolated[0]
+            if len(interpolated) == 1
+            else np.maximum.reduce(interpolated)
+        )
         active_mask = combined > ACTIVITY_EPSILON
 
         coverage = float(active_mask.mean())
         transitions = int(np.count_nonzero(np.diff(active_mask.astype(int))))
 
         active_indices = np.flatnonzero(active_mask)
-        first_active_index = int(active_indices[0]) if active_indices.size else len(ordered_timestamps)
+        first_active_index = (
+            int(active_indices[0]) if active_indices.size else len(ordered_timestamps)
+        )
 
         metrics[name] = (coverage, transitions, first_active_index)
 
@@ -253,7 +294,9 @@ def plot_stacked_layer(
         )
 
 
-def plot_price_series(ax: Any, forecast_data: Sequence[tuple[str, str, Sequence[tuple[float, float]]]]) -> None:
+def plot_price_series(
+    ax: Any, forecast_data: Sequence[tuple[str, str, Sequence[tuple[float, float]]]]
+) -> None:
     """Plot price forecast outputs as line series on the provided axis.
 
     Prices represent values over time intervals (like power), displayed with
@@ -264,10 +307,14 @@ def plot_price_series(ax: Any, forecast_data: Sequence[tuple[str, str, Sequence[
         values = np.asarray(data, dtype=float)
 
         times_dt = [datetime.fromtimestamp(t, tz=UTC) for t in values[:, 0]]
-        ax.plot(times_dt, values[:, 1], color=color, drawstyle="steps-post", label=label)
+        ax.plot(
+            times_dt, values[:, 1], color=color, drawstyle="steps-post", label=label
+        )
 
 
-def plot_soc(ax: Any, forecast_data: Sequence[tuple[str, Sequence[tuple[float, float]]]]) -> None:
+def plot_soc(
+    ax: Any, forecast_data: Sequence[tuple[str, Sequence[tuple[float, float]]]]
+) -> None:
     """Plot state of charge (SOC) data on a secondary y-axis.
 
     SOC represents instantaneous battery state at time boundaries (fence posts),
@@ -323,7 +370,9 @@ def collect_shadow_price_series(
     return series
 
 
-def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]], output_path: str, title: str) -> None:
+def create_stacked_visualization(
+    output_sensors: Mapping[str, Mapping[str, Any]], output_path: str, title: str
+) -> None:
     """Create visualization of HAEO optimization results with stacked plots and price traces."""
 
     # Extract forecast data
@@ -346,7 +395,9 @@ def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]]
         ),
     )
 
-    fig, (ax_power, ax_price) = plt.subplots(2, 1, sharex=True, figsize=(16, 10), gridspec_kw={"height_ratios": [3, 1]})
+    fig, (ax_power, ax_price) = plt.subplots(
+        2, 1, sharex=True, figsize=(16, 10), gridspec_kw={"height_ratios": [3, 1]}
+    )
 
     # Set labels and formatting for the power subplot
     ax_power.set_title(title, fontsize=14, pad=20)
@@ -356,8 +407,12 @@ def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]]
     ax_power.tick_params(axis="x", labelsize=9)
     ax_power.tick_params(axis="y", labelsize=9)
 
-    plot_stacked_layer(ax_power, get_from_sorted_data(sorted_data, "available"), alpha=0.2, zorder=1)
-    plot_stacked_layer(ax_power, get_from_sorted_data(sorted_data, "production"), alpha=0.6, zorder=2)
+    plot_stacked_layer(
+        ax_power, get_from_sorted_data(sorted_data, "available"), alpha=0.2, zorder=1
+    )
+    plot_stacked_layer(
+        ax_power, get_from_sorted_data(sorted_data, "production"), alpha=0.6, zorder=2
+    )
     plot_stacked_layer(
         ax_power,
         get_from_sorted_data(sorted_data, "consumption"),
@@ -405,7 +460,9 @@ def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]]
         for label, data in sorted_data
         if any(key in data for key in STACKED_FORECAST_TYPES)
     ]
-    ax_power.legend(handles=legend_handles, loc="upper left", fontsize=9, framealpha=0.9)
+    ax_power.legend(
+        handles=legend_handles, loc="upper left", fontsize=9, framealpha=0.9
+    )
 
     ax_price.set_ylabel("Price", fontsize=11)
     ax_price.grid(alpha=0.3, linestyle=":", linewidth=0.5)
@@ -415,7 +472,13 @@ def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]]
     fig.subplots_adjust(top=0.93, bottom=0.10, left=0.08, right=0.95, hspace=0.15)
 
     # Save as SVG
-    fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3, metadata={"Date": None})
+    fig.savefig(
+        output_path,
+        format="svg",
+        bbox_inches="tight",
+        pad_inches=0.3,
+        metadata={"Date": None},
+    )
     _LOGGER.info("Visualization saved to %s", output_path)
 
     # Also save as PNG for easier viewing
@@ -436,7 +499,9 @@ def create_shadow_price_visualization(
     series = collect_shadow_price_series(sorted_data)
 
     if not series:
-        _LOGGER.info("No shadow price data available; skipping shadow price visualization")
+        _LOGGER.info(
+            "No shadow price data available; skipping shadow price visualization"
+        )
         return False
 
     fig, ax = plt.subplots(1, 1, figsize=(16, 6))
@@ -450,12 +515,16 @@ def create_shadow_price_visualization(
     ax.tick_params(axis="y", labelsize=9)
 
     # Set up property cycling for shadow prices (linestyle + linewidth)
-    shadow_price_cycler = cycler(linestyle=["-", "--", "-.", ":"]) * cycler(linewidth=[1.5, 2.0])
+    shadow_price_cycler = cycler(linestyle=["-", "--", "-.", ":"]) * cycler(
+        linewidth=[1.5, 2.0]
+    )
     ax.set_prop_cycle(shadow_price_cycler)
 
     for label, color, data in series:
         values = np.asarray(data, dtype=float)
-        times_dt = np.asarray([datetime.fromtimestamp(t, tz=UTC) for t in values[:, 0]], dtype=object)
+        times_dt = np.asarray(
+            [datetime.fromtimestamp(t, tz=UTC) for t in values[:, 0]], dtype=object
+        )
         ax.plot(
             times_dt,
             values[:, 1],
@@ -481,7 +550,9 @@ def create_shadow_price_visualization(
 
 
 def visualize_scenario_results(
-    output_sensors: Mapping[str, Mapping[str, Any]], scenario_name: str, output_dir: Path
+    output_sensors: Mapping[str, Mapping[str, Any]],
+    scenario_name: str,
+    output_dir: Path,
 ) -> None:
     """Create comprehensive visualizations for HAEO scenario test results.
 
@@ -500,7 +571,13 @@ def visualize_scenario_results(
 
     # Create stacked area/line plots (SVG format for vector graphics)
     main_plot_path = output_dir_path / f"{scenario_name}_optimization.svg"
-    create_stacked_visualization(output_sensors, str(main_plot_path), f"{scenario_name.title()} Optimization Results")
+    create_stacked_visualization(
+        output_sensors,
+        str(main_plot_path),
+        f"{scenario_name.title()} Optimization Results",
+    )
 
     shadow_plot_path = output_dir_path / f"{scenario_name}_shadow_prices.svg"
-    create_shadow_price_visualization(output_sensors, str(shadow_plot_path), f"{scenario_name.title()} Shadow Prices")
+    create_shadow_price_visualization(
+        output_sensors, str(shadow_plot_path), f"{scenario_name.title()} Shadow Prices"
+    )
