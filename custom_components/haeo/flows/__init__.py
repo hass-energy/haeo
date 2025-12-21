@@ -56,49 +56,39 @@ HORIZON_PRESET_OPTIONS: Final = [
     HORIZON_PRESET_CUSTOM,
 ]
 
-# Preset tier configurations for each horizon option
-# Each preset specifies count (number of intervals) and duration (minutes per interval)
+
+def _create_horizon_preset(days: int) -> dict[str, int]:
+    """Create tier configuration for a given horizon in days.
+
+    The configuration uses:
+    - Tier 1: 5 x 1-minute intervals (5 minutes)
+    - Tier 2: 11 x 5-minute intervals (55 minutes, cumulative 60 minutes)
+    - Tier 3: 46 x 30-minute intervals (1 day cumulative)
+    - Tier 4: 60-minute intervals for the remainder
+
+    """
+    if days < 2:
+        raise ValueError("Horizon must be at least 2 days")
+
+    total_minutes = days * 24 * 60
+
+    return {
+        CONF_TIER_1_COUNT: 5,
+        CONF_TIER_1_DURATION: 1,
+        CONF_TIER_2_COUNT: 11,
+        CONF_TIER_2_DURATION: 5,
+        CONF_TIER_3_COUNT: 46,
+        CONF_TIER_3_DURATION: 30,
+        CONF_TIER_4_COUNT: (total_minutes - 1440) // 60,
+        CONF_TIER_4_DURATION: 60,
+    }
+
+
 HORIZON_PRESETS: Final[dict[str, dict[str, int]]] = {
-    HORIZON_PRESET_2_DAYS: {
-        CONF_TIER_1_COUNT: 5,
-        CONF_TIER_1_DURATION: 1,
-        CONF_TIER_2_COUNT: 11,
-        CONF_TIER_2_DURATION: 5,
-        CONF_TIER_3_COUNT: 22,  # (720-60)/30 = 22 intervals
-        CONF_TIER_3_DURATION: 30,
-        CONF_TIER_4_COUNT: 36,  # (2880-720)/60 = 36 intervals
-        CONF_TIER_4_DURATION: 60,
-    },
-    HORIZON_PRESET_3_DAYS: {
-        CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-        CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-        CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-        CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-        CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-        CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-        CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-        CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-    },
-    HORIZON_PRESET_5_DAYS: {
-        CONF_TIER_1_COUNT: 5,
-        CONF_TIER_1_DURATION: 1,
-        CONF_TIER_2_COUNT: 11,
-        CONF_TIER_2_DURATION: 5,
-        CONF_TIER_3_COUNT: 46,
-        CONF_TIER_3_DURATION: 30,
-        CONF_TIER_4_COUNT: 96,  # (7200-1440)/60 = 96 intervals for 5 days
-        CONF_TIER_4_DURATION: 60,
-    },
-    HORIZON_PRESET_7_DAYS: {
-        CONF_TIER_1_COUNT: 5,
-        CONF_TIER_1_DURATION: 1,
-        CONF_TIER_2_COUNT: 11,
-        CONF_TIER_2_DURATION: 5,
-        CONF_TIER_3_COUNT: 46,
-        CONF_TIER_3_DURATION: 30,
-        CONF_TIER_4_COUNT: 144,  # (10080-1440)/60 = 144 intervals for 7 days
-        CONF_TIER_4_DURATION: 60,
-    },
+    HORIZON_PRESET_2_DAYS: _create_horizon_preset(2),
+    HORIZON_PRESET_3_DAYS: _create_horizon_preset(3),
+    HORIZON_PRESET_5_DAYS: _create_horizon_preset(5),
+    HORIZON_PRESET_7_DAYS: _create_horizon_preset(7),
 }
 
 
