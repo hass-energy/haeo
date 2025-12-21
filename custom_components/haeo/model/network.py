@@ -17,9 +17,6 @@ from .source_sink import SourceSink
 
 _LOGGER = logging.getLogger(__name__)
 
-# High penalty for blackout protection slack - strongly discourages violations but allows feasibility
-_BLACKOUT_SLACK_PENALTY = 1000.0  # $/kWh
-
 
 @dataclass
 class Network:
@@ -39,6 +36,7 @@ class Network:
     elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
     required_energy: Sequence[float] | None = None  # kWh at each timestep boundary, available to model elements
     blackout_protection: bool = False  # Enable blackout protection constraints
+    blackout_slack_penalty: float = 0.2  # Penalty for blackout protection slack variables
     net_power: Sequence[float] | None = None  # kW per period, positive = surplus, negative = deficit
     _solver: Highs = field(default_factory=Highs, repr=False)
 
@@ -201,7 +199,7 @@ class Network:
                     # Soft constraint: total_stored[t] + slack >= max_required
                     h.addConstr(total_stored[t] + slack >= max_required)
                     # Add penalty cost for using slack
-                    slack_costs.append(_BLACKOUT_SLACK_PENALTY * slack)
+                    slack_costs.append(self.blackout_slack_penalty * slack)
                     _LOGGER.debug(
                         "Blackout protection: period %d (deficit), stored_energy >= %.2f kWh (soft, capped from %.2f)",
                         t,

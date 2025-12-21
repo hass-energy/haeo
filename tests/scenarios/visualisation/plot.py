@@ -348,21 +348,14 @@ def plot_soc(
     Args:
         ax: The matplotlib axis to plot on
         forecast_data: List of (color, soc_data) tuples for battery SOC lines
-        required_soc_data: Optional required SOC data to plot as red dashed line
+        required_soc_data: Optional required SOC data to plot as solid red line (behind SOC)
 
     """
     ax_soc = ax.twinx()
     ax_soc.set_ylabel("State of Charge (%)", fontsize=11)
     ax_soc.set_ylim(0, 100)
 
-    for color, data in forecast_data:
-        d = np.asarray(data, dtype=float)
-
-        times_dt = [datetime.fromtimestamp(t, tz=UTC) for t in d[:, 0]]
-        # Use linear interpolation (default) since SOC is instantaneous state, not step function
-        ax_soc.plot(times_dt, d[:, 1], color=color, linestyle="--", linewidth=1.5)
-
-    # Plot required SOC as red dashed line if provided
+    # Plot required SOC first (lower zorder) as solid red line so it appears behind battery SOC
     if required_soc_data:
         d = np.asarray(required_soc_data, dtype=float)
         times_dt = [datetime.fromtimestamp(t, tz=UTC) for t in d[:, 0]]
@@ -370,10 +363,19 @@ def plot_soc(
             times_dt,
             d[:, 1],
             color="red",
-            linestyle="--",
+            linestyle="-",
             linewidth=1.5,
             label="Required SOC",
+            zorder=1,
         )
+
+    # Plot battery SOC lines on top with higher zorder
+    for color, data in forecast_data:
+        d = np.asarray(data, dtype=float)
+
+        times_dt = [datetime.fromtimestamp(t, tz=UTC) for t in d[:, 0]]
+        # Use linear interpolation (default) since SOC is instantaneous state, not step function
+        ax_soc.plot(times_dt, d[:, 1], color=color, linestyle="--", linewidth=3, zorder=2)
 
     ax_soc.tick_params(axis="y", labelsize=9)
 

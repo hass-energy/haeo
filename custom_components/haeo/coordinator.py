@@ -330,6 +330,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Build network with loaded configurations
         network = await data_module.load_network(
+            self.hass,
             self.config_entry,
             periods_seconds=periods_seconds,
             participants=loaded_configs,

@@ -77,6 +77,6 @@
   "tier_4_count": 96,
   "tier_4_duration": 60,
   "blackout_protection": true,
-  "blackout_protection_slack_cost": 1000.0,
+  "blackout_protection_slack_cost": 0.2,
   "blackout_duration_hours": 0.0
 }

@@ -17,6 +17,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.const import (
     CONF_BLACKOUT_DURATION_HOURS,
@@ -24,6 +25,8 @@ from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     DEFAULT_BLACKOUT_DURATION_HOURS,
     DEFAULT_BLACKOUT_PROTECTION,
+    DOMAIN,
+    ELEMENT_TYPE_NETWORK,
 )
 from custom_components.haeo.elements import (
     ELEMENT_TYPE_CONNECTION,
@@ -38,6 +41,57 @@ from custom_components.haeo.schema import load as config_load
 from .util.required_energy import calculate_required_energy
 
 _LOGGER = logging.getLogger(__name__)
+
+# Entity key for the blackout slack penalty number (must match number.py)
+_BLACKOUT_SLACK_PENALTY_KEY = "blackout_slack_penalty"
+
+
+def _get_blackout_slack_penalty(hass: HomeAssistant, entry: ConfigEntry) -> float:
+    """Get the blackout slack penalty value from the number entity.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry
+
+    Returns:
+        The blackout slack penalty value, or 0.2 if entity not found or unavailable.
+
+    """
+    # Find the Network subentry to construct the entity unique_id
+    network_subentry = None
+    for subentry in entry.subentries.values():
+        if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
+            network_subentry = subentry
+            break
+
+    if network_subentry is None:
+        _LOGGER.debug("No Network subentry found, using default blackout slack penalty")
+        return 0.2
+
+    # Construct the unique_id for the number entity (must match number.py)
+    unique_id = f"{entry.entry_id}_{network_subentry.subentry_id}_{_BLACKOUT_SLACK_PENALTY_KEY}"
+
+    # Look up the entity by unique_id
+    entity_registry = er.async_get(hass)
+    entity_entry = entity_registry.async_get_entity_id("number", DOMAIN, unique_id)
+
+    if entity_entry is None:
+        _LOGGER.debug("Blackout slack penalty entity not found, using default")
+        return 0.2
+
+    # Get the current state
+    state = hass.states.get(entity_entry)
+    if state is None or state.state in ("unknown", "unavailable"):
+        _LOGGER.debug("Blackout slack penalty entity unavailable, using default")
+        return 0.2
+
+    try:
+        value = float(state.state)
+        _LOGGER.debug("Using blackout slack penalty: %s", value)
+        return value
+    except (ValueError, TypeError):
+        _LOGGER.warning("Invalid blackout slack penalty value %s, using default", state.state)
+        return 0.2
 
 
 async def load_element_configs(
@@ -77,6 +131,7 @@ async def load_element_configs(
 
 
 async def load_network(
+    hass: HomeAssistant,
     entry: ConfigEntry,
     *,
     periods_seconds: Sequence[int],
@@ -85,6 +140,7 @@ async def load_network(
     """Return a fully-populated `Network` ready for optimization.
 
     Args:
+        hass: Home Assistant instance
         entry: Config entry
         periods_seconds: Sequence of optimization period durations in seconds
         participants: Mapping of element names to loaded configurations (with values)
@@ -111,6 +167,11 @@ async def load_network(
     blackout_protection = entry.data.get(CONF_BLACKOUT_PROTECTION, DEFAULT_BLACKOUT_PROTECTION)
     blackout_duration_hours = entry.data.get(CONF_BLACKOUT_DURATION_HOURS, DEFAULT_BLACKOUT_DURATION_HOURS)
 
+    # Read blackout slack penalty from number entity if blackout protection is enabled
+    blackout_slack_penalty = 0.2  # Default value
+    if blackout_protection:
+        blackout_slack_penalty = _get_blackout_slack_penalty(hass, entry)
+
     # Calculate required energy with optional horizon limit for blackout protection
     # A duration of 0 means unlimited (look at entire remaining horizon)
     max_horizon_hours = blackout_duration_hours if blackout_protection and blackout_duration_hours > 0 else None
@@ -121,6 +182,7 @@ async def load_network(
         periods=periods_hours,
         required_energy=energy_result.required_energy,
         blackout_protection=blackout_protection,
+        blackout_slack_penalty=blackout_slack_penalty,
         net_power=energy_result.net_power,
     )
 

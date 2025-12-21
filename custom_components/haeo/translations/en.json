@@ -315,6 +315,9 @@
     "solar": { "name": "{name}" }
   },
   "entity": {
+    "number": {
+      "blackout_slack_penalty": { "name": "Blackout slack penalty" }
+    },
     "sensor": {
       "battery_charge_price": { "name": "Charge price" },
       "battery_discharge_price": { "name": "Discharge price" },
