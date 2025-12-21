@@ -89,16 +89,9 @@ class HaeoBlackoutSlackPenalty(RestoreEntity, NumberEntity):
     ) -> None:
         """Initialize the number entity."""
         self._config_entry = config_entry
-        self._device_entry = device_entry
+        self.device_entry = device_entry
         self._attr_unique_id = unique_id
         self._attr_native_value: float = 0.2  # Default value
-
-    @property
-    def device_info(self) -> device_registry.DeviceInfo:
-        """Return device info for linking to the Network device."""
-        return device_registry.DeviceInfo(
-            identifiers=self._device_entry.identifiers,
-        )
 
     async def async_added_to_hass(self) -> None:
         """Restore previous state when added to hass."""
