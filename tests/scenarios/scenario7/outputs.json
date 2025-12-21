@@ -1,4 +1,15 @@
 {
+  "number.mock_title_blackout_slack_penalty": {
+    "attributes": {
+      "friendly_name": "Mock Title Blackout slack penalty",
+      "max": 1000.0,
+      "min": 0.0,
+      "mode": "box",
+      "step": 0.01
+    },
+    "entity_id": "number.mock_title_blackout_slack_penalty",
+    "state": "0.2"
+  },
   "sensor.battery_active_power": {
     "attributes": {
       "advanced": false,
