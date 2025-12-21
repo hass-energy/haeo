@@ -14,6 +14,7 @@ CONF_INTEGRATION_TYPE: Final = "integration_type"
 CONF_ELEMENT_TYPE: Final = "element_type"
 CONF_UPDATE_INTERVAL_MINUTES: Final = "update_interval_minutes"
 CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
+CONF_HORIZON_PRESET: Final = "horizon_preset"
 
 ELEMENT_TYPE_NETWORK: Final = "network"
 

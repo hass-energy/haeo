@@ -6,10 +6,11 @@ by parser type for easy access in parameterized tests.
 
 from typing import Any
 
-from . import aemo, amberelectric, haeo, open_meteo, solcast
+from . import aemo, amber2mqtt, amberelectric, haeo, open_meteo, solcast
 
 # Aggregate all valid sensor configs by parser type
 VALID_SENSORS_BY_PARSER: dict[str, list[dict[str, Any]]] = {
+    "amber2mqtt": amber2mqtt.VALID,
     "amberelectric": amberelectric.VALID,
     "aemo_nem": aemo.VALID,
     "haeo": haeo.VALID,
@@ -19,6 +20,7 @@ VALID_SENSORS_BY_PARSER: dict[str, list[dict[str, Any]]] = {
 
 # Aggregate all invalid sensor configs by parser type
 INVALID_SENSORS_BY_PARSER: dict[str, list[dict[str, Any]]] = {
+    "amber2mqtt": amber2mqtt.INVALID,
     "amberelectric": amberelectric.INVALID,
     "aemo_nem": aemo.INVALID,
     "haeo": haeo.INVALID,

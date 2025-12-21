@@ -6,20 +6,9 @@ from typing import Any
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 
-from custom_components.haeo.const import (
-    CONF_DEBOUNCE_SECONDS,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-    CONF_UPDATE_INTERVAL_MINUTES,
-)
+from custom_components.haeo.const import CONF_DEBOUNCE_SECONDS, CONF_HORIZON_PRESET, CONF_UPDATE_INTERVAL_MINUTES
 
-from . import get_network_config_schema
+from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_options_schema, get_tier_config
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,24 +16,51 @@ _LOGGER = logging.getLogger(__name__)
 class HubOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for HAEO hub."""
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Configure network timing parameters."""
-        if user_input is not None:
-            new_data = self.config_entry.data.copy()
-            # Tier configuration
-            new_data[CONF_TIER_1_COUNT] = user_input[CONF_TIER_1_COUNT]
-            new_data[CONF_TIER_1_DURATION] = user_input[CONF_TIER_1_DURATION]
-            new_data[CONF_TIER_2_COUNT] = user_input[CONF_TIER_2_COUNT]
-            new_data[CONF_TIER_2_DURATION] = user_input[CONF_TIER_2_DURATION]
-            new_data[CONF_TIER_3_COUNT] = user_input[CONF_TIER_3_COUNT]
-            new_data[CONF_TIER_3_DURATION] = user_input[CONF_TIER_3_DURATION]
-            new_data[CONF_TIER_4_COUNT] = user_input[CONF_TIER_4_COUNT]
-            new_data[CONF_TIER_4_DURATION] = user_input[CONF_TIER_4_DURATION]
-            # Update and debounce settings
-            new_data[CONF_UPDATE_INTERVAL_MINUTES] = user_input[CONF_UPDATE_INTERVAL_MINUTES]
-            new_data[CONF_DEBOUNCE_SECONDS] = user_input[CONF_DEBOUNCE_SECONDS]
-            self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
-            return self.async_create_entry(title="", data={})
+    def __init__(self) -> None:
+        """Initialize the options flow."""
+        self._user_input: dict[str, Any] = {}
 
-        data_schema = get_network_config_schema(config_entry=self.config_entry)
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Configure hub settings with simplified preset dropdown."""
+        if user_input is not None:
+            # Store user input for later
+            self._user_input = user_input
+
+            # If custom preset selected, go to custom tiers step
+            if user_input[CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM:
+                return await self.async_step_custom_tiers()
+
+            # Otherwise, apply preset values and save
+            return await self._save_options()
+
+        data_schema = get_hub_options_schema(config_entry=self.config_entry)
         return self.async_show_form(step_id="init", data_schema=data_schema)
+
+    async def async_step_custom_tiers(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Handle custom tier configuration step."""
+        if user_input is not None:
+            # Merge custom tier config with stored user input
+            self._user_input.update(user_input)
+            return await self._save_options()
+
+        # Show full tier configuration form with current values
+        return self.async_show_form(
+            step_id="custom_tiers",
+            data_schema=get_custom_tiers_schema(config_entry=self.config_entry),
+        )
+
+    async def _save_options(self) -> ConfigFlowResult:
+        """Save the options with tier configuration."""
+        tier_config, stored_preset = get_tier_config(self._user_input, self._user_input.get(CONF_HORIZON_PRESET))
+
+        # Update config entry data with new values
+        new_data = {
+            **self.config_entry.data,
+            CONF_HORIZON_PRESET: stored_preset,
+            **tier_config,
+            CONF_UPDATE_INTERVAL_MINUTES: self._user_input[CONF_UPDATE_INTERVAL_MINUTES],
+            CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],
+        }
+
+        self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
+        return self.async_create_entry(title="", data={})
