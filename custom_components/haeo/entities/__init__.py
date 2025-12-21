@@ -1,12 +1,14 @@
 """Entity platform setup for HAEO integration.
 
-Provides a common setup function for sensor platform using a data-driven approach
-based on coordinator outputs.
+Provides common setup functions for entity platforms:
+- Sensor entities: Created from coordinator data (optimization outputs)
+- Input entities: Created from subentry config (number/switch for runtime configuration)
 """
 
 from collections.abc import Callable
 from enum import StrEnum
 import logging
+from typing import TypeVar
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -16,13 +18,17 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.elements import ELEMENT_OUTPUT_NAMES
+from custom_components.haeo.elements import ELEMENT_OUTPUT_NAMES, ELEMENT_TYPES
+from custom_components.haeo.schema.input_fields import InputEntityType, get_input_fields
 
 from .haeo_number import HaeoInputNumber
 from .haeo_switch import HaeoInputSwitch
 from .mode import ConfigEntityMode
 
 _LOGGER = logging.getLogger(__name__)
+
+# Type variable for input entity types
+TInputEntity = TypeVar("TInputEntity", HaeoInputNumber, HaeoInputSwitch)
 
 
 class EntityPlatform(StrEnum):
@@ -112,10 +118,85 @@ async def async_setup_platform_entities(
         _LOGGER.debug("No %s entities created for entry %s", platform.value, config_entry.entry_id)
 
 
+async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSwitch)](
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+    input_entity_type: InputEntityType,
+    entity_class: type[TInputEntity],
+) -> None:
+    """Set up HAEO input entities from element subentry config.
+
+    This is the shared setup logic for number and switch platforms.
+    It creates input entities for runtime configuration from subentry data.
+
+    Args:
+        hass: Home Assistant instance
+        config_entry: The config entry to set up entities for
+        async_add_entities: Callback to add entities
+        input_entity_type: Filter for NUMBER or SWITCH fields
+        entity_class: Entity class to instantiate (HaeoInputNumber or HaeoInputSwitch)
+
+    """
+    entities: list[TInputEntity] = []
+    dr = device_registry.async_get(hass)
+
+    for subentry in config_entry.subentries.values():
+        element_type = subentry.subentry_type
+
+        # Skip non-element subentries
+        if element_type not in ELEMENT_TYPES:
+            continue
+
+        # Get input fields for this element type
+        input_fields = get_input_fields(element_type)
+
+        # Get or create device for this element
+        device_id = subentry.subentry_id
+        translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+
+        dr.async_get_or_create(
+            identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id}")},
+            config_entry_id=config_entry.entry_id,
+            config_subentry_id=subentry.subentry_id,
+            translation_key=element_type,
+            translation_placeholders=translation_placeholders,
+        )
+
+        # Create entities for matching input fields
+        for field_info in input_fields:
+            if field_info.entity_type != input_entity_type:
+                continue
+
+            # Only create entity if field has a value in config
+            if field_info.field_name not in subentry.data:
+                continue
+
+            entity = entity_class(
+                hass=hass,
+                config_entry=config_entry,
+                subentry=subentry,
+                field_info=field_info,
+                device_id=device_id,
+            )
+            entities.append(entity)
+
+    if entities:
+        async_add_entities(entities)
+        _LOGGER.debug("Created %d %s entities", len(entities), input_entity_type.value)
+    else:
+        _LOGGER.debug(
+            "No %s entities created for entry %s",
+            input_entity_type.value,
+            config_entry.entry_id,
+        )
+
+
 __all__ = [
     "ConfigEntityMode",
     "EntityPlatform",
     "HaeoInputNumber",
     "HaeoInputSwitch",
+    "async_setup_input_entities",
     "async_setup_platform_entities",
 ]
