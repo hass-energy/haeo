@@ -13,14 +13,6 @@ from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_HORIZON_PRESET,
     CONF_INTEGRATION_TYPE,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
     CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
@@ -28,7 +20,7 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
 
-from . import HORIZON_PRESET_CUSTOM, HORIZON_PRESETS, get_custom_tiers_schema, get_hub_setup_schema
+from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_setup_schema, get_tier_config
 from .element import create_subentry_flow_class
 from .options import HubOptionsFlow
 
@@ -94,25 +86,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     async def _create_hub_entry(self) -> ConfigFlowResult:
         """Create the hub entry with tier configuration."""
         hub_name = self._user_input[CONF_NAME]
-        horizon_preset = self._user_input.get(CONF_HORIZON_PRESET)
-
-        # Get tier values from preset or from custom input
-        if horizon_preset and horizon_preset != HORIZON_PRESET_CUSTOM:
-            tier_config = HORIZON_PRESETS[horizon_preset]
-            stored_preset = horizon_preset
-        else:
-            # Custom values were provided in _user_input
-            tier_config = {
-                CONF_TIER_1_COUNT: self._user_input[CONF_TIER_1_COUNT],
-                CONF_TIER_1_DURATION: self._user_input[CONF_TIER_1_DURATION],
-                CONF_TIER_2_COUNT: self._user_input[CONF_TIER_2_COUNT],
-                CONF_TIER_2_DURATION: self._user_input[CONF_TIER_2_DURATION],
-                CONF_TIER_3_COUNT: self._user_input[CONF_TIER_3_COUNT],
-                CONF_TIER_3_DURATION: self._user_input[CONF_TIER_3_DURATION],
-                CONF_TIER_4_COUNT: self._user_input[CONF_TIER_4_COUNT],
-                CONF_TIER_4_DURATION: self._user_input[CONF_TIER_4_DURATION],
-            }
-            stored_preset = HORIZON_PRESET_CUSTOM
+        tier_config, stored_preset = get_tier_config(self._user_input, self._user_input.get(CONF_HORIZON_PRESET))
 
         # Resolve the switchboard node name from translations
         translations = await async_get_translations(
@@ -126,21 +100,8 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             data={
                 CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
                 CONF_NAME: hub_name,
-                # Store the chosen preset for the options flow
                 CONF_HORIZON_PRESET: stored_preset,
-                # Tier 1: Fine-grained near-term intervals
-                CONF_TIER_1_COUNT: tier_config[CONF_TIER_1_COUNT],
-                CONF_TIER_1_DURATION: tier_config[CONF_TIER_1_DURATION],
-                # Tier 2: Short-term intervals
-                CONF_TIER_2_COUNT: tier_config[CONF_TIER_2_COUNT],
-                CONF_TIER_2_DURATION: tier_config[CONF_TIER_2_DURATION],
-                # Tier 3: Medium-term intervals
-                CONF_TIER_3_COUNT: tier_config[CONF_TIER_3_COUNT],
-                CONF_TIER_3_DURATION: tier_config[CONF_TIER_3_DURATION],
-                # Tier 4: Long-term intervals
-                CONF_TIER_4_COUNT: tier_config[CONF_TIER_4_COUNT],
-                CONF_TIER_4_DURATION: tier_config[CONF_TIER_4_DURATION],
-                # Update and debounce settings
+                **tier_config,
                 CONF_UPDATE_INTERVAL_MINUTES: self._user_input[CONF_UPDATE_INTERVAL_MINUTES],
                 CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],
             },

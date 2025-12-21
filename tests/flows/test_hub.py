@@ -23,7 +23,6 @@ from custom_components.haeo.flows import (
     HORIZON_PRESET_5_DAYS,
     get_custom_tiers_schema,
     get_hub_setup_schema,
-    get_network_config_schema,
 )
 from custom_components.haeo.flows.hub import HubConfigFlow
 
@@ -139,11 +138,10 @@ async def test_custom_tiers_schema_has_tier_fields(hass: HomeAssistant) -> None:
 
 async def test_schema_coerces_floats_to_integers(hass: HomeAssistant) -> None:
     """Test that the schema coerces float values to integers for tier counts and durations."""
-    schema = get_network_config_schema()
+    schema = get_custom_tiers_schema()
 
     # Simulate float values that might come from JSON or UI
     test_data = {
-        CONF_NAME: "Test Hub",
         CONF_TIER_1_COUNT: 5.0,  # Float input
         CONF_TIER_1_DURATION: 1.0,  # Float input
         CONF_TIER_2_COUNT: 11.0,

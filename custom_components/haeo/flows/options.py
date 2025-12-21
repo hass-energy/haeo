@@ -9,18 +9,10 @@ from homeassistant.config_entries import ConfigFlowResult
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_PRESET,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
     CONF_UPDATE_INTERVAL_MINUTES,
 )
 
-from . import HORIZON_PRESET_CUSTOM, HORIZON_PRESETS, get_custom_tiers_schema, get_hub_options_schema
+from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_options_schema, get_tier_config
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,39 +55,18 @@ class HubOptionsFlow(config_entries.OptionsFlow):
 
     async def _save_options(self) -> ConfigFlowResult:
         """Save the options with tier configuration."""
-        horizon_preset = self._user_input.get(CONF_HORIZON_PRESET)
-
-        # Get tier values from preset or from custom input
-        if horizon_preset and horizon_preset != HORIZON_PRESET_CUSTOM:
-            tier_config = HORIZON_PRESETS[horizon_preset]
-            stored_preset = horizon_preset
-        else:
-            # Custom values were provided in _user_input
-            tier_config = {
-                CONF_TIER_1_COUNT: self._user_input[CONF_TIER_1_COUNT],
-                CONF_TIER_1_DURATION: self._user_input[CONF_TIER_1_DURATION],
-                CONF_TIER_2_COUNT: self._user_input[CONF_TIER_2_COUNT],
-                CONF_TIER_2_DURATION: self._user_input[CONF_TIER_2_DURATION],
-                CONF_TIER_3_COUNT: self._user_input[CONF_TIER_3_COUNT],
-                CONF_TIER_3_DURATION: self._user_input[CONF_TIER_3_DURATION],
-                CONF_TIER_4_COUNT: self._user_input[CONF_TIER_4_COUNT],
-                CONF_TIER_4_DURATION: self._user_input[CONF_TIER_4_DURATION],
-            }
-            stored_preset = HORIZON_PRESET_CUSTOM
+        tier_config, stored_preset = get_tier_config(
+            self._user_input, self._user_input.get(CONF_HORIZON_PRESET)
+        )
 
         # Update config entry data with new values
-        new_data = self.config_entry.data.copy()
-        new_data[CONF_HORIZON_PRESET] = stored_preset
-        new_data[CONF_TIER_1_COUNT] = tier_config[CONF_TIER_1_COUNT]
-        new_data[CONF_TIER_1_DURATION] = tier_config[CONF_TIER_1_DURATION]
-        new_data[CONF_TIER_2_COUNT] = tier_config[CONF_TIER_2_COUNT]
-        new_data[CONF_TIER_2_DURATION] = tier_config[CONF_TIER_2_DURATION]
-        new_data[CONF_TIER_3_COUNT] = tier_config[CONF_TIER_3_COUNT]
-        new_data[CONF_TIER_3_DURATION] = tier_config[CONF_TIER_3_DURATION]
-        new_data[CONF_TIER_4_COUNT] = tier_config[CONF_TIER_4_COUNT]
-        new_data[CONF_TIER_4_DURATION] = tier_config[CONF_TIER_4_DURATION]
-        new_data[CONF_UPDATE_INTERVAL_MINUTES] = self._user_input[CONF_UPDATE_INTERVAL_MINUTES]
-        new_data[CONF_DEBOUNCE_SECONDS] = self._user_input[CONF_DEBOUNCE_SECONDS]
+        new_data = {
+            **self.config_entry.data,
+            CONF_HORIZON_PRESET: stored_preset,
+            **tier_config,
+            CONF_UPDATE_INTERVAL_MINUTES: self._user_input[CONF_UPDATE_INTERVAL_MINUTES],
+            CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],
+        }
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
         return self.async_create_entry(title="", data={})
