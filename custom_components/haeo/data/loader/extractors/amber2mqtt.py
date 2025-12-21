@@ -3,7 +3,7 @@
 This parser handles the amber2mqtt integration which provides Amber Electric
 data via MQTT. Key differences from the official Amber Electric integration:
 - Uses "Forecasts" (capitalized) instead of "forecasts" as the attribute key
-- Feed-in sensors (detected by entity_id pattern) have negated per_kwh values
+- Feed-in sensors (detected by channel_type attribute) have negated per_kwh values
 """
 
 from collections.abc import Mapping, Sequence
@@ -35,6 +35,7 @@ class Amber2MqttAttributes(TypedDict):
     """Type definition for Amber2MQTT State attributes."""
 
     Forecasts: Sequence[Amber2MqttForecastEntry]
+    channel_type: str
 
 
 class Amber2MqttState(Protocol):
@@ -82,12 +83,6 @@ class Parser:
         return round(raw / 60.0) * 60.0
 
     @staticmethod
-    def _is_feedin_sensor(entity_id: str) -> bool:
-        """Check if the sensor is a feed-in tariff sensor based on entity_id pattern."""
-        entity_id_lower = entity_id.lower()
-        return "feed_in" in entity_id_lower or "feedin" in entity_id_lower
-
-    @staticmethod
     def extract(state: Amber2MqttState) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass]:
         """Extract forecast data from Amber2MQTT pricing format.
 
@@ -95,12 +90,12 @@ class Parser:
         (start, price) and (nextafter(next_start, -inf), price) to ensure constant pricing
         within the window without linear interpolation.
 
-        For feed-in sensors (detected by entity_id), the per_kwh value is negated.
+        For feed-in sensors (detected by channel_type attribute), the per_kwh value is negated.
         """
         forecasts = list(state.attributes["Forecasts"])
         parsed: list[tuple[float, float]] = []
 
-        is_feedin = Parser._is_feedin_sensor(state.entity_id)
+        is_feedin = state.attributes.get("channel_type") == "feedin"
 
         for item in forecasts:
             start = Parser._round_to_minute(item["start_time"])
