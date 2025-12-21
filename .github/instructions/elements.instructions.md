@@ -61,7 +61,7 @@ type GridOutputName = Literal["grid_power_import", "grid_power_export", ...]
 GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(...)
 ```
 
-The `updates()` function returns only computed outputs from model results.
+The `outputs()` function returns only computed outputs from model results.
 All name sets are aggregated in `elements/__init__.py` as `ELEMENT_OUTPUT_NAMES` for translation validation.
 
 Input entities (number/switch) are created from ConfigSchema fields using the `schema/input_fields.py` module.

@@ -5,7 +5,7 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.const import STATE_ON, EntityCategory
+from homeassistant.const import EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
@@ -14,13 +14,13 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.schema.input_fields import InputFieldInfo
 
-from .mode import InputMode
+from .mode import ConfigEntityMode
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class HaeoInputSwitch(RestoreEntity, SwitchEntity):
-    """Switch entity for HAEO boolean input configuration.
+    """Switch entity for HAEO input configuration.
 
     Created directly from subentry configuration during platform setup.
     Does not require coordinator to exist.
@@ -66,13 +66,16 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
 
         if isinstance(config_value, str) and "." in config_value:
             # Looks like an entity ID - Driven mode
-            self._input_mode = InputMode.DRIVEN
+            self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_id = config_value
             self._attr_is_on = False
         else:
             # Static value or missing - Editable mode
-            self._input_mode = InputMode.EDITABLE
-            self._attr_is_on = bool(config_value) if config_value is not None else False
+            self._entity_mode = ConfigEntityMode.EDITABLE
+            if isinstance(config_value, bool):
+                self._attr_is_on = config_value
+            else:
+                self._attr_is_on = bool(config_value) if config_value is not None else False
 
         # Entity attributes
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
@@ -84,6 +87,8 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
             identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id}")},
         )
 
+        # Note: device_class not used for switches since InputFieldInfo is number-focused
+
         # Unsubscribe callback for Driven mode
         self._unsub_state_change: Any = None
 
@@ -91,32 +96,39 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         self._update_extra_attributes()
 
     @property
-    def input_mode(self) -> str:
-        """Return the current input mode."""
-        return self._input_mode
+    def entity_mode(self) -> ConfigEntityMode:
+        """Return the current entity mode."""
+        return self._entity_mode
 
-    def _update_extra_attributes(self) -> None:
-        """Update extra state attributes."""
+    def _update_extra_attributes(self, *, forecast: list[dict[str, Any]] | None = None) -> None:
+        """Update extra state attributes.
+
+        Args:
+            forecast: Forecast data to include in attributes (from source entity in Driven mode)
+
+        """
         attrs: dict[str, Any] = {
-            "input_mode": self._input_mode,
+            "entity_mode": self._entity_mode.value,
             "element_name": self._element_name,
             "element_type": self._element_type,
             "field_name": self._field_name,
         }
         if self._source_entity_id:
             attrs["source_entity"] = self._source_entity_id
+        if forecast is not None:
+            attrs["forecast"] = forecast
         self._attr_extra_state_attributes = attrs
 
     async def async_added_to_hass(self) -> None:
         """Handle entity being added to Home Assistant."""
         await super().async_added_to_hass()
 
-        if self._input_mode == InputMode.EDITABLE:
-            # Restore previous state if available
+        if self._entity_mode == ConfigEntityMode.EDITABLE:
+            # Restore previous value if available
             last_state = await self.async_get_last_state()
             if last_state is not None:
-                self._attr_is_on = last_state.state == STATE_ON
-        elif self._input_mode == InputMode.DRIVEN and self._source_entity_id:
+                self._attr_is_on = last_state.state == "on"
+        elif self._entity_mode == ConfigEntityMode.DRIVEN and self._source_entity_id:
             # Subscribe to source entity changes
             self._unsub_state_change = async_track_state_change_event(
                 self.hass,
@@ -149,13 +161,23 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         state = self.hass.states.get(self._source_entity_id)
         if state is None or state.state in ("unknown", "unavailable"):
             self._attr_is_on = False
+            # Clear forecast when source unavailable
+            self._update_extra_attributes(forecast=None)
             return
 
-        self._attr_is_on = state.state == STATE_ON
+        self._attr_is_on = state.state == "on"
+
+        # Copy forecast from source entity if available
+        forecast = state.attributes.get("forecast")
+        self._update_extra_attributes(forecast=forecast)
 
     async def async_turn_on(self, **_kwargs: Any) -> None:
-        """Turn the switch on."""
-        if self._input_mode == InputMode.DRIVEN:
+        """Turn the switch on.
+
+        In Editable mode: stores the value and triggers coordinator refresh.
+        In Driven mode: ignored - value is controlled by source entity.
+        """
+        if self._entity_mode == ConfigEntityMode.DRIVEN:
             _LOGGER.debug("Ignoring turn_on in Driven mode for %s", self.entity_id)
             return
 
@@ -168,8 +190,12 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
             await coordinator.async_request_refresh()
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
-        """Turn the switch off."""
-        if self._input_mode == InputMode.DRIVEN:
+        """Turn the switch off.
+
+        In Editable mode: stores the value and triggers coordinator refresh.
+        In Driven mode: ignored - value is controlled by source entity.
+        """
+        if self._entity_mode == ConfigEntityMode.DRIVEN:
             _LOGGER.debug("Ignoring turn_off in Driven mode for %s", self.entity_id)
             return
 
@@ -186,7 +212,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
 
         This is called by the coordinator when loading input values.
         """
-        return self._attr_is_on if self._attr_is_on is not None else False
+        return bool(self._attr_is_on)
 
 
 __all__ = ["HaeoInputSwitch"]

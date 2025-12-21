@@ -13,7 +13,7 @@ from homeassistant.helpers.event import EventStateChangedData, async_track_state
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.schema.input_fields import InputFieldInfo
 
-from .mode import InputMode
+from .mode import ConfigEntityMode
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,12 +66,12 @@ class HaeoInputNumber(RestoreNumber):
 
         if isinstance(config_value, str) and "." in config_value:
             # Looks like an entity ID - Driven mode
-            self._input_mode = InputMode.DRIVEN
+            self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_id = config_value
             self._attr_native_value = None
         else:
             # Static value or missing - Editable mode
-            self._input_mode = InputMode.EDITABLE
+            self._entity_mode = ConfigEntityMode.EDITABLE
             if config_value is not None and isinstance(config_value, (int, float)):
                 self._attr_native_value = float(config_value)
 
@@ -104,32 +104,39 @@ class HaeoInputNumber(RestoreNumber):
         self._update_extra_attributes()
 
     @property
-    def input_mode(self) -> str:
-        """Return the current input mode."""
-        return self._input_mode
+    def entity_mode(self) -> ConfigEntityMode:
+        """Return the current entity mode."""
+        return self._entity_mode
 
-    def _update_extra_attributes(self) -> None:
-        """Update extra state attributes."""
+    def _update_extra_attributes(self, *, forecast: list[dict[str, Any]] | None = None) -> None:
+        """Update extra state attributes.
+
+        Args:
+            forecast: Forecast data to include in attributes (from source entity in Driven mode)
+
+        """
         attrs: dict[str, Any] = {
-            "input_mode": self._input_mode,
+            "entity_mode": self._entity_mode.value,
             "element_name": self._element_name,
             "element_type": self._element_type,
             "field_name": self._field_name,
         }
         if self._source_entity_id:
             attrs["source_entity"] = self._source_entity_id
+        if forecast is not None:
+            attrs["forecast"] = forecast
         self._attr_extra_state_attributes = attrs
 
     async def async_added_to_hass(self) -> None:
         """Handle entity being added to Home Assistant."""
         await super().async_added_to_hass()
 
-        if self._input_mode == InputMode.EDITABLE:
+        if self._entity_mode == ConfigEntityMode.EDITABLE:
             # Restore previous value if available
             last_data = await self.async_get_last_number_data()
             if last_data is not None and last_data.native_value is not None:
                 self._attr_native_value = last_data.native_value
-        elif self._input_mode == InputMode.DRIVEN and self._source_entity_id:
+        elif self._entity_mode == ConfigEntityMode.DRIVEN and self._source_entity_id:
             # Subscribe to source entity changes
             self._unsub_state_change = async_track_state_change_event(
                 self.hass,
@@ -162,6 +169,8 @@ class HaeoInputNumber(RestoreNumber):
         state = self.hass.states.get(self._source_entity_id)
         if state is None or state.state in ("unknown", "unavailable"):
             self._attr_native_value = None
+            # Clear forecast when source unavailable
+            self._update_extra_attributes(forecast=None)
             return
 
         try:
@@ -174,13 +183,17 @@ class HaeoInputNumber(RestoreNumber):
             )
             self._attr_native_value = None
 
+        # Copy forecast from source entity if available
+        forecast = state.attributes.get("forecast")
+        self._update_extra_attributes(forecast=forecast)
+
     async def async_set_native_value(self, value: float) -> None:
         """Set the value.
 
         In Editable mode: stores the value and triggers coordinator refresh.
         In Driven mode: ignored - value is controlled by source entity.
         """
-        if self._input_mode == InputMode.DRIVEN:
+        if self._entity_mode == ConfigEntityMode.DRIVEN:
             _LOGGER.debug("Ignoring set_value in Driven mode for %s", self.entity_id)
             return
 

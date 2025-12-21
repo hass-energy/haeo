@@ -5,7 +5,7 @@ based on coordinator outputs.
 """
 
 from collections.abc import Callable
-from enum import StrEnum, auto
+from enum import StrEnum
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -18,23 +18,11 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.elements import ELEMENT_OUTPUT_NAMES
 
+from .haeo_number import HaeoInputNumber
+from .haeo_switch import HaeoInputSwitch
+from .mode import ConfigEntityMode
+
 _LOGGER = logging.getLogger(__name__)
-
-
-class ConfigEntityMode(StrEnum):
-    """Operating mode for a config entity.
-
-    Driven: User provided external entities in config flow. The entity
-    displays the combined output from those entities with forecast attributes.
-    The entity is read-only (changes are overwritten by coordinator updates).
-
-    Editable: User provides input via the entity. The user's value is
-    used for optimization, and forecast attributes are added while preserving
-    the user's state value.
-    """
-
-    DRIVEN = auto()
-    EDITABLE = auto()
 
 
 class EntityPlatform(StrEnum):
@@ -127,5 +115,7 @@ async def async_setup_platform_entities(
 __all__ = [
     "ConfigEntityMode",
     "EntityPlatform",
+    "HaeoInputNumber",
+    "HaeoInputSwitch",
     "async_setup_platform_entities",
 ]

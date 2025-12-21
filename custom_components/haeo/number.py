@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.inputs import HaeoInputNumber
+from custom_components.haeo.entities import HaeoInputNumber
 from custom_components.haeo.schema.input_fields import InputEntityType, get_input_fields
 
 _LOGGER = logging.getLogger(__name__)
