@@ -11,6 +11,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.typing import StateType
@@ -19,12 +20,15 @@ from homeassistant.util import dt as dt_util
 
 from . import data as data_module
 from .const import (
+    CONF_BLACKOUT_PROTECTION,
     CONF_DEBOUNCE_SECONDS,
     CONF_UPDATE_INTERVAL_MINUTES,
+    DEFAULT_BLACKOUT_PROTECTION,
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
+    NETWORK_DEVICE_NETWORK,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
@@ -62,6 +66,9 @@ from .schema import get_field_meta
 from .util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 _LOGGER = logging.getLogger(__name__)
+
+# Entity key for the blackout slack penalty number (must match number.py and data/__init__.py)
+_BLACKOUT_SLACK_PENALTY_KEY = "blackout_slack_penalty"
 
 
 def collect_entity_ids(value: Any) -> set[str]:
@@ -276,6 +283,22 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         all_entity_ids: set[str] = set()
         for config in self._participant_configs.values():
             all_entity_ids.update(extract_entity_ids_from_config(config))
+
+        # Add blackout slack penalty entity to tracked entities if blackout protection is enabled
+        blackout_protection = config_entry.data.get(CONF_BLACKOUT_PROTECTION, DEFAULT_BLACKOUT_PROTECTION)
+        if blackout_protection:
+            # Find the Network subentry to construct the entity unique_id
+            for subentry in config_entry.subentries.values():
+                if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
+                    unique_id = (
+                        f"{config_entry.entry_id}_{subentry.subentry_id}_"
+                        f"{NETWORK_DEVICE_NETWORK}_{_BLACKOUT_SLACK_PENALTY_KEY}"
+                    )
+                    entity_registry = er.async_get(hass)
+                    entity_id = entity_registry.async_get_entity_id("number", DOMAIN, unique_id)
+                    if entity_id:
+                        all_entity_ids.add(entity_id)
+                    break
 
         # Set up state change listeners for all entity IDs in configuration
         if all_entity_ids:
