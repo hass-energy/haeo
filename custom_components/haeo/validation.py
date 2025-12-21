@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import CONF_ELEMENT_TYPE
 from .elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
+from .model import MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION
 from .schema import load as schema_load
 from .util.forecast_times import generate_forecast_timestamps_from_config
 from .util.graph import ConnectivityResult as NetworkConnectivityResult
@@ -47,9 +48,10 @@ async def _build_adjacency(
         # Get model elements including implicit connections
         model_elements = ELEMENT_TYPES[element_type].create_model_elements(loaded)
 
-        # Add non-connection elements as nodes
+        # Add non-connection elements as nodes (skip balance connections - internal bookkeeping)
         for elem in model_elements:
-            if elem.get(CONF_ELEMENT_TYPE) != ELEMENT_TYPE_CONNECTION:
+            elem_type = elem.get(CONF_ELEMENT_TYPE)
+            if elem_type not in {ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION}:
                 adjacency.setdefault(elem["name"], set())
 
         # Add edges from connection elements

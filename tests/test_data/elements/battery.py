@@ -71,21 +71,21 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             {
                 "element_type": "battery",
                 "name": "battery_main:undercharge",
-                "capacity": 0.5,  # (10% - 5%) * 10kWh
+                "capacity": [0.5],  # (10% - 5%) * 10kWh
                 "initial_charge": 0.5,  # 50% SOC fills undercharge completely
             },
             # Normal section
             {
                 "element_type": "battery",
                 "name": "battery_main:normal",
-                "capacity": 8.0,  # (90% - 10%) * 10kWh
+                "capacity": [8.0],  # (90% - 10%) * 10kWh
                 "initial_charge": 4.0,  # Remaining from 50% SOC
             },
             # Overcharge section
             {
                 "element_type": "battery",
                 "name": "battery_main:overcharge",
-                "capacity": 0.49999999999999933,  # (95% - 90%) * 10kWh (floating point precision)
+                "capacity": [0.49999999999999933],  # (95% - 90%) * 10kWh (floating point precision)
                 "initial_charge": 0.0,  # 50% SOC doesn't reach overcharge
             },
             # Internal node
@@ -95,34 +95,50 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 "is_source": False,
                 "is_sink": False,
             },
-            # Connection from undercharge section to node
+            # Connection from undercharge section to node (only discharge penalty)
             {
                 "element_type": "connection",
                 "name": "battery_main:undercharge:to_node",
                 "source": "battery_main:undercharge",
                 "target": "battery_main:node",
-                "price_target_source": [-0.03],  # Charge: 3x early charge incentive
-                "price_source_target": [0.04],  # Discharge: 1x + undercharge cost
+                "price_target_source": None,  # No charge cost
+                "price_source_target": [0.03],  # Undercharge discharge penalty
             },
-            # Connection from normal section to node
+            # Connection from normal section to node (no pricing)
             {
                 "element_type": "connection",
                 "name": "battery_main:normal:to_node",
                 "source": "battery_main:normal",
                 "target": "battery_main:node",
-                "price_target_source": [-0.02],  # Charge: 2x early charge incentive
-                "price_source_target": [0.02],  # Discharge: 2x early discharge incentive
+                "price_target_source": None,  # No charge cost
+                "price_source_target": None,  # No discharge cost
             },
-            # Connection from overcharge section to node
+            # Connection from overcharge section to node (only charge penalty)
             {
                 "element_type": "connection",
                 "name": "battery_main:overcharge:to_node",
                 "source": "battery_main:overcharge",
                 "target": "battery_main:node",
-                "price_target_source": [0.03],  # Charge: 1x + overcharge cost
-                "price_source_target": [0.03],  # Discharge: 3x early discharge incentive
+                "price_target_source": [0.04],  # Overcharge charge penalty
+                "price_source_target": None,  # No discharge cost
             },
-            # Connection from node to network
+            # Balance connection between undercharge and normal
+            {
+                "element_type": "battery_balance_connection",
+                "name": "battery_main:balance:undercharge_to_normal",
+                "upper": "battery_main:normal",
+                "lower": "battery_main:undercharge",
+                "capacity_lower": [0.5],
+            },
+            # Balance connection between normal and overcharge
+            {
+                "element_type": "battery_balance_connection",
+                "name": "battery_main:balance:normal_to_overcharge",
+                "upper": "battery_main:overcharge",
+                "lower": "battery_main:normal",
+                "capacity_lower": [8.0],
+            },
+            # Connection from node to network (with early charge incentive)
             {
                 "element_type": "connection",
                 "name": "battery_main:connection",
@@ -132,7 +148,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 "efficiency_target_source": 95.0,
                 "max_power_source_target": [5.0],
                 "max_power_target_source": [5.0],
-                "price_source_target": [0.02],
+                "price_source_target": [0.03],  # discharge_cost + early_discharge_incentive
+                "price_target_source": [-0.01],  # early_charge_incentive
             },
         ],
         "model_outputs": {
@@ -177,20 +194,16 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             "battery_main:undercharge:to_node": {
                 connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
                 connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="-"),
-                connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.03,), direction="-"),
-                connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.04,), direction="+"),
+                connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="+"),
             },
             "battery_main:normal:to_node": {
                 connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
                 connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
-                connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.02,), direction="-"),
-                connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.02,), direction="+"),
             },
             "battery_main:overcharge:to_node": {
                 connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
                 connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="-"),
-                connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="-"),
-                connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="+"),
+                connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.04,), direction="-"),
             },
         },
         "outputs": {
@@ -206,8 +219,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 battery_element.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(0.5, 0.5), advanced=True),
                 battery_element.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.0,), direction="-", advanced=True),
                 battery_element.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.0,), direction="+", advanced=True),
-                battery_element.BATTERY_CHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.03,), direction="-", advanced=True),
-                battery_element.BATTERY_DISCHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.04,), direction="+", advanced=True),
+                battery_element.BATTERY_DISCHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="+", advanced=True),
                 battery_element.BATTERY_ENERGY_IN_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.003,), advanced=True),
                 battery_element.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,), advanced=True),
                 battery_element.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,), advanced=True),
@@ -217,8 +229,6 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 battery_element.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(4.0, 4.0), advanced=True),
                 battery_element.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-", advanced=True),
                 battery_element.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+", advanced=True),
-                battery_element.BATTERY_CHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.02,), direction="-", advanced=True),
-                battery_element.BATTERY_DISCHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.02,), direction="+", advanced=True),
                 battery_element.BATTERY_ENERGY_IN_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.003,), advanced=True),
                 battery_element.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,), advanced=True),
                 battery_element.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,), advanced=True),
@@ -228,8 +238,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 battery_element.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(0.0, 0.0), advanced=True),
                 battery_element.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.0,), direction="-", advanced=True),
                 battery_element.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.0,), direction="+", advanced=True),
-                battery_element.BATTERY_CHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="-", advanced=True),
-                battery_element.BATTERY_DISCHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="+", advanced=True),
+                battery_element.BATTERY_CHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.04,), direction="-", advanced=True),
                 battery_element.BATTERY_ENERGY_IN_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.003,), advanced=True),
                 battery_element.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,), advanced=True),
                 battery_element.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,), advanced=True),
@@ -269,7 +278,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             {
                 "element_type": "battery",
                 "name": "battery_main:normal",
-                "capacity": 8.0,  # (90% - 10%) * 10kWh
+                "capacity": [8.0],  # (90% - 10%) * 10kWh
                 "initial_charge": 4.0,  # (50% - 10%) * 10kWh
             },
             # Internal node
@@ -279,16 +288,16 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 "is_source": False,
                 "is_sink": False,
             },
-            # Connection from normal section to node
+            # Connection from normal section to node (no pricing - no multiplier)
             {
                 "element_type": "connection",
                 "name": "battery_main:normal:to_node",
                 "source": "battery_main:normal",
                 "target": "battery_main:node",
-                "price_target_source": [-0.002],  # 2x early charge incentive (default 0.001)
-                "price_source_target": [0.002],  # 2x early discharge incentive
+                "price_target_source": None,
+                "price_source_target": None,
             },
-            # Connection from node to network
+            # Connection from node to network (with early charge incentive)
             {
                 "element_type": "connection",
                 "name": "battery_main:connection",
@@ -298,7 +307,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 "efficiency_target_source": 95.0,
                 "max_power_source_target": [5.0],
                 "max_power_target_source": [5.0],
-                "price_source_target": None,
+                "price_source_target": [0.001],  # Early charge incentive on discharge
+                "price_target_source": [-0.001],  # Early charge incentive on charge
             },
         ],
         "model_outputs": {
@@ -317,12 +327,10 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             "battery_main:node": {
                 SOURCE_SINK_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             },
-            # Connection outputs
+            # Connection outputs (no pricing on section connection)
             "battery_main:normal:to_node": {
                 connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
                 connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
-                connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.002,), direction="-"),
-                connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.002,), direction="+"),
             },
         },
         "outputs": {
@@ -338,8 +346,6 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 battery_element.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(4.0, 4.0), advanced=True),
                 battery_element.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-", advanced=True),
                 battery_element.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+", advanced=True),
-                battery_element.BATTERY_CHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.002,), direction="-", advanced=True),
-                battery_element.BATTERY_DISCHARGE_PRICE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.002,), direction="+", advanced=True),
                 battery_element.BATTERY_ENERGY_IN_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.003,), advanced=True),
                 battery_element.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,), advanced=True),
                 battery_element.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,), advanced=True),
@@ -376,16 +382,13 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             max_discharge_power=[5.0, 5.0, 5.0, 5.0],
             early_charge_incentive=0.01,
         ),
-        # Model elements - using linspace for charge/discharge prices over 4 periods
-        # charge_early = linspace(-0.01, 0, 4) = [-0.01, -0.00333..., 0.00333..., 0.01] wait that's wrong
-        # Actually: linspace(-0.01, 0, 4) = [-0.01, -0.006666..., -0.003333..., 0.0]
-        # discharge_early = linspace(0.01, 0.02, 4) = [0.01, 0.013333..., 0.016666..., 0.02]
-        # Normal section (2x): charge = 2*charge_early, discharge = 2*discharge_early
+        # Model elements - early charge incentive now on external connection only
+        # No multiplier on section connections
         "model": [
             {
                 "element_type": "battery",
                 "name": "battery_early:normal",
-                "capacity": 8.0,  # (90% - 10%) * 10 kWh
+                "capacity": [8.0, 8.0, 8.0, 8.0],  # (90% - 10%) * 10 kWh per period
                 "initial_charge": 0.0,  # 10% SOC means empty usable capacity
             },
             {
@@ -399,21 +402,9 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 "name": "battery_early:normal:to_node",
                 "source": "battery_early:normal",
                 "target": "battery_early:node",
-                # 2x charge_early_incentive = 2 * [-0.01 + (0.01 * i / 3) for i in range(4)]
-                # Uses exact computation: [c * 2 for c in charge_early]
-                "price_target_source": [
-                    (-0.01 + (0.01 * 0 / 3)) * 2,  # -0.02
-                    (-0.01 + (0.01 * 1 / 3)) * 2,  # -0.0133...
-                    (-0.01 + (0.01 * 2 / 3)) * 2,  # -0.0066...
-                    (-0.01 + (0.01 * 3 / 3)) * 2,  # 0.0
-                ],
-                # 2x discharge_early_incentive = 2 * [0.01 + (0.01 * i / 3) for i in range(4)]
-                "price_source_target": [
-                    (0.01 + (0.01 * 0 / 3)) * 2,  # 0.02
-                    (0.01 + (0.01 * 1 / 3)) * 2,  # 0.0266...
-                    (0.01 + (0.01 * 2 / 3)) * 2,  # 0.0333...
-                    (0.01 + (0.01 * 3 / 3)) * 2,  # 0.04
-                ],
+                # No pricing on section connection (removed multiplier incentives)
+                "price_target_source": None,
+                "price_source_target": None,
             },
             {
                 "element_type": "connection",
@@ -424,7 +415,19 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 "efficiency_target_source": 100.0,
                 "max_power_source_target": [5.0, 5.0, 5.0, 5.0],
                 "max_power_target_source": [5.0, 5.0, 5.0, 5.0],
-                "price_source_target": None,
+                # Early charge incentive on external connection (linspace pattern)
+                "price_source_target": [
+                    0.01 + (0.01 * 0 / 3),  # 0.01
+                    0.01 + (0.01 * 1 / 3),  # 0.0133...
+                    0.01 + (0.01 * 2 / 3),  # 0.0166...
+                    0.01 + (0.01 * 3 / 3),  # 0.02
+                ],
+                "price_target_source": [
+                    -0.01 + (0.01 * 0 / 3),  # -0.01
+                    -0.01 + (0.01 * 1 / 3),  # -0.0066...
+                    -0.01 + (0.01 * 2 / 3),  # -0.0033...
+                    -0.01 + (0.01 * 3 / 3),  # 0.0
+                ],
             },
         ],
         # Synthetic model_outputs for adapter mapping test
@@ -442,31 +445,10 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             "battery_early:node": {
                 SOURCE_SINK_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0, 0.0, 0.0, 0.0)),
             },
+            # Section connection has no pricing
             "battery_early:normal:to_node": {
                 connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0, 0.0, 0.0, 1.0), direction="+"),
                 connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0, 0.0, 0.0, 0.0), direction="-"),
-                connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(
-                    type=OUTPUT_TYPE_PRICE,
-                    unit="$/kWh",
-                    values=(
-                        (-0.01 + (0.01 * 0 / 3)) * 2,
-                        (-0.01 + (0.01 * 1 / 3)) * 2,
-                        (-0.01 + (0.01 * 2 / 3)) * 2,
-                        (-0.01 + (0.01 * 3 / 3)) * 2,
-                    ),
-                    direction="-",
-                ),
-                connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(
-                    type=OUTPUT_TYPE_PRICE,
-                    unit="$/kWh",
-                    values=(
-                        (0.01 + (0.01 * 0 / 3)) * 2,
-                        (0.01 + (0.01 * 1 / 3)) * 2,
-                        (0.01 + (0.01 * 2 / 3)) * 2,
-                        (0.01 + (0.01 * 3 / 3)) * 2,
-                    ),
-                    direction="+",
-                ),
             },
         },
         "outputs": {
@@ -478,34 +460,11 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 battery_element.BATTERY_STATE_OF_CHARGE: OutputData(type=OUTPUT_TYPE_SOC, unit="%", values=(10.0, 20.0, 20.0, 20.0, 10.0)),
                 battery_element.BATTERY_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0, 0.0, 0.0, 0.0)),
             },
+            # Normal section has no charge/discharge prices (no multiplier)
             battery_element.BATTERY_DEVICE_NORMAL: {
                 battery_element.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(0.0, 1.0, 1.0, 1.0, 0.0), advanced=True),
                 battery_element.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 0.0, 0.0, 0.0), direction="-", advanced=True),
                 battery_element.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.0, 0.0, 0.0, 1.0), direction="+", advanced=True),
-                battery_element.BATTERY_CHARGE_PRICE: OutputData(
-                    type=OUTPUT_TYPE_PRICE,
-                    unit="$/kWh",
-                    values=(
-                        (-0.01 + (0.01 * 0 / 3)) * 2,
-                        (-0.01 + (0.01 * 1 / 3)) * 2,
-                        (-0.01 + (0.01 * 2 / 3)) * 2,
-                        (-0.01 + (0.01 * 3 / 3)) * 2,
-                    ),
-                    direction="-",
-                    advanced=True,
-                ),
-                battery_element.BATTERY_DISCHARGE_PRICE: OutputData(
-                    type=OUTPUT_TYPE_PRICE,
-                    unit="$/kWh",
-                    values=(
-                        (0.01 + (0.01 * 0 / 3)) * 2,
-                        (0.01 + (0.01 * 1 / 3)) * 2,
-                        (0.01 + (0.01 * 2 / 3)) * 2,
-                        (0.01 + (0.01 * 3 / 3)) * 2,
-                    ),
-                    direction="+",
-                    advanced=True,
-                ),
                 battery_element.BATTERY_ENERGY_IN_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0, 0.0, 0.0, 0.0), advanced=True),
                 battery_element.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0, 0.0, 0.0, 0.0), advanced=True),
                 battery_element.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0, 0.0, 0.0, 0.0), advanced=True),

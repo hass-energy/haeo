@@ -29,7 +29,7 @@ def highs_sequence(h: Highs, name: str, length: int) -> tuple[list[highs_var], H
 
 
 # Import modules after defining utilities to avoid circular imports
-from . import battery, connection, node, source_sink  # noqa: E402
+from . import battery, battery_balance_connection, connection, node, source_sink  # noqa: E402
 
 
 def _aggregate_element_cases() -> list[ElementTestCase]:
@@ -45,6 +45,13 @@ def _aggregate_connection_cases() -> list[ConnectionTestCase]:
     """Aggregate valid connection test cases."""
     return [
         *connection.VALID_CASES,
+    ]
+
+
+def _aggregate_balance_connection_cases() -> list[ConnectionTestCase]:
+    """Aggregate valid battery balance connection test cases."""
+    return [
+        *battery_balance_connection.VALID_CASES,
     ]
 
 
@@ -64,18 +71,30 @@ def _aggregate_invalid_connection_cases() -> list[ConnectionTestCase]:
     ]
 
 
+def _aggregate_invalid_balance_connection_cases() -> list[ConnectionTestCase]:
+    """Aggregate invalid battery balance connection test cases."""
+    return [
+        *battery_balance_connection.INVALID_CASES,
+    ]
+
+
 # Aggregate cases
 VALID_ELEMENT_CASES = _aggregate_element_cases()
 VALID_CONNECTION_CASES = _aggregate_connection_cases()
+VALID_BALANCE_CONNECTION_CASES = _aggregate_balance_connection_cases()
 INVALID_ELEMENT_CASES = _aggregate_invalid_element_cases()
 INVALID_CONNECTION_CASES = _aggregate_invalid_connection_cases()
+INVALID_BALANCE_CONNECTION_CASES = _aggregate_invalid_balance_connection_cases()
 
 __all__ = [
+    "INVALID_BALANCE_CONNECTION_CASES",
     "INVALID_CONNECTION_CASES",
     "INVALID_ELEMENT_CASES",
+    "VALID_BALANCE_CONNECTION_CASES",
     "VALID_CONNECTION_CASES",
     "VALID_ELEMENT_CASES",
     "battery",
+    "battery_balance_connection",
     "connection",
     "highs_sequence",
     "node",

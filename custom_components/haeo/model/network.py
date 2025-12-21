@@ -9,6 +9,7 @@ from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons
 
 from .battery import Battery
+from .battery_balance_connection import BatteryBalanceConnection
 from .connection import Connection
 from .element import Element
 from .node import Node
@@ -70,6 +71,7 @@ class Network:
         """
         factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
+            "battery_balance_connection": BatteryBalanceConnection,
             "connection": Connection,
             "source_sink": SourceSink,
             "node": Node,
@@ -96,6 +98,21 @@ class Network:
             else:
                 msg = f"Failed to register connection {name} with target {element.target}: Not found or invalid"
                 raise ValueError(msg)
+
+        # Register battery balance connections with their battery sections
+        if isinstance(element, BatteryBalanceConnection):
+            upper_element = self.elements.get(element.upper)
+            lower_element = self.elements.get(element.lower)
+
+            if not isinstance(upper_element, Battery):
+                msg = f"Upper element '{element.upper}' is not a battery"
+                raise TypeError(msg)
+
+            if not isinstance(lower_element, Battery):
+                msg = f"Lower element '{element.lower}' is not a battery"
+                raise TypeError(msg)
+
+            element.set_battery_references(upper_element, lower_element)
 
         return element
 
@@ -154,6 +171,15 @@ class Network:
                 if isinstance(self.elements[element.target], Connection):
                     msg = f"Target element '{element.target}' is a connection"
                     raise ValueError(msg)  # noqa: TRY004 value error is appropriate here
+
+            # Validate battery balance connections
+            if isinstance(element, BatteryBalanceConnection):
+                if element.upper not in self.elements:
+                    msg = f"Upper battery '{element.upper}' not found"
+                    raise ValueError(msg)
+                if element.lower not in self.elements:
+                    msg = f"Lower battery '{element.lower}' not found"
+                    raise ValueError(msg)
 
     def constraints(self) -> list[highs_cons]:
         """Return all constraints from all elements in the network.

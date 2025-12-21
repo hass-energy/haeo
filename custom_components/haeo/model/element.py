@@ -11,7 +11,11 @@ from numpy.typing import NDArray
 from .output_data import OutputData
 
 if TYPE_CHECKING:
+    from .battery_balance_connection import BatteryBalanceConnection  # Circular import
     from .connection import Connection  # Circular import
+
+# Type alias for connections that can be registered with an element
+type RegisterableConnection = "Connection | BatteryBalanceConnection"
 
 # Type alias for values that can be in constraint storage
 type ConstraintValue = highs_cons | Sequence[highs_cons]
@@ -48,14 +52,14 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         self._constraints: dict[ConstraintNameT, ConstraintValue] = {}
 
         # Track connections for power balance
-        self._connections: list[tuple[Connection, Literal["source", "target"]]] = []
+        self._connections: list[tuple[RegisterableConnection, Literal["source", "target"]]] = []
 
     @property
     def n_periods(self) -> int:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def register_connection(self, connection: "Connection", end: Literal["source", "target"]) -> None:
+    def register_connection(self, connection: RegisterableConnection, end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
         Args:
