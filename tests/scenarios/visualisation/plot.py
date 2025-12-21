@@ -104,12 +104,13 @@ def extract_forecast_data(
             },
         )
 
-        # Handle output sensors (have output_type attribute)
+        # Both output sensors and input entities use output_name and output_type
         output_type = attrs.get("output_type")
-        if output_type is not None:
-            output_name = attrs.get("output_name", "")
-            direction = attrs.get("direction")
+        output_name = attrs.get("output_name", "")
+        direction = attrs.get("direction")
 
+        # Handle output sensors (have output_type and direction)
+        if output_type is not None and direction is not None:
             # Use type+direction to categorize outputs
             # "+" = adding power to graph (production/supply)
             # "-" = taking power away (consumption)
@@ -135,12 +136,14 @@ def extract_forecast_data(
                 shadow_prices[output_name] = forecast
             continue
 
-        # Handle input entities (have field_name attribute instead of output_type)
-        field_name = attrs.get("field_name")
-        if field_name is not None:
+        # Handle input entities (have entity_mode and output_name/output_type)
+        if (
+            attrs.get("entity_mode") is not None
+            and element_type == ELEMENT_TYPE_SOLAR
+            and output_name == "forecast"
+        ):
             # Solar forecast field represents available power
-            if element_type == ELEMENT_TYPE_SOLAR and field_name == "forecast":
-                entry["available"] = forecast
+            entry["available"] = forecast
 
     return forecast_data
 

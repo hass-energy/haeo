@@ -9,6 +9,7 @@ The information extracted includes:
 - Unit of measurement
 - Min/max/step values for number entities
 - Device class for proper entity behavior
+- Output type for consistent attribute naming with output sensors
 """
 
 from dataclasses import dataclass
@@ -16,6 +17,15 @@ from enum import StrEnum, auto
 from typing import TYPE_CHECKING, Annotated, get_args, get_origin, get_type_hints
 
 from homeassistant.components.number import NumberDeviceClass
+
+from custom_components.haeo.model.const import (
+    OUTPUT_TYPE_BOOLEAN,
+    OUTPUT_TYPE_ENERGY,
+    OUTPUT_TYPE_POWER,
+    OUTPUT_TYPE_PRICE,
+    OUTPUT_TYPE_SOC,
+    OutputType,
+)
 
 from .fields import (
     BATTERY_UNITS,
@@ -52,6 +62,7 @@ class InputFieldInfo:
     Attributes:
         field_name: Name of the field in the config schema
         entity_type: Whether to create a Number or Switch entity
+        output_type: Type of output for consistent attributes with output sensors
         unit: Unit of measurement (for Number entities)
         min_value: Minimum allowed value (for Number entities)
         max_value: Maximum allowed value (for Number entities)
@@ -63,6 +74,7 @@ class InputFieldInfo:
 
     field_name: str
     entity_type: InputEntityType
+    output_type: OutputType
     unit: str | None = None
     min_value: float | None = None
     max_value: float | None = None
@@ -98,7 +110,11 @@ def _extract_field_meta(field_type: type) -> FieldMeta | None:
     """Extract FieldMeta from a type annotation."""
     # Handle NotRequired wrapper
     origin = get_origin(field_type)
-    if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "NotRequired":
+    if (
+        origin is not None
+        and hasattr(origin, "__name__")
+        and origin.__name__ == "NotRequired"
+    ):
         field_type = get_args(field_type)[0]
 
     # Extract FieldMeta from Annotated type
@@ -110,17 +126,59 @@ def _extract_field_meta(field_type: type) -> FieldMeta | None:
     return None
 
 
-def _field_meta_to_input_info(field_name: str, meta: FieldMeta, element_type: str) -> InputFieldInfo | None:
+def _field_meta_to_input_info(
+    field_name: str, meta: FieldMeta, element_type: str
+) -> InputFieldInfo | None:
     """Convert a FieldMeta to InputFieldInfo if it should be an input entity.
 
     Almost all fields become input entities. The mode (DRIVEN vs EDITABLE) is
     determined at runtime based on whether the user provided an entity ID.
     """
     # Handle constant field types (have explicit device_class, unit, min/max)
-    if isinstance(meta, NUMBER_FIELD_METAS):
+    if isinstance(meta, (PowerFieldMeta, PowerFlowFieldMeta)):
         return InputFieldInfo(
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
+            output_type=OUTPUT_TYPE_POWER,
+            unit=meta.unit,
+            min_value=meta.min,
+            max_value=meta.max,
+            step=meta.step,
+            device_class=meta.device_class,
+            translation_key=f"{element_type}_{field_name}",
+        )
+
+    if isinstance(meta, EnergyFieldMeta):
+        return InputFieldInfo(
+            field_name=field_name,
+            entity_type=InputEntityType.NUMBER,
+            output_type=OUTPUT_TYPE_ENERGY,
+            unit=meta.unit,
+            min_value=meta.min,
+            max_value=meta.max,
+            step=meta.step,
+            device_class=meta.device_class,
+            translation_key=f"{element_type}_{field_name}",
+        )
+
+    if isinstance(meta, PriceFieldMeta):
+        return InputFieldInfo(
+            field_name=field_name,
+            entity_type=InputEntityType.NUMBER,
+            output_type=OUTPUT_TYPE_PRICE,
+            unit=meta.unit,
+            min_value=meta.min,
+            max_value=meta.max,
+            step=meta.step,
+            device_class=meta.device_class,
+            translation_key=f"{element_type}_{field_name}",
+        )
+
+    if isinstance(meta, (PercentageFieldMeta, BatterySOCFieldMeta)):
+        return InputFieldInfo(
+            field_name=field_name,
+            entity_type=InputEntityType.NUMBER,
+            output_type=OUTPUT_TYPE_SOC,
             unit=meta.unit,
             min_value=meta.min,
             max_value=meta.max,
@@ -133,6 +191,7 @@ def _field_meta_to_input_info(field_name: str, meta: FieldMeta, element_type: st
         return InputFieldInfo(
             field_name=field_name,
             entity_type=InputEntityType.SWITCH,
+            output_type=OUTPUT_TYPE_BOOLEAN,
             translation_key=f"{element_type}_{field_name}",
         )
 
@@ -143,10 +202,12 @@ def _field_meta_to_input_info(field_name: str, meta: FieldMeta, element_type: st
     return None
 
 
-def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_type: str) -> InputFieldInfo | None:
+def _sensor_meta_to_input_info(
+    field_name: str, meta: SensorFieldMeta, element_type: str
+) -> InputFieldInfo | None:
     """Convert a SensorFieldMeta to InputFieldInfo.
 
-    Maps the accepted_units to appropriate device class and unit.
+    Maps the accepted_units to appropriate device class, unit, and output type.
     """
     accepted = meta.accepted_units
 
@@ -155,6 +216,7 @@ def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_t
         return InputFieldInfo(
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
+            output_type=OUTPUT_TYPE_POWER,
             unit="kW",
             device_class=NumberDeviceClass.POWER,
             translation_key=f"{element_type}_{field_name}",
@@ -165,6 +227,7 @@ def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_t
         return InputFieldInfo(
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
+            output_type=OUTPUT_TYPE_ENERGY,
             unit="kWh",
             device_class=NumberDeviceClass.ENERGY,
             translation_key=f"{element_type}_{field_name}",
@@ -175,6 +238,7 @@ def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_t
         return InputFieldInfo(
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
+            output_type=OUTPUT_TYPE_SOC,
             unit="%",
             min_value=0.0,
             max_value=100.0,
@@ -187,6 +251,7 @@ def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_t
         return InputFieldInfo(
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
+            output_type=OUTPUT_TYPE_SOC,
             unit="%",
             min_value=0.0,
             max_value=100.0,
@@ -199,6 +264,7 @@ def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_t
         return InputFieldInfo(
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
+            output_type=OUTPUT_TYPE_PRICE,
             unit="$/kWh",
             device_class=NumberDeviceClass.MONETARY,
             translation_key=f"{element_type}_{field_name}",
@@ -262,7 +328,9 @@ def get_all_input_fields() -> dict["ElementType", list[InputFieldInfo]]:
     # Import here to avoid circular import
     from custom_components.haeo.elements import ELEMENT_TYPES  # noqa: PLC0415
 
-    return {element_type: get_input_fields(element_type) for element_type in ELEMENT_TYPES}
+    return {
+        element_type: get_input_fields(element_type) for element_type in ELEMENT_TYPES
+    }
 
 
 __all__ = [

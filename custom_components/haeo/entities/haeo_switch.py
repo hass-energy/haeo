@@ -61,6 +61,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         self._subentry = subentry
         self._field_info = field_info
         self._field_name = field_info.field_name
+        self._output_type = field_info.output_type
         self._element_type = subentry.subentry_type
         self._element_name = subentry.title
 
@@ -121,10 +122,11 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
 
         """
         attrs: dict[str, Any] = {
-            "entity_mode": self._entity_mode.value,
             "element_name": self._element_name,
             "element_type": self._element_type,
-            "field_name": self._field_name,
+            "output_name": self._field_name,
+            "output_type": self._output_type,
+            "entity_mode": self._entity_mode.value,
         }
         if self._source_entity_id:
             attrs["source_entity"] = self._source_entity_id
