@@ -69,11 +69,7 @@ def test_schema_available_delegates_to_loader(
     result = schema_available(config, hass=hass)
 
     assert result is available_result
-    # Verify loader was called with expected parameters (may include additional context params)
-    assert len(loader.available_calls) == 1
-    call = loader.available_calls[0]
-    assert call["value"] == "sensor.example"
-    assert call["hass"] is hass
+    assert loader.available_calls == [{"value": "sensor.example", "hass": hass}]
 
 
 async def test_schema_load_calls_loader(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -93,12 +89,7 @@ async def test_schema_load_calls_loader(monkeypatch: pytest.MonkeyPatch) -> None
     loaded = cast("ConfigData", await schema_load(config, hass=hass, forecast_times=[]))
 
     assert loaded["value"] == 99
-    # Verify loader was called with expected parameters (may include additional context params)
-    assert len(loader.load_calls) == 1
-    call = loader.load_calls[0]
-    assert call["value"] == "sensor.example"
-    assert call["hass"] is hass
-    assert call["forecast_times"] == []
+    assert loader.load_calls == [{"value": "sensor.example", "hass": hass, "forecast_times": []}]
 
 
 def test_get_loader_instance_fallback() -> None:
@@ -135,10 +126,5 @@ async def test_optional_none_values_are_skipped(monkeypatch: pytest.MonkeyPatch)
 
     loaded = cast("ConfigData", await schema_load(config, hass=hass, forecast_times=[]))
     assert "optional" not in loaded
-    # Verify loader was called with expected parameters (may include additional context params)
-    assert len(required_loader.load_calls) == 1
-    call = required_loader.load_calls[0]
-    assert call["value"] == "sensor.example"
-    assert call["hass"] is hass
-    assert call["forecast_times"] == []
+    assert required_loader.load_calls == [{"value": "sensor.example", "hass": hass, "forecast_times": []}]
     assert optional_loader.load_calls == []

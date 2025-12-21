@@ -166,7 +166,7 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
         return []
 
     def mock_outputs(
-        name: str, model_outputs: Mapping[str, Mapping[Any, OutputData]]
+        name: str, outputs: Mapping[str, Mapping[Any, OutputData]]
     ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
         return {}
 

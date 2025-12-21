@@ -275,7 +275,7 @@ async def test_async_update_data_returns_outputs(
     base_timestamp = int(datetime(2024, 1, 1, 0, 0, tzinfo=UTC).timestamp())
     expected_forecast_times = (base_timestamp, base_timestamp + 30 * 60, base_timestamp + 2 * 30 * 60)
 
-    # Mock connection adapter to return proper updates
+    # Mock connection adapter to return proper outputs
     mock_connection_adapter = MagicMock()
     mock_connection_adapter.outputs.return_value = {
         CONNECTION_DEVICE_CONNECTION: {
@@ -284,7 +284,7 @@ async def test_async_update_data_returns_outputs(
         }
     }
 
-    # Mock empty updates for grid
+    # Mock empty outputs for grid
     mock_empty_outputs = MagicMock(return_value={})
 
     # Create mock loaded configs (use subentry titles as keys)
@@ -426,12 +426,12 @@ async def test_async_update_data_raises_on_missing_model_element(
     # Network must have at least one element for HiGHS to optimize (empty networks are rejected)
     fake_network.add("node", "dummy_node")
 
-    def broken_updates(_name: str, _outputs: object, _config: object) -> dict[str, dict[str, OutputData]]:
+    def broken_outputs(_name: str, _outputs: object, _config: object) -> dict[str, dict[str, OutputData]]:
         msg = "missing model element"
         raise KeyError(msg)
 
     battery_entry = ELEMENT_TYPES["battery"]
-    patched_entry = battery_entry._replace(outputs=broken_updates)  # type: ignore[arg-type]
+    patched_entry = battery_entry._replace(outputs=broken_outputs)  # type: ignore[arg-type]
 
     monkeypatch.setattr(
         "custom_components.haeo.coordinator.ELEMENT_TYPES",
