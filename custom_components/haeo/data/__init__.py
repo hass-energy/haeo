@@ -27,6 +27,7 @@ from custom_components.haeo.const import (
     DEFAULT_BLACKOUT_PROTECTION,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
+    NETWORK_DEVICE_NETWORK,
 )
 from custom_components.haeo.elements import (
     ELEMENT_TYPE_CONNECTION,
@@ -69,7 +70,9 @@ def _get_blackout_slack_penalty(hass: HomeAssistant, entry: ConfigEntry) -> floa
         return 0.2
 
     # Construct the unique_id for the number entity (must match number.py)
-    unique_id = f"{entry.entry_id}_{network_subentry.subentry_id}_{_BLACKOUT_SLACK_PENALTY_KEY}"
+    unique_id = (
+        f"{entry.entry_id}_{network_subentry.subentry_id}_{NETWORK_DEVICE_NETWORK}_{_BLACKOUT_SLACK_PENALTY_KEY}"
+    )
 
     # Look up the entity by unique_id
     entity_registry = er.async_get(hass)
