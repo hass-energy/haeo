@@ -8,7 +8,7 @@ For Home Assistant fundamentals, see the [Home Assistant developer documentation
 
 HAEO separates user configuration from mathematical modeling through two distinct layers:
 
-**Device Layer**: User-configured elements (Battery, Grid, Photovoltaics, Load, Node, Connection) that integrate with Home Assistant sensors and present user-friendly outputs.
+**Device Layer**: User-configured elements (Battery, Grid, Solar, Load, Node, Connection) that integrate with Home Assistant sensors and present user-friendly outputs.
 
 **Model Layer**: Mathematical building blocks (battery, source_sink, connection) that form the linear programming problem.
 
@@ -99,7 +99,7 @@ LP representation using HiGHS:
 - **Element**: Base class for all model elements with power/energy variables
 - **Battery**: Storage with charge/discharge power, SOC constraints
 - **Grid**: Import/export with optional limits and pricing
-- **Photovoltaics**: Solar generation with optional curtailment
+- **Solar**: Solar generation with optional curtailment
 - **ConstantLoad, ForecastLoad**: Consumption elements
 - **Node**: Virtual balance point enforcing Kirchhoff's law
 - **Connection**: Power flow path with optional min/max limits
@@ -136,7 +136,7 @@ Separate subsystem implementing the optimization model:
 **Key components**:
 
 - `Element`: Base class with power/energy variable patterns
-- Entity classes: Battery, Grid, Photovoltaics, Loads, Node
+- Entity classes: Battery, Grid, Solar, Loads, Node
 - `Connection`: Power flow with limits
 - `Network`: Container with `optimize()` method
 

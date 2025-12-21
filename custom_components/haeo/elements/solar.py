@@ -1,4 +1,4 @@
-"""Photovoltaics element configuration for HAEO integration."""
+"""Solar element configuration for HAEO integration."""
 
 from collections.abc import Mapping
 from dataclasses import replace
@@ -24,7 +24,7 @@ from custom_components.haeo.schema.fields import (
     PriceFieldSchema,
 )
 
-ELEMENT_TYPE: Final = "photovoltaics"
+ELEMENT_TYPE: Final = "solar"
 
 # Configuration field names
 CONF_FORECAST: Final = "forecast"
@@ -33,33 +33,33 @@ CONF_PRICE_CONSUMPTION: Final = "price_consumption"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
 
-type PhotovoltaicsOutputName = Literal[
-    "photovoltaics_power",
-    "photovoltaics_price",
+type SolarOutputName = Literal[
+    "solar_power",
+    "solar_price",
     # Shadow prices
-    "photovoltaics_forecast_limit",
+    "solar_forecast_limit",
 ]
 
-PHOTOVOLTAIC_OUTPUT_NAMES: Final[frozenset[PhotovoltaicsOutputName]] = frozenset(
+SOLAR_OUTPUT_NAMES: Final[frozenset[SolarOutputName]] = frozenset(
     (
-        PHOTOVOLTAICS_POWER := "photovoltaics_power",
-        PHOTOVOLTAICS_PRICE := "photovoltaics_price",
+        SOLAR_POWER := "solar_power",
+        SOLAR_PRICE := "solar_price",
         # Shadow prices
-        PHOTOVOLTAICS_FORECAST_LIMIT := "photovoltaics_forecast_limit",
+        SOLAR_FORECAST_LIMIT := "solar_forecast_limit",
     )
 )
 
-type PhotovoltaicsDeviceName = Literal["photovoltaics"]
+type SolarDeviceName = Literal["solar"]
 
-PHOTOVOLTAICS_DEVICE_NAMES: Final[frozenset[PhotovoltaicsDeviceName]] = frozenset(
-    (PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS := ELEMENT_TYPE,)
+SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset(
+    (SOLAR_DEVICE_SOLAR := ELEMENT_TYPE,)
 )
 
 
-class PhotovoltaicsConfigSchema(TypedDict):
-    """Photovoltaics element configuration."""
+class SolarConfigSchema(TypedDict):
+    """Solar element configuration."""
 
-    element_type: Literal["photovoltaics"]
+    element_type: Literal["solar"]
     name: NameFieldSchema
     connection: ElementNameFieldSchema  # Node to connect to
     forecast: PowerSensorsFieldSchema
@@ -69,10 +69,10 @@ class PhotovoltaicsConfigSchema(TypedDict):
     curtailment: NotRequired[BooleanFieldSchema]
 
 
-class PhotovoltaicsConfigData(TypedDict):
-    """Photovoltaics element configuration."""
+class SolarConfigData(TypedDict):
+    """Solar element configuration."""
 
-    element_type: Literal["photovoltaics"]
+    element_type: Literal["solar"]
     name: NameFieldData
     connection: ElementNameFieldData  # Node to connect to
     forecast: PowerSensorsFieldData
@@ -87,11 +87,16 @@ CONFIG_DEFAULTS: dict[str, Any] = {
 }
 
 
-def create_model_elements(config: PhotovoltaicsConfigData) -> list[dict[str, Any]]:
-    """Create model elements for Photovoltaics configuration."""
+def create_model_elements(config: SolarConfigData) -> list[dict[str, Any]]:
+    """Create model elements for Solar configuration."""
 
     return [
-        {"element_type": "source_sink", "name": config["name"], "is_source": True, "is_sink": False},
+        {
+            "element_type": "source_sink",
+            "name": config["name"],
+            "is_source": True,
+            "is_sink": False,
+        },
         {
             "element_type": "connection",
             "name": f"{config['name']}:connection",
@@ -106,15 +111,19 @@ def create_model_elements(config: PhotovoltaicsConfigData) -> list[dict[str, Any
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: PhotovoltaicsConfigData
-) -> Mapping[PhotovoltaicsDeviceName, Mapping[PhotovoltaicsOutputName, OutputData]]:
-    """Provide state updates for photovoltaics output sensors."""
+    name: str,
+    outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+    _config: SolarConfigData,
+) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
+    """Provide state updates for solar output sensors."""
     connection = outputs[f"{name}:connection"]
 
-    pv_updates: dict[PhotovoltaicsOutputName, OutputData] = {
+    pv_updates: dict[SolarOutputName, OutputData] = {
         # Output sensors from optimization
-        PHOTOVOLTAICS_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER),
-        PHOTOVOLTAICS_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
+        SOLAR_POWER: replace(
+            connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER
+        ),
+        SOLAR_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
     }
 
-    return {PHOTOVOLTAICS_DEVICE_PHOTOVOLTAICS: pv_updates}
+    return {SOLAR_DEVICE_SOLAR: pv_updates}

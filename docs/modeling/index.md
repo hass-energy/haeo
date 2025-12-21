@@ -7,7 +7,7 @@ This page explains the high-level architecture and mathematical foundations.
 
 HAEO separates user configuration from mathematical modeling through a layered architecture:
 
-**Device Layer** (user-configured): Elements like Battery, Grid, Photovoltaics, and Load that users configure through Home Assistant.
+**Device Layer** (user-configured): Elements like Battery, Grid, Solar, and Load that users configure through Home Assistant.
 Each Device Layer element may create multiple Model Layer elements and multiple devices with sensors.
 See [Device Layer](device-layer/index.md).
 

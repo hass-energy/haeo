@@ -11,7 +11,7 @@ from custom_components.haeo.model.connection import (
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER_FLOW
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
 from custom_components.haeo.schema.fields import (
@@ -135,12 +135,8 @@ def outputs(
 
     # source_target = DC to AC (inverting)
     # target_source = AC to DC (rectifying)
-    inverter_outputs[INVERTER_POWER_DC_TO_AC] = replace(
-        connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER
-    )
-    inverter_outputs[INVERTER_POWER_AC_TO_DC] = replace(
-        connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER
-    )
+    inverter_outputs[INVERTER_POWER_DC_TO_AC] = connection[CONNECTION_POWER_SOURCE_TARGET]
+    inverter_outputs[INVERTER_POWER_AC_TO_DC] = connection[CONNECTION_POWER_TARGET_SOURCE]
 
     # Active inverter power (DC to AC - AC to DC)
     inverter_outputs[INVERTER_POWER_ACTIVE] = replace(
@@ -154,7 +150,7 @@ def outputs(
             )
         ],
         direction=None,
-        type=OUTPUT_TYPE_POWER,
+        type=OUTPUT_TYPE_POWER_FLOW,
     )
 
     # DC bus power balance shadow price

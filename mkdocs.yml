@@ -141,8 +141,9 @@ nav:
           - user-guide/elements/index.md
           - Battery: user-guide/elements/battery.md
           - Grid: user-guide/elements/grid.md
-          - Photovoltaics: user-guide/elements/photovoltaics.md
+          - Inverter: user-guide/elements/inverter.md
           - Load: user-guide/elements/load.md
+          - Solar: user-guide/elements/solar.md
           - Node: user-guide/elements/node.md
           - Connections: user-guide/elements/connections.md
       - Understanding Results: user-guide/optimization.md
@@ -164,7 +165,7 @@ nav:
           - modeling/device-layer/index.md
           - Battery: modeling/device-layer/battery.md
           - Grid: modeling/device-layer/grid.md
-          - Photovoltaics: modeling/device-layer/photovoltaics.md
+          - Solar: modeling/device-layer/solar.md
           - Load: modeling/device-layer/loads.md
           - Node: modeling/device-layer/node.md
           - Connection: modeling/device-layer/connection.md

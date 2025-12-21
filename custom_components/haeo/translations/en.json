@@ -70,11 +70,11 @@
             "discharge_cost": "Discharge Cost (Optional)",
             "early_charge_incentive": "Early Charge Incentive",
             "efficiency": "Round-trip Efficiency",
-            "initial_charge_percentage": "Current Charge Sensor",
-            "max_charge_percentage": "Maximum Charge Level",
-            "max_charge_power": "Maximum Charge Power",
-            "max_discharge_power": "Maximum Discharge Power",
-            "min_charge_percentage": "Minimum Charge Level",
+            "initial_charge_percentage": "State of Charge Charge Sensor",
+            "max_charge_percentage": "Max Charge Level",
+            "max_charge_power": "Max Charging Power",
+            "max_discharge_power": "Max Discharging Power",
+            "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
             "overcharge_cost": "Overcharge Cost (Optional)",
             "overcharge_percentage": "Overcharge Percentage (Optional)",
@@ -91,11 +91,11 @@
             "discharge_cost": "Discharge Cost (Optional)",
             "early_charge_incentive": "Early Charge Incentive",
             "efficiency": "One-way Efficiency",
-            "initial_charge_percentage": "Current Charge Sensor",
-            "max_charge_percentage": "Maximum Charge Level",
-            "max_charge_power": "Maximum Charge Power",
-            "max_discharge_power": "Maximum Discharge Power",
-            "min_charge_percentage": "Minimum Charge Level",
+            "initial_charge_percentage": "State of Charge Charge Sensor",
+            "max_charge_percentage": "Max Charge Level",
+            "max_charge_power": "Max Charging Power",
+            "max_discharge_power": "Max Discharging Power",
+            "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
             "overcharge_cost": "Overcharge Cost (Optional)",
             "overcharge_percentage": "Overcharge Percentage (Optional)",
@@ -104,7 +104,8 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "connection": {
       "flow_title": "Connection",
@@ -149,15 +150,16 @@
         "min_power_too_high": "Minimum power must be less than or equal to maximum power",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
-      }
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "grid": {
-      "flow_title": "Grid Connection",
-      "entry_type": "Grid Connection",
-      "initiate_flow": { "user": "Grid Connection", "reconfigure": "Grid Connection" },
+      "flow_title": "Grid",
+      "entry_type": "Grid",
+      "initiate_flow": { "user": "Grid", "reconfigure": "Grid" },
       "step": {
         "user": {
-          "title": "Add Grid Connection",
+          "title": "Add Grid",
           "description": "Set up grid import/export parameters and pricing",
           "data": {
             "connection": "Connection",
@@ -165,23 +167,24 @@
             "export_price": "Export Price Sensors",
             "import_limit": "Import Limit (Optional)",
             "import_price": "Import Price Sensors",
-            "name": "Grid Connection Name"
+            "name": "Grid Name"
           }
         },
         "reconfigure": {
-          "title": "Edit Grid Connection",
-          "description": "Update grid connection configuration",
+          "title": "Edit Grid",
+          "description": "Update grid configuration",
           "data": {
             "connection": "Connection",
             "export_limit": "Export Limit (Optional)",
             "export_price": "Export Price Sensors",
             "import_limit": "Import Limit (Optional)",
             "import_price": "Import Price Sensors",
-            "name": "Grid Connection Name"
+            "name": "Grid Name"
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "inverter": {
       "flow_title": "Inverter",
@@ -213,7 +216,8 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "load": {
       "flow_title": "Load",
@@ -231,13 +235,15 @@
           "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {
       "flow_title": "Network",
       "entry_type": "Network",
       "initiate_flow": { "user": "Network", "reconfigure": "Network" },
-      "step": {}
+      "step": {},
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "node": {
       "flow_title": "Node",
@@ -255,39 +261,42 @@
           "data": { "name": "Node Name" }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
-    "photovoltaics": {
-      "flow_title": "Photovoltaics",
-      "entry_type": "Photovoltaics",
-      "initiate_flow": { "user": "Photovoltaics", "reconfigure": "Photovoltaics" },
+    "solar": {
+      "flow_title": "Solar",
+      "entry_type": "Solar",
+      "initiate_flow": { "user": "Solar", "reconfigure": "Solar" },
       "step": {
         "user": {
-          "title": "Add Photovoltaics",
-          "description": "Set up photovoltaics forecasting and parameters",
+          "title": "Add Solar",
+          "description": "Set up solar forecasting and parameters",
           "data": {
             "connection": "Connection",
             "curtailment": "Allow Curtailment (Optional)",
             "forecast": "Forecast Sensors",
-            "name": "Photovoltaics Name",
+            "name": "Solar Name",
             "price_production": "Production Price (Optional)"
           }
         },
         "reconfigure": {
-          "title": "Edit Photovoltaics",
-          "description": "Update photovoltaics configuration",
+          "title": "Edit Solar",
+          "description": "Update solar configuration",
           "data": {
             "connection": "Connection",
             "curtailment": "Allow Curtailment (Optional)",
             "forecast": "Forecast Sensors",
-            "name": "Photovoltaics Name",
+            "name": "Solar Name",
             "price_production": "Production Price (Optional)"
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" }
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
+  "common": { "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
     "battery_device_normal": { "name": "{name} Normal Region" },
@@ -299,7 +308,7 @@
     "load": { "name": "{name}" },
     "network": { "name": "{name}" },
     "node": { "name": "{name}" },
-    "photovoltaics": { "name": "{name}" }
+    "solar": { "name": "{name}" }
   },
   "entity": {
     "number": {
@@ -331,8 +340,8 @@
       "inverter_max_power_ac_to_dc": { "name": "Max AC to DC power" },
       "inverter_max_power_dc_to_ac": { "name": "Max DC to AC power" },
       "load_forecast": { "name": "Forecast" },
-      "photovoltaics_forecast": { "name": "Forecast" },
-      "photovoltaics_price_production": { "name": "Production price" }
+      "solar_forecast": { "name": "Forecast" },
+      "solar_price_production": { "name": "Production price" }
     },
     "sensor": {
       "battery_charge_price": { "name": "Charge price" },
@@ -370,11 +379,11 @@
       "network_optimization_duration": { "name": "Optimization duration" },
       "network_optimization_status": { "name": "Optimization status" },
       "node_power_balance": { "name": "Power balance shadow price" },
-      "photovoltaics_forecast_limit": { "name": "Forecast limit shadow price" },
-      "photovoltaics_power": { "name": "Power" },
-      "photovoltaics_price": { "name": "Production price" }
+      "solar_forecast_limit": { "name": "Forecast limit shadow price" },
+      "solar_power": { "name": "Power" },
+      "solar_price": { "name": "Production price" }
     },
-    "switch": { "photovoltaics_curtailment": { "name": "Allow curtailment" } }
+    "switch": { "solar_curtailment": { "name": "Allow curtailment" } }
   },
   "exceptions": {
     "missing_sensors": {

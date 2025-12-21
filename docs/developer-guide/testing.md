@@ -68,7 +68,7 @@ Model element tests are organized in `tests/model/` with structured test data:
 - `test_data/battery.py` - Battery-specific test cases
 - `test_data/connection.py` - Connection test cases
 - `test_data/grid.py` - Grid test cases
-- `test_data/photovoltaics.py` - Photovoltaics test cases
+- `test_data/solar.py` - Solar test cases
 
 ### Test Case Structure
 

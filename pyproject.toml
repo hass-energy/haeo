@@ -5,12 +5,12 @@ description = "Home Assistant Energy Network Optimizer"
 readme = "README.md"
 requires-python = ">=3.13.2,<3.14"
 
-dependencies = ["homeassistant>=2025.4.4", "numpy>=2.2.2", "highspy>=1.12.0"]
+dependencies = ["homeassistant>=2025.12.2", "numpy>=2.3.2", "highspy>=1.12.0"]
 
 [dependency-groups]
 dev = [
     "freezegun>=1.5.2",
-    "matplotlib>=3.10.7",
+    "matplotlib>=3.10.8",
     "mdformat-beautysh>=1.0.0",
     "mdformat-config>=0.2.1",
     "mdformat-footnote>=0.1.1",
@@ -25,17 +25,17 @@ dev = [
     "mkdocs-git-revision-date-localized-plugin>=1.3.0",
     "mkdocs-material>=9.5.47",
     "mkdocs>=1.6.1",
-    "pyright>=1.1.390",
-    "pytest>=8.4.1",
-    "pytest-cov>=6.2.1",
-    "pytest-homeassistant-custom-component>=0.13.281",
-    "ruff>=0.13.1",
+    "pyright>=1.1.407",
+    "pytest>=9.0.0",
+    "pytest-cov>=7.0.0",
+    "pytest-homeassistant-custom-component>=0.13.300",
+    "ruff>=0.14.10",
     "setuptools>=80.9.0",
-    "syrupy>=4.9.1",
+    "syrupy>=5.0.0",
 ]
 
 [tool.ruff]
-required-version = ">=0.13.0"
+required-version = ">=0.14.0"
 line-length = 120
 target-version = "py313"
 
@@ -140,7 +140,7 @@ omit = [
 [tool.mdformat]
 number = true                 # Renumber ordered lists
 end_of_line = "lf"
-exclude = ["node_modules/**"]
+exclude = [".venv", "node_modules"]
 
 [tool.setuptools]
 package-dir = { "" = "." }
