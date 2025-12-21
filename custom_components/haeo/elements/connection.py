@@ -148,12 +148,12 @@ def outputs(
     )
 
     # Shadow prices for power limits (only if limits are set)
-    if "max_power_source_target" in config:
+    if CONF_MAX_POWER_SOURCE_TARGET in config:
         connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = connection[
             CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
         ]
 
-    if "max_power_target_source" in config:
+    if CONF_MAX_POWER_TARGET_SOURCE in config:
         connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = connection[
             CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
         ]

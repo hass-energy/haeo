@@ -10,7 +10,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
-from custom_components.haeo.entities import ConfigEntityMode
 from custom_components.haeo.model import OutputType
 
 
@@ -33,7 +32,6 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         output_data: CoordinatorOutput,
         unique_id: str,
         translation_placeholders: dict[str, str] | None = None,
-        entity_mode: ConfigEntityMode | None = None,  # noqa: ARG002
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)

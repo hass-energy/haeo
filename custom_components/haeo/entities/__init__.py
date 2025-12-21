@@ -23,7 +23,6 @@ from custom_components.haeo.schema.input_fields import InputEntityType, get_inpu
 
 from .haeo_number import HaeoInputNumber
 from .haeo_switch import HaeoInputSwitch
-from .mode import ConfigEntityMode
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,35 +80,24 @@ async def async_setup_platform_entities(
             )
 
             for output_name, output_data in device_outputs.items():
-                # Determine if this output should be handled by this platform
-                should_handle = False
+                # Sensors handle OUTPUT_NAMES (optimization results)
+                # Number and switch entities are created by async_setup_input_entities
+                if platform == EntityPlatform.SENSOR and output_name in ELEMENT_OUTPUT_NAMES:
+                    unique_id = f"{config_entry.entry_id}_{device_id_suffix}_{output_name}"
 
-                if platform == EntityPlatform.SENSOR:
-                    # Sensors handle OUTPUT_NAMES (optimization results)
-                    should_handle = output_name in ELEMENT_OUTPUT_NAMES
-
-                # Number and switch entities are now created by the inputs/ module
-                # from subentry config, not from coordinator data
-
-                if not should_handle:
-                    continue
-
-                unique_id = f"{config_entry.entry_id}_{device_id_suffix}_{output_name}"
-
-                entity = entity_factory(
-                    coordinator,
-                    device_entry=device_entry,
-                    subentry_key=subentry.title,
-                    device_key=device_name,
-                    element_title=subentry.title,
-                    element_type=subentry.subentry_type,
-                    output_name=output_name,
-                    output_data=output_data,
-                    unique_id=unique_id,
-                    translation_placeholders=translation_placeholders,
-                    entity_mode=None,  # Only sensors use this path now, they don't use entity_mode
-                )
-                entities.append(entity)
+                    entity = entity_factory(
+                        coordinator,
+                        device_entry=device_entry,
+                        subentry_key=subentry.title,
+                        device_key=device_name,
+                        element_title=subentry.title,
+                        element_type=subentry.subentry_type,
+                        output_name=output_name,
+                        output_data=output_data,
+                        unique_id=unique_id,
+                        translation_placeholders=translation_placeholders,
+                    )
+                    entities.append(entity)
 
     if entities:
         async_add_entities(entities)
@@ -144,42 +132,34 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
     for subentry in config_entry.subentries.values():
         element_type = subentry.subentry_type
 
-        # Skip non-element subentries
-        if element_type not in ELEMENT_TYPES:
-            continue
+        # Only process element subentries
+        if element_type in ELEMENT_TYPES:
+            # Get input fields for this element type
+            input_fields = get_input_fields(element_type)
 
-        # Get input fields for this element type
-        input_fields = get_input_fields(element_type)
+            # Get or create device for this element
+            device_id = subentry.subentry_id
+            translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
 
-        # Get or create device for this element
-        device_id = subentry.subentry_id
-        translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
-
-        dr.async_get_or_create(
-            identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id}")},
-            config_entry_id=config_entry.entry_id,
-            config_subentry_id=subentry.subentry_id,
-            translation_key=element_type,
-            translation_placeholders=translation_placeholders,
-        )
-
-        # Create entities for matching input fields
-        for field_info in input_fields:
-            if field_info.entity_type != input_entity_type:
-                continue
-
-            # Only create entity if field has a value in config
-            if field_info.field_name not in subentry.data:
-                continue
-
-            entity = entity_class(
-                hass=hass,
-                config_entry=config_entry,
-                subentry=subentry,
-                field_info=field_info,
-                device_id=device_id,
+            dr.async_get_or_create(
+                identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id}")},
+                config_entry_id=config_entry.entry_id,
+                config_subentry_id=subentry.subentry_id,
+                translation_key=element_type,
+                translation_placeholders=translation_placeholders,
             )
-            entities.append(entity)
+
+            # Create entities for matching input fields that have values in config
+            for field_info in input_fields:
+                if field_info.entity_type == input_entity_type and field_info.field_name in subentry.data:
+                    entity = entity_class(
+                        hass=hass,
+                        config_entry=config_entry,
+                        subentry=subentry,
+                        field_info=field_info,
+                        device_id=device_id,
+                    )
+                    entities.append(entity)
 
     if entities:
         async_add_entities(entities)
@@ -193,7 +173,6 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
 
 
 __all__ = [
-    "ConfigEntityMode",
     "EntityPlatform",
     "HaeoInputNumber",
     "HaeoInputSwitch",
