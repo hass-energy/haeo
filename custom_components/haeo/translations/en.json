@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "HAEO Network Setup",
-        "description": "Create a new HAEO optimization network. Choose a planning horizon that matches your forecast data availability.",
+        "description": "Create a new HAEO energy system.",
         "data": {
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
