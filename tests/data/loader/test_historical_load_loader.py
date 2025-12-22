@@ -1,6 +1,6 @@
 """Tests for the historical load loader."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -80,7 +80,7 @@ class TestBuildForecastFromHistory:
 
     def test_builds_forecast_from_statistics(self) -> None:
         """Should build a forecast series from historical statistics."""
-        now = datetime.now()
+        now = datetime.now(tz=UTC)
         hour_1 = now - timedelta(hours=2)
         hour_2 = now - timedelta(hours=1)
 
@@ -108,7 +108,7 @@ class TestBuildForecastFromHistory:
 
     def test_sums_power_from_multiple_entities(self) -> None:
         """Should sum power values from multiple consumption entities."""
-        now = datetime.now()
+        now = datetime.now(tz=UTC)
         hour_1 = now - timedelta(hours=1)
 
         statistics: Any = {
@@ -128,7 +128,7 @@ class TestBuildForecastFromHistory:
 
     def test_skips_entries_without_change(self) -> None:
         """Should skip entries without a change value."""
-        now = datetime.now()
+        now = datetime.now(tz=UTC)
 
         statistics: Any = {
             "sensor.consumption": [
@@ -204,7 +204,7 @@ class TestHistoricalLoadLoader:
         loader = HistoricalLoadLoader()
 
         # Create mock historical data
-        now = datetime.now()
+        now = datetime.now(tz=UTC)
         statistics = {
             "sensor.consumption": [
                 {"start": now - timedelta(hours=2), "change": 1.0},

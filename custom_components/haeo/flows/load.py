@@ -30,10 +30,7 @@ from custom_components.haeo.elements.load import (
 )
 from custom_components.haeo.network import evaluate_network_connectivity
 from custom_components.haeo.schema import schema_for_type
-from custom_components.haeo.schema.fields import (
-    FORECAST_SOURCE_CUSTOM_SENSOR,
-    FORECAST_SOURCE_ENERGY_TAB,
-)
+from custom_components.haeo.schema.fields import FORECAST_SOURCE_CUSTOM_SENSOR, FORECAST_SOURCE_ENERGY_TAB
 from custom_components.haeo.validation import collect_participant_configs
 
 from .element import ElementSubentryFlow
@@ -70,9 +67,7 @@ class LoadSubentryFlow(ElementSubentryFlow):
 
         # Build schema for step 1
         participants = self._get_non_connection_element_names()
-        connection_options: list[SelectOptionDict] = [
-            SelectOptionDict(value=p, label=p) for p in participants
-        ]
+        connection_options: list[SelectOptionDict] = [SelectOptionDict(value=p, label=p) for p in participants]
         forecast_source_options: list[SelectOptionDict] = [
             SelectOptionDict(value=FORECAST_SOURCE_ENERGY_TAB, label="Energy Tab"),
             SelectOptionDict(value=FORECAST_SOURCE_CUSTOM_SENSOR, label="Custom Sensor"),
@@ -84,9 +79,7 @@ class LoadSubentryFlow(ElementSubentryFlow):
                 vol.Required(CONF_CONNECTION): SelectSelector(
                     SelectSelectorConfig(options=connection_options, mode=SelectSelectorMode.DROPDOWN)
                 ),
-                vol.Required(
-                    CONF_FORECAST_SOURCE, default=FORECAST_SOURCE_ENERGY_TAB
-                ): SelectSelector(
+                vol.Required(CONF_FORECAST_SOURCE, default=FORECAST_SOURCE_ENERGY_TAB): SelectSelector(
                     SelectSelectorConfig(options=forecast_source_options, mode=SelectSelectorMode.DROPDOWN)
                 ),
             }
@@ -102,9 +95,7 @@ class LoadSubentryFlow(ElementSubentryFlow):
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
-    async def async_step_forecast_config(
-        self, user_input: dict[str, Any] | None = None
-    ) -> SubentryFlowResult:
+    async def async_step_forecast_config(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Step 2: Forecast-specific configuration based on selected source."""
         errors: dict[str, str] = {}
         forecast_source = self._user_input.get(CONF_FORECAST_SOURCE, FORECAST_SOURCE_ENERGY_TAB)
@@ -118,9 +109,8 @@ class LoadSubentryFlow(ElementSubentryFlow):
             if forecast_source == FORECAST_SOURCE_ENERGY_TAB:
                 if not user_input.get(CONF_HISTORY_DAYS):
                     errors[CONF_HISTORY_DAYS] = "missing_history_days"
-            else:
-                if not user_input.get(CONF_FORECAST):
-                    errors[CONF_FORECAST] = "missing_forecast"
+            elif not user_input.get(CONF_FORECAST):
+                errors[CONF_FORECAST] = "missing_forecast"
 
             if not errors:
                 # Create the config
@@ -184,9 +174,8 @@ class LoadSubentryFlow(ElementSubentryFlow):
             if forecast_source == FORECAST_SOURCE_ENERGY_TAB:
                 if not user_input.get(CONF_HISTORY_DAYS):
                     errors[CONF_HISTORY_DAYS] = "missing_history_days"
-            else:
-                if not user_input.get(CONF_FORECAST):
-                    errors[CONF_FORECAST] = "missing_forecast"
+            elif not user_input.get(CONF_FORECAST):
+                errors[CONF_FORECAST] = "missing_forecast"
 
             if not errors:
                 updated_config = cast("ElementConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})

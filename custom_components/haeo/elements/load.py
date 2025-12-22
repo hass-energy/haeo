@@ -13,9 +13,9 @@ from custom_components.haeo.model.connection import (
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
-    ElementNameFieldSchema,
     FORECAST_SOURCE_CUSTOM_SENSOR,
     FORECAST_SOURCE_ENERGY_TAB,
+    ElementNameFieldSchema,
     ForecastSourceFieldData,
     ForecastSourceFieldSchema,
     HistoryDaysFieldData,
@@ -104,10 +104,7 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
 
     if not forecast_source:
         # Backward compatibility: infer source from which field is present
-        if "forecast" in config_dict:
-            forecast_source = FORECAST_SOURCE_CUSTOM_SENSOR
-        else:
-            forecast_source = FORECAST_SOURCE_ENERGY_TAB
+        forecast_source = FORECAST_SOURCE_CUSTOM_SENSOR if "forecast" in config_dict else FORECAST_SOURCE_ENERGY_TAB
 
     if forecast_source == FORECAST_SOURCE_ENERGY_TAB:
         # History days loader produces the forecast values directly

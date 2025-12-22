@@ -83,7 +83,7 @@ async def fetch_historical_statistics(
 
     recorder = get_instance(hass)
 
-    stats = await recorder.async_add_executor_job(
+    return await recorder.async_add_executor_job(
         statistics_during_period,
         hass,
         start_time,
@@ -93,8 +93,6 @@ async def fetch_historical_statistics(
         None,  # units
         {"change"},  # types - use "change" to get hourly energy deltas
     )
-
-    return stats
 
 
 def build_forecast_from_history(
@@ -129,10 +127,7 @@ def build_forecast_from_history(
                 continue
 
             # Convert to timestamp if it's a datetime
-            if isinstance(start, datetime):
-                timestamp = start.timestamp()
-            else:
-                timestamp = float(start)
+            timestamp = start.timestamp() if isinstance(start, datetime) else float(start)
 
             # Get the energy change for this hour (kWh)
             # "change" represents the energy consumed during this hour
@@ -167,7 +162,7 @@ class HistoricalLoadLoader:
     4. Creates a forecast series that repeats throughout the optimization horizon
     """
 
-    def available(self, *, hass: HomeAssistant, value: Any, **_kwargs: Any) -> bool:
+    def available(self, *, hass: HomeAssistant, value: Any, **_kwargs: Any) -> bool:  # noqa: ARG002
         """Return True - we allow saving even if energy sensors aren't configured.
 
         Validation happens at load time when we actually try to fetch the data.
@@ -175,9 +170,10 @@ class HistoricalLoadLoader:
         # Accept any integer value for history_days
         try:
             int(value)
-            return True
         except (TypeError, ValueError):
             return False
+        else:
+            return True
 
     async def load(
         self,
