@@ -40,24 +40,35 @@ Use [input number helpers](https://www.home-assistant.io/integrations/input_numb
 The **Source** and **Target** fields show a dropdown of available elements that can be used as connection endpoints.
 The list of available elements is filtered based on connectivity level and your hub's Advanced Mode setting.
 
-Some elements always appear in the selector regardless of Advanced Mode.
-Other elements only appear when Advanced Mode is enabled.
-Connection elements never appear as endpoints to prevent invalid connection topologies.
+**Why filtering?**
+Standard elements (Grid, Battery, Solar, Load) create implicit connections automatically.
+Explicit connections between these elements are usually unnecessary and can lead to configuration errors.
+The filtering hides these elements by default to prevent common mistakes.
+
+**Filtering behavior:**
+- Advanced elements that require manual connection setup always appear in the selector regardless of Advanced Mode.
+- Standard elements that create implicit connections automatically only appear when Advanced Mode is enabled.
+- Connection elements never appear as endpoints to prevent invalid connection topologies.
 
 This filtering ensures that connection endpoints are appropriate for your configuration level.
 Each element's documentation describes its connectivity level and when it appears in connection selectors.
 
 ## Configuration Example
 
-Bidirectional connection between grid and battery:
+Bidirectional connection between two network nodes:
 
 | Field                       | Value                             |
 | --------------------------- | --------------------------------- |
-| **Name**                    | Grid to Battery                   |
-| **Source**                  | Grid                              |
-| **Target**                  | Battery                           |
-| **Max Power Source→Target** | input_number.grid_charge_limit    |
-| **Max Power Target→Source** | input_number.grid_discharge_limit |
+| **Name**                    | DC Bus to AC Bus                  |
+| **Source**                  | DC Node                           |
+| **Target**                  | AC Node                           |
+| **Max Power Source→Target** | input_number.max_power            |
+| **Max Power Target→Source** | input_number.max_power            |
+
+!!! note "Advanced Mode required for standard elements"
+
+    This example uses elements that are always available in connection selectors.
+    To connect standard elements that create implicit connections, enable Advanced Mode on your hub.
 
 ## Physical Interpretation
 
@@ -84,15 +95,16 @@ Leave both power limits unset for unlimited flow in both directions:
 
 | Field                       | Value           |
 | --------------------------- | --------------- |
-| **Name**                    | Solar to Main   |
-| **Source**                  | Solar           |
-| **Target**                  | Main Node       |
+| **Name**                    | DC Bus to AC Bus |
+| **Source**                  | DC Node          |
+| **Target**                  | AC Node          |
 | **Max Power Source→Target** | _(leave empty)_ |
 | **Max Power Target→Source** | _(leave empty)_ |
 
-!!! note
+!!! note "Advanced Mode required for standard elements"
 
-    Generation sources typically only produce power, so reverse flow won't occur naturally.
+    This example uses elements that are always available in connection selectors.
+    To connect standard elements that create implicit connections, enable Advanced Mode on your hub.
 
 ### Unidirectional Connection
 
@@ -100,29 +112,29 @@ Set one direction's limit to 0 to prevent flow:
 
 | Field                       | Value                  |
 | --------------------------- | ---------------------- |
-| **Name**                    | Solar to Main          |
-| **Source**                  | Solar                  |
-| **Target**                  | Main Node              |
-| **Max Power Source→Target** | input_number.solar_max |
-| **Max Power Target→Source** | input_number.zero      |
+| **Name**                    | DC Bus to AC Bus       |
+| **Source**                  | DC Node                |
+| **Target**                  | AC Node                |
+| **Max Power Source→Target** | input_number.max_power |
+| **Max Power Target→Source** | input_number.zero     |
 
 !!! note
 
     Set `input_number.zero` value to `0` to prevent reverse flow.
 
-### Hybrid Inverter
+### Bidirectional Connection with Efficiency
 
-Model AC-DC conversion with efficiency:
+Model power conversion with efficiency losses:
 
 | Field                        | Value                            |
 | ---------------------------- | -------------------------------- |
-| **Name**                     | DC to AC Inverter                |
+| **Name**                     | DC Bus to AC Bus                 |
 | **Source**                   | DC_Node                          |
 | **Target**                   | AC_Node                          |
-| **Max Power Source→Target**  | input_number.inverter_rating     |
-| **Max Power Target→Source**  | input_number.inverter_rating     |
-| **Efficiency Source→Target** | input_number.inverter_efficiency |
-| **Efficiency Target→Source** | input_number.inverter_efficiency |
+| **Max Power Source→Target**  | input_number.max_power            |
+| **Max Power Target→Source**  | input_number.max_power            |
+| **Efficiency Source→Target** | input_number.efficiency           |
+| **Efficiency Target→Source** | input_number.efficiency          |
 
 ### Availability Windows
 
@@ -153,6 +165,10 @@ Then configure the connection:
 | **Source**                  | Grid                            |
 | **Target**                  | EV_Battery                      |
 | **Max Power Source→Target** | sensor.ev_charging_availability |
+
+!!! note "Advanced Mode required"
+
+    This example uses standard elements that require Advanced Mode to appear in connection selectors.
 
 The optimizer will only schedule charging when the sensor value is non-zero.
 
