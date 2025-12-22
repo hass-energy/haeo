@@ -122,6 +122,14 @@ async def fetch_historical_statistics(
     end_time = now.replace(minute=0, second=0, microsecond=0)
     start_time = end_time - timedelta(days=history_days)
 
+    _LOGGER.info(
+        "Fetching statistics from %s to %s (%d days) for: %s",
+        start_time.isoformat(),
+        end_time.isoformat(),
+        history_days,
+        statistic_ids,
+    )
+
     recorder = get_instance(hass)
 
     return await recorder.async_add_executor_job(
@@ -308,11 +316,21 @@ class HistoricalLoadLoader:
             )
             raise ValueError(msg)
 
-        # Log sample statistics for debugging
+        # Log detailed statistics for debugging
         for entity_id, stat_list in statistics.items():
             if stat_list:
-                sample_values = [s.get("change") for s in stat_list[:5]]
-                _LOGGER.info("Statistics for %s: first 5 values = %s", entity_id, sample_values)
+                _LOGGER.info("=== Statistics for %s (total %d entries) ===", entity_id, len(stat_list))
+                for i, stat in enumerate(stat_list[:5]):
+                    start = stat.get("start")
+                    start_str = start.isoformat() if isinstance(start, datetime) else str(start)
+                    _LOGGER.info(
+                        "  [%d] start=%s, change=%.4f, state=%.4f, sum=%.4f",
+                        i,
+                        start_str,
+                        stat.get("change", 0) or 0,
+                        stat.get("state", 0) or 0,
+                        stat.get("sum", 0) or 0,
+                    )
 
         # Build forecast from historical data using total load calculation
         forecast_series = build_forecast_from_history(statistics, energy_entities, history_days)
