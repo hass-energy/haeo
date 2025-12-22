@@ -128,7 +128,7 @@ The `ConnectivityLevel` enum has three values:
 
 This filtering ensures connection endpoints are appropriate for the user's configuration level.
 It prevents invalid connection topologies by excluding elements that shouldn't be connection endpoints.
-See [`custom_components/haeo/elements/__init__.py`](../../custom_components/haeo/elements/__init__.py) for the connectivity level assigned to each element type.
+See [`custom_components/haeo/elements/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/elements/__init__.py) for the connectivity level assigned to each element type.
 
 ### Element-specific implementations
 
