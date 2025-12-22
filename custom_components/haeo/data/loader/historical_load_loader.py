@@ -90,7 +90,7 @@ async def fetch_historical_statistics(
         end_time,
         statistic_ids,
         "hour",
-        None,  # units
+        {"energy": "kWh"},  # Convert all energy statistics to kWh
         {"change"},  # types - use "change" to get hourly energy deltas
     )
 
