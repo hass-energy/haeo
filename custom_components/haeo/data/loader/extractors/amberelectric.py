@@ -7,7 +7,6 @@ from typing import Literal, Protocol, TypedDict, TypeGuard
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
-import numpy as np
 
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
@@ -77,8 +76,9 @@ class Parser:
         """Extract forecast data from Amber Electric pricing format.
 
         Emits boundary prices to create step functions: each window produces two points
-        (start, price) and (nextafter(next_start, -inf), price) to ensure constant pricing
-        within the window without linear interpolation.
+        (start, price) and (end, price) to ensure constant pricing within the window
+        without linear interpolation. Adjacent windows will have the same timestamp
+        at boundaries, which will be separated later to prevent interpolation.
         """
         forecasts = list(state.attributes["forecasts"])
         parsed: list[tuple[float, float]] = []
@@ -88,9 +88,9 @@ class Parser:
             end = Parser._round_to_minute(item["end_time"])
             price = item["per_kwh"]
 
-            # Emit start of window and end of window
+            # Emit start of window and end of window with same price
             parsed.append((start, price))
-            parsed.append((np.nextafter(end, -np.inf), price))
+            parsed.append((end, price))
 
         parsed.sort(key=lambda x: x[0])
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

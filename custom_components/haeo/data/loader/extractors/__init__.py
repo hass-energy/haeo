@@ -8,7 +8,13 @@ from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
 
 from . import aemo_nem, amber2mqtt, amberelectric, haeo, open_meteo_solar_forecast, solcast_solar
-from .utils import EntityMetadata, base_unit_for_device_class, convert_to_base_unit, extract_entity_metadata
+from .utils import (
+    EntityMetadata,
+    base_unit_for_device_class,
+    convert_to_base_unit,
+    extract_entity_metadata,
+    separate_duplicate_timestamps,
+)
 
 # Union of all domain literal types from the extractor modules
 ExtractorFormat = (
@@ -88,7 +94,9 @@ def extract(state: State) -> ExtractedData:
     if isinstance(data, Sequence):
         # Convert each value in the forecast series
         converted_data = [(ts, convert_to_base_unit(value, unit_str, device_class)) for ts, value in data]
-        return ExtractedData(converted_data, base_unit)
+        # Separate duplicate timestamps to prevent interpolation
+        separated_data = separate_duplicate_timestamps(converted_data)
+        return ExtractedData(separated_data, base_unit)
 
     # Convert single value
     converted_value = convert_to_base_unit(data, unit_str, device_class)
