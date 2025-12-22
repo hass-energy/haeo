@@ -47,61 +47,27 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
         ],
         "model_outputs": {
             "test_section": {
-                battery_model.BATTERY_POWER_CHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-"
-                ),
-                battery_model.BATTERY_POWER_DISCHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+"
-                ),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(
-                    type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 5.5)
-                ),
-                battery_model.BATTERY_POWER_BALANCE: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)
-                ),
-                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.003,)
-                ),
-                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,)
-                ),
-                battery_model.BATTERY_SOC_MAX: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,)
-                ),
-                battery_model.BATTERY_SOC_MIN: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.006,)
-                ),
+                battery_model.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-"),
+                battery_model.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+"),
+                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 5.5)),
+                battery_model.BATTERY_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.003,)),
+                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,)),
+                battery_model.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,)),
+                battery_model.BATTERY_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.006,)),
             },
         },
         "outputs": {
             battery_section_element.BATTERY_SECTION_DEVICE: {
-                battery_section_element.BATTERY_SECTION_POWER_CHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-"
-                ),
-                battery_section_element.BATTERY_SECTION_POWER_DISCHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+"
-                ),
-                battery_section_element.BATTERY_SECTION_POWER_ACTIVE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(-0.5,), direction=None
-                ),
-                battery_section_element.BATTERY_SECTION_ENERGY_STORED: OutputData(
-                    type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 5.5)
-                ),
-                battery_section_element.BATTERY_SECTION_POWER_BALANCE: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)
-                ),
-                battery_section_element.BATTERY_SECTION_ENERGY_IN_FLOW: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.003,)
-                ),
-                battery_section_element.BATTERY_SECTION_ENERGY_OUT_FLOW: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,)
-                ),
-                battery_section_element.BATTERY_SECTION_SOC_MAX: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,)
-                ),
-                battery_section_element.BATTERY_SECTION_SOC_MIN: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.006,)
-                ),
+                battery_section_element.BATTERY_SECTION_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-"),
+                battery_section_element.BATTERY_SECTION_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+"),
+                battery_section_element.BATTERY_SECTION_POWER_ACTIVE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(-0.5,), direction=None),
+                battery_section_element.BATTERY_SECTION_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 5.5)),
+                battery_section_element.BATTERY_SECTION_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                battery_section_element.BATTERY_SECTION_ENERGY_IN_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.003,)),
+                battery_section_element.BATTERY_SECTION_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,)),
+                battery_section_element.BATTERY_SECTION_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,)),
+                battery_section_element.BATTERY_SECTION_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.006,)),
             },
         },
     },
@@ -130,32 +96,18 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
         ],
         "model_outputs": {
             "test_section_minimal": {
-                battery_model.BATTERY_POWER_CHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction="-"
-                ),
-                battery_model.BATTERY_POWER_DISCHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"
-                ),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(
-                    type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 4.0)
-                ),
+                battery_model.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction="-"),
+                battery_model.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"),
+                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 4.0)),
                 # No optional shadow prices
             },
         },
         "outputs": {
             battery_section_element.BATTERY_SECTION_DEVICE: {
-                battery_section_element.BATTERY_SECTION_POWER_CHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction="-"
-                ),
-                battery_section_element.BATTERY_SECTION_POWER_DISCHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"
-                ),
-                battery_section_element.BATTERY_SECTION_POWER_ACTIVE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(-1.0,), direction=None
-                ),
-                battery_section_element.BATTERY_SECTION_ENERGY_STORED: OutputData(
-                    type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 4.0)
-                ),
+                battery_section_element.BATTERY_SECTION_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction="-"),
+                battery_section_element.BATTERY_SECTION_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"),
+                battery_section_element.BATTERY_SECTION_POWER_ACTIVE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(-1.0,), direction=None),
+                battery_section_element.BATTERY_SECTION_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 4.0)),
             },
         },
     },
