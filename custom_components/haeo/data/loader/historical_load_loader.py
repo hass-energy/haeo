@@ -19,11 +19,37 @@ _LOGGER = logging.getLogger(__name__)
 _SECONDS_PER_HOUR = 3600
 
 
-async def get_energy_consumption_entities(hass: HomeAssistant) -> list[str]:
-    """Get consumption entity IDs from the Energy dashboard configuration.
+class EnergyEntities:
+    """Categorized energy entities from the Energy dashboard."""
+
+    def __init__(
+        self,
+        grid_import: list[str] | None = None,
+        grid_export: list[str] | None = None,
+        solar: list[str] | None = None,
+    ) -> None:
+        """Initialize energy entities."""
+        self.grid_import: list[str] = grid_import or []
+        self.grid_export: list[str] = grid_export or []
+        self.solar: list[str] = solar or []
+
+    def all_entity_ids(self) -> list[str]:
+        """Return all entity IDs for fetching statistics."""
+        return self.grid_import + self.grid_export + self.solar
+
+    def has_entities(self) -> bool:
+        """Return True if any entities are configured."""
+        return bool(self.grid_import or self.grid_export or self.solar)
+
+
+async def get_energy_entities(hass: HomeAssistant) -> EnergyEntities:
+    """Get categorized energy entity IDs from the Energy dashboard configuration.
 
     Returns:
-        List of statistic IDs for grid consumption entities configured in the Energy dashboard.
+        EnergyEntities object containing categorized statistic IDs:
+        - grid_import: Entities tracking energy imported from the grid
+        - grid_export: Entities tracking energy exported to the grid
+        - solar: Entities tracking solar production
 
     """
     # Import here to avoid issues if energy component not loaded
@@ -31,30 +57,45 @@ async def get_energy_consumption_entities(hass: HomeAssistant) -> list[str]:
         from homeassistant.components.energy.data import async_get_manager  # noqa: PLC0415
     except ImportError:
         _LOGGER.warning("Energy component not available")
-        return []
+        return EnergyEntities()
 
     try:
         manager = await async_get_manager(hass)
         if manager.data is None:
             _LOGGER.warning("Energy manager has no data")
-            return []
+            return EnergyEntities()
 
-        consumption_entities: list[str] = []
+        grid_import: list[str] = []
+        grid_export: list[str] = []
+        solar: list[str] = []
 
-        # Extract consumption entities from grid energy sources
+        # Extract entities from energy sources
         for source in manager.data.get("energy_sources", []):
-            if source.get("type") == "grid":
-                # Grid sources have flow_from (consumption) and flow_to (export)
+            source_type = source.get("type")
+
+            if source_type == "grid":
+                # Grid sources have flow_from (import) and flow_to (export)
                 for flow in source.get("flow_from", []):
                     stat_id = flow.get("stat_energy_from")
                     if stat_id:
-                        consumption_entities.append(stat_id)
+                        grid_import.append(stat_id)
 
-        return consumption_entities
+                for flow in source.get("flow_to", []):
+                    stat_id = flow.get("stat_energy_to")
+                    if stat_id:
+                        grid_export.append(stat_id)
+
+            elif source_type == "solar":
+                # Solar sources have stat_energy_from for production
+                stat_id = source.get("stat_energy_from")
+                if stat_id:
+                    solar.append(stat_id)
+
+        return EnergyEntities(grid_import=grid_import, grid_export=grid_export, solar=solar)
 
     except Exception:
-        _LOGGER.exception("Failed to get energy consumption entities")
-        return []
+        _LOGGER.exception("Failed to get energy entities")
+        return EnergyEntities()
 
 
 async def fetch_historical_statistics(
@@ -95,17 +136,60 @@ async def fetch_historical_statistics(
     )
 
 
+def _aggregate_statistics_by_timestamp(
+    statistics: Mapping[str, Sequence[StatisticsRow]],
+    entity_ids: list[str],
+) -> dict[float, float]:
+    """Aggregate statistics for given entity IDs by timestamp.
+
+    Args:
+        statistics: Dictionary of statistics from the recorder
+        entity_ids: List of entity IDs to aggregate
+
+    Returns:
+        Dictionary mapping timestamps to summed energy values (kWh).
+
+    """
+    result: dict[float, float] = {}
+
+    for entity_id in entity_ids:
+        stat_list = statistics.get(entity_id, [])
+        for stat in stat_list:
+            start = stat.get("start")
+            if start is None:
+                continue
+
+            timestamp = start.timestamp() if isinstance(start, datetime) else float(start)
+
+            change = stat.get("change")
+            if change is None:
+                continue
+
+            result[timestamp] = result.get(timestamp, 0.0) + float(change)
+
+    return result
+
+
 def build_forecast_from_history(
     statistics: Mapping[str, Sequence[StatisticsRow]],
+    energy_entities: EnergyEntities,
     history_days: int,
 ) -> ForecastSeries:
     """Build a forecast series from historical statistics.
 
-    Converts hourly energy consumption (kWh) to average power (kW).
+    Calculates total load using the formula:
+        Total Load = Grid Import + Solar Production - Grid Export
+
+    This accounts for:
+    - Power drawn from the grid (grid import)
+    - Solar power consumed locally (production minus export)
+
+    Converts hourly energy (kWh) to average power (kW).
     The forecast timestamps are shifted forward by history_days to represent future predictions.
 
     Args:
         statistics: Dictionary of statistics from the recorder
+        energy_entities: Categorized energy entities from the Energy dashboard
         history_days: Number of days of history (used to shift timestamps forward)
 
     Returns:
@@ -115,35 +199,28 @@ def build_forecast_from_history(
     if not statistics:
         return []
 
-    # Combine all statistics into a single time series
-    # First, collect all hourly data points by timestamp
-    hourly_power: dict[float, float] = {}
+    # Aggregate statistics by category
+    grid_import = _aggregate_statistics_by_timestamp(statistics, energy_entities.grid_import)
+    grid_export = _aggregate_statistics_by_timestamp(statistics, energy_entities.grid_export)
+    solar_production = _aggregate_statistics_by_timestamp(statistics, energy_entities.solar)
 
-    for stat_list in statistics.values():
-        for stat in stat_list:
-            # Get the timestamp (start of the hour)
-            start = stat.get("start")
-            if start is None:
-                continue
+    # Get all unique timestamps
+    all_timestamps = set(grid_import.keys()) | set(grid_export.keys()) | set(solar_production.keys())
 
-            # Convert to timestamp if it's a datetime
-            timestamp = start.timestamp() if isinstance(start, datetime) else float(start)
-
-            # Get the energy change for this hour (kWh)
-            # "change" represents the energy consumed during this hour
-            change = stat.get("change")
-            if change is None:
-                continue
-
-            # Convert energy (kWh) to average power (kW)
-            # For hourly data, kWh / 1h = kW
-            power_kw = float(change)
-
-            # Sum power from all entities at this timestamp
-            hourly_power[timestamp] = hourly_power.get(timestamp, 0.0) + power_kw
-
-    if not hourly_power:
+    if not all_timestamps:
         return []
+
+    # Calculate total load for each timestamp
+    # Total Load = Grid Import + Solar Production - Grid Export
+    hourly_power: dict[float, float] = {}
+    for timestamp in all_timestamps:
+        import_power = grid_import.get(timestamp, 0.0)
+        export_power = grid_export.get(timestamp, 0.0)
+        solar_power = solar_production.get(timestamp, 0.0)
+
+        total_load = import_power + solar_power - export_power
+        # Ensure non-negative (edge case protection)
+        hourly_power[timestamp] = max(0.0, total_load)
 
     # Sort by timestamp and shift forward by history_days
     shift_seconds = history_days * 24 * _SECONDS_PER_HOUR
@@ -185,6 +262,9 @@ class HistoricalLoadLoader:
     ) -> list[float]:
         """Load historical consumption data and return interpolated values for forecast_times.
 
+        Calculates total load from Energy dashboard entities using:
+            Total Load = Grid Import + Solar Production - Grid Export
+
         Args:
             hass: Home Assistant instance
             value: Number of days of history to fetch
@@ -202,18 +282,19 @@ class HistoricalLoadLoader:
 
         history_days = int(value)
 
-        # Get consumption entities from Energy dashboard
-        consumption_entities = await get_energy_consumption_entities(hass)
-        if not consumption_entities:
+        # Get categorized energy entities from Energy dashboard
+        energy_entities = await get_energy_entities(hass)
+        if not energy_entities.has_entities():
             msg = (
-                "No consumption sensors configured in Home Assistant's Energy dashboard. "
+                "No energy sensors configured in Home Assistant's Energy dashboard. "
                 "Please configure energy sources in Settings → Dashboards → Energy, "
                 "or use 'Custom Sensor' mode for the load forecast."
             )
             raise ValueError(msg)
 
-        # Fetch historical statistics
-        statistics = await fetch_historical_statistics(hass, consumption_entities, history_days)
+        # Fetch historical statistics for all entity types
+        all_entity_ids = energy_entities.all_entity_ids()
+        statistics = await fetch_historical_statistics(hass, all_entity_ids, history_days)
         if not statistics:
             msg = (
                 f"No historical data available for the past {history_days} days. "
@@ -221,8 +302,8 @@ class HistoricalLoadLoader:
             )
             raise ValueError(msg)
 
-        # Build forecast from historical data
-        forecast_series = build_forecast_from_history(statistics, history_days)
+        # Build forecast from historical data using total load calculation
+        forecast_series = build_forecast_from_history(statistics, energy_entities, history_days)
         if not forecast_series:
             msg = "Failed to build forecast from historical data"
             raise ValueError(msg)
