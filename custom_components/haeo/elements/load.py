@@ -69,7 +69,7 @@ class LoadConfigSchema(TypedDict):
     element_type: Literal["load"]
     name: NameFieldSchema
     connection: ElementNameFieldSchema  # Connection ID that load connects to
-    forecast_source: ForecastSourceFieldSchema  # "energy_tab" or "custom_sensor"
+    forecast_source: NotRequired[ForecastSourceFieldSchema]  # Optional for backward compat
     history_days: NotRequired[HistoryDaysFieldSchema]  # Days of history (energy_tab mode)
     forecast: NotRequired[PowerSensorsFieldSchema]  # Custom sensors (custom_sensor mode)
 
@@ -80,7 +80,7 @@ class LoadConfigData(TypedDict):
     element_type: Literal["load"]
     name: NameFieldData
     connection: ElementNameFieldSchema  # Connection ID that load connects to
-    forecast_source: ForecastSourceFieldData  # "energy_tab" or "custom_sensor"
+    forecast_source: NotRequired[ForecastSourceFieldData]  # Optional for backward compat
     # Note: Only one of these will be present based on forecast_source
     history_days: NotRequired[HistoryDaysFieldData]  # Loaded power values from history
     forecast: NotRequired[PowerSensorsFieldData]  # Loaded power values from sensors
