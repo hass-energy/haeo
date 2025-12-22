@@ -15,7 +15,6 @@ Virtual balance points enforcing power conservation (Kirchhoff's law).
 | **[Is Source](#is-source)** | Boolean | No       | false   | Whether node can produce power (Advanced Mode only) |
 | **[Is Sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume power (Advanced Mode only) |
 
-
 ## Name
 
 Unique identifier for this node within your HAEO configuration.
