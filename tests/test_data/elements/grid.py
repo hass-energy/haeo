@@ -38,7 +38,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             export_limit=3.0,
         ),
         "model": [
-            {"element_type": "source_sink", "name": "grid_main", "is_source": True, "is_sink": True},
+            {"element_type": "node", "name": "grid_main", "is_source": True, "is_sink": True},
             {
                 "element_type": "connection",
                 "name": "grid_main:connection",

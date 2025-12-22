@@ -93,7 +93,7 @@ def create_model_elements(config: SolarConfigData) -> list[dict[str, Any]]:
     """Create model elements for Solar configuration."""
 
     return [
-        {"element_type": "source_sink", "name": config["name"], "is_source": True, "is_sink": False},
+        {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": False},
         {
             "element_type": "connection",
             "name": f"{config['name']}:connection",

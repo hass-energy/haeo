@@ -9,6 +9,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import (
+    CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
     CONF_HORIZON_PRESET,
@@ -104,6 +105,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 **tier_config,
                 CONF_UPDATE_INTERVAL_MINUTES: self._user_input[CONF_UPDATE_INTERVAL_MINUTES],
                 CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],
+                CONF_ADVANCED_MODE: self._user_input[CONF_ADVANCED_MODE],
             },
             subentries=[
                 # Network subentry for optimization sensors
@@ -138,13 +140,26 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     @classmethod
     @callback
     def async_get_supported_subentry_types(cls, config_entry: ConfigEntry) -> dict[str, type[ConfigSubentryFlow]]:
-        """Return subentries supported by this integration."""
-        _ = config_entry  # Unused but required by signature
+        """Return subentries supported by this integration.
 
-        # Register regular element flows
+        Standard element types (grid, load, solar, inverter, battery) are always available.
+        Advanced element types (node, connection, battery_section) require advanced_mode enabled.
+        """
+        advanced_mode = config_entry.data.get(CONF_ADVANCED_MODE, False)
+
+        # Standard elements always available
+        standard_types = {"grid", "load", "solar", "inverter", "battery"}
+
+        # Advanced elements only when advanced mode enabled
+        advanced_types = {"connection", "node", "battery_section"}
+
+        available_types = standard_types | (advanced_types if advanced_mode else set())
+
+        # Register element flows for available types
         flows: dict[str, type[ConfigSubentryFlow]] = {
             element_type: create_subentry_flow_class(element_type, entry.schema, entry.defaults)
             for element_type, entry in ELEMENT_TYPES.items()
+            if element_type in available_types
         }
 
         # Note that the Network subentry is not included here as it can't be added/removed like other elements

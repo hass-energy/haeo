@@ -30,7 +30,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             forecast=[1.0, 2.0],
         ),
         "model": [
-            {"element_type": "source_sink", "name": "load_main", "is_source": False, "is_sink": True},
+            {"element_type": "node", "name": "load_main", "is_source": False, "is_sink": True},
             {
                 "element_type": "connection",
                 "name": "load_main:connection",

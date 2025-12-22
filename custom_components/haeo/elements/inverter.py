@@ -14,8 +14,8 @@ from custom_components.haeo.model.connection import (
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER_FLOW
+from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
 from custom_components.haeo.schema.fields import (
     ElementNameFieldData,
     ElementNameFieldSchema,
@@ -106,14 +106,14 @@ CONFIG_DEFAULTS: dict[str, Any] = {
 def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
     """Create model elements for Inverter configuration.
 
-    Creates a DC bus (SourceSink junction) and a connection to the AC side with
+    Creates a DC bus (Node junction) and a connection to the AC side with
     efficiency and power limits for bidirectional power conversion.
     """
     name = config["name"]
 
     return [
-        # Create SourceSink for the DC bus (pure junction - neither source nor sink)
-        {"element_type": "source_sink", "name": name, "is_source": False, "is_sink": False},
+        # Create Node for the DC bus (pure junction - neither source nor sink)
+        {"element_type": "node", "name": name, "is_source": False, "is_sink": False},
         # Create a connection from DC bus to AC node
         # source_target = DC to AC (inverting)
         # target_source = AC to DC (rectifying)
@@ -160,7 +160,7 @@ def outputs(
     )
 
     # DC bus power balance shadow price
-    inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[SOURCE_SINK_POWER_BALANCE]
+    inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[NODE_POWER_BALANCE]
 
     # Power limits
     inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]

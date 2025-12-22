@@ -36,12 +36,13 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import schema_for_type
 
-from . import battery, connection, grid, inverter, load, node, solar
+from . import battery, battery_section, connection, grid, inverter, load, node, solar
 
 _LOGGER = logging.getLogger(__name__)
 
 type ElementType = Literal[
     "battery",
+    "battery_section",
     "connection",
     "solar",
     "grid",
@@ -52,6 +53,7 @@ type ElementType = Literal[
 
 ELEMENT_TYPE_INVERTER: Final = inverter.ELEMENT_TYPE
 ELEMENT_TYPE_BATTERY: Final = battery.ELEMENT_TYPE
+ELEMENT_TYPE_BATTERY_SECTION: Final = battery_section.ELEMENT_TYPE
 ELEMENT_TYPE_CONNECTION: Final = connection.ELEMENT_TYPE
 ELEMENT_TYPE_SOLAR: Final = solar.ELEMENT_TYPE
 ELEMENT_TYPE_GRID: Final = grid.ELEMENT_TYPE
@@ -61,6 +63,7 @@ ELEMENT_TYPE_NODE: Final = node.ELEMENT_TYPE
 ElementConfigSchema = (
     inverter.InverterConfigSchema
     | battery.BatteryConfigSchema
+    | battery_section.BatterySectionConfigSchema
     | grid.GridConfigSchema
     | load.LoadConfigSchema
     | solar.SolarConfigSchema
@@ -71,6 +74,7 @@ ElementConfigSchema = (
 ElementConfigData = (
     inverter.InverterConfigData
     | battery.BatteryConfigData
+    | battery_section.BatterySectionConfigData
     | grid.GridConfigData
     | load.LoadConfigData
     | solar.SolarConfigData
@@ -82,6 +86,7 @@ ElementConfigData = (
 type ElementOutputName = (
     inverter.InverterOutputName
     | battery.BatteryOutputName
+    | battery_section.BatterySectionOutputName
     | connection.ConnectionOutputName
     | grid.GridOutputName
     | load.LoadOutputName
@@ -93,6 +98,7 @@ type ElementOutputName = (
 ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     inverter.INVERTER_OUTPUT_NAMES
     | battery.BATTERY_OUTPUT_NAMES
+    | battery_section.BATTERY_SECTION_OUTPUT_NAMES
     | connection.CONNECTION_OUTPUT_NAMES
     | grid.GRID_OUTPUT_NAMES
     | load.LOAD_OUTPUT_NAMES
@@ -106,6 +112,7 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
 type ElementDeviceName = (
     inverter.InverterDeviceName
     | battery.BatteryDeviceName
+    | battery_section.BatterySectionDeviceName
     | connection.ConnectionDeviceName
     | grid.GridDeviceName
     | load.LoadDeviceName
@@ -119,6 +126,7 @@ NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(("network"
 ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     inverter.INVERTER_DEVICE_NAMES
     | battery.BATTERY_DEVICE_NAMES
+    | battery_section.BATTERY_SECTION_DEVICE_NAMES
     | connection.CONNECTION_DEVICE_NAMES
     | grid.GRID_DEVICE_NAMES
     | load.LOAD_DEVICE_NAMES
@@ -210,6 +218,14 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         create_model_elements=node.create_model_elements,
         outputs=cast("OutputsFn", node.outputs),
     ),
+    battery_section.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=battery_section.BatterySectionConfigSchema,
+        data=battery_section.BatterySectionConfigData,
+        defaults=battery_section.CONFIG_DEFAULTS,
+        translation_key=battery_section.ELEMENT_TYPE,
+        create_model_elements=battery_section.create_model_elements,
+        outputs=cast("OutputsFn", battery_section.outputs),
+    ),
 }
 
 
@@ -261,6 +277,7 @@ __all__ = [
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
+    "ELEMENT_TYPE_BATTERY_SECTION",
     "ELEMENT_TYPE_CONNECTION",
     "ELEMENT_TYPE_GRID",
     "ELEMENT_TYPE_INVERTER",

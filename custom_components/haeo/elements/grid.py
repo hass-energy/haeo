@@ -108,8 +108,8 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
     """Create model elements for Grid configuration."""
 
     return [
-        # Create SourceSink for the grid (both source and sink - can import and export)
-        {"element_type": "source_sink", "name": config["name"], "is_source": True, "is_sink": True},
+        # Create Node for the grid (both source and sink - can import and export)
+        {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": True},
         # Create a connection from system node to grid
         {
             "element_type": "connection",

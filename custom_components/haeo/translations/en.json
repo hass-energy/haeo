@@ -6,6 +6,7 @@
         "title": "HAEO Network Setup",
         "description": "Create a new HAEO energy system.",
         "data": {
+          "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
           "name": "Network Name",
@@ -50,6 +51,7 @@
         "title": "Network Settings",
         "description": "Configure optimization settings. Choose a planning horizon that matches your forecast data availability.",
         "data": {
+          "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
           "update_interval_minutes": "Update Interval (minutes)"
@@ -115,6 +117,37 @@
             "overcharge_percentage": "Overcharge Percentage (Optional)",
             "undercharge_cost": "Undercharge Cost (Optional)",
             "undercharge_percentage": "Undercharge Percentage (Optional)"
+          }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
+    "battery_section": {
+      "flow_title": "Battery Section",
+      "entry_type": "Battery Section",
+      "initiate_flow": { "user": "Battery Section", "reconfigure": "Battery Section" },
+      "step": {
+        "user": {
+          "title": "Add Battery Section",
+          "description": "Add a single battery section with explicit capacity and SOC bounds. Connect to other elements using Connection elements.",
+          "data": {
+            "capacity": "Capacity",
+            "initial_charge_percentage": "Initial State of Charge",
+            "max_charge_percentage": "Max Charge Level",
+            "min_charge_percentage": "Min Charge Level",
+            "name": "Battery Section Name"
+          }
+        },
+        "reconfigure": {
+          "title": "Edit Battery Section",
+          "description": "Update battery section configuration",
+          "data": {
+            "capacity": "Capacity",
+            "initial_charge_percentage": "Initial State of Charge",
+            "max_charge_percentage": "Max Charge Level",
+            "min_charge_percentage": "Min Charge Level",
+            "name": "Battery Section Name"
           }
         }
       },
@@ -266,13 +299,21 @@
       "step": {
         "user": {
           "title": "Add Node",
-          "description": "Add a node for power balance calculations",
-          "data": { "name": "Node Name" }
+          "description": "Add a node for power balance calculations or to source/sink unlimited power.",
+          "data": {
+            "is_sink": "Can consume unlimited power (Sink)",
+            "is_source": "Can produce unlimited power (Source)",
+            "name": "Node Name"
+          }
         },
         "reconfigure": {
           "title": "Edit Node",
           "description": "Update node configuration",
-          "data": { "name": "Node Name" }
+          "data": {
+            "is_sink": "Can consume unlimited power (Sink)",
+            "is_source": "Can produce unlimited power (Source)",
+            "name": "Node Name"
+          }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -316,6 +357,7 @@
     "battery_device_normal": { "name": "{name} Normal Region" },
     "battery_device_overcharge": { "name": "{name} Overcharge Region" },
     "battery_device_undercharge": { "name": "{name} Undercharge Region" },
+    "battery_section": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
@@ -335,6 +377,16 @@
       "battery_power_balance": { "name": "Power balance shadow price" },
       "battery_power_charge": { "name": "Charge power" },
       "battery_power_discharge": { "name": "Discharge power" },
+      "battery_section_energy_in_flow": { "name": "Energy in flow shadow price" },
+      "battery_section_energy_out_flow": { "name": "Energy out flow shadow price" },
+      "battery_section_energy_stored": { "name": "Energy stored" },
+      "battery_section_power_active": { "name": "Active power" },
+      "battery_section_power_balance": { "name": "Power balance shadow price" },
+      "battery_section_power_charge": { "name": "Charge power" },
+      "battery_section_power_discharge": { "name": "Discharge power" },
+      "battery_section_soc_max": { "name": "SOC max shadow price" },
+      "battery_section_soc_min": { "name": "SOC min shadow price" },
+      "battery_section_state_of_charge": { "name": "State of charge" },
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },

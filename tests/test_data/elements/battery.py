@@ -15,7 +15,7 @@ from custom_components.haeo.model.const import (
     OUTPUT_TYPE_SOC,
 )
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
+from custom_components.haeo.model.node import NODE_POWER_BALANCE
 
 from .types import (
     ElementConfigData,
@@ -90,7 +90,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             },
             # Internal node
             {
-                "element_type": "source_sink",
+                "element_type": "node",
                 "name": "battery_main:node",
                 "is_source": False,
                 "is_sink": False,
@@ -171,7 +171,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             },
             # Node outputs
             "battery_main:node": {
-                SOURCE_SINK_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             },
             # Connection outputs (for prices)
             "battery_main:undercharge:to_node": {
@@ -274,7 +274,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             },
             # Internal node
             {
-                "element_type": "source_sink",
+                "element_type": "node",
                 "name": "battery_main:node",
                 "is_source": False,
                 "is_sink": False,
@@ -315,7 +315,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             },
             # Node outputs
             "battery_main:node": {
-                SOURCE_SINK_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             },
             # Connection outputs
             "battery_main:normal:to_node": {
@@ -389,7 +389,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 "initial_charge": 0.0,  # 10% SOC means empty usable capacity
             },
             {
-                "element_type": "source_sink",
+                "element_type": "node",
                 "name": "battery_early:node",
                 "is_source": False,
                 "is_sink": False,
@@ -440,7 +440,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0, 0.0, 0.0, 0.0)),
             },
             "battery_early:node": {
-                SOURCE_SINK_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0, 0.0, 0.0, 0.0)),
+                NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0, 0.0, 0.0, 0.0)),
             },
             "battery_early:normal:to_node": {
                 connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0, 0.0, 0.0, 1.0), direction="+"),
