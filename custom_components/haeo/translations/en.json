@@ -130,25 +130,13 @@
       "step": {
         "user": {
           "title": "Add Battery Section",
-          "description": "Add a single battery section with explicit capacity and SOC bounds. Connect to other elements using Connection elements.",
-          "data": {
-            "capacity": "Capacity",
-            "initial_charge_percentage": "Initial State of Charge",
-            "max_charge_percentage": "Max Charge Level",
-            "min_charge_percentage": "Min Charge Level",
-            "name": "Battery Section Name"
-          }
+          "description": "Add a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
+          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" }
         },
         "reconfigure": {
           "title": "Edit Battery Section",
           "description": "Update battery section configuration",
-          "data": {
-            "capacity": "Capacity",
-            "initial_charge_percentage": "Initial State of Charge",
-            "max_charge_percentage": "Max Charge Level",
-            "min_charge_percentage": "Min Charge Level",
-            "name": "Battery Section Name"
-          }
+          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -386,7 +374,6 @@
       "battery_section_power_discharge": { "name": "Discharge power" },
       "battery_section_soc_max": { "name": "SOC max shadow price" },
       "battery_section_soc_min": { "name": "SOC min shadow price" },
-      "battery_section_state_of_charge": { "name": "State of charge" },
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },

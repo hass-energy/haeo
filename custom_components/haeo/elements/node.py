@@ -1,7 +1,7 @@
 """Network node element configuration for HAEO integration."""
 
 from collections.abc import Mapping
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.node import NODE_POWER_BALANCE

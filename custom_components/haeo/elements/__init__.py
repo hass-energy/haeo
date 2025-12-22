@@ -151,6 +151,9 @@ class ElementRegistryEntry(NamedTuple):
             Transforms config element to model elements
         - outputs(name, model_outputs, config) -> dict[str, dict[str, Any]]
             Transforms model outputs to device outputs with access to original config
+
+    The advanced flag indicates whether this element type is only shown when
+    advanced mode is enabled on the hub.
     """
 
     schema: type[Any]
@@ -159,6 +162,7 @@ class ElementRegistryEntry(NamedTuple):
     translation_key: ElementType
     create_model_elements: CreateModelElementsFn
     outputs: OutputsFn
+    advanced: bool = False
 
 
 ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
@@ -209,6 +213,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=connection.ELEMENT_TYPE,
         create_model_elements=connection.create_model_elements,
         outputs=cast("OutputsFn", connection.outputs),
+        advanced=True,
     ),
     node.ELEMENT_TYPE: ElementRegistryEntry(
         schema=node.NodeConfigSchema,
@@ -217,6 +222,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=node.ELEMENT_TYPE,
         create_model_elements=node.create_model_elements,
         outputs=cast("OutputsFn", node.outputs),
+        advanced=True,
     ),
     battery_section.ELEMENT_TYPE: ElementRegistryEntry(
         schema=battery_section.BatterySectionConfigSchema,
@@ -225,6 +231,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=battery_section.ELEMENT_TYPE,
         create_model_elements=battery_section.create_model_elements,
         outputs=cast("OutputsFn", battery_section.outputs),
+        advanced=True,
     ),
 }
 

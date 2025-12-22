@@ -20,6 +20,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_setup_schema, get_tier_config
 from .element import create_subentry_flow_class
@@ -123,6 +124,8 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                     "data": {
                         CONF_NAME: switchboard_name,
                         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+                        CONF_IS_SOURCE: False,
+                        CONF_IS_SINK: False,
                     },
                     "subentry_type": ELEMENT_TYPE_NODE,
                     "title": switchboard_name,
@@ -142,24 +145,15 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     def async_get_supported_subentry_types(cls, config_entry: ConfigEntry) -> dict[str, type[ConfigSubentryFlow]]:
         """Return subentries supported by this integration.
 
-        Standard element types (grid, load, solar, inverter, battery) are always available.
-        Advanced element types (node, connection, battery_section) require advanced_mode enabled.
+        Element types marked as advanced in the registry require advanced_mode enabled.
         """
         advanced_mode = config_entry.data.get(CONF_ADVANCED_MODE, False)
 
-        # Standard elements always available
-        standard_types = {"grid", "load", "solar", "inverter", "battery"}
-
-        # Advanced elements only when advanced mode enabled
-        advanced_types = {"connection", "node", "battery_section"}
-
-        available_types = standard_types | (advanced_types if advanced_mode else set())
-
-        # Register element flows for available types
+        # Register element flows, filtering advanced types based on mode
         flows: dict[str, type[ConfigSubentryFlow]] = {
             element_type: create_subentry_flow_class(element_type, entry.schema, entry.defaults)
             for element_type, entry in ELEMENT_TYPES.items()
-            if element_type in available_types
+            if not entry.advanced or advanced_mode
         }
 
         # Note that the Network subentry is not included here as it can't be added/removed like other elements
