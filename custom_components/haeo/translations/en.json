@@ -240,16 +240,51 @@
       "step": {
         "user": {
           "title": "Add Load",
-          "description": "Set up a load with forecast or constant power",
-          "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
+          "description": "Set up a load element. Choose to use historical data from the Energy dashboard or provide custom forecast sensors.",
+          "data": {
+            "name": "Load Name",
+            "connection": "Connection",
+            "forecast_source": "Forecast Source"
+          },
+          "data_description": {
+            "forecast_source": "Energy Tab: Uses historical consumption from your Energy dashboard. Custom Sensor: Provide your own forecast sensors."
+          }
+        },
+        "forecast_config": {
+          "title": "Configure Forecast",
+          "description": "Configure the forecast settings for your load.",
+          "data": {
+            "history_days": "History Days",
+            "forecast": "Forecast Sensors"
+          },
+          "data_description": {
+            "history_days": "Number of days of historical consumption data to use for forecasting (1-30 days).",
+            "forecast": "One or more power sensors providing consumption forecast data."
+          }
         },
         "reconfigure": {
           "title": "Edit Load",
           "description": "Update load configuration",
-          "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
+          "data": {
+            "name": "Load Name",
+            "connection": "Connection",
+            "forecast_source": "Forecast Source",
+            "history_days": "History Days",
+            "forecast": "Forecast Sensors"
+          },
+          "data_description": {
+            "forecast_source": "Energy Tab: Uses historical consumption from your Energy dashboard. Custom Sensor: Provide your own forecast sensors.",
+            "history_days": "Number of days of historical consumption data to use for forecasting (1-30 days).",
+            "forecast": "One or more power sensors providing consumption forecast data."
+          }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "missing_history_days": "Please specify the number of days of history to use",
+        "missing_forecast": "Please select at least one forecast sensor"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {

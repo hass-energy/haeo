@@ -5,10 +5,14 @@ The Load element uses forecast data to model any type of consumption pattern fro
 
 ## Configuration
 
-| Field                     | Type                                     | Required | Default | Description                               |
-| ------------------------- | ---------------------------------------- | -------- | ------- | ----------------------------------------- |
-| **[Name](#name)**         | String                                   | Yes      | -       | Unique identifier for this load           |
-| **[Forecast](#forecast)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW) |
+| Field                               | Type                                     | Required | Default    | Description                                      |
+| ----------------------------------- | ---------------------------------------- | -------- | ---------- | ------------------------------------------------ |
+| **[Name](#name)**                   | String                                   | Yes      | -          | Unique identifier for this load                  |
+| **[Forecast Source](#forecast-source)** | Selection                           | Yes      | Energy Tab | Where to get consumption data from               |
+| **[History Days](#history-days)**   | Number (1-30)                            | No*      | 7          | Days of historical data to use (Energy Tab mode) |
+| **[Forecast](#forecast)**           | [sensor(s)](../forecasts-and-sensors.md) | No*      | -          | Power consumption sensor(s) (Custom Sensor mode) |
+
+\* One of History Days or Forecast is required, depending on the Forecast Source selection.
 
 ## Name
 
@@ -17,9 +21,63 @@ Used to create sensor entity IDs and identify the load in connections.
 
 **Examples**: "Base Load", "House Load", "Total Load", "EV Charger", "Pool Pump"
 
+## Forecast Source
+
+Choose where HAEO gets consumption forecast data:
+
+### Energy Tab (Default)
+
+Automatically uses historical consumption data from Home Assistant's Energy dashboard.
+This is the simplest option - no additional configuration needed if you've already set up the Energy dashboard.
+
+**How it works**:
+
+1. HAEO reads your consumption sensors from the Energy dashboard configuration
+2. Fetches hourly historical data for the specified number of days
+3. Shifts the historical pattern forward to create a forecast
+4. Repeats the pattern throughout the optimization horizon
+
+| Field               | Value      |
+| ------------------- | ---------- |
+| **Forecast Source** | Energy Tab |
+| **History Days**    | 7          |
+
+!!! tip "Perfect for getting started"
+
+    If you've already configured your Energy dashboard in Home Assistant, just select "Energy Tab" and HAEO will automatically use your historical consumption data. No scripts or automations required!
+
+### Custom Sensor
+
+Use your own sensor entities providing power consumption data.
+Choose this option if you have custom forecast sensors or want more control over the data source.
+
+| Field               | Value                      |
+| ------------------- | -------------------------- |
+| **Forecast Source** | Custom Sensor              |
+| **Forecast**        | sensor.house_load_forecast |
+
+## History Days
+
+When using **Energy Tab** mode, this specifies how many days of historical consumption data to fetch.
+The historical pattern is then repeated throughout your optimization horizon.
+
+**Range**: 1-30 days
+
+**Recommendations**:
+
+- **7 days** (default): Captures weekly patterns (weekday vs weekend differences)
+- **14 days**: Better for bi-weekly patterns or more averaging
+- **3 days**: Quick adaptation to recent consumption changes
+
+| Field            | Value | Effect                                |
+| ---------------- | ----- | ------------------------------------- |
+| **History Days** | 3     | Recent patterns, less averaging       |
+| **History Days** | 7     | Weekly patterns (recommended default) |
+| **History Days** | 14    | Bi-weekly patterns, more smoothing    |
+
 ## Forecast
 
-Specify one or more Home Assistant sensor entities providing power consumption data.
+When using **Custom Sensor** mode, specify one or more Home Assistant sensor entities providing power consumption data.
 The Load element is flexible and works with both constant and time-varying patterns.
 
 **Single forecast example**:
@@ -109,7 +167,7 @@ The forecast sensor should provide:
 
 - Template sensors combining multiple sources
 - Machine learning predictions
-- [Historical pattern averaging](../historical-load-forecast.md)
+- Historical pattern averaging (use Energy Tab mode for automatic historical forecasts)
 
 **Scheduled Devices**:
 
@@ -292,14 +350,6 @@ For controllable/deferrable loads, model them separately with appropriate constr
 ## Next Steps
 
 <div class="grid cards" markdown>
-
-- :material-history:{ .lg .middle } **Create a historical load forecast**
-
-    ---
-
-    Build a simple load forecast from past consumption data.
-
-    [:material-arrow-right: Historical load forecast](../historical-load-forecast.md)
 
 - :material-connection:{ .lg .middle } **Connect to network**
 

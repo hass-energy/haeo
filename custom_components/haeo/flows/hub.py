@@ -19,9 +19,11 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
+from custom_components.haeo.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
 
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_setup_schema, get_tier_config
 from .element import create_subentry_flow_class
+from .load import LoadSubentryFlow
 from .options import HubOptionsFlow
 
 _LOGGER = logging.getLogger(__name__)
@@ -145,7 +147,11 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         flows: dict[str, type[ConfigSubentryFlow]] = {
             element_type: create_subentry_flow_class(element_type, entry.schema, entry.defaults)
             for element_type, entry in ELEMENT_TYPES.items()
+            if element_type != LOAD_ELEMENT_TYPE  # Load has a custom flow
         }
+
+        # Use custom flow for load element (conditional field display)
+        flows[LOAD_ELEMENT_TYPE] = LoadSubentryFlow
 
         # Note that the Network subentry is not included here as it can't be added/removed like other elements
 

@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.connection import (
@@ -14,6 +14,12 @@ from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
+    FORECAST_SOURCE_CUSTOM_SENSOR,
+    FORECAST_SOURCE_ENERGY_TAB,
+    ForecastSourceFieldData,
+    ForecastSourceFieldSchema,
+    HistoryDaysFieldData,
+    HistoryDaysFieldSchema,
     NameFieldData,
     NameFieldSchema,
     PowerSensorsFieldData,
@@ -23,8 +29,13 @@ from custom_components.haeo.schema.fields import (
 ELEMENT_TYPE: Final = "load"
 
 # Configuration field names
+CONF_FORECAST_SOURCE: Final = "forecast_source"
+CONF_HISTORY_DAYS: Final = "history_days"
 CONF_FORECAST: Final = "forecast"
 CONF_CONNECTION: Final = "connection"
+
+# Default values
+DEFAULT_HISTORY_DAYS: Final = 7
 
 type LoadOutputName = Literal[
     "load_power",
@@ -48,28 +59,60 @@ LOAD_DEVICE_NAMES: Final[frozenset[LoadDeviceName]] = frozenset(
 
 
 class LoadConfigSchema(TypedDict):
-    """Load element configuration."""
+    """Load element configuration.
+
+    The forecast can be sourced from either:
+    - Energy Tab: Historical consumption data from Home Assistant's Energy dashboard
+    - Custom Sensor: User-provided sensor entities with forecast data
+    """
 
     element_type: Literal["load"]
     name: NameFieldSchema
     connection: ElementNameFieldSchema  # Connection ID that load connects to
-    forecast: PowerSensorsFieldSchema
+    forecast_source: ForecastSourceFieldSchema  # "energy_tab" or "custom_sensor"
+    history_days: NotRequired[HistoryDaysFieldSchema]  # Days of history (energy_tab mode)
+    forecast: NotRequired[PowerSensorsFieldSchema]  # Custom sensors (custom_sensor mode)
 
 
 class LoadConfigData(TypedDict):
-    """Load element configuration."""
+    """Load element configuration with loaded values."""
 
     element_type: Literal["load"]
     name: NameFieldData
     connection: ElementNameFieldSchema  # Connection ID that load connects to
-    forecast: PowerSensorsFieldData
+    forecast_source: ForecastSourceFieldData  # "energy_tab" or "custom_sensor"
+    # Note: Only one of these will be present based on forecast_source
+    history_days: NotRequired[HistoryDaysFieldData]  # Loaded power values from history
+    forecast: NotRequired[PowerSensorsFieldData]  # Loaded power values from sensors
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {}
+CONFIG_DEFAULTS: dict[str, Any] = {
+    CONF_FORECAST_SOURCE: FORECAST_SOURCE_ENERGY_TAB,
+    CONF_HISTORY_DAYS: DEFAULT_HISTORY_DAYS,
+}
 
 
 def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
     """Create model elements for Load configuration."""
+
+    # Get forecast data from the appropriate source
+    # Handle backward compatibility: if forecast_source is not set but forecast is provided,
+    # treat it as custom_sensor mode (legacy behavior)
+    forecast_source = config.get("forecast_source")
+
+    if forecast_source is None:
+        # Backward compatibility: infer source from which field is present
+        if "forecast" in config:
+            forecast_source = FORECAST_SOURCE_CUSTOM_SENSOR
+        else:
+            forecast_source = FORECAST_SOURCE_ENERGY_TAB
+
+    if forecast_source == FORECAST_SOURCE_ENERGY_TAB:
+        # History days loader produces the forecast values directly
+        forecast_data = config.get("history_days", [])
+    else:
+        # Custom sensor mode
+        forecast_data = config.get("forecast", [])
 
     elements: list[dict[str, Any]] = [
         # Create SourceSink for the load (sink only - consumes power)
@@ -81,7 +124,7 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
             "source": config["name"],
             "target": config["connection"],
             "max_power_source_target": 0.0,
-            "max_power_target_source": config["forecast"],
+            "max_power_target_source": forecast_data,
             "fixed_power": True,
         },
     ]

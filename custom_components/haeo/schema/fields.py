@@ -21,7 +21,7 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-from custom_components.haeo.data.loader import ConstantLoader, Loader, TimeSeriesLoader
+from custom_components.haeo.data.loader import ConstantLoader, HistoricalLoadLoader, Loader, TimeSeriesLoader
 from custom_components.haeo.data.loader.extractors import EntityMetadata
 
 from .params import SchemaParams
@@ -226,6 +226,56 @@ class BatterySOCFieldMeta(FieldMeta):
         return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
 
 
+# Forecast source options
+FORECAST_SOURCE_ENERGY_TAB: Final = "energy_tab"
+FORECAST_SOURCE_CUSTOM_SENSOR: Final = "custom_sensor"
+
+
+@dataclass(frozen=True)
+class ForecastSourceFieldMeta(FieldMeta):
+    """Metadata for forecast source selection (energy_tab or custom_sensor)."""
+
+    field_type: Literal["constant"] = "constant"
+    loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str](str))
+
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        options: list[SelectOptionDict] = [
+            SelectOptionDict(value=FORECAST_SOURCE_ENERGY_TAB, label="Energy Tab"),
+            SelectOptionDict(value=FORECAST_SOURCE_CUSTOM_SENSOR, label="Custom Sensor"),
+        ]
+        return vol.All(
+            vol.Coerce(str),
+            vol.In([FORECAST_SOURCE_ENERGY_TAB, FORECAST_SOURCE_CUSTOM_SENSOR]),
+            SelectSelector(SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)),
+        )
+
+
+@dataclass(frozen=True)
+class HistoryDaysFieldMeta(FieldMeta):
+    """Metadata for number of days of historical data to fetch.
+
+    Uses HistoricalLoadLoader to fetch data from the Energy dashboard.
+    """
+
+    field_type: Literal["historical"] = "historical"
+    loader: HistoricalLoadLoader = field(default_factory=HistoricalLoadLoader)
+
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        return vol.All(
+            vol.Coerce(int),
+            vol.Range(min=1, max=30, msg="Value must be between 1 and 30 days"),
+            NumberSelector(
+                NumberSelectorConfig(
+                    mode=NumberSelectorMode.BOX,
+                    min=1,
+                    max=30,
+                    step=1,
+                    unit_of_measurement="days",
+                )
+            ),
+        )
+
+
 # Define unit sets for sensor filtering
 POWER_UNITS: Final = UnitOfPower
 ENERGY_UNITS: Final = UnitOfEnergy
@@ -269,3 +319,7 @@ BatterySOCFieldData = Annotated[float, BatterySOCFieldMeta()]
 BatterySOCSensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)]
 PriceFieldData = Annotated[float, PriceFieldMeta()]
 PriceSensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
+ForecastSourceFieldSchema = Annotated[str, ForecastSourceFieldMeta()]
+ForecastSourceFieldData = Annotated[str, ForecastSourceFieldMeta()]
+HistoryDaysFieldSchema = Annotated[int, HistoryDaysFieldMeta()]
+HistoryDaysFieldData = Annotated[int, HistoryDaysFieldMeta()]
