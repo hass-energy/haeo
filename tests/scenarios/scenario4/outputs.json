@@ -1183,6 +1183,7 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
+      "direction": "-",
       "element_name": "Constant Load",
       "element_type": "load",
       "forecast": [
@@ -1445,6 +1446,7 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "monetary",
+      "direction": "+",
       "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
@@ -1707,6 +1709,7 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "monetary",
+      "direction": "-",
       "element_name": "Grid",
       "element_type": "grid",
       "forecast": [
@@ -2100,6 +2103,7 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
+      "direction": "+",
       "element_name": "Solar",
       "element_type": "solar",
       "forecast": [

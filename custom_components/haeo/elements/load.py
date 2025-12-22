@@ -15,8 +15,8 @@ from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
     NameFieldData,
     NameFieldSchema,
-    PowerSensorsFieldData,
-    PowerSensorsFieldSchema,
+    PowerConsumptionSensorsFieldData,
+    PowerConsumptionSensorsFieldSchema,
 )
 
 ELEMENT_TYPE: Final = "load"
@@ -50,7 +50,7 @@ class LoadConfigSchema(TypedDict):
     element_type: Literal["load"]
     name: NameFieldSchema
     connection: ElementNameFieldSchema  # Connection ID that load connects to
-    forecast: PowerSensorsFieldSchema
+    forecast: PowerConsumptionSensorsFieldSchema
 
 
 class LoadConfigData(TypedDict):
@@ -59,7 +59,7 @@ class LoadConfigData(TypedDict):
     element_type: Literal["load"]
     name: NameFieldData
     connection: ElementNameFieldSchema  # Connection ID that load connects to
-    forecast: PowerSensorsFieldData
+    forecast: PowerConsumptionSensorsFieldData
 
 
 CONFIG_DEFAULTS: dict[str, Any] = {}
@@ -70,7 +70,12 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
 
     elements: list[dict[str, Any]] = [
         # Create SourceSink for the load (sink only - consumes power)
-        {"element_type": "source_sink", "name": config["name"], "is_source": False, "is_sink": True},
+        {
+            "element_type": "source_sink",
+            "name": config["name"],
+            "is_source": False,
+            "is_sink": True,
+        },
         # Create Connection from node to load (power flows TO the load)
         {
             "element_type": "connection",
@@ -87,15 +92,21 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: LoadConfigData
+    name: str,
+    outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+    _config: LoadConfigData,
 ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
     """Provide state updates for load output sensors."""
     connection = outputs[f"{name}:connection"]
 
     load_updates: dict[LoadOutputName, OutputData] = {
         # Output sensors from optimization
-        LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER),
-        LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
+        LOAD_POWER: replace(
+            connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER
+        ),
+        LOAD_FORECAST_LIMIT_PRICE: connection[
+            CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
+        ],
     }
 
     return {LOAD_DEVICE_LOAD: load_updates}

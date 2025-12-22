@@ -108,8 +108,37 @@ def extract_forecast_data(
         output_type = attrs.get("output_type")
         output_name = attrs.get("output_name", "")
         direction = attrs.get("direction")
+        config_mode = attrs.get("config_mode")
 
-        # Handle output sensors (have output_type)
+        # Handle input entities first (have config_mode) - they take priority
+        if config_mode is not None:
+            # Skip constant inputs (all values the same) - they're not interesting to plot
+            values = [v for _, v in forecast]
+            if values and all(v == values[0] for v in values):
+                continue
+
+            # Input entities now have direction from schema field metadata
+            if output_type == OUTPUT_TYPE_POWER:
+                if direction == "+":
+                    # Power production inputs (solar forecast) → available power
+                    entry["available"] = forecast
+                elif direction == "-":
+                    # Power consumption inputs (load forecast) → consumption
+                    entry["consumption"] = forecast
+                else:
+                    # No direction specified, default to available for power inputs
+                    entry["available"] = forecast
+            elif output_type == OUTPUT_TYPE_PRICE:
+                if direction == "+":
+                    entry["production_price"] = forecast
+                elif direction == "-":
+                    entry["consumption_price"] = forecast
+                else:
+                    # No direction specified, default to consumption price
+                    entry["consumption_price"] = forecast
+            continue
+
+        # Handle output sensors (have output_type but no config_mode)
         if output_type is not None:
             # SOC doesn't need direction
             if output_type == OUTPUT_TYPE_SOC:
@@ -140,15 +169,6 @@ def extract_forecast_data(
                     # Use output_name as the key (matches translation_key)
                     shadow_prices[output_name] = forecast
                 continue
-
-        # Handle input entities (have entity_mode and output_name/output_type)
-        if (
-            attrs.get("entity_mode") is not None
-            and element_type == ELEMENT_TYPE_SOLAR
-            and output_name == "forecast"
-        ):
-            # Solar forecast field represents available power
-            entry["available"] = forecast
 
     return forecast_data
 

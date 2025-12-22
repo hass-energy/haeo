@@ -14,7 +14,14 @@ The information extracted includes:
 
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from typing import TYPE_CHECKING, Annotated, get_args, get_origin, get_type_hints
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Literal,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from homeassistant.components.number import NumberDeviceClass
 
@@ -69,6 +76,7 @@ class InputFieldInfo:
         step: Step size for value changes (for Number entities)
         device_class: Device class for entity behavior
         translation_key: Translation key for entity name
+        direction: Direction for visualization ("+" = production, "-" = consumption)
 
     """
 
@@ -81,6 +89,7 @@ class InputFieldInfo:
     step: float | None = None
     device_class: NumberDeviceClass | None = None
     translation_key: str | None = None
+    direction: Literal["+", "-"] | None = None
 
 
 # Field meta types that produce Number entities
@@ -146,6 +155,7 @@ def _field_meta_to_input_info(
             step=meta.step,
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
+            direction=meta.direction,
         )
 
     if isinstance(meta, EnergyFieldMeta):
@@ -159,6 +169,7 @@ def _field_meta_to_input_info(
             step=meta.step,
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
+            direction=meta.direction,
         )
 
     if isinstance(meta, PriceFieldMeta):
@@ -172,6 +183,7 @@ def _field_meta_to_input_info(
             step=meta.step,
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
+            direction=meta.direction,
         )
 
     if isinstance(meta, (PercentageFieldMeta, BatterySOCFieldMeta)):
@@ -185,6 +197,7 @@ def _field_meta_to_input_info(
             step=meta.step,
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
+            direction=meta.direction,
         )
 
     if isinstance(meta, SWITCH_FIELD_METAS):
@@ -193,6 +206,7 @@ def _field_meta_to_input_info(
             entity_type=InputEntityType.SWITCH,
             output_type=OUTPUT_TYPE_BOOLEAN,
             translation_key=f"{element_type}_{field_name}",
+            direction=meta.direction,
         )
 
     # Handle sensor field types - map accepted_units to device class
@@ -220,6 +234,7 @@ def _sensor_meta_to_input_info(
             unit="kW",
             device_class=NumberDeviceClass.POWER,
             translation_key=f"{element_type}_{field_name}",
+            direction=meta.direction,
         )
 
     # Energy sensor
@@ -231,6 +246,7 @@ def _sensor_meta_to_input_info(
             unit="kWh",
             device_class=NumberDeviceClass.ENERGY,
             translation_key=f"{element_type}_{field_name}",
+            direction=meta.direction,
         )
 
     # Battery SOC sensor (percentage for battery)
@@ -244,6 +260,7 @@ def _sensor_meta_to_input_info(
             max_value=100.0,
             device_class=NumberDeviceClass.BATTERY,
             translation_key=f"{element_type}_{field_name}",
+            direction=meta.direction,
         )
 
     # Percentage sensor
@@ -257,6 +274,7 @@ def _sensor_meta_to_input_info(
             max_value=100.0,
             device_class=None,
             translation_key=f"{element_type}_{field_name}",
+            direction=meta.direction,
         )
 
     # Price sensor (currency per energy)
@@ -268,6 +286,7 @@ def _sensor_meta_to_input_info(
             unit="$/kWh",
             device_class=NumberDeviceClass.MONETARY,
             translation_key=f"{element_type}_{field_name}",
+            direction=meta.direction,
         )
 
     # Unknown sensor type - skip

@@ -65,6 +65,7 @@ class HaeoInputNumber(CoordinatorEntity[HaeoDataUpdateCoordinator], RestoreNumbe
         self._field_info = field_info
         self._field_name = field_info.field_name
         self._output_type = field_info.output_type
+        self._direction = field_info.direction
         self._element_type = subentry.subentry_type
         self._element_name = subentry.title
 
@@ -137,6 +138,8 @@ class HaeoInputNumber(CoordinatorEntity[HaeoDataUpdateCoordinator], RestoreNumbe
             "output_type": self._output_type,
             "config_mode": self._entity_mode.value,
         }
+        if self._direction is not None:
+            attrs["direction"] = self._direction
         if self._source_entity_ids:
             attrs["source_entities"] = self._source_entity_ids
         if forecast is not None:
