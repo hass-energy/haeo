@@ -14,7 +14,6 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
-    CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
@@ -45,11 +44,8 @@ from custom_components.haeo.elements import (
     ElementRegistryEntry,
     ElementType,
     battery,
-    battery_section,
     connection,
     grid,
-    inverter,
-    load,
     node,
 )
 from custom_components.haeo.flows.element import ElementSubentryFlow, create_subentry_flow_class
