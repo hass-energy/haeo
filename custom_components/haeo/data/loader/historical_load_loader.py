@@ -284,6 +284,12 @@ class HistoricalLoadLoader:
 
         # Get categorized energy entities from Energy dashboard
         energy_entities = await get_energy_entities(hass)
+        _LOGGER.info(
+            "Energy entities - grid_import: %s, grid_export: %s, solar: %s",
+            energy_entities.grid_import,
+            energy_entities.grid_export,
+            energy_entities.solar,
+        )
         if not energy_entities.has_entities():
             msg = (
                 "No energy sensors configured in Home Assistant's Energy dashboard. "
@@ -302,11 +308,30 @@ class HistoricalLoadLoader:
             )
             raise ValueError(msg)
 
+        # Log sample statistics for debugging
+        for entity_id, stat_list in statistics.items():
+            if stat_list:
+                sample_values = [s.get("change") for s in stat_list[:5]]
+                _LOGGER.info("Statistics for %s: first 5 values = %s", entity_id, sample_values)
+
         # Build forecast from historical data using total load calculation
         forecast_series = build_forecast_from_history(statistics, energy_entities, history_days)
         if not forecast_series:
             msg = "Failed to build forecast from historical data"
             raise ValueError(msg)
+
+        # Log forecast summary
+        if forecast_series:
+            load_values = [v for _, v in forecast_series]
+            _LOGGER.info(
+                "Load forecast summary - min: %.2f kW, max: %.2f kW, avg: %.2f kW, count: %d",
+                min(load_values),
+                max(load_values),
+                sum(load_values) / len(load_values),
+                len(load_values),
+            )
+            # Log first few values
+            _LOGGER.info("First 5 load values (kW): %s", load_values[:5])
 
         # Use the first value from the forecast as the present value
         # (since we're shifting historical data forward)
