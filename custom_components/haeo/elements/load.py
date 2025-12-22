@@ -98,21 +98,23 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
     # Get forecast data from the appropriate source
     # Handle backward compatibility: if forecast_source is not set but forecast is provided,
     # treat it as custom_sensor mode (legacy behavior)
-    forecast_source = config.get("forecast_source")
+    # Cast to dict to allow checking for missing keys in legacy configs
+    config_dict: dict[str, Any] = dict(config)
+    forecast_source: str = config_dict.get("forecast_source", "")
 
-    if forecast_source is None:
+    if not forecast_source:
         # Backward compatibility: infer source from which field is present
-        if "forecast" in config:
+        if "forecast" in config_dict:
             forecast_source = FORECAST_SOURCE_CUSTOM_SENSOR
         else:
             forecast_source = FORECAST_SOURCE_ENERGY_TAB
 
     if forecast_source == FORECAST_SOURCE_ENERGY_TAB:
         # History days loader produces the forecast values directly
-        forecast_data = config.get("history_days", [])
+        forecast_data = config_dict.get("history_days", [])
     else:
         # Custom sensor mode
-        forecast_data = config.get("forecast", [])
+        forecast_data = config_dict.get("forecast", [])
 
     elements: list[dict[str, Any]] = [
         # Create SourceSink for the load (sink only - consumes power)

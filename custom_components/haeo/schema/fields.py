@@ -322,4 +322,4 @@ PriceSensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=PR
 ForecastSourceFieldSchema = Annotated[str, ForecastSourceFieldMeta()]
 ForecastSourceFieldData = Annotated[str, ForecastSourceFieldMeta()]
 HistoryDaysFieldSchema = Annotated[int, HistoryDaysFieldMeta()]
-HistoryDaysFieldData = Annotated[int, HistoryDaysFieldMeta()]
+HistoryDaysFieldData = Annotated[list[float], HistoryDaysFieldMeta()]
