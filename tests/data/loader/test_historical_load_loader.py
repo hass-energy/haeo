@@ -149,16 +149,18 @@ class TestHistoricalForecastLoader:
 
         assert loader.available(hass=hass, value="sensor.test")
 
-    def test_not_available_when_recorder_missing(self, hass: HomeAssistant) -> None:
+    def test_not_available_when_recorder_missing(
+        self, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """available() returns False when recorder is not loaded."""
-        # Create a fresh components set without recorder
-        original_components = hass.config.components
-        hass.config.components = {c for c in original_components if c != "recorder"}
-        try:
-            loader = HistoricalForecastLoader()
-            assert not loader.available(hass=hass, value="sensor.test")
-        finally:
-            hass.config.components = original_components
+        # Mock the __contains__ check to return False for "recorder"
+        monkeypatch.setattr(
+            hass.config.components,
+            "__contains__",
+            lambda component: component != "recorder",
+        )
+        loader = HistoricalForecastLoader()
+        assert not loader.available(hass=hass, value="sensor.test")
 
     def test_not_available_when_sensor_missing(self, hass: HomeAssistant) -> None:
         """available() returns False when sensor doesn't exist."""
