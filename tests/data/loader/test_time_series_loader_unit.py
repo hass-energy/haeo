@@ -13,6 +13,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 import pytest
 
+from custom_components.haeo.data.loader import historical_load_loader as hll
 from custom_components.haeo.data.loader import time_series_loader as tsl
 from custom_components.haeo.data.loader.sensor_loader import normalize_entity_ids
 from custom_components.haeo.data.loader.time_series_loader import TimeSeriesLoader, _collect_sensor_ids
@@ -139,10 +140,13 @@ async def test_time_series_loader_load_present_only_uses_historical(
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
     # Mock the HistoricalForecastLoader to return pattern-based values
-    from custom_components.haeo.data.loader import historical_load_loader as hll
-
     async def fake_historical_load(
-        self: Any, *, hass: HomeAssistant, value: list[str], forecast_times: Sequence[float], **_kwargs
+        self: Any,
+        *,
+        hass: HomeAssistant,
+        value: list[str],
+        forecast_times: Sequence[float],
+        **_kwargs: Any,
     ) -> list[float]:
         # Return pattern-based values (not just broadcast present value)
         return [4.0, 6.0]
@@ -173,10 +177,9 @@ async def test_time_series_loader_load_present_only_fallback(
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
     # Mock the HistoricalForecastLoader to fail
-    from custom_components.haeo.data.loader import historical_load_loader as hll
-
-    async def fake_historical_load(self: Any, **_kwargs) -> list[float]:
-        raise ValueError("No historical data available")
+    async def fake_historical_load(self: Any, **_kwargs: Any) -> list[float]:
+        msg = "No historical data available"
+        raise ValueError(msg)
 
     monkeypatch.setattr(hll.HistoricalForecastLoader, "load", fake_historical_load)
 

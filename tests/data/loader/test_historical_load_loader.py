@@ -4,11 +4,11 @@ Tests building forecasts from sensor historical statistics when a sensor
 doesn't have a forecast attribute.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 import pytest
 
 from custom_components.haeo.data.loader import historical_load_loader as hll
@@ -27,13 +27,13 @@ class TestBuildHourlyPattern:
         """Builds a 24-hour pattern by averaging values for each hour."""
         # Create statistics for hour 10 on two different days
         stats = [
-            {"start": datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc), "mean": 2.0},
-            {"start": datetime(2024, 1, 2, 10, 0, 0, tzinfo=timezone.utc), "mean": 4.0},
-            {"start": datetime(2024, 1, 1, 14, 0, 0, tzinfo=timezone.utc), "mean": 3.0},
+            {"start": datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC), "mean": 2.0},
+            {"start": datetime(2024, 1, 2, 10, 0, 0, tzinfo=UTC), "mean": 4.0},
+            {"start": datetime(2024, 1, 1, 14, 0, 0, tzinfo=UTC), "mean": 3.0},
         ]
 
         # Use UTC timezone so hours match what we expect
-        pattern = build_hourly_pattern(stats, timezone=timezone.utc)
+        pattern = build_hourly_pattern(stats, timezone=UTC)
 
         # Hour 10 should be average of 2.0 and 4.0 = 3.0
         assert pattern[10] == pytest.approx(3.0)
@@ -48,11 +48,11 @@ class TestBuildHourlyPattern:
     def test_handles_missing_mean_values(self) -> None:
         """Skips entries without mean values."""
         stats = [
-            {"start": datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc), "mean": 2.0},
-            {"start": datetime(2024, 1, 1, 11, 0, 0, tzinfo=timezone.utc), "mean": None},
+            {"start": datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC), "mean": 2.0},
+            {"start": datetime(2024, 1, 1, 11, 0, 0, tzinfo=UTC), "mean": None},
         ]
 
-        pattern = build_hourly_pattern(stats, timezone=timezone.utc)
+        pattern = build_hourly_pattern(stats, timezone=UTC)
 
         assert 10 in pattern
         assert 11 not in pattern
@@ -60,13 +60,13 @@ class TestBuildHourlyPattern:
     def test_handles_timestamp_as_float(self) -> None:
         """Handles statistics with timestamp as float."""
         # Use a timestamp for hour 15 UTC
-        ts = datetime(2024, 1, 1, 15, 0, 0, tzinfo=timezone.utc).timestamp()
+        ts = datetime(2024, 1, 1, 15, 0, 0, tzinfo=UTC).timestamp()
         stats = [
             {"start": ts, "mean": 5.0},
         ]
 
         # Use UTC so we know what hour to expect
-        pattern = build_hourly_pattern(stats, timezone=timezone.utc)
+        pattern = build_hourly_pattern(stats, timezone=UTC)
 
         assert len(pattern) == 1
         assert pattern[15] == pytest.approx(5.0)
@@ -84,14 +84,14 @@ class TestBuildForecastFromPattern:
         }
 
         # 3 timestamps = 2 intervals
-        base = datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
+        base = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
         forecast_times = [
             base.timestamp(),
             (base + timedelta(hours=1)).timestamp(),
             (base + timedelta(hours=2)).timestamp(),
         ]
 
-        result = build_forecast_from_pattern(hourly_pattern, forecast_times, timezone=timezone.utc)
+        result = build_forecast_from_pattern(hourly_pattern, forecast_times, timezone=UTC)
 
         assert len(result) == 2
         assert result[0] == pytest.approx(2.0)  # hour 10
@@ -117,10 +117,10 @@ class TestBuildForecastFromPattern:
         hourly_pattern = {10: 2.0}  # Only hour 10
 
         # Request hour 15 (not in pattern)
-        base = datetime(2024, 1, 1, 15, 0, 0, tzinfo=timezone.utc)
+        base = datetime(2024, 1, 1, 15, 0, 0, tzinfo=UTC)
         forecast_times = [base.timestamp(), (base + timedelta(hours=1)).timestamp()]
 
-        result = build_forecast_from_pattern(hourly_pattern, forecast_times, timezone=timezone.utc)
+        result = build_forecast_from_pattern(hourly_pattern, forecast_times, timezone=UTC)
 
         assert result == [0.0]
 
@@ -153,7 +153,7 @@ class TestHistoricalForecastLoader:
         """available() returns False when recorder is not loaded."""
         # Create a fresh components set without recorder
         original_components = hass.config.components
-        hass.config.components = set(c for c in original_components if c != "recorder")
+        hass.config.components = {c for c in original_components if c != "recorder"}
         try:
             loader = HistoricalForecastLoader()
             assert not loader.available(hass=hass, value="sensor.test")
@@ -191,8 +191,6 @@ class TestHistoricalForecastLoader:
         self, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """load() fetches statistics and builds forecast from hourly pattern."""
-        from homeassistant.util import dt as dt_util
-
         loader = HistoricalForecastLoader(history_days=7)
 
         # Use HA's default timezone for consistency
@@ -200,12 +198,14 @@ class TestHistoricalForecastLoader:
 
         # Create mock statistics - 7 days of data for hours 10, 11, 12 in HA timezone
         mock_stats: list[dict[str, Any]] = []
-        for day in range(7):
-            for hour in [10, 11, 12]:
-                mock_stats.append({
-                    "start": datetime(2024, 1, 1 + day, hour, 0, 0, tzinfo=tz),
-                    "mean": float(hour),  # Use hour as the value for easy verification
-                })
+        mock_stats.extend(
+            {
+                "start": datetime(2024, 1, 1 + day, hour, 0, 0, tzinfo=tz),
+                "mean": float(hour),  # Use hour as the value for easy verification
+            }
+            for day in range(7)
+            for hour in [10, 11, 12]
+        )
 
         async def mock_get_stats(
             _hass: HomeAssistant,
@@ -234,12 +234,8 @@ class TestHistoricalForecastLoader:
         assert result[1] == pytest.approx(11.0)  # hour 11
 
     @pytest.mark.asyncio
-    async def test_load_sums_multiple_sensors(
-        self, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_load_sums_multiple_sensors(self, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
         """load() sums values from multiple sensors."""
-        from homeassistant.util import dt as dt_util
-
         loader = HistoricalForecastLoader(history_days=7)
         tz = dt_util.get_default_time_zone()
 
@@ -301,9 +297,7 @@ class TestHistoricalForecastLoader:
             )
 
     @pytest.mark.asyncio
-    async def test_load_handles_string_entity_id(
-        self, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_load_handles_string_entity_id(self, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
         """load() accepts a single string entity ID."""
         loader = HistoricalForecastLoader()
 
@@ -318,12 +312,12 @@ class TestHistoricalForecastLoader:
             nonlocal captured_entity_id
             captured_entity_id = entity_id
             return [
-                {"start": datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc), "mean": 5.0},
+                {"start": datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC), "mean": 5.0},
             ]
 
         monkeypatch.setattr(hll, "get_statistics_for_sensor", mock_get_stats)
 
-        base = datetime(2024, 1, 8, 10, 0, 0, tzinfo=timezone.utc)
+        base = datetime(2024, 1, 8, 10, 0, 0, tzinfo=UTC)
         await loader.load(
             hass=hass,
             value="sensor.my_sensor",

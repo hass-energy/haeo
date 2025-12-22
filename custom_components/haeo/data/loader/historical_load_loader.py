@@ -67,9 +67,7 @@ async def get_statistics_for_sensor(
         raise ValueError(msg) from None
 
     # Import here to avoid circular imports and allow mocking
-    from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
-        statistics_during_period,
-    )
+    from homeassistant.components.recorder.statistics import statistics_during_period  # noqa: PLC0415
 
     # Fetch statistics - runs in executor since it's blocking
     try:
@@ -122,10 +120,7 @@ def build_hourly_pattern(
         # Convert to datetime in the target timezone
         if isinstance(start, datetime):
             # Convert to target timezone if timezone-aware
-            if start.tzinfo is not None:
-                dt_local = start.astimezone(tz)
-            else:
-                dt_local = start.replace(tzinfo=tz)
+            dt_local = start.astimezone(tz) if start.tzinfo is not None else start.replace(tzinfo=tz)
             hour_of_day = dt_local.hour
         elif isinstance(start, (int, float)):
             dt_local = datetime.fromtimestamp(start, tz=tz)

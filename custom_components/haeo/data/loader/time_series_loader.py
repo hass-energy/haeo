@@ -1,7 +1,7 @@
 """Loader for unified time series sensor and forecast data."""
 
-import logging
 from collections.abc import Mapping, Sequence
+import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant
