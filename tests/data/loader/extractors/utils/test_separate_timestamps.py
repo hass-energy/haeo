@@ -28,65 +28,33 @@ def _prev(v: float) -> float:
         # Multiple duplicate pairs
         (
             [(100, 5.0), (100, 10.0), (200, 15.0), (200, 20.0)],
-            [
-                (_prev(100.0), 5.0),
-                (100.0, 10.0),
-                (_prev(200.0), 15.0),
-                (200.0, 20.0),
-            ],
+            [(_prev(100.0), 5.0), (100.0, 10.0), (_prev(200.0), 15.0), (200.0, 20.0)],
         ),
         # Amber Electric step function pattern
         # Two adjacent windows: [1000, 1300) at 0.13 and [1300, 1600) at 0.15
         (
-            [
-                (1000, 0.13),  # Start of first window
-                (1300, 0.13),  # End of first window
-                (1300, 0.15),  # Start of second window (duplicate timestamp!)
-                (1600, 0.15),  # End of second window
-            ],
-            [
-                (1000.0, 0.13),  # Start unchanged
-                (_prev(1300.0), 0.13),  # End adjusted
-                (1300.0, 0.15),  # Start unchanged
-                (1600.0, 0.15),  # End unchanged
-            ],
+            [(1000, 0.13), (1300, 0.13), (1300, 0.15), (1600, 0.15)],
+            [(1000.0, 0.13), (_prev(1300.0), 0.13), (1300.0, 0.15), (1600.0, 0.15)],
         ),
         # Mixed duplicates and non-duplicates
         (
             [(100, 1.0), (200, 2.0), (300, 3.0), (300, 4.0), (400, 5.0)],
-            [
-                (100.0, 1.0),
-                (200.0, 2.0),
-                (_prev(300.0), 3.0),
-                (300.0, 4.0),
-                (400.0, 5.0),
-            ],
+            [(100.0, 1.0), (200.0, 2.0), (_prev(300.0), 3.0), (300.0, 4.0), (400.0, 5.0)],
         ),
         # Three consecutive duplicates - middle one should be removed
         (
             [(100, 1.0), (100, 2.0), (100, 3.0), (200, 4.0)],
-            [
-                (_prev(100.0), 1.0),
-                (100.0, 3.0),
-                (200.0, 4.0),
-            ],
+            [(_prev(100.0), 1.0), (100.0, 3.0), (200.0, 4.0)],
         ),
         # Four consecutive duplicates - middle two should be removed
         (
             [(100, 1.0), (100, 2.0), (100, 3.0), (100, 4.0), (200, 5.0)],
-            [
-                (_prev(100.0), 1.0),
-                (100.0, 4.0),
-                (200.0, 5.0),
-            ],
+            [(_prev(100.0), 1.0), (100.0, 4.0), (200.0, 5.0)],
         ),
         # Five consecutive duplicates - middle three should be removed
         (
             [(100, 1.0), (100, 2.0), (100, 3.0), (100, 4.0), (100, 5.0)],
-            [
-                (_prev(100.0), 1.0),
-                (100.0, 5.0),
-            ],
+            [(_prev(100.0), 1.0), (100.0, 5.0)],
         ),
     ],
     ids=[
