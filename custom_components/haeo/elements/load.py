@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.connection import (
@@ -14,6 +14,8 @@ from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
+    HistoryDaysFieldData,
+    HistoryDaysFieldSchema,
     NameFieldData,
     NameFieldSchema,
     PowerSensorsFieldData,
@@ -54,6 +56,7 @@ class LoadConfigSchema(TypedDict):
     name: NameFieldSchema
     connection: ElementNameFieldSchema  # Connection ID that load connects to
     forecast: PowerSensorsFieldSchema
+    history_days: NotRequired[HistoryDaysFieldSchema]  # Days of history for forecast fallback
 
 
 class LoadConfigData(TypedDict):
@@ -63,9 +66,10 @@ class LoadConfigData(TypedDict):
     name: NameFieldData
     connection: ElementNameFieldSchema  # Connection ID that load connects to
     forecast: PowerSensorsFieldData
+    history_days: NotRequired[HistoryDaysFieldData]  # Days of history for forecast fallback
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {}
+CONFIG_DEFAULTS: dict[str, Any] = {"history_days": 7}
 
 
 def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:

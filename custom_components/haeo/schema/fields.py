@@ -252,6 +252,33 @@ class HistoricalLoadFieldMeta(FieldMeta):
         return vol.All(vol.Coerce(bool), BooleanSelector(BooleanSelectorConfig()))
 
 
+@dataclass(frozen=True)
+class HistoryDaysFieldMeta(FieldMeta):
+    """Metadata for history days configuration.
+
+    Used to specify how many days of historical data to use when building
+    forecasts from sensor statistics.
+    """
+
+    field_type: Literal["constant"] = "constant"
+    loader: ConstantLoader[int] = field(default_factory=lambda: ConstantLoader[int](int))
+
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        return vol.All(
+            vol.Coerce(int),
+            vol.Range(min=1, max=30, msg="Value must be between 1 and 30"),
+            NumberSelector(
+                NumberSelectorConfig(
+                    mode=NumberSelectorMode.BOX,
+                    min=1,
+                    max=30,
+                    step=1,
+                    unit_of_measurement="days",
+                )
+            ),
+        )
+
+
 # Define unit sets for sensor filtering
 POWER_UNITS: Final = UnitOfPower
 ENERGY_UNITS: Final = UnitOfEnergy
@@ -278,6 +305,7 @@ BatterySOCSensorFieldSchema = Annotated[str, SensorFieldMeta(accepted_units=BATT
 PriceFieldSchema = Annotated[float, PriceFieldMeta()]
 PriceSensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
 HistoricalLoadFieldSchema = Annotated[bool, HistoricalLoadFieldMeta()]
+HistoryDaysFieldSchema = Annotated[int, HistoryDaysFieldMeta()]
 
 # Data mode type aliases (loaded runtime values)
 PowerFieldData = Annotated[float, PowerFieldMeta()]
@@ -297,3 +325,4 @@ BatterySOCSensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_unit
 PriceFieldData = Annotated[float, PriceFieldMeta()]
 PriceSensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
 HistoricalLoadFieldData = Annotated[list[float], HistoricalLoadFieldMeta()]
+HistoryDaysFieldData = Annotated[int, HistoryDaysFieldMeta()]

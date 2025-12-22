@@ -57,6 +57,7 @@ class TimeSeriesLoader:
         hass: HomeAssistant,
         value: Any,
         forecast_times: Sequence[float],
+        history_days: int = 7,
         **_kwargs: Any,
     ) -> list[float]:
         """Load sensor values and forecasts, returning interpolated values for ``forecast_times``.
@@ -67,6 +68,13 @@ class TimeSeriesLoader:
 
         If sensors don't have forecast data (only present values), automatically
         falls back to building a forecast from historical recorder statistics.
+
+        Args:
+            hass: Home Assistant instance
+            value: Sensor entity ID(s) to load
+            forecast_times: Target timestamps for the forecast
+            history_days: Number of days of history to use for fallback forecast (default 7)
+
         """
 
         entity_ids = _collect_sensor_ids(value)
@@ -97,7 +105,7 @@ class TimeSeriesLoader:
                 "No forecast data for sensors %s, using historical statistics",
                 entity_ids,
             )
-            return await self._load_from_history(hass, entity_ids, forecast_times)
+            return await self._load_from_history(hass, entity_ids, forecast_times, history_days)
 
         return fuse_to_horizon(present_value, forecast_series, forecast_times)
 
@@ -106,6 +114,7 @@ class TimeSeriesLoader:
         hass: HomeAssistant,
         entity_ids: list[str],
         forecast_times: Sequence[float],
+        history_days: int = 7,
     ) -> list[float]:
         """Load forecast from historical statistics when no forecast data is available.
 
@@ -113,12 +122,13 @@ class TimeSeriesLoader:
             hass: Home Assistant instance
             entity_ids: List of sensor entity IDs to fetch history for
             forecast_times: Timestamps for the forecast horizon
+            history_days: Number of days of history to use
 
         Returns:
             List of values for each forecast interval based on historical patterns
 
         """
-        historical_loader = HistoricalForecastLoader()
+        historical_loader = HistoricalForecastLoader(history_days=history_days)
 
         try:
             return await historical_loader.load(

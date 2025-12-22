@@ -241,12 +241,28 @@
         "user": {
           "title": "Add Load",
           "description": "Set up a load with forecast or constant power",
-          "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
+          "data": {
+            "connection": "Connection",
+            "forecast": "Forecast Sensors",
+            "history_days": "History Days",
+            "name": "Load Name"
+          },
+          "data_description": {
+            "history_days": "Days of historical data to use for forecasting when the sensor doesn't provide its own forecast"
+          }
         },
         "reconfigure": {
           "title": "Edit Load",
           "description": "Update load configuration",
-          "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
+          "data": {
+            "connection": "Connection",
+            "forecast": "Forecast Sensors",
+            "history_days": "History Days",
+            "name": "Load Name"
+          },
+          "data_description": {
+            "history_days": "Days of historical data to use for forecasting when the sensor doesn't provide its own forecast"
+          }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },

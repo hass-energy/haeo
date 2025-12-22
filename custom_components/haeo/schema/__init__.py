@@ -153,6 +153,11 @@ async def load(
     hints = get_type_hints(data_config_class, include_extras=True)
     loaded: dict[str, Any] = {}
 
+    # Extract extra config values that may be used by loaders (e.g., history_days for TimeSeriesLoader)
+    extra_loader_kwargs: dict[str, Any] = {}
+    if "history_days" in config:
+        extra_loader_kwargs["history_days"] = config["history_days"]
+
     for field_name in hints:
         field_value = config.get(field_name)
 
@@ -162,7 +167,9 @@ async def load(
 
         # Get loader and load the field
         loader_instance = get_loader_instance(field_name, data_config_class)
-        loaded[field_name] = await loader_instance.load(value=field_value, hass=hass, forecast_times=forecast_times)
+        loaded[field_name] = await loader_instance.load(
+            value=field_value, hass=hass, forecast_times=forecast_times, **extra_loader_kwargs
+        )
 
     return cast("ElementConfigData", loaded)
 
