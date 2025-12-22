@@ -32,6 +32,7 @@ class Network:
     name: str
     periods: Sequence[float]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
+    required_energy: Sequence[float] | None = None  # kWh at each timestep boundary, available to model elements
     _solver: Highs = field(default_factory=Highs, repr=False)
 
     def __post_init__(self) -> None:

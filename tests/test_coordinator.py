@@ -39,6 +39,7 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
+    OUTPUT_NAME_REQUIRED_ENERGY,
 )
 from custom_components.haeo.coordinator import (
     STATUS_OPTIONS,
@@ -263,6 +264,8 @@ async def test_async_update_data_returns_outputs(
         "empty": empty_element,
         "battery_to_grid": fake_connection,
     }
+    # Set required_energy to a realistic list (one more than number of periods for timestep boundaries)
+    fake_network.required_energy = [5.0, 3.0, 0.0]
 
     # Mock battery adapter
     mock_battery_adapter = MagicMock()
@@ -356,6 +359,13 @@ async def test_async_update_data_returns_outputs(
     assert duration_output.state is not None
     assert duration_output.forecast is None
 
+    required_energy_output = network_outputs[OUTPUT_NAME_REQUIRED_ENERGY]
+    assert required_energy_output.state == 5.0
+    assert required_energy_output.unit == "kWh"
+    # required_energy has a forecast (one value per timestep boundary)
+    assert required_energy_output.forecast is not None
+    assert len(required_energy_output.forecast) == 3
+
     battery_outputs = result["Test Battery"][BATTERY_DEVICE_BATTERY]
     battery_output = battery_outputs[BATTERY_POWER_CHARGE]
     assert battery_output.type == OUTPUT_TYPE_POWER
@@ -369,6 +379,58 @@ async def test_async_update_data_returns_outputs(
     ]
 
     mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
+
+
+@pytest.mark.usefixtures("mock_connection_subentry")
+async def test_async_update_data_handles_none_required_energy(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: ConfigSubentry,
+    mock_grid_subentry: ConfigSubentry,
+) -> None:
+    """Coordinator handles network with required_energy=None (fallback to 0.0)."""
+    fake_element = MagicMock()
+    fake_element.outputs.return_value = {}
+
+    fake_network = MagicMock()
+    fake_network.elements = {"test_battery": fake_element}
+    # Explicitly set required_energy to None to test the fallback branch
+    fake_network.required_energy = None
+
+    mock_adapter = MagicMock(return_value={})
+
+    with (
+        patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
+        patch(
+            "custom_components.haeo.coordinator.data_module.load_element_configs",
+            new_callable=AsyncMock,
+            return_value={
+                "Test Battery": mock_battery_subentry.data,
+                "Test Grid": mock_grid_subentry.data,
+                "Battery to Grid": {CONF_ELEMENT_TYPE: "connection"},
+            },
+        ),
+        patch("custom_components.haeo.coordinator.data_module.load_network", new_callable=AsyncMock) as mock_load,
+        patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, return_value=0.0),
+        patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue"),
+        patch.dict(
+            ELEMENT_TYPES,
+            {
+                "battery": ELEMENT_TYPES["battery"]._replace(outputs=mock_adapter),
+                "grid": ELEMENT_TYPES["grid"]._replace(outputs=mock_adapter),
+                "connection": ELEMENT_TYPES["connection"]._replace(outputs=mock_adapter),
+            },
+        ),
+    ):
+        mock_load.return_value = fake_network
+        coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+        result = await coordinator._async_update_data()
+
+    # When required_energy is None, the output should have a fallback value of (0.0,)
+    network_outputs = result[mock_hub_entry.title][ELEMENT_TYPE_NETWORK]
+    required_energy_output = network_outputs[OUTPUT_NAME_REQUIRED_ENERGY]
+    assert required_energy_output.state == 0.0
+    assert required_energy_output.unit == "kWh"
 
 
 async def test_async_update_data_propagates_update_failed(

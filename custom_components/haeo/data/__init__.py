@@ -29,6 +29,8 @@ from custom_components.haeo.model import Network
 from custom_components.haeo.schema import available as config_available
 from custom_components.haeo.schema import load as config_load
 
+from .util.required_energy import calculate_required_energy
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -99,8 +101,13 @@ async def load_network(
     # ==================================================================================
     periods_hours = [s / 3600 for s in periods_seconds]
 
-    # Build network with periods in hours
-    net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
+    required_energy = calculate_required_energy(participants, periods_hours)
+
+    net = Network(
+        name=f"haeo_network_{entry.entry_id}",
+        periods=periods_hours,
+        required_energy=required_energy,
+    )
 
     # Collect all model elements from all config elements
     all_model_elements: list[dict[str, Any]] = []
@@ -133,6 +140,7 @@ async def load_network(
 
 
 __all__ = [
+    "calculate_required_energy",
     "config_available",
     "load_element_configs",
     "load_network",
