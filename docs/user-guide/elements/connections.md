@@ -45,7 +45,7 @@ Other elements only appear when Advanced Mode is enabled.
 Connection elements never appear as endpoints to prevent invalid connection topologies.
 
 This filtering ensures that connection endpoints are appropriate for your configuration level.
-See the [elements overview](index.md) for details on which elements are available in connection selectors.
+Each element's documentation describes its connectivity level and when it appears in connection selectors.
 
 ## Configuration Example
 

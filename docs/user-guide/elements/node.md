@@ -11,6 +11,10 @@ Virtual balance points enforcing power conservation (Kirchhoff's law).
     Advanced source/sink configuration (`is_source` and `is_sink` fields) is only available when Advanced Mode is enabled.
     In standard mode, nodes are pure junctions with no generation or consumption capability.
 
+!!! note "Connection endpoints"
+
+    Node elements always appear in connection selectors regardless of Advanced Mode setting.
+
 ## Configuration
 
 | Field                       | Type    | Required | Default | Description                                         |

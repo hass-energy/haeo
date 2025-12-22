@@ -10,6 +10,10 @@ this element creates a single battery section that must be connected manually vi
     This element is intended for advanced users who need direct control over battery modeling.
     Most users should use the standard [Battery](battery.md) element instead.
 
+!!! note "Connection endpoints"
+
+    Battery Section elements always appear in connection selectors regardless of Advanced Mode setting.
+
 For mathematical details, see [Battery Section Modeling](../../modeling/device-layer/battery_section.md).
 
 ## Configuration
