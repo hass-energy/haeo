@@ -46,6 +46,17 @@ class ConstantLoader[T]:
                 return cast("T", float(value))
             return None
 
+        if self._type is int:
+            # Handle numeric types (int, float) but not bool
+            # Only accept floats that are whole numbers (e.g., 7.0 but not 3.14)
+            if isinstance(value, bool):
+                return None
+            if isinstance(value, int):
+                return cast("T", value)
+            if isinstance(value, float) and value.is_integer():
+                return cast("T", int(value))
+            return None
+
         if isinstance(value, self._type):
             return value
 
