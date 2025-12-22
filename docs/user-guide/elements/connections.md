@@ -46,6 +46,7 @@ Explicit connections between these elements are usually unnecessary and can lead
 The filtering hides these elements by default to prevent common mistakes.
 
 **Filtering behavior:**
+
 - Advanced elements that require manual connection setup always appear in the selector regardless of Advanced Mode.
 - Standard elements that create implicit connections automatically only appear when Advanced Mode is enabled.
 - Connection elements never appear as endpoints to prevent invalid connection topologies.
@@ -57,13 +58,13 @@ Each element's documentation describes its connectivity level and when it appear
 
 Bidirectional connection between two network nodes:
 
-| Field                       | Value                             |
-| --------------------------- | --------------------------------- |
-| **Name**                    | DC Bus to AC Bus                  |
-| **Source**                  | DC Node                           |
-| **Target**                  | AC Node                           |
-| **Max Power Source→Target** | input_number.max_power            |
-| **Max Power Target→Source** | input_number.max_power            |
+| Field                       | Value                  |
+| --------------------------- | ---------------------- |
+| **Name**                    | DC Bus to AC Bus       |
+| **Source**                  | DC Node                |
+| **Target**                  | AC Node                |
+| **Max Power Source→Target** | input_number.max_power |
+| **Max Power Target→Source** | input_number.max_power |
 
 !!! note "Advanced Mode required for standard elements"
 
@@ -93,13 +94,13 @@ Connection pricing models fees for using a power transfer path (wheeling charges
 
 Leave both power limits unset for unlimited flow in both directions:
 
-| Field                       | Value           |
-| --------------------------- | --------------- |
+| Field                       | Value            |
+| --------------------------- | ---------------- |
 | **Name**                    | DC Bus to AC Bus |
 | **Source**                  | DC Node          |
 | **Target**                  | AC Node          |
-| **Max Power Source→Target** | _(leave empty)_ |
-| **Max Power Target→Source** | _(leave empty)_ |
+| **Max Power Source→Target** | _(leave empty)_  |
+| **Max Power Target→Source** | _(leave empty)_  |
 
 !!! note "Advanced Mode required for standard elements"
 
@@ -116,7 +117,7 @@ Set one direction's limit to 0 to prevent flow:
 | **Source**                  | DC Node                |
 | **Target**                  | AC Node                |
 | **Max Power Source→Target** | input_number.max_power |
-| **Max Power Target→Source** | input_number.zero     |
+| **Max Power Target→Source** | input_number.zero      |
 
 !!! note
 
@@ -126,15 +127,15 @@ Set one direction's limit to 0 to prevent flow:
 
 Model power conversion with efficiency losses:
 
-| Field                        | Value                            |
-| ---------------------------- | -------------------------------- |
-| **Name**                     | DC Bus to AC Bus                 |
-| **Source**                   | DC_Node                          |
-| **Target**                   | AC_Node                          |
-| **Max Power Source→Target**  | input_number.max_power            |
-| **Max Power Target→Source**  | input_number.max_power            |
-| **Efficiency Source→Target** | input_number.efficiency           |
-| **Efficiency Target→Source** | input_number.efficiency          |
+| Field                        | Value                   |
+| ---------------------------- | ----------------------- |
+| **Name**                     | DC Bus to AC Bus        |
+| **Source**                   | DC_Node                 |
+| **Target**                   | AC_Node                 |
+| **Max Power Source→Target**  | input_number.max_power  |
+| **Max Power Target→Source**  | input_number.max_power  |
+| **Efficiency Source→Target** | input_number.efficiency |
+| **Efficiency Target→Source** | input_number.efficiency |
 
 ### Availability Windows
 
