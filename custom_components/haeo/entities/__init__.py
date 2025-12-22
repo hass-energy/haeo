@@ -52,10 +52,11 @@ async def async_setup_sensor_entities(
         _LOGGER.debug("No coordinator data available for sensor setup")
         return
 
-    outputs = coordinator.data["outputs"]
+    elements = coordinator.data["elements"]
 
     for subentry in config_entry.subentries.values():
-        subentry_devices = outputs.get(subentry.title, {})
+        element_data = elements.get(subentry.title)
+        subentry_devices = element_data["outputs"] if element_data else {}
         translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
 
         for device_name, device_outputs in subentry_devices.items():

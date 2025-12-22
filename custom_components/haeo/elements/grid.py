@@ -97,23 +97,36 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
 
     return [
         # Create SourceSink for the grid (both source and sink - can import and export)
-        {"element_type": "source_sink", "name": config["name"], "is_source": True, "is_sink": True},
+        {
+            "element_type": "source_sink",
+            "name": config["name"],
+            "is_source": True,
+            "is_sink": True,
+        },
         # Create a connection from system node to grid
         {
             "element_type": "connection",
             "name": f"{config['name']}:connection",
             "source": config["name"],
             "target": config["connection"],
-            "max_power_source_target": config.get("import_limit"),  # source_target is grid to system (IMPORT)
-            "max_power_target_source": config.get("export_limit"),  # target_source is system to grid (EXPORT)
+            "max_power_source_target": config.get(
+                "import_limit"
+            ),  # source_target is grid to system (IMPORT)
+            "max_power_target_source": config.get(
+                "export_limit"
+            ),  # target_source is system to grid (EXPORT)
             "price_source_target": config["import_price"],
-            "price_target_source": [-p for p in config["export_price"]],  # Negate export because exporting earns money
+            "price_target_source": [
+                -p for p in config["export_price"]
+            ],  # Negate export because exporting earns money
         },
     ]
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: GridConfigData
+    name: str,
+    outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+    config: GridConfigData,
 ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
     """Provide state updates for grid output sensors."""
     connection = outputs[f"{name}:connection"]
@@ -122,8 +135,12 @@ def outputs(
 
     # source_target = grid to system = IMPORT
     # target_source = system to grid = EXPORT
-    grid_outputs[GRID_POWER_EXPORT] = replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER)
-    grid_outputs[GRID_POWER_IMPORT] = replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER)
+    grid_outputs[GRID_POWER_EXPORT] = replace(
+        connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER
+    )
+    grid_outputs[GRID_POWER_IMPORT] = replace(
+        connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER
+    )
 
     # Active grid power (export - import)
     grid_outputs[GRID_POWER_ACTIVE] = replace(
@@ -142,9 +159,13 @@ def outputs(
 
     # Shadow prices for limits (only if limits are set)
     if "import_limit" in config:
-        grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+        grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[
+            CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
+        ]
 
     if "export_limit" in config:
-        grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
+        grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[
+            CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
+        ]
 
     return {GRID_DEVICE_GRID: grid_outputs}

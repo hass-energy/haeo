@@ -72,12 +72,9 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         }
         native_value: StateType | None = None
 
-        # Navigate the nested structure: outputs -> subentry -> device -> outputs
-        subentry_devices = (
-            self.coordinator.data["outputs"].get(self._subentry_key)
-            if self.coordinator.data
-            else None
-        )
+        # Navigate the nested structure: elements -> element -> outputs -> device -> output
+        element_data = self.coordinator.data["elements"].get(self._subentry_key)
+        subentry_devices = element_data["outputs"] if element_data else None
         outputs = subentry_devices.get(self._device_key) if subentry_devices else None
         if outputs:
             output_data = outputs.get(self._output_name)

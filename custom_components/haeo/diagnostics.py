@@ -49,11 +49,11 @@ async def async_get_config_entry_diagnostics(
     }
 
     # Transform subentries into participants dict
-    # If coordinator has loaded_configs (with resolved entity values), use those
+    # If coordinator has element data (with resolved entity values), use those inputs
     # Otherwise fall back to raw subentry data
     coordinator = config_entry.runtime_data
-    loaded_configs = (
-        coordinator.data["loaded_configs"]
+    elements = (
+        coordinator.data["elements"]
         if isinstance(coordinator, HaeoDataUpdateCoordinator)
         and coordinator.data is not None  # pyright: ignore[reportUnnecessaryComparison]
         else None
@@ -63,9 +63,9 @@ async def async_get_config_entry_diagnostics(
         if subentry.subentry_type != "network":
             element_name = subentry.title
 
-            if loaded_configs is not None and element_name in loaded_configs:
-                # Use the already-loaded config with resolved values
-                raw_data = dict(loaded_configs[element_name])
+            if elements is not None and element_name in elements:
+                # Use the already-loaded config (inputs) with resolved values
+                raw_data = dict(elements[element_name]["inputs"])
             else:
                 # Fall back to raw subentry data
                 raw_data = dict(subentry.data)

@@ -249,17 +249,27 @@ type SubentryDevices = dict[
 ]
 
 
+class ElementData(TypedDict):
+    """Data structure for a single element's inputs and outputs.
+
+    Attributes:
+        inputs: Loaded configuration with resolved sensor/forecast values
+        outputs: Sensor outputs grouped by device and output name
+    """
+
+    inputs: ElementConfigData
+    outputs: SubentryDevices
+
+
 class CoordinatorData(TypedDict):
     """Data structure returned by the coordinator update cycle.
 
     This provides all data needed by HAEO entities:
-    - outputs: Sensor outputs grouped by subentry, device, and output name
-    - loaded_configs: Element configurations with resolved sensor/forecast values
+    - elements: Per-element data with inputs (loaded config) and outputs (sensor data)
     - forecast_timestamps: Timestamps for each forecast period (fence posts)
     """
 
-    outputs: dict[str, SubentryDevices]
-    loaded_configs: dict[str, ElementConfigData]
+    elements: dict[str, ElementData]
     forecast_timestamps: tuple[float, ...]
 
 
@@ -393,21 +403,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             ),
         }
 
-        outputs: dict[str, SubentryDevices] = {
-            # Hub outputs use config entry title as subentry, network element type as device
-            self.config_entry.title: {
-                ELEMENT_TYPE_NETWORK: {
-                    name: _build_coordinator_output(name, output, forecast_times=None)
-                    for name, output in network_output_data.items()
-                }
-            }
-        }
-
         # Build nested outputs structure from all network model elements
         model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
             element_name: element.outputs()
             for element_name, element in network.elements.items()
         }
+
+        # Build elements dict with inputs and outputs for each element
+        elements: dict[str, ElementData] = {}
 
         # Process each config element using its outputs function to get output sensor states
         for element_name, element_config in self._participant_configs.items():
@@ -432,7 +435,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 )
                 raise
 
-            # Process each device's sensor outputs, grouping under the subentry (element_name)
+            # Process each device's sensor outputs
             subentry_devices: SubentryDevices = {}
             for device_name, device_outputs in adapter_outputs.items():
                 processed_outputs: dict[
@@ -449,14 +452,28 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 if processed_outputs:
                     subentry_devices[device_name] = processed_outputs
 
-            if subentry_devices:
-                outputs[element_name] = subentry_devices
+            # Store element data with both inputs (loaded config) and outputs
+            elements[element_name] = ElementData(
+                inputs=loaded_configs[element_name],
+                outputs=subentry_devices,
+            )
+
+        # Add hub/network outputs as a special element
+        # The hub uses config entry title as element name, network as device
+        elements[self.config_entry.title] = ElementData(
+            inputs={},  # type: ignore[typeddict-item]  # Hub has no config inputs
+            outputs={
+                ELEMENT_TYPE_NETWORK: {
+                    name: _build_coordinator_output(name, output, forecast_times=None)
+                    for name, output in network_output_data.items()
+                }
+            },
+        )
 
         # Record successful update time for diagnostics
         self.last_update_success_time = dt_util.utcnow()
 
         return CoordinatorData(
-            outputs=outputs,
-            loaded_configs=loaded_configs,
+            elements=elements,
             forecast_timestamps=forecast_timestamps,
         )

@@ -14,7 +14,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
-from custom_components.haeo.coordinator import CoordinatorData
+from custom_components.haeo.coordinator import CoordinatorData, ElementData
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
@@ -383,18 +383,20 @@ class TestHaeoInputNumberCoordinatorUpdates:
         # Simulate coordinator with loaded config - provide all required BatteryConfigData fields
         now = datetime.now(tz=UTC).timestamp()
         coordinator.data = CoordinatorData(
-            outputs={},
-            loaded_configs={
-                "Test Battery": {
-                    "element_type": "battery",
-                    "name": "Test Battery",
-                    "connection": "dc_bus",
-                    "capacity": [13.5, 13.5, 13.5],
-                    "initial_charge_percentage": [50.0, 50.0, 50.0],
-                    "min_charge_percentage": 10.0,
-                    "max_charge_percentage": 90.0,
-                    "efficiency": 95.0,
-                }
+            elements={
+                "Test Battery": ElementData(
+                    inputs={
+                        "element_type": "battery",
+                        "name": "Test Battery",
+                        "connection": "dc_bus",
+                        "capacity": [13.5, 13.5, 13.5],
+                        "initial_charge_percentage": [50.0, 50.0, 50.0],
+                        "min_charge_percentage": 10.0,
+                        "max_charge_percentage": 90.0,
+                        "efficiency": 95.0,
+                    },  # type: ignore[typeddict-item]
+                    outputs={},
+                )
             },
             forecast_timestamps=(now, now + 300, now + 600),
         )
@@ -439,18 +441,20 @@ class TestHaeoInputNumberCoordinatorUpdates:
         # Simulate coordinator update with loaded values - provide all required BatteryConfigData fields
         now = datetime.now(tz=UTC).timestamp()
         coordinator.data = CoordinatorData(
-            outputs={},
-            loaded_configs={
-                "Driven Battery": {
-                    "element_type": "battery",
-                    "name": "Driven Battery",
-                    "connection": "dc_bus",
-                    "capacity": [15.0, 15.0],
-                    "initial_charge_percentage": [50.0, 50.0],
-                    "min_charge_percentage": 10.0,
-                    "max_charge_percentage": 90.0,
-                    "efficiency": 95.0,
-                }
+            elements={
+                "Driven Battery": ElementData(
+                    inputs={
+                        "element_type": "battery",
+                        "name": "Driven Battery",
+                        "connection": "dc_bus",
+                        "capacity": [15.0, 15.0],
+                        "initial_charge_percentage": [50.0, 50.0],
+                        "min_charge_percentage": 10.0,
+                        "max_charge_percentage": 90.0,
+                        "efficiency": 95.0,
+                    },  # type: ignore[typeddict-item]
+                    outputs={},
+                )
             },
             forecast_timestamps=(now, now + 300),
         )
@@ -486,18 +490,20 @@ class TestHaeoInputNumberCoordinatorUpdates:
         # Simulate coordinator update with different loaded values - provide all required BatteryConfigData fields
         now = datetime.now(tz=UTC).timestamp()
         coordinator.data = CoordinatorData(
-            outputs={},
-            loaded_configs={
-                "Test Battery": {
-                    "element_type": "battery",
-                    "name": "Test Battery",
-                    "connection": "dc_bus",
-                    "capacity": [13.5, 13.5],
-                    "initial_charge_percentage": [50.0, 50.0],
-                    "min_charge_percentage": 10.0,
-                    "max_charge_percentage": 90.0,
-                    "efficiency": 95.0,
-                }
+            elements={
+                "Test Battery": ElementData(
+                    inputs={
+                        "element_type": "battery",
+                        "name": "Test Battery",
+                        "connection": "dc_bus",
+                        "capacity": [13.5, 13.5],
+                        "initial_charge_percentage": [50.0, 50.0],
+                        "min_charge_percentage": 10.0,
+                        "max_charge_percentage": 90.0,
+                        "efficiency": 95.0,
+                    },  # type: ignore[typeddict-item]
+                    outputs={},
+                )
             },
             forecast_timestamps=(now, now + 300),
         )

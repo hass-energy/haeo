@@ -167,15 +167,13 @@ class HaeoInputNumber(CoordinatorEntity[HaeoDataUpdateCoordinator], RestoreNumbe
         In driven mode, the state is also updated from the first loaded value.
         In editable mode, the state remains user-controlled.
         """
-        # coordinator.data is None before first successful update
-        if self.coordinator.data is None:  # pyright: ignore[reportUnnecessaryComparison]
+        # Get element data containing inputs (loaded config) and outputs
+        element_data = self.coordinator.data["elements"].get(self._element_name)
+        if element_data is None:
             return
 
-        # Get loaded values for this field from coordinator
-        loaded_config = self.coordinator.data["loaded_configs"].get(self._element_name)
-        if loaded_config is None:
-            return
-
+        # Get loaded values for this field from inputs
+        loaded_config = element_data["inputs"]
         field_values = loaded_config.get(self._field_name)
         if field_values is None:
             return
