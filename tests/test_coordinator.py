@@ -128,6 +128,9 @@ def mock_battery_subentry(
         {"unit_of_measurement": UnitOfEnergy.WATT_HOUR},
     )
     hass.states.async_set("sensor.battery_soc", "50.0")
+    hass.states.async_set("sensor.battery_min_soc", "20.0")
+    hass.states.async_set("sensor.battery_max_soc", "80.0")
+    hass.states.async_set("sensor.battery_efficiency", "95.0")
 
     subentry = ConfigSubentry(
         data=MappingProxyType(
@@ -137,9 +140,9 @@ def mock_battery_subentry(
                 CONF_CAPACITY: "sensor.battery_capacity",
                 CONF_CONNECTION: "DC Bus",
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 80.0,
-                CONF_EFFICIENCY: 95.0,
+                CONF_MIN_CHARGE_PERCENTAGE: "sensor.battery_min_soc",
+                CONF_MAX_CHARGE_PERCENTAGE: "sensor.battery_max_soc",
+                CONF_EFFICIENCY: "sensor.battery_efficiency",
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -225,6 +228,9 @@ def test_coordinator_initialization_collects_participants_and_entity_ids(
     assert tracked_entities == {
         "sensor.battery_capacity",
         "sensor.battery_soc",
+        "sensor.battery_min_soc",
+        "sensor.battery_max_soc",
+        "sensor.battery_efficiency",
         "sensor.import_price",
         "sensor.export_price",
     }
@@ -545,15 +551,21 @@ def test_extract_entity_ids_skips_constant_fields() -> None:
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
         CONF_CAPACITY: "sensor.capacity",
         CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.soc",
-        CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-        CONF_MAX_CHARGE_PERCENTAGE: 80.0,
-        CONF_EFFICIENCY: 95.0,
+        CONF_MIN_CHARGE_PERCENTAGE: "sensor.min_soc",
+        CONF_MAX_CHARGE_PERCENTAGE: "sensor.max_soc",
+        CONF_EFFICIENCY: "sensor.efficiency",
         CONF_CONNECTION: "DC Bus",
     }
 
     extracted = extract_entity_ids_from_config(config)
 
-    assert extracted == {"sensor.capacity", "sensor.soc"}
+    assert extracted == {
+        "sensor.capacity",
+        "sensor.soc",
+        "sensor.min_soc",
+        "sensor.max_soc",
+        "sensor.efficiency",
+    }
 
 
 def test_extract_entity_ids_skips_missing_metadata(
@@ -565,9 +577,9 @@ def test_extract_entity_ids_skips_missing_metadata(
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
         CONF_CAPACITY: "sensor.capacity",
         CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.soc",
-        CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-        CONF_MAX_CHARGE_PERCENTAGE: 80.0,
-        CONF_EFFICIENCY: 95.0,
+        CONF_MIN_CHARGE_PERCENTAGE: "sensor.min_soc",
+        CONF_MAX_CHARGE_PERCENTAGE: "sensor.max_soc",
+        CONF_EFFICIENCY: "sensor.efficiency",
         CONF_CONNECTION: "DC Bus",
     }
 
@@ -586,7 +598,13 @@ def test_extract_entity_ids_skips_missing_metadata(
 
     extracted = extract_entity_ids_from_config(config)
 
-    assert extracted == {"sensor.soc"}
+    # CONF_CAPACITY metadata is faked to return None, so sensor.capacity is excluded
+    assert extracted == {
+        "sensor.soc",
+        "sensor.min_soc",
+        "sensor.max_soc",
+        "sensor.efficiency",
+    }
 
 
 def test_extract_entity_ids_catches_type_errors(
@@ -598,9 +616,9 @@ def test_extract_entity_ids_catches_type_errors(
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
         CONF_CAPACITY: "sensor.capacity",
         CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.soc",
-        CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-        CONF_MAX_CHARGE_PERCENTAGE: 80.0,
-        CONF_EFFICIENCY: 95.0,
+        CONF_MIN_CHARGE_PERCENTAGE: "sensor.min_soc",
+        CONF_MAX_CHARGE_PERCENTAGE: "sensor.max_soc",
+        CONF_EFFICIENCY: "sensor.efficiency",
         CONF_CONNECTION: "DC Bus",
     }
 

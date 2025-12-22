@@ -14,7 +14,10 @@ import pytest
 
 from custom_components.haeo.data.loader import time_series_loader as tsl
 from custom_components.haeo.data.loader.sensor_loader import normalize_entity_ids
-from custom_components.haeo.data.loader.time_series_loader import TimeSeriesLoader, _collect_sensor_ids
+from custom_components.haeo.data.loader.time_series_loader import (
+    TimeSeriesLoader,
+    _collect_sensor_ids,
+)
 
 
 def test_collect_sensor_ids_from_mapping() -> None:
@@ -40,13 +43,17 @@ def test_normalize_entity_ids_rejects_invalid_type() -> None:
         normalize_entity_ids(123)
 
 
-def test_time_series_loader_available_counts_every_sensor(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_time_series_loader_available_counts_every_sensor(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """available() should succeed when all referenced sensors load correctly."""
 
     loader = TimeSeriesLoader()
     captured: list[str] = []
 
-    def fake_load_sensors(_hass: HomeAssistant, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(
+        _hass: HomeAssistant, entity_ids: Sequence[str]
+    ) -> dict[str, float]:
         captured.extend(entity_ids)
         return dict.fromkeys(entity_ids, 0.0)
 
@@ -62,12 +69,16 @@ def test_time_series_loader_available_counts_every_sensor(hass: HomeAssistant, m
     assert captured == ["sensor.present_power", "sensor.forecast_day"]
 
 
-def test_time_series_loader_available_missing_payloads(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_time_series_loader_available_missing_payloads(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """available() should return False when any referenced sensor fails to load."""
 
     loader = TimeSeriesLoader()
 
-    def fake_load_sensors(_hass: HomeAssistant, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(
+        _hass: HomeAssistant, entity_ids: Sequence[str]
+    ) -> dict[str, float]:
         return {entity_ids[0]: 0.0}
 
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
@@ -75,7 +86,9 @@ def test_time_series_loader_available_missing_payloads(hass: HomeAssistant, monk
     assert not loader.available(hass=hass, value=["sensor.one", "sensor.two"])
 
 
-def test_time_series_loader_available_invalid_value(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_time_series_loader_available_invalid_value(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """available() should gracefully reject invalid value types."""
 
     loader = TimeSeriesLoader()
@@ -96,7 +109,9 @@ async def test_time_series_loader_load_merges_present_and_forecast(
 
     loader = TimeSeriesLoader()
 
-    def fake_load_sensors(_hass: HomeAssistant, entity_ids: Sequence[str]) -> dict[str, object]:
+    def fake_load_sensors(
+        _hass: HomeAssistant, entity_ids: Sequence[str]
+    ) -> dict[str, object]:
         assert list(entity_ids) == [
             "sensor.present_power",
             "sensor.forecast_day",
@@ -124,12 +139,16 @@ async def test_time_series_loader_load_merges_present_and_forecast(
 
 
 @pytest.mark.asyncio
-async def test_time_series_loader_load_present_only(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_time_series_loader_load_present_only(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """load() should broadcast the summed present value when no forecasts exist."""
 
     loader = TimeSeriesLoader()
 
-    def fake_load_sensors(_hass: HomeAssistant, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(
+        _hass: HomeAssistant, entity_ids: Sequence[str]
+    ) -> dict[str, float]:
         assert list(entity_ids) == ["sensor.a", "sensor.b"]
         return {"sensor.a": 2.0, "sensor.b": 3.0}
 
@@ -146,7 +165,9 @@ async def test_time_series_loader_load_present_only(hass: HomeAssistant, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_time_series_loader_load_returns_empty_for_missing_horizon(hass: HomeAssistant) -> None:
+async def test_time_series_loader_load_returns_empty_for_missing_horizon(
+    hass: HomeAssistant,
+) -> None:
     """load() should return an empty series when forecast_times is empty."""
 
     loader = TimeSeriesLoader()
@@ -161,17 +182,19 @@ async def test_time_series_loader_load_returns_empty_for_missing_horizon(hass: H
 
 
 @pytest.mark.asyncio
-async def test_time_series_loader_load_requires_entity_ids(hass: HomeAssistant) -> None:
-    """load() should reject configurations without sensor references."""
+async def test_time_series_loader_load_returns_none_without_entity_ids(
+    hass: HomeAssistant,
+) -> None:
+    """load() should return None when no sensor references are provided."""
 
     loader = TimeSeriesLoader()
 
-    with pytest.raises(ValueError, match="At least one sensor entity is required"):
-        await loader.load(
-            hass=hass,
-            value=(),
-            forecast_times=[0, 60],
-        )
+    result = await loader.load(
+        hass=hass,
+        value=(),
+        forecast_times=[0, 60],
+    )
+    assert result is None
 
 
 @pytest.mark.asyncio
@@ -182,7 +205,9 @@ async def test_time_series_loader_load_fails_when_no_payloads(
 
     loader = TimeSeriesLoader()
 
-    def fake_load_sensors(_hass: HomeAssistant, _entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(
+        _hass: HomeAssistant, _entity_ids: Sequence[str]
+    ) -> dict[str, float]:
         return {}
 
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
@@ -203,7 +228,9 @@ async def test_time_series_loader_load_fails_when_sensor_missing(
 
     loader = TimeSeriesLoader()
 
-    def fake_load_sensors(_hass: HomeAssistant, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(
+        _hass: HomeAssistant, entity_ids: Sequence[str]
+    ) -> dict[str, float]:
         return {entity_ids[0]: 0.0}
 
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)

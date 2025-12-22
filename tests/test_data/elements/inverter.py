@@ -25,8 +25,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             connection="network",
             max_power_dc_to_ac=["sensor.max_power"],
             max_power_ac_to_dc=["sensor.max_power"],
-            efficiency_dc_to_ac=100,
-            efficiency_ac_to_dc=100,
+            efficiency_dc_to_ac="sensor.efficiency",
+            efficiency_ac_to_dc="sensor.efficiency",
         ),
         "data": inverter_element.InverterConfigData(
             element_type="inverter",
@@ -34,8 +34,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             connection="network",
             max_power_dc_to_ac=[10.0],
             max_power_ac_to_dc=[10.0],
-            efficiency_dc_to_ac=100.0,
-            efficiency_ac_to_dc=100.0,
+            efficiency_dc_to_ac=[100.0],
+            efficiency_ac_to_dc=[100.0],
         ),
         "model": [
             {"element_type": "source_sink", "name": "inverter_main", "is_source": False, "is_sink": False},
@@ -46,8 +46,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 "target": "network",
                 "max_power_source_target": [10.0],
                 "max_power_target_source": [10.0],
-                "efficiency_source_target": 100.0,
-                "efficiency_target_source": 100.0,
+                "efficiency_source_target": [100.0],
+                "efficiency_target_source": [100.0],
             },
         ],
         "model_outputs": {

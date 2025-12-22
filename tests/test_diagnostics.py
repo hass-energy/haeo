@@ -118,9 +118,9 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
                 CONF_CAPACITY: "sensor.battery_capacity",
                 CONF_CONNECTION: "DC Bus",
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
+                CONF_MIN_CHARGE_PERCENTAGE: "sensor.battery_min_soc",
+                CONF_MAX_CHARGE_PERCENTAGE: "sensor.battery_max_soc",
+                CONF_EFFICIENCY: "sensor.battery_efficiency",
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -146,6 +146,9 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
             "device_class": "battery",
         },
     )
+    hass.states.async_set("sensor.battery_min_soc", "10.0")
+    hass.states.async_set("sensor.battery_max_soc", "90.0")
+    hass.states.async_set("sensor.battery_efficiency", "95.0")
 
     entry.runtime_data = None
 
@@ -161,12 +164,15 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     assert battery_config[CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
 
     # Verify input states are collected using State.as_dict()
-    # Both sensor.battery_capacity and sensor.battery_soc should be collected
+    # All sensor fields should be collected: capacity, soc, min_soc, max_soc, efficiency
     inputs = diagnostics["inputs"]
-    assert len(inputs) == 2
+    assert len(inputs) == 5
     entity_ids = [inp["entity_id"] for inp in inputs]
     assert "sensor.battery_capacity" in entity_ids
     assert "sensor.battery_soc" in entity_ids
+    assert "sensor.battery_min_soc" in entity_ids
+    assert "sensor.battery_max_soc" in entity_ids
+    assert "sensor.battery_efficiency" in entity_ids
     # Verify structure of input states
     for inp in inputs:
         assert "attributes" in inp
@@ -215,9 +221,9 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
                 CONF_CAPACITY: "sensor.battery_capacity",
                 CONF_CONNECTION: "DC Bus",
                 CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-                CONF_EFFICIENCY: 95.0,
+                CONF_MIN_CHARGE_PERCENTAGE: "sensor.battery_min_soc",
+                CONF_MAX_CHARGE_PERCENTAGE: "sensor.battery_max_soc",
+                CONF_EFFICIENCY: "sensor.battery_efficiency",
             }
         ),
         subentry_type=ELEMENT_TYPE_BATTERY,
@@ -231,6 +237,9 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
         "sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"}
     )
     hass.states.async_set("sensor.battery_soc", "75", {"unit_of_measurement": "%"})
+    hass.states.async_set("sensor.battery_min_soc", "10.0")
+    hass.states.async_set("sensor.battery_max_soc", "90.0")
+    hass.states.async_set("sensor.battery_efficiency", "95.0")
 
     entry.runtime_data = None
 

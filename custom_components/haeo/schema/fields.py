@@ -16,6 +16,7 @@ from homeassistant.helpers.selector import (
     NumberSelectorConfig,
     NumberSelectorMode,
     SelectOptionDict,
+    Selector,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -27,7 +28,6 @@ from custom_components.haeo.data.loader.extractors import EntityMetadata
 
 from .params import SchemaParams
 from .util import UnitSpec
-
 
 @dataclass(frozen=True)
 class FieldMeta(ABC):
@@ -83,6 +83,36 @@ class PowerFieldMeta(FieldMeta):
         )
 
 
+class _FloatOrEntitySelector(Selector[EntitySelectorConfig]):
+    """Selector that accepts float values or entity IDs.
+
+    This wrapper allows stored configuration to contain float default values
+    while presenting only an entity selector in the config flow UI. The UI
+    serialization delegates to the underlying EntitySelector, so users only
+    see entity selection. Float values are accepted during validation for
+    stored defaults but cannot be entered through the UI.
+    """
+
+    selector_type = "entity"
+
+    def __init__(self, entity_selector: Any) -> None:
+        # Don't call super().__init__ - we're wrapping an existing selector
+        self._entity_selector = entity_selector
+        # Copy config from wrapped selector for compatibility
+        self.config = entity_selector.config
+
+    def __call__(self, value: Any) -> Any:
+        """Validate input - accept floats or delegate to entity selector."""
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+        # EntitySelector validates and returns entity ID(s)
+        return self._entity_selector(value)
+
+    def serialize(self) -> dict[str, Any]:
+        """Serialize as entity selector for UI rendering."""
+        return self._entity_selector.serialize()
+
+
 @dataclass(frozen=True, kw_only=True)
 class SensorFieldMeta(FieldMeta):
     """Generic metadata for sensor entity references."""
@@ -93,7 +123,12 @@ class SensorFieldMeta(FieldMeta):
     field_type: Literal["sensor"] = "sensor"
 
     def _get_field_validators(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
-        """Return entity selector with unit-based filtering."""
+        """Return entity selector with unit-based filtering.
+
+        The validator accepts both entity IDs (for UI selection) and float values
+        (for stored defaults). Float values are used as initial values for editable
+        number entities but are not presented in the config flow UI.
+        """
         # Filter incompatible entities based on accepted_units
         entity_metadata: Sequence[EntityMetadata] = schema_params.get(
             "entity_metadata", []
@@ -104,15 +139,17 @@ class SensorFieldMeta(FieldMeta):
             if not v.is_compatible_with(self.accepted_units)
         ]
 
-        return vol.All(
-            EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=self.multiple,
-                    exclude_entities=incompatible_entities,
-                )
-            ),
+        entity_selector = EntitySelector(
+            EntitySelectorConfig(
+                domain=["sensor", "input_number"],
+                multiple=self.multiple,
+                exclude_entities=incompatible_entities,
+            )
         )
+
+        # Accept either entity IDs (via selector) or float values (for defaults)
+        # Use custom wrapper that serializes as entity selector for UI
+        return vol.All(_FloatOrEntitySelector(entity_selector))
 
 
 @dataclass(frozen=True)
@@ -311,57 +348,58 @@ PERCENTAGE_UNITS: Final = [PERCENTAGE]
 # For composite patterns, create tuples for each energy unit
 PRICE_UNITS: Final[list[UnitSpec]] = [("*", "/", unit.value) for unit in UnitOfEnergy]
 
-# Schema mode type aliases (configuration with entity IDs)
+# Schema mode type aliases (configuration with entity IDs or constant fallbacks)
+# Float values can be stored as defaults but are not presented in the UI
 PowerFieldSchema = Annotated[float, PowerFieldMeta()]
 PowerSensorFieldSchema = Annotated[
-    Sequence[str], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=False)
+    Sequence[str] | float, SensorFieldMeta(accepted_units=POWER_UNITS, multiple=False)
 ]
 PowerSensorsFieldSchema = Annotated[
-    Sequence[str], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True)
+    Sequence[str] | float, SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True)
 ]
 PowerFlowFieldSchema = Annotated[float, PowerFlowFieldMeta()]
 EnergyFieldSchema = Annotated[float, EnergyFieldMeta()]
 EnergySensorFieldSchema = Annotated[
-    str, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)
+    str | float, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)
 ]
 EnergySensorsFieldSchema = Annotated[
-    Sequence[str], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)
+    Sequence[str] | float, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)
 ]
 PercentageFieldSchema = Annotated[float, PercentageFieldMeta()]
 PercentageSensorFieldSchema = Annotated[
-    str, SensorFieldMeta(accepted_units=PERCENTAGE_UNITS, multiple=False)
+    str | float, SensorFieldMeta(accepted_units=PERCENTAGE_UNITS, multiple=False)
 ]
 BooleanFieldSchema = Annotated[bool, BooleanFieldMeta()]
 ElementNameFieldSchema = Annotated[str, ElementNameFieldMeta()]
 NameFieldSchema = Annotated[str, NameFieldMeta()]
 BatterySOCFieldSchema = Annotated[float, BatterySOCFieldMeta()]
 BatterySOCSensorFieldSchema = Annotated[
-    str, SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)
+    str | float, SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)
 ]
 PriceFieldSchema = Annotated[float, PriceFieldMeta()]
 PriceSensorsFieldSchema = Annotated[
-    Sequence[str], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)
+    Sequence[str] | float, SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)
 ]
 
 # Direction-aware schema type aliases for visualization
 # Power production (solar, generators): adds power to the system (+)
 PowerProductionSensorsFieldSchema = Annotated[
-    Sequence[str],
+    Sequence[str] | float,
     SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True, direction="+"),
 ]
 # Power consumption (loads): takes power from the system (-)
 PowerConsumptionSensorsFieldSchema = Annotated[
-    Sequence[str],
+    Sequence[str] | float,
     SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True, direction="-"),
 ]
 # Price for import/consumption: cost to the user (-)
 PriceImportSensorsFieldSchema = Annotated[
-    Sequence[str],
+    Sequence[str] | float,
     SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True, direction="-"),
 ]
 # Price for export/production: revenue for the user (+)
 PriceExportSensorsFieldSchema = Annotated[
-    Sequence[str],
+    Sequence[str] | float,
     SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True, direction="+"),
 ]
 

@@ -20,8 +20,8 @@ from custom_components.haeo.schema.fields import (
     NameFieldSchema,
     PowerProductionSensorsFieldData,
     PowerProductionSensorsFieldSchema,
-    PriceFieldData,
-    PriceFieldSchema,
+    PriceExportSensorsFieldData,
+    PriceExportSensorsFieldSchema,
 )
 
 ELEMENT_TYPE: Final = "solar"
@@ -65,7 +65,7 @@ class SolarConfigSchema(TypedDict):
     forecast: PowerProductionSensorsFieldSchema
 
     # Optional fields
-    price_production: NotRequired[PriceFieldSchema]
+    price_production: NotRequired[PriceExportSensorsFieldSchema]
     curtailment: NotRequired[BooleanFieldSchema]
 
 
@@ -78,7 +78,7 @@ class SolarConfigData(TypedDict):
     forecast: PowerProductionSensorsFieldData
 
     # Optional fields
-    price_production: NotRequired[PriceFieldData]
+    price_production: NotRequired[PriceExportSensorsFieldData]
     curtailment: NotRequired[BooleanFieldData]
 
 

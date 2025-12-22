@@ -17,8 +17,8 @@ from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
     NameFieldData,
     NameFieldSchema,
-    PowerFieldData,
-    PowerFieldSchema,
+    PowerSensorsFieldData,
+    PowerSensorsFieldSchema,
     PriceExportSensorsFieldData,
     PriceExportSensorsFieldSchema,
     PriceImportSensorsFieldData,
@@ -73,8 +73,8 @@ class GridConfigSchema(TypedDict):
     export_price: PriceExportSensorsFieldSchema
 
     # Optional fields
-    import_limit: NotRequired[PowerFieldSchema]
-    export_limit: NotRequired[PowerFieldSchema]
+    import_limit: NotRequired[PowerSensorsFieldSchema]
+    export_limit: NotRequired[PowerSensorsFieldSchema]
 
 
 class GridConfigData(TypedDict):
@@ -87,8 +87,8 @@ class GridConfigData(TypedDict):
     export_price: PriceExportSensorsFieldData
 
     # Optional fields
-    import_limit: NotRequired[PowerFieldData]
-    export_limit: NotRequired[PowerFieldData]
+    import_limit: NotRequired[PowerSensorsFieldData]
+    export_limit: NotRequired[PowerSensorsFieldData]
 
 
 CONFIG_DEFAULTS: dict[str, Any] = {}
@@ -160,12 +160,12 @@ def outputs(
     )
 
     # Shadow prices for limits (only if limits are set)
-    if "import_limit" in config:
+    if config.get("import_limit") is not None:
         grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[
             CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
         ]
 
-    if "export_limit" in config:
+    if config.get("export_limit") is not None:
         grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[
             CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
         ]

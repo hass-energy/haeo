@@ -11,13 +11,26 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_horizon
 from .sensor_loader import load_sensors, normalize_entity_ids
 
 
+def _is_constant_value(value: Any) -> bool:
+    """Return True if value is a constant number (not a sensor reference)."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def _collect_sensor_ids(value: Any) -> list[str]:
-    """Return all sensor entity IDs referenced by *value*."""
+    """Return all sensor entity IDs referenced by *value*.
+
+    Returns an empty list if value is a constant number.
+    """
+    # Constant values have no sensor IDs to collect
+    if _is_constant_value(value):
+        return []
 
     if isinstance(value, Mapping):
         entity_ids: list[str] = []
         for sensors in value.values():
             if sensors is None:
+                continue
+            if _is_constant_value(sensors):
                 continue
             entity_ids.extend(normalize_entity_ids(sensors))
         return entity_ids
@@ -50,13 +63,25 @@ class TimeSeriesLoader:
         value: Any,
         forecast_times: Sequence[float],
         **_kwargs: Any,
-    ) -> list[float]:
+    ) -> list[float] | None:
         """Load sensor values and forecasts, returning interpolated values for ``forecast_times``.
 
         When forecast_times is empty, returns an empty list without loading sensor data.
         This allows structural validation and model element creation without requiring
         actual sensor data to be available.
+
+        When a constant numeric value is provided, returns that value repeated for each
+        forecast time. This enables fields to accept either sensor entity IDs or direct
+        numeric values.
+
+        When no entity IDs are provided (empty list or None), returns None to signal
+        that this field should use its default/fallback behavior.
         """
+        # Handle constant numeric values
+        if _is_constant_value(value):
+            if not forecast_times:
+                return []
+            return [float(value)] * len(forecast_times)
 
         entity_ids = _collect_sensor_ids(value)
 
@@ -64,8 +89,8 @@ class TimeSeriesLoader:
             return []
 
         if not entity_ids:
-            msg = "At least one sensor entity is required"
-            raise ValueError(msg)
+            # No sensors provided - return None to signal fallback behavior
+            return None
 
         payloads = load_sensors(hass, entity_ids)
 

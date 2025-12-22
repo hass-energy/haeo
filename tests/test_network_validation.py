@@ -31,10 +31,15 @@ from custom_components.haeo.elements.battery import (
     CONF_UNDERCHARGE_COST,
     CONF_UNDERCHARGE_PERCENTAGE,
 )
-from custom_components.haeo.elements.battery import CONF_CONNECTION as BATTERY_CONF_CONNECTION
+from custom_components.haeo.elements.battery import (
+    CONF_CONNECTION as BATTERY_CONF_CONNECTION,
+)
 from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CONNECTION
 from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE
-from custom_components.haeo.validation import format_component_summary, validate_network_topology
+from custom_components.haeo.validation import (
+    format_component_summary,
+    validate_network_topology,
+)
 
 
 @pytest.fixture
@@ -194,6 +199,9 @@ async def test_validate_network_topology_with_battery(
     )
     hass.states.async_set("sensor.battery_capacity", "10.0")
     hass.states.async_set("sensor.battery_soc", "50.0")
+    hass.states.async_set("sensor.battery_min_soc", "10.0")
+    hass.states.async_set("sensor.battery_max_soc", "90.0")
+    hass.states.async_set("sensor.battery_efficiency", "95.0")
 
     participants: dict[str, ElementConfigSchema] = {
         "main_node": {
@@ -213,9 +221,9 @@ async def test_validate_network_topology_with_battery(
             BATTERY_CONF_CONNECTION: "main",
             CONF_CAPACITY: "sensor.battery_capacity",
             CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-            CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-            CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-            CONF_EFFICIENCY: 95.0,
+            CONF_MIN_CHARGE_PERCENTAGE: "sensor.battery_min_soc",
+            CONF_MAX_CHARGE_PERCENTAGE: "sensor.battery_max_soc",
+            CONF_EFFICIENCY: "sensor.battery_efficiency",
         },
     }
 
@@ -249,6 +257,11 @@ async def test_validate_network_topology_with_battery_all_sections(
         "0.02",
         {"forecast": [{"start_time": "2025-01-01T00:00:00+00:00", "price": 0.02}]},
     )
+    hass.states.async_set("sensor.battery_min_soc", "10.0")
+    hass.states.async_set("sensor.battery_max_soc", "90.0")
+    hass.states.async_set("sensor.battery_efficiency", "95.0")
+    hass.states.async_set("sensor.battery_undercharge_pct", "5.0")
+    hass.states.async_set("sensor.battery_overcharge_pct", "95.0")
 
     participants: dict[str, ElementConfigSchema] = {
         "main_node": {
@@ -261,11 +274,11 @@ async def test_validate_network_topology_with_battery_all_sections(
             BATTERY_CONF_CONNECTION: "main",
             CONF_CAPACITY: "sensor.battery_capacity",
             CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
-            CONF_MIN_CHARGE_PERCENTAGE: 10.0,
-            CONF_MAX_CHARGE_PERCENTAGE: 90.0,
-            CONF_EFFICIENCY: 95.0,
-            CONF_UNDERCHARGE_PERCENTAGE: 5.0,
-            CONF_OVERCHARGE_PERCENTAGE: 95.0,
+            CONF_MIN_CHARGE_PERCENTAGE: "sensor.battery_min_soc",
+            CONF_MAX_CHARGE_PERCENTAGE: "sensor.battery_max_soc",
+            CONF_EFFICIENCY: "sensor.battery_efficiency",
+            CONF_UNDERCHARGE_PERCENTAGE: "sensor.battery_undercharge_pct",
+            CONF_OVERCHARGE_PERCENTAGE: "sensor.battery_overcharge_pct",
             CONF_UNDERCHARGE_COST: ["sensor.undercharge_cost"],
             CONF_OVERCHARGE_COST: ["sensor.overcharge_cost"],
         },

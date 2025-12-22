@@ -19,8 +19,8 @@ from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
     NameFieldData,
     NameFieldSchema,
-    PercentageFieldData,
-    PercentageFieldSchema,
+    PercentageSensorFieldData,
+    PercentageSensorFieldSchema,
     PowerSensorFieldData,
     PowerSensorFieldSchema,
 )
@@ -73,8 +73,8 @@ class InverterConfigSchema(TypedDict):
     max_power_ac_to_dc: PowerSensorFieldSchema
 
     # Optional fields
-    efficiency_dc_to_ac: NotRequired[PercentageFieldSchema]
-    efficiency_ac_to_dc: NotRequired[PercentageFieldSchema]
+    efficiency_dc_to_ac: NotRequired[PercentageSensorFieldSchema]
+    efficiency_ac_to_dc: NotRequired[PercentageSensorFieldSchema]
 
 
 class InverterConfigData(TypedDict):
@@ -87,14 +87,11 @@ class InverterConfigData(TypedDict):
     max_power_ac_to_dc: PowerSensorFieldData
 
     # Optional fields
-    efficiency_dc_to_ac: NotRequired[PercentageFieldData]
-    efficiency_ac_to_dc: NotRequired[PercentageFieldData]
+    efficiency_dc_to_ac: NotRequired[PercentageSensorFieldData]
+    efficiency_ac_to_dc: NotRequired[PercentageSensorFieldData]
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {
-    "efficiency_dc_to_ac": 100.0,
-    "efficiency_ac_to_dc": 100.0,
-}
+CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
 def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
@@ -107,7 +104,12 @@ def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
 
     return [
         # Create SourceSink for the DC bus (pure junction - neither source nor sink)
-        {"element_type": "source_sink", "name": name, "is_source": False, "is_sink": False},
+        {
+            "element_type": "source_sink",
+            "name": name,
+            "is_source": False,
+            "is_sink": False,
+        },
         # Create a connection from DC bus to AC node
         # source_target = DC to AC (inverting)
         # target_source = AC to DC (rectifying)
@@ -125,7 +127,9 @@ def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: InverterConfigData
+    name: str,
+    outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+    _config: InverterConfigData,
 ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
     """Provide state updates for inverter output sensors."""
     connection = outputs[f"{name}:connection"]
@@ -135,8 +139,12 @@ def outputs(
 
     # source_target = DC to AC (inverting)
     # target_source = AC to DC (rectifying)
-    inverter_outputs[INVERTER_POWER_DC_TO_AC] = connection[CONNECTION_POWER_SOURCE_TARGET]
-    inverter_outputs[INVERTER_POWER_AC_TO_DC] = connection[CONNECTION_POWER_TARGET_SOURCE]
+    inverter_outputs[INVERTER_POWER_DC_TO_AC] = connection[
+        CONNECTION_POWER_SOURCE_TARGET
+    ]
+    inverter_outputs[INVERTER_POWER_AC_TO_DC] = connection[
+        CONNECTION_POWER_TARGET_SOURCE
+    ]
 
     # Active inverter power (DC to AC - AC to DC)
     inverter_outputs[INVERTER_POWER_ACTIVE] = replace(
@@ -157,7 +165,11 @@ def outputs(
     inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[SOURCE_SINK_POWER_BALANCE]
 
     # Shadow prices for power limits
-    inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
-    inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
+    inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[
+        CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
+    ]
+    inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[
+        CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
+    ]
 
     return {INVERTER_DEVICE_INVERTER: inverter_outputs}

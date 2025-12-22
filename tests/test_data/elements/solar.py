@@ -22,7 +22,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             name="pv_main",
             connection="network",
             forecast=["sensor.pv_forecast_1", "sensor.pv_forecast_2"],
-            price_production=0.15,
+            price_production=["sensor.price_production"],
             curtailment=False,
         ),
         "data": solar_element.SolarConfigData(
@@ -30,7 +30,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             name="pv_main",
             connection="network",
             forecast=[2.0, 1.5],
-            price_production=0.15,
+            price_production=[0.15],
             curtailment=False,
         ),
         "model": [
@@ -43,7 +43,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 "max_power_source_target": [2.0, 1.5],
                 "max_power_target_source": 0.0,
                 "fixed_power": True,
-                "price_source_target": 0.15,
+                "price_source_target": [0.15],
             },
         ],
         "model_outputs": {

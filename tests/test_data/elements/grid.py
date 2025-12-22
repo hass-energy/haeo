@@ -23,8 +23,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             connection="network",
             import_price=["sensor.grid_import_price"],
             export_price=["sensor.grid_export_price"],
-            import_limit=5.0,
-            export_limit=3.0,
+            import_limit=["sensor.grid_import_limit"],
+            export_limit=["sensor.grid_export_limit"],
         ),
         "data": grid_element.GridConfigData(
             element_type="grid",
@@ -32,8 +32,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             connection="network",
             import_price=[0.1],
             export_price=[0.05],
-            import_limit=5.0,
-            export_limit=3.0,
+            import_limit=[5.0],
+            export_limit=[3.0],
         ),
         "model": [
             {"element_type": "source_sink", "name": "grid_main", "is_source": True, "is_sink": True},
@@ -42,8 +42,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 "name": "grid_main:connection",
                 "source": "grid_main",
                 "target": "network",
-                "max_power_source_target": 5.0,
-                "max_power_target_source": 3.0,
+                "max_power_source_target": [5.0],
+                "max_power_target_source": [3.0],
                 "price_source_target": [0.1],
                 "price_target_source": [-0.05],
             },
@@ -69,19 +69,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
 ]
 
 # Invalid schema-only cases
-INVALID_SCHEMA: Sequence[InvalidSchemaCase[ElementConfigSchema]] = [
-    {
-        "description": "Grid negative import limit",
-        "schema": {
-            "element_type": "grid",
-            "name": "grid_bad",
-            "connection": "network",
-            "import_price": ["sensor.import_price"],
-            "export_price": ["sensor.export_price"],
-            "import_limit": -1.0,
-        },
-    },
-]
+INVALID_SCHEMA: Sequence[InvalidSchemaCase[ElementConfigSchema]] = []
 
 # Invalid model parameter combinations to exercise runtime validation
 INVALID_MODEL_PARAMS: Sequence[InvalidModelCase[ElementConfigData]] = []
