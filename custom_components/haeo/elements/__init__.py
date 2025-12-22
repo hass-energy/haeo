@@ -25,6 +25,7 @@ Sub-element Naming Convention:
 """
 
 from collections.abc import Callable, Mapping
+import enum
 import logging
 from typing import Any, Final, Literal, NamedTuple, TypeGuard, cast
 
@@ -143,6 +144,19 @@ type OutputsFn = Callable[
 ]
 
 
+class ConnectivityLevel(enum.Enum):
+    """Connectivity level for element types in connection selectors.
+
+    - ALWAYS: Always shown in connection selectors
+    - ADVANCED: Only shown when advanced mode is enabled
+    - NEVER: Never shown in connection selectors
+    """
+
+    ALWAYS = "always"
+    ADVANCED = "advanced"
+    NEVER = "never"
+
+
 class ElementRegistryEntry(NamedTuple):
     """Registry entry for an element type.
 
@@ -154,6 +168,12 @@ class ElementRegistryEntry(NamedTuple):
 
     The advanced flag indicates whether this element type is only shown when
     advanced mode is enabled on the hub.
+
+    The connectivity field indicates when this element type appears in connection
+    selectors:
+        - ALWAYS: Always shown in connection selectors
+        - ADVANCED: Only shown when advanced mode is enabled
+        - NEVER: Never shown in connection selectors
     """
 
     schema: type[Any]
@@ -163,6 +183,7 @@ class ElementRegistryEntry(NamedTuple):
     create_model_elements: CreateModelElementsFn
     outputs: OutputsFn
     advanced: bool = False
+    connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
 
 
 ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
@@ -173,6 +194,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=grid.ELEMENT_TYPE,
         create_model_elements=grid.create_model_elements,
         outputs=cast("OutputsFn", grid.outputs),
+        connectivity=ConnectivityLevel.ADVANCED,
     ),
     load.ELEMENT_TYPE: ElementRegistryEntry(
         schema=load.LoadConfigSchema,
@@ -181,6 +203,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=load.ELEMENT_TYPE,
         create_model_elements=load.create_model_elements,
         outputs=cast("OutputsFn", load.outputs),
+        connectivity=ConnectivityLevel.ADVANCED,
     ),
     inverter.ELEMENT_TYPE: ElementRegistryEntry(
         schema=inverter.InverterConfigSchema,
@@ -189,6 +212,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=inverter.ELEMENT_TYPE,
         create_model_elements=inverter.create_model_elements,
         outputs=cast("OutputsFn", inverter.outputs),
+        connectivity=ConnectivityLevel.ALWAYS,
     ),
     solar.ELEMENT_TYPE: ElementRegistryEntry(
         schema=solar.SolarConfigSchema,
@@ -197,6 +221,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=solar.ELEMENT_TYPE,
         create_model_elements=solar.create_model_elements,
         outputs=cast("OutputsFn", solar.outputs),
+        connectivity=ConnectivityLevel.ADVANCED,
     ),
     battery.ELEMENT_TYPE: ElementRegistryEntry(
         schema=battery.BatteryConfigSchema,
@@ -205,6 +230,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=battery.ELEMENT_TYPE,
         create_model_elements=battery.create_model_elements,
         outputs=cast("OutputsFn", battery.outputs),
+        connectivity=ConnectivityLevel.ADVANCED,
     ),
     connection.ELEMENT_TYPE: ElementRegistryEntry(
         schema=connection.ConnectionConfigSchema,
@@ -214,6 +240,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         create_model_elements=connection.create_model_elements,
         outputs=cast("OutputsFn", connection.outputs),
         advanced=True,
+        connectivity=ConnectivityLevel.NEVER,
     ),
     node.ELEMENT_TYPE: ElementRegistryEntry(
         schema=node.NodeConfigSchema,
@@ -223,6 +250,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         create_model_elements=node.create_model_elements,
         outputs=cast("OutputsFn", node.outputs),
         advanced=True,
+        connectivity=ConnectivityLevel.ALWAYS,
     ),
     battery_section.ELEMENT_TYPE: ElementRegistryEntry(
         schema=battery_section.BatterySectionConfigSchema,
@@ -232,6 +260,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         create_model_elements=battery_section.create_model_elements,
         outputs=cast("OutputsFn", battery_section.outputs),
         advanced=True,
+        connectivity=ConnectivityLevel.ALWAYS,
     ),
 }
 
@@ -291,6 +320,7 @@ __all__ = [
     "ELEMENT_TYPE_LOAD",
     "ELEMENT_TYPE_NODE",
     "ELEMENT_TYPE_SOLAR",
+    "ConnectivityLevel",
     "CreateModelElementsFn",
     "ElementConfigData",
     "ElementConfigSchema",

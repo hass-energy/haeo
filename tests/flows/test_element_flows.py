@@ -14,6 +14,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
+    CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
@@ -39,12 +40,16 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.elements import (
     ELEMENT_TYPES,
+    ConnectivityLevel,
     ElementOutputName,
     ElementRegistryEntry,
     ElementType,
     battery,
+    battery_section,
     connection,
     grid,
+    inverter,
+    load,
     node,
 )
 from custom_components.haeo.flows.element import ElementSubentryFlow, create_subentry_flow_class
@@ -177,6 +182,7 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
         translation_key=cast("ElementType", TEST_ELEMENT_TYPE),
         create_model_elements=mock_create_model_elements,
         outputs=mock_outputs,  # type: ignore[arg-type]
+        connectivity=ConnectivityLevel.ALWAYS,  # Test element is always connectivity for testing
     )
     monkeypatch.setitem(ELEMENT_TYPES, cast("ElementType", TEST_ELEMENT_TYPE), entry)
     return FlowTestElementFactory()
@@ -495,7 +501,7 @@ async def test_get_other_element_entries_filters_correctly(
     hub_entry: MockConfigEntry,
     flow_test_element_factory: FlowTestElementFactory,
 ) -> None:
-    """Verify participant filtering excludes non-endpoint subentries."""
+    """Verify participant filtering excludes non-endpoint subentries and respects connectivity levels."""
 
     endpoint_one = flow_test_element_factory.create_subentry(name="Endpoint One")
     endpoint_two = flow_test_element_factory.create_subentry(name="Endpoint Two")

@@ -5,11 +5,13 @@ from typing import Any, cast
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.translation import async_get_translations
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
+from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import (
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_NODE,
+    ELEMENT_TYPES,
+    ConnectivityLevel,
     ElementConfigSchema,
     is_element_config_schema,
 )
@@ -135,10 +137,26 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         }
 
     def _get_non_connection_element_names(self) -> list[str]:
-        """Return participant names available for connection endpoints excluding the current subentry."""
-        return [
-            k for k, v in self._get_other_element_entries().items() if v[CONF_ELEMENT_TYPE] != ELEMENT_TYPE_CONNECTION
-        ]
+        """Return participant names available for connection endpoints excluding the current subentry.
+
+        Filters elements based on their connectivity level:
+        - ALWAYS: Always included
+        - ADVANCED: Only included when advanced mode is enabled
+        - NEVER: Never included (e.g., connections)
+        """
+        hub_entry = self._get_entry()
+        advanced_mode = hub_entry.data.get(CONF_ADVANCED_MODE, False)
+
+        result: list[str] = []
+        for name, config in self._get_other_element_entries().items():
+            connectivity = ELEMENT_TYPES[config[CONF_ELEMENT_TYPE]].connectivity
+
+            if connectivity == ConnectivityLevel.ALWAYS or (
+                connectivity == ConnectivityLevel.ADVANCED and advanced_mode
+            ):
+                result.append(name)
+
+        return result
 
     def _get_other_element_entries(self) -> dict[str, ElementConfigSchema]:
         """Return other subentries which are Element participants."""
