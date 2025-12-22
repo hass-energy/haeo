@@ -22,7 +22,7 @@ from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 _LOGGER = logging.getLogger(__name__)
 
 # Config mode value for editable entities - matches ConfigEntityMode.EDITABLE.value
-# Defined here to avoid circular import with config_entities module
+# Using string literal to avoid circular import at runtime.
 _CONFIG_MODE_EDITABLE = "editable"
 
 Format = Literal["haeo"]
@@ -107,7 +107,9 @@ class Parser:
         return device_class is None or isinstance(device_class, str)
 
     @staticmethod
-    def extract(state: HaeoForecastState) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass | None]:
+    def extract(
+        state: HaeoForecastState,
+    ) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass | None]:
         """Extract forecast data from HAEO forecast format.
 
         Expects list format: list of {"time": ..., "value": ...} dicts.
@@ -120,7 +122,10 @@ class Parser:
         forecast = state.attributes["forecast"]
 
         # Parse list of {"time": ..., "value": ...} dicts
-        parsed = [(parse_datetime_to_timestamp(item["time"]), float(item["value"])) for item in forecast]
+        parsed = [
+            (parse_datetime_to_timestamp(item["time"]), float(item["value"]))
+            for item in forecast
+        ]
         parsed.sort(key=lambda x: x[0])
 
         unit = state.attributes["unit_of_measurement"]

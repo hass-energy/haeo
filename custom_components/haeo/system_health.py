@@ -54,13 +54,19 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
             continue
 
         # Coordinator status
-        health_info[f"{prefix}status"] = "ok" if coordinator.last_update_success else "update_failed"
+        health_info[f"{prefix}status"] = (
+            "ok" if coordinator.last_update_success else "update_failed"
+        )
 
-        hub_outputs: Mapping[str, Any] = coordinator.data.get(hub_key, {}) if coordinator.data else {}
+        hub_outputs: Mapping[str, Any] = (
+            coordinator.data.get(hub_key, {}) if coordinator.data else {}
+        )
 
         status_output = hub_outputs.get(OUTPUT_NAME_OPTIMIZATION_STATUS)
         optimization_status = (
-            status_output.state if status_output and status_output.state else OPTIMIZATION_STATUS_PENDING
+            status_output.state
+            if status_output and status_output.state
+            else OPTIMIZATION_STATUS_PENDING
         )
         health_info[f"{prefix}optimization_status"] = optimization_status
 
@@ -68,18 +74,26 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
         duration_output = hub_outputs.get(OUTPUT_NAME_OPTIMIZATION_DURATION)
 
         if cost_output and cost_output.state is not None:
-            health_info[f"{prefix}last_optimization_cost"] = f"{float(cost_output.state):.2f}"
+            health_info[f"{prefix}last_optimization_cost"] = (
+                f"{float(cost_output.state):.2f}"
+            )
         if duration_output and duration_output.state is not None:
-            health_info[f"{prefix}last_optimization_duration"] = round(float(duration_output.state), 3)
+            health_info[f"{prefix}last_optimization_duration"] = round(
+                float(duration_output.state), 3
+            )
 
-        last_update_time = getattr(coordinator, "last_update_success_time", None)
+        last_update_time = coordinator.last_update_success_time
         if last_update_time is not None:
-            health_info[f"{prefix}last_optimization_time"] = last_update_time.isoformat()
+            health_info[f"{prefix}last_optimization_time"] = (
+                last_update_time.isoformat()
+            )
 
         outputs_count = 0
         if coordinator.data:
             outputs_count = sum(
-                len(outputs) for element_key, outputs in coordinator.data.items() if element_key != hub_key
+                len(outputs)
+                for element_key, outputs in coordinator.data.items()
+                if element_key != hub_key
             )
         health_info[f"{prefix}outputs"] = outputs_count
 

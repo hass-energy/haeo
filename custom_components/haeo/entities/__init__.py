@@ -1,12 +1,11 @@
 """Entity platform setup for HAEO integration.
 
-Provides common setup functions for entity platforms:
-- Sensor entities: Created from coordinator data (optimization outputs)
-- Input entities: Created from subentry config (number/switch for runtime configuration)
+Provides setup functions for entity platforms:
+- async_setup_sensor_entities: Creates sensor entities from coordinator data
+- async_setup_input_entities: Creates number/switch entities from subentry config
 """
 
 from collections.abc import Callable
-from enum import StrEnum
 import logging
 from typing import TypeVar
 
@@ -18,7 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.elements import ELEMENT_OUTPUT_NAMES, ELEMENT_TYPES
+from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.schema.input_fields import InputEntityType, get_input_fields
 
 from .haeo_number import HaeoInputNumber
@@ -26,51 +25,46 @@ from .haeo_switch import HaeoInputSwitch
 
 _LOGGER = logging.getLogger(__name__)
 
+
 # Type variable for input entity types
 TInputEntity = TypeVar("TInputEntity", HaeoInputNumber, HaeoInputSwitch)
 
 
-class EntityPlatform(StrEnum):
-    """Entity platform types."""
-
-    SENSOR = "sensor"
-    NUMBER = "number"
-    SWITCH = "switch"
-
-
-async def async_setup_platform_entities(
+async def async_setup_sensor_entities(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: ConfigEntry[HaeoDataUpdateCoordinator | None],
     async_add_entities: AddEntitiesCallback,
-    platform: EntityPlatform,
     entity_factory: Callable[..., Entity],
 ) -> None:
-    """Set up HAEO entities for a platform using coordinator data.
+    """Set up HAEO sensor entities from coordinator data.
 
-    This is the shared setup logic for sensor platforms.
-    It iterates coordinator.data and creates sensor entities for OUTPUT_NAMES.
-    Number and switch entities are created by the inputs/ module from subentry config.
+    Creates sensor entities for optimization outputs (OUTPUT_NAMES).
     """
-    coordinator: HaeoDataUpdateCoordinator | None = getattr(config_entry, "runtime_data", None)
+    coordinator = config_entry.runtime_data
     if coordinator is None:
-        _LOGGER.debug("No coordinator available, skipping %s setup", platform.value)
+        _LOGGER.debug("No coordinator available, skipping sensor setup")
         return
 
     entities: list[Entity] = []
     dr = device_registry.async_get(hass)
 
     if not coordinator.data:
-        _LOGGER.debug("No coordinator data available for %s setup", platform.value)
+        _LOGGER.debug("No coordinator data available for sensor setup")
         return
 
+    outputs = coordinator.data["outputs"]
+
     for subentry in config_entry.subentries.values():
-        subentry_devices = coordinator.data.get(subentry.title, {})
+        subentry_devices = outputs.get(subentry.title, {})
         translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
 
         for device_name, device_outputs in subentry_devices.items():
             is_sub_device = device_name != subentry.title
-            device_id_suffix = f"{subentry.subentry_id}_{device_name}" if is_sub_device else subentry.subentry_id
-
+            device_id_suffix = (
+                f"{subentry.subentry_id}_{device_name}"
+                if is_sub_device
+                else subentry.subentry_id
+            )
             device_entry = dr.async_get_or_create(
                 identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")},
                 config_entry_id=config_entry.entry_id,
@@ -80,43 +74,39 @@ async def async_setup_platform_entities(
             )
 
             for output_name, output_data in device_outputs.items():
-                # Sensors handle OUTPUT_NAMES (optimization results)
-                # Number and switch entities are created by async_setup_input_entities
-                if platform == EntityPlatform.SENSOR and output_name in ELEMENT_OUTPUT_NAMES:
-                    unique_id = f"{config_entry.entry_id}_{device_id_suffix}_{output_name}"
+                unique_id = f"{config_entry.entry_id}_{device_id_suffix}_{output_name}"
 
-                    entity = entity_factory(
-                        coordinator,
-                        device_entry=device_entry,
-                        subentry_key=subentry.title,
-                        device_key=device_name,
-                        element_title=subentry.title,
-                        element_type=subentry.subentry_type,
-                        output_name=output_name,
-                        output_data=output_data,
-                        unique_id=unique_id,
-                        translation_placeholders=translation_placeholders,
-                    )
-                    entities.append(entity)
+                entity = entity_factory(
+                    coordinator,
+                    device_entry=device_entry,
+                    subentry_key=subentry.title,
+                    device_key=device_name,
+                    element_title=subentry.title,
+                    element_type=subentry.subentry_type,
+                    output_name=output_name,
+                    output_data=output_data,
+                    unique_id=unique_id,
+                    translation_placeholders=translation_placeholders,
+                )
+                entities.append(entity)
 
     if entities:
         async_add_entities(entities)
-        _LOGGER.debug("Created %d %s entities", len(entities), platform.value)
+        _LOGGER.debug("Created %d sensor entities", len(entities))
     else:
-        _LOGGER.debug("No %s entities created for entry %s", platform.value, config_entry.entry_id)
+        _LOGGER.debug("No sensor entities created for entry %s", config_entry.entry_id)
 
 
 async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSwitch)](
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: ConfigEntry[HaeoDataUpdateCoordinator | None],
     async_add_entities: AddEntitiesCallback,
     input_entity_type: InputEntityType,
     entity_class: type[TInputEntity],
 ) -> None:
     """Set up HAEO input entities from element subentry config.
 
-    This is the shared setup logic for number and switch platforms.
-    It creates input entities for runtime configuration from subentry data.
+    Creates input entities for runtime configuration from subentry data.
 
     Args:
         hass: Home Assistant instance
@@ -126,6 +116,13 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
         entity_class: Entity class to instantiate (HaeoInputNumber or HaeoInputSwitch)
 
     """
+    coordinator = config_entry.runtime_data
+    if coordinator is None:
+        _LOGGER.debug(
+            "No coordinator available, skipping %s setup", input_entity_type.value
+        )
+        return
+
     entities: list[TInputEntity] = []
     dr = device_registry.async_get(hass)
 
@@ -136,11 +133,17 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
         if element_type in ELEMENT_TYPES:
             # Get input fields for this element type
             input_fields = get_input_fields(element_type)
-
-            # Get or create device for this element
-            device_id = subentry.subentry_id
             translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
 
+            # Calculate device_id: use subentry_id for main device, append element_type for sub-devices
+            is_sub_device = element_type != subentry.title
+            device_id = (
+                f"{subentry.subentry_id}_{element_type}"
+                if is_sub_device
+                else subentry.subentry_id
+            )
+
+            # Register device with same pattern as sensors
             dr.async_get_or_create(
                 identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id}")},
                 config_entry_id=config_entry.entry_id,
@@ -151,9 +154,13 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
 
             # Create entities for matching input fields that have values in config
             for field_info in input_fields:
-                if field_info.entity_type == input_entity_type and field_info.field_name in subentry.data:
+                if (
+                    field_info.entity_type == input_entity_type
+                    and field_info.field_name in subentry.data
+                ):
                     entity = entity_class(
                         hass=hass,
+                        coordinator=coordinator,
                         config_entry=config_entry,
                         subentry=subentry,
                         field_info=field_info,
@@ -173,9 +180,8 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
 
 
 __all__ = [
-    "EntityPlatform",
     "HaeoInputNumber",
     "HaeoInputSwitch",
     "async_setup_input_entities",
-    "async_setup_platform_entities",
+    "async_setup_sensor_entities",
 ]

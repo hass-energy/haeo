@@ -16,12 +16,11 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: ConfigEntry[HaeoDataUpdateCoordinator | None],
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up HAEO sensor entities."""
-
-    coordinator: HaeoDataUpdateCoordinator | None = getattr(config_entry, "runtime_data", None)
+    coordinator = config_entry.runtime_data
     if coordinator is None:
         _LOGGER.debug("No coordinator available, skipping sensor setup")
         return
@@ -43,12 +42,18 @@ async def async_setup_entry(
             for device_name, device_outputs in subentry_devices.items():
                 # Create a unique device identifier that includes device name for sub-devices
                 is_sub_device = device_name != subentry.title
-                device_id_suffix = f"{subentry.subentry_id}_{device_name}" if is_sub_device else subentry.subentry_id
+                device_id_suffix = (
+                    f"{subentry.subentry_id}_{device_name}"
+                    if is_sub_device
+                    else subentry.subentry_id
+                )
 
                 # Get or create the device for this element
                 # Device name is already constrained to ElementDeviceName type, so use it directly as translation key
                 device_entry = dr.async_get_or_create(
-                    identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")},
+                    identifiers={
+                        (DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")
+                    },
                     config_entry_id=config_entry.entry_id,
                     config_subentry_id=subentry.subentry_id,
                     translation_key=device_name,

@@ -109,32 +109,37 @@ def extract_forecast_data(
         output_name = attrs.get("output_name", "")
         direction = attrs.get("direction")
 
-        # Handle output sensors (have output_type and direction)
-        if output_type is not None and direction is not None:
-            # Use type+direction to categorize outputs
-            # "+" = adding power to graph (production/supply)
-            # "-" = taking power away (consumption)
-            if output_type == OUTPUT_TYPE_POWER and direction == "+":
-                entry["production"] = forecast
-            elif output_type == OUTPUT_TYPE_POWER and direction == "-":
-                entry["consumption"] = forecast
-            elif (
-                output_type == OUTPUT_TYPE_POWER_LIMIT
-                and direction == "+"
-                and element_type == ELEMENT_TYPE_SOLAR
-            ):
-                entry["available"] = forecast
-            elif output_type == OUTPUT_TYPE_SOC:
+        # Handle output sensors (have output_type)
+        if output_type is not None:
+            # SOC doesn't need direction
+            if output_type == OUTPUT_TYPE_SOC:
                 entry["soc"] = forecast
-            elif output_type == OUTPUT_TYPE_PRICE and direction == "+":
-                entry["production_price"] = forecast
-            elif output_type == OUTPUT_TYPE_PRICE and direction == "-":
-                entry["consumption_price"] = forecast
-            elif output_type == OUTPUT_TYPE_SHADOW_PRICE:
-                shadow_prices = entry.setdefault("shadow_prices", {})
-                # Use output_name as the key (matches translation_key)
-                shadow_prices[output_name] = forecast
-            continue
+                continue
+
+            # Power-related types need direction
+            if direction is not None:
+                # Use type+direction to categorize outputs
+                # "+" = adding power to graph (production/supply)
+                # "-" = taking power away (consumption)
+                if output_type == OUTPUT_TYPE_POWER and direction == "+":
+                    entry["production"] = forecast
+                elif output_type == OUTPUT_TYPE_POWER and direction == "-":
+                    entry["consumption"] = forecast
+                elif (
+                    output_type == OUTPUT_TYPE_POWER_LIMIT
+                    and direction == "+"
+                    and element_type == ELEMENT_TYPE_SOLAR
+                ):
+                    entry["available"] = forecast
+                elif output_type == OUTPUT_TYPE_PRICE and direction == "+":
+                    entry["production_price"] = forecast
+                elif output_type == OUTPUT_TYPE_PRICE and direction == "-":
+                    entry["consumption_price"] = forecast
+                elif output_type == OUTPUT_TYPE_SHADOW_PRICE:
+                    shadow_prices = entry.setdefault("shadow_prices", {})
+                    # Use output_name as the key (matches translation_key)
+                    shadow_prices[output_name] = forecast
+                continue
 
         # Handle input entities (have entity_mode and output_name/output_type)
         if (

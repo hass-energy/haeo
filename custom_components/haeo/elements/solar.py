@@ -118,12 +118,11 @@ def outputs(
     """Provide state updates for solar output sensors."""
     connection = outputs[f"{name}:connection"]
 
-    pv_updates: dict[SolarOutputName, OutputData] = {
-        # Output sensors from optimization
+    solar_outputs: dict[SolarOutputName, OutputData] = {
         SOLAR_POWER: replace(
             connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER
         ),
         SOLAR_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
     }
 
-    return {SOLAR_DEVICE_SOLAR: pv_updates}
+    return {SOLAR_DEVICE_SOLAR: solar_outputs}

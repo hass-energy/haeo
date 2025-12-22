@@ -8,7 +8,10 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import (
+    CoordinatorOutput,
+    HaeoDataUpdateCoordinator,
+)
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
 from custom_components.haeo.model import OutputType
 
@@ -69,8 +72,12 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         }
         native_value: StateType | None = None
 
-        # Navigate the nested structure: subentry -> device -> outputs
-        subentry_devices = self.coordinator.data.get(self._subentry_key) if self.coordinator.data else None
+        # Navigate the nested structure: outputs -> subentry -> device -> outputs
+        subentry_devices = (
+            self.coordinator.data["outputs"].get(self._subentry_key)
+            if self.coordinator.data
+            else None
+        )
         outputs = subentry_devices.get(self._device_key) if subentry_devices else None
         if outputs:
             output_data = outputs.get(self._output_name)
@@ -103,7 +110,9 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self._attr_native_unit_of_measurement = output.unit
         self._attr_device_class = output.device_class
         self._attr_state_class = output.state_class
-        self._attr_options = list(output.options) if output.options is not None else None
+        self._attr_options = (
+            list(output.options) if output.options is not None else None
+        )
 
 
 __all__ = ["HaeoSensor"]

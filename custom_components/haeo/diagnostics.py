@@ -1,12 +1,10 @@
 """Diagnostics support for HAEO integration."""
 
-import contextlib
-from typing import Any, NotRequired, Required, get_args, get_origin, get_type_hints
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
@@ -20,15 +18,15 @@ from .const import (
     CONF_TIER_3_DURATION,
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
-    DOMAIN,
 )
-from .coordinator import extract_entity_ids_from_config
-from .elements import ELEMENT_TYPES, is_element_config_schema
-from .schema.fields import BooleanFieldMeta, FieldMeta
+from .coordinator import HaeoDataUpdateCoordinator, extract_entity_ids_from_config
+from .elements import is_element_config_schema
 from .sensor_utils import get_output_sensors
 
 
-async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, Any]:
+async def async_get_config_entry_diagnostics(
+    hass: HomeAssistant, config_entry: ConfigEntry
+) -> dict[str, Any]:
     """Return diagnostics for a HAEO config entry.
 
     Returns a dict with four main keys:
@@ -51,67 +49,30 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
     }
 
     # Transform subentries into participants dict
-    # For fields using config entities (number/switch), capture current state values
+    # If coordinator has loaded_configs (with resolved entity values), use those
+    # Otherwise fall back to raw subentry data
+    coordinator = config_entry.runtime_data
+    loaded_configs = (
+        coordinator.data["loaded_configs"]
+        if isinstance(coordinator, HaeoDataUpdateCoordinator)
+        and coordinator.data is not None  # pyright: ignore[reportUnnecessaryComparison]
+        else None
+    )
+
     for subentry in config_entry.subentries.values():
         if subentry.subentry_type != "network":
-            raw_data = dict(subentry.data)
-            raw_data.setdefault("name", subentry.title)
-            raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
+            element_name = subentry.title
 
-            # Check for config entity fields and capture their current state
-            element_type = subentry.subentry_type
-            if element_type in ELEMENT_TYPES:
-                registry_entry = ELEMENT_TYPES[element_type]
-                type_hints = get_type_hints(registry_entry.schema, include_extras=True)
+            if loaded_configs is not None and element_name in loaded_configs:
+                # Use the already-loaded config with resolved values
+                raw_data = dict(loaded_configs[element_name])
+            else:
+                # Fall back to raw subentry data
+                raw_data = dict(subentry.data)
+                raw_data.setdefault("name", element_name)
+                raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
 
-                for field_name, field_type in type_hints.items():
-                    # Unwrap NotRequired/Required
-                    origin = get_origin(field_type)
-                    unwrapped_type = get_args(field_type)[0] if origin in (NotRequired, Required) else field_type
-
-                    if not hasattr(unwrapped_type, "__metadata__"):
-                        continue
-
-                    field_meta = next((m for m in unwrapped_type.__metadata__ if isinstance(m, FieldMeta)), None)
-                    if not field_meta:
-                        continue
-
-                    # Skip fields that don't create entities
-                    if (
-                        not isinstance(field_meta, BooleanFieldMeta)
-                        and field_meta.min is None
-                        and field_meta.max is None
-                        and field_meta.step is None
-                        and field_meta.unit is None
-                    ):
-                        continue
-
-                    field_value = subentry.data.get(field_name)
-
-                    # If not a string/list of strings, this field uses a config entity
-                    # (i.e., it's a static value or None, meaning Editable mode)
-                    is_entity_provided = isinstance(field_value, str) or (
-                        isinstance(field_value, list) and field_value and isinstance(field_value[0], str)
-                    )
-
-                    if not is_entity_provided:
-                        # Look up the input entity's current state
-                        platform = "switch" if isinstance(field_meta, BooleanFieldMeta) else "number"
-                        entity_registry = er.async_get(hass)
-                        unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_name}"
-                        entity_id = entity_registry.async_get_entity_id(platform, DOMAIN, unique_id)
-                        if entity_id:
-                            state = hass.states.get(entity_id)
-                            if state is not None:
-                                # Store the current state value in the config
-                                if platform == "number":
-                                    with contextlib.suppress(ValueError, TypeError):
-                                        raw_data[field_name] = float(state.state)
-                                else:
-                                    # Switch - store as boolean
-                                    raw_data[field_name] = state.state == "on"
-
-            config["participants"][subentry.title] = raw_data
+            config["participants"][element_name] = raw_data
 
     # Collect input sensor states for all entities used in the configuration
     all_entity_ids: set[str] = set()
@@ -128,7 +89,9 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
 
     # Extract input states as dicts
     inputs: list[dict[str, Any]] = [
-        state.as_dict() for entity_id in sorted(all_entity_ids) if (state := hass.states.get(entity_id)) is not None
+        state.as_dict()
+        for entity_id in sorted(all_entity_ids)
+        if (state := hass.states.get(entity_id)) is not None
     ]
 
     # Get output sensors using common utility function

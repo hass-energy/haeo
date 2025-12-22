@@ -1,6 +1,5 @@
 """Tests for HAEO diagnostics utilities."""
 
-from datetime import UTC, datetime
 from types import MappingProxyType
 from unittest.mock import Mock
 
@@ -32,7 +31,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
 from custom_components.haeo.elements.battery import (
@@ -44,7 +43,6 @@ from custom_components.haeo.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.elements.grid import CONF_IMPORT_PRICE, GRID_POWER_IMPORT
-from custom_components.haeo.model import OUTPUT_TYPE_POWER
 
 
 async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
@@ -229,7 +227,9 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
     hass.config_entries.async_add_subentry(entry, battery_subentry)
 
     # Set up sensor states
-    hass.states.async_set("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
+    hass.states.async_set(
+        "sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"}
+    )
     hass.states.async_set("sensor.battery_soc", "75", {"unit_of_measurement": "%"})
 
     entry.runtime_data = None
@@ -292,22 +292,16 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
         },
     )
 
-    # Create a mock coordinator with outputs
+    # Create a mock coordinator with outputs but no loaded configs (data is None)
+    # This tests the fallback to raw subentry data
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
-    coordinator.data = {
-        "grid": {
-            GRID_POWER_IMPORT: CoordinatorOutput(
-                type=OUTPUT_TYPE_POWER,
-                unit="kW",
-                state=5.5,
-                forecast=[ForecastPoint(time=datetime(2024, 1, 1, 12, 0, tzinfo=UTC), value=5.5)],
-            )
-        }
-    }
+    coordinator.data = None
 
     # Register output sensor in entity registry (required for get_output_sensors)
     entity_registry = er.async_get(hass)
-    output_entity_id = f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORT}"
+    output_entity_id = (
+        f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORT}"
+    )
     entity_registry.async_get_or_create(
         domain="sensor",
         platform=DOMAIN,

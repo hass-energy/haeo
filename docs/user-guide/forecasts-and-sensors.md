@@ -329,7 +329,7 @@ The entity operates in one of two modes depending on how you configure the field
 | Mode       | Configuration                | State Source        | Forecast Source          | User Control |
 | ---------- | ---------------------------- | ------------------- | ------------------------ | ------------ |
 | **Driven** | Sensor entity ID provided    | First loaded value  | Loaded sensor data       | Read-only    |
-| **Editable** | No sensor entity ID provided | User input          | User value (repeated)    | Full control |
+| **Editable** | No sensor entity ID provided | User input          | Constant (value repeated)| Adjustable   |
 
 **Driven mode**: When you configure a field with a sensor entity ID, the input entity displays the loaded value and forecast from that sensor.
 The entity is read-only because the sensor controls the value.

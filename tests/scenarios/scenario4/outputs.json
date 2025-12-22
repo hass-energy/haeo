@@ -3,10 +3,10 @@
     "entity_id": "number.battery_capacity",
     "state": "88.66",
     "attributes": {
+      "config_mode": "driven",
       "device_class": "energy",
       "element_name": "Battery",
       "element_type": "battery",
-      "entity_mode": "driven",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 88.66 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 88.66 },
@@ -125,19 +125,19 @@
       "mode": "box",
       "output_name": "capacity",
       "output_type": "energy",
-      "source_entity": "sensor.sigen_plant_rated_energy_capacity",
+      "source_entities": ["sensor.sigen_plant_rated_energy_capacity"],
       "step": 1.0,
       "unit_of_measurement": "kWh"
     }
   },
   "number.battery_discharge_cost": {
     "entity_id": "number.battery_discharge_cost",
-    "state": "unknown",
+    "state": "0.02",
     "attributes": {
+      "config_mode": "driven",
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 0.02 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 0.02 },
@@ -256,6 +256,7 @@
       "mode": "box",
       "output_name": "discharge_cost",
       "output_type": "price",
+      "source_entities": ["input_number.battery_discharge_cost"],
       "step": 1.0,
       "unit_of_measurement": "$/kWh"
     }
@@ -264,10 +265,10 @@
     "entity_id": "number.battery_early_charge_incentive",
     "state": "0.001",
     "attributes": {
+      "config_mode": "editable",
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 0.001 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 0.001 },
@@ -395,9 +396,9 @@
     "entity_id": "number.battery_efficiency",
     "state": "99.0",
     "attributes": {
+      "config_mode": "editable",
       "element_name": "Battery",
       "element_type": "battery",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 99.0 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 99.0 },
@@ -525,10 +526,10 @@
     "entity_id": "number.battery_initial_charge",
     "state": "61.5",
     "attributes": {
+      "config_mode": "driven",
       "device_class": "battery",
       "element_name": "Battery",
       "element_type": "battery",
-      "entity_mode": "driven",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 61.5 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 61.5 },
@@ -647,7 +648,7 @@
       "mode": "box",
       "output_name": "initial_charge_percentage",
       "output_type": "soc",
-      "source_entity": "sensor.sigen_plant_battery_state_of_charge",
+      "source_entities": ["sensor.sigen_plant_battery_state_of_charge"],
       "step": 1.0,
       "unit_of_measurement": "%"
     }
@@ -656,10 +657,10 @@
     "entity_id": "number.battery_maximum_charge",
     "state": "100.0",
     "attributes": {
+      "config_mode": "editable",
       "device_class": "battery",
       "element_name": "Battery",
       "element_type": "battery",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 100.0 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 100.0 },
@@ -787,10 +788,10 @@
     "entity_id": "number.battery_maximum_charge_power",
     "state": "46.2",
     "attributes": {
+      "config_mode": "driven",
       "device_class": "power",
       "element_name": "Battery",
       "element_type": "battery",
-      "entity_mode": "driven",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 46.2 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 46.2 },
@@ -909,7 +910,7 @@
       "mode": "box",
       "output_name": "max_charge_power",
       "output_type": "power",
-      "source_entity": "sensor.sigen_plant_ess_rated_charging_power",
+      "source_entities": ["sensor.sigen_plant_ess_rated_charging_power"],
       "step": 1.0,
       "unit_of_measurement": "kW"
     }
@@ -918,10 +919,10 @@
     "entity_id": "number.battery_maximum_discharge_power",
     "state": "52.8",
     "attributes": {
+      "config_mode": "driven",
       "device_class": "power",
       "element_name": "Battery",
       "element_type": "battery",
-      "entity_mode": "driven",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 52.8 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 52.8 },
@@ -1040,7 +1041,7 @@
       "mode": "box",
       "output_name": "max_discharge_power",
       "output_type": "power",
-      "source_entity": "sensor.sigen_plant_ess_rated_discharging_power",
+      "source_entities": ["sensor.sigen_plant_ess_rated_discharging_power"],
       "step": 1.0,
       "unit_of_measurement": "kW"
     }
@@ -1049,10 +1050,10 @@
     "entity_id": "number.battery_minimum_charge",
     "state": "10.0",
     "attributes": {
+      "config_mode": "editable",
       "device_class": "battery",
       "element_name": "Battery",
       "element_type": "battery",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 10.0 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 10.0 },
@@ -1178,12 +1179,12 @@
   },
   "number.constant_load_forecast": {
     "entity_id": "number.constant_load_forecast",
-    "state": "unknown",
+    "state": "1.0",
     "attributes": {
+      "config_mode": "driven",
       "device_class": "power",
       "element_name": "Constant Load",
       "element_type": "load",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 1.0 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 1.0 },
@@ -1302,6 +1303,7 @@
       "mode": "box",
       "output_name": "forecast",
       "output_type": "power",
+      "source_entities": ["input_number.constant_load_power"],
       "step": 1.0,
       "unit_of_measurement": "kW"
     }
@@ -1310,10 +1312,10 @@
     "entity_id": "number.grid_export_limit",
     "state": "30.0",
     "attributes": {
+      "config_mode": "editable",
       "device_class": "power",
       "element_name": "Grid",
       "element_type": "grid",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 30.0 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 30.0 },
@@ -1439,12 +1441,12 @@
   },
   "number.grid_export_price": {
     "entity_id": "number.grid_export_price",
-    "state": "unknown",
+    "state": "0.12",
     "attributes": {
+      "config_mode": "driven",
       "device_class": "monetary",
       "element_name": "Grid",
       "element_type": "grid",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 0.12 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 0.13 },
@@ -1563,6 +1565,7 @@
       "mode": "box",
       "output_name": "export_price",
       "output_type": "price",
+      "source_entities": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
       "step": 1.0,
       "unit_of_measurement": "$/kWh"
     }
@@ -1571,10 +1574,10 @@
     "entity_id": "number.grid_import_limit",
     "state": "55.0",
     "attributes": {
+      "config_mode": "editable",
       "device_class": "power",
       "element_name": "Grid",
       "element_type": "grid",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 55.0 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 55.0 },
@@ -1700,12 +1703,12 @@
   },
   "number.grid_import_price": {
     "entity_id": "number.grid_import_price",
-    "state": "unknown",
+    "state": "0.22",
     "attributes": {
+      "config_mode": "driven",
       "device_class": "monetary",
       "element_name": "Grid",
       "element_type": "grid",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 0.22 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 0.23 },
@@ -1824,6 +1827,7 @@
       "mode": "box",
       "output_name": "import_price",
       "output_type": "price",
+      "source_entities": ["sensor.home_general_price", "sensor.home_general_forecast"],
       "step": 1.0,
       "unit_of_measurement": "$/kWh"
     }
@@ -1832,10 +1836,10 @@
     "entity_id": "number.inverter_max_ac_to_dc_power",
     "state": "60.0",
     "attributes": {
+      "config_mode": "driven",
       "device_class": "power",
       "element_name": "Inverter",
       "element_type": "inverter",
-      "entity_mode": "driven",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 60.0 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 60.0 },
@@ -1954,7 +1958,7 @@
       "mode": "box",
       "output_name": "max_power_ac_to_dc",
       "output_type": "power",
-      "source_entity": "sensor.sigen_plant_max_active_power",
+      "source_entities": ["sensor.sigen_plant_max_active_power"],
       "step": 1.0,
       "unit_of_measurement": "kW"
     }
@@ -1963,10 +1967,10 @@
     "entity_id": "number.inverter_max_dc_to_ac_power",
     "state": "60.0",
     "attributes": {
+      "config_mode": "driven",
       "device_class": "power",
       "element_name": "Inverter",
       "element_type": "inverter",
-      "entity_mode": "driven",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 60.0 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 60.0 },
@@ -2085,19 +2089,19 @@
       "mode": "box",
       "output_name": "max_power_dc_to_ac",
       "output_type": "power",
-      "source_entity": "sensor.sigen_plant_max_active_power",
+      "source_entities": ["sensor.sigen_plant_max_active_power"],
       "step": 1.0,
       "unit_of_measurement": "kW"
     }
   },
   "number.solar_forecast": {
     "entity_id": "number.solar_forecast",
-    "state": "unknown",
+    "state": "0.0",
     "attributes": {
+      "config_mode": "driven",
       "device_class": "power",
       "element_name": "Solar",
       "element_type": "solar",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 0.0 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 0.0 },
@@ -2216,6 +2220,7 @@
       "mode": "box",
       "output_name": "forecast",
       "output_type": "power",
+      "source_entities": ["sensor.solcast_pv_forecast_forecast_day_3", "sensor.solcast_pv_forecast_forecast_today", "sensor.solcast_pv_forecast_forecast_tomorrow"],
       "step": 1.0,
       "unit_of_measurement": "kW"
     }
@@ -6170,9 +6175,9 @@
     "entity_id": "switch.solar_allow_curtailment",
     "state": "on",
     "attributes": {
+      "config_mode": "editable",
       "element_name": "Solar",
       "element_type": "solar",
-      "entity_mode": "editable",
       "forecast": [
         { "time": "2025-10-06T03:50:00-07:00", "value": 1.0 },
         { "time": "2025-10-06T03:51:00-07:00", "value": 1.0 },
