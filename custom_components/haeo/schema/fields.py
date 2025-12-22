@@ -29,6 +29,7 @@ from custom_components.haeo.data.loader.extractors import EntityMetadata
 from .params import SchemaParams
 from .util import UnitSpec
 
+
 @dataclass(frozen=True)
 class FieldMeta(ABC):
     """Base metadata describing schema and data behaviour for a field."""
