@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from custom_components.haeo.model.connection import Connection
+from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.node import Node
 
 
@@ -164,3 +165,14 @@ def test_connection_power_with_multiple_connections(solver: Highs) -> None:
     h.minimize(result[2])
 
     assert h.val(result[2]) == pytest.approx(3.04)
+
+
+def test_element_default_outputs(solver: Highs) -> None:
+    """Test Element base class default outputs() returns empty dict."""
+
+    # Create a minimal Element subclass that doesn't override outputs()
+    class MinimalElement(Element[str, str]):
+        pass
+
+    element = MinimalElement("test", [1.0], solver=solver)
+    assert element.outputs() == {}

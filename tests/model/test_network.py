@@ -301,6 +301,13 @@ def test_network_optimize_success_logs_solver_output(
     assert result == 0.0
 
 
+def test_log_callback_handles_empty_message() -> None:
+    """Test _log_callback handles empty messages gracefully."""
+    # Should not raise, just verify it doesn't crash
+    Network._log_callback(0, "")
+    Network._log_callback(1, "   ")  # Whitespace only
+
+
 def test_network_optimize_raises_on_solver_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -324,3 +331,36 @@ def test_network_optimize_raises_on_solver_failure(
 
     with pytest.raises(ValueError, match="Optimization failed with status: Unbounded"):
         mock_optimize()
+
+
+def test_network_optimize_raises_on_infeasible_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test optimize() raises ValueError when network optimization fails."""
+    # Create a valid network
+    network = Network(name="test_network", periods=[1.0] * 1)
+    network.add(ELEMENT_TYPE_NODE, "node", is_sink=True, is_source=True)
+
+    # Track if run() has been called
+    run_called = False
+
+    original_run = network._solver.run
+    original_get_model_status = network._solver.getModelStatus
+
+    def mock_run() -> None:
+        nonlocal run_called
+        original_run()
+        run_called = True
+
+    def mock_get_model_status() -> HighsModelStatus:
+        # After run() is called, return a non-optimal status
+        if run_called:
+            return HighsModelStatus.kInfeasible
+        return original_get_model_status()
+
+    monkeypatch.setattr(network._solver, "run", mock_run)
+    monkeypatch.setattr(network._solver, "getModelStatus", mock_get_model_status)
+
+    # This should raise ValueError with the error message from optimize()
+    with pytest.raises(ValueError, match="Optimization failed with status:"):
+        network.optimize()
