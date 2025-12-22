@@ -1,21 +1,3 @@
----
-name: Total Consumption Calculation
-overview: Modify the historical load loader to calculate total household consumption from energy flows instead of just fetching grid imports.
-todos:
-  - id: update-entity-fetching
-    content: Update get_energy_consumption_entities to return categorized entities (import/export/solar)
-    status: completed
-  - id: update-calculation
-    content: Update build_forecast_from_history to calculate total_load = import + solar - export
-    status: completed
-  - id: update-loader
-    content: Update HistoricalLoadLoader.load to use new categorized structure
-    status: completed
-  - id: update-tests
-    content: Update unit tests for new calculation logic
-    status: completed
----
-
 # Calculate Total Consumption from Energy Flows
 
 ## Problem
@@ -80,5 +62,3 @@ def build_forecast_from_history(
 Update to use the new categorized entity fetching and calculation.
 
 ## Files to Modify
-
-- [`custom_components/haeo/data/loader/historical_load_loader.py`](custom_components/haeo/data/loader/historical_load_loader.py) - All changes in this file

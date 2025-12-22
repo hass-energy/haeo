@@ -21,7 +21,7 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-from custom_components.haeo.data.loader import ConstantLoader, Loader, TimeSeriesLoader
+from custom_components.haeo.data.loader import ConstantLoader, HistoricalLoadLoader, Loader, TimeSeriesLoader
 from custom_components.haeo.data.loader.extractors import EntityMetadata
 
 from .params import SchemaParams
@@ -226,6 +226,32 @@ class BatterySOCFieldMeta(FieldMeta):
         return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
 
 
+@dataclass(frozen=True, kw_only=True)
+class HistoricalLoadFieldMeta(FieldMeta):
+    """Metadata for historical load forecast from Energy Dashboard.
+
+    This field type loads historical consumption data from the Home Assistant
+    Energy Dashboard and calculates total consumption using:
+        Total Load = Grid Import + Solar Production - Grid Export
+    """
+
+    history_days: int = 7
+    field_type: Literal["historical_load"] = "historical_load"
+    loader: HistoricalLoadLoader = field(default_factory=lambda: HistoricalLoadLoader())
+
+    def __post_init__(self) -> None:
+        """Initialize loader with history_days."""
+        # Replace the default loader with one configured with the correct history_days
+        object.__setattr__(self, "loader", HistoricalLoadLoader(self.history_days))
+
+    def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        """Return a boolean selector for enabling historical load.
+
+        The field value is a boolean - True to use historical load, False to disable.
+        """
+        return vol.All(vol.Coerce(bool), BooleanSelector(BooleanSelectorConfig()))
+
+
 # Define unit sets for sensor filtering
 POWER_UNITS: Final = UnitOfPower
 ENERGY_UNITS: Final = UnitOfEnergy
@@ -251,6 +277,7 @@ BatterySOCFieldSchema = Annotated[float, BatterySOCFieldMeta()]
 BatterySOCSensorFieldSchema = Annotated[str, SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)]
 PriceFieldSchema = Annotated[float, PriceFieldMeta()]
 PriceSensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
+HistoricalLoadFieldSchema = Annotated[bool, HistoricalLoadFieldMeta()]
 
 # Data mode type aliases (loaded runtime values)
 PowerFieldData = Annotated[float, PowerFieldMeta()]
@@ -269,3 +296,4 @@ BatterySOCFieldData = Annotated[float, BatterySOCFieldMeta()]
 BatterySOCSensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)]
 PriceFieldData = Annotated[float, PriceFieldMeta()]
 PriceSensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
+HistoricalLoadFieldData = Annotated[list[float], HistoricalLoadFieldMeta()]
