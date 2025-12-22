@@ -72,20 +72,22 @@ class Parser:
         return round(raw / 60.0) * 60.0
 
     @staticmethod
-    def extract(state: AmberElectricState) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass]:
+    def extract(state: AmberElectricState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
         """Extract forecast data from Amber Electric pricing format.
 
         Emits boundary prices to create step functions: each window produces two points
         (start, price) and (end, price) to ensure constant pricing within the window
         without linear interpolation. Adjacent windows will have the same timestamp
         at boundaries, which will be separated later to prevent interpolation.
+
+        Returns timestamps in seconds as integers.
         """
         forecasts = list(state.attributes["forecasts"])
-        parsed: list[tuple[float, float]] = []
+        parsed: list[tuple[int, float]] = []
 
         for item in forecasts:
-            start = Parser._round_to_minute(item["start_time"])
-            end = Parser._round_to_minute(item["end_time"])
+            start = int(Parser._round_to_minute(item["start_time"]))
+            end = int(Parser._round_to_minute(item["end_time"]))
             price = item["per_kwh"]
 
             # Emit start of window and end of window with same price

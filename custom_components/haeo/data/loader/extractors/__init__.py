@@ -61,7 +61,7 @@ def extract(state: State) -> ExtractedData:
     """Extract data from a State object and convert to base units."""
 
     # Extract raw data and unit
-    data: Sequence[tuple[float, float]] | float
+    data: Sequence[tuple[int, float]] | Sequence[tuple[float, float]] | float
     unit: str | StrEnum | None
     device_class: SensorDeviceClass | None
 
@@ -93,8 +93,11 @@ def extract(state: State) -> ExtractedData:
     # Convert values to base units
     if isinstance(data, Sequence):
         # Convert each value in the forecast series
-        converted_data = [(ts, convert_to_base_unit(value, unit_str, device_class)) for ts, value in data]
-        # Separate duplicate timestamps to prevent interpolation
+        # Data may be Sequence[tuple[int, float]] or Sequence[tuple[float, float]]
+        converted_data: list[tuple[int, float]] = [
+            (int(ts), convert_to_base_unit(value, unit_str, device_class)) for ts, value in data
+        ]
+        # Separate duplicate timestamps to prevent interpolation (also converts int timestamps to float)
         separated_data = separate_duplicate_timestamps(converted_data)
         return ExtractedData(separated_data, base_unit)
 

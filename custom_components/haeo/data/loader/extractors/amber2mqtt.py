@@ -82,7 +82,7 @@ class Parser:
         return round(raw / 60.0) * 60.0
 
     @staticmethod
-    def extract(state: Amber2MqttState) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass]:
+    def extract(state: Amber2MqttState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
         """Extract forecast data from Amber2MQTT pricing format.
 
         Emits boundary prices to create step functions: each window produces two points
@@ -91,15 +91,17 @@ class Parser:
         at boundaries, which will be separated later to prevent interpolation.
 
         For feed-in sensors (detected by channel_type attribute), the per_kwh value is negated.
+
+        Returns timestamps in seconds as integers.
         """
         forecasts = list(state.attributes["Forecasts"])
-        parsed: list[tuple[float, float]] = []
+        parsed: list[tuple[int, float]] = []
 
         is_feedin = state.attributes.get("channel_type") == "feedin"
 
         for item in forecasts:
-            start = Parser._round_to_minute(item["start_time"])
-            end = Parser._round_to_minute(item["end_time"])
+            start = int(Parser._round_to_minute(item["start_time"]))
+            end = int(Parser._round_to_minute(item["end_time"]))
             price = -item["per_kwh"] if is_feedin else item["per_kwh"]
 
             # Emit start of window and end of window with same price
