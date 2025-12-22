@@ -139,7 +139,8 @@ async def test_time_series_loader_load_present_only_uses_historical(
 
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
-    # Mock the HistoricalForecastLoader to return pattern-based values
+    # Mock the HistoricalForecastLoader to return a ForecastSeries
+    # TimeSeriesLoader._load_from_history will pass this to fuse_to_horizon
     async def fake_historical_load(
         self: Any,
         *,
@@ -147,9 +148,9 @@ async def test_time_series_loader_load_present_only_uses_historical(
         value: list[str],
         forecast_times: Sequence[float],
         **_kwargs: Any,
-    ) -> list[float]:
-        # Return pattern-based values (not just broadcast present value)
-        return [4.0, 6.0]
+    ) -> list[tuple[float, float]]:
+        # Return ForecastSeries with values at forecast_times
+        return [(0, 4.0), (60, 6.0), (120, 8.0)]
 
     monkeypatch.setattr(hll.HistoricalForecastLoader, "load", fake_historical_load)
 
@@ -159,8 +160,12 @@ async def test_time_series_loader_load_present_only_uses_historical(
         forecast_times=[0, 60, 120],
     )
 
-    # Returns historical pattern-based values
-    assert result == [4.0, 6.0]
+    # Returns values fused from the ForecastSeries (n-1 intervals)
+    # Note: fuse_to_horizon replaces interval 0 with present_value (2.0 + 3.0 = 5.0)
+    # and uses forecast data for subsequent intervals via trapezoidal integration
+    assert len(result) == 2
+    assert result[0] == pytest.approx(5.0)  # Present value (summed sensors)
+    assert result[1] == pytest.approx(7.0)  # Average of 6.0 and 8.0 (trapezoidal)
 
 
 @pytest.mark.asyncio
@@ -177,7 +182,9 @@ async def test_time_series_loader_load_present_only_fallback(
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
     # Mock the HistoricalForecastLoader to fail
-    async def fake_historical_load(self: Any, **_kwargs: Any) -> list[float]:
+    async def fake_historical_load(
+        self: Any, **_kwargs: Any
+    ) -> list[tuple[float, float]]:
         msg = "No historical data available"
         raise ValueError(msg)
 

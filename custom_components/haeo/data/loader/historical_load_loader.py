@@ -24,8 +24,8 @@ _LOGGER = logging.getLogger(__name__)
 # Default number of days of history to use for forecast
 DEFAULT_HISTORY_DAYS = 7
 
-# Minimum number of forecast times needed to produce output
-_MIN_FORECAST_TIMES = 2
+# Maximum cycles to prevent infinite loops in cycle_forecast_to_horizon
+_MAX_CYCLES = 100
 
 
 async def get_statistics_for_sensor(
@@ -128,11 +128,60 @@ def shift_history_to_forecast(
     return forecast
 
 
+def cycle_forecast_to_horizon(
+    forecast: ForecastSeries,
+    history_days: int,
+    horizon_end: float,
+) -> ForecastSeries:
+    """Repeat/cycle forecast series until it covers the full horizon.
+
+    If we have N days of history and the horizon extends beyond that,
+    repeat the pattern by shifting forward by N days each cycle.
+
+    Args:
+        forecast: Original forecast series (already shifted once)
+        history_days: Number of days in one cycle
+        horizon_end: Timestamp of the end of the horizon to fill
+
+    Returns:
+        Extended ForecastSeries covering the full horizon.
+
+    """
+    if not forecast:
+        return forecast
+
+    # Get the span of one cycle
+    cycle_duration = timedelta(days=history_days).total_seconds()
+
+    # Find when the current forecast ends
+    last_timestamp = forecast[-1][0]
+
+    # Keep adding cycles until we cover the horizon
+    extended: ForecastSeries = list(forecast)
+    cycle_count = 1
+
+    while last_timestamp < horizon_end:
+        cycle_shift = cycle_duration * cycle_count
+        for original_time, value in forecast:
+            new_time = original_time + cycle_shift
+            if new_time > horizon_end:
+                break
+            extended.append((new_time, value))
+            last_timestamp = new_time
+        cycle_count += 1
+
+        # Safety limit to prevent infinite loops
+        if cycle_count > _MAX_CYCLES:
+            break
+
+    return extended
+
+
 class HistoricalForecastLoader:
     """Loader that builds forecasts from sensor historical statistics.
 
     When a sensor doesn't have a forecast attribute, this loader fetches
-    historical data and shifts it forward by N days to create a forecast.
+    historical data, shifts it forward, and repeats to fill the horizon.
     """
 
     def __init__(self, history_days: int = DEFAULT_HISTORY_DAYS) -> None:
@@ -179,8 +228,11 @@ class HistoricalForecastLoader:
         value: Any,
         forecast_times: Sequence[float],
         **_kwargs: Any,
-    ) -> list[float]:
+    ) -> ForecastSeries:
         """Load historical data and build a forecast by shifting it forward.
+
+        Returns a ForecastSeries that can be passed to fuse_to_horizon.
+        The series is cycled/repeated to cover the full forecast horizon.
 
         Args:
             hass: Home Assistant instance
@@ -188,7 +240,7 @@ class HistoricalForecastLoader:
             forecast_times: Timestamps for the forecast horizon
 
         Returns:
-            List of power values aligned to forecast_times.
+            ForecastSeries (list of (timestamp, value) tuples).
 
         """
         if not forecast_times:
@@ -199,11 +251,10 @@ class HistoricalForecastLoader:
             msg = "No sensor entity IDs provided"
             raise ValueError(msg)
 
-        # Calculate time range for history
+        # Calculate time range for history - strictly N days back from now
         now = dt_util.now()
         start_time = now - timedelta(days=self._history_days)
-        start_time = start_time.replace(minute=0, second=0, microsecond=0)
-        end_time = now.replace(minute=0, second=0, microsecond=0)
+        end_time = now
 
         # Fetch and combine forecast series from all sensors
         combined_forecast: dict[float, float] = {}
@@ -233,67 +284,9 @@ class HistoricalForecastLoader:
         # Convert to sorted list of (timestamp, value) tuples
         forecast_series = sorted(combined_forecast.items(), key=lambda x: x[0])
 
-        # Interpolate to align with forecast_times
-        return self._interpolate_to_times(forecast_series, forecast_times)
-
-    def _interpolate_to_times(
-        self,
-        forecast_series: list[tuple[float, float]],
-        forecast_times: Sequence[float],
-    ) -> list[float]:
-        """Interpolate forecast series to match the requested forecast times.
-
-        Args:
-            forecast_series: Sorted list of (timestamp, value) tuples
-            forecast_times: Target timestamps to interpolate to
-
-        Returns:
-            List of values for each interval (len = len(forecast_times) - 1)
-
-        """
-        if len(forecast_times) < _MIN_FORECAST_TIMES:
-            return []
-
-        result: list[float] = []
-
-        # For each interval, find the corresponding value from forecast series
-        for i in range(len(forecast_times) - 1):
-            interval_start = forecast_times[i]
-
-            # Find the closest forecast value at or before this time
-            value = self._find_value_at_time(forecast_series, interval_start)
-            result.append(value)
-
-        return result
-
-    def _find_value_at_time(
-        self,
-        forecast_series: list[tuple[float, float]],
-        target_time: float,
-    ) -> float:
-        """Find the forecast value for a given time.
-
-        Uses the most recent value at or before the target time.
-
-        Args:
-            forecast_series: Sorted list of (timestamp, value) tuples
-            target_time: The timestamp to find the value for
-
-        Returns:
-            The value at the target time, or 0.0 if no data available.
-
-        """
-        if not forecast_series:
-            return 0.0
-
-        # Find the last value at or before target_time
-        last_value = 0.0
-        for timestamp, value in forecast_series:
-            if timestamp > target_time:
-                break
-            last_value = value
-
-        return last_value
+        # Cycle/repeat to fill the full horizon
+        horizon_end = forecast_times[-1]
+        return cycle_forecast_to_horizon(forecast_series, self._history_days, horizon_end)
 
 
 # Keep backward compatibility alias

@@ -130,19 +130,24 @@ class TimeSeriesLoader:
         """
         historical_loader = HistoricalForecastLoader(history_days=history_days)
 
+        # Get the present value to use as fallback/anchor
+        payloads = load_sensors(hass, entity_ids)
+        present_value, _ = combine_sensor_payloads(payloads)
+
         try:
-            return await historical_loader.load(
+            # Get historical forecast series (shifted and cycled)
+            forecast_series = await historical_loader.load(
                 hass=hass,
                 value=entity_ids,
                 forecast_times=forecast_times,
             )
+            # Use fuse_to_horizon for interpolation
+            return fuse_to_horizon(present_value, forecast_series, forecast_times)
         except ValueError as e:
             _LOGGER.warning(
                 "Failed to load historical data for %s: %s. Using present value.",
                 entity_ids,
                 e,
             )
-            # Fall back to loading sensors and using just the present value
-            payloads = load_sensors(hass, entity_ids)
-            present_value, forecast_series = combine_sensor_payloads(payloads)
-            return fuse_to_horizon(present_value, forecast_series, forecast_times)
+            # Fall back to using just the present value (empty forecast series)
+            return fuse_to_horizon(present_value, [], forecast_times)
