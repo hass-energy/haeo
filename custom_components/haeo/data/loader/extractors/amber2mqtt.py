@@ -88,7 +88,7 @@ class Parser:
         Emits boundary prices to create step functions: each window produces two points
         (start, price) and (end, price) to ensure constant pricing within the window
         without linear interpolation. Adjacent windows will have the same timestamp
-        at boundaries, which will be separated later to prevent interpolation.
+        at boundaries to prevent interpolation.
 
         For feed-in sensors (detected by channel_type attribute), the per_kwh value is negated.
 
