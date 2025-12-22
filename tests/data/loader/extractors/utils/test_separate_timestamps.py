@@ -1,6 +1,5 @@
 """Tests for separate_timestamps utility."""
 
-
 import numpy as np
 import pytest
 

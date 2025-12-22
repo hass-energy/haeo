@@ -88,7 +88,7 @@ class Parser:
         return device_class is None or isinstance(device_class, str)
 
     @staticmethod
-    def extract(state: HaeoForecastState) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass | None]:
+    def extract(state: HaeoForecastState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass | None]:
         """Extract forecast data from HAEO forecast format.
 
         Expects list format: list of {"time": ..., "value": ...} dicts.
@@ -101,7 +101,7 @@ class Parser:
         forecast = state.attributes["forecast"]
 
         # Parse list of {"time": ..., "value": ...} dicts
-        parsed = [(parse_datetime_to_timestamp(item["time"]), float(item["value"])) for item in forecast]
+        parsed = [(int(parse_datetime_to_timestamp(item["time"])), float(item["value"])) for item in forecast]
         parsed.sort(key=lambda x: x[0])
 
         unit = state.attributes["unit_of_measurement"]

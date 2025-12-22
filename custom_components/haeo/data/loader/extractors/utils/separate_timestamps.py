@@ -29,11 +29,12 @@ def separate_duplicate_timestamps(data: Sequence[tuple[int, float]]) -> list[tup
     timestamps = np.array([t for t, _ in data], dtype=np.float64)
     values = np.array([v for _, v in data], dtype=np.float64)
 
-    # Find where timestamps are duplicated with the next entry
-    is_duplicate = np.concatenate([timestamps[:-1] == timestamps[1:], [False]])
+    # Find where timestamps are duplicated with the next entry (compute once)
+    is_duplicate_next = timestamps[:-1] == timestamps[1:]
 
-    # Find where timestamps are duplicated with the previous entry
-    is_duplicate_prev = np.concatenate([[False], timestamps[:-1] == timestamps[1:]])
+    # Extend to full array length for easier indexing
+    is_duplicate = np.concatenate([is_duplicate_next, [False]])
+    is_duplicate_prev = np.concatenate([[False], is_duplicate_next])
 
     # Middle duplicates are entries that match both previous and next
     is_middle_duplicate = is_duplicate & is_duplicate_prev

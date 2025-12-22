@@ -50,10 +50,10 @@ class Parser:
         return all(is_parsable_to_datetime(k) and isinstance(v, (int, float)) for k, v in watts.items())
 
     @staticmethod
-    def extract(state: OpenMeteoSolarState) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass]:
+    def extract(state: OpenMeteoSolarState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
         """Extract forecast data from Open-Meteo solar forecast format."""
-        parsed: list[tuple[float, float]] = [
-            (parse_datetime_to_timestamp(time), value) for time, value in state.attributes["watts"].items()
+        parsed: list[tuple[int, float]] = [
+            (int(parse_datetime_to_timestamp(time)), value) for time, value in state.attributes["watts"].items()
         ]
         parsed.sort(key=lambda x: x[0])
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

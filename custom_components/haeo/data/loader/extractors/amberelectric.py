@@ -66,10 +66,10 @@ class Parser:
         )
 
     @staticmethod
-    def _round_to_minute(timestamp: str | datetime) -> float:
+    def _round_to_minute(timestamp: str | datetime) -> int:
         """Round timestamp to nearest minute (Amber provides times 1 second into each period)."""
         raw = float(parse_datetime_to_timestamp(timestamp))
-        return round(raw / 60.0) * 60.0
+        return int(round(raw / 60.0) * 60.0)
 
     @staticmethod
     def extract(state: AmberElectricState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
@@ -86,8 +86,8 @@ class Parser:
         parsed: list[tuple[int, float]] = []
 
         for item in forecasts:
-            start = int(Parser._round_to_minute(item["start_time"]))
-            end = int(Parser._round_to_minute(item["end_time"]))
+            start = Parser._round_to_minute(item["start_time"])
+            end = Parser._round_to_minute(item["end_time"])
             price = item["per_kwh"]
 
             # Emit start of window and end of window with same price
