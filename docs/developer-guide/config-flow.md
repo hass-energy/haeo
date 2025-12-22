@@ -114,6 +114,22 @@ All element flows extend `ElementConfigFlow` which provides:
 
 The element flow base class is in `custom_components/haeo/flows/element.py`.
 
+### Connection endpoint filtering
+
+Connection elements require selecting source and target endpoints from other configured elements.
+The element flow filters available elements based on connectivity level and Advanced Mode setting.
+
+Each element type in the `ELEMENT_TYPES` registry defines a connectivity level that controls when it appears in connection selectors.
+The `ConnectivityLevel` enum has three values:
+
+- **`ALWAYS`**: Always shown in connection selectors
+- **`ADVANCED`**: Only shown when Advanced Mode is enabled
+- **`NEVER`**: Never shown in connection selectors
+
+This filtering ensures connection endpoints are appropriate for the user's configuration level.
+It prevents invalid connection topologies by excluding elements that shouldn't be connection endpoints.
+See [`custom_components/haeo/elements/__init__.py`](../../custom_components/haeo/elements/__init__.py) for the connectivity level assigned to each element type.
+
 ### Element-specific implementations
 
 Each element type has its own flow class in `custom_components/haeo/flows/`:
