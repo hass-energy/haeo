@@ -1,241 +1,232 @@
-"""Loader for historical load data from Home Assistant Energy Dashboard.
+"""Loader for building forecasts from sensor historical statistics.
 
-This loader calculates total household consumption using the formula:
-    Total Load = Grid Import + Solar Production - Grid Export
-
-This accounts for:
-- Power drawn from the grid
-- Solar power consumed locally (production minus what was exported)
+When a sensor doesn't have a forecast attribute, this loader fetches
+historical statistics and builds a forecast based on the pattern
+from the past N days.
 """
 
-from collections.abc import Mapping, Sequence
-from datetime import datetime, timedelta
+from __future__ import annotations
+
+from collections.abc import Sequence
+from datetime import datetime, timedelta, tzinfo
 import logging
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.data.util import ForecastSeries
-from custom_components.haeo.data.util.forecast_fuser import fuse_to_horizon
+
+if TYPE_CHECKING:
+    from homeassistant.components.recorder.statistics import StatisticsRow
 
 _LOGGER = logging.getLogger(__name__)
 
 # Default number of days of history to use for forecast
 DEFAULT_HISTORY_DAYS = 7
 
-
-class EnergyEntities(TypedDict):
-    """Categorized energy entity IDs from the Energy Dashboard."""
-
-    grid_import: list[str]
-    grid_export: list[str]
-    solar: list[str]
+# Minimum number of forecast times needed to produce output
+_MIN_FORECAST_TIMES = 2
 
 
-async def get_energy_entities(hass: HomeAssistant) -> EnergyEntities:
-    """Get categorized energy entity IDs from the Energy Dashboard configuration.
+async def get_statistics_for_sensor(
+    hass: HomeAssistant,
+    entity_id: str,
+    start_time: datetime,
+    end_time: datetime,
+) -> Sequence[StatisticsRow]:
+    """Fetch hourly statistics for a sensor entity.
 
-    Extracts from the Energy Manager:
-    - Grid sources → flow_from → stat_energy_from (imports)
-    - Grid sources → flow_to → stat_energy_to (exports)
-    - Solar sources → stat_energy_from (production)
+    Args:
+        hass: Home Assistant instance
+        entity_id: The sensor entity ID to fetch statistics for
+        start_time: Start of the time range
+        end_time: End of the time range
 
     Returns:
-        Dictionary with categorized entity lists:
-        {
-            "grid_import": ["sensor.grid_import_energy"],
-            "grid_export": ["sensor.grid_export_energy"],
-            "solar": ["sensor.solar_production_energy"],
-        }
+        List of statistics rows with 'start' and 'mean' fields.
 
-    Raises:
-        ValueError: If the Energy Dashboard is not configured
     """
-    # Import energy manager from Home Assistant
-    try:
-        from homeassistant.components.energy.data import async_get_manager
-    except ImportError as e:
-        msg = "Energy component not available"
-        raise ValueError(msg) from e
+    # Import here to avoid circular imports and allow mocking
+    from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
+        statistics_during_period,
+    )
 
-    manager = await async_get_manager(hass)
-    if manager is None:
-        msg = "Energy Dashboard not configured"
-        raise ValueError(msg)
+    # Fetch statistics - runs in executor since it's blocking
+    statistics: dict[str, list[StatisticsRow]] = await hass.async_add_executor_job(
+        lambda: statistics_during_period(
+            hass,
+            start_time,
+            end_time,
+            {entity_id},
+            "hour",
+            None,
+            {"mean"},
+        )
+    )
 
-    prefs = manager.data
-    if prefs is None:
-        msg = "Energy Dashboard not configured"
-        raise ValueError(msg)
+    return statistics.get(entity_id, [])
 
-    result: EnergyEntities = {
-        "grid_import": [],
-        "grid_export": [],
-        "solar": [],
-    }
 
-    # Extract grid sources
-    energy_sources = prefs.get("energy_sources", [])
-    for source in energy_sources:
-        source_type = source.get("type")
+def build_hourly_pattern(
+    statistics: Sequence[Any],
+    timezone: tzinfo | None = None,
+) -> dict[int, float]:
+    """Build a 24-hour pattern from historical statistics.
 
-        if source_type == "grid":
-            # Grid import: flow_from entries
-            for flow_from in source.get("flow_from", []):
-                stat_id = flow_from.get("stat_energy_from")
-                if stat_id:
-                    result["grid_import"].append(stat_id)
+    Groups data by hour-of-day (0-23) and averages across all days.
 
-            # Grid export: flow_to entries
-            for flow_to in source.get("flow_to", []):
-                stat_id = flow_to.get("stat_energy_to")
-                if stat_id:
-                    result["grid_export"].append(stat_id)
+    Args:
+        statistics: List of statistics rows with 'start' and 'mean' fields.
+        timezone: Timezone to use for hour-of-day calculation.
 
-        elif source_type == "solar":
-            # Solar production
-            stat_id = source.get("stat_energy_from")
-            if stat_id:
-                result["solar"].append(stat_id)
+    Returns:
+        Dictionary mapping hour-of-day (0-23) to average value.
+
+    """
+    tz = timezone or dt_util.get_default_time_zone()
+
+    # Group values by hour-of-day and accumulate for averaging
+    hour_values: dict[int, list[float]] = {h: [] for h in range(24)}
+
+    for stat in statistics:
+        start = stat.get("start")
+        mean = stat.get("mean")
+
+        if start is None or mean is None:
+            continue
+
+        # Convert to datetime in the target timezone
+        if isinstance(start, datetime):
+            # Convert to target timezone if timezone-aware
+            if start.tzinfo is not None:
+                dt_local = start.astimezone(tz)
+            else:
+                dt_local = start.replace(tzinfo=tz)
+            hour_of_day = dt_local.hour
+        elif isinstance(start, (int, float)):
+            dt_local = datetime.fromtimestamp(start, tz=tz)
+            hour_of_day = dt_local.hour
+        else:
+            continue
+
+        hour_values[hour_of_day].append(float(mean))
+
+    # Calculate average for each hour-of-day
+    hourly_pattern: dict[int, float] = {}
+    for hour_of_day, values in hour_values.items():
+        if values:
+            hourly_pattern[hour_of_day] = sum(values) / len(values)
+
+    return hourly_pattern
+
+
+def build_forecast_from_pattern(
+    hourly_pattern: dict[int, float],
+    forecast_times: Sequence[float],
+    timezone: tzinfo | None = None,
+) -> list[float]:
+    """Build forecast values for the given timestamps based on hourly pattern.
+
+    For each forecast time, returns the average value for that hour-of-day
+    from the historical pattern.
+
+    Args:
+        hourly_pattern: Dictionary mapping hour-of-day (0-23) to average value
+        forecast_times: List of timestamps to generate forecast for
+        timezone: Timezone for hour-of-day calculation
+
+    Returns:
+        List of forecast values aligned to forecast_times (n_periods = len - 1)
+
+    """
+    if not forecast_times or len(forecast_times) < _MIN_FORECAST_TIMES:
+        return []
+
+    if not hourly_pattern:
+        return [0.0] * (len(forecast_times) - 1)
+
+    tz = timezone or dt_util.get_default_time_zone()
+
+    # Generate values for each interval (n_periods = len(forecast_times) - 1)
+    result: list[float] = []
+    for i in range(len(forecast_times) - 1):
+        # Use the start of each interval to determine the hour
+        timestamp = forecast_times[i]
+        dt = datetime.fromtimestamp(timestamp, tz=tz)
+        hour_of_day = dt.hour
+
+        # Get the pattern value for this hour, default to 0
+        value = hourly_pattern.get(hour_of_day, 0.0)
+        result.append(value)
 
     return result
 
 
-async def _get_statistics(
+async def build_forecast_from_history(
     hass: HomeAssistant,
-    entity_ids: list[str],
-    start_time: datetime,
-    end_time: datetime,
-) -> dict[str, list[dict[str, Any]]]:
-    """Fetch hourly statistics for the given entity IDs.
-
-    Returns:
-        Dictionary mapping entity_id to list of statistics rows.
-        Each row has 'start', 'end', 'mean', 'sum', etc.
-    """
-    if not entity_ids:
-        return {}
-
-    try:
-        from homeassistant.components.recorder.statistics import (
-            statistics_during_period,
-        )
-    except ImportError as e:
-        msg = "Recorder component not available"
-        raise ValueError(msg) from e
-
-    # Fetch statistics - runs in executor since it's blocking
-    statistics = await hass.async_add_executor_job(
-        statistics_during_period,
-        hass,
-        start_time,
-        end_time,
-        set(entity_ids),
-        "hour",  # period
-        None,  # units - use native
-        {"mean", "change"},  # types to fetch
-    )
-
-    return statistics
-
-
-def build_forecast_from_history(
-    statistics: dict[str, list[dict[str, Any]]],
-    history_days: int,
-    current_time: datetime,
+    entity_id: str,
+    forecast_times: Sequence[float],
+    history_days: int = DEFAULT_HISTORY_DAYS,
 ) -> ForecastSeries:
-    """Build a forecast time series from historical statistics.
+    """Build a forecast time series from a sensor's historical statistics.
 
-    Calculates total consumption for each hour using:
-        total_load = grid_import + solar_production - grid_export
-
-    The history is then shifted forward to create a forecast for the next
-    `history_days` days.
+    Fetches the last `history_days` of hourly statistics for the sensor,
+    builds a 24-hour pattern by averaging values for each hour-of-day,
+    and projects that pattern forward as a forecast.
 
     Args:
-        statistics: Dictionary mapping category names to statistics rows.
-                   Categories are: "grid_import", "grid_export", "solar"
-        history_days: Number of days of history used
-        current_time: Current time to base the forecast on
+        hass: Home Assistant instance
+        entity_id: Sensor entity ID to fetch history for
+        forecast_times: Timestamps for the forecast horizon
+        history_days: Number of days of history to use
 
     Returns:
-        ForecastSeries: List of (timestamp, value) tuples representing
-                       the forecasted load in watts (or the original unit).
+        ForecastSeries: List of (timestamp, value) tuples for the forecast
+
     """
-    # Collect all unique hour timestamps across all statistics
-    all_hours: set[datetime] = set()
-
-    for stats_list in statistics.values():
-        for stat in stats_list:
-            start = stat.get("start")
-            if isinstance(start, datetime):
-                all_hours.add(start)
-
-    if not all_hours:
+    if not forecast_times:
         return []
 
-    # Build lookup tables for quick access
-    # Using 'change' for energy sensors (kWh per hour)
-    grid_import_by_hour: dict[datetime, float] = {}
-    grid_export_by_hour: dict[datetime, float] = {}
-    solar_by_hour: dict[datetime, float] = {}
+    # Calculate time range for history
+    now = dt_util.now()
+    start_time = now - timedelta(days=history_days)
+    start_time = start_time.replace(minute=0, second=0, microsecond=0)
+    end_time = now.replace(minute=0, second=0, microsecond=0)
 
-    for stat in statistics.get("grid_import", []):
-        start = stat.get("start")
-        change = stat.get("change")
-        if isinstance(start, datetime) and change is not None:
-            grid_import_by_hour[start] = float(change)
+    # Fetch statistics
+    statistics = await get_statistics_for_sensor(hass, entity_id, start_time, end_time)
 
-    for stat in statistics.get("grid_export", []):
-        start = stat.get("start")
-        change = stat.get("change")
-        if isinstance(start, datetime) and change is not None:
-            grid_export_by_hour[start] = float(change)
+    if not statistics:
+        _LOGGER.warning("No historical statistics found for %s", entity_id)
+        return []
 
-    for stat in statistics.get("solar", []):
-        start = stat.get("start")
-        change = stat.get("change")
-        if isinstance(start, datetime) and change is not None:
-            solar_by_hour[start] = float(change)
+    # Build hourly pattern from history
+    hourly_pattern = build_hourly_pattern(statistics)
 
-    # Calculate total load for each hour
-    # Formula: total_load = grid_import + solar_production - grid_export
-    hourly_load: dict[datetime, float] = {}
+    if not hourly_pattern:
+        _LOGGER.warning("Could not build hourly pattern from statistics for %s", entity_id)
+        return []
 
-    for hour in sorted(all_hours):
-        grid_import = grid_import_by_hour.get(hour, 0.0)
-        grid_export = grid_export_by_hour.get(hour, 0.0)
-        solar = solar_by_hour.get(hour, 0.0)
-
-        # Total consumption = what we bought + what we generated - what we sold
-        total = grid_import + solar - grid_export
-        # Ensure non-negative (shouldn't happen but safety check)
-        hourly_load[hour] = max(0.0, total)
-
-    # Create forecast by shifting historical hours forward
-    # Each historical hour becomes a forecast for the same time-of-day in the future
+    # Build forecast series from pattern
+    tz = dt_util.get_default_time_zone()
     forecast: ForecastSeries = []
-    shift_days = timedelta(days=history_days)
 
-    for hour in sorted(hourly_load.keys()):
-        future_time = hour + shift_days
-        # Only include hours that are in the future relative to current time
-        if future_time >= current_time:
-            # Convert datetime to timestamp and value to watts (energy/hour = power)
-            # Since statistics are in kWh per hour, this gives us kW average power
-            timestamp = future_time.timestamp()
-            value = hourly_load[hour]  # kWh per hour = kW
-            forecast.append((timestamp, value))
+    for timestamp in forecast_times:
+        dt_obj = datetime.fromtimestamp(timestamp, tz=tz)
+        hour_of_day = dt_obj.hour
+        value = hourly_pattern.get(hour_of_day, 0.0)
+        forecast.append((timestamp, value))
 
     return forecast
 
 
-class HistoricalLoadLoader:
-    """Loader that builds load forecast from Energy Dashboard historical data.
+class HistoricalForecastLoader:
+    """Loader that builds forecasts from sensor historical statistics.
 
-    Uses the formula:
-        Total Load = Grid Import + Solar Production - Grid Export
+    When a sensor doesn't have a forecast attribute, this loader fetches
+    historical data and creates a forecast based on the average pattern
+    for each hour of the day.
     """
 
     def __init__(self, history_days: int = DEFAULT_HISTORY_DAYS) -> None:
@@ -243,136 +234,113 @@ class HistoricalLoadLoader:
 
         Args:
             history_days: Number of days of history to fetch and use for forecast
+
         """
         self._history_days = history_days
 
-    def available(self, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-        """Check if the Energy Dashboard is configured and has required data.
+    def available(self, *, hass: HomeAssistant, value: Any, **_kwargs: Any) -> bool:
+        """Check if we can load data for the given sensor.
 
-        Note: This is a synchronous check that only verifies the energy component
-        is loaded. Full availability is checked during load().
+        Args:
+            hass: Home Assistant instance
+            value: Sensor entity ID or list of entity IDs
+
+        Returns:
+            True if the recorder component is available and sensors exist
+
         """
-        # Check if energy component is available
-        return "energy" in hass.config.components
+        # Check recorder is available
+        if "recorder" not in hass.config.components:
+            return False
+
+        # Get entity IDs
+        entity_ids = self._normalize_entity_ids(value)
+        if not entity_ids:
+            return False
+
+        # Check all sensors exist
+        return all(hass.states.get(entity_id) is not None for entity_id in entity_ids)
+
+    def _normalize_entity_ids(self, value: Any) -> list[str]:
+        """Convert value to a list of entity IDs."""
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, (list, tuple)):
+            return [str(v) for v in value if v]
+        return []
 
     async def load(
         self,
         *,
         hass: HomeAssistant,
+        value: Any,
         forecast_times: Sequence[float],
         **_kwargs: Any,
     ) -> list[float]:
-        """Load historical data and build a consumption forecast.
+        """Load historical data and build a forecast.
+
+        Args:
+            hass: Home Assistant instance
+            value: Sensor entity ID or list of entity IDs
+            forecast_times: Timestamps for the forecast horizon
 
         Returns:
-            List of power values (kW) aligned to forecast_times
+            List of power values aligned to forecast_times
+
         """
         if not forecast_times:
             return []
 
-        # Get energy entities from the Energy Dashboard
-        try:
-            energy_entities = await get_energy_entities(hass)
-        except ValueError as e:
-            _LOGGER.warning("Cannot load historical data: %s", e)
-            raise
-
-        # Check if we have at least grid import data
-        if not energy_entities["grid_import"]:
-            msg = "No grid import entities configured in Energy Dashboard"
+        entity_ids = self._normalize_entity_ids(value)
+        if not entity_ids:
+            msg = "No sensor entity IDs provided"
             raise ValueError(msg)
 
         # Calculate time range for history
         now = dt_util.now()
         start_time = now - timedelta(days=self._history_days)
-        # Round to start of hour
         start_time = start_time.replace(minute=0, second=0, microsecond=0)
         end_time = now.replace(minute=0, second=0, microsecond=0)
 
-        # Fetch statistics for all entity categories
-        all_entity_ids = (
-            energy_entities["grid_import"]
-            + energy_entities["grid_export"]
-            + energy_entities["solar"]
-        )
+        # Fetch and combine statistics from all sensors
+        combined_pattern: dict[int, list[float]] = {h: [] for h in range(24)}
 
-        raw_statistics = await _get_statistics(hass, all_entity_ids, start_time, end_time)
-
-        # Reorganize statistics by category
-        categorized_stats: dict[str, list[dict[str, Any]]] = {
-            "grid_import": [],
-            "grid_export": [],
-            "solar": [],
-        }
-
-        # Sum up statistics for each category if there are multiple entities
-        for entity_id in energy_entities["grid_import"]:
-            if entity_id in raw_statistics:
-                categorized_stats["grid_import"].extend(raw_statistics[entity_id])
-
-        for entity_id in energy_entities["grid_export"]:
-            if entity_id in raw_statistics:
-                categorized_stats["grid_export"].extend(raw_statistics[entity_id])
-
-        for entity_id in energy_entities["solar"]:
-            if entity_id in raw_statistics:
-                categorized_stats["solar"].extend(raw_statistics[entity_id])
-
-        # Aggregate multiple entities per category by summing values for the same hour
-        for category in categorized_stats:
-            stats_list = categorized_stats[category]
-            if not stats_list:
+        for entity_id in entity_ids:
+            try:
+                statistics = await get_statistics_for_sensor(hass, entity_id, start_time, end_time)
+            except ValueError as e:
+                _LOGGER.warning("Failed to get statistics for %s: %s", entity_id, e)
                 continue
 
-            # Group by start time and sum the change values
-            by_hour: dict[datetime, float] = {}
-            for stat in stats_list:
-                start = stat.get("start")
-                change = stat.get("change")
-                if isinstance(start, datetime) and change is not None:
-                    by_hour[start] = by_hour.get(start, 0.0) + float(change)
+            if not statistics:
+                _LOGGER.debug("No statistics found for %s", entity_id)
+                continue
 
-            # Rebuild stats list with aggregated values
-            categorized_stats[category] = [
-                {"start": hour, "change": value}
-                for hour, value in by_hour.items()
-            ]
+            # Build pattern for this sensor using HA timezone
+            tz = dt_util.get_default_time_zone()
+            pattern = build_hourly_pattern(statistics, timezone=tz)
 
-        # Build forecast from the categorized statistics
-        forecast_series = build_forecast_from_history(
-            categorized_stats,
-            self._history_days,
-            now,
-        )
+            # Add to combined pattern (will sum multiple sensors)
+            for hour, value_avg in pattern.items():
+                combined_pattern[hour].append(value_avg)
 
-        if not forecast_series:
-            msg = "No historical data available to build forecast"
+        # Sum the averages from each sensor for each hour
+        hourly_pattern: dict[int, float] = {}
+        for hour, values in combined_pattern.items():
+            if values:
+                hourly_pattern[hour] = sum(values)
+
+        if not hourly_pattern:
+            msg = f"No historical data available for sensors: {entity_ids}"
             raise ValueError(msg)
 
-        # Get current value (most recent hour's load)
-        # Find the most recent historical hour that's before now
-        current_value: float | None = None
-        current_hour = now.replace(minute=0, second=0, microsecond=0)
+        # Build forecast from pattern
+        return build_forecast_from_pattern(
+            hourly_pattern,
+            forecast_times,
+            timezone=dt_util.get_default_time_zone(),
+        )
 
-        # Sum up the most recent hour's consumption from raw stats
-        latest_grid_import = 0.0
-        latest_grid_export = 0.0
-        latest_solar = 0.0
 
-        for stat in categorized_stats.get("grid_import", []):
-            if stat.get("start") == current_hour:
-                latest_grid_import += stat.get("change", 0.0)
-
-        for stat in categorized_stats.get("grid_export", []):
-            if stat.get("start") == current_hour:
-                latest_grid_export += stat.get("change", 0.0)
-
-        for stat in categorized_stats.get("solar", []):
-            if stat.get("start") == current_hour:
-                latest_solar += stat.get("change", 0.0)
-
-        if latest_grid_import > 0 or latest_solar > 0:
-            current_value = max(0.0, latest_grid_import + latest_solar - latest_grid_export)
-
-        # Use fuse_to_horizon to align forecast to requested times
-        return fuse_to_horizon(current_value, forecast_series, forecast_times)
+# Keep backward compatibility alias
+HistoricalLoadLoader = HistoricalForecastLoader
