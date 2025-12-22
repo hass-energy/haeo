@@ -37,6 +37,12 @@ state: 0.25
 HAEO reads the value (0.25 \$/kWh) and repeats it for every time step in your optimization horizon.
 When you configure a sensor that only provides a present value, that value is used for all optimization periods.
 
+!!! tip "Historical Fallback for Load Sensors"
+
+    For [Load elements](elements/load.md), HAEO can automatically build a forecast from historical recorder data when the sensor lacks a `forecast` attribute.
+    Instead of repeating the current value, HAEO fetches past hourly statistics and shifts them forward to predict future consumption.
+    Configure this with the `history_days` setting on the Load element.
+
 ## Forecast Sensors
 
 Some sensors provide structured forecast data instead of a simple current value.

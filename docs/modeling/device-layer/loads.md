@@ -35,13 +35,17 @@ Load creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into model parameters:
 
-| User Configuration | Model Element | Model Parameter           | Notes                             |
-| ------------------ | ------------- | ------------------------- | --------------------------------- |
-| `forecast`         | Connection    | `max_power_target_source` | Required consumption at each time |
-| `connection`       | Connection    | `source`                  | Node to connect from              |
-| —                  | Connection    | `fixed_power=true`        | Consumption must equal forecast   |
-| —                  | SourceSink    | `is_source=false`         | Load cannot provide power         |
-| —                  | SourceSink    | `is_sink=true`            | Load consumes power               |
+| User Configuration | Model Element | Model Parameter           | Notes                                        |
+| ------------------ | ------------- | ------------------------- | -------------------------------------------- |
+| `forecast`         | Connection    | `max_power_target_source` | Required consumption at each time            |
+| `connection`       | Connection    | `source`                  | Node to connect from                         |
+| `history_days`     | —             | —                         | Days of history for fallback forecast (1-30) |
+| —                  | Connection    | `fixed_power=true`        | Consumption must equal forecast              |
+| —                  | SourceSink    | `is_source=false`         | Load cannot provide power                    |
+| —                  | SourceSink    | `is_sink=true`            | Load consumes power                          |
+
+The `history_days` parameter controls the historical forecast fallback.
+When the configured sensor(s) don't have a `forecast` attribute, HAEO fetches N days of hourly statistics from the recorder, shifts them forward by N days, and cycles the pattern to fill the optimization horizon.
 
 ## Sensors Created
 

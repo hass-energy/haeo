@@ -182,9 +182,7 @@ async def test_time_series_loader_load_present_only_fallback(
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
     # Mock the HistoricalForecastLoader to fail
-    async def fake_historical_load(
-        self: Any, **_kwargs: Any
-    ) -> list[tuple[float, float]]:
+    async def fake_historical_load(self: Any, **_kwargs: Any) -> list[tuple[float, float]]:
         msg = "No historical data available"
         raise ValueError(msg)
 

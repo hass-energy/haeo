@@ -1,10 +1,24 @@
 # Historical Load Forecast
 
-HAEO doesn't generate load forecasts itself, but you can create a simple forecast based on historical consumption data.
+!!! tip "Built-in Historical Fallback"
+
+    HAEO now has **automatic historical forecast fallback** for sensors without a `forecast` attribute.
+    Simply configure a power consumption sensor in your [Load element](elements/load.md), and HAEO will automatically use historical recorder data to build a forecast.
+    Configure the lookback period with the `history_days` setting (default: 7 days).
+
+    **This manual approach is still useful when you need**:
+
+    - A persistent forecast sensor visible in Home Assistant dashboards
+    - More control over forecast calculation or smoothing
+    - To chain the forecast to other automations or integrations
+
+---
+
+This guide shows how to create a custom forecast sensor based on historical consumption data.
 This approach works well for loads that follow predictable daily patterns.
 
 The strategy is straightforward: fetch the same hour from 7 days ago, then use that pattern for the next 7 days.
-This gives HAEO a reasonable estimate of future load without requiring external forecasting services.
+This gives you a visible forecast sensor that persists across Home Assistant restarts.
 
 ## Prerequisites
 

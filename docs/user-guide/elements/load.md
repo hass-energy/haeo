@@ -5,10 +5,11 @@ The Load element uses forecast data to model any type of consumption pattern fro
 
 ## Configuration
 
-| Field                     | Type                                     | Required | Default | Description                               |
-| ------------------------- | ---------------------------------------- | -------- | ------- | ----------------------------------------- |
-| **[Name](#name)**         | String                                   | Yes      | -       | Unique identifier for this load           |
-| **[Forecast](#forecast)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW) |
+| Field                             | Type                                     | Required | Default | Description                                                 |
+| --------------------------------- | ---------------------------------------- | -------- | ------- | ----------------------------------------------------------- |
+| **[Name](#name)**                 | String                                   | Yes      | -       | Unique identifier for this load                             |
+| **[Forecast](#forecast)**         | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption or load forecast sensor(s) (kW)           |
+| **[History Days](#history-days)** | Number (1-30)                            | No       | 7       | Days of history to use when sensor lacks forecast attribute |
 
 ## Name
 
@@ -21,6 +22,12 @@ Used to create sensor entity IDs and identify the load in connections.
 
 Specify one or more Home Assistant sensor entities providing power consumption data.
 The Load element is flexible and works with both constant and time-varying patterns.
+
+!!! tip "Automatic Historical Fallback"
+
+    If your sensor doesn't have a `forecast` attribute, HAEO automatically uses historical data from the Home Assistant recorder to build a forecast.
+    The sensor's past N days of hourly data are shifted forward to predict future consumption.
+    See [History Days](#history-days) to configure this behavior.
 
 **Single forecast example**:
 
@@ -36,6 +43,30 @@ The Load element is flexible and works with both constant and time-varying patte
 
 Provide all load forecasts to get accurate total consumption predictions.
 See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.
+
+## History Days
+
+When your sensor doesn't provide a `forecast` attribute, HAEO automatically builds a forecast from historical recorder data.
+This field controls how many days of history to use.
+
+**How it works**:
+
+1. HAEO fetches the last N days of hourly statistics from the Home Assistant recorder
+2. Each historical timestamp is shifted forward by N days
+3. The pattern repeats to fill your entire optimization horizon
+
+**Example**: With `history_days: 7`, consumption from last Monday 2pm becomes the forecast for next Monday 2pm.
+
+| History Days | Best For                                          |
+| ------------ | ------------------------------------------------- |
+| 1-3          | Highly variable consumption, recent patterns only |
+| 7 (default)  | Weekly patterns (weekday vs weekend differences)  |
+| 14-30        | Longer-term averaging, smoothing out anomalies    |
+
+!!! note "When History Days is Used"
+
+    This setting only applies when the configured sensor(s) don't have a `forecast` attribute.
+    Sensors with forecast data (like dedicated forecast integrations) ignore this setting entirely.
 
 ## Constant Load Pattern
 
