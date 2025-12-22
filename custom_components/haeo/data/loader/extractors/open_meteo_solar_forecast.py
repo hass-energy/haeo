@@ -53,7 +53,7 @@ class Parser:
     def extract(state: OpenMeteoSolarState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
         """Extract forecast data from Open-Meteo solar forecast format."""
         parsed: list[tuple[int, float]] = [
-            (int(parse_datetime_to_timestamp(time)), value) for time, value in state.attributes["watts"].items()
+            (parse_datetime_to_timestamp(time), value) for time, value in state.attributes["watts"].items()
         ]
         parsed.sort(key=lambda x: x[0])
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

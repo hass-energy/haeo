@@ -6,6 +6,11 @@ import pytest
 from custom_components.haeo.data.loader.extractors.utils import separate_duplicate_timestamps
 
 
+def _prev(v: float) -> float:
+    """Get the previous float value for cleaner test data."""
+    return np.nextafter(v, -np.inf)
+
+
 @pytest.mark.parametrize(
     ("data", "expected"),
     [
@@ -18,15 +23,15 @@ from custom_components.haeo.data.loader.extractors.utils import separate_duplica
         # One duplicate pair
         (
             [(100, 5.0), (100, 10.0)],
-            [(np.nextafter(100.0, -np.inf), 5.0), (100.0, 10.0)],
+            [(_prev(100.0), 5.0), (100.0, 10.0)],
         ),
         # Multiple duplicate pairs
         (
             [(100, 5.0), (100, 10.0), (200, 15.0), (200, 20.0)],
             [
-                (np.nextafter(100.0, -np.inf), 5.0),
+                (_prev(100.0), 5.0),
                 (100.0, 10.0),
-                (np.nextafter(200.0, -np.inf), 15.0),
+                (_prev(200.0), 15.0),
                 (200.0, 20.0),
             ],
         ),
@@ -41,7 +46,7 @@ from custom_components.haeo.data.loader.extractors.utils import separate_duplica
             ],
             [
                 (1000.0, 0.13),  # Start unchanged
-                (np.nextafter(1300.0, -np.inf), 0.13),  # End adjusted
+                (_prev(1300.0), 0.13),  # End adjusted
                 (1300.0, 0.15),  # Start unchanged
                 (1600.0, 0.15),  # End unchanged
             ],
@@ -52,7 +57,7 @@ from custom_components.haeo.data.loader.extractors.utils import separate_duplica
             [
                 (100.0, 1.0),
                 (200.0, 2.0),
-                (np.nextafter(300.0, -np.inf), 3.0),
+                (_prev(300.0), 3.0),
                 (300.0, 4.0),
                 (400.0, 5.0),
             ],
@@ -61,7 +66,7 @@ from custom_components.haeo.data.loader.extractors.utils import separate_duplica
         (
             [(100, 1.0), (100, 2.0), (100, 3.0), (200, 4.0)],
             [
-                (np.nextafter(100.0, -np.inf), 1.0),
+                (_prev(100.0), 1.0),
                 (100.0, 3.0),
                 (200.0, 4.0),
             ],
@@ -70,7 +75,7 @@ from custom_components.haeo.data.loader.extractors.utils import separate_duplica
         (
             [(100, 1.0), (100, 2.0), (100, 3.0), (100, 4.0), (200, 5.0)],
             [
-                (np.nextafter(100.0, -np.inf), 1.0),
+                (_prev(100.0), 1.0),
                 (100.0, 4.0),
                 (200.0, 5.0),
             ],
@@ -79,7 +84,7 @@ from custom_components.haeo.data.loader.extractors.utils import separate_duplica
         (
             [(100, 1.0), (100, 2.0), (100, 3.0), (100, 4.0), (100, 5.0)],
             [
-                (np.nextafter(100.0, -np.inf), 1.0),
+                (_prev(100.0), 1.0),
                 (100.0, 5.0),
             ],
         ),

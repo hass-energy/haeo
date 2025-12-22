@@ -66,8 +66,7 @@ class Parser:
     def extract(state: AemoNemState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
         """Extract forecast data from AEMO energy market format."""
         parsed: list[tuple[int, float]] = [
-            (int(parse_datetime_to_timestamp(item["start_time"])), item["price"])
-            for item in state.attributes["forecast"]
+            (parse_datetime_to_timestamp(item["start_time"]), item["price"]) for item in state.attributes["forecast"]
         ]
         parsed.sort(key=lambda x: x[0])
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

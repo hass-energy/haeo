@@ -78,7 +78,7 @@ class Parser:
     @staticmethod
     def _round_to_minute(timestamp: str | datetime) -> int:
         """Round timestamp to nearest minute (Amber provides times 1 second into each period)."""
-        raw = float(parse_datetime_to_timestamp(timestamp))
+        raw = parse_datetime_to_timestamp(timestamp)
         return int(round(raw / 60.0) * 60.0)
 
     @staticmethod

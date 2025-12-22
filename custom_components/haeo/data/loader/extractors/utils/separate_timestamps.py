@@ -49,4 +49,4 @@ def separate_duplicate_timestamps(data: Sequence[tuple[int, float]]) -> list[tup
     adjusted_timestamps = np.where(is_duplicate, np.nextafter(timestamps, -np.inf), timestamps)
 
     # Convert to list of tuples
-    return list(zip(adjusted_timestamps.tolist(), values.tolist(), strict=False))
+    return list(zip(adjusted_timestamps.tolist(), values.tolist(), strict=True))

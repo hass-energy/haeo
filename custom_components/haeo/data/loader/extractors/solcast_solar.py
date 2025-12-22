@@ -73,7 +73,7 @@ class Parser:
         State has been validated by detect(), so all entries are guaranteed to be valid.
         """
         parsed: list[tuple[int, float]] = [
-            (int(parse_datetime_to_timestamp(item["period_start"])), item["pv_estimate"])
+            (parse_datetime_to_timestamp(item["period_start"]), item["pv_estimate"])
             for item in state.attributes["detailedForecast"]
         ]
         parsed.sort(key=lambda x: x[0])
