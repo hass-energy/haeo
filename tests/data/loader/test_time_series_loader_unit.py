@@ -8,6 +8,7 @@ Lower-level fusion and cycling logic is tested in:
 """
 
 from collections.abc import Sequence
+from typing import Any
 
 from homeassistant.core import HomeAssistant
 import pytest
@@ -124,8 +125,10 @@ async def test_time_series_loader_load_merges_present_and_forecast(
 
 
 @pytest.mark.asyncio
-async def test_time_series_loader_load_present_only(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
-    """load() should broadcast the summed present value when no forecasts exist."""
+async def test_time_series_loader_load_present_only_uses_historical(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """load() should use historical data when sensors have no forecasts."""
 
     loader = TimeSeriesLoader()
 
@@ -135,13 +138,55 @@ async def test_time_series_loader_load_present_only(hass: HomeAssistant, monkeyp
 
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
+    # Mock the HistoricalForecastLoader to return pattern-based values
+    from custom_components.haeo.data.loader import historical_load_loader as hll
+
+    async def fake_historical_load(
+        self: Any, *, hass: HomeAssistant, value: list[str], forecast_times: Sequence[float], **_kwargs
+    ) -> list[float]:
+        # Return pattern-based values (not just broadcast present value)
+        return [4.0, 6.0]
+
+    monkeypatch.setattr(hll.HistoricalForecastLoader, "load", fake_historical_load)
+
     result = await loader.load(
         hass=hass,
         value=["sensor.a", "sensor.b"],
         forecast_times=[0, 60, 120],
     )
 
-    # Returns 2 interval values, both equal to summed present value
+    # Returns historical pattern-based values
+    assert result == [4.0, 6.0]
+
+
+@pytest.mark.asyncio
+async def test_time_series_loader_load_present_only_fallback(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """load() should fallback to present value when historical data fails."""
+
+    loader = TimeSeriesLoader()
+
+    def fake_load_sensors(_hass: HomeAssistant, entity_ids: Sequence[str]) -> dict[str, float]:
+        return {"sensor.a": 2.0, "sensor.b": 3.0}
+
+    monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
+
+    # Mock the HistoricalForecastLoader to fail
+    from custom_components.haeo.data.loader import historical_load_loader as hll
+
+    async def fake_historical_load(self: Any, **_kwargs) -> list[float]:
+        raise ValueError("No historical data available")
+
+    monkeypatch.setattr(hll.HistoricalForecastLoader, "load", fake_historical_load)
+
+    result = await loader.load(
+        hass=hass,
+        value=["sensor.a", "sensor.b"],
+        forecast_times=[0, 60, 120],
+    )
+
+    # Falls back to summed present value broadcast: 2.0 + 3.0 = 5.0
     assert result == [5.0, 5.0]
 
 

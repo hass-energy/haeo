@@ -46,24 +46,47 @@ async def get_statistics_for_sensor(
     Returns:
         List of statistics rows with 'start' and 'mean' fields.
 
+    Raises:
+        ValueError: If the recorder is not available or not set up.
+
     """
+    # Check if recorder is available
+    if "recorder" not in hass.config.components:
+        msg = "Recorder component not loaded"
+        raise ValueError(msg)
+
+    # Check if recorder instance is set up
+    try:
+        from homeassistant.helpers.recorder import DATA_INSTANCE  # noqa: PLC0415
+
+        if DATA_INSTANCE not in hass.data:
+            msg = "Recorder not initialized"
+            raise ValueError(msg)
+    except ImportError:
+        msg = "Recorder component not available"
+        raise ValueError(msg) from None
+
     # Import here to avoid circular imports and allow mocking
     from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
         statistics_during_period,
     )
 
     # Fetch statistics - runs in executor since it's blocking
-    statistics: dict[str, list[StatisticsRow]] = await hass.async_add_executor_job(
-        lambda: statistics_during_period(
-            hass,
-            start_time,
-            end_time,
-            {entity_id},
-            "hour",
-            None,
-            {"mean"},
+    try:
+        statistics: dict[str, list[StatisticsRow]] = await hass.async_add_executor_job(
+            lambda: statistics_during_period(
+                hass,
+                start_time,
+                end_time,
+                {entity_id},
+                "hour",
+                None,
+                {"mean"},
+            )
         )
-    )
+    except Exception as e:
+        msg = f"Failed to fetch statistics: {e}"
+        raise ValueError(msg) from e
 
     return statistics.get(entity_id, [])
 
