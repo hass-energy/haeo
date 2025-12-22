@@ -108,6 +108,8 @@ async def test_validate_network_topology_with_implicit_connection(
         "main_node": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "main",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "grid": {
             CONF_ELEMENT_TYPE: "grid",
@@ -261,6 +263,8 @@ async def test_validate_network_topology_with_battery_all_sections(
         "main_node": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "main",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "battery": {
             CONF_ELEMENT_TYPE: "battery",

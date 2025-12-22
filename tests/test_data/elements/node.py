@@ -38,6 +38,8 @@ INVALID_SCHEMA: Sequence[InvalidSchemaCase[ElementConfigSchema]] = [
         "schema": {
             "element_type": "node",
             "name": "",
+            "is_source": False,
+            "is_sink": False,
         },
     },
 ]

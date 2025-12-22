@@ -11,7 +11,7 @@ from typing import Any, Final, Literal, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SOC
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     EnergySensorFieldData,
