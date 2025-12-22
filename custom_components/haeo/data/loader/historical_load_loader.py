@@ -24,9 +24,6 @@ _LOGGER = logging.getLogger(__name__)
 # Default number of days of history to use for forecast
 DEFAULT_HISTORY_DAYS = 7
 
-# Maximum cycles to prevent infinite loops in cycle_forecast_to_horizon
-_MAX_CYCLES = 100
-
 
 async def get_statistics_for_sensor(
     hass: HomeAssistant,
@@ -150,29 +147,25 @@ def cycle_forecast_to_horizon(
     if not forecast:
         return forecast
 
-    # Get the span of one cycle
     cycle_duration = timedelta(days=history_days).total_seconds()
+    first_timestamp = forecast[0][0]
 
-    # Find when the current forecast ends
-    last_timestamp = forecast[-1][0]
+    # Calculate how many cycles we need: ceil((horizon_end - first) / cycle_duration)
+    horizon_span = horizon_end - first_timestamp
+    if horizon_span <= 0:
+        return forecast
 
-    # Keep adding cycles until we cover the horizon
+    cycles_needed = int(horizon_span // cycle_duration) + 1
+
+    # Build extended series with all needed cycles
     extended: ForecastSeries = list(forecast)
-    cycle_count = 1
-
-    while last_timestamp < horizon_end:
-        cycle_shift = cycle_duration * cycle_count
+    for cycle in range(1, cycles_needed + 1):
+        cycle_shift = cycle_duration * cycle
         for original_time, value in forecast:
             new_time = original_time + cycle_shift
             if new_time > horizon_end:
                 break
             extended.append((new_time, value))
-            last_timestamp = new_time
-        cycle_count += 1
-
-        # Safety limit to prevent infinite loops
-        if cycle_count > _MAX_CYCLES:
-            break
 
     return extended
 
