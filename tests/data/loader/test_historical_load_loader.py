@@ -32,7 +32,8 @@ class TestBuildHourlyPattern:
             {"start": datetime(2024, 1, 1, 14, 0, 0, tzinfo=timezone.utc), "mean": 3.0},
         ]
 
-        pattern = build_hourly_pattern(stats)
+        # Use UTC timezone so hours match what we expect
+        pattern = build_hourly_pattern(stats, timezone=timezone.utc)
 
         # Hour 10 should be average of 2.0 and 4.0 = 3.0
         assert pattern[10] == pytest.approx(3.0)
@@ -51,7 +52,7 @@ class TestBuildHourlyPattern:
             {"start": datetime(2024, 1, 1, 11, 0, 0, tzinfo=timezone.utc), "mean": None},
         ]
 
-        pattern = build_hourly_pattern(stats)
+        pattern = build_hourly_pattern(stats, timezone=timezone.utc)
 
         assert 10 in pattern
         assert 11 not in pattern
@@ -64,11 +65,11 @@ class TestBuildHourlyPattern:
             {"start": ts, "mean": 5.0},
         ]
 
-        pattern = build_hourly_pattern(stats)
+        # Use UTC so we know what hour to expect
+        pattern = build_hourly_pattern(stats, timezone=timezone.utc)
 
-        # The hour depends on the local timezone, but should have a value
         assert len(pattern) == 1
-        assert list(pattern.values())[0] == pytest.approx(5.0)
+        assert pattern[15] == pytest.approx(5.0)
 
 
 class TestBuildForecastFromPattern:
@@ -237,7 +238,10 @@ class TestHistoricalForecastLoader:
         self, hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """load() sums values from multiple sensors."""
+        from homeassistant.util import dt as dt_util
+
         loader = HistoricalForecastLoader(history_days=7)
+        tz = dt_util.get_default_time_zone()
 
         call_count = 0
 
@@ -252,12 +256,12 @@ class TestHistoricalForecastLoader:
             # Return different values for each sensor
             value = 2.0 if "sensor1" in entity_id else 3.0
             return [
-                {"start": datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc), "mean": value},
+                {"start": datetime(2024, 1, 1, 10, 0, 0, tzinfo=tz), "mean": value},
             ]
 
         monkeypatch.setattr(hll, "get_statistics_for_sensor", mock_get_stats)
 
-        base = datetime(2024, 1, 8, 10, 0, 0, tzinfo=timezone.utc)
+        base = datetime(2024, 1, 8, 10, 0, 0, tzinfo=tz)
         forecast_times = [base.timestamp(), (base + timedelta(hours=1)).timestamp()]
 
         result = await loader.load(
