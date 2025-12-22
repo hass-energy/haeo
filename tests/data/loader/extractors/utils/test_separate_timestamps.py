@@ -1,7 +1,6 @@
 """Tests for separate_timestamps utility."""
 
 import numpy as np
-import pytest
 
 from custom_components.haeo.data.loader.extractors.utils import separate_duplicate_timestamps
 
