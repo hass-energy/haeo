@@ -5,12 +5,12 @@ The Load element uses forecast data to model any type of consumption pattern fro
 
 ## Configuration
 
-| Field                               | Type                                     | Required | Default    | Description                                      |
-| ----------------------------------- | ---------------------------------------- | -------- | ---------- | ------------------------------------------------ |
-| **[Name](#name)**                   | String                                   | Yes      | -          | Unique identifier for this load                  |
-| **[Forecast Source](#forecast-source)** | Selection                           | Yes      | Energy Tab | Where to get consumption data from               |
-| **[History Days](#history-days)**   | Number (1-30)                            | No*      | 7          | Days of historical data to use (Energy Tab mode) |
-| **[Forecast](#forecast)**           | [sensor(s)](../forecasts-and-sensors.md) | No*      | -          | Power consumption sensor(s) (Custom Sensor mode) |
+| Field                                   | Type                                     | Required | Default    | Description                                      |
+| --------------------------------------- | ---------------------------------------- | -------- | ---------- | ------------------------------------------------ |
+| **[Name](#name)**                       | String                                   | Yes      | -          | Unique identifier for this load                  |
+| **[Forecast Source](#forecast-source)** | Selection                                | Yes      | Energy Tab | Where to get consumption data from               |
+| **[History Days](#history-days)**       | Number (1-30)                            | No\*     | 7          | Days of historical data to use (Energy Tab mode) |
+| **[Forecast](#forecast)**               | [sensor(s)](../forecasts-and-sensors.md) | No\*     | -          | Power consumption sensor(s) (Custom Sensor mode) |
 
 \* One of History Days or Forecast is required, depending on the Forecast Source selection.
 
