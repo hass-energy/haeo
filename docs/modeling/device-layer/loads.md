@@ -1,13 +1,13 @@
 # Load Modeling
 
-The Load device composes a [SourceSink](../model-layer/source-sink.md) (power sink only) with an implicit [Connection](../model-layer/connection.md) to model power consumption based on forecast data.
+The Load device composes a [Node](../model-layer/node.md) (power sink only) with an implicit [Connection](../model-layer/connection.md) to model power consumption based on forecast data.
 
 ## Model Elements Created
 
 ```mermaid
 graph LR
     subgraph "Device"
-        SS["SourceSink<br/>(is_source=false, is_sink=true)"]
+        SS["Node<br/>(is_source=false, is_sink=true)"]
         Conn["Connection<br/>{name}:connection<br/>(fixed_power=true)"]
     end
 
@@ -18,10 +18,10 @@ graph LR
     Node -->|connects to| Conn
 ```
 
-| Model Element                               | Name                | Parameters From Configuration       |
-| ------------------------------------------- | ------------------- | ----------------------------------- |
-| [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=false, is_sink=true       |
-| [Connection](../model-layer/connection.md)  | `{name}:connection` | forecast as fixed power requirement |
+| Model Element                              | Name                | Parameters From Configuration       |
+| ------------------------------------------ | ------------------- | ----------------------------------- |
+| [Node](../model-layer/node.md)             | `{name}`            | is_source=false, is_sink=true       |
+| [Connection](../model-layer/connection.md) | `{name}:connection` | forecast as fixed power requirement |
 
 ## Devices Created
 
@@ -40,8 +40,8 @@ The adapter transforms user configuration into model parameters:
 | `forecast`         | Connection    | `max_power_target_source` | Required consumption at each time |
 | `connection`       | Connection    | `source`                  | Node to connect from              |
 | —                  | Connection    | `fixed_power=true`        | Consumption must equal forecast   |
-| —                  | SourceSink    | `is_source=false`         | Load cannot provide power         |
-| —                  | SourceSink    | `is_sink=true`            | Load consumes power               |
+| —                  | Node          | `is_source=false`         | Load cannot provide power         |
+| —                  | Node          | `is_sink=true`            | Load consumes power               |
 
 ## Sensors Created
 
@@ -117,13 +117,13 @@ Load represents power consumption that must be satisfied by the system—either 
 
     [:material-arrow-right: Load configuration](../../user-guide/elements/load.md)
 
-- :material-power-plug:{ .lg .middle } **SourceSink model**
+- :material-power-plug:{ .lg .middle } **Node model**
 
     ---
 
     Underlying model element for Load.
 
-    [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
+    [:material-arrow-right: Node formulation](../model-layer/node.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 

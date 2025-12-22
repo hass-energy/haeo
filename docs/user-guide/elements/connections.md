@@ -2,6 +2,12 @@
 
 Connections define how power flows between elements in your network with support for bidirectional flow, efficiency losses, and transmission costs.
 
+!!! warning "Advanced Element"
+
+    Connection is only available when **Advanced Mode** is enabled on your hub.
+    This element is intended for advanced users who need explicit control over power flow paths.
+    Most users should rely on implicit connections created automatically by other elements.
+
 !!! note "Implicit connections"
 
     Many elements create implicit connections automatically.
@@ -74,7 +80,7 @@ Leave both power limits unset for unlimited flow in both directions:
 
 !!! note
 
-    Solar will only produce, so reverse flow won't occur naturally.
+    Generation sources typically only produce power, so reverse flow won't occur naturally.
 
 ### Unidirectional Connection
 
@@ -144,7 +150,7 @@ A Connection element creates 1 device in Home Assistant with the following senso
 Not all sensors are created for every connection - only those relevant to the configuration.
 
 The sensor display names use the actual source and target element names configured for the connection.
-For example, a connection from "Battery" to "Grid" would show "Battery to Grid Power" instead of generic "Source to Target".
+For example, a connection between two elements would show their actual names in the sensor name instead of generic "Source to Target".
 
 | Sensor                                                                                     | Unit   | Description                             |
 | ------------------------------------------------------------------------------------------ | ------ | --------------------------------------- |

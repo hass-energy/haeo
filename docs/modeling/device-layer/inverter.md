@@ -1,13 +1,13 @@
 # Inverter Modeling
 
-The Inverter device composes a [SourceSink](../model-layer/source-sink.md) (as a DC bus junction) with an implicit [Connection](../model-layer/connection.md) to model bidirectional DC/AC power conversion with separate efficiency and power limits per direction.
+The Inverter device composes a [Node](../model-layer/node.md) (as a DC bus junction) with an implicit [Connection](../model-layer/connection.md) to model bidirectional DC/AC power conversion with separate efficiency and power limits per direction.
 
 ## Model Elements Created
 
 ```mermaid
 graph LR
     subgraph "Device"
-        SS["SourceSink<br/>(DC Bus Junction)"]
+        SS["Node<br/>(is_source=false, is_sink=false)"]
         Conn["Connection<br/>{name}:connection"]
     end
 
@@ -19,10 +19,10 @@ graph LR
     Conn <-->|connects to| ACNode
 ```
 
-| Model Element                               | Name                | Parameters From Configuration                  |
-| ------------------------------------------- | ------------------- | ---------------------------------------------- |
-| [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=false, is_sink=false (pure junction) |
-| [Connection](../model-layer/connection.md)  | `{name}:connection` | efficiency, power limits per direction         |
+| Model Element                              | Name                | Parameters From Configuration                  |
+| ------------------------------------------ | ------------------- | ---------------------------------------------- |
+| [Node](../model-layer/node.md)             | `{name}`            | is_source=false, is_sink=false (pure junction) |
+| [Connection](../model-layer/connection.md) | `{name}:connection` | efficiency, power limits per direction         |
 
 ## Devices Created
 
@@ -43,8 +43,8 @@ The adapter transforms user configuration into model parameters:
 | `max_power_dc_to_ac`  | Connection    | `max_power_source_target`  | Maximum inverting power (optional)    |
 | `max_power_ac_to_dc`  | Connection    | `max_power_target_source`  | Maximum rectifying power (optional)   |
 | `connection`          | Connection    | `target`                   | AC side node to connect to            |
-| —                     | SourceSink    | `is_source=false`          | DC bus is not a power source          |
-| —                     | SourceSink    | `is_sink=false`            | DC bus is not a power sink            |
+| —                     | Node          | `is_source=false`          | DC bus is not a power source          |
+| —                     | Node          | `is_sink=false`            | DC bus is not a power sink            |
 
 ## Sensors Created
 
@@ -118,13 +118,13 @@ while the AC side connects to your home's AC network.
 
 <div class="grid cards" markdown>
 
-- :material-power-plug:{ .lg .middle } **SourceSink model**
+- :material-power-plug:{ .lg .middle } **Node model**
 
     ---
 
     Underlying model element for the DC bus.
 
-    [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
+    [:material-arrow-right: Node formulation](../model-layer/node.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 

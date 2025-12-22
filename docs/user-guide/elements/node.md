@@ -2,11 +2,19 @@
 
 Virtual balance points enforcing power conservation (Kirchhoff's law).
 
+!!! warning "Advanced Element"
+
+    Node is available by default, but advanced source/sink configuration (`is_source` and `is_sink` fields) is only available when **Advanced Mode** is enabled on your hub.
+    In standard mode, nodes are pure junctions with no generation or consumption capability.
+
 ## Configuration
 
-| Field             | Type   | Required | Default | Description                     |
-| ----------------- | ------ | -------- | ------- | ------------------------------- |
-| **[Name](#name)** | String | Yes      | -       | Unique identifier for this node |
+| Field                       | Type    | Required | Default | Description                                         |
+| --------------------------- | ------- | -------- | ------- | --------------------------------------------------- |
+| **[Name](#name)**           | String  | Yes      | -       | Unique identifier for this node                     |
+| **[Is Source](#is-source)** | Boolean | No       | false   | Whether node can produce power (Advanced Mode only) |
+| **[Is Sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume power (Advanced Mode only) |
+
 
 ## Name
 
@@ -14,6 +22,53 @@ Unique identifier for this node within your HAEO configuration.
 Used to identify the node in connection endpoints.
 
 Choose descriptive names based on electrical location: "Main Node", "AC Panel", "DC Bus", "Home Circuit"
+
+## Is Source
+
+Whether this node can produce power (act as a power source).
+When `true`, the node can generate power that flows out through connections.
+
+**Default**: `false` (node cannot produce power)
+
+**Available only when Advanced Mode is enabled**.
+
+## Is Sink
+
+Whether this node can consume power (act as a power sink).
+When `true`, the node can accept power that flows in through connections.
+
+**Default**: `false` (node cannot consume power)
+
+**Available only when Advanced Mode is enabled**.
+
+### Source and Sink Combinations
+
+The combination of `is_source` and `is_sink` determines the node's behavior:
+
+**Pure Junction** (`is_source=false, is_sink=false` - default):
+
+- Power must balance: all power flowing in equals all power flowing out
+- No power generation or consumption at the node itself
+- Most common configuration for standard nodes
+- Available in standard mode (Advanced Mode not required)
+
+**Source Only** (`is_source=true, is_sink=false`):
+
+- Node can produce power that flows out through connections
+- Cannot accept power from connections
+- Useful for modeling power sources without using dedicated generation or grid elements
+
+**Sink Only** (`is_source=false, is_sink=true`):
+
+- Node can accept power that flows in through connections
+- Cannot produce power
+- Useful for modeling power sinks without using dedicated consumption elements
+
+**Bidirectional** (`is_source=true, is_sink=true`):
+
+- Node can both produce and consume power
+- Useful for modeling bidirectional power sources or flexible power exchange points
+- Similar to bidirectional grid elements but without automatic connection creation
 
 ## Purpose
 
@@ -27,7 +82,7 @@ Nodes are not physical devices - they represent electrical junctions where Kirch
 
 !!! tip "Key insight"
 
-    All elements (batteries, grids, loads, etc.) function as nodes in the network.
+    All elements function as nodes in the network.
     Explicit Node elements are only needed when you want an additional connection point without any associated device.
 
 ## Use Cases
@@ -36,10 +91,10 @@ Nodes are not physical devices - they represent electrical junctions where Kirch
 
 ```mermaid
 graph LR
-    Grid<-->Node[Node]
-    Solar-->Node
-    Battery<-->Node
-    Node-->Load
+    Source1[Source] <--> Node[Node]
+    Source2[Source] --> Node
+    Storage[Storage] <--> Node
+    Node --> Sink[Sink]
 
     class Node emphasis
 ```
@@ -50,11 +105,11 @@ Most residential systems use one node.
 
 ```mermaid
 graph LR
-    Solar-->DC[DC Node]
-    Battery<-->DC
+    Source[Source] --> DC[DC Node]
+    Storage[Storage] <--> DC
     DC<-->|Inverter|AC[AC Node]
-    Grid<-->AC
-    AC-->Load
+    Bidirectional[Bidirectional] <--> AC
+    AC-->Sink[Sink]
 
     class DC dc
     class AC ac
@@ -138,11 +193,11 @@ For hybrid (AC/DC) inverter systems, use separate AC and DC nodes with a connect
 
 ```mermaid
 graph LR
-    Battery[Battery] <--> DC[DC Node]
-    Solar[Solar] --> DC
+    Storage[Storage] <--> DC[DC Node]
+    Source[Source] --> DC
     DC <-->|Inverter| AC[AC Node]
-    Grid[Grid] <--> AC
-    AC --> Load[Load]
+    Bidirectional[Bidirectional] <--> AC
+    AC --> Sink[Sink]
 ```
 
 The **connection** between DC and AC nodes represents the inverter.

@@ -1,13 +1,13 @@
 # Grid Modeling
 
-The Grid device composes a [SourceSink](../model-layer/source-sink.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connection.md) to model utility grid connections with time-varying import/export pricing.
+The Grid device composes a [Node](../model-layer/node.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connection.md) to model utility grid connections with time-varying import/export pricing.
 
 ## Model Elements Created
 
 ```mermaid
 graph LR
     subgraph "Device"
-        SS["SourceSink<br/>(is_source=true, is_sink=true)"]
+        SS["Node<br/>(is_source=true, is_sink=true)"]
         Conn["Connection<br/>{name}:connection"]
     end
 
@@ -17,10 +17,10 @@ graph LR
     Conn <-->|connects to| Node
 ```
 
-| Model Element                               | Name                | Parameters From Configuration              |
-| ------------------------------------------- | ------------------- | ------------------------------------------ |
-| [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=true, is_sink=true               |
-| [Connection](../model-layer/connection.md)  | `{name}:connection` | import/export limits, import/export prices |
+| Model Element                              | Name                | Parameters From Configuration              |
+| ------------------------------------------ | ------------------- | ------------------------------------------ |
+| [Node](../model-layer/node.md)             | `{name}`            | is_source=true, is_sink=true               |
+| [Connection](../model-layer/connection.md) | `{name}:connection` | import/export limits, import/export prices |
 
 ## Devices Created
 
@@ -41,8 +41,8 @@ The adapter transforms user configuration into model parameters:
 | `import_limit`     | Connection    | `max_power_target_source` | Maximum import power (optional) |
 | `export_limit`     | Connection    | `max_power_source_target` | Maximum export power (optional) |
 | `connection`       | Connection    | `target`                  | Node to connect to              |
-| —                  | SourceSink    | `is_source=true`          | Grid can supply power           |
-| —                  | SourceSink    | `is_sink=true`            | Grid can absorb power           |
+| —                  | Node          | `is_source=true`          | Grid can supply power           |
+| —                  | Node          | `is_sink=true`            | Grid can absorb power           |
 
 ## Sensors Created
 
@@ -119,13 +119,13 @@ Grid represents the utility connection that can supply power (import) when local
 
     [:material-arrow-right: Grid configuration](../../user-guide/elements/grid.md)
 
-- :material-power-plug:{ .lg .middle } **SourceSink model**
+- :material-power-plug:{ .lg .middle } **Node model**
 
     ---
 
     Underlying model element for Grid.
 
-    [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
+    [:material-arrow-right: Node formulation](../model-layer/node.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 

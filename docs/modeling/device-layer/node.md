@@ -1,21 +1,21 @@
 # Node Modeling
 
-The Node device composes a [SourceSink](../model-layer/source-sink.md) (junction point) to represent an electrical bus where multiple elements connect and power must balance.
+The Node device composes a [Node](../model-layer/node.md) model element to represent an electrical bus where multiple elements connect and power must balance.
 
 ## Model Elements Created
 
 ```mermaid
 graph LR
     subgraph "Device"
-        NodeModel["SourceSink<br/>(is_source=false, is_sink=false)"]
+        NodeModel["Node<br/>(is_source, is_sink)"]
     end
 ```
 
-| Model Element                               | Name     | Parameters From Configuration  |
-| ------------------------------------------- | -------- | ------------------------------ |
-| [SourceSink](../model-layer/source-sink.md) | `{name}` | is_source=false, is_sink=false |
+| Model Element                  | Name     | Parameters From Configuration                |
+| ------------------------------ | -------- | -------------------------------------------- |
+| [Node](../model-layer/node.md) | `{name}` | is_source, is_sink (from user configuration) |
 
-Node is unique among Device Layer elements: it creates only a SourceSink with no implicit Connection.
+Node is unique among Device Layer elements: it creates only a Node model element with no implicit Connection.
 
 ## Devices Created
 
@@ -29,12 +29,19 @@ Node creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into model parameters:
 
-| User Configuration | Model Element | Model Parameter   | Notes                      |
-| ------------------ | ------------- | ----------------- | -------------------------- |
-| —                  | SourceSink    | `is_source=false` | Node cannot generate power |
-| —                  | SourceSink    | `is_sink=false`   | Node cannot consume power  |
+| User Configuration | Model Element | Model Parameter | Notes                                           |
+| ------------------ | ------------- | --------------- | ----------------------------------------------- |
+| `name`             | Node          | `name`          | Element name                                    |
+| `is_source`        | Node          | `is_source`     | Whether node can produce power (default: false) |
+| `is_sink`          | Node          | `is_sink`       | Whether node can consume power (default: false) |
 
-Node has no user-configurable parameters other than its name.
+In standard mode (Advanced Mode disabled), nodes are pure junctions (`is_source=false, is_sink=false`).
+When Advanced Mode is enabled, `is_source` and `is_sink` can be configured to create:
+
+- **Grid-like nodes** (`is_source=true, is_sink=true`): Can import and export power
+- **Load-like nodes** (`is_source=false, is_sink=true`): Can only consume power
+- **Source-like nodes** (`is_source=true, is_sink=false`): Can only produce power
+- **Pure junctions** (`is_source=false, is_sink=false`): Power must balance (default)
 
 ## Sensors Created
 
@@ -102,13 +109,13 @@ Node represents an electrical bus where Kirchhoff's current law applies—total 
 
     [:material-arrow-right: Node configuration](../../user-guide/elements/node.md)
 
-- :material-power-plug:{ .lg .middle } **SourceSink model**
+- :material-power-plug:{ .lg .middle } **Node model**
 
     ---
 
-    Underlying model element for Node.
+    Underlying model element for Node device.
 
-    [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
+    [:material-arrow-right: Node formulation](../model-layer/node.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 
