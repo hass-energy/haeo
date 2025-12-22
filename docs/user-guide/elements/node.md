@@ -4,7 +4,11 @@ Virtual balance points enforcing power conservation (Kirchhoff's law).
 
 !!! warning "Advanced Element"
 
-    Node is available by default, but advanced source/sink configuration (`is_source` and `is_sink` fields) is only available when **Advanced Mode** is enabled on your hub.
+    A switchboard node is created automatically when you set up a HAEO hub.
+    Creating **additional** nodes requires **Advanced Mode** to be enabled on your hub.
+    In standard mode, the automatic switchboard node is sufficient for most residential systems.
+
+    Advanced source/sink configuration (`is_source` and `is_sink` fields) is only available when Advanced Mode is enabled.
     In standard mode, nodes are pure junctions with no generation or consumption capability.
 
 ## Configuration
@@ -79,6 +83,12 @@ $$
 
 Nodes are not physical devices - they represent electrical junctions where Kirchhoff's current law applies.
 
+!!! tip "Automatic switchboard"
+
+    HAEO creates a switchboard node automatically when you set up a hub.
+    This central connection point is sufficient for most residential energy systems.
+    You only need to create additional nodes if you have complex multi-bus topologies (e.g., separate AC/DC buses).
+
 !!! tip "Key insight"
 
     All elements function as nodes in the network.
@@ -90,7 +100,7 @@ Nodes are not physical devices - they represent electrical junctions where Kirch
 
 ```mermaid
 graph LR
-    Source1[Source] <--> Node[Node]
+    Source1[Source] <--> Node[Switchboard]
     Source2[Source] --> Node
     Storage[Storage] <--> Node
     Node --> Sink[Sink]
@@ -98,7 +108,8 @@ graph LR
     class Node emphasis
 ```
 
-Most residential systems use one node.
+Most residential systems use the automatic switchboard node only.
+Additional nodes are not needed unless you have complex multi-bus topologies.
 
 **Multiple nodes (complex)**: Separate AC/DC or hierarchical distribution.
 
@@ -182,7 +193,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 - Intermediate limits (inverter capacity, feeder constraints)
 - Hierarchical distribution (main panel and sub-panels)
 
-**Configuration**: Create multiple node elements, link them with connections.
+**Configuration**: Enable Advanced Mode on your hub, then create additional node elements and link them with connections.
 
 **Complexity**: Requires more configuration and adds more constraints, but accurately models real system architecture.
 
