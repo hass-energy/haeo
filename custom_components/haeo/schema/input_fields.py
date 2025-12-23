@@ -14,14 +14,7 @@ The information extracted includes:
 
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from typing import (
-    TYPE_CHECKING,
-    Annotated,
-    Literal,
-    get_args,
-    get_origin,
-    get_type_hints,
-)
+from typing import TYPE_CHECKING, Annotated, Literal, get_args, get_origin, get_type_hints
 
 from homeassistant.components.number import NumberDeviceClass
 

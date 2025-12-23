@@ -8,10 +8,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from custom_components.haeo.coordinator import (
-    CoordinatorOutput,
-    HaeoDataUpdateCoordinator,
-)
+from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
 from custom_components.haeo.model import OutputType
 

@@ -14,10 +14,7 @@ import pytest
 
 from custom_components.haeo.data.loader import time_series_loader as tsl
 from custom_components.haeo.data.loader.sensor_loader import normalize_entity_ids
-from custom_components.haeo.data.loader.time_series_loader import (
-    TimeSeriesLoader,
-    _collect_sensor_ids,
-)
+from custom_components.haeo.data.loader.time_series_loader import TimeSeriesLoader, _collect_sensor_ids
 
 
 def test_collect_sensor_ids_from_mapping() -> None:

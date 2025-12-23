@@ -31,15 +31,10 @@ from custom_components.haeo.elements.battery import (
     CONF_UNDERCHARGE_COST,
     CONF_UNDERCHARGE_PERCENTAGE,
 )
-from custom_components.haeo.elements.battery import (
-    CONF_CONNECTION as BATTERY_CONF_CONNECTION,
-)
+from custom_components.haeo.elements.battery import CONF_CONNECTION as BATTERY_CONF_CONNECTION
 from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CONNECTION
 from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE
-from custom_components.haeo.validation import (
-    format_component_summary,
-    validate_network_topology,
-)
+from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 
 @pytest.fixture

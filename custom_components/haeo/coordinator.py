@@ -249,6 +249,7 @@ class ElementData(TypedDict):
     Attributes:
         inputs: Loaded configuration with resolved sensor/forecast values
         outputs: Sensor outputs grouped by device and output name
+
     """
 
     inputs: ElementConfigData
