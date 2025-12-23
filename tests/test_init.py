@@ -11,7 +11,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import (
-    _ensure_network_subentry,
+    _ensure_required_subentries,
     async_reload_entry,
     async_remove_config_entry_device,
     async_setup_entry,
@@ -19,13 +19,19 @@ from custom_components.haeo import (
     async_update_listener,
 )
 from custom_components.haeo.const import (
+    CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID
+from custom_components.haeo.elements import (
+    ELEMENT_TYPE_BATTERY,
+    ELEMENT_TYPE_CONNECTION,
+    ELEMENT_TYPE_GRID,
+    ELEMENT_TYPE_NODE,
+)
 from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.grid import (
@@ -191,8 +197,10 @@ async def test_reload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     assert True
 
 
-async def test_ensure_network_subentry_already_exists(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
-    """Test that _ensure_network_subentry skips if network already exists."""
+async def test_ensure_required_subentries_network_already_exists(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """Test that _ensure_required_subentries skips network if already exists."""
     # First, create a network subentry
     network_subentry = ConfigSubentry(
         data=MappingProxyType({CONF_NAME: "Network", CONF_ELEMENT_TYPE: "network"}),
@@ -203,25 +211,97 @@ async def test_ensure_network_subentry_already_exists(hass: HomeAssistant, mock_
     hass.config_entries.async_add_subentry(mock_hub_entry, network_subentry)
 
     # Call ensure again - should skip creating another one
-    await _ensure_network_subentry(hass, mock_hub_entry)
+    await _ensure_required_subentries(hass, mock_hub_entry)
 
     # Count network subentries - should still be only 1
     network_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == "network")
     assert network_count == 1
 
 
-async def test_ensure_network_subentry_creates_new(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
-    """Test that _ensure_network_subentry creates network if missing."""
+async def test_ensure_required_subentries_creates_network(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """Test that _ensure_required_subentries creates network if missing."""
     # Verify no network subentry exists initially
     network_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == "network")
     assert network_count == 0
 
     # Call ensure - should create one
-    await _ensure_network_subentry(hass, mock_hub_entry)
+    await _ensure_required_subentries(hass, mock_hub_entry)
 
     # Verify network subentry was created
     network_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == "network")
     assert network_count == 1
+
+
+async def test_ensure_required_subentries_creates_switchboard_non_advanced(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """Test that _ensure_required_subentries creates switchboard node in non-advanced mode."""
+    # Verify no node subentry exists initially
+    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 0
+
+    # Call ensure - should create switchboard node in non-advanced mode
+    await _ensure_required_subentries(hass, mock_hub_entry)
+
+    # Verify node subentry was created
+    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 1
+
+
+async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
+    hass: HomeAssistant,
+) -> None:
+    """Test that _ensure_required_subentries does not create switchboard in advanced mode."""
+    # Create a hub entry with advanced_mode enabled
+    advanced_hub_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Network",
+            CONF_ADVANCED_MODE: True,
+        },
+        entry_id="hub_entry_id",
+        title="Test HAEO Integration",
+    )
+    advanced_hub_entry.add_to_hass(hass)
+
+    # Verify no node subentry exists initially
+    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 0
+
+    # Call ensure - should NOT create switchboard node in advanced mode
+    await _ensure_required_subentries(hass, advanced_hub_entry)
+
+    # Verify no node subentry was created
+    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 0
+
+
+async def test_ensure_required_subentries_skips_switchboard_if_exists(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """Test that _ensure_required_subentries does not duplicate nodes if one exists."""
+    # Create a node subentry first
+    node_subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_NAME: "Existing Node", CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE}),
+        subentry_type=ELEMENT_TYPE_NODE,
+        title="Existing Node",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(mock_hub_entry, node_subentry)
+
+    # Verify one node subentry exists
+    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 1
+
+    # Call ensure - should not create another one
+    await _ensure_required_subentries(hass, mock_hub_entry)
+
+    # Verify still only one node subentry
+    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 1
 
 
 async def test_reload_entry_failure_handling(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
@@ -265,7 +345,7 @@ async def test_async_update_listener(
         assert entry_arg is mock_hub_entry
         ensure_called = True
 
-    monkeypatch.setattr("custom_components.haeo._ensure_network_subentry", mock_ensure)
+    monkeypatch.setattr("custom_components.haeo._ensure_required_subentries", mock_ensure)
 
     async def mock_evaluate(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
         nonlocal connectivity_called
