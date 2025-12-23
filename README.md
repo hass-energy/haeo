@@ -26,7 +26,7 @@ HAEO focuses exclusively on optimization and **will not** add features outside t
 - ❌ **Solar forecasting** - Use existing integrations like [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) or [Solcast](https://github.com/BJReplay/ha-solcast-solar)
 - ❌ **Price fetching** - Use integrations like Amber Electric, Nordpool, or Tibber
 - ❌ **Device control** - Use Home Assistant automations
-- ❌ **Load forecasting** - Use existing integrations or template sensors
+- ❌ **Load forecasting** - Use [HAFO](https://github.com/hass-energy/hafo) or other integrations
 
 This focused approach means:
 
