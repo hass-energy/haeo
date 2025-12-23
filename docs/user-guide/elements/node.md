@@ -93,6 +93,8 @@ Nodes are not physical devices - they represent electrical junctions where Kirch
     This central connection point is sufficient for most residential energy systems.
     You only need to create additional nodes if you have complex multi-bus topologies (e.g., separate AC/DC buses).
 
+    If the switchboard node is accidentally deleted in non-advanced mode, HAEO will automatically recreate it on the next integration reload to maintain network connectivity.
+
 !!! tip "Key insight"
 
     All elements function as nodes in the network.
@@ -145,6 +147,8 @@ Then connect elements to "Main Node" via connections.
 
     If you delete a node element, you must update all connections that reference it.
     Connections cannot have endpoints that don't exist.
+
+    **In non-advanced mode**: If you delete the switchboard node, HAEO will automatically recreate it the next time the integration reloads (on restart or configuration change) to ensure network connectivity is maintained.
 
 ## Sensors Created
 
