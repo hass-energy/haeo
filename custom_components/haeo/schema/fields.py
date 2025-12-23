@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Annotated, Any, Final, Literal, Unpack
 
 from homeassistant.components.number import NumberDeviceClass
@@ -30,6 +31,41 @@ from .params import SchemaParams
 from .util import UnitSpec
 
 
+class Direction(StrEnum):
+    """Direction marker for field visualization.
+
+    Used in Annotated composition to indicate whether a field represents
+    production/revenue (+) or consumption/cost (-).
+    """
+
+    PRODUCTION = "+"  # Adds to system (solar generation, export revenue)
+    CONSUMPTION = "-"  # Takes from system (loads, import costs)
+
+
+@dataclass(frozen=True, kw_only=True)
+class Default:
+    """Default value marker for field composition.
+
+    Used in Annotated composition to specify default values that are
+    used when creating editable number entities.
+    """
+
+    value: float | bool
+
+
+@dataclass(frozen=True)
+class NumberLimits:
+    """Number limits override marker for field composition.
+
+    Used in Annotated composition to override min/max/step values
+    from the base FieldMeta for specific field instances.
+    """
+
+    min: float | None = None
+    max: float | None = None
+    step: float | None = None
+
+
 @dataclass(frozen=True)
 class FieldMeta(ABC):
     """Base metadata describing schema and data behaviour for a field."""
@@ -43,9 +79,6 @@ class FieldMeta(ABC):
     step: float | None = None
     unit: str | None = None
     device_class: NumberDeviceClass | None = None
-
-    # Direction for visualization: "+" = production/revenue, "-" = consumption/cost
-    direction: Literal["+", "-"] | None = None
 
     def create_schema(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
         """Return the voluptuous validators for this field."""
@@ -334,26 +367,15 @@ PriceFieldSchema = Annotated[float, PriceFieldMeta()]
 PriceSensorsFieldSchema = Annotated[Sequence[str] | float, SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
 
 # Direction-aware schema type aliases for visualization
+# These compose the base type with a Direction marker - Python flattens nested Annotated
 # Power production (solar, generators): adds power to the system (+)
-PowerProductionSensorsFieldSchema = Annotated[
-    Sequence[str] | float,
-    SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True, direction="+"),
-]
+PowerProductionSensorsFieldSchema = Annotated[PowerSensorsFieldSchema, Direction.PRODUCTION]
 # Power consumption (loads): takes power from the system (-)
-PowerConsumptionSensorsFieldSchema = Annotated[
-    Sequence[str] | float,
-    SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True, direction="-"),
-]
+PowerConsumptionSensorsFieldSchema = Annotated[PowerSensorsFieldSchema, Direction.CONSUMPTION]
 # Price for import/consumption: cost to the user (-)
-PriceImportSensorsFieldSchema = Annotated[
-    Sequence[str] | float,
-    SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True, direction="-"),
-]
+PriceImportSensorsFieldSchema = Annotated[PriceSensorsFieldSchema, Direction.CONSUMPTION]
 # Price for export/production: revenue for the user (+)
-PriceExportSensorsFieldSchema = Annotated[
-    Sequence[str] | float,
-    SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True, direction="+"),
-]
+PriceExportSensorsFieldSchema = Annotated[PriceSensorsFieldSchema, Direction.PRODUCTION]
 
 # Data mode type aliases (loaded runtime values)
 PowerFieldData = Annotated[float, PowerFieldMeta()]
@@ -373,20 +395,8 @@ BatterySOCSensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_unit
 PriceFieldData = Annotated[float, PriceFieldMeta()]
 PriceSensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
 
-# Direction-aware data type aliases
-PowerProductionSensorsFieldData = Annotated[
-    list[float],
-    SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True, direction="+"),
-]
-PowerConsumptionSensorsFieldData = Annotated[
-    list[float],
-    SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True, direction="-"),
-]
-PriceImportSensorsFieldData = Annotated[
-    list[float],
-    SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True, direction="-"),
-]
-PriceExportSensorsFieldData = Annotated[
-    list[float],
-    SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True, direction="+"),
-]
+# Direction-aware data type aliases - compose base types with Direction
+PowerProductionSensorsFieldData = Annotated[PowerSensorsFieldData, Direction.PRODUCTION]
+PowerConsumptionSensorsFieldData = Annotated[PowerSensorsFieldData, Direction.CONSUMPTION]
+PriceImportSensorsFieldData = Annotated[PriceSensorsFieldData, Direction.CONSUMPTION]
+PriceExportSensorsFieldData = Annotated[PriceSensorsFieldData, Direction.PRODUCTION]

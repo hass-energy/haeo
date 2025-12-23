@@ -14,7 +14,7 @@ The information extracted includes:
 
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from typing import TYPE_CHECKING, Annotated, Literal, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Annotated, get_args, get_origin, get_type_hints
 
 from homeassistant.components.number import NumberDeviceClass
 
@@ -35,8 +35,11 @@ from .fields import (
     PRICE_UNITS,
     BatterySOCFieldMeta,
     BooleanFieldMeta,
+    Default,
+    Direction,
     EnergyFieldMeta,
     FieldMeta,
+    NumberLimits,
     PercentageFieldMeta,
     PowerFieldMeta,
     PowerFlowFieldMeta,
@@ -69,7 +72,8 @@ class InputFieldInfo:
         step: Step size for value changes (for Number entities)
         device_class: Device class for entity behavior
         translation_key: Translation key for entity name
-        direction: Direction for visualization ("+" = production, "-" = consumption)
+        direction: Direction for visualization (PRODUCTION or CONSUMPTION)
+        default_value: Default value for editable entities
 
     """
 
@@ -82,7 +86,8 @@ class InputFieldInfo:
     step: float | None = None
     device_class: NumberDeviceClass | None = None
     translation_key: str | None = None
-    direction: Literal["+", "-"] | None = None
+    direction: Direction | None = None
+    default_value: float | bool | None = None
 
 
 # Field meta types that produce Number entities
@@ -108,28 +113,73 @@ SKIP_FIELDS: frozenset[str] = frozenset(
 )
 
 
-def _extract_field_meta(field_type: type) -> FieldMeta | None:
-    """Extract FieldMeta from a type annotation."""
+@dataclass(frozen=True, slots=True)
+class ComposedMetadata:
+    """Collected metadata from Annotated type composition."""
+
+    field_meta: FieldMeta
+    direction: Direction | None = None
+    default: Default | None = None
+    number_limits: NumberLimits | None = None
+
+
+def _extract_composed_metadata(field_type: type) -> ComposedMetadata | None:
+    """Extract all composed metadata from a type annotation.
+
+    Parses the Annotated type and collects FieldMeta, Direction, Default,
+    and NumberLimits markers into a single ComposedMetadata object.
+    """
     # Handle NotRequired wrapper
     origin = get_origin(field_type)
     if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "NotRequired":
         field_type = get_args(field_type)[0]
 
-    # Extract FieldMeta from Annotated type
-    if get_origin(field_type) is Annotated:
-        for meta in field_type.__metadata__:
-            if isinstance(meta, FieldMeta):
-                return meta
+    # Must be Annotated to have metadata
+    if get_origin(field_type) is not Annotated:
+        return None
 
-    return None
+    field_meta: FieldMeta | None = None
+    direction: Direction | None = None
+    default: Default | None = None
+    number_limits: NumberLimits | None = None
+
+    for meta in field_type.__metadata__:
+        if isinstance(meta, FieldMeta):
+            field_meta = meta
+        elif isinstance(meta, Direction):
+            direction = meta
+        elif isinstance(meta, Default):
+            default = meta
+        elif isinstance(meta, NumberLimits):
+            number_limits = meta
+
+    if field_meta is None:
+        return None
+
+    return ComposedMetadata(
+        field_meta=field_meta,
+        direction=direction,
+        default=default,
+        number_limits=number_limits,
+    )
 
 
-def _field_meta_to_input_info(field_name: str, meta: FieldMeta, element_type: str) -> InputFieldInfo | None:
-    """Convert a FieldMeta to InputFieldInfo if it should be an input entity.
+def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, element_type: str) -> InputFieldInfo | None:
+    """Convert a ComposedMetadata to InputFieldInfo if it should be an input entity.
 
     Almost all fields become input entities. The mode (DRIVEN vs EDITABLE) is
     determined at runtime based on whether the user provided an entity ID.
     """
+    meta = composed.field_meta
+    direction = composed.direction
+    default_value = composed.default.value if composed.default else None
+
+    # Apply NumberLimits overrides if present
+    limits = composed.number_limits
+    min_val = limits.min if limits and limits.min is not None else meta.min
+    max_val = limits.max if limits and limits.max is not None else meta.max
+    step_val = limits.step if limits and limits.step is not None else meta.step
+
     # Handle constant field types (have explicit device_class, unit, min/max)
     if isinstance(meta, (PowerFieldMeta, PowerFlowFieldMeta)):
         return InputFieldInfo(
@@ -137,12 +187,13 @@ def _field_meta_to_input_info(field_name: str, meta: FieldMeta, element_type: st
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_POWER,
             unit=meta.unit,
-            min_value=meta.min,
-            max_value=meta.max,
-            step=meta.step,
+            min_value=min_val,
+            max_value=max_val,
+            step=step_val,
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
-            direction=meta.direction,
+            direction=direction,
+            default_value=default_value,
         )
 
     if isinstance(meta, EnergyFieldMeta):
@@ -151,12 +202,13 @@ def _field_meta_to_input_info(field_name: str, meta: FieldMeta, element_type: st
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_ENERGY,
             unit=meta.unit,
-            min_value=meta.min,
-            max_value=meta.max,
-            step=meta.step,
+            min_value=min_val,
+            max_value=max_val,
+            step=step_val,
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
-            direction=meta.direction,
+            direction=direction,
+            default_value=default_value,
         )
 
     if isinstance(meta, PriceFieldMeta):
@@ -165,12 +217,13 @@ def _field_meta_to_input_info(field_name: str, meta: FieldMeta, element_type: st
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_PRICE,
             unit=meta.unit,
-            min_value=meta.min,
-            max_value=meta.max,
-            step=meta.step,
+            min_value=min_val,
+            max_value=max_val,
+            step=step_val,
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
-            direction=meta.direction,
+            direction=direction,
+            default_value=default_value,
         )
 
     if isinstance(meta, (PercentageFieldMeta, BatterySOCFieldMeta)):
@@ -179,12 +232,13 @@ def _field_meta_to_input_info(field_name: str, meta: FieldMeta, element_type: st
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_SOC,
             unit=meta.unit,
-            min_value=meta.min,
-            max_value=meta.max,
-            step=meta.step,
+            min_value=min_val,
+            max_value=max_val,
+            step=step_val,
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
-            direction=meta.direction,
+            direction=direction,
+            default_value=default_value,
         )
 
     if isinstance(meta, SWITCH_FIELD_METAS):
@@ -193,21 +247,28 @@ def _field_meta_to_input_info(field_name: str, meta: FieldMeta, element_type: st
             entity_type=InputEntityType.SWITCH,
             output_type=OUTPUT_TYPE_BOOLEAN,
             translation_key=f"{element_type}_{field_name}",
-            direction=meta.direction,
+            direction=direction,
+            default_value=default_value,
         )
 
     # Handle sensor field types - map accepted_units to device class
     if isinstance(meta, SensorFieldMeta):
-        return _sensor_meta_to_input_info(field_name, meta, element_type)
+        return _sensor_meta_to_input_info(field_name, composed, element_type)
 
     return None
 
 
-def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_type: str) -> InputFieldInfo | None:
+def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, element_type: str) -> InputFieldInfo | None:
     """Convert a SensorFieldMeta to InputFieldInfo.
 
     Maps the accepted_units to appropriate device class, unit, and output type.
     """
+    meta = composed.field_meta
+    if not isinstance(meta, SensorFieldMeta):
+        return None
+
+    direction = composed.direction
+    default_value = composed.default.value if composed.default else None
     accepted = meta.accepted_units
 
     # Power sensor
@@ -219,7 +280,8 @@ def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_t
             unit="kW",
             device_class=NumberDeviceClass.POWER,
             translation_key=f"{element_type}_{field_name}",
-            direction=meta.direction,
+            direction=direction,
+            default_value=default_value,
         )
 
     # Energy sensor
@@ -231,7 +293,8 @@ def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_t
             unit="kWh",
             device_class=NumberDeviceClass.ENERGY,
             translation_key=f"{element_type}_{field_name}",
-            direction=meta.direction,
+            direction=direction,
+            default_value=default_value,
         )
 
     # Battery SOC sensor (percentage for battery)
@@ -245,7 +308,8 @@ def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_t
             max_value=100.0,
             device_class=NumberDeviceClass.BATTERY,
             translation_key=f"{element_type}_{field_name}",
-            direction=meta.direction,
+            direction=direction,
+            default_value=default_value,
         )
 
     # Percentage sensor
@@ -259,7 +323,8 @@ def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_t
             max_value=100.0,
             device_class=None,
             translation_key=f"{element_type}_{field_name}",
-            direction=meta.direction,
+            direction=direction,
+            default_value=default_value,
         )
 
     # Price sensor (currency per energy)
@@ -271,7 +336,8 @@ def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_t
             unit="$/kWh",
             device_class=NumberDeviceClass.MONETARY,
             translation_key=f"{element_type}_{field_name}",
-            direction=meta.direction,
+            direction=direction,
+            default_value=default_value,
         )
 
     # Unknown sensor type - skip
@@ -309,13 +375,13 @@ def get_input_fields(element_type: "ElementType") -> list[InputFieldInfo]:
         if field_name in SKIP_FIELDS:
             continue
 
-        # Extract field meta from annotation
-        meta = _extract_field_meta(field_type)
-        if meta is None:
+        # Extract all composed metadata from annotation
+        composed = _extract_composed_metadata(field_type)
+        if composed is None:
             continue
 
         # Convert to input info if applicable
-        info = _field_meta_to_input_info(field_name, meta, element_type)
+        info = _field_meta_to_input_info(field_name, composed, element_type)
         if info is not None:
             input_fields.append(info)
 
@@ -336,6 +402,7 @@ def get_all_input_fields() -> dict["ElementType", list[InputFieldInfo]]:
 
 
 __all__ = [
+    "ComposedMetadata",
     "InputEntityType",
     "InputFieldInfo",
     "get_all_input_fields",

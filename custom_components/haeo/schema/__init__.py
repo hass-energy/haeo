@@ -10,12 +10,15 @@ import voluptuous as vol
 from custom_components.haeo.data.loader import ConstantLoader, Loader
 from custom_components.haeo.data.loader.extractors import EntityMetadata
 
-from .fields import FieldMeta
+from .fields import Default, Direction, FieldMeta, NumberLimits
 from .params import SchemaParams
 
 __all__ = [
+    "Default",
+    "Direction",
     "EntityMetadata",
     "FieldMeta",
+    "NumberLimits",
     "available",
     "get_field_meta",
     "get_loader_instance",
@@ -208,12 +211,14 @@ def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool]]:
                         unwrapped_tp = arg
                         break
 
-        # Extract Annotated metadata
+        # Extract Annotated metadata - search for FieldMeta in all metadata items
         if get_origin(unwrapped_tp) is Annotated:
-            *_, meta = get_args(unwrapped_tp)
-
-            if isinstance(meta, FieldMeta):
-                annotated[field_name] = (meta, is_optional)
+            args = get_args(unwrapped_tp)
+            # Skip the first arg (the base type), then find FieldMeta
+            for arg in args[1:]:
+                if isinstance(arg, FieldMeta):
+                    annotated[field_name] = (arg, is_optional)
+                    break
 
     return annotated
 

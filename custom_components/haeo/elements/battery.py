@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
 
 import numpy as np
 
@@ -11,6 +11,7 @@ from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SOC
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import Default
 from custom_components.haeo.schema.fields import (
     BatterySOCSensorFieldData,
     BatterySOCSensorFieldSchema,
@@ -30,6 +31,10 @@ from custom_components.haeo.schema.fields import (
 )
 
 ELEMENT_TYPE: Final = "battery"
+
+# Field type aliases with defaults
+EarlyChargeIncentiveFieldSchema = Annotated[PriceFieldSchema, Default(value=0.001)]
+EarlyChargeIncentiveFieldData = Annotated[PriceFieldData, Default(value=0.001)]
 
 type BatteryDeviceName = Literal[
     "battery",
@@ -109,7 +114,7 @@ class BatteryConfigSchema(TypedDict):
     efficiency: PercentageSensorFieldSchema
     max_charge_power: NotRequired[PowerSensorFieldSchema]
     max_discharge_power: NotRequired[PowerSensorFieldSchema]
-    early_charge_incentive: NotRequired[PriceFieldSchema]
+    early_charge_incentive: NotRequired[EarlyChargeIncentiveFieldSchema]
     discharge_cost: NotRequired[PriceSensorsFieldSchema]
     undercharge_percentage: NotRequired[BatterySOCSensorFieldSchema]
     overcharge_percentage: NotRequired[BatterySOCSensorFieldSchema]
@@ -130,7 +135,7 @@ class BatteryConfigData(TypedDict):
     efficiency: PercentageSensorFieldData
     max_charge_power: NotRequired[PowerSensorFieldData]
     max_discharge_power: NotRequired[PowerSensorFieldData]
-    early_charge_incentive: NotRequired[PriceFieldData]
+    early_charge_incentive: NotRequired[EarlyChargeIncentiveFieldData]
     discharge_cost: NotRequired[PriceSensorsFieldData]
     undercharge_percentage: NotRequired[BatterySOCSensorFieldData]
     overcharge_percentage: NotRequired[BatterySOCSensorFieldData]
@@ -138,9 +143,7 @@ class BatteryConfigData(TypedDict):
     overcharge_cost: NotRequired[PriceSensorsFieldData]
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {
-    CONF_EARLY_CHARGE_INCENTIVE: 0.001,
-}
+CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
 def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
@@ -165,8 +168,8 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     overcharge_ratio = overcharge_percentage[0] / 100.0 if overcharge_percentage is not None else None
     initial_soc_ratio = initial_soc / 100.0
 
-    # Calculate early charge/discharge incentives
-    early_charge_incentive: float = config.get("early_charge_incentive", CONFIG_DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE])
+    # Calculate early charge/discharge incentives - default from EarlyChargeIncentiveFieldSchema
+    early_charge_incentive: float = config.get("early_charge_incentive", 0.001)
 
     # Determine unusable ratio (inaccessible energy)
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio

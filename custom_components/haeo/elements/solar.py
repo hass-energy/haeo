@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.connection import (
@@ -11,6 +11,7 @@ from custom_components.haeo.model.connection import (
 )
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import Default
 from custom_components.haeo.schema.fields import (
     BooleanFieldData,
     BooleanFieldSchema,
@@ -32,6 +33,10 @@ CONF_PRICE_PRODUCTION: Final = "price_production"
 CONF_PRICE_CONSUMPTION: Final = "price_consumption"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
+
+# Field type aliases with defaults
+CurtailmentFieldSchema = Annotated[BooleanFieldSchema, Default(value=True)]
+CurtailmentFieldData = Annotated[BooleanFieldData, Default(value=True)]
 
 type SolarOutputName = Literal[
     "solar_power",
@@ -64,7 +69,7 @@ class SolarConfigSchema(TypedDict):
 
     # Optional fields
     price_production: NotRequired[PriceExportSensorsFieldSchema]
-    curtailment: NotRequired[BooleanFieldSchema]
+    curtailment: NotRequired[CurtailmentFieldSchema]
 
 
 class SolarConfigData(TypedDict):
@@ -77,12 +82,10 @@ class SolarConfigData(TypedDict):
 
     # Optional fields
     price_production: NotRequired[PriceExportSensorsFieldData]
-    curtailment: NotRequired[BooleanFieldData]
+    curtailment: NotRequired[CurtailmentFieldData]
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {
-    CONF_CURTAILMENT: True,
-}
+CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
 def create_model_elements(config: SolarConfigData) -> list[dict[str, Any]]:
