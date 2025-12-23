@@ -218,9 +218,7 @@ async def test_ensure_required_subentries_network_already_exists(
     assert network_count == 1
 
 
-async def test_ensure_required_subentries_creates_network(
-    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
-) -> None:
+async def test_ensure_required_subentries_creates_network(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test that _ensure_required_subentries creates network if missing."""
     # Verify no network subentry exists initially
     network_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == "network")
@@ -248,6 +246,12 @@ async def test_ensure_required_subentries_creates_switchboard_non_advanced(
     # Verify node subentry was created
     node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
     assert node_count == 1
+
+    # Verify the created node has correct configuration
+    node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_subentry.data[CONF_NAME] == "Switchboard"  # Default name when translations not available
+    assert node_subentry.data["is_source"] is False
+    assert node_subentry.data["is_sink"] is False
 
 
 async def test_ensure_required_subentries_skips_switchboard_advanced_mode(

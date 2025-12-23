@@ -43,8 +43,10 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     for subentry in hub_entry.subentries.values():
         if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
             has_network = True
-        if subentry.subentry_type == ELEMENT_TYPE_NODE:
+        elif subentry.subentry_type == ELEMENT_TYPE_NODE:
             has_node = True
+        if has_network and has_node:
+            break
 
     # Create Network subentry if missing
     if not has_network:
@@ -64,18 +66,18 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         _LOGGER.info("Creating Switchboard node for hub %s (non-advanced mode)", hub_entry.entry_id)
 
         # Resolve the switchboard node name from translations
-        translations = await async_get_translations(
-            hass, hass.config.language, "common", integrations=["haeo"]
-        )
+        translations = await async_get_translations(hass, hass.config.language, "common", integrations=["haeo"])
         switchboard_name = translations.get("component.haeo.common.switchboard_node_name", "Switchboard")
 
         switchboard_subentry = ConfigSubentry(
-            data=MappingProxyType({
-                CONF_NAME: switchboard_name,
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
-                CONF_IS_SOURCE: False,
-                CONF_IS_SINK: False,
-            }),
+            data=MappingProxyType(
+                {
+                    CONF_NAME: switchboard_name,
+                    CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+                    CONF_IS_SOURCE: False,
+                    CONF_IS_SINK: False,
+                }
+            ),
             subentry_type=ELEMENT_TYPE_NODE,
             title=switchboard_name,
             unique_id=None,
