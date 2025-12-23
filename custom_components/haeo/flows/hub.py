@@ -9,6 +9,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import (
+    CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
     CONF_HORIZON_PRESET,
@@ -19,6 +20,7 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_setup_schema, get_tier_config
 from .element import create_subentry_flow_class
@@ -104,6 +106,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 **tier_config,
                 CONF_UPDATE_INTERVAL_MINUTES: self._user_input[CONF_UPDATE_INTERVAL_MINUTES],
                 CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],
+                CONF_ADVANCED_MODE: self._user_input[CONF_ADVANCED_MODE],
             },
             subentries=[
                 # Network subentry for optimization sensors
@@ -121,6 +124,8 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                     "data": {
                         CONF_NAME: switchboard_name,
                         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+                        CONF_IS_SOURCE: False,
+                        CONF_IS_SINK: False,
                     },
                     "subentry_type": ELEMENT_TYPE_NODE,
                     "title": switchboard_name,
@@ -138,13 +143,17 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     @classmethod
     @callback
     def async_get_supported_subentry_types(cls, config_entry: ConfigEntry) -> dict[str, type[ConfigSubentryFlow]]:
-        """Return subentries supported by this integration."""
-        _ = config_entry  # Unused but required by signature
+        """Return subentries supported by this integration.
 
-        # Register regular element flows
+        Element types marked as advanced in the registry require advanced_mode enabled.
+        """
+        advanced_mode = config_entry.data.get(CONF_ADVANCED_MODE, False)
+
+        # Register element flows, filtering advanced types based on mode
         flows: dict[str, type[ConfigSubentryFlow]] = {
             element_type: create_subentry_flow_class(element_type, entry.schema, entry.defaults)
             for element_type, entry in ELEMENT_TYPES.items()
+            if not entry.advanced or advanced_mode
         }
 
         # Note that the Network subentry is not included here as it can't be added/removed like other elements

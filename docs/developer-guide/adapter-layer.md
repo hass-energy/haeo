@@ -8,7 +8,7 @@ This separation enables composition flexibility where a single configuration cre
 HAEO separates user configuration from optimization modeling through distinct layers:
 
 - **Device Layer**: User-configured elements (Battery, Grid, Solar, Load, Node, Connection) with Home Assistant sensor integration
-- **Model Layer**: Mathematical building blocks (battery, source_sink, connection) forming the linear programming problem
+- **Model Layer**: Mathematical building blocks forming the linear programming problem
 - **Adapter Layer**: Transformation logic connecting these layers
 
 This architecture enables:
@@ -60,14 +60,14 @@ Called after optimization to populate sensors.
 
 Most Device Layer elements create multiple Model Layer elements:
 
-| Device Element | Model Elements Created       |
-| -------------- | ---------------------------- |
-| Battery        | `battery` + `connection`     |
-| Grid           | `source_sink` + `connection` |
-| Solar          | `source_sink` + `connection` |
-| Load           | `source_sink` + `connection` |
-| Node           | `source_sink` only           |
-| Connection     | `connection` only            |
+| Device Element | Model Elements Created   |
+| -------------- | ------------------------ |
+| Battery        | `battery` + `connection` |
+| Grid           | `node` + `connection`    |
+| Solar          | `node` + `connection`    |
+| Load           | `node` + `connection`    |
+| Node           | `node` only              |
+| Connection     | `connection` only        |
 
 Implicit connections (created by Battery, Grid, PV, Load) link the element to its configured target node.
 The connection carries operational parameters (power limits, efficiency, pricing) from the device configuration.

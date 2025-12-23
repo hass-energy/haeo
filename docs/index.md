@@ -82,7 +82,7 @@ Perfect for **end users** who want to install and configure HAEO:
 For those interested in **how the optimization works**:
 
 - [Mathematical Modeling Overview](modeling/index.md) - Linear programming formulation and network structure
-- [Model Layer Elements](modeling/model-layer/index.md) - Battery, SourceSink, and Connection models
+- [Model Layer Elements](modeling/model-layer/index.md) - Mathematical building blocks forming the linear programming problem
 - [Device Layer Elements](modeling/device-layer/index.md) - How user-configured elements compose models
 
 ### :material-code-braces: Developer Guide

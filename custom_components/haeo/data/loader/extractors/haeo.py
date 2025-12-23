@@ -109,7 +109,7 @@ class Parser:
     @staticmethod
     def extract(
         state: HaeoForecastState,
-    ) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass | None]:
+    ) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass | None]:
         """Extract forecast data from HAEO forecast format.
 
         Expects list format: list of {"time": ..., "value": ...} dicts.

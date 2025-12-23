@@ -138,7 +138,7 @@ The adapter aggregates model outputs to user-friendly sensor names:
 | Sum of section `BATTERY_POWER_DISCHARGE`  | `power_discharge` | Discharge power            |
 | Sum of section `BATTERY_ENERGY_STORED`    | `energy_stored`   | Energy stored              |
 | Calculated from total energy and capacity | `state_of_charge` | State of charge            |
-| Node `SOURCE_SINK_POWER_BALANCE`          | `power_balance`   | Power balance shadow price |
+| Node `NODE_POWER_BALANCE`                 | `power_balance`   | Power balance shadow price |
 
 **Section device outputs** (undercharge, normal, overcharge):
 

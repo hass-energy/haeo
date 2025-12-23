@@ -3,6 +3,7 @@
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers.translation import async_get_translations
+import pytest
 
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
@@ -19,6 +20,9 @@ from custom_components.haeo.const import (
     CONF_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
 )
+
+# Import the private function for testing
+import custom_components.haeo.flows as flows_module
 from custom_components.haeo.flows import HORIZON_PRESET_5_DAYS, get_custom_tiers_schema, get_hub_setup_schema
 from custom_components.haeo.flows.hub import HubConfigFlow
 
@@ -166,3 +170,9 @@ async def test_hub_setup_schema_default_preset(hass: HomeAssistant) -> None:
     schema_keys = {vol_key.schema: vol_key for vol_key in schema.schema}
     assert CONF_HORIZON_PRESET in schema_keys, "CONF_HORIZON_PRESET not found in schema"
     assert schema_keys[CONF_HORIZON_PRESET].default() == HORIZON_PRESET_5_DAYS
+
+
+def test_create_horizon_preset_raises_on_invalid_days() -> None:
+    """Test _create_horizon_preset raises ValueError for days < 2."""
+    with pytest.raises(ValueError, match="Horizon must be at least 2 days"):
+        flows_module._create_horizon_preset(1)

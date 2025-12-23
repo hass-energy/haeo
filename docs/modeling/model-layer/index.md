@@ -47,13 +47,13 @@ The total objective is the sum of all element cost contributions.
 
     [:material-arrow-right: Battery formulation](battery.md)
 
-- :material-power-plug:{ .lg .middle } **SourceSink model**
+- :material-power-plug:{ .lg .middle } **Node model**
 
     ---
 
     Unified model for sources, sinks, and junctions.
 
-    [:material-arrow-right: SourceSink formulation](source-sink.md)
+    [:material-arrow-right: Node formulation](node.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 

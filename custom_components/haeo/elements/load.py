@@ -69,9 +69,9 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
     """Create model elements for Load configuration."""
 
     elements: list[dict[str, Any]] = [
-        # Create SourceSink for the load (sink only - consumes power)
+        # Create Node for the load (sink only - consumes power)
         {
-            "element_type": "source_sink",
+            "element_type": "node",
             "name": config["name"],
             "is_source": False,
             "is_sink": True,

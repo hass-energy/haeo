@@ -5,6 +5,10 @@ HAEO optimizes when to charge and discharge based on electricity prices, solar a
 
 Internally, HAEO represents batteries using multiple interconnected sections (undercharge, normal, overcharge) with cost-based preferences to guide operation. This provides flexible, economically-rational battery behavior.
 
+!!! note "Connection endpoints"
+
+    Battery elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+
 For mathematical details, see [Battery Modeling](../../modeling/device-layer/battery.md).
 
 ## Configuration

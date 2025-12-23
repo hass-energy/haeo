@@ -11,6 +11,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
+    CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
@@ -40,12 +41,13 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
 
 async def test_subentry_flow_classes_have_correct_attributes(hass: HomeAssistant) -> None:
     """Test that subentry flow classes have the expected attributes."""
-    # Create hub entry
+    # Create hub entry with advanced mode enabled to access connection flows
     hub_entry = MockConfigEntry(
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
+            CONF_ADVANCED_MODE: True,  # Required for connection flows
         },
         entry_id="hub_id",
     )

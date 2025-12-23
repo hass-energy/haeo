@@ -15,6 +15,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.const import (
+    CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_PRESET,
     CONF_NAME,
@@ -161,6 +162,7 @@ def get_hub_setup_schema() -> vol.Schema:
                 ),
                 vol.Coerce(int),
             ),
+            vol.Required(CONF_ADVANCED_MODE, default=False): bool,
         }
     )
 
@@ -297,5 +299,9 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
                 ),
                 vol.Coerce(int),
             ),
+            vol.Required(
+                CONF_ADVANCED_MODE,
+                default=config_entry.data.get(CONF_ADVANCED_MODE, False),
+            ): bool,
         }
     )

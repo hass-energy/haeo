@@ -34,7 +34,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             curtailment=False,
         ),
         "model": [
-            {"element_type": "source_sink", "name": "pv_main", "is_source": True, "is_sink": False},
+            {"element_type": "node", "name": "pv_main", "is_source": True, "is_sink": False},
             {
                 "element_type": "connection",
                 "name": "pv_main:connection",

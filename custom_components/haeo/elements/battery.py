@@ -9,8 +9,8 @@ import numpy as np
 from custom_components.haeo.model import OUTPUT_TYPE_PRICE, ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SOC
+from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
 from custom_components.haeo.schema.fields import (
     BatterySOCSensorFieldData,
     BatterySOCSensorFieldSchema,
@@ -232,7 +232,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     node_name = f"{name}:node"
     elements.append(
         {
-            "element_type": "source_sink",
+            "element_type": "node",
             "name": node_name,
             "is_source": False,
             "is_sink": False,
@@ -381,8 +381,8 @@ def outputs(
     )
 
     # Add node power balance as battery power balance
-    if SOURCE_SINK_POWER_BALANCE in node_outputs:
-        aggregate_outputs[BATTERY_POWER_BALANCE] = node_outputs[SOURCE_SINK_POWER_BALANCE]
+    if NODE_POWER_BALANCE in node_outputs:
+        aggregate_outputs[BATTERY_POWER_BALANCE] = node_outputs[NODE_POWER_BALANCE]
 
     result: dict[BatteryDeviceName, dict[BatteryOutputName, OutputData]] = {BATTERY_DEVICE_BATTERY: aggregate_outputs}
 

@@ -34,6 +34,7 @@ from custom_components.haeo.elements.battery import (
 from custom_components.haeo.elements.battery import CONF_CONNECTION as BATTERY_CONF_CONNECTION
 from custom_components.haeo.elements.grid import CONF_CONNECTION as GRID_CONF_CONNECTION
 from custom_components.haeo.elements.grid import CONF_EXPORT_PRICE, CONF_IMPORT_PRICE
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 
@@ -107,6 +108,8 @@ async def test_validate_network_topology_with_implicit_connection(
         "main_node": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "main",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "grid": {
             CONF_ELEMENT_TYPE: "grid",
@@ -144,10 +147,14 @@ async def test_validate_network_topology_detects_disconnected(
         "node_a": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "a",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "node_b": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "b",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "grid_a": {
             CONF_ELEMENT_TYPE: "grid",
@@ -202,6 +209,8 @@ async def test_validate_network_topology_with_battery(
         "main_node": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "main",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "grid": {
             CONF_ELEMENT_TYPE: "grid",
@@ -262,6 +271,8 @@ async def test_validate_network_topology_with_battery_all_sections(
         "main_node": {
             CONF_ELEMENT_TYPE: "node",
             CONF_NAME: "main",
+            CONF_IS_SOURCE: False,
+            CONF_IS_SINK: False,
         },
         "battery": {
             CONF_ELEMENT_TYPE: "battery",

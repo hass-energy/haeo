@@ -25,6 +25,7 @@ Sub-element Naming Convention:
 """
 
 from collections.abc import Callable, Mapping
+import enum
 import logging
 from typing import Any, Final, Literal, NamedTuple, TypeGuard, cast
 
@@ -36,12 +37,13 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import schema_for_type
 
-from . import battery, connection, grid, inverter, load, node, solar
+from . import battery, battery_section, connection, grid, inverter, load, node, solar
 
 _LOGGER = logging.getLogger(__name__)
 
 type ElementType = Literal[
     "battery",
+    "battery_section",
     "connection",
     "solar",
     "grid",
@@ -52,6 +54,7 @@ type ElementType = Literal[
 
 ELEMENT_TYPE_INVERTER: Final = inverter.ELEMENT_TYPE
 ELEMENT_TYPE_BATTERY: Final = battery.ELEMENT_TYPE
+ELEMENT_TYPE_BATTERY_SECTION: Final = battery_section.ELEMENT_TYPE
 ELEMENT_TYPE_CONNECTION: Final = connection.ELEMENT_TYPE
 ELEMENT_TYPE_SOLAR: Final = solar.ELEMENT_TYPE
 ELEMENT_TYPE_GRID: Final = grid.ELEMENT_TYPE
@@ -61,6 +64,7 @@ ELEMENT_TYPE_NODE: Final = node.ELEMENT_TYPE
 ElementConfigSchema = (
     inverter.InverterConfigSchema
     | battery.BatteryConfigSchema
+    | battery_section.BatterySectionConfigSchema
     | grid.GridConfigSchema
     | load.LoadConfigSchema
     | solar.SolarConfigSchema
@@ -71,6 +75,7 @@ ElementConfigSchema = (
 ElementConfigData = (
     inverter.InverterConfigData
     | battery.BatteryConfigData
+    | battery_section.BatterySectionConfigData
     | grid.GridConfigData
     | load.LoadConfigData
     | solar.SolarConfigData
@@ -82,6 +87,7 @@ ElementConfigData = (
 type ElementOutputName = (
     inverter.InverterOutputName
     | battery.BatteryOutputName
+    | battery_section.BatterySectionOutputName
     | connection.ConnectionOutputName
     | grid.GridOutputName
     | load.LoadOutputName
@@ -93,6 +99,7 @@ type ElementOutputName = (
 ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     inverter.INVERTER_OUTPUT_NAMES
     | battery.BATTERY_OUTPUT_NAMES
+    | battery_section.BATTERY_SECTION_OUTPUT_NAMES
     | connection.CONNECTION_OUTPUT_NAMES
     | grid.GRID_OUTPUT_NAMES
     | load.LOAD_OUTPUT_NAMES
@@ -106,6 +113,7 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
 type ElementDeviceName = (
     inverter.InverterDeviceName
     | battery.BatteryDeviceName
+    | battery_section.BatterySectionDeviceName
     | connection.ConnectionDeviceName
     | grid.GridDeviceName
     | load.LoadDeviceName
@@ -119,6 +127,7 @@ NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(("network"
 ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     inverter.INVERTER_DEVICE_NAMES
     | battery.BATTERY_DEVICE_NAMES
+    | battery_section.BATTERY_SECTION_DEVICE_NAMES
     | connection.CONNECTION_DEVICE_NAMES
     | grid.GRID_DEVICE_NAMES
     | load.LOAD_DEVICE_NAMES
@@ -135,6 +144,19 @@ type OutputsFn = Callable[
 ]
 
 
+class ConnectivityLevel(enum.Enum):
+    """Connectivity level for element types in connection selectors.
+
+    - ALWAYS: Always shown in connection selectors
+    - ADVANCED: Only shown when advanced mode is enabled
+    - NEVER: Never shown in connection selectors
+    """
+
+    ALWAYS = "always"
+    ADVANCED = "advanced"
+    NEVER = "never"
+
+
 class ElementRegistryEntry(NamedTuple):
     """Registry entry for an element type.
 
@@ -143,6 +165,15 @@ class ElementRegistryEntry(NamedTuple):
             Transforms config element to model elements
         - outputs(name, outputs, config) -> dict[str, dict[str, Any]]
             Transforms model outputs to device outputs with access to original config
+
+    The advanced flag indicates whether this element type is only shown when
+    advanced mode is enabled on the hub.
+
+    The connectivity field indicates when this element type appears in connection
+    selectors:
+        - ALWAYS: Always shown in connection selectors
+        - ADVANCED: Only shown when advanced mode is enabled
+        - NEVER: Never shown in connection selectors
     """
 
     schema: type[Any]
@@ -151,6 +182,8 @@ class ElementRegistryEntry(NamedTuple):
     translation_key: ElementType
     create_model_elements: CreateModelElementsFn
     outputs: OutputsFn
+    advanced: bool = False
+    connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
 
 
 ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
@@ -161,6 +194,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=grid.ELEMENT_TYPE,
         create_model_elements=grid.create_model_elements,
         outputs=cast("OutputsFn", grid.outputs),
+        connectivity=ConnectivityLevel.ADVANCED,
     ),
     load.ELEMENT_TYPE: ElementRegistryEntry(
         schema=load.LoadConfigSchema,
@@ -169,6 +203,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=load.ELEMENT_TYPE,
         create_model_elements=load.create_model_elements,
         outputs=cast("OutputsFn", load.outputs),
+        connectivity=ConnectivityLevel.ADVANCED,
     ),
     inverter.ELEMENT_TYPE: ElementRegistryEntry(
         schema=inverter.InverterConfigSchema,
@@ -177,6 +212,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=inverter.ELEMENT_TYPE,
         create_model_elements=inverter.create_model_elements,
         outputs=cast("OutputsFn", inverter.outputs),
+        connectivity=ConnectivityLevel.ALWAYS,
     ),
     solar.ELEMENT_TYPE: ElementRegistryEntry(
         schema=solar.SolarConfigSchema,
@@ -185,6 +221,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=solar.ELEMENT_TYPE,
         create_model_elements=solar.create_model_elements,
         outputs=cast("OutputsFn", solar.outputs),
+        connectivity=ConnectivityLevel.ADVANCED,
     ),
     battery.ELEMENT_TYPE: ElementRegistryEntry(
         schema=battery.BatteryConfigSchema,
@@ -193,6 +230,7 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=battery.ELEMENT_TYPE,
         create_model_elements=battery.create_model_elements,
         outputs=cast("OutputsFn", battery.outputs),
+        connectivity=ConnectivityLevel.ADVANCED,
     ),
     connection.ELEMENT_TYPE: ElementRegistryEntry(
         schema=connection.ConnectionConfigSchema,
@@ -201,6 +239,8 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=connection.ELEMENT_TYPE,
         create_model_elements=connection.create_model_elements,
         outputs=cast("OutputsFn", connection.outputs),
+        advanced=True,
+        connectivity=ConnectivityLevel.NEVER,
     ),
     node.ELEMENT_TYPE: ElementRegistryEntry(
         schema=node.NodeConfigSchema,
@@ -209,6 +249,18 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
         translation_key=node.ELEMENT_TYPE,
         create_model_elements=node.create_model_elements,
         outputs=cast("OutputsFn", node.outputs),
+        advanced=True,
+        connectivity=ConnectivityLevel.ALWAYS,
+    ),
+    battery_section.ELEMENT_TYPE: ElementRegistryEntry(
+        schema=battery_section.BatterySectionConfigSchema,
+        data=battery_section.BatterySectionConfigData,
+        defaults=battery_section.CONFIG_DEFAULTS,
+        translation_key=battery_section.ELEMENT_TYPE,
+        create_model_elements=battery_section.create_model_elements,
+        outputs=cast("OutputsFn", battery_section.outputs),
+        advanced=True,
+        connectivity=ConnectivityLevel.ALWAYS,
     ),
 }
 
@@ -262,12 +314,14 @@ __all__ = [
     "ELEMENT_OUTPUT_NAMES",
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
+    "ELEMENT_TYPE_BATTERY_SECTION",
     "ELEMENT_TYPE_CONNECTION",
     "ELEMENT_TYPE_GRID",
     "ELEMENT_TYPE_INVERTER",
     "ELEMENT_TYPE_LOAD",
     "ELEMENT_TYPE_NODE",
     "ELEMENT_TYPE_SOLAR",
+    "ConnectivityLevel",
     "CreateModelElementsFn",
     "ElementConfigData",
     "ElementConfigSchema",
