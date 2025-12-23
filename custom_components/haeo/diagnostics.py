@@ -24,9 +24,7 @@ from .elements import is_element_config_schema
 from .sensor_utils import get_output_sensors
 
 
-async def async_get_config_entry_diagnostics(
-    hass: HomeAssistant, config_entry: ConfigEntry
-) -> dict[str, Any]:
+async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, Any]:
     """Return diagnostics for a HAEO config entry.
 
     Returns a dict with four main keys:
@@ -54,8 +52,7 @@ async def async_get_config_entry_diagnostics(
     coordinator = config_entry.runtime_data
     elements = (
         coordinator.data["elements"]
-        if isinstance(coordinator, HaeoDataUpdateCoordinator)
-        and coordinator.data is not None  # pyright: ignore[reportUnnecessaryComparison]
+        if isinstance(coordinator, HaeoDataUpdateCoordinator) and coordinator.data is not None  # pyright: ignore[reportUnnecessaryComparison]
         else None
     )
 
@@ -89,9 +86,7 @@ async def async_get_config_entry_diagnostics(
 
     # Extract input states as dicts
     inputs: list[dict[str, Any]] = [
-        state.as_dict()
-        for entity_id in sorted(all_entity_ids)
-        if (state := hass.states.get(entity_id)) is not None
+        state.as_dict() for entity_id in sorted(all_entity_ids) if (state := hass.states.get(entity_id)) is not None
     ]
 
     # Get output sensors using common utility function

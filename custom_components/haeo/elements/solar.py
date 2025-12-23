@@ -51,9 +51,7 @@ SOLAR_OUTPUT_NAMES: Final[frozenset[SolarOutputName]] = frozenset(
 
 type SolarDeviceName = Literal["solar"]
 
-SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset(
-    (SOLAR_DEVICE_SOLAR := ELEMENT_TYPE,)
-)
+SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset((SOLAR_DEVICE_SOLAR := ELEMENT_TYPE,))
 
 
 class SolarConfigSchema(TypedDict):
@@ -119,9 +117,7 @@ def outputs(
     connection = outputs[f"{name}:connection"]
 
     solar_outputs: dict[SolarOutputName, OutputData] = {
-        SOLAR_POWER: replace(
-            connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER
-        ),
+        SOLAR_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER),
         SOLAR_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
     }
 

@@ -113,9 +113,7 @@ async def test_time_series_loader_loads_mixed_live_and_forecast(
 
     start = datetime(2024, 1, 1, tzinfo=UTC)
     # Pass n+1 boundary timestamps (5 timestamps for 4 intervals)
-    ts_values = [
-        int((start + timedelta(hours=offset)).timestamp()) for offset in range(5)
-    ]
+    ts_values = [int((start + timedelta(hours=offset)).timestamp()) for offset in range(5)]
 
     # Mock extract to return different types of series
     def mock_extract(state: State) -> ExtractedData:
@@ -139,12 +137,7 @@ async def test_time_series_loader_loads_mixed_live_and_forecast(
         "custom_components.haeo.data.loader.sensor_loader.extract",
         side_effect=mock_extract,
     ):
-        assert (
-            loader.available(
-                hass=hass, value=["sensor.live_price", "sensor.forecast_price"]
-            )
-            is True
-        )
+        assert loader.available(hass=hass, value=["sensor.live_price", "sensor.forecast_price"]) is True
 
         result = await loader.load(
             hass=hass,
@@ -173,7 +166,4 @@ async def test_time_series_loader_returns_empty_series_for_empty_horizon(
         },
     )
 
-    assert (
-        await loader.load(hass=hass, value=["sensor.live_price"], forecast_times=[])
-        == []
-    )
+    assert await loader.load(hass=hass, value=["sensor.live_price"], forecast_times=[]) == []

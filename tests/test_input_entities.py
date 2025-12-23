@@ -38,11 +38,7 @@ class _DummyCoordinator:
     ) -> Callable[[], None]:
         """Register a listener and return an unsubscribe callback."""
         self._listeners.append(update_callback)
-        return (
-            lambda: self._listeners.remove(update_callback)
-            if update_callback in self._listeners
-            else None
-        )
+        return lambda: self._listeners.remove(update_callback) if update_callback in self._listeners else None
 
     async def async_request_refresh(self) -> None:
         """Mock refresh request."""

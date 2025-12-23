@@ -61,9 +61,7 @@ class PowerFieldMeta(FieldMeta):
     """Metadata for constant power values."""
 
     field_type: Literal["constant"] = "constant"
-    loader: ConstantLoader[float] = field(
-        default_factory=lambda: ConstantLoader[float](float)
-    )
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
     min: float = 0.0
     step: float = 0.001
     unit: str = UnitOfPower.KILO_WATT
@@ -131,13 +129,9 @@ class SensorFieldMeta(FieldMeta):
         number entities but are not presented in the config flow UI.
         """
         # Filter incompatible entities based on accepted_units
-        entity_metadata: Sequence[EntityMetadata] = schema_params.get(
-            "entity_metadata", []
-        )
+        entity_metadata: Sequence[EntityMetadata] = schema_params.get("entity_metadata", [])
         incompatible_entities: list[str] = [
-            v.entity_id
-            for v in entity_metadata
-            if not v.is_compatible_with(self.accepted_units)
+            v.entity_id for v in entity_metadata if not v.is_compatible_with(self.accepted_units)
         ]
 
         entity_selector = EntitySelector(
@@ -158,9 +152,7 @@ class EnergyFieldMeta(FieldMeta):
     """Metadata for constant energy values."""
 
     field_type: Literal["constant"] = "constant"
-    loader: ConstantLoader[float] = field(
-        default_factory=lambda: ConstantLoader[float](float)
-    )
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
     min: float = 0.0
     step: float = 0.001
     unit: str = UnitOfEnergy.KILO_WATT_HOUR
@@ -186,9 +178,7 @@ class PriceFieldMeta(FieldMeta):
     """Metadata for constant price values."""
 
     field_type: Literal["constant"] = "constant"
-    loader: ConstantLoader[float] = field(
-        default_factory=lambda: ConstantLoader[float](float)
-    )
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
     step: float = 0.001
     unit: str = f"{CURRENCY_DOLLAR}/{UnitOfEnergy.KILO_WATT_HOUR}"
     device_class: NumberDeviceClass = NumberDeviceClass.MONETARY
@@ -211,9 +201,7 @@ class PercentageFieldMeta(FieldMeta):
     """Metadata for percentage values."""
 
     field_type: Literal["constant"] = "constant"
-    loader: ConstantLoader[float] = field(
-        default_factory=lambda: ConstantLoader[float](float)
-    )
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
     min: float | None = 0.0
     max: float | None = 100.0
     unit: str | None = PERCENTAGE
@@ -221,9 +209,7 @@ class PercentageFieldMeta(FieldMeta):
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
-            vol.Range(
-                min=self.min, max=self.max, msg="Value must be between 0 and 100"
-            ),
+            vol.Range(min=self.min, max=self.max, msg="Value must be between 0 and 100"),
         )
 
 
@@ -232,9 +218,7 @@ class BooleanFieldMeta(FieldMeta):
     """Metadata for boolean values."""
 
     field_type: Literal["constant"] = "constant"
-    loader: ConstantLoader[bool] = field(
-        default_factory=lambda: ConstantLoader[bool](bool)
-    )
+    loader: ConstantLoader[bool] = field(default_factory=lambda: ConstantLoader[bool](bool))
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(vol.Coerce(bool), BooleanSelector(BooleanSelectorConfig()))
@@ -245,9 +229,7 @@ class ElementNameFieldMeta(FieldMeta):
     """Metadata for selecting existing element names."""
 
     field_type: Literal["constant"] = "constant"
-    loader: ConstantLoader[str] = field(
-        default_factory=lambda: ConstantLoader[str](str)
-    )
+    loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str](str))
 
     def _get_field_validators(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
         participants: Sequence[str] | None = schema_params.get("participants")
@@ -265,16 +247,9 @@ class ElementNameFieldMeta(FieldMeta):
 
         if participants_list:
             options: list[SelectOptionDict] = [
-                SelectOptionDict(value=participant, label=participant)
-                for participant in participants_list
+                SelectOptionDict(value=participant, label=participant) for participant in participants_list
             ]
-            validators.append(
-                SelectSelector(
-                    SelectSelectorConfig(
-                        options=options, mode=SelectSelectorMode.DROPDOWN
-                    )
-                )
-            )
+            validators.append(SelectSelector(SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)))
 
         return vol.All(*validators)
 
@@ -284,14 +259,10 @@ class NameFieldMeta(FieldMeta):
     """Metadata for free-form name values."""
 
     field_type: Literal["constant"] = "constant"
-    loader: ConstantLoader[str] = field(
-        default_factory=lambda: ConstantLoader[str](str)
-    )
+    loader: ConstantLoader[str] = field(default_factory=lambda: ConstantLoader[str](str))
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
-        return vol.All(
-            vol.Coerce(str), vol.Strip, vol.Length(min=1, msg="Name cannot be empty")
-        )
+        return vol.All(vol.Coerce(str), vol.Strip, vol.Length(min=1, msg="Name cannot be empty"))
 
 
 @dataclass(frozen=True)
@@ -299,9 +270,7 @@ class PowerFlowFieldMeta(FieldMeta):
     """Metadata for power flow limits."""
 
     field_type: Literal["constant"] = "constant"
-    loader: ConstantLoader[float] = field(
-        default_factory=lambda: ConstantLoader[float](float)
-    )
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
     step: float = 0.001
     unit: str = UnitOfPower.KILO_WATT
     device_class: NumberDeviceClass = NumberDeviceClass.POWER
@@ -324,9 +293,7 @@ class BatterySOCFieldMeta(FieldMeta):
     """Metadata for battery state-of-charge percentages."""
 
     field_type: Literal["constant"] = "constant"
-    loader: ConstantLoader[float] = field(
-        default_factory=lambda: ConstantLoader[float](float)
-    )
+    loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
     min: float | None = 0.0
     max: float | None = 100.0
     unit: str | None = PERCENTAGE
@@ -335,9 +302,7 @@ class BatterySOCFieldMeta(FieldMeta):
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
-            vol.Range(
-                min=self.min, max=self.max, msg="Value must be between 0 and 100"
-            ),
+            vol.Range(min=self.min, max=self.max, msg="Value must be between 0 and 100"),
         )
 
 
@@ -352,35 +317,21 @@ PRICE_UNITS: Final[list[UnitSpec]] = [("*", "/", unit.value) for unit in UnitOfE
 # Schema mode type aliases (configuration with entity IDs or constant fallbacks)
 # Float values can be stored as defaults but are not presented in the UI
 PowerFieldSchema = Annotated[float, PowerFieldMeta()]
-PowerSensorFieldSchema = Annotated[
-    Sequence[str] | float, SensorFieldMeta(accepted_units=POWER_UNITS, multiple=False)
-]
-PowerSensorsFieldSchema = Annotated[
-    Sequence[str] | float, SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True)
-]
+PowerSensorFieldSchema = Annotated[Sequence[str] | float, SensorFieldMeta(accepted_units=POWER_UNITS, multiple=False)]
+PowerSensorsFieldSchema = Annotated[Sequence[str] | float, SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True)]
 PowerFlowFieldSchema = Annotated[float, PowerFlowFieldMeta()]
 EnergyFieldSchema = Annotated[float, EnergyFieldMeta()]
-EnergySensorFieldSchema = Annotated[
-    str | float, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)
-]
-EnergySensorsFieldSchema = Annotated[
-    Sequence[str] | float, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)
-]
+EnergySensorFieldSchema = Annotated[str | float, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)]
+EnergySensorsFieldSchema = Annotated[Sequence[str] | float, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)]
 PercentageFieldSchema = Annotated[float, PercentageFieldMeta()]
-PercentageSensorFieldSchema = Annotated[
-    str | float, SensorFieldMeta(accepted_units=PERCENTAGE_UNITS, multiple=False)
-]
+PercentageSensorFieldSchema = Annotated[str | float, SensorFieldMeta(accepted_units=PERCENTAGE_UNITS, multiple=False)]
 BooleanFieldSchema = Annotated[bool, BooleanFieldMeta()]
 ElementNameFieldSchema = Annotated[str, ElementNameFieldMeta()]
 NameFieldSchema = Annotated[str, NameFieldMeta()]
 BatterySOCFieldSchema = Annotated[float, BatterySOCFieldMeta()]
-BatterySOCSensorFieldSchema = Annotated[
-    str | float, SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)
-]
+BatterySOCSensorFieldSchema = Annotated[str | float, SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)]
 PriceFieldSchema = Annotated[float, PriceFieldMeta()]
-PriceSensorsFieldSchema = Annotated[
-    Sequence[str] | float, SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)
-]
+PriceSensorsFieldSchema = Annotated[Sequence[str] | float, SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
 
 # Direction-aware schema type aliases for visualization
 # Power production (solar, generators): adds power to the system (+)
@@ -406,35 +357,21 @@ PriceExportSensorsFieldSchema = Annotated[
 
 # Data mode type aliases (loaded runtime values)
 PowerFieldData = Annotated[float, PowerFieldMeta()]
-PowerSensorFieldData = Annotated[
-    list[float], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=False)
-]
-PowerSensorsFieldData = Annotated[
-    list[float], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True)
-]
+PowerSensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=False)]
+PowerSensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True)]
 PowerFlowFieldData = Annotated[float, PowerFlowFieldMeta()]
 EnergyFieldData = Annotated[float, EnergyFieldMeta()]
-EnergySensorFieldData = Annotated[
-    list[float], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)
-]
-EnergySensorsFieldData = Annotated[
-    list[float], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)
-]
+EnergySensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)]
+EnergySensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)]
 PercentageFieldData = Annotated[float, PercentageFieldMeta()]
-PercentageSensorFieldData = Annotated[
-    list[float], SensorFieldMeta(accepted_units=PERCENTAGE_UNITS, multiple=False)
-]
+PercentageSensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=PERCENTAGE_UNITS, multiple=False)]
 BooleanFieldData = Annotated[bool, BooleanFieldMeta()]
 ElementNameFieldData = Annotated[str, ElementNameFieldMeta()]
 NameFieldData = Annotated[str, NameFieldMeta()]
 BatterySOCFieldData = Annotated[float, BatterySOCFieldMeta()]
-BatterySOCSensorFieldData = Annotated[
-    list[float], SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)
-]
+BatterySOCSensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)]
 PriceFieldData = Annotated[float, PriceFieldMeta()]
-PriceSensorsFieldData = Annotated[
-    list[float], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)
-]
+PriceSensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
 
 # Direction-aware data type aliases
 PowerProductionSensorsFieldData = Annotated[

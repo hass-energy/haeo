@@ -139,12 +139,8 @@ def outputs(
 
     # source_target = DC to AC (inverting)
     # target_source = AC to DC (rectifying)
-    inverter_outputs[INVERTER_POWER_DC_TO_AC] = connection[
-        CONNECTION_POWER_SOURCE_TARGET
-    ]
-    inverter_outputs[INVERTER_POWER_AC_TO_DC] = connection[
-        CONNECTION_POWER_TARGET_SOURCE
-    ]
+    inverter_outputs[INVERTER_POWER_DC_TO_AC] = connection[CONNECTION_POWER_SOURCE_TARGET]
+    inverter_outputs[INVERTER_POWER_AC_TO_DC] = connection[CONNECTION_POWER_TARGET_SOURCE]
 
     # Active inverter power (DC to AC - AC to DC)
     inverter_outputs[INVERTER_POWER_ACTIVE] = replace(
@@ -165,11 +161,7 @@ def outputs(
     inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[SOURCE_SINK_POWER_BALANCE]
 
     # Shadow prices for power limits
-    inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[
-        CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
-    ]
-    inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[
-        CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
-    ]
+    inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+    inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 
     return {INVERTER_DEVICE_INVERTER: inverter_outputs}

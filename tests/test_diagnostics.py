@@ -233,9 +233,7 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
     hass.config_entries.async_add_subentry(entry, battery_subentry)
 
     # Set up sensor states
-    hass.states.async_set(
-        "sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"}
-    )
+    hass.states.async_set("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})
     hass.states.async_set("sensor.battery_soc", "75", {"unit_of_measurement": "%"})
     hass.states.async_set("sensor.battery_min_soc", "10.0")
     hass.states.async_set("sensor.battery_max_soc", "90.0")
@@ -308,9 +306,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
 
     # Register output sensor in entity registry (required for get_output_sensors)
     entity_registry = er.async_get(hass)
-    output_entity_id = (
-        f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORT}"
-    )
+    output_entity_id = f"sensor.{DOMAIN}_hub_entry_{grid_subentry.subentry_id}_{GRID_POWER_IMPORT}"
     entity_registry.async_get_or_create(
         domain="sensor",
         platform=DOMAIN,

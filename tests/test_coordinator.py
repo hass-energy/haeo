@@ -117,9 +117,7 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
 
 
 @pytest.fixture
-def mock_battery_subentry(
-    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
-) -> ConfigSubentry:
+def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> ConfigSubentry:
     """Create a mock battery subentry."""
     # Set up required sensors
     hass.states.async_set(
@@ -154,9 +152,7 @@ def mock_battery_subentry(
 
 
 @pytest.fixture
-def mock_grid_subentry(
-    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
-) -> ConfigSubentry:
+def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> ConfigSubentry:
     """Create a mock grid subentry."""
     subentry = ConfigSubentry(
         data=MappingProxyType(
@@ -179,9 +175,7 @@ def mock_grid_subentry(
 
 
 @pytest.fixture
-def mock_connection_subentry(
-    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
-) -> ConfigSubentry:
+def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> ConfigSubentry:
     """Create a mock connection subentry."""
     subentry = ConfigSubentry(
         data=MappingProxyType(
@@ -262,9 +256,7 @@ async def test_async_update_data_returns_outputs(
     """Coordinator returns optimization results merged with element outputs."""
     fake_element = MagicMock()
     fake_element.outputs.return_value = {
-        BATTERY_POWER_CHARGE: OutputData(
-            type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0)
-        )
+        BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0))
     }
 
     fake_network = MagicMock()
@@ -274,12 +266,8 @@ async def test_async_update_data_returns_outputs(
     # Add connection element (config name is slugified to "battery_to_grid")
     fake_connection = MagicMock()
     fake_connection.outputs.return_value = {
-        CONNECTION_POWER_SOURCE_TARGET: OutputData(
-            type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)
-        ),
-        CONNECTION_POWER_TARGET_SOURCE: OutputData(
-            type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,)
-        ),
+        CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)),
+        CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,)),
     }
 
     fake_network.elements = {
@@ -291,11 +279,7 @@ async def test_async_update_data_returns_outputs(
     # Mock battery adapter
     mock_battery_adapter = MagicMock()
     mock_battery_adapter.outputs.return_value = {
-        BATTERY_DEVICE_BATTERY: {
-            BATTERY_POWER_CHARGE: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0)
-            )
-        }
+        BATTERY_DEVICE_BATTERY: {BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0))}
     }
 
     generated_at = datetime(2024, 1, 1, 0, 15, tzinfo=UTC)
@@ -311,12 +295,8 @@ async def test_async_update_data_returns_outputs(
     mock_connection_adapter = MagicMock()
     mock_connection_adapter.outputs.return_value = {
         CONNECTION_DEVICE_CONNECTION: {
-            CONNECTION_POWER_SOURCE_TARGET: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)
-            ),
-            CONNECTION_POWER_TARGET_SOURCE: OutputData(
-                type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,)
-            ),
+            CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)),
+            CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,)),
         }
     }
 
@@ -349,12 +329,8 @@ async def test_async_update_data_returns_outputs(
             "custom_components.haeo.coordinator.data_module.load_network",
             new_callable=AsyncMock,
         ) as mock_load,
-        patch.object(
-            hass, "async_add_executor_job", new_callable=AsyncMock
-        ) as mock_executor,
-        patch(
-            "custom_components.haeo.coordinator.dismiss_optimization_failure_issue"
-        ) as mock_dismiss,
+        patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
+        patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch(
             "custom_components.haeo.coordinator.dt_util.utcnow",
             return_value=generated_at,
@@ -362,13 +338,9 @@ async def test_async_update_data_returns_outputs(
         patch.dict(
             ELEMENT_TYPES,
             {
-                "battery": ELEMENT_TYPES["battery"]._replace(
-                    outputs=mock_battery_adapter.outputs
-                ),
+                "battery": ELEMENT_TYPES["battery"]._replace(outputs=mock_battery_adapter.outputs),
                 "grid": ELEMENT_TYPES["grid"]._replace(outputs=mock_empty_outputs),
-                "connection": ELEMENT_TYPES["connection"]._replace(
-                    outputs=mock_connection_adapter.outputs
-                ),
+                "connection": ELEMENT_TYPES["connection"]._replace(outputs=mock_connection_adapter.outputs),
             },
         ),
     ):
@@ -499,9 +471,7 @@ async def test_async_update_data_raises_on_missing_model_element(
     # Network must have at least one element for HiGHS to optimize (empty networks are rejected)
     fake_network.add("node", "dummy_node")
 
-    def broken_outputs(
-        _name: str, _outputs: object, _config: object
-    ) -> dict[str, dict[str, OutputData]]:
+    def broken_outputs(_name: str, _outputs: object, _config: object) -> dict[str, dict[str, OutputData]]:
         msg = "missing model element"
         raise KeyError(msg)
 
@@ -583,18 +553,14 @@ def test_extract_entity_ids_skips_missing_metadata(
         CONF_CONNECTION: "DC Bus",
     }
 
-    original_get_field_meta = extract_entity_ids_from_config.__globals__[
-        "get_field_meta"
-    ]
+    original_get_field_meta = extract_entity_ids_from_config.__globals__["get_field_meta"]
 
     def fake_get_field_meta(field_name: str, config_class: type) -> Any:
         if field_name == CONF_CAPACITY:
             return None
         return original_get_field_meta(field_name, config_class)
 
-    monkeypatch.setattr(
-        "custom_components.haeo.coordinator.get_field_meta", fake_get_field_meta
-    )
+    monkeypatch.setattr("custom_components.haeo.coordinator.get_field_meta", fake_get_field_meta)
 
     extracted = extract_entity_ids_from_config(config)
 
@@ -626,9 +592,7 @@ def test_extract_entity_ids_catches_type_errors(
         msg = "boom"
         raise TypeError(msg)
 
-    monkeypatch.setattr(
-        "custom_components.haeo.coordinator.collect_entity_ids", broken_collect
-    )
+    monkeypatch.setattr("custom_components.haeo.coordinator.collect_entity_ids", broken_collect)
 
     extracted = extract_entity_ids_from_config(config)
 
@@ -722,16 +686,12 @@ def test_coordinator_cleanup_invokes_listener(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
-async def test_state_change_handler_requests_refresh(
-    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
-) -> None:
+async def test_state_change_handler_requests_refresh(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """State change events should trigger a coordinator refresh."""
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    with patch.object(
-        coordinator, "async_request_refresh", new_callable=AsyncMock
-    ) as request_mock:
+    with patch.object(coordinator, "async_request_refresh", new_callable=AsyncMock) as request_mock:
         await coordinator._state_change_handler(None)
 
     request_mock.assert_awaited_once()

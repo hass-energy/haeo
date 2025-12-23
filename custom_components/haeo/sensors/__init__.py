@@ -42,18 +42,12 @@ async def async_setup_entry(
             for device_name, device_outputs in subentry_devices.items():
                 # Create a unique device identifier that includes device name for sub-devices
                 is_sub_device = device_name != subentry.title
-                device_id_suffix = (
-                    f"{subentry.subentry_id}_{device_name}"
-                    if is_sub_device
-                    else subentry.subentry_id
-                )
+                device_id_suffix = f"{subentry.subentry_id}_{device_name}" if is_sub_device else subentry.subentry_id
 
                 # Get or create the device for this element
                 # Device name is already constrained to ElementDeviceName type, so use it directly as translation key
                 device_entry = dr.async_get_or_create(
-                    identifiers={
-                        (DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")
-                    },
+                    identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")},
                     config_entry_id=config_entry.entry_id,
                     config_subentry_id=subentry.subentry_id,
                     translation_key=device_name,

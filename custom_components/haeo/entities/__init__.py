@@ -61,11 +61,7 @@ async def async_setup_sensor_entities(
 
         for device_name, device_outputs in subentry_devices.items():
             is_sub_device = device_name != subentry.title
-            device_id_suffix = (
-                f"{subentry.subentry_id}_{device_name}"
-                if is_sub_device
-                else subentry.subentry_id
-            )
+            device_id_suffix = f"{subentry.subentry_id}_{device_name}" if is_sub_device else subentry.subentry_id
             device_entry = dr.async_get_or_create(
                 identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")},
                 config_entry_id=config_entry.entry_id,
@@ -119,9 +115,7 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
     """
     coordinator = config_entry.runtime_data
     if coordinator is None:
-        _LOGGER.debug(
-            "No coordinator available, skipping %s setup", input_entity_type.value
-        )
+        _LOGGER.debug("No coordinator available, skipping %s setup", input_entity_type.value)
         return
 
     entities: list[TInputEntity] = []
@@ -138,11 +132,7 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
 
             # Calculate device_id: use subentry_id for main device, append element_type for sub-devices
             is_sub_device = element_type != subentry.title
-            device_id = (
-                f"{subentry.subentry_id}_{element_type}"
-                if is_sub_device
-                else subentry.subentry_id
-            )
+            device_id = f"{subentry.subentry_id}_{element_type}" if is_sub_device else subentry.subentry_id
 
             # Register device with same pattern as sensors
             dr.async_get_or_create(
@@ -155,10 +145,7 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
 
             # Create entities for matching input fields that have values in config
             for field_info in input_fields:
-                if (
-                    field_info.entity_type == input_entity_type
-                    and field_info.field_name in subentry.data
-                ):
+                if field_info.entity_type == input_entity_type and field_info.field_name in subentry.data:
                     entity = entity_class(
                         hass=hass,
                         coordinator=coordinator,

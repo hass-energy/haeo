@@ -217,9 +217,7 @@ def _build_coordinator_output(
             # Zip values with available timestamps - interval values use n_periods timestamps,
             # boundary values use all n_periods+1 timestamps (strict=False handles both)
             forecast = [
-                ForecastPoint(
-                    time=datetime.fromtimestamp(timestamp, tz=local_tz), value=value
-                )
+                ForecastPoint(time=datetime.fromtimestamp(timestamp, tz=local_tz), value=value)
                 for timestamp, value in zip(forecast_times, values, strict=False)
             ]
         except ValueError:
@@ -231,11 +229,7 @@ def _build_coordinator_output(
         state=state,
         forecast=forecast,
         direction=output_data.direction,
-        entity_category=(
-            EntityCategory.DIAGNOSTIC
-            if output_name == OUTPUT_NAME_OPTIMIZATION_DURATION
-            else None
-        ),
+        entity_category=(EntityCategory.DIAGNOSTIC if output_name == OUTPUT_NAME_OPTIMIZATION_DURATION else None),
         device_class=DEVICE_CLASS_MAP.get(output_data.type),
         state_class=STATE_CLASS_MAP.get(output_data.type),
         options=(STATUS_OPTIONS if output_data.type == OUTPUT_TYPE_STATUS else None),
@@ -287,18 +281,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.last_update_success_time: datetime | None = None
 
         self._participant_configs: dict[str, ElementConfigSchema] = {
-            participant.name: participant.config
-            for participant in collect_element_subentries(config_entry)
+            participant.name: participant.config for participant in collect_element_subentries(config_entry)
         }
 
         self._state_change_unsub: Callable[[], None] | None = None
 
-        debounce_seconds = float(
-            config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS)
-        )
-        update_interval_minutes = config_entry.data.get(
-            CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES
-        )
+        debounce_seconds = float(config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
+        update_interval_minutes = config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES)
 
         super().__init__(
             hass,
@@ -306,9 +295,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             name=f"{DOMAIN}_{config_entry.entry_id}",
             update_interval=timedelta(minutes=update_interval_minutes),
             config_entry=config_entry,
-            request_refresh_debouncer=Debouncer(
-                hass, _LOGGER, cooldown=debounce_seconds, immediate=True
-            ),
+            request_refresh_debouncer=Debouncer(hass, _LOGGER, cooldown=debounce_seconds, immediate=True),
             always_update=False,
         )
 
@@ -358,9 +345,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         if missing_sensors:
             raise UpdateFailed(
                 translation_key="missing_sensors",
-                translation_placeholders={
-                    "unavailable_sensors": ", ".join(missing_sensors)
-                },
+                translation_placeholders={"unavailable_sensors": ", ".join(missing_sensors)},
             )
 
         # Load element configurations (convert entity IDs to values)
@@ -390,9 +375,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.network = network
 
         network_output_data: dict[NetworkOutputName, OutputData] = {
-            OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
-                OUTPUT_TYPE_COST, unit=self.hass.config.currency, values=(cost,)
-            ),
+            OUTPUT_NAME_OPTIMIZATION_COST: OutputData(OUTPUT_TYPE_COST, unit=self.hass.config.currency, values=(cost,)),
             OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
                 OUTPUT_TYPE_STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
             ),
@@ -405,8 +388,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Build nested outputs structure from all network model elements
         model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
-            element_name: element.outputs()
-            for element_name, element in network.elements.items()
+            element_name: element.outputs() for element_name, element in network.elements.items()
         }
 
         # Build elements dict with inputs and outputs for each element
@@ -420,9 +402,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # outputs function returns {device_name: {sensor_name: OutputData}}
             # May return multiple devices per config element (e.g., battery regions)
             try:
-                adapter_outputs: Mapping[
-                    ElementDeviceName, Mapping[Any, OutputData]
-                ] = outputs_fn(
+                adapter_outputs: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = outputs_fn(
                     element_name, model_outputs, loaded_configs[element_name]
                 )
             except KeyError:
@@ -438,9 +418,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # Process each device's sensor outputs
             subentry_devices: SubentryDevices = {}
             for device_name, device_outputs in adapter_outputs.items():
-                processed_outputs: dict[
-                    ElementOutputName | NetworkOutputName, CoordinatorOutput
-                ] = {
+                processed_outputs: dict[ElementOutputName | NetworkOutputName, CoordinatorOutput] = {
                     sensor_name: _build_coordinator_output(
                         sensor_name,
                         sensor_data,

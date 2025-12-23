@@ -119,11 +119,7 @@ def _extract_field_meta(field_type: type) -> FieldMeta | None:
     """Extract FieldMeta from a type annotation."""
     # Handle NotRequired wrapper
     origin = get_origin(field_type)
-    if (
-        origin is not None
-        and hasattr(origin, "__name__")
-        and origin.__name__ == "NotRequired"
-    ):
+    if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "NotRequired":
         field_type = get_args(field_type)[0]
 
     # Extract FieldMeta from Annotated type
@@ -135,9 +131,7 @@ def _extract_field_meta(field_type: type) -> FieldMeta | None:
     return None
 
 
-def _field_meta_to_input_info(
-    field_name: str, meta: FieldMeta, element_type: str
-) -> InputFieldInfo | None:
+def _field_meta_to_input_info(field_name: str, meta: FieldMeta, element_type: str) -> InputFieldInfo | None:
     """Convert a FieldMeta to InputFieldInfo if it should be an input entity.
 
     Almost all fields become input entities. The mode (DRIVEN vs EDITABLE) is
@@ -216,9 +210,7 @@ def _field_meta_to_input_info(
     return None
 
 
-def _sensor_meta_to_input_info(
-    field_name: str, meta: SensorFieldMeta, element_type: str
-) -> InputFieldInfo | None:
+def _sensor_meta_to_input_info(field_name: str, meta: SensorFieldMeta, element_type: str) -> InputFieldInfo | None:
     """Convert a SensorFieldMeta to InputFieldInfo.
 
     Maps the accepted_units to appropriate device class, unit, and output type.
@@ -347,9 +339,7 @@ def get_all_input_fields() -> dict["ElementType", list[InputFieldInfo]]:
     # Import here to avoid circular import
     from custom_components.haeo.elements import ELEMENT_TYPES  # noqa: PLC0415
 
-    return {
-        element_type: get_input_fields(element_type) for element_type in ELEMENT_TYPES
-    }
+    return {element_type: get_input_fields(element_type) for element_type in ELEMENT_TYPES}
 
 
 __all__ = [

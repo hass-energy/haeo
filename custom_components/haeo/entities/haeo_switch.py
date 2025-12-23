@@ -79,11 +79,7 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_ids = [config_value]
             self._attr_is_on = False
-        elif (
-            isinstance(config_value, list)
-            and config_value
-            and all(isinstance(item, str) for item in config_value)
-        ):
+        elif isinstance(config_value, list) and config_value and all(isinstance(item, str) for item in config_value):
             # Multiple entity IDs - Driven mode
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_ids = config_value
@@ -94,18 +90,12 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
             if isinstance(config_value, bool):
                 self._attr_is_on = config_value
             else:
-                self._attr_is_on = (
-                    bool(config_value) if config_value is not None else False
-                )
+                self._attr_is_on = bool(config_value) if config_value is not None else False
 
         # Entity attributes
-        self._attr_unique_id = (
-            f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
-        )
+        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
         self._attr_translation_key = field_info.translation_key
-        self._attr_translation_placeholders = {
-            k: str(v) for k, v in subentry.data.items()
-        }
+        self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
 
         # Device info
         self._attr_device_info = DeviceInfo(
@@ -117,9 +107,7 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
         # Set extra state attributes
         self._update_extra_attributes()
 
-    def _update_extra_attributes(
-        self, *, forecast: list[dict[str, Any]] | None = None
-    ) -> None:
+    def _update_extra_attributes(self, *, forecast: list[dict[str, Any]] | None = None) -> None:
         """Update extra state attributes.
 
         Args:
@@ -175,9 +163,7 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
             return
 
         # Build forecast from loaded values and timestamps
-        forecast = self._build_forecast_from_loaded_values(
-            field_values, self.coordinator.data["forecast_timestamps"]
-        )
+        forecast = self._build_forecast_from_loaded_values(field_values, self.coordinator.data["forecast_timestamps"])
 
         # In driven mode, update state from first loaded value
         if self._entity_mode == ConfigEntityMode.DRIVEN:

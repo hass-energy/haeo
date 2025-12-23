@@ -101,12 +101,8 @@ def outputs(
 
     load_updates: dict[LoadOutputName, OutputData] = {
         # Output sensors from optimization
-        LOAD_POWER: replace(
-            connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER
-        ),
-        LOAD_FORECAST_LIMIT_PRICE: connection[
-            CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
-        ],
+        LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER),
+        LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
     }
 
     return {LOAD_DEVICE_LOAD: load_updates}

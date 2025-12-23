@@ -107,9 +107,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self._attr_native_unit_of_measurement = output.unit
         self._attr_device_class = output.device_class
         self._attr_state_class = output.state_class
-        self._attr_options = (
-            list(output.options) if output.options is not None else None
-        )
+        self._attr_options = list(output.options) if output.options is not None else None
 
 
 __all__ = ["HaeoSensor"]
