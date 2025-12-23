@@ -91,9 +91,6 @@ class InverterConfigData(TypedDict):
     efficiency_ac_to_dc: NotRequired[PercentageSensorFieldData]
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {}
-
-
 def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
     """Create model elements for Inverter configuration.
 

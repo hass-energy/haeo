@@ -35,8 +35,8 @@ CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
 
 # Field type aliases with defaults
-CurtailmentFieldSchema = Annotated[BooleanFieldSchema, Default(value=True)]
-CurtailmentFieldData = Annotated[BooleanFieldData, Default(value=True)]
+CurtailmentFieldSchema = Annotated[BooleanFieldSchema, Default(schema=True)]
+CurtailmentFieldData = Annotated[BooleanFieldData, Default(schema=True)]
 
 type SolarOutputName = Literal[
     "solar_power",
@@ -83,9 +83,6 @@ class SolarConfigData(TypedDict):
     # Optional fields
     price_production: NotRequired[PriceExportSensorsFieldData]
     curtailment: NotRequired[CurtailmentFieldData]
-
-
-CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
 def create_model_elements(config: SolarConfigData) -> list[dict[str, Any]]:

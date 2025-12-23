@@ -33,8 +33,8 @@ from custom_components.haeo.schema.fields import (
 ELEMENT_TYPE: Final = "battery"
 
 # Field type aliases with defaults
-EarlyChargeIncentiveFieldSchema = Annotated[PriceFieldSchema, Default(value=0.001)]
-EarlyChargeIncentiveFieldData = Annotated[PriceFieldData, Default(value=0.001)]
+EarlyChargeIncentiveFieldSchema = Annotated[PriceFieldSchema, Default(schema=0.001)]
+EarlyChargeIncentiveFieldData = Annotated[PriceFieldData, Default(schema=0.001)]
 
 type BatteryDeviceName = Literal[
     "battery",
@@ -141,9 +141,6 @@ class BatteryConfigData(TypedDict):
     overcharge_percentage: NotRequired[BatterySOCSensorFieldData]
     undercharge_cost: NotRequired[PriceSensorsFieldData]
     overcharge_cost: NotRequired[PriceSensorsFieldData]
-
-
-CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
 def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:

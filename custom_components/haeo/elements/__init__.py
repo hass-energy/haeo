@@ -178,7 +178,6 @@ class ElementRegistryEntry(NamedTuple):
 
     schema: type[Any]
     data: type[Any]
-    defaults: dict[str, Any]
     translation_key: ElementType
     create_model_elements: CreateModelElementsFn
     outputs: OutputsFn
@@ -190,7 +189,6 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
     grid.ELEMENT_TYPE: ElementRegistryEntry(
         schema=grid.GridConfigSchema,
         data=grid.GridConfigData,
-        defaults=grid.CONFIG_DEFAULTS,
         translation_key=grid.ELEMENT_TYPE,
         create_model_elements=grid.create_model_elements,
         outputs=cast("OutputsFn", grid.outputs),
@@ -199,7 +197,6 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
     load.ELEMENT_TYPE: ElementRegistryEntry(
         schema=load.LoadConfigSchema,
         data=load.LoadConfigData,
-        defaults=load.CONFIG_DEFAULTS,
         translation_key=load.ELEMENT_TYPE,
         create_model_elements=load.create_model_elements,
         outputs=cast("OutputsFn", load.outputs),
@@ -208,7 +205,6 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
     inverter.ELEMENT_TYPE: ElementRegistryEntry(
         schema=inverter.InverterConfigSchema,
         data=inverter.InverterConfigData,
-        defaults=inverter.CONFIG_DEFAULTS,
         translation_key=inverter.ELEMENT_TYPE,
         create_model_elements=inverter.create_model_elements,
         outputs=cast("OutputsFn", inverter.outputs),
@@ -217,7 +213,6 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
     solar.ELEMENT_TYPE: ElementRegistryEntry(
         schema=solar.SolarConfigSchema,
         data=solar.SolarConfigData,
-        defaults=solar.CONFIG_DEFAULTS,
         translation_key=solar.ELEMENT_TYPE,
         create_model_elements=solar.create_model_elements,
         outputs=cast("OutputsFn", solar.outputs),
@@ -226,7 +221,6 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
     battery.ELEMENT_TYPE: ElementRegistryEntry(
         schema=battery.BatteryConfigSchema,
         data=battery.BatteryConfigData,
-        defaults=battery.CONFIG_DEFAULTS,
         translation_key=battery.ELEMENT_TYPE,
         create_model_elements=battery.create_model_elements,
         outputs=cast("OutputsFn", battery.outputs),
@@ -235,7 +229,6 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
     connection.ELEMENT_TYPE: ElementRegistryEntry(
         schema=connection.ConnectionConfigSchema,
         data=connection.ConnectionConfigData,
-        defaults=connection.CONFIG_DEFAULTS,
         translation_key=connection.ELEMENT_TYPE,
         create_model_elements=connection.create_model_elements,
         outputs=cast("OutputsFn", connection.outputs),
@@ -245,7 +238,6 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
     node.ELEMENT_TYPE: ElementRegistryEntry(
         schema=node.NodeConfigSchema,
         data=node.NodeConfigData,
-        defaults=node.CONFIG_DEFAULTS,
         translation_key=node.ELEMENT_TYPE,
         create_model_elements=node.create_model_elements,
         outputs=cast("OutputsFn", node.outputs),
@@ -255,7 +247,6 @@ ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
     battery_section.ELEMENT_TYPE: ElementRegistryEntry(
         schema=battery_section.BatterySectionConfigSchema,
         data=battery_section.BatterySectionConfigData,
-        defaults=battery_section.CONFIG_DEFAULTS,
         translation_key=battery_section.ELEMENT_TYPE,
         create_model_elements=battery_section.create_model_elements,
         outputs=cast("OutputsFn", battery_section.outputs),

@@ -16,10 +16,10 @@ CONF_IS_SOURCE: Final = "is_source"
 CONF_IS_SINK: Final = "is_sink"
 
 # Field type aliases with defaults
-IsSourceFieldSchema = Annotated[BooleanFieldSchema, Default(value=False)]
-IsSourceFieldData = Annotated[BooleanFieldData, Default(value=False)]
-IsSinkFieldSchema = Annotated[BooleanFieldSchema, Default(value=False)]
-IsSinkFieldData = Annotated[BooleanFieldData, Default(value=False)]
+IsSourceFieldSchema = Annotated[BooleanFieldSchema, Default(schema=False)]
+IsSourceFieldData = Annotated[BooleanFieldData, Default(schema=False)]
+IsSinkFieldSchema = Annotated[BooleanFieldSchema, Default(schema=False)]
+IsSinkFieldData = Annotated[BooleanFieldData, Default(schema=False)]
 
 type NodeOutputName = Literal["node_power_balance"]
 
@@ -58,9 +58,6 @@ class NodeConfigData(TypedDict):
 
     is_source: IsSourceFieldData
     is_sink: IsSinkFieldData
-
-
-CONFIG_DEFAULTS: dict[str, Any] = {}
 
 
 def create_model_elements(config: NodeConfigData) -> list[dict[str, Any]]:

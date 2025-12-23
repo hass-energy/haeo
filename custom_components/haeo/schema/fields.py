@@ -46,11 +46,38 @@ class Direction(StrEnum):
 class Default:
     """Default value marker for field composition.
 
-    Used in Annotated composition to specify default values that are
-    used when creating editable number entities.
+    Used in Annotated composition to specify default values for fields.
+
+    Attributes:
+        schema: Default value shown in config flow UI when adding new elements.
+            If None, the field has no pre-filled value in the UI.
+        data: Default value used for editable entities when no sensor is configured.
+            If None, falls back to schema default.
+
+    Examples:
+        # Same default for both schema and data
+        Default(schema=95.0)
+
+        # Different defaults (show 0 in UI, but use 95 if user doesn't change)
+        Default(schema=0.0, data=95.0)
+
+        # Only data default (no pre-fill in UI, but has runtime default)
+        Default(data=0.001)
+
     """
 
-    value: float | bool
+    schema: float | bool | None = None
+    data: float | bool | None = None
+
+    @property
+    def schema_default(self) -> float | bool | None:
+        """Get the default value for config flow UI."""
+        return self.schema
+
+    @property
+    def data_default(self) -> float | bool | None:
+        """Get the default value for editable entities, falling back to schema."""
+        return self.data if self.data is not None else self.schema
 
 
 @dataclass(frozen=True)

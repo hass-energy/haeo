@@ -94,8 +94,6 @@ class ConnectionConfigData(TypedDict):
     price_target_source: NotRequired[PriceSensorsFieldData]
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {}
-
 type ConnectionDeviceName = Literal["connection"]
 
 CONNECTION_DEVICE_NAMES: Final[frozenset[ConnectionDeviceName]] = frozenset(

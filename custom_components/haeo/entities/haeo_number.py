@@ -89,6 +89,9 @@ class HaeoInputNumber(CoordinatorEntity[HaeoDataUpdateCoordinator], RestoreNumbe
             if config_value is not None and isinstance(config_value, (int, float)):
                 self._attr_native_value = float(config_value)
 
+        # Store data default for use when no value is available
+        self._data_default = field_info.data_default
+
         # Entity attributes
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
         self._attr_translation_key = field_info.translation_key
@@ -145,6 +148,9 @@ class HaeoInputNumber(CoordinatorEntity[HaeoDataUpdateCoordinator], RestoreNumbe
             last_data = await self.async_get_last_number_data()
             if last_data is not None and last_data.native_value is not None:
                 self._attr_native_value = last_data.native_value
+            elif self._attr_native_value is None and self._data_default is not None:
+                # Use data default when no restored value and no config value
+                self._attr_native_value = float(self._data_default)
 
         # Get initial forecast from coordinator if available
         self._handle_coordinator_update()

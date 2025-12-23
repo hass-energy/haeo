@@ -73,7 +73,8 @@ class InputFieldInfo:
         device_class: Device class for entity behavior
         translation_key: Translation key for entity name
         direction: Direction for visualization (PRODUCTION or CONSUMPTION)
-        default_value: Default value for editable entities
+        schema_default: Default value shown in config flow UI
+        data_default: Default value for editable entities when no sensor configured
 
     """
 
@@ -87,7 +88,8 @@ class InputFieldInfo:
     device_class: NumberDeviceClass | None = None
     translation_key: str | None = None
     direction: Direction | None = None
-    default_value: float | bool | None = None
+    schema_default: float | bool | None = None
+    data_default: float | bool | None = None
 
 
 # Field meta types that produce Number entities
@@ -172,7 +174,8 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
     """
     meta = composed.field_meta
     direction = composed.direction
-    default_value = composed.default.value if composed.default else None
+    schema_default = composed.default.schema_default if composed.default else None
+    data_default = composed.default.data_default if composed.default else None
 
     # Apply NumberLimits overrides if present
     limits = composed.number_limits
@@ -193,7 +196,8 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
             direction=direction,
-            default_value=default_value,
+            schema_default=schema_default,
+            data_default=data_default,
         )
 
     if isinstance(meta, EnergyFieldMeta):
@@ -208,7 +212,8 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
             direction=direction,
-            default_value=default_value,
+            schema_default=schema_default,
+            data_default=data_default,
         )
 
     if isinstance(meta, PriceFieldMeta):
@@ -223,7 +228,8 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
             direction=direction,
-            default_value=default_value,
+            schema_default=schema_default,
+            data_default=data_default,
         )
 
     if isinstance(meta, (PercentageFieldMeta, BatterySOCFieldMeta)):
@@ -238,7 +244,8 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
             device_class=meta.device_class,
             translation_key=f"{element_type}_{field_name}",
             direction=direction,
-            default_value=default_value,
+            schema_default=schema_default,
+            data_default=data_default,
         )
 
     if isinstance(meta, SWITCH_FIELD_METAS):
@@ -248,7 +255,8 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
             output_type=OUTPUT_TYPE_BOOLEAN,
             translation_key=f"{element_type}_{field_name}",
             direction=direction,
-            default_value=default_value,
+            schema_default=schema_default,
+            data_default=data_default,
         )
 
     # Handle sensor field types - map accepted_units to device class
@@ -268,7 +276,8 @@ def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, elem
         return None
 
     direction = composed.direction
-    default_value = composed.default.value if composed.default else None
+    schema_default = composed.default.schema_default if composed.default else None
+    data_default = composed.default.data_default if composed.default else None
     accepted = meta.accepted_units
 
     # Power sensor
@@ -281,7 +290,8 @@ def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, elem
             device_class=NumberDeviceClass.POWER,
             translation_key=f"{element_type}_{field_name}",
             direction=direction,
-            default_value=default_value,
+            schema_default=schema_default,
+            data_default=data_default,
         )
 
     # Energy sensor
@@ -294,7 +304,8 @@ def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, elem
             device_class=NumberDeviceClass.ENERGY,
             translation_key=f"{element_type}_{field_name}",
             direction=direction,
-            default_value=default_value,
+            schema_default=schema_default,
+            data_default=data_default,
         )
 
     # Battery SOC sensor (percentage for battery)
@@ -309,7 +320,8 @@ def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, elem
             device_class=NumberDeviceClass.BATTERY,
             translation_key=f"{element_type}_{field_name}",
             direction=direction,
-            default_value=default_value,
+            schema_default=schema_default,
+            data_default=data_default,
         )
 
     # Percentage sensor
@@ -324,7 +336,8 @@ def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, elem
             device_class=None,
             translation_key=f"{element_type}_{field_name}",
             direction=direction,
-            default_value=default_value,
+            schema_default=schema_default,
+            data_default=data_default,
         )
 
     # Price sensor (currency per energy)
@@ -337,7 +350,8 @@ def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, elem
             device_class=NumberDeviceClass.MONETARY,
             translation_key=f"{element_type}_{field_name}",
             direction=direction,
-            default_value=default_value,
+            schema_default=schema_default,
+            data_default=data_default,
         )
 
     # Unknown sensor type - skip

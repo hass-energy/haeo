@@ -22,6 +22,7 @@ __all__ = [
     "available",
     "get_field_meta",
     "get_loader_instance",
+    "get_schema_defaults",
     "load",
     "schema_for_type",
 ]
@@ -76,6 +77,41 @@ def get_field_meta(field_name: str, config_class: type) -> FieldMeta | None:
                 return meta
 
     return None
+
+
+def get_schema_defaults(schema_class: type) -> dict[str, Any]:
+    """Extract schema default values from a ConfigSchema type.
+
+    Iterates through field annotations and extracts Default.schema values
+    for use as suggested values in config flow forms.
+
+    Args:
+        schema_class: TypedDict config schema class (Schema mode)
+
+    Returns:
+        Dictionary mapping field names to their schema default values.
+        Only fields with Default markers are included.
+
+    """
+    defaults: dict[str, Any] = {}
+    hints = get_type_hints(schema_class, include_extras=True)
+
+    for field_name, field_type in hints.items():
+        # Handle NotRequired wrapper
+        origin = get_origin(field_type)
+        if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "NotRequired":
+            inner_type = get_args(field_type)[0]
+        else:
+            inner_type = field_type
+
+        # Extract Default from Annotated type
+        if get_origin(inner_type) is Annotated:
+            for meta in inner_type.__metadata__:
+                if isinstance(meta, Default) and meta.schema is not None:
+                    defaults[field_name] = meta.schema
+                    break
+
+    return defaults
 
 
 def get_loader_instance(field_name: str, config_class: type) -> Loader:

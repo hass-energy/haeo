@@ -82,9 +82,6 @@ class BatterySectionConfigData(TypedDict):
     initial_charge: EnergySensorFieldData
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {}
-
-
 def create_model_elements(config: BatterySectionConfigData) -> list[dict[str, Any]]:
     """Create model elements for BatterySection configuration.
 

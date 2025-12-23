@@ -90,7 +90,11 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
             if isinstance(config_value, bool):
                 self._attr_is_on = config_value
             else:
-                self._attr_is_on = bool(config_value) if config_value is not None else False
+                # Will be set properly in async_added_to_hass using data_default
+                self._attr_is_on = bool(config_value) if config_value is not None else None
+
+        # Store data default for use when no value is available
+        self._data_default = field_info.data_default
 
         # Entity attributes
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
@@ -136,6 +140,12 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
             last_state = await self.async_get_last_state()
             if last_state is not None:
                 self._attr_is_on = last_state.state == "on"
+            elif self._attr_is_on is None:
+                # Use data default when no restored value and no config value
+                if self._data_default is not None:
+                    self._attr_is_on = bool(self._data_default)
+                else:
+                    self._attr_is_on = False
 
         # Get initial forecast from coordinator if available
         self._handle_coordinator_update()
