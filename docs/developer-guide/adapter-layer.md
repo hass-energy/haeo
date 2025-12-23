@@ -129,10 +129,11 @@ Rather than passing through the adapter layer, input values are exposed directly
 The `schema/input_fields.py` module extracts input field metadata from ConfigSchema:
 
 - Power fields become Number entities with kW units
-- Price fields become Number entities with $/kWh units
+- Price fields become Number entities with \$/kWh units
 - Boolean fields become Switch entities
 
 Input entities:
+
 - Created directly from subentry config (not coordinator data)
 - Support DRIVEN mode (mirrors external sensor) or EDITABLE mode (user-controlled)
 - Persist state across restarts using RestoreNumber/RestoreEntity

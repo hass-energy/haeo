@@ -368,25 +368,25 @@ See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for gene
 Battery configuration fields create input entities for runtime adjustment.
 These entities appear in the battery device's config section.
 
-| Entity                                       | Type   | Description                       |
-| -------------------------------------------- | ------ | --------------------------------- |
-| `number.{name}_capacity`                     | Number | Battery capacity (kWh)            |
-| `number.{name}_efficiency`                   | Number | Round-trip efficiency (%)         |
-| `number.{name}_min_charge_percentage`        | Number | Preferred minimum SOC (%)         |
-| `number.{name}_max_charge_percentage`        | Number | Preferred maximum SOC (%)         |
-| `number.{name}_max_charge_power`             | Number | Maximum charge power (kW)         |
-| `number.{name}_max_discharge_power`          | Number | Maximum discharge power (kW)      |
-| `number.{name}_early_charge_incentive`       | Number | Early charge preference (\$/kWh)  |
-| `number.{name}_discharge_cost`               | Number | Discharge degradation cost (\$/kWh) |
+| Entity                                 | Type   | Description                         |
+| -------------------------------------- | ------ | ----------------------------------- |
+| `number.{name}_capacity`               | Number | Battery capacity (kWh)              |
+| `number.{name}_efficiency`             | Number | Round-trip efficiency (%)           |
+| `number.{name}_min_charge_percentage`  | Number | Preferred minimum SOC (%)           |
+| `number.{name}_max_charge_percentage`  | Number | Preferred maximum SOC (%)           |
+| `number.{name}_max_charge_power`       | Number | Maximum charge power (kW)           |
+| `number.{name}_max_discharge_power`    | Number | Maximum discharge power (kW)        |
+| `number.{name}_early_charge_incentive` | Number | Early charge preference (\$/kWh)    |
+| `number.{name}_discharge_cost`         | Number | Discharge degradation cost (\$/kWh) |
 
 Additional entities appear when extended ranges are configured:
 
-| Entity                                       | Type   | Description                       |
-| -------------------------------------------- | ------ | --------------------------------- |
-| `number.{name}_undercharge_percentage`       | Number | Hard minimum SOC (%)              |
-| `number.{name}_overcharge_percentage`        | Number | Hard maximum SOC (%)              |
-| `number.{name}_undercharge_cost`             | Number | Undercharge penalty (\$/kWh)      |
-| `number.{name}_overcharge_cost`              | Number | Overcharge penalty (\$/kWh)       |
+| Entity                                 | Type   | Description                  |
+| -------------------------------------- | ------ | ---------------------------- |
+| `number.{name}_undercharge_percentage` | Number | Hard minimum SOC (%)         |
+| `number.{name}_overcharge_percentage`  | Number | Hard maximum SOC (%)         |
+| `number.{name}_undercharge_cost`       | Number | Undercharge penalty (\$/kWh) |
+| `number.{name}_overcharge_cost`        | Number | Overcharge penalty (\$/kWh)  |
 
 **Mode behavior**:
 

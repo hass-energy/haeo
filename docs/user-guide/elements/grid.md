@@ -232,10 +232,10 @@ All sensors include a `forecast` attribute containing future optimized values fo
 Grid configuration fields create input entities for runtime adjustment.
 These entities appear in the grid device's config section.
 
-| Entity                              | Type   | Description                    |
-| ----------------------------------- | ------ | ------------------------------ |
-| `number.{name}_import_limit`        | Number | Maximum import power (kW)      |
-| `number.{name}_export_limit`        | Number | Maximum export power (kW)      |
+| Entity                       | Type   | Description               |
+| ---------------------------- | ------ | ------------------------- |
+| `number.{name}_import_limit` | Number | Maximum import power (kW) |
+| `number.{name}_export_limit` | Number | Maximum export power (kW) |
 
 **Mode behavior**:
 

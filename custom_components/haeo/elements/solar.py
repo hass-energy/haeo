@@ -111,7 +111,7 @@ def create_model_elements(config: SolarConfigData) -> list[dict[str, Any]]:
 def outputs(
     name: str,
     outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
-    config: SolarConfigData,
+    _config: SolarConfigData,
 ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
     """Provide state updates for solar output sensors."""
     connection = outputs[f"{name}:connection"]

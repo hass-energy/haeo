@@ -146,6 +146,7 @@ async def test_time_series_loader_loads_mixed_live_and_forecast(
         )
 
     # Returns n_periods interval values (len(ts_values)-1)
+    assert result is not None
     assert len(result) == len(ts_values) - 1
     assert all(isinstance(v, float) for v in result)
 

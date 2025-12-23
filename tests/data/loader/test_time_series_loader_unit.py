@@ -117,6 +117,7 @@ async def test_time_series_loader_load_merges_present_and_forecast(
     )
 
     # Verify correct number of interval values
+    assert result is not None
     assert len(result) == 4
     assert result[0] == pytest.approx(1.5)
     # Remaining values are computed by fusion logic (tested in test_forecast_fuser.py)

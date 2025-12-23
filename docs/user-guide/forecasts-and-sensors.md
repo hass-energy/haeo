@@ -326,10 +326,10 @@ These entities allow you to configure values directly in the Home Assistant UI w
 Each configurable field on an element (such as battery capacity, efficiency, or solar curtailment) becomes an input entity in Home Assistant.
 The entity operates in one of two modes depending on how you configure the field:
 
-| Mode       | Configuration                | State Source        | Forecast Source          | User Control |
-| ---------- | ---------------------------- | ------------------- | ------------------------ | ------------ |
-| **Driven** | Sensor entity ID provided    | First loaded value  | Loaded sensor data       | Read-only    |
-| **Editable** | No sensor entity ID provided | User input          | Constant (value repeated)| Adjustable   |
+| Mode         | Configuration                | State Source       | Forecast Source           | User Control |
+| ------------ | ---------------------------- | ------------------ | ------------------------- | ------------ |
+| **Driven**   | Sensor entity ID provided    | First loaded value | Loaded sensor data        | Read-only    |
+| **Editable** | No sensor entity ID provided | User input         | Constant (value repeated) | Adjustable   |
 
 **Driven mode**: When you configure a field with a sensor entity ID, the input entity displays the loaded value and forecast from that sensor.
 The entity is read-only because the sensor controls the value.
@@ -387,9 +387,9 @@ Examples:
 
 When you provide sensor entity IDs, the input entity automatically tracks the sensor:
 
-| Field        | Value                      |
-| ------------ | -------------------------- |
-| **Capacity** | sensor.battery_usable_kwh  |
+| Field        | Value                     |
+| ------------ | ------------------------- |
+| **Capacity** | sensor.battery_usable_kwh |
 
 The `number.{battery_name}_capacity` entity:
 
@@ -402,13 +402,13 @@ The `number.{battery_name}_capacity` entity:
 
 HAEO input entities are different from Home Assistant's `input_number` helpers:
 
-| Feature                | HAEO Input Entity                  | HA Input Number Helper                |
-| ---------------------- | ---------------------------------- | ------------------------------------- |
-| **Created by**         | HAEO automatically                 | User manually creates                 |
-| **Validation**         | Element-specific limits            | User-defined limits                   |
-| **Forecast attribute** | Shows optimizer input over horizon | No forecast attribute                 |
-| **Integration**        | Linked to HAEO elements            | Independent helper entity             |
-| **Entity category**    | `config`                           | N/A                                   |
+| Feature                | HAEO Input Entity                  | HA Input Number Helper    |
+| ---------------------- | ---------------------------------- | ------------------------- |
+| **Created by**         | HAEO automatically                 | User manually creates     |
+| **Validation**         | Element-specific limits            | User-defined limits       |
+| **Forecast attribute** | Shows optimizer input over horizon | No forecast attribute     |
+| **Integration**        | Linked to HAEO elements            | Independent helper entity |
+| **Entity category**    | `config`                           | N/A                       |
 
 You can still use `input_number` helpers as sensors in HAEO configuration if you prefer the manual approach.
 HAEO treats them like any other sensor, reading the current value and repeating it across the optimization horizon.

@@ -170,10 +170,10 @@ All sensors include a `forecast` attribute containing future optimized values fo
 Solar configuration fields create input entities for runtime adjustment.
 These entities appear in the solar device's config section.
 
-| Entity                                   | Type   | Description                      |
-| ---------------------------------------- | ------ | -------------------------------- |
-| `number.{name}_production_price`         | Number | Production cost (\$/kWh)         |
-| `switch.{name}_allow_curtailment`        | Switch | Allow generation curtailment     |
+| Entity                            | Type   | Description                  |
+| --------------------------------- | ------ | ---------------------------- |
+| `number.{name}_production_price`  | Number | Production cost (\$/kWh)     |
+| `switch.{name}_allow_curtailment` | Switch | Allow generation curtailment |
 
 **Mode behavior**:
 
