@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from custom_components.haeo.elements import battery as battery_element
 from custom_components.haeo.elements.battery import BatteryConfigData
 from custom_components.haeo.model import battery as battery_model
-from custom_components.haeo.model import power_connection as connection_model
+from custom_components.haeo.model import power_connection
 from custom_components.haeo.model.const import (
     OUTPUT_TYPE_ENERGY,
     OUTPUT_TYPE_POWER,
@@ -175,22 +175,22 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             },
             # Connection outputs (for prices)
             "battery_main:undercharge:to_node": {
-                connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
-                connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="-"),
-                connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.03,), direction="-"),
-                connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.04,), direction="+"),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="-"),
+                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.03,), direction="-"),
+                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.04,), direction="+"),
             },
             "battery_main:normal:to_node": {
-                connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
-                connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
-                connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.02,), direction="-"),
-                connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.02,), direction="+"),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
+                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.02,), direction="-"),
+                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.02,), direction="+"),
             },
             "battery_main:overcharge:to_node": {
-                connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
-                connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="-"),
-                connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="-"),
-                connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="+"),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="-"),
+                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="-"),
+                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="+"),
             },
         },
         "outputs": {
@@ -319,10 +319,10 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             },
             # Connection outputs
             "battery_main:normal:to_node": {
-                connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
-                connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
-                connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.002,), direction="-"),
-                connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.002,), direction="+"),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
+                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.002,), direction="-"),
+                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.002,), direction="+"),
             },
         },
         "outputs": {
@@ -443,9 +443,9 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0, 0.0, 0.0, 0.0)),
             },
             "battery_early:normal:to_node": {
-                connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0, 0.0, 0.0, 1.0), direction="+"),
-                connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0, 0.0, 0.0, 0.0), direction="-"),
-                connection_model.CONNECTION_PRICE_TARGET_SOURCE: OutputData(
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0, 0.0, 0.0, 1.0), direction="+"),
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0, 0.0, 0.0, 0.0), direction="-"),
+                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(
                     type=OUTPUT_TYPE_PRICE,
                     unit="$/kWh",
                     values=(
@@ -456,7 +456,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                     ),
                     direction="-",
                 ),
-                connection_model.CONNECTION_PRICE_SOURCE_TARGET: OutputData(
+                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(
                     type=OUTPUT_TYPE_PRICE,
                     unit="$/kWh",
                     values=(
@@ -592,8 +592,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             "battery_no_balance:node": {},
             # Connection outputs without prices
             "battery_no_balance:normal:to_node": {
-                connection_model.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
-                connection_model.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
             },
         },
         "outputs": {
