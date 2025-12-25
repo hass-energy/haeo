@@ -5,10 +5,19 @@ BatteryBalanceConnection, etc.) that link elements together in the network.
 """
 
 from abc import abstractmethod
+from typing import Final, Literal
 
 from highspy.highs import HighspyArray
 
 from .element import Element
+
+# Base connection output names - extended by subclasses
+type ConnectionOutputName = Literal["connection_time_slice"]
+type ConnectionConstraintName = Literal["connection_time_slice"]
+
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
+    (CONNECTION_TIME_SLICE := "connection_time_slice",)
+)
 
 
 class Connection[OutputNameT: str, ConstraintNameT: str](Element[OutputNameT, ConstraintNameT]):

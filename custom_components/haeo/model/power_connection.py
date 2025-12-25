@@ -8,16 +8,20 @@ from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
-from .connection import Connection
+from .connection import CONNECTION_OUTPUT_NAMES as BASE_CONNECTION_OUTPUT_NAMES
+from .connection import CONNECTION_TIME_SLICE, Connection
+from .connection import ConnectionConstraintName as BaseConnectionConstraintName
 from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_POWER_LIMIT, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
-type PowerConnectionConstraintName = Literal[
-    "connection_shadow_power_max_source_target",
-    "connection_shadow_power_max_target_source",
-    "connection_time_slice",
-]
+type PowerConnectionConstraintName = (
+    Literal[
+        "connection_shadow_power_max_source_target",
+        "connection_shadow_power_max_target_source",
+    ]
+    | BaseConnectionConstraintName
+)
 
 type PowerConnectionOutputName = (
     Literal[
@@ -32,11 +36,7 @@ type PowerConnectionOutputName = (
     | PowerConnectionConstraintName
 )
 
-# Keep old type aliases for backwards compatibility
-type ConnectionConstraintName = PowerConnectionConstraintName
-type ConnectionOutputName = PowerConnectionOutputName
-
-CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = frozenset(
+POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = frozenset(
     (
         CONNECTION_POWER_SOURCE_TARGET := "connection_power_source_target",
         CONNECTION_POWER_TARGET_SOURCE := "connection_power_target_source",
@@ -48,12 +48,9 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = frozenset
         # Constraints
         CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET := "connection_shadow_power_max_source_target",
         CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE := "connection_shadow_power_max_target_source",
-        CONNECTION_TIME_SLICE := "connection_time_slice",
+        *BASE_CONNECTION_OUTPUT_NAMES,
     )
 )
-
-# Preferred alias for clarity
-POWER_CONNECTION_OUTPUT_NAMES = CONNECTION_OUTPUT_NAMES
 
 
 class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConstraintName]):
@@ -229,9 +226,9 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
 
         return costs
 
-    def outputs(self) -> Mapping[ConnectionOutputName, OutputData]:
+    def outputs(self) -> Mapping[PowerConnectionOutputName, OutputData]:
         """Return output specifications for the connection."""
-        outputs: dict[ConnectionOutputName, OutputData] = {
+        outputs: dict[PowerConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: OutputData(
                 type=OUTPUT_TYPE_POWER_FLOW,
                 unit="kW",

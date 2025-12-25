@@ -6,7 +6,6 @@ from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import OUTPUT_TYPE_POWER_FLOW, ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.power_connection import CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES
 from custom_components.haeo.model.power_connection import (
     CONNECTION_POWER_ACTIVE,
     CONNECTION_POWER_MAX_SOURCE_TARGET,
@@ -18,7 +17,8 @@ from custom_components.haeo.model.power_connection import (
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
     CONNECTION_TIME_SLICE,
-    ConnectionOutputName,
+    POWER_CONNECTION_OUTPUT_NAMES,
+    PowerConnectionOutputName,
 )
 from custom_components.haeo.schema.fields import (
     ElementNameFieldData,
@@ -81,7 +81,7 @@ class ConnectionConfigData(TypedDict):
 
 CONFIG_DEFAULTS: dict[str, Any] = {}
 
-CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = MODEL_CONNECTION_OUTPUT_NAMES
+CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = POWER_CONNECTION_OUTPUT_NAMES
 
 type ConnectionDeviceName = Literal["connection"]
 
@@ -110,11 +110,11 @@ def create_model_elements(config: ConnectionConfigData) -> list[dict[str, Any]]:
 
 def outputs(
     name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: ConnectionConfigData
-) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
+) -> Mapping[ConnectionDeviceName, Mapping[PowerConnectionOutputName, OutputData]]:
     """Map model outputs to connection-specific output names."""
     connection = outputs[name]
 
-    connection_outputs: dict[ConnectionOutputName, OutputData] = {
+    connection_outputs: dict[PowerConnectionOutputName, OutputData] = {
         CONNECTION_POWER_SOURCE_TARGET: connection[CONNECTION_POWER_SOURCE_TARGET],
         CONNECTION_POWER_TARGET_SOURCE: connection[CONNECTION_POWER_TARGET_SOURCE],
     }
@@ -182,7 +182,7 @@ __all__ = [
     "ELEMENT_TYPE",
     "ConnectionConfigData",
     "ConnectionConfigSchema",
-    "ConnectionOutputName",
+    "PowerConnectionOutputName",
     "create_model_elements",
     "outputs",
 ]
