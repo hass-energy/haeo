@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Final, Literal
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
+from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 
@@ -16,17 +16,21 @@ from .util import broadcast_to_sequence
 if TYPE_CHECKING:
     from .battery import Battery
 
-# Type for constraint names
 type BatteryBalanceConnectionConstraintName = Literal[
-    "balance_min_transfer_down",
-    "balance_fill_lower_capacity",
+    "balance_down_demand",
+    "balance_down_available",
+    "balance_down_slack_min",
+    "balance_up_excess",
+    "balance_up_slack_min",
+    "balance_up_max",
 ]
 
-# Type for output names
 type BatteryBalanceConnectionOutputName = (
     Literal[
         "balance_power_down",
         "balance_power_up",
+        "balance_slack_down",
+        "balance_slack_up",
     ]
     | BatteryBalanceConnectionConstraintName
 )
@@ -35,33 +39,31 @@ BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES: Final[frozenset[BatteryBalanceConnectio
     (
         BALANCE_POWER_DOWN := "balance_power_down",
         BALANCE_POWER_UP := "balance_power_up",
-        # Constraints
-        BALANCE_MIN_TRANSFER_DOWN := "balance_min_transfer_down",
-        BALANCE_FILL_LOWER_CAPACITY := "balance_fill_lower_capacity",
+        BALANCE_SLACK_DOWN := "balance_slack_down",
+        BALANCE_SLACK_UP := "balance_slack_up",
+        BALANCE_DOWN_DEMAND := "balance_down_demand",
+        BALANCE_DOWN_AVAILABLE := "balance_down_available",
+        BALANCE_DOWN_SLACK_MIN := "balance_down_slack_min",
+        BALANCE_UP_EXCESS := "balance_up_excess",
+        BALANCE_UP_SLACK_MIN := "balance_up_slack_min",
+        BALANCE_UP_MAX := "balance_up_max",
     )
 )
 
 
 class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, BatteryBalanceConnectionConstraintName]):
-    """Battery balance connection for energy redistribution between adjacent battery sections.
+    """Lossless energy redistribution between adjacent battery sections.
 
-    This element enforces proper energy flow between battery sections when capacities
-    change dynamically. It operates on T periods to integrate with battery power balance.
+    Enforces ordering (lower fills before upper) and handles capacity changes
+    through bidirectional power flow. Battery SOC constraints fully bind the
+    flow values—this element sets up the feasibility region.
 
-    Upward transfer (lower → upper): Bookkeeping transfer forced by capacity shrinkage.
-    When lower section's capacity shrinks, energy above new capacity must move up.
-    This is a constant value computed from capacity changes, not a decision variable.
+    Downward (upper → lower): P_down = min(demand, E_upper)
+    Upward (lower → upper): P_up = max(0, excess)
 
-    Downward transfer (upper → lower): Balancing flow to fill lower section's available
-    capacity. This is a slack variable constrained to be at least as large as upward
-    transfer, ensuring energy pushed up is returned if the lower section has capacity.
-
-    The constraints work together:
-    1. power_up is fixed to capacity shrinkage (forced bookkeeping transfer)
-    2. power_down >= power_up (must compensate bookkeeping)
-    3. power_down * period >= capacity_lower - stored_energy (fill available capacity)
-
-    The lower section's capacity constraint prevents overfilling.
+    Where:
+        demand = C_lower - E_lower (room in lower section)
+        excess = E_lower - C_new (energy above new capacity)
     """
 
     def __init__(
@@ -78,10 +80,10 @@ class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, Batte
 
         Args:
             name: Name of the balance connection
-            periods: Sequence of time period durations in hours
-            solver: The HiGHS solver instance for creating variables and constraints
-            upper: Name of the upper battery section (receives upward transfer)
-            lower: Name of the lower battery section (receives downward transfer)
+            periods: Period durations in hours
+            solver: HiGHS solver instance
+            upper: Name of upper battery section (receives upward transfer)
+            lower: Name of lower battery section (receives downward transfer)
             capacity_lower: Lower section capacity in kWh (T+1 fence-posted values)
 
         """
@@ -89,107 +91,97 @@ class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, Batte
         n_periods = self.n_periods
         h = solver
 
-        # Store element names for lookup during constraint building
         self.upper = upper
         self.lower = lower
-
-        # Broadcast capacity to T+1 (energy boundaries)
         self.capacity_lower = broadcast_to_sequence(capacity_lower, n_periods + 1)
 
-        # Compute capacity shrinkage: max(0, capacity[t] - capacity[t+1])
-        capacity_delta = np.maximum(0, self.capacity_lower[:-1] - self.capacity_lower[1:])
-        self.capacity_shrinkage: NDArray[np.floating] = capacity_delta
-
-        # Upward power = shrinkage energy / period duration (constant, not variable)
-        self.power_up: NDArray[np.floating] = self.capacity_shrinkage / self.periods
-
-        # Create downward transfer variable (slack, >= 0)
         self.power_down = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_down_", out_array=True)
+        self.power_up = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_up_", out_array=True)
+        self.slack_down = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_slack_down_", out_array=True)
+        self.slack_up = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_slack_up_", out_array=True)
+        self.slack_up_max = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_slack_up_max_", out_array=True)
 
-        # Store battery references (set during registration in network.add)
         self._upper_battery: Battery | None = None
         self._lower_battery: Battery | None = None
 
     def set_battery_references(self, upper_battery: "Battery", lower_battery: "Battery") -> None:
-        """Set references to the connected battery sections.
-
-        Called by Network.add() after looking up battery elements by name.
-
-        Args:
-            upper_battery: The upper battery section element
-            lower_battery: The lower battery section element
-
-        """
+        """Set references to connected battery sections. Called by Network.add()."""
         self._upper_battery = upper_battery
         self._lower_battery = lower_battery
-
-        # Register this balance connection with both batteries
-        # Upper battery: downward is outgoing (source), upward is incoming (target)
         upper_battery.register_connection(self, "source")
-        # Lower battery: downward is incoming (target), upward is outgoing (source)
         lower_battery.register_connection(self, "target")
 
     @property
     def power_source_target(self) -> HighspyArray:
-        """Power flowing from source (upper) to target (lower).
-
-        This is the downward transfer variable.
-        """
+        """Power flowing from source (upper) to target (lower)."""
         return self.power_down
 
     @property
-    def power_target_source(self) -> NDArray[np.floating]:
-        """Power flowing from target (lower) to source (upper).
-
-        This is the upward transfer, a constant computed from capacity shrinkage.
-        """
+    def power_target_source(self) -> HighspyArray:
+        """Power flowing from target (lower) to source (upper)."""
         return self.power_up
 
     @property
     def efficiency_source_target(self) -> NDArray[np.floating]:
-        """Efficiency for source to target (downward) transfer.
-
-        Balance transfers are lossless (100% efficiency).
-        """
+        """Efficiency for downward transfer. Balance transfers are lossless."""
         return np.ones(self.n_periods)
 
     @property
     def efficiency_target_source(self) -> NDArray[np.floating]:
-        """Efficiency for target to source (upward) transfer.
-
-        Balance transfers are lossless (100% efficiency).
-        """
+        """Efficiency for upward transfer. Balance transfers are lossless."""
         return np.ones(self.n_periods)
 
     def build_constraints(self) -> None:
         """Build constraints for the battery balance connection.
 
-        Constraints:
-        1. power_down >= power_up (compensate upward bookkeeping transfer)
-        2. power_down * period >= capacity_lower[t+1] - stored_energy[t+1] (fill capacity)
+        Downward flow implements P_down = min(demand, E_upper):
+            P_down + S_down = demand
+            P_down <= E_upper
+            S_down >= demand - E_upper
+
+        Upward flow implements P_up = max(0, excess):
+            P_up - S_up = excess
+            S_up >= -excess
+
+        Battery SOC constraints (E >= 0, E <= C) fully bind these to unique values.
+        When excess > 0, lower's capacity constraint forces P_up = excess.
+        When excess <= 0, the slack absorbs the negative and P_up = 0.
         """
         h = self._solver
 
-        if self._lower_battery is None:
-            msg = f"Lower battery reference not set for {self.name}"
+        if self._lower_battery is None or self._upper_battery is None:
+            msg = f"Battery references not set for {self.name}"
             raise ValueError(msg)
 
-        # Constraint 1: Downward transfer must at least compensate upward bookkeeping
-        # This ensures any energy pushed up by capacity shrinkage flows back down
-        self._constraints[BALANCE_MIN_TRANSFER_DOWN] = h.addConstrs(self.power_down >= self.power_up)
+        lower_stored = self._lower_battery.stored_energy
+        upper_stored = self._upper_battery.stored_energy
+        capacity_lower = np.array(self.capacity_lower)
+        periods = self.periods
 
-        # Constraint 2: Downward energy must fill lower section's available capacity
-        # The lower section's SOC max constraint prevents overfilling
-        energy_down = self.power_down * self.periods
-        available_capacity = self.capacity_lower[1:] - self._lower_battery.stored_energy[1:]
-        self._constraints[BALANCE_FILL_LOWER_CAPACITY] = h.addConstrs(energy_down >= available_capacity)
+        energy_down = self.power_down * periods
+        energy_up = self.power_up * periods
+        slack_energy_down = self.slack_down * periods
+        slack_energy_up = self.slack_up * periods
 
-    def cost(self) -> Sequence[highs_linear_expression]:
-        """Return the cost expressions of the balance connection.
+        demand = capacity_lower[:-1] - lower_stored[:-1]
+        excess = lower_stored[:-1] - capacity_lower[1:]
 
-        Balance transfers are cost-free (transparent redistribution).
-        """
-        return []
+        # Downward: P_down = min(demand, E_upper)
+        self._constraints[BALANCE_DOWN_DEMAND] = h.addConstrs(energy_down + slack_energy_down == demand)
+        self._constraints[BALANCE_DOWN_AVAILABLE] = h.addConstrs(energy_down <= upper_stored[:-1])
+        self._constraints[BALANCE_DOWN_SLACK_MIN] = h.addConstrs(slack_energy_down >= demand - upper_stored[:-1])
+
+        # Upward: 0 <= P_up <= max(0, excess)
+        # Lower bound via equality: P_up = excess + S_up with S_up >= max(0, -excess)
+        # Upper bound: P_up <= excess + S_max with S_max >= max(0, -excess)
+        # Battery SOC constraints then force P_up = max(0, excess) exactly.
+        self._constraints[BALANCE_UP_EXCESS] = h.addConstrs(energy_up - slack_energy_up == excess)
+        self._constraints[BALANCE_UP_SLACK_MIN] = h.addConstrs(slack_energy_up >= -excess)
+
+        # Upper bound on P_up
+        slack_energy_up_max = self.slack_up_max * periods
+        self._constraints[BALANCE_UP_MAX] = h.addConstrs(energy_up <= excess + slack_energy_up_max)
+        h.addConstrs(slack_energy_up_max >= -excess)
 
     def outputs(self) -> Mapping[BatteryBalanceConnectionOutputName, OutputData]:
         """Return output specifications for the balance connection."""
@@ -203,15 +195,24 @@ class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, Batte
             BALANCE_POWER_UP: OutputData(
                 type=OUTPUT_TYPE_POWER_FLOW,
                 unit="kW",
-                values=tuple(self.power_up.tolist()),
+                values=self.extract_values(self.power_up),
                 direction="-",
+            ),
+            BALANCE_SLACK_DOWN: OutputData(
+                type=OUTPUT_TYPE_POWER_FLOW,
+                unit="kW",
+                values=self.extract_values(self.slack_down),
+            ),
+            BALANCE_SLACK_UP: OutputData(
+                type=OUTPUT_TYPE_POWER_FLOW,
+                unit="kW",
+                values=self.extract_values(self.slack_up),
             ),
         }
 
-        # Add constraint shadow prices
         for constraint_name in self._constraints:
             outputs[constraint_name] = OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW,  # Shadow prices
+                type=OUTPUT_TYPE_POWER_FLOW,
                 unit="$/kW",
                 values=self.extract_values(self._constraints[constraint_name]),
             )

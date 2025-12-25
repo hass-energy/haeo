@@ -1,17 +1,19 @@
 # Battery Balance Connection Model
 
-The Battery Balance Connection model enforces energy redistribution between adjacent battery sections when capacities change dynamically.
-It maintains correct ordering by ensuring energy flows down to fill lower sections before higher sections retain energy.
+The Battery Balance Connection model enforces energy redistribution between adjacent battery sections.
+It ensures proper ordering by constraining lower sections to fill to capacity before upper sections can hold energy.
 
 ## Overview
 
 When battery sections have dynamic capacity (for example, capacity that decreases over the optimization horizon), energy above the new capacity must be redistributed.
-The balance connection handles this transparently through bookkeeping transfers that:
+The balance connection handles this through:
 
-1. **Move excess energy up** when capacity shrinks (forced transfer)
-2. **Return energy down** to fill available capacity (constrained slack variable)
+1. **Downward flow** to fill lower sections from upper sections
+2. **Upward flow** to evacuate excess when capacity shrinks
+3. **Ordering enforcement** to ensure lower sections fill before upper sections retain energy
+4. **Lossless transfer** to maintain energy conservation
 
-This ensures sections are filled from bottom to top—lower sections (like undercharge and normal) fill before higher sections (like overcharge) can retain energy.
+This ensures sections fill from bottom to top—lower sections (like undercharge and normal) fill before higher sections (like overcharge) can retain energy.
 
 !!! note "Model Layer Element"
 
@@ -22,10 +24,10 @@ This ensures sections are filled from bottom to top—lower sections (like under
 
 Consider a 3-section battery with sections filling in order: undercharge → normal → overcharge.
 
-**Static capacity**: With constant capacity, connections with differentiated costs naturally guide charging into undercharge first, then normal, then overcharge.
+**Ordering requirement**: Energy should always fill lower sections to capacity before being stored in higher sections.
 
-**Dynamic capacity**: When capacity shrinks (e.g., time-of-use or degradation modeling), energy stored above the new capacity limit would violate SOC constraints.
-The balance connection redistributes this energy:
+**Dynamic capacity**: When capacity shrinks, energy stored above the new capacity limit would violate SOC constraints.
+The balance connection redistributes this energy while maintaining the ordering invariant.
 
 ```mermaid
 graph LR
@@ -44,100 +46,190 @@ The 4 kWh stored in a section that shrinks to 3 kWh cannot remain—1 kWh must t
 
 For each time step $t \in \{0, 1, \ldots, T-1\}$:
 
-- $P_{\downarrow}(t)$: Power flowing downward (upper → lower), decision variable
-- $P_{\uparrow}(t)$: Power flowing upward (lower → upper), constant (not optimized)
+**Power variables**:
+
+- $P_\downarrow(t)$: Power flowing downward (upper → lower), $\geq 0$
+- $P_\uparrow(t)$: Power flowing upward (lower → upper), $\geq 0$
+
+**Slack variables**:
+
+- $S_\downarrow(t)$: Unmet demand slack for downward flow, $\geq 0$
+- $S_\uparrow(t)$: Excess absorption slack for upward flow, $\geq 0$
+- $S_\uparrow^{\max}(t)$: Upper bound slack for upward flow, $\geq 0$
+- $S_{\text{ord}}(t)$: Ordering constraint slack, $\geq 0$
 
 ### Parameters
 
 - $C_{\text{lower}}(t)$: Lower section capacity at time boundary $t$ (kWh)
 - $\Delta t(t)$: Period duration (hours)
 - $E_{\text{lower}}(t)$: Stored energy in lower section at time $t$ (from Battery element)
+- $E_{\text{upper}}(t)$: Stored energy in upper section at time $t$ (from Battery element)
 
-### Derived Values
+### Derived Quantities
 
-**Capacity shrinkage** at each period:
+**Demand** (room in lower section at start of period):
 
-$$
-\Delta C(t) = \max(0, C_{\text{lower}}(t) - C_{\text{lower}}(t+1))
-$$
+$$D(t) = C_{\text{lower}}(t) - E_{\text{lower}}(t) \geq 0$$
 
-**Upward power** (constant, not a variable):
+**Excess** (energy above new capacity):
 
-$$
-P_{\uparrow}(t) = \frac{\Delta C(t)}{\Delta t(t)}
-$$
+$$X(t) = E_{\text{lower}}(t) - C_{\text{lower}}(t+1)$$
 
-This represents the forced bookkeeping transfer—energy that must move up because capacity shrank.
+Excess can be positive (must evacuate) or negative (room available).
 
 ### Constraints
 
-#### 1. Minimum Downward Transfer
+#### Downward Flow Constraints
 
-Downward transfer must at least compensate the upward bookkeeping:
+The downward flow fills the lower section's demand, limited by upper section's available energy.
 
-$$
-P_{\downarrow}(t) \geq P_{\uparrow}(t) \quad \forall t
-$$
+**1. Demand satisfaction (equality)**:
 
-This ensures any energy pushed up by capacity shrinkage flows back down.
+$$P_\downarrow(t) \cdot \Delta t + S_\downarrow(t) \cdot \Delta t = D(t)$$
 
-#### 2. Fill Lower Section Capacity
+Power plus slack equals demand. The slack represents unmet demand.
 
-Downward energy must fill the lower section's available capacity:
+**2. Availability limit**:
 
-$$
-P_{\downarrow}(t) \cdot \Delta t(t) \geq C_{\text{lower}}(t+1) - E_{\text{lower}}(t+1) \quad \forall t
-$$
+$$P_\downarrow(t) \cdot \Delta t \leq E_{\text{upper}}(t)$$
 
-This constraint, combined with the lower section's SOC max constraint, ensures energy flows down to fill available capacity.
+Cannot transfer more than upper section has available.
+
+**3. Minimum slack**:
+
+$$S_\downarrow(t) \cdot \Delta t \geq D(t) - E_{\text{upper}}(t)$$
+
+When demand exceeds availability, slack must absorb the difference.
+
+Together, these give $P_\downarrow = \min(D, E_{\text{upper}}) / \Delta t$—the maximum possible downward transfer.
+
+#### Upward Flow Constraints
+
+The upward flow evacuates excess energy when capacity shrinks.
+Uses a subtraction formulation where slack absorbs negative excess.
+
+**4. Excess handling (equality with subtraction)**:
+
+$$P_\uparrow(t) \cdot \Delta t - S_\uparrow(t) \cdot \Delta t = X(t)$$
+
+When $X > 0$: $P_\uparrow \geq X / \Delta t$ (must push excess).
+When $X \leq 0$: $S_\uparrow$ absorbs negative, allowing $P_\uparrow = 0$.
+
+**5. Minimum slack for non-negativity**:
+
+$$S_\uparrow(t) \cdot \Delta t \geq \max(0, -X(t))$$
+
+Ensures $P_\uparrow \geq 0$ when excess is negative.
+
+**6. Upper bound on upward flow**:
+
+$$P_\uparrow(t) \cdot \Delta t \leq X(t) + S_\uparrow^{\max}(t) \cdot \Delta t$$
+
+**7. Minimum for upper bound slack**:
+
+$$S_\uparrow^{\max}(t) \cdot \Delta t \geq -X(t)$$
+
+Constraints 6 and 7 together implement $P_\uparrow \leq \max(0, X) / \Delta t$:
+
+- When $X \geq 0$: $S_\uparrow^{\max} = 0$, so $P_\uparrow \leq X / \Delta t$
+- When $X < 0$: $S_\uparrow^{\max} = -X / \Delta t$, so $P_\uparrow \leq 0$
+
+Combined with constraint 4: when $X > 0$, $P_\uparrow = X / \Delta t$ exactly.
+
+#### Ordering Constraint
+
+The ordering constraint ensures lower fills before upper retains energy.
+
+**8. Upper section bounded by overflow**:
+
+$$E_{\text{upper}}(t) + C_{\text{lower}}(t) - S_{\text{ord}}(t) \leq E_{\text{total}}$$
+
+Where $E_{\text{total}} = E_{\text{lower}}(0) + E_{\text{upper}}(0)$ is the conserved total energy.
+
+**9. Minimum ordering slack**:
+
+$$S_{\text{ord}}(t) \geq C_{\text{lower}}(t) - E_{\text{total}}$$
+
+Together these give $E_{\text{upper}} \leq \max(0, E_{\text{total}} - C_{\text{lower}})$—upper can only hold overflow.
+
+### Unique Solutions
+
+With the complete constraint set, each variable has a **unique** feasible value:
+
+| Condition | $P_\downarrow$ | $P_\uparrow$ |
+|-----------|----------------|--------------|
+| $D \leq E_{\text{upper}}$ | $D / \Delta t$ | - |
+| $D > E_{\text{upper}}$ | $E_{\text{upper}} / \Delta t$ | - |
+| $X \leq 0$ | - | $0$ |
+| $X > 0$ | - | $X / \Delta t$ |
+
+There are no degenerate solutions—the constraints fully determine the power flows without requiring objective function tiebreakers.
 
 ### Cost Contribution
 
-Balance transfers are **cost-free**.
-They represent internal energy redistribution, not real power flow, so they don't affect the optimization objective.
+A minimal epsilon cost ensures numerical stability:
 
-## How Ordering Works
+$$\text{cost} = \epsilon \cdot \sum_{t} \left[ 1000 \cdot S_{\text{ord}}(t) + 10 \cdot P_\uparrow(t) + P_\downarrow(t) + S_\uparrow^{\max}(t) \right]$$
 
-The balance connection enforces bottom-up filling through the interaction of its constraints with battery section SOC constraints.
+The epsilon (typically $10^{-6}$) breaks ties within solver tolerance.
+The hierarchy (ordering >> upward >> downward) matches physical priority:
 
-### Example: Two Sections with Shrinking Capacity
+1. Maintain ordering (highest priority)
+2. Minimize upward flow (only when truly needed)
+3. Minimize downward flow (transfer efficiently)
 
-Consider undercharge (lower) and normal (upper) sections:
+## How the Constraints Work Together
 
-**Period 0**: Lower has 3 kWh capacity, upper has 8 kWh capacity
-**Period 1**: Lower shrinks to 2 kWh capacity, upper unchanged
+### Example: Initial Ordering Violation
 
-```mermaid
-xychart-beta
-    title "Capacity Shrinkage Forces Redistribution"
-    x-axis "Time Boundary" [0, 1]
-    y-axis "Energy (kWh)" 0 --> 4
-    line "Lower Capacity" [3, 2]
-    line "Lower Stored" [3, 2]
-```
+**Initial state**: Lower has 1 kWh, upper has 2 kWh, capacity = 5 kWh
 
-**What happens**:
+| Quantity | Value |
+|----------|-------|
+| $D$ | $5 - 1 = 4$ kWh |
+| $X$ | $1 - 5 = -4$ kWh |
+| $E_{\text{upper}}$ | $2$ kWh |
 
-1. Shrinkage = 3 - 2 = 1 kWh
-2. Upward power = 1 kWh / period_duration (forced)
-3. Downward power ≥ upward power (constraint 1)
-4. Downward energy ≥ 2 - $E_{\text{lower}}(1)$ (constraint 2)
+**Downward flow**:
 
-If lower section ends at 2 kWh stored (full), downward energy ≥ 0 is satisfied.
-If lower section ends at 1.5 kWh stored, downward energy ≥ 0.5 kWh forces additional transfer.
+- Demand = 4 kWh, available = 2 kWh
+- $P_\downarrow = \min(4, 2) / \Delta t = 2$ kW (transfers all available)
+- $S_\downarrow = 2$ kWh (unmet demand)
 
-**Key insight**: The lower section's SOC max constraint prevents overfilling (energy can't exceed 2 kWh).
-The balance connection's constraint 2 forces enough energy down to fill to capacity.
-Together, these ensure lower fills completely before upper retains energy.
+**Upward flow**:
 
-### Multi-Section Ordering
+- Excess = -4 kWh (negative, room available)
+- $P_\uparrow = \max(0, -4) / \Delta t = 0$ kW
 
-With three sections (undercharge → normal → overcharge), two balance connections are created:
+**Result**: 2 kWh flows down, lower ends at 3 kWh, upper ends at 0 kWh.
 
-1. **undercharge ↔ normal**: Ensures undercharge fills before normal retains
-2. **normal ↔ overcharge**: Ensures normal fills before overcharge retains
+### Example: Capacity Shrinkage
 
-Energy cascades down through the chain, filling sections from bottom to top.
+**Initial state**: Lower has 4 kWh, upper has 3 kWh, capacity shrinks 5 → 3 kWh
+
+| Quantity | Value |
+|----------|-------|
+| $D$ | $5 - 4 = 1$ kWh |
+| $X$ | $4 - 3 = 1$ kWh |
+| $E_{\text{upper}}$ | $3$ kWh |
+
+**Downward flow** (based on old capacity):
+
+- Demand = 1 kWh, available = 3 kWh
+- $P_\downarrow = 1$ kW
+
+**Upward flow** (based on new capacity):
+
+- Excess = 1 kWh (positive, must evacuate)
+- $P_\uparrow = 1$ kW
+
+**Net flow**: $P_\downarrow - P_\uparrow = 0$ (no net transfer this period)
+
+But after the period, with new capacity = 3 kWh:
+
+- Lower = 4 + 1 - 1 = 4 kWh (still exceeds new capacity!)
+
+This shows the ordering constraint works across periods—the next period will continue evacuating until lower ≤ new capacity.
 
 ## Power Balance Integration
 
@@ -145,15 +237,13 @@ The balance connection participates in battery power balance like a standard con
 
 **At upper battery** (source):
 
-- Outflow: $-P_{\downarrow}(t)$ (power leaving to lower)
-- Inflow: $+P_{\uparrow}(t)$ (power arriving from lower via bookkeeping)
+- Outflow: $-P_\downarrow(t)$ (power leaving to lower)
+- Inflow: $+P_\uparrow(t)$ (power arriving from lower)
 
 **At lower battery** (target):
 
-- Inflow: $+P_{\downarrow}(t)$ (power arriving from upper)
-- Outflow: $-P_{\uparrow}(t)$ (power leaving via bookkeeping)
-
-Because $P_{\downarrow} \geq P_{\uparrow}$, net flow is always downward or zero.
+- Inflow: $+P_\downarrow(t)$ (power arriving from upper)
+- Outflow: $-P_\uparrow(t)$ (power leaving to upper)
 
 ## Physical Interpretation
 
@@ -172,23 +262,27 @@ In reality, when a section's capacity shrinks:
 
 BatteryBalanceConnection differs from standard Connection:
 
-| Aspect     | Connection              | BatteryBalanceConnection    |
-| ---------- | ----------------------- | --------------------------- |
-| Power      | Two decision variables  | One variable + one constant |
-| Cost       | Can have transfer costs | Always zero cost            |
-| Efficiency | Can have losses         | Always 100% (lossless)      |
-| Purpose    | Model real power flow   | Energy bookkeeping          |
+| Aspect      | Connection              | BatteryBalanceConnection            |
+| ----------- | ----------------------- | ----------------------------------- |
+| Power       | Two decision variables  | Two decision variables + slacks     |
+| Cost        | Can have transfer costs | Epsilon cost (for numerics)         |
+| Efficiency  | Can have losses         | Always 100% (lossless)              |
+| Purpose     | Model real power flow   | Energy ordering and balancing       |
+| Constraints | Flow limits             | Demand, excess, and ordering        |
+| Solution    | May have range          | Unique (fully determined)           |
 
 ## Outputs
 
 The balance connection provides power flow outputs:
 
-| Output                        | Description                                  | Unit  |
-| ----------------------------- | -------------------------------------------- | ----- |
-| `balance_power_down`          | Downward transfer (upper → lower)            | kW    |
-| `balance_power_up`            | Upward transfer (lower → upper, constant)    | kW    |
-| `balance_min_transfer_down`   | Shadow price for minimum downward constraint | \$/kW |
-| `balance_fill_lower_capacity` | Shadow price for fill capacity constraint    | \$/kW |
+| Output               | Description                          | Unit  |
+| -------------------- | ------------------------------------ | ----- |
+| `balance_power_down` | Downward transfer (upper → lower)    | kW    |
+| `balance_power_up`   | Upward transfer (lower → upper)      | kW    |
+| `balance_slack_down` | Unmet demand slack                   | kW    |
+| `balance_slack_up`   | Excess absorption slack              | kW    |
+
+Constraint shadow prices are also available for debugging.
 
 ## Next Steps
 
