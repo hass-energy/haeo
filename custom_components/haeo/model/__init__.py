@@ -1,6 +1,5 @@
 """HAEO energy modeling components."""
 
-from .battery_balance_connection import BatteryBalanceConnection as BatteryBalanceConnection
 from .connection import Connection as Connection
 from .const import (
     OUTPUT_TYPE_COST,
@@ -32,7 +31,6 @@ __all__ = [
     "OUTPUT_TYPE_SHADOW_PRICE",
     "OUTPUT_TYPE_SOC",
     "OUTPUT_TYPE_STATUS",
-    "BatteryBalanceConnection",
     "Connection",
     "Element",
     "ModelOutputName",
