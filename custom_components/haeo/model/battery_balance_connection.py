@@ -99,7 +99,6 @@ class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, Batte
         self.power_up = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_up_", out_array=True)
         self.slack_down = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_slack_down_", out_array=True)
         self.slack_up = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_slack_up_", out_array=True)
-        self.slack_up_max = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_slack_up_max_", out_array=True)
 
         self._upper_battery: Battery | None = None
         self._lower_battery: Battery | None = None
@@ -147,7 +146,41 @@ class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, Batte
         When excess > 0, lower's capacity constraint forces P_up = excess.
         When excess <= 0, the slack absorbs the negative and P_up = 0.
         """
+
         h = self._solver
+
+        # Power down must be at least the amount of energy needed in the lower battery or the amount available in the upper battery.
+        # The goal of this constraint is to force energy transfer down to the lowest section possible.
+        # Given that the amount of energy in the upper battery is always >= 0 this also ensures that it is positive
+        #
+        # Thus the constraint is:
+        #
+        #  power_down >= min(energy_missing_in_lower, energy_available_in_upper)
+        #
+        # This can be implemented using a single slack variable S_down
+        #
+        # The resulting power transfer is in theory unbounded above at this point, however however the battery SOC constraints fix it to a single value
+        # Consider the two cases:
+        # 1. energy_missing_in_lower <= energy_available_in_upper
+        #    In this case if we tried to move more than energy_missing_in_lower into the lower battery it would exceed its capacity, which is forbidden by the battery SOC constraints
+        #    Thus the battery SOC constraints force power_down == energy_missing_in_lower
+        # 2. energy_missing_in_lower > energy_available_in_upper
+        #    In this case if we tried to move more than energy_available_in_upper out of the upper battery it would go negative, which is forbidden by the battery SOC constraints
+        #    Thus the battery SOC constraints force power_down == energy_available_in_upper
+        #
+        # Power up is used as a relief valve so that if there is excess energy in the lower battery due to changing capacity it can be moved up to the upper battery without cost penalty.
+        # Power up must be no more than how much the lower battery is about to exceed its capacity by\
+        #
+        # Thus the constraint is:
+        #
+        # 0 <= power_up <= max(0, current_energy - next_capacity)
+        #
+        # This can also be implemented using a single slack variable S_up
+        # The battery SOC constraints then fully bind power_up to a single value
+        # The only non trivial case here is when next_capacity has shrunk, otherwise current_energy would never exceed next_capacity due to the battery SOC constraints
+        # So when it does shrink then the max(0, current_energy - next_capacity) can be positive.
+        # In that case though, the amount it is positive is exactly how much energy needs to be moved up to the upper battery to prevent the lower battery from exceeding its capacity
+        # Therefore the battery SOC constraints force power_up == current_energy - next_capacity giving only a single feasible value
 
         if self._lower_battery is None or self._upper_battery is None:
             msg = f"Battery references not set for {self.name}"
