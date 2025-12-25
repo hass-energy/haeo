@@ -5,8 +5,9 @@ from dataclasses import replace
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import OUTPUT_TYPE_POWER_FLOW, ModelOutputName
-from custom_components.haeo.model.connection import CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES
-from custom_components.haeo.model.connection import (
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.power_connection import CONNECTION_OUTPUT_NAMES as MODEL_CONNECTION_OUTPUT_NAMES
+from custom_components.haeo.model.power_connection import (
     CONNECTION_POWER_ACTIVE,
     CONNECTION_POWER_MAX_SOURCE_TARGET,
     CONNECTION_POWER_MAX_TARGET_SOURCE,
@@ -19,7 +20,6 @@ from custom_components.haeo.model.connection import (
     CONNECTION_TIME_SLICE,
     ConnectionOutputName,
 )
-from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     ElementNameFieldData,
     ElementNameFieldSchema,

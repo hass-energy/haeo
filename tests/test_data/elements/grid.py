@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from custom_components.haeo.elements import grid as grid_element
-from custom_components.haeo.model import connection
+from custom_components.haeo.model import power_connection as connection
 from custom_components.haeo.model.const import (
     OUTPUT_TYPE_POWER,
     OUTPUT_TYPE_POWER_FLOW,

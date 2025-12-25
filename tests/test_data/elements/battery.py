@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from custom_components.haeo.elements import battery as battery_element
 from custom_components.haeo.elements.battery import BatteryConfigData
 from custom_components.haeo.model import battery as battery_model
-from custom_components.haeo.model import connection as connection_model
+from custom_components.haeo.model import power_connection as connection_model
 from custom_components.haeo.model.const import (
     OUTPUT_TYPE_ENERGY,
     OUTPUT_TYPE_POWER,

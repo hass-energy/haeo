@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 
 from custom_components.haeo.elements import solar as solar_element
-from custom_components.haeo.model import connection as connection_element
+from custom_components.haeo.model import power_connection as connection_element
 from custom_components.haeo.model.const import (
     OUTPUT_TYPE_POWER,
     OUTPUT_TYPE_POWER_FLOW,

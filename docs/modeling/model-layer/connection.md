@@ -1,10 +1,21 @@
 # Connection Model
 
-Connections model bidirectional power flow paths between elements with optional limits, efficiency losses, and transfer costs.
+Connections model power flow paths between elements.
+HAEO provides a base `Connection` class and specialized connection types for different use cases.
 
-## Model Formulation
+## Connection types
 
-### Decision Variables
+**PowerConnection**:
+Models bidirectional power flow with optional limits, efficiency losses, and transfer costs.
+This is the primary connection type for most use cases.
+
+**BatteryBalanceConnection**:
+Models lossless energy redistribution between battery sections.
+See [Battery balance connection](battery-balance-connection.md) for details.
+
+## PowerConnection formulation
+
+### Decision variables
 
 For each time step $t$:
 
@@ -156,8 +167,8 @@ Prices can vary over time (peak/off-peak rates).
 
     ---
 
-    View the source code for the connection model.
+    View the source code for the PowerConnection model.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/connection.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/power_connection.py)
 
 </div>
