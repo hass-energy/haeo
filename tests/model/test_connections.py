@@ -7,13 +7,14 @@ from highspy.highs import highs_var
 import pytest
 
 from custom_components.haeo.model.connection import Connection
+from custom_components.haeo.model.power_connection import PowerConnection
 
 from . import test_data
 from .test_data.connection_types import ConnectionTestCase, ConnectionTestCaseInputs
 
 
 def _solve_connection_scenario(
-    element: Connection, inputs: ConnectionTestCaseInputs | None
+    element: PowerConnection, inputs: ConnectionTestCaseInputs | None
 ) -> dict[str, dict[str, Any]]:
     """Set up and solve an optimization scenario for a connection.
 
@@ -139,3 +140,39 @@ def test_connection_validation(case: ConnectionTestCase, solver: Highs) -> None:
     data["solver"] = solver
     with pytest.raises(ValueError, match=case["expected_error"]):
         case["factory"](**data)
+
+
+def test_base_connection_power_into_properties(solver: Highs) -> None:
+    """Base Connection class power_into_source and power_into_target properties."""
+    # Create a base Connection (lossless bidirectional)
+    conn: Connection[str, str] = Connection(
+        name="test_conn",
+        periods=[1.0, 1.0],
+        solver=solver,
+        source="source_element",
+        target="target_element",
+    )
+
+    # Fix power values: 5 kW source->target in period 0, 3 kW target->source in period 1
+    solver.addConstr(conn.power_source_target[0] == 5.0)
+    solver.addConstr(conn.power_target_source[0] == 0.0)
+    solver.addConstr(conn.power_source_target[1] == 0.0)
+    solver.addConstr(conn.power_target_source[1] == 3.0)
+
+    solver.run()
+
+    # power_into_source = target->source minus source->target
+    # Period 0: 0 - 5 = -5 (power flows out of source)
+    # Period 1: 3 - 0 = 3 (power flows into source)
+    power_into_source = [solver.val(conn.power_into_source[i]) for i in range(2)]
+    assert power_into_source == pytest.approx([-5.0, 3.0])
+
+    # power_into_target = source->target minus target->source
+    # Period 0: 5 - 0 = 5 (power flows into target)
+    # Period 1: 0 - 3 = -3 (power flows out of target)
+    power_into_target = [solver.val(conn.power_into_target[i]) for i in range(2)]
+    assert power_into_target == pytest.approx([5.0, -3.0])
+
+    # Verify source and target properties
+    assert conn.source == "source_element"
+    assert conn.target == "target_element"

@@ -88,7 +88,7 @@ type ElementOutputName = (
     inverter.InverterOutputName
     | battery.BatteryOutputName
     | battery_section.BatterySectionOutputName
-    | connection.ConnectionOutputName
+    | connection.PowerConnectionOutputName
     | grid.GridOutputName
     | load.LoadOutputName
     | node.NodeOutputName

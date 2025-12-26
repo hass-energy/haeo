@@ -13,11 +13,11 @@ A battery in HAEO's model layer is a single-section energy storage device with:
 
 !!! note "Multi-Section Batteries"
 
-    Complex battery behavior (undercharge/normal/overcharge sections, early charge incentives, cost penalties) is implemented at the [device adapter layer](../device-layer/battery.md) by composing multiple Battery model instances with connections and a central node.
+    Complex battery behavior (undercharge/normal/overcharge sections, early charge incentives, cost penalties) is implemented at the [device adapter layer](../../device-layer/battery.md) by composing multiple Battery model instances with connections and a central node.
 
 ## Model Formulation
 
-The battery model follows the [fence post pattern](../index.md#power-and-energy-discretization) used throughout HAEO's optimization.
+The battery model follows the [fence post pattern](../../index.md#power-and-energy-discretization) used throughout HAEO's optimization.
 Power variables (charge/discharge rates) represent average power over each period and have $T$ values indexed as $t \in \{0, 1, \ldots, T-1\}$.
 Energy variables (stored energy) represent instantaneous values at time boundaries and have $T+1$ values indexed as $t \in \{0, 1, \ldots, T\}$.
 Power is calculated from the change in energy between consecutive boundaries divided by the period duration.
@@ -90,7 +90,7 @@ Where:
 
 ### Cost Contribution
 
-The single-section battery model has no inherent costs. Costs (efficiency losses, degradation, early charge incentives, penalties) are applied through [Connection](connection.md) elements in the device adapter layer.
+The single-section battery model has no inherent costs. Costs (efficiency losses, degradation, early charge incentives, penalties) are applied through [Connection](../connections/index.md) elements in the device adapter layer.
 
 ## Physical Interpretation
 
@@ -170,7 +170,7 @@ This keeps variables in similar numerical ranges (0.001 to 1000) which:
 - Reduces numerical errors
 - Makes debugging easier
 
-See the [units documentation](../../developer-guide/units.md) for detailed explanation.
+See the [units documentation](../../../developer-guide/units.md) for detailed explanation.
 
 ## Device Layer Integration
 
@@ -182,7 +182,7 @@ The single-section battery model is a building block for more complex battery be
 - **Cost penalties**: Applied through Connection price parameters
 - **Early charge incentives**: Applied through Connection time-varying prices
 
-See the [Battery Device Layer documentation](../device-layer/battery.md) for how these are composed.
+See the [Battery Device Layer documentation](../../device-layer/battery.md) for how these are composed.
 
 ## Next Steps
 
@@ -194,7 +194,7 @@ See the [Battery Device Layer documentation](../device-layer/battery.md) for how
 
     Configure batteries in your Home Assistant setup.
 
-    [:material-arrow-right: Battery configuration](../../user-guide/elements/battery.md)
+    [:material-arrow-right: Battery configuration](../../../user-guide/elements/battery.md)
 
 - :material-layers:{ .lg .middle } **Device layer**
 
@@ -202,15 +202,15 @@ See the [Battery Device Layer documentation](../device-layer/battery.md) for how
 
     Understand how single-section batteries are composed into multi-section behavior.
 
-    [:material-arrow-right: Battery device layer](../device-layer/battery.md)
+    [:material-arrow-right: Battery device layer](../../device-layer/battery.md)
 
-- :material-network:{ .lg .middle } **Network modeling**
+- :material-connection:{ .lg .middle } **Connections**
 
     ---
 
-    Understand how elements interact in the network model.
+    Power flow paths between elements.
 
-    [:material-arrow-right: Network modeling overview](../index.md)
+    [:material-arrow-right: Connection types](../connections/index.md)
 
 - :material-code-braces:{ .lg .middle } **Implementation**
 

@@ -5,12 +5,12 @@ from dataclasses import replace
 from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model.connection import (
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
-from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import Default
 from custom_components.haeo.schema.fields import (
     BooleanFieldData,

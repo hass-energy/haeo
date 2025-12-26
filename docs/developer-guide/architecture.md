@@ -137,7 +137,8 @@ Separate subsystem implementing the optimization model:
 
 - `Element`: Base class with power/energy variable patterns
 - Entity classes: Battery, Grid, Solar, Loads, Node
-- `Connection`: Power flow with limits
+- `Connection`: Base class for power flow between elements
+- `PowerConnection`: Connection with limits, efficiency, and pricing
 - `Network`: Container with `optimize()` method
 
 ## Code Organization

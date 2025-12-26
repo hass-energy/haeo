@@ -8,6 +8,7 @@ import numpy as np
 
 from custom_components.haeo.model import OUTPUT_TYPE_PRICE, ModelOutputName
 from custom_components.haeo.model import battery as model_battery
+from custom_components.haeo.model import power_connection as model_connection
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SOC
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData

@@ -9,9 +9,9 @@ import pytest
 
 from custom_components.haeo.model import Network
 from custom_components.haeo.model import network as network_module
-from custom_components.haeo.model.connection import Connection
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.node import Node
+from custom_components.haeo.model.power_connection import PowerConnection
 
 # Test constants
 HOURS_PER_DAY = 24
@@ -68,7 +68,7 @@ def test_connect_entities() -> None:
 
     # Connect them
     connection = cast(
-        "Connection",
+        "PowerConnection",
         network.add(
             ELEMENT_TYPE_CONNECTION,
             "battery1_to_grid1",
@@ -89,7 +89,7 @@ def test_connect_entities() -> None:
     # Check that the connection element was added
     connection_name = "battery1_to_grid1"
     assert connection_name in network.elements
-    assert isinstance(network.elements[connection_name], Connection)
+    assert isinstance(network.elements[connection_name], PowerConnection)
 
 
 def test_connect_nonexistent_entities() -> None:
@@ -154,7 +154,7 @@ def test_connect_target_is_connection() -> None:
 def test_validate_raises_when_source_missing() -> None:
     """Validate should raise when a connection source is missing."""
     net = Network(name="net", periods=[1.0] * 1)
-    net.elements["conn"] = Connection(
+    net.elements["conn"] = PowerConnection(
         name="conn",
         periods=[1.0] * 1,
         solver=net._solver,
@@ -172,7 +172,7 @@ def test_validate_raises_when_target_missing() -> None:
     net.elements["source_node"] = Node(
         name="source_node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True
     )
-    net.elements["conn"] = Connection(
+    net.elements["conn"] = PowerConnection(
         name="conn",
         periods=[1.0] * 1,
         solver=net._solver,
@@ -190,7 +190,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     # Non-connection element to satisfy target for conn2
     net.elements["node"] = Node(name="node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True)
 
-    net.elements["conn2"] = Connection(
+    net.elements["conn2"] = PowerConnection(
         name="conn2",
         periods=[1.0] * 1,
         solver=net._solver,
@@ -199,7 +199,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     )
 
     # conn1 references conn2 as source and target to hit both connection checks
-    net.elements["conn1"] = Connection(
+    net.elements["conn1"] = PowerConnection(
         name="conn1",
         periods=[1.0] * 1,
         solver=net._solver,

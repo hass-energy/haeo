@@ -5,14 +5,16 @@ from dataclasses import replace
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import OUTPUT_TYPE_POWER_FLOW, ModelOutputName
-from custom_components.haeo.model.connection import (
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
     CONNECTION_TIME_SLICE,
+    POWER_CONNECTION_OUTPUT_NAMES,
+    PowerConnectionOutputName,
 )
-from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     ElementNameFieldData,
     ElementNameFieldSchema,
@@ -120,12 +122,14 @@ def create_model_elements(config: ConnectionConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: ConnectionConfigData
-) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
+    name: str,
+    outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+    config: ConnectionConfigData,
+) -> Mapping[ConnectionDeviceName, Mapping[PowerConnectionOutputName, OutputData]]:
     """Provide state updates for connection output sensors."""
     connection = outputs[name]
 
-    connection_outputs: dict[ConnectionOutputName, OutputData] = {
+    connection_outputs: dict[PowerConnectionOutputName, OutputData] = {
         CONNECTION_POWER_SOURCE_TARGET: connection[CONNECTION_POWER_SOURCE_TARGET],
         CONNECTION_POWER_TARGET_SOURCE: connection[CONNECTION_POWER_TARGET_SOURCE],
     }
@@ -181,7 +185,7 @@ __all__ = [
     "ELEMENT_TYPE",
     "ConnectionConfigData",
     "ConnectionConfigSchema",
-    "ConnectionOutputName",
+    "PowerConnectionOutputName",
     "create_model_elements",
     "outputs",
 ]

@@ -1,6 +1,6 @@
 # Grid Modeling
 
-The Grid device composes a [Node](../model-layer/node.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connection.md) to model utility grid connections with time-varying import/export pricing.
+The Grid device composes a [Node](../model-layer/elements/node.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connections/power-connection.md) to model utility grid connections with time-varying import/export pricing.
 
 ## Model Elements Created
 
@@ -17,10 +17,10 @@ graph LR
     Conn <-->|connects to| Node
 ```
 
-| Model Element                              | Name                | Parameters From Configuration              |
-| ------------------------------------------ | ------------------- | ------------------------------------------ |
-| [Node](../model-layer/node.md)             | `{name}`            | is_source=true, is_sink=true               |
-| [Connection](../model-layer/connection.md) | `{name}:connection` | import/export limits, import/export prices |
+| Model Element                                                | Name                | Parameters From Configuration              |
+| ------------------------------------------------------------ | ------------------- | ------------------------------------------ |
+| [Node](../model-layer/elements/node.md)                      | `{name}`            | is_source=true, is_sink=true               |
+| [Connection](../model-layer/connections/power-connection.md) | `{name}:connection` | import/export limits, import/export prices |
 
 ## Devices Created
 
@@ -34,15 +34,15 @@ Grid creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into model parameters:
 
-| User Configuration | Model Element | Model Parameter           | Notes                           |
-| ------------------ | ------------- | ------------------------- | ------------------------------- |
-| `import_price`     | Connection    | `price_target_source`     | Cost per kWh imported           |
-| `export_price`     | Connection    | `price_source_target`     | Revenue per kWh exported        |
-| `import_limit`     | Connection    | `max_power_target_source` | Maximum import power (optional) |
-| `export_limit`     | Connection    | `max_power_source_target` | Maximum export power (optional) |
-| `connection`       | Connection    | `target`                  | Node to connect to              |
-| —                  | Node          | `is_source=true`          | Grid can supply power           |
-| —                  | Node          | `is_sink=true`            | Grid can absorb power           |
+| User Configuration | Model Element   | Model Parameter           | Notes                           |
+| ------------------ | --------------- | ------------------------- | ------------------------------- |
+| `import_price`     | PowerConnection | `price_target_source`     | Cost per kWh imported           |
+| `export_price`     | PowerConnection | `price_source_target`     | Revenue per kWh exported        |
+| `import_limit`     | PowerConnection | `max_power_target_source` | Maximum import power (optional) |
+| `export_limit`     | PowerConnection | `max_power_source_target` | Maximum export power (optional) |
+| `connection`       | PowerConnection | `target`                  | Node to connect to              |
+| —                  | Node            | `is_source=true`          | Grid can supply power           |
+| —                  | Node            | `is_sink=true`            | Grid can absorb power           |
 
 ## Sensors Created
 
@@ -125,7 +125,7 @@ Grid represents the utility connection that can supply power (import) when local
 
     Underlying model element for Grid.
 
-    [:material-arrow-right: Node formulation](../model-layer/node.md)
+    [:material-arrow-right: Node formulation](../model-layer/elements/node.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 
@@ -133,6 +133,6 @@ Grid represents the utility connection that can supply power (import) when local
 
     How power limits and pricing are applied.
 
-    [:material-arrow-right: Connection formulation](../model-layer/connection.md)
+    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
 
 </div>
