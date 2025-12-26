@@ -177,20 +177,14 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             "battery_main:undercharge:to_node": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="-"),
-                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.03,), direction="-"),
-                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.04,), direction="+"),
             },
             "battery_main:normal:to_node": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
-                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.02,), direction="-"),
-                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.02,), direction="+"),
             },
             "battery_main:overcharge:to_node": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="-"),
-                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="-"),
-                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.03,), direction="+"),
             },
         },
         "outputs": {
@@ -321,8 +315,6 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             "battery_main:normal:to_node": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
-                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.002,), direction="-"),
-                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.002,), direction="+"),
             },
         },
         "outputs": {
@@ -445,28 +437,6 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             "battery_early:normal:to_node": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0, 0.0, 0.0, 1.0), direction="+"),
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0, 0.0, 0.0, 0.0), direction="-"),
-                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(
-                    type=OUTPUT_TYPE_PRICE,
-                    unit="$/kWh",
-                    values=(
-                        (-0.01 + (0.01 * 0 / 3)) * 2,
-                        (-0.01 + (0.01 * 1 / 3)) * 2,
-                        (-0.01 + (0.01 * 2 / 3)) * 2,
-                        (-0.01 + (0.01 * 3 / 3)) * 2,
-                    ),
-                    direction="-",
-                ),
-                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(
-                    type=OUTPUT_TYPE_PRICE,
-                    unit="$/kWh",
-                    values=(
-                        (0.01 + (0.01 * 0 / 3)) * 2,
-                        (0.01 + (0.01 * 1 / 3)) * 2,
-                        (0.01 + (0.01 * 2 / 3)) * 2,
-                        (0.01 + (0.01 * 3 / 3)) * 2,
-                    ),
-                    direction="+",
-                ),
             },
         },
         "outputs": {
@@ -594,8 +564,6 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             "battery_no_balance:normal:to_node": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
-                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(-0.002,), direction="-"),
-                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.002,), direction="+"),
             },
         },
         "outputs": {
