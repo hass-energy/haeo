@@ -133,7 +133,11 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
         Update interval and debounce settings are hidden during add and use defaults.
 
     """
-    name_key = vol.Required(CONF_NAME, description={"suggested_value": suggested_name}) if suggested_name else vol.Required(CONF_NAME)
+    name_key = (
+        vol.Required(CONF_NAME, description={"suggested_value": suggested_name})
+        if suggested_name
+        else vol.Required(CONF_NAME)
+    )
 
     return vol.Schema(
         {
