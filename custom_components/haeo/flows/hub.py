@@ -15,6 +15,8 @@ from custom_components.haeo.const import (
     CONF_HORIZON_PRESET,
     CONF_INTEGRATION_TYPE,
     CONF_UPDATE_INTERVAL_MINUTES,
+    DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
@@ -65,10 +67,16 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 # Otherwise, create entry with preset values
                 return await self._create_hub_entry()
 
+        # Fetch the default hub name from translations
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
+        )
+        default_hub_name = translations.get(f"component.{DOMAIN}.common.default_hub_name", "Home")
+
         # Show simplified form with horizon preset dropdown
         return self.async_show_form(
             step_id="user",
-            data_schema=get_hub_setup_schema(),
+            data_schema=get_hub_setup_schema(suggested_name=default_hub_name),
             errors=errors,
         )
 
@@ -95,8 +103,10 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
         )
         switchboard_name = translations[f"component.{DOMAIN}.common.switchboard_node_name"]
+        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
         # Create the hub entry with initial subentries
+        # Update interval and debounce use defaults (can be changed in options/edit)
         return self.async_create_entry(
             title=hub_name,
             data={
@@ -104,19 +114,19 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_NAME: hub_name,
                 CONF_HORIZON_PRESET: stored_preset,
                 **tier_config,
-                CONF_UPDATE_INTERVAL_MINUTES: self._user_input[CONF_UPDATE_INTERVAL_MINUTES],
-                CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],
+                CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
+                CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
                 CONF_ADVANCED_MODE: self._user_input[CONF_ADVANCED_MODE],
             },
             subentries=[
                 # Network subentry for optimization sensors
                 {
                     "data": {
-                        CONF_NAME: hub_name,
+                        CONF_NAME: network_subentry_name,
                         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK,
                     },
                     "subentry_type": ELEMENT_TYPE_NETWORK,
-                    "title": hub_name,
+                    "title": network_subentry_name,
                     "unique_id": None,
                 },
                 # Switchboard node as central connection point

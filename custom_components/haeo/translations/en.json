@@ -1,15 +1,15 @@
 {
   "config": {
-    "flow_title": "HAEO Network Setup",
+    "flow_title": "HAEO Setup",
     "step": {
       "user": {
-        "title": "HAEO Network Setup",
+        "title": "HAEO Setup",
         "description": "Create a new HAEO energy system.",
         "data": {
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
-          "name": "Network Name",
+          "name": "System Name",
           "update_interval_minutes": "Update Interval (minutes)"
         }
       },
@@ -28,8 +28,8 @@
         }
       }
     },
-    "error": { "name_exists": "A network with this name already exists" },
-    "abort": { "already_configured": "Network already configured" }
+    "error": { "name_exists": "A system with this name already exists" },
+    "abort": { "already_configured": "HAEO already configured" }
   },
   "options": {
     "step": {
@@ -48,7 +48,7 @@
         }
       },
       "init": {
-        "title": "Network Settings",
+        "title": "HAEO Settings",
         "description": "Configure optimization settings. Choose a planning horizon that matches your forecast data availability.",
         "data": {
           "advanced_mode": "Advanced Mode",
@@ -67,7 +67,7 @@
       "name_exists": "A device with this name already exists"
     },
     "abort": {
-      "no_participants": "No devices are currently connected to this network",
+      "no_participants": "No devices are currently connected to this system",
       "reload_failed": "Failed to reload the integration after configuration changes. Please check your configuration and try again."
     }
   },
@@ -261,12 +261,12 @@
       "step": {
         "user": {
           "title": "Add Load",
-          "description": "Set up a load with forecast or constant power",
+          "description": "Set up a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
           "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
         },
         "reconfigure": {
           "title": "Edit Load",
-          "description": "Update load configuration",
+          "description": "Update load configuration.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
           "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
         }
       },
@@ -274,9 +274,9 @@
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {
-      "flow_title": "Network",
-      "entry_type": "Network",
-      "initiate_flow": { "user": "Network", "reconfigure": "Network" },
+      "flow_title": "HAEO",
+      "entry_type": "HAEO",
+      "initiate_flow": { "user": "HAEO", "reconfigure": "HAEO" },
       "step": {},
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -339,18 +339,18 @@
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
-  "common": { "switchboard_node_name": "Switchboard" },
+  "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
-    "battery_device_normal": { "name": "{name} Normal Region" },
-    "battery_device_overcharge": { "name": "{name} Overcharge Region" },
-    "battery_device_undercharge": { "name": "{name} Undercharge Region" },
+    "battery_device_normal": { "name": "{name} Main Partition" },
+    "battery_device_overcharge": { "name": "{name} Overcharge Partition" },
+    "battery_device_undercharge": { "name": "{name} Undercharge Partition" },
     "battery_section": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
     "load": { "name": "{name}" },
-    "network": { "name": "{name}" },
+    "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
     "solar": { "name": "{name}" }
   },
@@ -407,9 +407,9 @@
       "load_forecast_limit_price": { "name": "Forecast limit shadow price" },
       "load_power": { "name": "Power" },
       "load_power_possible": { "name": "Power possible" },
-      "network_optimization_cost": { "name": "Optimization cost" },
-      "network_optimization_duration": { "name": "Optimization duration" },
-      "network_optimization_status": { "name": "Optimization status" },
+      "network_optimization_cost": { "name": "Cost" },
+      "network_optimization_duration": { "name": "Duration" },
+      "network_optimization_status": { "name": "Status" },
       "node_power_balance": { "name": "Power balance shadow price" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
       "solar_power": { "name": "Power" },
@@ -424,8 +424,8 @@
   },
   "issues": {
     "disconnected_network": {
-      "title": "Network has disconnected components",
-      "description": "Your HAEO network has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the network is fully connected"
+      "title": "System has disconnected components",
+      "description": "The system has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the system is fully connected"
     },
     "invalid_config": {
       "title": "Invalid configuration for {element_name}",
@@ -437,7 +437,7 @@
     },
     "optimization_failure": {
       "title": "Optimization failed",
-      "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. Issues with the selected solver\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your network configuration for conflicting constraints\n4. Try a different optimization solver in the integration settings\n5. This issue will automatically dismiss when optimization succeeds"
+      "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. Issues with the selected solver\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your system configuration for conflicting constraints\n4. Try a different optimization solver in the integration settings\n5. This issue will automatically dismiss when optimization succeeds"
     }
   },
   "selector": {

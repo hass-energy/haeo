@@ -7,8 +7,9 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.translation import async_get_translations
 
-from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 
 from .coordinator import HaeoDataUpdateCoordinator
 
@@ -31,8 +32,6 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         hub_entry: The hub config entry
 
     """
-    from homeassistant.helpers.translation import async_get_translations  # noqa: PLC0415
-
     from custom_components.haeo.elements import ELEMENT_TYPE_NODE  # noqa: PLC0415
     from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE  # noqa: PLC0415
 
@@ -48,13 +47,17 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         if has_network and has_node:
             break
 
+    # Load translations for subentry names
+    translations = await async_get_translations(hass, hass.config.language, "common", integrations=[DOMAIN])
+
     # Create Network subentry if missing
     if not has_network:
         _LOGGER.info("Creating Network subentry for hub %s", hub_entry.entry_id)
+        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
         network_subentry = ConfigSubentry(
-            data=MappingProxyType({CONF_NAME: hub_entry.title, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
+            data=MappingProxyType({CONF_NAME: network_subentry_name, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
             subentry_type=ELEMENT_TYPE_NETWORK,
-            title=hub_entry.title,
+            title=network_subentry_name,
             unique_id=None,
         )
         hass.config_entries.async_add_subentry(hub_entry, network_subentry)
@@ -64,10 +67,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     advanced_mode = hub_entry.data.get(CONF_ADVANCED_MODE, False)
     if not advanced_mode and not has_node:
         _LOGGER.info("Creating Switchboard node for hub %s (non-advanced mode)", hub_entry.entry_id)
-
-        # Resolve the switchboard node name from translations
-        translations = await async_get_translations(hass, hass.config.language, "common", integrations=["haeo"])
-        switchboard_name = translations.get("component.haeo.common.switchboard_node_name", "Switchboard")
+        switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
 
         switchboard_subentry = ConfigSubentry(
             data=MappingProxyType(

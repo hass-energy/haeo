@@ -110,8 +110,10 @@ async def test_hub_setup_schema_has_expected_fields(hass: HomeAssistant) -> None
     # Verify expected fields are present
     assert CONF_NAME in field_names
     assert CONF_HORIZON_PRESET in field_names
-    assert CONF_UPDATE_INTERVAL_MINUTES in field_names
-    assert CONF_DEBOUNCE_SECONDS in field_names
+
+    # Verify update interval and debounce are NOT in the add flow (only in options/edit)
+    assert CONF_UPDATE_INTERVAL_MINUTES not in field_names
+    assert CONF_DEBOUNCE_SECONDS not in field_names
 
     # Verify tier fields are NOT in the simplified schema
     assert CONF_TIER_1_DURATION not in field_names
