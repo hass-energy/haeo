@@ -72,4 +72,12 @@ The total objective is the sum of all element cost contributions.
 
     [:material-arrow-right: Device Layer](../device-layer/index.md)
 
+- :material-scale-balance:{ .lg .middle } **Battery balance connection**
+
+    ---
+
+    Energy redistribution between battery sections.
+
+    [:material-arrow-right: Balance connection formulation](battery-balance-connection.md)
+
 </div>
