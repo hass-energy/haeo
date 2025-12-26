@@ -346,9 +346,9 @@
   },
   "device": {
     "battery": { "name": "{name}" },
-    "battery_device_normal": { "name": "{name} Normal Region" },
-    "battery_device_overcharge": { "name": "{name} Overcharge Region" },
-    "battery_device_undercharge": { "name": "{name} Undercharge Region" },
+    "battery_device_normal": { "name": "{name} Main Partition" },
+    "battery_device_overcharge": { "name": "{name} Overcharge Partition" },
+    "battery_device_undercharge": { "name": "{name} Undercharge Partition" },
     "battery_section": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
