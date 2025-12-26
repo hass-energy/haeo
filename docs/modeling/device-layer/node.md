@@ -1,6 +1,6 @@
 # Node Modeling
 
-The Node device composes a [Node](../model-layer/node.md) model element to represent an electrical bus where multiple elements connect and power must balance.
+The Node device composes a [Node](../model-layer/elements/node.md) model element to represent an electrical bus where multiple elements connect and power must balance.
 
 ## Model Elements Created
 
@@ -13,7 +13,7 @@ graph LR
 
 | Model Element                  | Name     | Parameters From Configuration                |
 | ------------------------------ | -------- | -------------------------------------------- |
-| [Node](../model-layer/node.md) | `{name}` | is_source, is_sink (from user configuration) |
+| [Node](../model-layer/elements/node.md) | `{name}` | is_source, is_sink (from user configuration) |
 
 Node is unique among Device Layer elements: it creates only a Node model element with no implicit Connection.
 
@@ -115,7 +115,7 @@ Node represents an electrical bus where Kirchhoff's current law applies—total 
 
     Underlying model element for Node device.
 
-    [:material-arrow-right: Node formulation](../model-layer/node.md)
+    [:material-arrow-right: Node formulation](../model-layer/elements/node.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 
@@ -123,6 +123,6 @@ Node represents an electrical bus where Kirchhoff's current law applies—total 
 
     Connect nodes to other elements.
 
-    [:material-arrow-right: Connection formulation](../model-layer/connection.md)
+    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
 
 </div>

@@ -20,8 +20,8 @@ graph LR
 
 | Model Element                                               | Name            | Parameters From Configuration |
 | ----------------------------------------------------------- | --------------- | ----------------------------- |
-| [Model Element A](../../modeling/model-layer/battery.md)    | `{name}`        | List key parameters passed    |
-| [Model Element B](../../modeling/model-layer/connection.md) | `{name}:suffix` | List key parameters passed    |
+| [Model Element A](../../modeling/model-layer/elements/battery.md)    | `{name}`        | List key parameters passed    |
+| [Model Element B](../../modeling/model-layer/connections/power-connection.md) | `{name}:suffix` | List key parameters passed    |
 
 !!! note "Template Instructions"
 

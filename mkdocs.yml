@@ -158,9 +158,14 @@ nav:
       - modeling/index.md
       - Model Layer:
           - modeling/model-layer/index.md
-          - Battery: modeling/model-layer/battery.md
-          - Node: modeling/model-layer/node.md
-          - Connection: modeling/model-layer/connection.md
+          - Elements:
+              - modeling/model-layer/elements/index.md
+              - Battery: modeling/model-layer/elements/battery.md
+              - Node: modeling/model-layer/elements/node.md
+          - Connections:
+              - modeling/model-layer/connections/index.md
+              - Connection: modeling/model-layer/connections/connection.md
+              - PowerConnection: modeling/model-layer/connections/power-connection.md
       - Device Layer:
           - modeling/device-layer/index.md
           - Battery: modeling/device-layer/battery.md

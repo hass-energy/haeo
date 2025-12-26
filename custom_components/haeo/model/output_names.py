@@ -7,8 +7,7 @@ translations, and other integration code that needs to reference all possible ou
 from typing import Final
 
 from .battery import BATTERY_OUTPUT_NAMES, BatteryOutputName
-from .connection import CONNECTION_OUTPUT_NAMES as BASE_CONNECTION_OUTPUT_NAMES
-from .connection import ConnectionOutputName as BaseConnectionOutputName
+from .connection import CONNECTION_OUTPUT_NAMES, ConnectionOutputName
 from .node import NODE_OUTPUT_NAMES, NodeOutputName
 from .power_connection import POWER_CONNECTION_OUTPUT_NAMES, PowerConnectionOutputName
 
@@ -25,13 +24,13 @@ MODEL_OUTPUT_NAMES: Final[frozenset[str]] = frozenset(
 )
 
 __all__ = [
-    "BASE_CONNECTION_OUTPUT_NAMES",
     "BATTERY_OUTPUT_NAMES",
+    "CONNECTION_OUTPUT_NAMES",
     "MODEL_OUTPUT_NAMES",
     "NODE_OUTPUT_NAMES",
     "POWER_CONNECTION_OUTPUT_NAMES",
-    "BaseConnectionOutputName",
     "BatteryOutputName",
+    "ConnectionOutputName",
     "ModelOutputName",
     "NodeOutputName",
     "PowerConnectionOutputName",

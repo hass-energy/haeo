@@ -119,7 +119,7 @@ If the element interacts with external tariffs or degradation models, expose the
 
     Example of a storage formulation.
 
-    [:material-arrow-right: Battery modeling](../modeling/model-layer/battery.md)
+    [:material-arrow-right: Battery modeling](../modeling/model-layer/elements/battery.md)
 
 - :material-test-tube:{ .lg .middle } **Testing**
 

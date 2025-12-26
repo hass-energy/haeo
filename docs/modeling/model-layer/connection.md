@@ -1,26 +1,54 @@
 # Connection Model
 
 Connections model power flow paths between elements.
-HAEO provides a base `Connection` class and specialized connection types for different use cases.
+HAEO provides a `Connection` base class for lossless flow and specialized subclasses for additional constraints.
 
-## Connection types
+## Connection class hierarchy
 
-**PowerConnection**:
-Models bidirectional power flow with optional limits, efficiency losses, and transfer costs.
-This is the primary connection type for most use cases.
+**Connection** (base class):
+Models lossless bidirectional power flow between elements.
+Provides the fundamental power variables and interface that all connections share.
+
+**PowerConnection** (extends Connection):
+Adds optional power limits, efficiency losses, and transfer costs.
+This is the primary connection type for most user-configured connections.
 
 **BatteryBalanceConnection**:
 Models lossless energy redistribution between battery sections.
-See [Battery balance connection](battery-balance-connection.md) for details.
+Used internally by the Battery device to balance energy across SOC sections.
 
-## PowerConnection formulation
+## Connection (base class)
+
+The base `Connection` class models simple lossless bidirectional power flow.
 
 ### Decision variables
 
 For each time step $t$:
 
-- $P_{s \rightarrow t}(t)$: Power flow from source to target (kW, positive)
-- $P_{t \rightarrow s}(t)$: Power flow from target to source (kW, positive)
+- $P_{s \rightarrow t}(t)$: Power flow from source to target (kW, non-negative)
+- $P_{t \rightarrow s}(t)$: Power flow from target to source (kW, non-negative)
+
+### Power balance interface
+
+Connections provide `power_into_source` and `power_into_target` properties for node balance calculations:
+
+**At source element:**
+
+$$
+P_{\text{into\_source}}(t) = P_{t \rightarrow s}(t) - P_{s \rightarrow t}(t)
+$$
+
+**At target element:**
+
+$$
+P_{\text{into\_target}}(t) = P_{s \rightarrow t}(t) - P_{t \rightarrow s}(t)
+$$
+
+The base Connection class applies no efficiency losses (100% efficiency in both directions).
+
+## PowerConnection formulation
+
+PowerConnection extends Connection to add power limits, efficiency losses, and transfer pricing.
 
 ### Parameters
 
@@ -30,8 +58,6 @@ For each time step $t$:
 - $\eta_{t \rightarrow s}(t)$: Efficiency for target to source flow (0-1) - from `efficiency_target_source` config
 - $c_{s \rightarrow t}(t)$: Price for source to target flow (\$/kWh) - from `price_source_target` config
 - $c_{t \rightarrow s}(t)$: Price for target to source flow (\$/kWh) - from `price_target_source` config
-- Source element: Where power flows from
-- Target element: Where power flows to
 
 **Default values:**
 
@@ -56,20 +82,23 @@ If limits are not specified, the upper bound is infinite (unlimited flow).
 
 #### Power Balance Integration
 
-Connection power participates in node balance with efficiency applied to incoming power:
+PowerConnection overrides the base Connection's power balance to apply efficiency losses.
+Efficiency is applied to power arriving at the destination:
 
-**At source node:**
+**At source element:**
 
-- Outflow: $-P_{s \rightarrow t}(t)$ (power leaving)
-- Inflow: $+P_{t \rightarrow s}(t) \cdot \eta_{t \rightarrow s}(t)$ (power arriving with efficiency)
+$$
+P_{\text{into\_source}}(t) = P_{t \rightarrow s}(t) \cdot \eta_{t \rightarrow s}(t) - P_{s \rightarrow t}(t)
+$$
 
-**At target node:**
+**At target element:**
 
-- Inflow: $+P_{s \rightarrow t}(t) \cdot \eta_{s \rightarrow t}(t)$ (power arriving with efficiency)
-- Outflow: $-P_{t \rightarrow s}(t)$ (power leaving)
+$$
+P_{\text{into\_target}}(t) = P_{s \rightarrow t}(t) \cdot \eta_{s \rightarrow t}(t) - P_{t \rightarrow s}(t)
+$$
 
 **Key concept:**
-Power leaving a node is not multiplied by efficiency, but power arriving at a node is multiplied by efficiency (losses occur during transmission).
+Power leaving an element is not multiplied by efficiency, but power arriving at an element is multiplied by efficiency (losses occur during transmission).
 
 ### Cost Function
 

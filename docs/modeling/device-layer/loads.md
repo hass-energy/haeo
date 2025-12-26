@@ -1,6 +1,6 @@
 # Load Modeling
 
-The Load device composes a [Node](../model-layer/node.md) (power sink only) with an implicit [Connection](../model-layer/connection.md) to model power consumption based on forecast data.
+The Load device composes a [Node](../model-layer/elements/node.md) (power sink only) with an implicit [PowerConnection](../model-layer/connections/power-connection.md) to model power consumption based on forecast data.
 
 ## Model Elements Created
 
@@ -8,7 +8,7 @@ The Load device composes a [Node](../model-layer/node.md) (power sink only) with
 graph LR
     subgraph "Device"
         SS["Node<br/>(is_source=false, is_sink=true)"]
-        Conn["Connection<br/>{name}:connection<br/>(fixed_power=true)"]
+        Conn["PowerConnection<br/>{name}:connection<br/>(fixed_power=true)"]
     end
 
     Node[Connection Target]
@@ -18,10 +18,10 @@ graph LR
     Node -->|connects to| Conn
 ```
 
-| Model Element                              | Name                | Parameters From Configuration       |
-| ------------------------------------------ | ------------------- | ----------------------------------- |
-| [Node](../model-layer/node.md)             | `{name}`            | is_source=false, is_sink=true       |
-| [Connection](../model-layer/connection.md) | `{name}:connection` | forecast as fixed power requirement |
+| Model Element                                   | Name                | Parameters From Configuration       |
+| ----------------------------------------------- | ------------------- | ----------------------------------- |
+| [Node](../model-layer/elements/node.md)                  | `{name}`            | is_source=false, is_sink=true       |
+| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:connection` | forecast as fixed power requirement |
 
 ## Devices Created
 
@@ -35,13 +35,13 @@ Load creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into model parameters:
 
-| User Configuration | Model Element | Model Parameter           | Notes                             |
-| ------------------ | ------------- | ------------------------- | --------------------------------- |
-| `forecast`         | Connection    | `max_power_target_source` | Required consumption at each time |
-| `connection`       | Connection    | `source`                  | Node to connect from              |
-| —                  | Connection    | `fixed_power=true`        | Consumption must equal forecast   |
-| —                  | Node          | `is_source=false`         | Load cannot provide power         |
-| —                  | Node          | `is_sink=true`            | Load consumes power               |
+| User Configuration | Model Element   | Model Parameter           | Notes                             |
+| ------------------ | --------------- | ------------------------- | --------------------------------- |
+| `forecast`         | PowerConnection | `max_power_target_source` | Required consumption at each time |
+| `connection`       | PowerConnection | `source`                  | Node to connect from              |
+| —                  | PowerConnection | `fixed_power=true`        | Consumption must equal forecast   |
+| —                  | Node            | `is_source=false`         | Load cannot provide power         |
+| —                  | Node            | `is_sink=true`            | Load consumes power               |
 
 ## Sensors Created
 
@@ -123,7 +123,7 @@ Load represents power consumption that must be satisfied by the system—either 
 
     Underlying model element for Load.
 
-    [:material-arrow-right: Node formulation](../model-layer/node.md)
+    [:material-arrow-right: Node formulation](../model-layer/elements/node.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 
@@ -131,6 +131,6 @@ Load represents power consumption that must be satisfied by the system—either 
 
     How consumption constraints are applied.
 
-    [:material-arrow-right: Connection formulation](../model-layer/connection.md)
+    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
 
 </div>

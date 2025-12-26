@@ -8,9 +8,14 @@ from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
-from .connection import CONNECTION_OUTPUT_NAMES as BASE_CONNECTION_OUTPUT_NAMES
-from .connection import CONNECTION_TIME_SLICE, Connection
-from .connection import ConnectionConstraintName as BaseConnectionConstraintName
+from .connection import (
+    CONNECTION_OUTPUT_NAMES,
+    CONNECTION_POWER_SOURCE_TARGET,
+    CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_TIME_SLICE,
+    Connection,
+    ConnectionConstraintName,
+)
 from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_POWER_LIMIT, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE
 from .output_data import OutputData
 from .util import broadcast_to_sequence
@@ -20,7 +25,7 @@ type PowerConnectionConstraintName = (
         "connection_shadow_power_max_source_target",
         "connection_shadow_power_max_target_source",
     ]
-    | BaseConnectionConstraintName
+    | ConnectionConstraintName
 )
 
 type PowerConnectionOutputName = (
@@ -38,8 +43,6 @@ type PowerConnectionOutputName = (
 
 POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = frozenset(
     (
-        CONNECTION_POWER_SOURCE_TARGET := "connection_power_source_target",
-        CONNECTION_POWER_TARGET_SOURCE := "connection_power_target_source",
         CONNECTION_POWER_ACTIVE := "connection_power_active",
         CONNECTION_POWER_MAX_SOURCE_TARGET := "connection_power_max_source_target",
         CONNECTION_POWER_MAX_TARGET_SOURCE := "connection_power_max_target_source",
@@ -48,7 +51,8 @@ POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = fro
         # Constraints
         CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET := "connection_shadow_power_max_source_target",
         CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE := "connection_shadow_power_max_target_source",
-        *BASE_CONNECTION_OUTPUT_NAMES,
+        CONNECTION_TIME_SLICE,
+        *CONNECTION_OUTPUT_NAMES,
     )
 )
 
@@ -58,6 +62,11 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
 
     Models bidirectional power flow between elements with optional limits,
     efficiency losses, and transfer pricing.
+
+    Extends the base Connection class with:
+    - Power limits (max_power_source_target, max_power_target_source)
+    - Efficiency losses (efficiency_source_target, efficiency_target_source)
+    - Transfer pricing (price_source_target, price_target_source)
     """
 
     def __init__(
@@ -93,15 +102,9 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
             price_target_source: Price in $/kWh for target to source flow (per period)
 
         """
-
-        # Initialize base Element class with solver
-        super().__init__(name=name, periods=periods, solver=solver)
+        # Initialize base Connection class (creates power variables and stores source/target)
+        super().__init__(name=name, periods=periods, solver=solver, source=source, target=target)
         n_periods = self.n_periods
-        h = solver
-
-        # Store source and target
-        self._source = source
-        self._target = target
 
         # Broadcast power limits to n_periods
         self.max_power_source_target = broadcast_to_sequence(max_power_source_target, n_periods)
@@ -109,10 +112,6 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
 
         # Store fixed_power flag for constraint building
         self._fixed_power = fixed_power
-
-        # Create power variables
-        self._power_source_target = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_st_", out_array=True)
-        self._power_target_source = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_ts_", out_array=True)
 
         # Broadcast and convert efficiency to fraction (default 100% = 1.0)
         st_eff_values = broadcast_to_sequence(efficiency_source_target, n_periods)
@@ -128,26 +127,6 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
         # Store prices (None means no cost)
         self.price_source_target = broadcast_to_sequence(price_source_target, n_periods)
         self.price_target_source = broadcast_to_sequence(price_target_source, n_periods)
-
-    @property
-    def source(self) -> str:
-        """Return the name of the source element."""
-        return self._source
-
-    @property
-    def target(self) -> str:
-        """Return the name of the target element."""
-        return self._target
-
-    @property
-    def power_source_target(self) -> HighspyArray:
-        """Return power flowing from source to target for all periods."""
-        return self._power_source_target
-
-    @property
-    def power_target_source(self) -> HighspyArray:
-        """Return power flowing from target to source for all periods."""
-        return self._power_target_source
 
     @property
     def power_into_source(self) -> HighspyArray:

@@ -1,6 +1,8 @@
 """HAEO energy modeling components."""
 
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
+from .connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
+from .connection import CONNECTION_POWER_TARGET_SOURCE as CONNECTION_POWER_TARGET_SOURCE
 from .connection import CONNECTION_TIME_SLICE as CONNECTION_TIME_SLICE
 from .connection import Connection as Connection
 from .connection import ConnectionConstraintName as ConnectionConstraintName
@@ -28,6 +30,8 @@ from .power_connection import PowerConnectionOutputName as PowerConnectionOutput
 
 __all__ = [
     "CONNECTION_OUTPUT_NAMES",
+    "CONNECTION_POWER_SOURCE_TARGET",
+    "CONNECTION_POWER_TARGET_SOURCE",
     "CONNECTION_TIME_SLICE",
     "OUTPUT_TYPE_COST",
     "OUTPUT_TYPE_DURATION",

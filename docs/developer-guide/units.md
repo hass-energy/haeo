@@ -135,7 +135,7 @@ def add_battery(
 
     See units in context of battery formulation.
 
-    [:material-arrow-right: Battery modeling](../modeling/model-layer/battery.md)
+    [:material-arrow-right: Battery modeling](../modeling/model-layer/elements/battery.md)
 
 - :material-transmission-tower:{ .lg .middle } **Grid Modeling**
 
