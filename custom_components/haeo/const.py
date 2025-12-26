@@ -5,6 +5,9 @@ from typing import Final, Literal
 # Integration domain
 DOMAIN: Final = "haeo"
 
+# External URLs
+URL_HAFO: Final = "https://github.com/hass-energy/hafo"
+
 # Integration types
 INTEGRATION_TYPE_HUB: Final = "hub"
 
