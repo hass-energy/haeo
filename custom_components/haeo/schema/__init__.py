@@ -20,6 +20,7 @@ __all__ = [
     "FieldMeta",
     "NumberLimits",
     "available",
+    "get_data_defaults",
     "get_field_meta",
     "get_loader_instance",
     "get_schema_defaults",
@@ -114,6 +115,43 @@ def get_schema_defaults(schema_class: type) -> dict[str, Any]:
     return defaults
 
 
+def get_data_defaults(data_class: type) -> dict[str, float | bool]:
+    """Extract data default values from a ConfigData type.
+
+    Iterates through field annotations and extracts Default.data_default values
+    for use when loading configs where a field was not configured.
+
+    Args:
+        data_class: TypedDict config data class (Data mode)
+
+    Returns:
+        Dictionary mapping field names to their data default values.
+        Only fields with Default markers (with data or schema defaults) are included.
+
+    """
+    defaults: dict[str, float | bool] = {}
+    hints = get_type_hints(data_class, include_extras=True)
+
+    for field_name, field_type in hints.items():
+        # Handle NotRequired wrapper
+        origin = get_origin(field_type)
+        if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "NotRequired":
+            inner_type = get_args(field_type)[0]
+        else:
+            inner_type = field_type
+
+        # Extract Default from Annotated type
+        if get_origin(inner_type) is Annotated:
+            for meta in inner_type.__metadata__:
+                if isinstance(meta, Default):
+                    data_default = meta.data_default
+                    if data_default is not None:
+                        defaults[field_name] = data_default
+                    break
+
+    return defaults
+
+
 def get_loader_instance(field_name: str, config_class: type) -> Loader:
     """Extract the loader instance from a field's FieldMeta annotation.
 
@@ -190,20 +228,48 @@ async def load(
     data_config_class = _get_registry_entry(element_type).data
 
     hints = get_type_hints(data_config_class, include_extras=True)
+    data_defaults = get_data_defaults(data_config_class)
     loaded: dict[str, Any] = {}
+    n_periods = len(forecast_times) - 1
 
-    for field_name in hints:
+    for field_name, field_type in hints.items():
         field_value = config.get(field_name)
 
-        # Pass through metadata fields and None values
+        # If field is not configured, check for data default
         if field_value is None:
-            continue  # Skip optional fields
+            data_default = data_defaults.get(field_name)
+            if data_default is not None:
+                # Check if the field expects a list/tuple (time series) or scalar
+                # Unwrap NotRequired and Annotated to get the base type
+                base_type = _unwrap_type(field_type)
+                origin = get_origin(base_type)
+                if origin is list or origin is tuple:
+                    # Time series field - expand default to tuple
+                    loaded[field_name] = tuple([data_default] * n_periods)
+                else:
+                    # Scalar field - use default directly
+                    loaded[field_name] = data_default
+            continue  # Skip fields with no value and no default
 
         # Get loader and load the field
         loader_instance = get_loader_instance(field_name, data_config_class)
         loaded[field_name] = await loader_instance.load(value=field_value, hass=hass, forecast_times=forecast_times)
 
     return cast("ElementConfigData", loaded)
+
+
+def _unwrap_type(field_type: Any) -> Any:
+    """Unwrap NotRequired and Annotated wrappers to get the base type."""
+    # Handle NotRequired wrapper
+    origin = get_origin(field_type)
+    if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "NotRequired":
+        field_type = get_args(field_type)[0]
+
+    # Handle Annotated wrapper
+    if get_origin(field_type) is Annotated:
+        field_type = get_args(field_type)[0]
+
+    return field_type
 
 
 def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool]]:
