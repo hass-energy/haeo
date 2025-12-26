@@ -12,7 +12,6 @@ from custom_components.haeo.model.power_connection import (
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
     CONNECTION_TIME_SLICE,
-    POWER_CONNECTION_OUTPUT_NAMES,
     PowerConnectionOutputName,
 )
 from custom_components.haeo.schema.fields import (

@@ -42,7 +42,13 @@ class TimeSeriesLoader:
     """Loader that merges live sensor values and forecasts into a horizon-aligned time series."""
 
     def available(self, *, hass: HomeAssistant, value: Any, **_kwargs: Any) -> bool:
-        """Return True when every referenced sensor can supply data."""
+        """Return True when every referenced sensor can supply data.
+
+        Constant numeric values are always available since they don't depend on sensors.
+        """
+        # Constant values are always available
+        if _is_constant_value(value):
+            return True
 
         try:
             entity_ids = _collect_sensor_ids(value)

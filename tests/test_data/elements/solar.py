@@ -31,7 +31,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
             name="pv_main",
             connection="network",
             forecast=[2.0, 1.5],
-            price_production=0.15,
+            price_production=[0.15],
             curtailment=False,
         ),
         "model": [
@@ -44,7 +44,7 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 "max_power_source_target": [2.0, 1.5],
                 "max_power_target_source": 0.0,
                 "fixed_power": True,
-                "price_source_target": 0.15,
+                "price_source_target": [0.15],
             },
         ],
         "model_outputs": {
@@ -57,7 +57,6 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
         "outputs": {
             solar_element.SOLAR_DEVICE_SOLAR: {
                 solar_element.SOLAR_POWER: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction="+"),
-                solar_element.SOLAR_POWER_AVAILABLE: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
                 solar_element.SOLAR_FORECAST_LIMIT: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
