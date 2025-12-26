@@ -5,7 +5,7 @@ This approach works well for loads that follow predictable daily patterns.
 
 ## Recommended: Use HAFO
 
-The easiest way to create historical load forecasts is with [HAFO (Home Assistant Forecaster)](https://github.com/hass-energy/hafo).
+The easiest way to create historical load forecasts is with [HAFO (Home Assistant Forecaster)](https://hafo.haeo.io).
 HAFO is a companion integration designed specifically for this purpose:
 
 1. Install HAFO via HACS
@@ -13,7 +13,7 @@ HAFO is a companion integration designed specifically for this purpose:
 3. Configure HAEO to use the HAFO sensor as its load forecast source
 
 HAFO handles all the complexity automatically - fetching historical statistics, shifting them forward, and cycling patterns to fill any forecast horizon.
-See the [HAFO documentation](https://hass-energy.github.io/hafo/) for installation and configuration details.
+See the [HAFO documentation](https://hafo.haeo.io) for installation and configuration details.
 
 ## Manual Approach
 
