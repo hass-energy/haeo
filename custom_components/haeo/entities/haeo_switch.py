@@ -69,31 +69,34 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
         self._element_type = subentry.subentry_type
         self._element_name = subentry.title
 
-        # Determine mode from config value - can be entity ID(s) or static value
+        # Store data default for use when no value is available
+        self._data_default = field_info.data_default
+
+        # Determine mode from config value - can be entity ID(s), static value, or not configured
         config_value = subentry.data.get(self._field_name)
         self._source_entity_ids: list[str] = []
+        is_configured = config_value is not None
 
         if isinstance(config_value, str) and "." in config_value:
             # Single entity ID - Driven mode
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_ids = [config_value]
-            self._attr_is_on = False
         elif isinstance(config_value, list) and config_value and all(isinstance(item, str) for item in config_value):
             # Multiple entity IDs - Driven mode
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_ids = config_value
-            self._attr_is_on = False
         else:
-            # Static value or missing - Editable mode
+            # Static value or not configured - Editable mode
+            # Store config value to check against in async_added_to_hass
             self._entity_mode = ConfigEntityMode.EDITABLE
-            if isinstance(config_value, bool):
-                self._attr_is_on = config_value
-            else:
-                # Will be set properly in async_added_to_hass using data_default
-                self._attr_is_on = bool(config_value) if config_value is not None else None
+            self._config_static_value: bool | None = config_value if isinstance(config_value, bool) else None
 
-        # Store data default for use when no value is available
-        self._data_default = field_info.data_default
+        # Entity enabled by default based on configuration status and is_required
+        # - Configured fields: always enabled
+        # - Unconfigured required fields: enabled with default value
+        # - Unconfigured optional fields: disabled with default value
+        if not is_configured and not field_info.is_required:
+            self._attr_entity_registry_enabled_default = False
 
         # Entity attributes
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
@@ -133,16 +136,23 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
         await super().async_added_to_hass()
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Restore previous value if available
+            # Priority for initial value:
+            # 1. Restored value from previous session
+            # 2. Static config value from user
+            # 3. Data default
+            # 4. False
             last_state = await self.async_get_last_state()
             if last_state is not None:
                 self._attr_is_on = last_state.state == "on"
-            elif self._attr_is_on is None:
-                # Use data default when no restored value and no config value
-                if self._data_default is not None:
-                    self._attr_is_on = bool(self._data_default)
-                else:
-                    self._attr_is_on = False
+            elif self._config_static_value is not None:
+                self._attr_is_on = self._config_static_value
+            elif self._data_default is not None:
+                self._attr_is_on = bool(self._data_default)
+            else:
+                self._attr_is_on = False
+        else:
+            # Driven mode - initialize to False, will be updated by coordinator
+            self._attr_is_on = False
 
         # Get initial forecast from coordinator if available
         self._handle_coordinator_update()
@@ -158,6 +168,10 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
         In driven mode, the state is also updated from the first loaded value.
         In editable mode, the state remains user-controlled.
         """
+        # Skip if no coordinator data available yet
+        if self.coordinator.data is None:  # pyright: ignore[reportUnnecessaryComparison]
+            return
+
         # Get element data containing inputs (loaded config) and outputs
         element_data = self.coordinator.data["elements"].get(self._element_name)
         if element_data is None:

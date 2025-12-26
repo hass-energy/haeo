@@ -269,12 +269,20 @@ def schema_for_type(cls: type, **schema_params: Unpack[SchemaParams]) -> vol.Sch
     Returns:
         Voluptuous schema
 
+    Note:
+        Sensor fields are always made optional in the schema, regardless of their
+        NotRequired status. The required/optional distinction for sensor fields
+        affects whether the corresponding input entity starts enabled or disabled,
+        not whether the user must provide a value in the config flow.
+
     """
     annotated_fields = _get_annotated_fields(cls)
     schema: dict[vol.Required | vol.Optional, vol.All] = {}
     for field, (meta, is_optional) in annotated_fields.items():
         validator = meta.create_schema(**schema_params)
-        schema_key = (vol.Optional if is_optional else vol.Required)(field)
+        # Sensor fields are always optional in schema - required status affects entity enabled state
+        is_schema_optional = is_optional or meta.field_type == "sensor"
+        schema_key = (vol.Optional if is_schema_optional else vol.Required)(field)
         schema[schema_key] = validator
 
     return vol.Schema(schema)

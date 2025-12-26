@@ -143,9 +143,10 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
                 translation_placeholders=translation_placeholders,
             )
 
-            # Create entities for matching input fields that have values in config
+            # Create entities for ALL matching input fields (not just configured ones)
+            # Unconfigured fields will use their default values
             for field_info in input_fields:
-                if field_info.entity_type == input_entity_type and field_info.field_name in subentry.data:
+                if field_info.entity_type == input_entity_type:
                     entity = entity_class(
                         hass=hass,
                         coordinator=coordinator,

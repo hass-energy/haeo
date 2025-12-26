@@ -184,6 +184,10 @@ class TestHaeoInputNumberEditable:
             device_entry=_create_mock_device_entry(config_entry, battery_subentry),
         )
 
+        # Mock the restore method to return None (no previous state)
+        entity.async_get_last_number_data = AsyncMock(return_value=None)
+        await entity.async_added_to_hass()
+
         assert entity._entity_mode == ConfigEntityMode.EDITABLE
         assert entity._attr_native_value == 13.5
         assert entity._source_entity_ids == []
@@ -262,6 +266,10 @@ class TestHaeoInputNumberEditable:
             field_info=capacity_field_info,
             device_entry=_create_mock_device_entry(config_entry, battery_subentry),
         )
+
+        # Mock the restore method and call async_added_to_hass to set initial value
+        entity.async_get_last_number_data = AsyncMock(return_value=None)
+        await entity.async_added_to_hass()
 
         assert entity.get_current_value() == 13.5
 
@@ -545,6 +553,10 @@ class TestHaeoInputSwitch:
             device_entry=_create_mock_device_entry(config_entry, solar_subentry),
         )
 
+        # Mock the restore method to return None (no previous state)
+        entity.async_get_last_state = AsyncMock(return_value=None)
+        await entity.async_added_to_hass()
+
         assert entity._entity_mode == ConfigEntityMode.EDITABLE
         assert entity._attr_is_on is True
         assert entity._attr_entity_category == EntityCategory.CONFIG
@@ -620,6 +632,10 @@ class TestHaeoInputSwitch:
         entity.async_write_ha_state = Mock()
         coordinator.async_request_refresh = AsyncMock()
 
+        # Mock restore and call async_added_to_hass to set initial value
+        entity.async_get_last_state = AsyncMock(return_value=None)
+        await entity.async_added_to_hass()
+
         assert entity._attr_is_on is False
 
         await entity.async_turn_on()
@@ -655,6 +671,10 @@ class TestHaeoInputSwitch:
         entity.async_write_ha_state = Mock()
         coordinator.async_request_refresh = AsyncMock()
 
+        # Mock restore and call async_added_to_hass to set initial value
+        entity.async_get_last_state = AsyncMock(return_value=None)
+        await entity.async_added_to_hass()
+
         assert entity._attr_is_on is True
 
         await entity.async_turn_off()
@@ -686,6 +706,10 @@ class TestHaeoInputSwitch:
             field_info=curtailment_field_info,
             device_entry=_create_mock_device_entry(config_entry, solar_subentry),
         )
+
+        # Mock the restore method and call async_added_to_hass to set initial value
+        entity.async_get_last_state = AsyncMock(return_value=None)
+        await entity.async_added_to_hass()
 
         assert entity.get_current_value() is True
 

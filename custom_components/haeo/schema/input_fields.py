@@ -66,6 +66,7 @@ class InputFieldInfo:
         field_name: Name of the field in the config schema
         entity_type: Whether to create a Number or Switch entity
         output_type: Type of output for consistent attributes with output sensors
+        is_required: Whether the field is required (affects default entity enabled state)
         unit: Unit of measurement (for Number entities)
         min_value: Minimum allowed value (for Number entities)
         max_value: Maximum allowed value (for Number entities)
@@ -81,6 +82,7 @@ class InputFieldInfo:
     field_name: str
     entity_type: InputEntityType
     output_type: OutputType
+    is_required: bool = True
     unit: str | None = None
     min_value: float | None = None
     max_value: float | None = None
@@ -166,11 +168,20 @@ def _extract_composed_metadata(field_type: type) -> ComposedMetadata | None:
     )
 
 
-def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, element_type: str) -> InputFieldInfo | None:
+def _field_meta_to_input_info(
+    field_name: str, composed: ComposedMetadata, element_type: str, *, is_required: bool
+) -> InputFieldInfo | None:
     """Convert a ComposedMetadata to InputFieldInfo if it should be an input entity.
 
     Almost all fields become input entities. The mode (DRIVEN vs EDITABLE) is
     determined at runtime based on whether the user provided an entity ID.
+
+    Args:
+        field_name: Name of the field
+        composed: Composed metadata from annotation
+        element_type: Element type for translation key
+        is_required: Whether the field is required (affects default entity enabled state)
+
     """
     meta = composed.field_meta
     direction = composed.direction
@@ -189,6 +200,7 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_POWER,
+            is_required=is_required,
             unit=meta.unit,
             min_value=min_val,
             max_value=max_val,
@@ -205,6 +217,7 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_ENERGY,
+            is_required=is_required,
             unit=meta.unit,
             min_value=min_val,
             max_value=max_val,
@@ -221,6 +234,7 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_PRICE,
+            is_required=is_required,
             unit=meta.unit,
             min_value=min_val,
             max_value=max_val,
@@ -237,6 +251,7 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_SOC,
+            is_required=is_required,
             unit=meta.unit,
             min_value=min_val,
             max_value=max_val,
@@ -253,6 +268,7 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
             field_name=field_name,
             entity_type=InputEntityType.SWITCH,
             output_type=OUTPUT_TYPE_BOOLEAN,
+            is_required=is_required,
             translation_key=f"{element_type}_{field_name}",
             direction=direction,
             schema_default=schema_default,
@@ -261,15 +277,24 @@ def _field_meta_to_input_info(field_name: str, composed: ComposedMetadata, eleme
 
     # Handle sensor field types - map accepted_units to device class
     if isinstance(meta, SensorFieldMeta):
-        return _sensor_meta_to_input_info(field_name, composed, element_type)
+        return _sensor_meta_to_input_info(field_name, composed, element_type, is_required=is_required)
 
     return None
 
 
-def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, element_type: str) -> InputFieldInfo | None:
+def _sensor_meta_to_input_info(
+    field_name: str, composed: ComposedMetadata, element_type: str, *, is_required: bool
+) -> InputFieldInfo | None:
     """Convert a SensorFieldMeta to InputFieldInfo.
 
     Maps the accepted_units to appropriate device class, unit, and output type.
+
+    Args:
+        field_name: Name of the field
+        composed: Composed metadata from annotation
+        element_type: Element type for translation key
+        is_required: Whether the field is required (affects default entity enabled state)
+
     """
     meta = composed.field_meta
     if not isinstance(meta, SensorFieldMeta):
@@ -286,6 +311,7 @@ def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, elem
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_POWER,
+            is_required=is_required,
             unit="kW",
             device_class=NumberDeviceClass.POWER,
             translation_key=f"{element_type}_{field_name}",
@@ -300,6 +326,7 @@ def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, elem
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_ENERGY,
+            is_required=is_required,
             unit="kWh",
             device_class=NumberDeviceClass.ENERGY,
             translation_key=f"{element_type}_{field_name}",
@@ -314,6 +341,7 @@ def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, elem
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_SOC,
+            is_required=is_required,
             unit="%",
             min_value=0.0,
             max_value=100.0,
@@ -330,6 +358,7 @@ def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, elem
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_SOC,
+            is_required=is_required,
             unit="%",
             min_value=0.0,
             max_value=100.0,
@@ -346,6 +375,7 @@ def _sensor_meta_to_input_info(field_name: str, composed: ComposedMetadata, elem
             field_name=field_name,
             entity_type=InputEntityType.NUMBER,
             output_type=OUTPUT_TYPE_PRICE,
+            is_required=is_required,
             unit="$/kWh",
             device_class=NumberDeviceClass.MONETARY,
             translation_key=f"{element_type}_{field_name}",
@@ -368,6 +398,10 @@ def get_input_fields(element_type: "ElementType") -> list[InputFieldInfo]:
     - DRIVEN: User provided an entity ID, input entity mirrors that entity
     - EDITABLE: User provided no entity ID, input entity is user-controlled
 
+    The is_required attribute on each InputFieldInfo reflects whether the field
+    was marked as required (no NotRequired wrapper) in the schema. This affects
+    whether the entity is enabled by default when not configured.
+
     Args:
         element_type: The element type to get input fields for
 
@@ -382,6 +416,7 @@ def get_input_fields(element_type: "ElementType") -> list[InputFieldInfo]:
     schema_class = registry_entry.schema
 
     hints = get_type_hints(schema_class, include_extras=True)
+    optional_keys: set[str] = getattr(schema_class, "__optional_keys__", set())
     input_fields: list[InputFieldInfo] = []
 
     for field_name, field_type in hints.items():
@@ -389,13 +424,20 @@ def get_input_fields(element_type: "ElementType") -> list[InputFieldInfo]:
         if field_name in SKIP_FIELDS:
             continue
 
+        # Determine if field is required (not in optional_keys and not NotRequired)
+        is_required = field_name not in optional_keys
+        # Also check for NotRequired wrapper
+        origin = get_origin(field_type)
+        if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "NotRequired":
+            is_required = False
+
         # Extract all composed metadata from annotation
         composed = _extract_composed_metadata(field_type)
         if composed is None:
             continue
 
         # Convert to input info if applicable
-        info = _field_meta_to_input_info(field_name, composed, element_type)
+        info = _field_meta_to_input_info(field_name, composed, element_type, is_required=is_required)
         if info is not None:
             input_fields.append(info)
 

@@ -32,7 +32,14 @@ from custom_components.haeo.schema.fields import (
 
 ELEMENT_TYPE: Final = "battery"
 
-# Field type aliases with defaults
+# Field type aliases with defaults for required sensor fields
+# These provide sensible data defaults when the user doesn't configure a sensor
+MinChargePercentageFieldSchema = Annotated[BatterySOCSensorFieldSchema, Default(data=0.0)]
+MinChargePercentageFieldData = Annotated[BatterySOCSensorFieldData, Default(data=0.0)]
+MaxChargePercentageFieldSchema = Annotated[BatterySOCSensorFieldSchema, Default(data=100.0)]
+MaxChargePercentageFieldData = Annotated[BatterySOCSensorFieldData, Default(data=100.0)]
+EfficiencyFieldSchema = Annotated[PercentageSensorFieldSchema, Default(data=95.0)]
+EfficiencyFieldData = Annotated[PercentageSensorFieldData, Default(data=95.0)]
 EarlyChargeIncentiveFieldSchema = Annotated[PriceFieldSchema, Default(schema=0.001)]
 EarlyChargeIncentiveFieldData = Annotated[PriceFieldData, Default(schema=0.001)]
 
@@ -109,9 +116,9 @@ class BatteryConfigSchema(TypedDict):
     connection: ElementNameFieldSchema  # Connection ID that battery connects to
     capacity: EnergySensorFieldSchema
     initial_charge_percentage: BatterySOCSensorFieldSchema
-    min_charge_percentage: BatterySOCSensorFieldSchema
-    max_charge_percentage: BatterySOCSensorFieldSchema
-    efficiency: PercentageSensorFieldSchema
+    min_charge_percentage: MinChargePercentageFieldSchema
+    max_charge_percentage: MaxChargePercentageFieldSchema
+    efficiency: EfficiencyFieldSchema
     max_charge_power: NotRequired[PowerSensorFieldSchema]
     max_discharge_power: NotRequired[PowerSensorFieldSchema]
     early_charge_incentive: NotRequired[EarlyChargeIncentiveFieldSchema]
@@ -130,9 +137,9 @@ class BatteryConfigData(TypedDict):
     connection: ElementNameFieldSchema  # Connection ID that battery connects to
     capacity: EnergySensorFieldData
     initial_charge_percentage: BatterySOCSensorFieldData
-    min_charge_percentage: BatterySOCSensorFieldData
-    max_charge_percentage: BatterySOCSensorFieldData
-    efficiency: PercentageSensorFieldData
+    min_charge_percentage: MinChargePercentageFieldData
+    max_charge_percentage: MaxChargePercentageFieldData
+    efficiency: EfficiencyFieldData
     max_charge_power: NotRequired[PowerSensorFieldData]
     max_discharge_power: NotRequired[PowerSensorFieldData]
     early_charge_incentive: NotRequired[EarlyChargeIncentiveFieldData]
