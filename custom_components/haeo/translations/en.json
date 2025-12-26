@@ -261,12 +261,12 @@
       "step": {
         "user": {
           "title": "Add Load",
-          "description": "Set up a load with forecast or constant power.\n\nUse [HAFO]({hafo_url}) to generate forecasts from historical data.",
+          "description": "Set up a load with forecast or constant power.\n\nUse [HAFO]({hafo_url}) to generate forecasts.",
           "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
         },
         "reconfigure": {
           "title": "Edit Load",
-          "description": "Update load configuration.\n\nUse [HAFO]({hafo_url}) to generate forecasts from historical data.",
+          "description": "Update load configuration.\n\nUse [HAFO]({hafo_url}) to generate forecasts.",
           "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
         }
       },
