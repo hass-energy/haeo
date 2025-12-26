@@ -1,6 +1,7 @@
 """Schema utilities for HAEO type configurations."""
 
 from collections.abc import Sequence
+import importlib
 from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, Unpack, cast, get_args, get_origin, get_type_hints
 from typing import get_origin as typing_get_origin
 
@@ -350,8 +351,6 @@ def schema_for_type(cls: type, **schema_params: Unpack[SchemaParams]) -> vol.Sch
 
     # Try to get data class from module
     if data_cls is None:
-        import importlib
-
         try:
             module = importlib.import_module(cls.__module__)
             data_cls = getattr(module, data_cls_name, None)

@@ -255,10 +255,11 @@ class HaeoInputNumber(CoordinatorEntity[HaeoDataUpdateCoordinator], RestoreNumbe
         """Set the value.
 
         In Editable mode: stores the value and triggers coordinator refresh.
-        In Driven mode: ignored - value is controlled by coordinator.
+        In Driven mode: ignored - writes current state to revert UI.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
-            _LOGGER.debug("Ignoring set_value in Driven mode for %s", self.entity_id)
+            # Write current state to revert any optimistic UI update
+            self.async_write_ha_state()
             return
 
         self._attr_native_value = value

@@ -1,7 +1,6 @@
 """Input switch entity for HAEO runtime configuration."""
 
 from datetime import datetime
-import logging
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
@@ -17,8 +16,6 @@ from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.schema.input_fields import InputFieldInfo
 
 from .mode import ConfigEntityMode
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -240,10 +237,11 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
         """Turn the switch on.
 
         In Editable mode: stores the value and triggers coordinator refresh.
-        In Driven mode: ignored - value is controlled by coordinator.
+        In Driven mode: ignored - writes current state to revert UI.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
-            _LOGGER.debug("Ignoring turn_on in Driven mode for %s", self.entity_id)
+            # Write current state to revert any optimistic UI update
+            self.async_write_ha_state()
             return
 
         self._attr_is_on = True
@@ -256,10 +254,11 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
         """Turn the switch off.
 
         In Editable mode: stores the value and triggers coordinator refresh.
-        In Driven mode: ignored - value is controlled by coordinator.
+        In Driven mode: ignored - writes current state to revert UI.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
-            _LOGGER.debug("Ignoring turn_off in Driven mode for %s", self.entity_id)
+            # Write current state to revert any optimistic UI update
+            self.async_write_ha_state()
             return
 
         self._attr_is_on = False

@@ -365,7 +365,9 @@ class TestHaeoInputNumberDriven:
 
         # Value should not change in Driven mode
         assert entity._attr_native_value is None
-        entity.async_write_ha_state.assert_not_called()
+        # State is written to revert any optimistic UI update
+        entity.async_write_ha_state.assert_called_once()
+        # But no refresh is triggered
         coordinator.async_request_refresh.assert_not_awaited()
 
 
