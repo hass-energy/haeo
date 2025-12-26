@@ -112,11 +112,11 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 # Network subentry for optimization sensors
                 {
                     "data": {
-                        CONF_NAME: hub_name,
+                        CONF_NAME: "HAEO",
                         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK,
                     },
                     "subentry_type": ELEMENT_TYPE_NETWORK,
-                    "title": hub_name,
+                    "title": "HAEO",
                     "unique_id": None,
                 },
                 # Switchboard node as central connection point

@@ -41,9 +41,9 @@ async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) 
 
     # Create a ConfigSubentry object and add it to the hub
     network_subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: hub_entry.title, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
+        data=MappingProxyType({CONF_NAME: "HAEO", CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
         subentry_type=ELEMENT_TYPE_NETWORK,
-        title=hub_entry.title,
+        title="HAEO",
         unique_id=None,
     )
 
