@@ -339,11 +339,7 @@
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
-  "common": {
-    "default_hub_name": "Home",
-    "switchboard_node_name": "Switchboard",
-    "network_subentry_name": "System"
-  },
+  "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
     "battery_device_normal": { "name": "{name} Main Partition" },
