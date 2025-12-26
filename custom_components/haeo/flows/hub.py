@@ -67,10 +67,16 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 # Otherwise, create entry with preset values
                 return await self._create_hub_entry()
 
+        # Fetch the default hub name from translations
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
+        )
+        default_hub_name = translations.get(f"component.{DOMAIN}.common.default_hub_name", "Home")
+
         # Show simplified form with horizon preset dropdown
         return self.async_show_form(
             step_id="user",
-            data_schema=get_hub_setup_schema(),
+            data_schema=get_hub_setup_schema(suggested_name=default_hub_name),
             errors=errors,
         )
 

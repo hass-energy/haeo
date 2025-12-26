@@ -122,17 +122,22 @@ def get_tier_config(user_input: dict[str, Any], horizon_preset: str | None) -> t
     return {key: user_input[key] for key in TIER_CONF_KEYS}, HORIZON_PRESET_CUSTOM
 
 
-def get_hub_setup_schema() -> vol.Schema:
+def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
     """Get simplified schema for initial hub setup.
+
+    Args:
+        suggested_name: Optional suggested name for the hub (translatable default)
 
     Returns:
         Voluptuous schema with name, horizon preset, and basic settings.
         Update interval and debounce settings are hidden during add and use defaults.
 
     """
+    name_key = vol.Required(CONF_NAME, description={"suggested_value": suggested_name}) if suggested_name else vol.Required(CONF_NAME)
+
     return vol.Schema(
         {
-            vol.Required(CONF_NAME): vol.All(
+            name_key: vol.All(
                 str,
                 vol.Strip,
                 vol.Length(min=1, msg="Name cannot be empty"),

@@ -340,6 +340,7 @@
     }
   },
   "common": {
+    "default_hub_name": "Home",
     "switchboard_node_name": "Switchboard",
     "network_subentry_name": "System"
   },
