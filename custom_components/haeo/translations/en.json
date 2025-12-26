@@ -339,7 +339,10 @@
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
-  "common": { "switchboard_node_name": "Switchboard" },
+  "common": {
+    "switchboard_node_name": "Switchboard",
+    "network_subentry_name": "System"
+  },
   "device": {
     "battery": { "name": "{name}" },
     "battery_device_normal": { "name": "{name} Normal Region" },
@@ -350,7 +353,7 @@
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
     "load": { "name": "{name}" },
-    "network": { "name": "{name}" },
+    "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
     "solar": { "name": "{name}" }
   },

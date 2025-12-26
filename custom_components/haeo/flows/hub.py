@@ -95,6 +95,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
         )
         switchboard_name = translations[f"component.{DOMAIN}.common.switchboard_node_name"]
+        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
         # Create the hub entry with initial subentries
         return self.async_create_entry(
@@ -112,11 +113,11 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 # Network subentry for optimization sensors
                 {
                     "data": {
-                        CONF_NAME: "HAEO",
+                        CONF_NAME: network_subentry_name,
                         CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK,
                     },
                     "subentry_type": ELEMENT_TYPE_NETWORK,
-                    "title": "HAEO",
+                    "title": network_subentry_name,
                     "unique_id": None,
                 },
                 # Switchboard node as central connection point

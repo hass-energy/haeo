@@ -299,6 +299,9 @@ async def test_async_update_data_returns_outputs(
         },
     }
 
+    # Mock translations to return the expected network subentry name
+    mock_translations = AsyncMock(return_value={"component.haeo.common.network_subentry_name": "System"})
+
     # Patch the registry entries to use our mocked output functions
     with (
         patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
@@ -310,6 +313,7 @@ async def test_async_update_data_returns_outputs(
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.dt_util.utcnow", return_value=generated_at),
+        patch("custom_components.haeo.coordinator.async_get_translations", mock_translations),
         patch.dict(
             ELEMENT_TYPES,
             {
@@ -338,7 +342,7 @@ async def test_async_update_data_returns_outputs(
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
-    network_outputs = result["HAEO"][ELEMENT_TYPE_NETWORK]
+    network_outputs = result["System"][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OUTPUT_TYPE_COST
     assert cost_output.unit == hass.config.currency

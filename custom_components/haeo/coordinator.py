@@ -13,6 +13,7 @@ from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -356,9 +357,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             ),
         }
 
+        # Load the network subentry name from translations
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
+        )
+        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
+
         result: CoordinatorData = {
-            # HAEO outputs use "HAEO" as subentry key, network element type as device
-            "HAEO": {
+            # HAEO outputs use network subentry name as key, network element type as device
+            network_subentry_name: {
                 ELEMENT_TYPE_NETWORK: {
                     name: _build_coordinator_output(name, output, forecast_times=None)
                     for name, output in network_output_data.items()

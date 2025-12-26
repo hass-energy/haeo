@@ -7,8 +7,9 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.translation import async_get_translations
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 
 from .coordinator import HaeoDataUpdateCoordinator
 
@@ -39,11 +40,17 @@ async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) 
     # Create Network subentry by adding it to the hub's subentries collection
     _LOGGER.info("Creating Network subentry for hub %s", hub_entry.entry_id)
 
+    # Load the network subentry name from translations
+    translations = await async_get_translations(
+        hass, hass.config.language, "common", integrations=[DOMAIN]
+    )
+    network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
+
     # Create a ConfigSubentry object and add it to the hub
     network_subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: "HAEO", CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
+        data=MappingProxyType({CONF_NAME: network_subentry_name, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
         subentry_type=ELEMENT_TYPE_NETWORK,
-        title="HAEO",
+        title=network_subentry_name,
         unique_id=None,
     )
 
