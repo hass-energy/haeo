@@ -357,8 +357,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         }
 
         result: CoordinatorData = {
-            # Hub outputs use config entry title as subentry, network element type as device
-            self.config_entry.title: {
+            # HAEO outputs use "HAEO" as subentry key, network element type as device
+            "HAEO": {
                 ELEMENT_TYPE_NETWORK: {
                     name: _build_coordinator_output(name, output, forecast_times=None)
                     for name, output in network_output_data.items()

@@ -338,7 +338,7 @@ async def test_async_update_data_returns_outputs(
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
-    network_outputs = result[mock_hub_entry.title][ELEMENT_TYPE_NETWORK]
+    network_outputs = result["HAEO"][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OUTPUT_TYPE_COST
     assert cost_output.unit == hass.config.currency
