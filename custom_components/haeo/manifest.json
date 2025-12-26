@@ -1,7 +1,7 @@
 {
   "domain": "haeo",
   "name": "HAEO",
-  "codeowners": ["@TrentHouliston","@BrendanAnnable"],
+  "codeowners": ["@TrentHouliston", "@BrendanAnnable"],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/hass-energy/haeo",
