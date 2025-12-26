@@ -329,25 +329,45 @@ def schema_for_type(cls: type, **schema_params: Unpack[SchemaParams]) -> vol.Sch
     """Create a schema for a TypedDict type.
 
     Args:
-        cls: The TypedDict class to create schema for
+        cls: The TypedDict class to create schema for (Schema mode)
         **schema_params: Schema parameters passed to field validators
 
     Returns:
         Voluptuous schema
 
     Note:
-        Sensor fields are always made optional in the schema, regardless of their
-        NotRequired status. The required/optional distinction for sensor fields
+        Sensor fields are made optional in the schema only if they have a data
+        default defined. Sensor fields without data defaults remain required.
+        The required/optional distinction for sensor fields with defaults
         affects whether the corresponding input entity starts enabled or disabled,
         not whether the user must provide a value in the config flow.
 
     """
+    # Get the corresponding Data class to check for data defaults
+    # Schema class name ends with "Schema", Data class ends with "Data"
+    data_cls_name = cls.__name__.replace("Schema", "Data")
+    data_cls = getattr(cls.__module__.split(".")[-1], data_cls_name, None) if hasattr(cls, "__module__") else None
+
+    # Try to get data class from module
+    if data_cls is None:
+        import importlib
+
+        try:
+            module = importlib.import_module(cls.__module__)
+            data_cls = getattr(module, data_cls_name, None)
+        except (ImportError, AttributeError):
+            data_cls = None
+
+    # Get data defaults if we found the data class
+    data_defaults = get_data_defaults(data_cls) if data_cls else {}
+
     annotated_fields = _get_annotated_fields(cls)
     schema: dict[vol.Required | vol.Optional, vol.All] = {}
     for field, (meta, is_optional) in annotated_fields.items():
         validator = meta.create_schema(**schema_params)
-        # Sensor fields are always optional in schema - required status affects entity enabled state
-        is_schema_optional = is_optional or meta.field_type == "sensor"
+        # Sensor fields are optional only if they have a data default
+        has_data_default = field in data_defaults
+        is_schema_optional = is_optional or (meta.field_type == "sensor" and has_data_default)
         schema_key = (vol.Optional if is_schema_optional else vol.Required)(field)
         schema[schema_key] = validator
 
