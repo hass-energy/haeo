@@ -36,6 +36,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         """Initialize the sensor."""
         super().__init__(coordinator)
 
+        # Store device entry for entity-device linking (do not use device_info to avoid breaking subentry association)
         self.device_entry = device_entry
 
         self._subentry_key: str = subentry_key

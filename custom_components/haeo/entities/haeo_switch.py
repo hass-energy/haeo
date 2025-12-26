@@ -8,7 +8,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceEntry, DeviceInfo
+from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
@@ -100,10 +100,8 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
         self._attr_translation_key = field_info.translation_key
         self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
 
-        # Device info - use identifiers from device_entry to ensure proper subentry association
-        self._attr_device_info = DeviceInfo(
-            identifiers=device_entry.identifiers,
-        )
+        # Store device entry for entity-device linking (do not use device_info to avoid breaking subentry association)
+        self.device_entry = device_entry
 
         # Note: device_class not used for switches since InputFieldInfo is number-focused
 
