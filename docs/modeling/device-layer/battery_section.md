@@ -1,6 +1,6 @@
 # Battery Section Modeling
 
-The Battery Section device provides direct access to the model layer [Battery](../model-layer/battery.md) element.
+The Battery Section device provides direct access to the model layer [Battery](../model-layer/elements/battery.md) element.
 Unlike the standard Battery element which composes multiple sections with connections and nodes,
 this element creates a single battery section that must be connected manually via Connection elements.
 
@@ -13,9 +13,9 @@ graph LR
     end
 ```
 
-| Model Element                        | Name     | Parameters From Configuration  |
-| ------------------------------------ | -------- | ------------------------------ |
-| [Battery](../model-layer/battery.md) | `{name}` | All parameters mapped directly |
+| Model Element                                 | Name     | Parameters From Configuration  |
+| --------------------------------------------- | -------- | ------------------------------ |
+| [Battery](../model-layer/elements/battery.md) | `{name}` | All parameters mapped directly |
 
 ## Devices Created
 
@@ -105,7 +105,7 @@ All power flow must be explicitly configured via Connection elements.
 
     Understand the mathematical formulation of the Battery model element.
 
-    [:material-arrow-right: Battery formulation](../model-layer/battery.md)
+    [:material-arrow-right: Battery formulation](../model-layer/elements/battery.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 
@@ -113,6 +113,6 @@ All power flow must be explicitly configured via Connection elements.
 
     Learn how to connect Battery Section to other elements.
 
-    [:material-arrow-right: Connection formulation](../model-layer/connection.md)
+    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
 
 </div>

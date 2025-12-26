@@ -54,7 +54,7 @@ HAEO intentionally does not include:
 - **Solar forecasting** - Use Open-Meteo, Solcast, or other specialized integrations
 - **Price fetching** - Use Amber, Nordpool, Tibber, or other provider integrations
 - **Device control** - Use Home Assistant automations to implement the optimal schedule
-- **Load forecasting** - Use existing integrations or template sensors
+- **Load forecasting** - Use [HAFO](https://github.com/hass-energy/hafo), existing integrations, or template sensors
 
 ### Why This Approach?
 

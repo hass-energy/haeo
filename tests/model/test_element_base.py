@@ -3,7 +3,6 @@
 from unittest.mock import Mock
 
 from highspy import Highs
-import numpy as np
 import pytest
 
 from custom_components.haeo.model.connection import Connection
@@ -14,20 +13,19 @@ from custom_components.haeo.model.node import Node
 def test_connection_power_with_target_end(solver: Highs) -> None:
     """Test connection_power when element is registered as target end of connection.
 
-    As target: power_in = power_st * eff_st, power_out = -power_ts
-    Net power = power_st * eff_st - power_ts
+    The connection's power_into_target provides the net power flowing into the element.
     """
     h = solver
 
     # Create a simple node element
     node = Node(name="test_node", periods=[1.0] * 3, solver=h)
 
-    # Create a mock connection with HiGHS variable arrays
+    # Create power variables for the mock connection
+    power_into_target = h.addVariables(3, lb=-10, ub=10, name_prefix="power_into_target_", out_array=True)
+
+    # Create a mock connection
     mock_connection = Mock(spec=Connection)
-    mock_connection.power_source_target = h.addVariables(3, lb=0, ub=10, name_prefix="power_st_", out_array=True)
-    mock_connection.power_target_source = h.addVariables(3, lb=0, ub=10, name_prefix="power_ts_", out_array=True)
-    mock_connection.efficiency_source_target = np.array([0.95, 0.90, 0.85])
-    mock_connection.efficiency_target_source = np.array([0.80, 0.75, 0.70])
+    mock_connection.power_into_target = power_into_target
 
     # Register the connection with node as TARGET
     node.register_connection(mock_connection, "target")
@@ -39,32 +37,27 @@ def test_connection_power_with_target_end(solver: Highs) -> None:
     assert len(result) == 3
 
     # Set specific values and verify the calculation
-    # For target: net = power_st * eff_st - power_ts
-    h.addConstr(mock_connection.power_source_target[0] == 10.0)
-    h.addConstr(mock_connection.power_target_source[0] == 2.0)
+    h.addConstr(power_into_target[0] == 7.5)
     h.minimize(result[0])  # Minimize to get the value
-
-    # Expected: 10 * 0.95 - 2 = 9.5 - 2 = 7.5
     assert h.val(result[0]) == pytest.approx(7.5)
 
 
 def test_connection_power_with_source_end(solver: Highs) -> None:
     """Test connection_power when element is registered as source end of connection.
 
-    As source: power_out = -power_st, power_in = power_ts * eff_ts
-    Net power = -power_st + power_ts * eff_ts
+    The connection's power_into_source provides the net power flowing into the element.
     """
     h = solver
 
     # Create a simple node element
     node = Node(name="test_node", periods=[1.0] * 3, solver=h)
 
-    # Create a mock connection with HiGHS variable arrays
+    # Create power variables for the mock connection
+    power_into_source = h.addVariables(3, lb=-10, ub=10, name_prefix="power_into_source_", out_array=True)
+
+    # Create a mock connection
     mock_connection = Mock(spec=Connection)
-    mock_connection.power_source_target = h.addVariables(3, lb=0, ub=10, name_prefix="power_st_", out_array=True)
-    mock_connection.power_target_source = h.addVariables(3, lb=0, ub=10, name_prefix="power_ts_", out_array=True)
-    mock_connection.efficiency_source_target = np.array([0.95, 0.90, 0.85])
-    mock_connection.efficiency_target_source = np.array([0.80, 0.75, 0.70])
+    mock_connection.power_into_source = power_into_source
 
     # Register the connection with node as SOURCE
     node.register_connection(mock_connection, "source")
@@ -76,12 +69,8 @@ def test_connection_power_with_source_end(solver: Highs) -> None:
     assert len(result) == 3
 
     # Set specific values and verify the calculation
-    # For source: net = -power_st + power_ts * eff_ts
-    h.addConstr(mock_connection.power_source_target[1] == 5.0)
-    h.addConstr(mock_connection.power_target_source[1] == 4.0)
+    h.addConstr(power_into_source[1] == -2.0)
     h.minimize(result[1])  # Minimize to get the value
-
-    # Expected: -5 + 4 * 0.75 = -5 + 3 = -2
     assert h.val(result[1]) == pytest.approx(-2.0)
 
 
@@ -120,9 +109,7 @@ def test_constraints_with_single_constraint(solver: Highs) -> None:
 def test_connection_power_with_multiple_connections(solver: Highs) -> None:
     """Test connection_power with multiple connections including both source and target ends.
 
-    Total net power = sum of all connection powers
-    conn1 (source): -power_st1 + power_ts1 * eff_ts1
-    conn2 (target): power_st2 * eff_st2 - power_ts2
+    Total net power = sum of all connection power_into_* values.
     """
     h = solver
 
@@ -130,18 +117,14 @@ def test_connection_power_with_multiple_connections(solver: Highs) -> None:
     node = Node(name="test_node", periods=[1.0] * 3, solver=h)
 
     # Create first mock connection (node as source)
+    power_into_source_1 = h.addVariables(3, lb=-10, ub=10, name_prefix="conn1_into_source_", out_array=True)
     mock_conn1 = Mock(spec=Connection)
-    mock_conn1.power_source_target = h.addVariables(3, lb=0, ub=10, name_prefix="conn1_st_", out_array=True)
-    mock_conn1.power_target_source = h.addVariables(3, lb=0, ub=10, name_prefix="conn1_ts_", out_array=True)
-    mock_conn1.efficiency_source_target = np.array([0.95, 0.90, 0.85])
-    mock_conn1.efficiency_target_source = np.array([0.80, 0.75, 0.70])
+    mock_conn1.power_into_source = power_into_source_1
 
     # Create second mock connection (node as target)
+    power_into_target_2 = h.addVariables(3, lb=-10, ub=10, name_prefix="conn2_into_target_", out_array=True)
     mock_conn2 = Mock(spec=Connection)
-    mock_conn2.power_source_target = h.addVariables(3, lb=0, ub=10, name_prefix="conn2_st_", out_array=True)
-    mock_conn2.power_target_source = h.addVariables(3, lb=0, ub=10, name_prefix="conn2_ts_", out_array=True)
-    mock_conn2.efficiency_source_target = np.array([0.98, 0.96, 0.94])
-    mock_conn2.efficiency_target_source = np.array([0.92, 0.88, 0.84])
+    mock_conn2.power_into_target = power_into_target_2
 
     # Register both connections
     node.register_connection(mock_conn1, "source")
@@ -154,14 +137,11 @@ def test_connection_power_with_multiple_connections(solver: Highs) -> None:
     assert len(result) == 3
 
     # Set specific values and verify the combined calculation for period 2
-    # Expected calculation:
-    #   conn1 (source): -power_st1 + power_ts1 * eff_ts1 = -3 + 2 * 0.70 = -1.6
-    #   conn2 (target): power_st2 * eff_st2 - power_ts2 = 6 * 0.94 - 1 = 4.64
-    #   Total net power: -1.6 + 4.64 = 3.04
-    h.addConstr(mock_conn1.power_source_target[2] == 3.0)
-    h.addConstr(mock_conn1.power_target_source[2] == 2.0)
-    h.addConstr(mock_conn2.power_source_target[2] == 6.0)
-    h.addConstr(mock_conn2.power_target_source[2] == 1.0)
+    # conn1 (source): power_into_source = -1.6
+    # conn2 (target): power_into_target = 4.64
+    # Total net power: -1.6 + 4.64 = 3.04
+    h.addConstr(power_into_source_1[2] == -1.6)
+    h.addConstr(power_into_target_2[2] == 4.64)
     h.minimize(result[2])
 
     assert h.val(result[2]) == pytest.approx(3.04)
