@@ -27,16 +27,16 @@ graph LR
 
 The adapter creates 4-8 model elements depending on configuration:
 
-| Model Element                                                        | Name                            | Parameters From Configuration                                                   |
-| -------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------- |
-| [Battery](../model-layer/elements/battery.md)                        | `{name}:undercharge` (optional) | Capacity: `(min% - undercharge%) * capacity`, initial charge distributed        |
-| [Battery](../model-layer/elements/battery.md)                        | `{name}:normal` (always)        | Capacity: `(max% - min%) * capacity`, initial charge distributed                |
-| [Battery](../model-layer/elements/battery.md)                        | `{name}:overcharge` (optional)  | Capacity: `(overcharge% - max%) * capacity`, initial charge distributed         |
-| [Node](node.md)                                                      | `{name}:node`                   | Pure junction (no power generation/consumption)                                 |
-| [PowerConnection](../model-layer/connections/power-connection.md)    | `{name}:undercharge:to_node`    | Charge price: 3× early charge incentive, Discharge price: 1× + undercharge cost |
-| [PowerConnection](../model-layer/connections/power-connection.md)    | `{name}:normal:to_node`         | Charge price: 2× early charge incentive, Discharge price: 2× early discharge    |
-| [PowerConnection](../model-layer/connections/power-connection.md)    | `{name}:overcharge:to_node`     | Charge price: 1× + overcharge cost, Discharge price: 3× early discharge         |
-| [PowerConnection](../model-layer/connections/power-connection.md)    | `{name}:connection`             | Efficiency, power limits, discharge cost to network                             |
+| Model Element                                                     | Name                            | Parameters From Configuration                                                   |
+| ----------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------- |
+| [Battery](../model-layer/elements/battery.md)                     | `{name}:undercharge` (optional) | Capacity: `(min% - undercharge%) * capacity`, initial charge distributed        |
+| [Battery](../model-layer/elements/battery.md)                     | `{name}:normal` (always)        | Capacity: `(max% - min%) * capacity`, initial charge distributed                |
+| [Battery](../model-layer/elements/battery.md)                     | `{name}:overcharge` (optional)  | Capacity: `(overcharge% - max%) * capacity`, initial charge distributed         |
+| [Node](node.md)                                                   | `{name}:node`                   | Pure junction (no power generation/consumption)                                 |
+| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:undercharge:to_node`    | Charge price: 3× early charge incentive, Discharge price: 1× + undercharge cost |
+| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:normal:to_node`         | Charge price: 2× early charge incentive, Discharge price: 2× early discharge    |
+| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:overcharge:to_node`     | Charge price: 1× + overcharge cost, Discharge price: 3× early discharge         |
+| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:connection`             | Efficiency, power limits, discharge cost to network                             |
 
 ## Architecture Details
 

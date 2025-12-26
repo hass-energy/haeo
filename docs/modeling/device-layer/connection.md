@@ -18,8 +18,8 @@ graph LR
     MC <-->|links to| Target
 ```
 
-| Model Element                                   | Name     | Parameters From Configuration  |
-| ----------------------------------------------- | -------- | ------------------------------ |
+| Model Element                                                     | Name     | Parameters From Configuration  |
+| ----------------------------------------------------------------- | -------- | ------------------------------ |
 | [PowerConnection](../model-layer/connections/power-connection.md) | `{name}` | All parameters mapped directly |
 
 The Connection device creates a `PowerConnection` model element, which extends the base `Connection` class to support efficiency, pricing, and power limits.

@@ -17,9 +17,9 @@ graph LR
     Conn <-->|connects to| Node
 ```
 
-| Model Element                              | Name                | Parameters From Configuration              |
-| ------------------------------------------ | ------------------- | ------------------------------------------ |
-| [Node](../model-layer/elements/node.md)             | `{name}`            | is_source=true, is_sink=true               |
+| Model Element                                                | Name                | Parameters From Configuration              |
+| ------------------------------------------------------------ | ------------------- | ------------------------------------------ |
+| [Node](../model-layer/elements/node.md)                      | `{name}`            | is_source=true, is_sink=true               |
 | [Connection](../model-layer/connections/power-connection.md) | `{name}:connection` | import/export limits, import/export prices |
 
 ## Devices Created

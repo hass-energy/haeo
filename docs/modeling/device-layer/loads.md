@@ -18,9 +18,9 @@ graph LR
     Node -->|connects to| Conn
 ```
 
-| Model Element                                   | Name                | Parameters From Configuration       |
-| ----------------------------------------------- | ------------------- | ----------------------------------- |
-| [Node](../model-layer/elements/node.md)                  | `{name}`            | is_source=false, is_sink=true       |
+| Model Element                                                     | Name                | Parameters From Configuration       |
+| ----------------------------------------------------------------- | ------------------- | ----------------------------------- |
+| [Node](../model-layer/elements/node.md)                           | `{name}`            | is_source=false, is_sink=true       |
 | [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:connection` | forecast as fixed power requirement |
 
 ## Devices Created

@@ -19,9 +19,9 @@ graph LR
     Conn <-->|connects to| ACNode
 ```
 
-| Model Element                              | Name                | Parameters From Configuration                  |
-| ------------------------------------------ | ------------------- | ---------------------------------------------- |
-| [Node](../model-layer/elements/node.md)             | `{name}`            | is_source=false, is_sink=false (pure junction) |
+| Model Element                                                | Name                | Parameters From Configuration                  |
+| ------------------------------------------------------------ | ------------------- | ---------------------------------------------- |
+| [Node](../model-layer/elements/node.md)                      | `{name}`            | is_source=false, is_sink=false (pure junction) |
 | [Connection](../model-layer/connections/power-connection.md) | `{name}:connection` | efficiency, power limits per direction         |
 
 ## Devices Created

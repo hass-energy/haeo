@@ -20,21 +20,21 @@ For more complex scenarios, use [PowerConnection](power-connection.md).
 
 For each time step $t \in \{0, 1, \ldots, T-1\}$:
 
-| Variable              | Domain                | Description                       |
-| --------------------- | --------------------- | --------------------------------- |
-| $P_{s \rightarrow t}$ | $\mathbb{R}_{\geq 0}$ | Power flow from source to target  |
-| $P_{t \rightarrow s}$ | $\mathbb{R}_{\geq 0}$ | Power flow from target to source  |
+| Variable              | Domain                | Description                      |
+| --------------------- | --------------------- | -------------------------------- |
+| $P_{s \rightarrow t}$ | $\mathbb{R}_{\geq 0}$ | Power flow from source to target |
+| $P_{t \rightarrow s}$ | $\mathbb{R}_{\geq 0}$ | Power flow from target to source |
 
 Both variables are non-negative.
 Net flow direction is determined by which variable is larger.
 
 ### Parameters
 
-| Parameter | Description                    |
-| --------- | ------------------------------ |
-| `source`  | Name of the source element     |
-| `target`  | Name of the target element     |
-| `periods` | Time period durations (hours)  |
+| Parameter | Description                   |
+| --------- | ----------------------------- |
+| `source`  | Name of the source element    |
+| `target`  | Name of the target element    |
+| `periods` | Time period durations (hours) |
 
 ### Constraints
 
@@ -96,7 +96,7 @@ Use [PowerConnection](power-connection.md) instead when you need:
 
 <div class="grid cards" markdown>
 
--   :material-power-plug:{ .lg .middle } **PowerConnection**
+- :material-power-plug:{ .lg .middle } **PowerConnection**
 
     ---
 
@@ -104,7 +104,7 @@ Use [PowerConnection](power-connection.md) instead when you need:
 
     [:material-arrow-right: PowerConnection formulation](power-connection.md)
 
--   :material-battery-charging:{ .lg .middle } **Elements**
+- :material-battery-charging:{ .lg .middle } **Elements**
 
     ---
 
@@ -112,7 +112,7 @@ Use [PowerConnection](power-connection.md) instead when you need:
 
     [:material-arrow-right: Element types](../elements/index.md)
 
--   :material-code-braces:{ .lg .middle } **Implementation**
+- :material-code-braces:{ .lg .middle } **Implementation**
 
     ---
 

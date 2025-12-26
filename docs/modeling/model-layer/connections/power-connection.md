@@ -17,25 +17,25 @@ PowerConnection adds these capabilities to the base Connection:
 
 PowerConnection inherits the base Connection variables:
 
-| Variable              | Domain                | Description                       |
-| --------------------- | --------------------- | --------------------------------- |
-| $P_{s \rightarrow t}$ | $\mathbb{R}_{\geq 0}$ | Power flow from source to target  |
-| $P_{t \rightarrow s}$ | $\mathbb{R}_{\geq 0}$ | Power flow from target to source  |
+| Variable              | Domain                | Description                      |
+| --------------------- | --------------------- | -------------------------------- |
+| $P_{s \rightarrow t}$ | $\mathbb{R}_{\geq 0}$ | Power flow from source to target |
+| $P_{t \rightarrow s}$ | $\mathbb{R}_{\geq 0}$ | Power flow from target to source |
 
 ### Parameters
 
-| Parameter                     | Default   | Description                                    |
-| ----------------------------- | --------- | ---------------------------------------------- |
-| `source`                      | Required  | Name of the source element                     |
-| `target`                      | Required  | Name of the target element                     |
-| `periods`                     | Required  | Time period durations (hours)                  |
-| `max_power_source_target`     | Unlimited | Maximum power from source to target (kW)       |
-| `max_power_target_source`     | Unlimited | Maximum power from target to source (kW)       |
-| `efficiency_source_target`    | 100%      | Efficiency for source to target flow (0-100)   |
-| `efficiency_target_source`    | 100%      | Efficiency for target to source flow (0-100)   |
-| `price_source_target`         | None      | Price for source to target flow ($/kWh)        |
-| `price_target_source`         | None      | Price for target to source flow ($/kWh)        |
-| `fixed_power`                 | False     | If true, power equals max_power (equality)     |
+| Parameter                  | Default   | Description                                  |
+| -------------------------- | --------- | -------------------------------------------- |
+| `source`                   | Required  | Name of the source element                   |
+| `target`                   | Required  | Name of the target element                   |
+| `periods`                  | Required  | Time period durations (hours)                |
+| `max_power_source_target`  | Unlimited | Maximum power from source to target (kW)     |
+| `max_power_target_source`  | Unlimited | Maximum power from target to source (kW)     |
+| `efficiency_source_target` | 100%      | Efficiency for source to target flow (0-100) |
+| `efficiency_target_source` | 100%      | Efficiency for target to source flow (0-100) |
+| `price_source_target`      | None      | Price for source to target flow (\$/kWh)     |
+| `price_target_source`      | None      | Price for target to source flow (\$/kWh)     |
+| `fixed_power`              | False     | If true, power equals max_power (equality)   |
 
 All parameters except `source`, `target`, and `periods` can be time-varying sequences.
 
@@ -170,7 +170,7 @@ fixed_power: true  # consumption equals forecast exactly
 
 <div class="grid cards" markdown>
 
--   :material-connection:{ .lg .middle } **Connection (base)**
+- :material-connection:{ .lg .middle } **Connection (base)**
 
     ---
 
@@ -178,7 +178,7 @@ fixed_power: true  # consumption equals forecast exactly
 
     [:material-arrow-right: Connection formulation](connection.md)
 
--   :material-file-document:{ .lg .middle } **User configuration**
+- :material-file-document:{ .lg .middle } **User configuration**
 
     ---
 
@@ -186,7 +186,7 @@ fixed_power: true  # consumption equals forecast exactly
 
     [:material-arrow-right: Connection configuration](../../../user-guide/elements/connections.md)
 
--   :material-code-braces:{ .lg .middle } **Implementation**
+- :material-code-braces:{ .lg .middle } **Implementation**
 
     ---
 

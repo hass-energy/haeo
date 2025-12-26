@@ -48,7 +48,7 @@ The total objective is the sum of all element cost contributions.
 
 <div class="grid cards" markdown>
 
--   :material-battery-charging:{ .lg .middle } **Elements**
+- :material-battery-charging:{ .lg .middle } **Elements**
 
     ---
 
@@ -56,7 +56,7 @@ The total objective is the sum of all element cost contributions.
 
     [:material-arrow-right: Element types](elements/index.md)
 
--   :material-connection:{ .lg .middle } **Connections**
+- :material-connection:{ .lg .middle } **Connections**
 
     ---
 
@@ -64,7 +64,7 @@ The total objective is the sum of all element cost contributions.
 
     [:material-arrow-right: Connection types](connections/index.md)
 
--   :material-layers:{ .lg .middle } **Device Layer**
+- :material-layers:{ .lg .middle } **Device Layer**
 
     ---
 

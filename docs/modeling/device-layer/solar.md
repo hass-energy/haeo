@@ -17,9 +17,9 @@ graph LR
     Conn -->|connects to| Node
 ```
 
-| Model Element                                   | Name                | Parameters From Configuration           |
-| ----------------------------------------------- | ------------------- | --------------------------------------- |
-| [Node](../model-layer/elements/node.md)                  | `{name}`            | is_source=true, is_sink=false           |
+| Model Element                                                     | Name                | Parameters From Configuration           |
+| ----------------------------------------------------------------- | ------------------- | --------------------------------------- |
+| [Node](../model-layer/elements/node.md)                           | `{name}`            | is_source=true, is_sink=false           |
 | [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:connection` | forecast as max_power, production price |
 
 ## Devices Created

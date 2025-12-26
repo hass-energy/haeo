@@ -11,8 +11,8 @@ graph LR
     end
 ```
 
-| Model Element                  | Name     | Parameters From Configuration                |
-| ------------------------------ | -------- | -------------------------------------------- |
+| Model Element                           | Name     | Parameters From Configuration                |
+| --------------------------------------- | -------- | -------------------------------------------- |
 | [Node](../model-layer/elements/node.md) | `{name}` | is_source, is_sink (from user configuration) |
 
 Node is unique among Device Layer elements: it creates only a Node model element with no implicit Connection.

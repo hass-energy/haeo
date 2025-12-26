@@ -13,8 +13,8 @@ graph LR
     end
 ```
 
-| Model Element                        | Name     | Parameters From Configuration  |
-| ------------------------------------ | -------- | ------------------------------ |
+| Model Element                                 | Name     | Parameters From Configuration  |
+| --------------------------------------------- | -------- | ------------------------------ |
 | [Battery](../model-layer/elements/battery.md) | `{name}` | All parameters mapped directly |
 
 ## Devices Created
