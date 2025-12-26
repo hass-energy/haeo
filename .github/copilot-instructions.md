@@ -136,7 +136,23 @@ Avoid special characters in translation display names as they are used in entity
 ## Path-specific instructions
 
 This repository uses path-specific instruction files in `.github/instructions/` that apply additional context based on the files being edited.
-See that directory for domain-specific guidelines.
+
+| Instruction File                                                                    | Applies To                                    | When To Use                                                                         |
+| ----------------------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [config-flow.instructions.md](.github/instructions/config-flow.instructions.md)     | `**/config_flow.py`, `**/flows/**`            | Developing config flows, element configuration UI, schema generation, validation logic         |
+| [documentation.instructions.md](.github/instructions/documentation.instructions.md) | `docs/**`                                     | Writing or updating user guides, developer documentation, modeling docs, adding examples       |
+| [elements.instructions.md](.github/instructions/elements.instructions.md)           | `custom_components/haeo/elements/**`          | Creating or modifying element adapters, schema/data types, field metadata                      |
+| [integration.instructions.md](.github/instructions/integration.instructions.md)     | `custom_components/haeo/**`                   | Home Assistant integration patterns, coordinator usage, entity development, exception handling |
+| [manifest.instructions.md](.github/instructions/manifest.instructions.md)           | `**/manifest.json`                            | Updating integration metadata, dependencies, version requirements                              |
+| [meta.instructions.md](.github/instructions/meta.instructions.md)                   | `.github/instructions/**`, `.cursor/rules/**` | Maintaining instruction files themselves, updating rules based on feedback                     |
+| [model.instructions.md](.github/instructions/model.instructions.md)                 | `custom_components/haeo/model/**`             | Developing LP model elements, constraints, cost functions, optimization logic                  |
+| [python.instructions.md](.github/instructions/python.instructions.md)               | `**/*.py`                                     | All Python code - type hints, async patterns, error handling, code style                       |
+| [scenarios.instructions.md](.github/instructions/scenarios.instructions.md)         | `tests/scenarios/**`                          | Creating or maintaining end-to-end scenario tests with realistic data                          |
+| [tests.instructions.md](.github/instructions/tests.instructions.md)                 | `tests/**`                                    | Writing unit tests, integration tests, test fixtures, coverage requirements                    |
+| [translations.instructions.md](.github/instructions/translations.instructions.md)   | `**/translations/**`                          | Adding or updating user-facing strings, sensor names, error messages                           |
+
+**Note**: The `python.instructions.md` file applies to all Python files and provides universal Python coding standards.
+Other instruction files provide domain-specific guidance that builds upon these universal standards.
 
 ## Documentation
 
