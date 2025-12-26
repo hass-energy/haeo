@@ -1,15 +1,15 @@
 {
   "config": {
-    "flow_title": "HAEO Network Setup",
+    "flow_title": "HAEO Setup",
     "step": {
       "user": {
-        "title": "HAEO Network Setup",
+        "title": "HAEO Setup",
         "description": "Create a new HAEO energy system.",
         "data": {
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
-          "name": "Network Name",
+          "name": "System Name",
           "update_interval_minutes": "Update Interval (minutes)"
         }
       },
@@ -28,8 +28,8 @@
         }
       }
     },
-    "error": { "name_exists": "A network with this name already exists" },
-    "abort": { "already_configured": "Network already configured" }
+    "error": { "name_exists": "A system with this name already exists" },
+    "abort": { "already_configured": "HAEO already configured" }
   },
   "options": {
     "step": {
@@ -48,7 +48,7 @@
         }
       },
       "init": {
-        "title": "Network Settings",
+        "title": "HAEO Settings",
         "description": "Configure optimization settings. Choose a planning horizon that matches your forecast data availability.",
         "data": {
           "advanced_mode": "Advanced Mode",
@@ -67,7 +67,7 @@
       "name_exists": "A device with this name already exists"
     },
     "abort": {
-      "no_participants": "No devices are currently connected to this network",
+      "no_participants": "No devices are currently connected to this system",
       "reload_failed": "Failed to reload the integration after configuration changes. Please check your configuration and try again."
     }
   },
@@ -274,9 +274,9 @@
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {
-      "flow_title": "Network",
-      "entry_type": "Network",
-      "initiate_flow": { "user": "Network", "reconfigure": "Network" },
+      "flow_title": "HAEO",
+      "entry_type": "HAEO",
+      "initiate_flow": { "user": "HAEO", "reconfigure": "HAEO" },
       "step": {},
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -424,8 +424,8 @@
   },
   "issues": {
     "disconnected_network": {
-      "title": "Network has disconnected components",
-      "description": "Your HAEO network has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the network is fully connected"
+      "title": "System has disconnected components",
+      "description": "The system has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the network is fully connected"
     },
     "invalid_config": {
       "title": "Invalid configuration for {element_name}",
