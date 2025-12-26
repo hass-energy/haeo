@@ -41,9 +41,7 @@ async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) 
     _LOGGER.info("Creating Network subentry for hub %s", hub_entry.entry_id)
 
     # Load the network subentry name from translations
-    translations = await async_get_translations(
-        hass, hass.config.language, "common", integrations=[DOMAIN]
-    )
+    translations = await async_get_translations(hass, hass.config.language, "common", integrations=[DOMAIN])
     network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
     # Create a ConfigSubentry object and add it to the hub
