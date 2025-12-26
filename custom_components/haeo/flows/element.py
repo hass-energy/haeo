@@ -16,7 +16,7 @@ from custom_components.haeo.elements import (
     is_element_config_schema,
 )
 from custom_components.haeo.network import evaluate_network_connectivity
-from custom_components.haeo.schema import schema_for_type
+from custom_components.haeo.schema import get_schema_defaults, schema_for_type
 from custom_components.haeo.validation import collect_participant_configs
 
 
@@ -26,19 +26,17 @@ class ElementSubentryFlow(ConfigSubentryFlow):
     Type parameter T should be the Schema TypedDict class for the element type.
     """
 
-    def __init__(self, element_type: str, schema_cls: type[ElementConfigSchema], defaults: dict[str, Any]) -> None:
+    def __init__(self, element_type: str, schema_cls: type[ElementConfigSchema]) -> None:
         """Initialize the element subentry flow.
 
         Args:
             element_type: Type of element (battery, grid, etc.)
             schema_cls: Schema class for this element type
-            defaults: Default values for this element type
 
         """
         super().__init__()
         self.element_type: str = element_type
         self.schema_cls: type[ElementConfigSchema] = schema_cls
-        self.defaults: dict[str, Any] = defaults
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Add new element - validates name uniqueness, creates subentry."""
@@ -64,14 +62,17 @@ class ElementSubentryFlow(ConfigSubentryFlow):
 
                 return self.async_create_entry(title=name, data=new_config)
 
+        # Extract schema defaults from type annotations
+        schema_defaults = get_schema_defaults(self.schema_cls)
+
         # Default names for element types which are likely to have a single instance
-        suggested_values = self.defaults
+        suggested_values = schema_defaults
         if self.element_type not in [ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE]:
             translations = await async_get_translations(
                 self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
             )
             default_name = translations.get(f"component.{DOMAIN}.config_subentries.{self.element_type}.flow_title", "")
-            suggested_values = {CONF_NAME: default_name, **self.defaults}
+            suggested_values = {CONF_NAME: default_name, **schema_defaults}
 
         # Show the form to the user
         schema = schema_for_type(
@@ -177,9 +178,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
             return None
 
 
-def create_subentry_flow_class(
-    element_type: str, schema_cls: type[ElementConfigSchema], defaults: dict[str, Any]
-) -> type[ElementSubentryFlow]:
+def create_subentry_flow_class(element_type: str, schema_cls: type[ElementConfigSchema]) -> type[ElementSubentryFlow]:
     """Create strongly-typed subentry flow class for element type."""
 
     class TypedElementSubentryFlow(ElementSubentryFlow):
@@ -187,7 +186,7 @@ def create_subentry_flow_class(
 
         def __init__(self) -> None:
             """Initialize the typed flow."""
-            super().__init__(element_type, schema_cls, defaults)
+            super().__init__(element_type, schema_cls)
 
     TypedElementSubentryFlow.__name__ = f"{element_type.title().replace('_', '')}SubentryFlow"
     return TypedElementSubentryFlow

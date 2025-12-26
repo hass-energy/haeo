@@ -80,7 +80,7 @@ def _create_flow(
     """Create a configured subentry flow instance for an element type."""
 
     registry_entry = ELEMENT_TYPES[element_type]
-    flow_class = create_subentry_flow_class(element_type, registry_entry.schema, registry_entry.defaults)
+    flow_class = create_subentry_flow_class(element_type, registry_entry.schema)
     flow = flow_class()  # type: ignore[call-arg]
     flow.hass = hass
     flow.handler = (hub_entry.entry_id, element_type)
@@ -174,7 +174,6 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
     entry = ElementRegistryEntry(
         schema=FlowTestElementConfigSchema,
         data=FlowTestElementConfigData,
-        defaults={},
         translation_key=cast("ElementType", TEST_ELEMENT_TYPE),
         create_model_elements=mock_create_model_elements,
         outputs=mock_outputs,  # type: ignore[arg-type]

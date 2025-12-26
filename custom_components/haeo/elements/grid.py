@@ -8,12 +8,8 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_MAX_SOURCE_TARGET,
-    CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
-    CONNECTION_PRICE_SOURCE_TARGET,
-    CONNECTION_PRICE_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
@@ -21,10 +17,12 @@ from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
     NameFieldData,
     NameFieldSchema,
-    PowerFieldData,
-    PowerFieldSchema,
-    PriceSensorsFieldData,
-    PriceSensorsFieldSchema,
+    PowerSensorsFieldData,
+    PowerSensorsFieldSchema,
+    PriceExportSensorsFieldData,
+    PriceExportSensorsFieldSchema,
+    PriceImportSensorsFieldData,
+    PriceImportSensorsFieldSchema,
 )
 
 ELEMENT_TYPE: Final = "grid"
@@ -43,10 +41,6 @@ type GridOutputName = Literal[
     "grid_power_import",
     "grid_power_export",
     "grid_power_active",
-    "grid_power_max_import",
-    "grid_power_max_export",
-    "grid_price_import",
-    "grid_price_export",
     "grid_power_max_import_price",
     "grid_power_max_export_price",
 ]
@@ -56,10 +50,6 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
         GRID_POWER_IMPORT := "grid_power_import",
         GRID_POWER_EXPORT := "grid_power_export",
         GRID_POWER_ACTIVE := "grid_power_active",
-        GRID_POWER_MAX_IMPORT := "grid_power_max_import",
-        GRID_POWER_MAX_EXPORT := "grid_power_max_export",
-        GRID_PRICE_IMPORT := "grid_price_import",
-        GRID_PRICE_EXPORT := "grid_price_export",
         # Shadow prices
         GRID_POWER_MAX_IMPORT_PRICE := "grid_power_max_import_price",
         GRID_POWER_MAX_EXPORT_PRICE := "grid_power_max_export_price",
@@ -79,12 +69,12 @@ class GridConfigSchema(TypedDict):
     element_type: Literal["grid"]
     name: NameFieldSchema
     connection: ElementNameFieldSchema  # Connection ID that grid connects to
-    import_price: PriceSensorsFieldSchema
-    export_price: PriceSensorsFieldSchema
+    import_price: PriceImportSensorsFieldSchema
+    export_price: PriceExportSensorsFieldSchema
 
     # Optional fields
-    import_limit: NotRequired[PowerFieldSchema]
-    export_limit: NotRequired[PowerFieldSchema]
+    import_limit: NotRequired[PowerSensorsFieldSchema]
+    export_limit: NotRequired[PowerSensorsFieldSchema]
 
 
 class GridConfigData(TypedDict):
@@ -93,15 +83,12 @@ class GridConfigData(TypedDict):
     element_type: Literal["grid"]
     name: NameFieldData
     connection: ElementNameFieldSchema  # Connection ID that grid connects to
-    import_price: PriceSensorsFieldData
-    export_price: PriceSensorsFieldData
+    import_price: PriceImportSensorsFieldData
+    export_price: PriceExportSensorsFieldData
 
     # Optional fields
-    import_limit: NotRequired[PowerFieldData]
-    export_limit: NotRequired[PowerFieldData]
-
-
-CONFIG_DEFAULTS: dict[str, Any] = {}
+    import_limit: NotRequired[PowerSensorsFieldData]
+    export_limit: NotRequired[PowerSensorsFieldData]
 
 
 def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
@@ -109,7 +96,12 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
 
     return [
         # Create Node for the grid (both source and sink - can import and export)
-        {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": True},
+        {
+            "element_type": "node",
+            "name": config["name"],
+            "is_source": True,
+            "is_sink": True,
+        },
         # Create a connection from system node to grid
         {
             "element_type": "connection",
@@ -125,11 +117,12 @@ def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: GridConfigData
+    name: str,
+    outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+    config: GridConfigData,
 ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
-    """Map model outputs to grid-specific output names."""
-
-    connection = model_outputs[f"{name}:connection"]
+    """Provide state updates for grid output sensors."""
+    connection = outputs[f"{name}:connection"]
 
     grid_outputs: dict[GridOutputName, OutputData] = {}
 
@@ -153,17 +146,11 @@ def outputs(
         type=OUTPUT_TYPE_POWER,
     )
 
-    # Output the given inputs if they exist
-    if CONNECTION_POWER_MAX_TARGET_SOURCE in connection:
-        grid_outputs[GRID_POWER_MAX_EXPORT] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
-        grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
-    if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
-        grid_outputs[GRID_POWER_MAX_IMPORT] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+    # Shadow prices for limits (only if limits are set)
+    if config.get("import_limit") is not None:
         grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
 
-    # Negate export price values for display (so they appear positive)
-    export_price_data = connection[CONNECTION_PRICE_TARGET_SOURCE]
-    grid_outputs[GRID_PRICE_EXPORT] = replace(export_price_data, values=[-v for v in export_price_data.values])
-    grid_outputs[GRID_PRICE_IMPORT] = replace(connection[CONNECTION_PRICE_SOURCE_TARGET])
+    if config.get("export_limit") is not None:
+        grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 
     return {GRID_DEVICE_GRID: grid_outputs}

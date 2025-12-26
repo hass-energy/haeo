@@ -19,7 +19,7 @@ from .const import (
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
 )
-from .coordinator import extract_entity_ids_from_config
+from .coordinator import HaeoDataUpdateCoordinator, extract_entity_ids_from_config
 from .elements import is_element_config_schema
 from .sensor_utils import get_output_sensors
 
@@ -47,12 +47,29 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
     }
 
     # Transform subentries into participants dict
+    # If coordinator has element data (with resolved entity values), use those inputs
+    # Otherwise fall back to raw subentry data
+    coordinator = config_entry.runtime_data
+    elements = (
+        coordinator.data["elements"]
+        if isinstance(coordinator, HaeoDataUpdateCoordinator) and coordinator.data is not None  # pyright: ignore[reportUnnecessaryComparison]
+        else None
+    )
+
     for subentry in config_entry.subentries.values():
         if subentry.subentry_type != "network":
-            raw_data = dict(subentry.data)
-            raw_data.setdefault("name", subentry.title)
-            raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
-            config["participants"][subentry.title] = raw_data
+            element_name = subentry.title
+
+            if elements is not None and element_name in elements:
+                # Use the already-loaded config (inputs) with resolved values
+                raw_data = dict(elements[element_name]["inputs"])
+            else:
+                # Fall back to raw subentry data
+                raw_data = dict(subentry.data)
+                raw_data.setdefault("name", element_name)
+                raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
+
+            config["participants"][element_name] = raw_data
 
     # Collect input sensor states for all entities used in the configuration
     all_entity_ids: set[str] = set()

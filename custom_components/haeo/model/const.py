@@ -13,6 +13,7 @@ type OutputType = Literal[
     "status",
     "duration",
     "shadow_price",
+    "boolean",
 ]
 
 OUTPUT_TYPES: Final[frozenset[OutputType]] = frozenset(
@@ -27,5 +28,6 @@ OUTPUT_TYPES: Final[frozenset[OutputType]] = frozenset(
         OUTPUT_TYPE_STATUS := "status",
         OUTPUT_TYPE_DURATION := "duration",
         OUTPUT_TYPE_SHADOW_PRICE := "shadow_price",
+        OUTPUT_TYPE_BOOLEAN := "boolean",
     )
 )

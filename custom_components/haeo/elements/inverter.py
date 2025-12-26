@@ -9,8 +9,6 @@ from custom_components.haeo.model.const import OUTPUT_TYPE_POWER_FLOW
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_MAX_SOURCE_TARGET,
-    CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
@@ -21,8 +19,8 @@ from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
     NameFieldData,
     NameFieldSchema,
-    PercentageFieldData,
-    PercentageFieldSchema,
+    PercentageSensorFieldData,
+    PercentageSensorFieldSchema,
     PowerSensorFieldData,
     PowerSensorFieldSchema,
 )
@@ -42,8 +40,6 @@ type InverterOutputName = Literal[
     "inverter_power_ac_to_dc",
     "inverter_power_active",
     "inverter_dc_bus_power_balance",
-    "inverter_max_power_dc_to_ac",
-    "inverter_max_power_ac_to_dc",
     "inverter_max_power_dc_to_ac_price",
     "inverter_max_power_ac_to_dc_price",
 ]
@@ -54,8 +50,6 @@ INVERTER_OUTPUT_NAMES: Final[frozenset[InverterOutputName]] = frozenset(
         INVERTER_POWER_AC_TO_DC := "inverter_power_ac_to_dc",
         INVERTER_POWER_ACTIVE := "inverter_power_active",
         INVERTER_DC_BUS_POWER_BALANCE := "inverter_dc_bus_power_balance",
-        INVERTER_MAX_POWER_DC_TO_AC := "inverter_max_power_dc_to_ac",
-        INVERTER_MAX_POWER_AC_TO_DC := "inverter_max_power_ac_to_dc",
         # Shadow prices
         INVERTER_MAX_POWER_DC_TO_AC_PRICE := "inverter_max_power_dc_to_ac_price",
         INVERTER_MAX_POWER_AC_TO_DC_PRICE := "inverter_max_power_ac_to_dc_price",
@@ -79,8 +73,8 @@ class InverterConfigSchema(TypedDict):
     max_power_ac_to_dc: PowerSensorFieldSchema
 
     # Optional fields
-    efficiency_dc_to_ac: NotRequired[PercentageFieldSchema]
-    efficiency_ac_to_dc: NotRequired[PercentageFieldSchema]
+    efficiency_dc_to_ac: NotRequired[PercentageSensorFieldSchema]
+    efficiency_ac_to_dc: NotRequired[PercentageSensorFieldSchema]
 
 
 class InverterConfigData(TypedDict):
@@ -93,14 +87,8 @@ class InverterConfigData(TypedDict):
     max_power_ac_to_dc: PowerSensorFieldData
 
     # Optional fields
-    efficiency_dc_to_ac: NotRequired[PercentageFieldData]
-    efficiency_ac_to_dc: NotRequired[PercentageFieldData]
-
-
-CONFIG_DEFAULTS: dict[str, Any] = {
-    "efficiency_dc_to_ac": 100.0,
-    "efficiency_ac_to_dc": 100.0,
-}
+    efficiency_dc_to_ac: NotRequired[PercentageSensorFieldData]
+    efficiency_ac_to_dc: NotRequired[PercentageSensorFieldData]
 
 
 def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
@@ -113,7 +101,12 @@ def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
 
     return [
         # Create Node for the DC bus (pure junction - neither source nor sink)
-        {"element_type": "node", "name": name, "is_source": False, "is_sink": False},
+        {
+            "element_type": "node",
+            "name": name,
+            "is_source": False,
+            "is_sink": False,
+        },
         # Create a connection from DC bus to AC node
         # source_target = DC to AC (inverting)
         # target_source = AC to DC (rectifying)
@@ -131,11 +124,13 @@ def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: InverterConfigData
+    name: str,
+    outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+    _config: InverterConfigData,
 ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
-    """Map model outputs to inverter-specific output names."""
-    connection = model_outputs[f"{name}:connection"]
-    dc_bus = model_outputs[name]
+    """Provide state updates for inverter output sensors."""
+    connection = outputs[f"{name}:connection"]
+    dc_bus = outputs[name]
 
     inverter_outputs: dict[InverterOutputName, OutputData] = {}
 
@@ -162,10 +157,8 @@ def outputs(
     # DC bus power balance shadow price
     inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[NODE_POWER_BALANCE]
 
-    # Power limits
-    inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+    # Shadow prices for power limits
     inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
-    inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
     inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 
     return {INVERTER_DEVICE_INVERTER: inverter_outputs}

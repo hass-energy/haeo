@@ -63,7 +63,9 @@ STACKED_FORECAST_TYPES: Final = ("production", "consumption", "available")
 ACTIVITY_EPSILON: Final = 1e-6
 
 
-def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> dict[str, ForecastData]:
+def extract_forecast_data(
+    output_sensors: Mapping[str, Mapping[str, Any]],
+) -> dict[str, ForecastData]:
     """Extract forecast data from output sensors dict for visualization."""
     # Create color mapper to assign consistent colors to elements
     color_mapper = ColorMapper()
@@ -74,8 +76,8 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
     for sensor_data in output_sensors.values():
         attrs = sensor_data.get("attributes", {})
 
-        # Skip if not a proper HAEO sensor with forecast
-        if not {"element_name", "element_type", "output_type"} <= attrs.keys():
+        # Must have element_name and element_type
+        if "element_name" not in attrs or "element_type" not in attrs:
             continue
 
         # Skip advanced sensors
@@ -88,9 +90,6 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
 
         element_name = attrs["element_name"]
         element_type = attrs["element_type"]
-        output_type = attrs["output_type"]
-        output_name = attrs.get("output_name", "")
-        direction = attrs.get("direction")
 
         # Parse forecast: list of {"time": ISO string or datetime, "value": number}
         forecast: Sequence[tuple[float, float]] = sorted(_parse_forecast_items(forecast_attr))
@@ -103,30 +102,74 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
             },
         )
 
-        # Use type+direction to categorize outputs
-        # "+" = adding power to graph (production/supply)
-        # "-" = taking power away (consumption)
-        if output_type == OUTPUT_TYPE_POWER and direction == "+":
-            entry["production"] = forecast
-        elif output_type == OUTPUT_TYPE_POWER and direction == "-":
-            entry["consumption"] = forecast
-        elif output_type == OUTPUT_TYPE_POWER_LIMIT and direction == "+" and element_type == ELEMENT_TYPE_SOLAR:
-            entry["available"] = forecast
-        elif output_type == OUTPUT_TYPE_SOC:
-            entry["soc"] = forecast
-        elif output_type == OUTPUT_TYPE_PRICE and direction == "+":
-            entry["production_price"] = forecast
-        elif output_type == OUTPUT_TYPE_PRICE and direction == "-":
-            entry["consumption_price"] = forecast
-        elif output_type == OUTPUT_TYPE_SHADOW_PRICE:
-            shadow_prices = entry.setdefault("shadow_prices", {})
-            # Use output_name as the key (matches translation_key)
-            shadow_prices[output_name] = forecast
+        # Both output sensors and input entities use output_name and output_type
+        output_type = attrs.get("output_type")
+        output_name = attrs.get("output_name", "")
+        direction = attrs.get("direction")
+        config_mode = attrs.get("config_mode")
+
+        # Handle input entities first (have config_mode) - they take priority
+        if config_mode is not None:
+            # Skip constant inputs (all values the same) - they're not interesting to plot
+            values = [v for _, v in forecast]
+            if values and all(v == values[0] for v in values):
+                continue
+
+            # Input entities now have direction from schema field metadata
+            if output_type == OUTPUT_TYPE_POWER:
+                if direction == "+":
+                    # Power production inputs (solar forecast) → available power
+                    entry["available"] = forecast
+                elif direction == "-":
+                    # Power consumption inputs (load forecast) → consumption
+                    entry["consumption"] = forecast
+                else:
+                    # No direction specified, default to available for power inputs
+                    entry["available"] = forecast
+            elif output_type == OUTPUT_TYPE_PRICE:
+                if direction == "+":
+                    entry["production_price"] = forecast
+                elif direction == "-":
+                    entry["consumption_price"] = forecast
+                else:
+                    # No direction specified, default to consumption price
+                    entry["consumption_price"] = forecast
+            continue
+
+        # Handle output sensors (have output_type but no config_mode)
+        if output_type is not None:
+            # SOC doesn't need direction
+            if output_type == OUTPUT_TYPE_SOC:
+                entry["soc"] = forecast
+                continue
+
+            # Power-related types need direction
+            if direction is not None:
+                # Use type+direction to categorize outputs
+                # "+" = adding power to graph (production/supply)
+                # "-" = taking power away (consumption)
+                if output_type == OUTPUT_TYPE_POWER and direction == "+":
+                    entry["production"] = forecast
+                elif output_type == OUTPUT_TYPE_POWER and direction == "-":
+                    entry["consumption"] = forecast
+                elif output_type == OUTPUT_TYPE_POWER_LIMIT and direction == "+" and element_type == ELEMENT_TYPE_SOLAR:
+                    entry["available"] = forecast
+                elif output_type == OUTPUT_TYPE_PRICE and direction == "+":
+                    entry["production_price"] = forecast
+                elif output_type == OUTPUT_TYPE_PRICE and direction == "-":
+                    entry["consumption_price"] = forecast
+                elif output_type == OUTPUT_TYPE_SHADOW_PRICE:
+                    shadow_prices = entry.setdefault("shadow_prices", {})
+                    # Use output_name as the key (matches translation_key)
+                    shadow_prices[output_name] = forecast
+                continue
 
     return forecast_data
 
 
-def _parse_forecast_items(forecast_attr: list[Mapping[str, Any]]) -> list[tuple[float, float]]:
+def _parse_forecast_items(
+    forecast_attr: list[Mapping[str, Any]],
+) -> list[tuple[float, float]]:
     """Parse forecast items handling both datetime objects and ISO strings.
 
     Args:
@@ -145,7 +188,9 @@ def _parse_forecast_items(forecast_attr: list[Mapping[str, Any]]) -> list[tuple[
     return result
 
 
-def _compute_activity_metrics(forecast_data: dict[str, ForecastData]) -> dict[str, tuple[float, int, int]]:
+def _compute_activity_metrics(
+    forecast_data: dict[str, ForecastData],
+) -> dict[str, tuple[float, int, int]]:
     """Return coverage and transition metrics for stacked plotting order."""
 
     all_timestamps: set[float] = set()
@@ -173,7 +218,15 @@ def _compute_activity_metrics(forecast_data: dict[str, ForecastData]) -> dict[st
                 continue
 
             interpolated.append(
-                np.abs(np.interp(ordered_timestamps, series_array[:, 0], series_array[:, 1], left=0.0, right=0.0))
+                np.abs(
+                    np.interp(
+                        ordered_timestamps,
+                        series_array[:, 0],
+                        series_array[:, 1],
+                        left=0.0,
+                        right=0.0,
+                    )
+                )
             )
 
         if not interpolated:
@@ -415,7 +468,13 @@ def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]]
     fig.subplots_adjust(top=0.93, bottom=0.10, left=0.08, right=0.95, hspace=0.15)
 
     # Save as SVG
-    fig.savefig(output_path, format="svg", bbox_inches="tight", pad_inches=0.3, metadata={"Date": None})
+    fig.savefig(
+        output_path,
+        format="svg",
+        bbox_inches="tight",
+        pad_inches=0.3,
+        metadata={"Date": None},
+    )
     _LOGGER.info("Visualization saved to %s", output_path)
 
     # Also save as PNG for easier viewing
@@ -481,7 +540,9 @@ def create_shadow_price_visualization(
 
 
 def visualize_scenario_results(
-    output_sensors: Mapping[str, Mapping[str, Any]], scenario_name: str, output_dir: Path
+    output_sensors: Mapping[str, Mapping[str, Any]],
+    scenario_name: str,
+    output_dir: Path,
 ) -> None:
     """Create comprehensive visualizations for HAEO scenario test results.
 
@@ -500,7 +561,11 @@ def visualize_scenario_results(
 
     # Create stacked area/line plots (SVG format for vector graphics)
     main_plot_path = output_dir_path / f"{scenario_name}_optimization.svg"
-    create_stacked_visualization(output_sensors, str(main_plot_path), f"{scenario_name.title()} Optimization Results")
+    create_stacked_visualization(
+        output_sensors,
+        str(main_plot_path),
+        f"{scenario_name.title()} Optimization Results",
+    )
 
     shadow_plot_path = output_dir_path / f"{scenario_name}_shadow_prices.svg"
     create_shadow_price_visualization(output_sensors, str(shadow_plot_path), f"{scenario_name.title()} Shadow Prices")

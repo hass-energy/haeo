@@ -8,7 +8,6 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
@@ -16,8 +15,8 @@ from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
     NameFieldData,
     NameFieldSchema,
-    PowerSensorsFieldData,
-    PowerSensorsFieldSchema,
+    PowerConsumptionSensorsFieldData,
+    PowerConsumptionSensorsFieldSchema,
 )
 
 ELEMENT_TYPE: Final = "load"
@@ -28,13 +27,11 @@ CONF_CONNECTION: Final = "connection"
 
 type LoadOutputName = Literal[
     "load_power",
-    "load_power_possible",
     "load_forecast_limit_price",
 ]
 LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     (
         LOAD_POWER := "load_power",
-        LOAD_POWER_POSSIBLE := "load_power_possible",
         # Shadow prices
         LOAD_FORECAST_LIMIT_PRICE := "load_forecast_limit_price",
     )
@@ -53,7 +50,7 @@ class LoadConfigSchema(TypedDict):
     element_type: Literal["load"]
     name: NameFieldSchema
     connection: ElementNameFieldSchema  # Connection ID that load connects to
-    forecast: PowerSensorsFieldSchema
+    forecast: PowerConsumptionSensorsFieldSchema
 
 
 class LoadConfigData(TypedDict):
@@ -62,10 +59,7 @@ class LoadConfigData(TypedDict):
     element_type: Literal["load"]
     name: NameFieldData
     connection: ElementNameFieldSchema  # Connection ID that load connects to
-    forecast: PowerSensorsFieldData
-
-
-CONFIG_DEFAULTS: dict[str, Any] = {}
+    forecast: PowerConsumptionSensorsFieldData
 
 
 def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
@@ -73,7 +67,12 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
 
     elements: list[dict[str, Any]] = [
         # Create Node for the load (sink only - consumes power)
-        {"element_type": "node", "name": config["name"], "is_source": False, "is_sink": True},
+        {
+            "element_type": "node",
+            "name": config["name"],
+            "is_source": False,
+            "is_sink": True,
+        },
         # Create Connection from node to load (power flows TO the load)
         {
             "element_type": "connection",
@@ -90,17 +89,17 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: LoadConfigData
+    name: str,
+    outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+    _config: LoadConfigData,
 ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
-    """Map model outputs to load-specific output names."""
-
+    """Provide state updates for load output sensors."""
     connection = outputs[f"{name}:connection"]
 
-    load_outputs: dict[LoadOutputName, OutputData] = {
+    load_updates: dict[LoadOutputName, OutputData] = {
+        # Output sensors from optimization
         LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER),
-        LOAD_POWER_POSSIBLE: connection[CONNECTION_POWER_MAX_TARGET_SOURCE],
-        # Only the max limit has meaning, the source sink power balance is always zero as it will never influence cost
         LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
     }
 
-    return {LOAD_DEVICE_LOAD: load_outputs}
+    return {LOAD_DEVICE_LOAD: load_updates}

@@ -151,7 +151,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
         # Register element flows, filtering advanced types based on mode
         flows: dict[str, type[ConfigSubentryFlow]] = {
-            element_type: create_subentry_flow_class(element_type, entry.schema, entry.defaults)
+            element_type: create_subentry_flow_class(element_type, entry.schema)
             for element_type, entry in ELEMENT_TYPES.items()
             if not entry.advanced or advanced_mode
         }

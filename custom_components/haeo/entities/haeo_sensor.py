@@ -1,4 +1,4 @@
-"""Simplified sensor implementation for HAEO outputs."""
+"""Sensor entity for HAEO outputs."""
 
 from typing import Any
 
@@ -36,6 +36,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         """Initialize the sensor."""
         super().__init__(coordinator)
 
+        # Store device entry for entity-device linking (do not use device_info to avoid breaking subentry association)
         self.device_entry = device_entry
 
         self._subentry_key: str = subentry_key
@@ -69,8 +70,9 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         }
         native_value: StateType | None = None
 
-        # Navigate the nested structure: subentry -> device -> outputs
-        subentry_devices = self.coordinator.data.get(self._subentry_key) if self.coordinator.data else None
+        # Navigate the nested structure: elements -> element -> outputs -> device -> output
+        element_data = self.coordinator.data["elements"].get(self._subentry_key)
+        subentry_devices = element_data["outputs"] if element_data else None
         outputs = subentry_devices.get(self._device_key) if subentry_devices else None
         if outputs:
             output_data = outputs.get(self._output_name)

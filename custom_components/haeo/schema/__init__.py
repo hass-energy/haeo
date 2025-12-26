@@ -10,15 +10,20 @@ import voluptuous as vol
 from custom_components.haeo.data.loader import ConstantLoader, Loader
 from custom_components.haeo.data.loader.extractors import EntityMetadata
 
-from .fields import FieldMeta
+from .fields import Default, Direction, FieldMeta, NumberLimits
 from .params import SchemaParams
 
 __all__ = [
+    "Default",
+    "Direction",
     "EntityMetadata",
     "FieldMeta",
+    "NumberLimits",
     "available",
+    "get_data_defaults",
     "get_field_meta",
     "get_loader_instance",
+    "get_schema_defaults",
     "load",
     "schema_for_type",
 ]
@@ -73,6 +78,78 @@ def get_field_meta(field_name: str, config_class: type) -> FieldMeta | None:
                 return meta
 
     return None
+
+
+def get_schema_defaults(schema_class: type) -> dict[str, Any]:
+    """Extract schema default values from a ConfigSchema type.
+
+    Iterates through field annotations and extracts Default.schema values
+    for use as suggested values in config flow forms.
+
+    Args:
+        schema_class: TypedDict config schema class (Schema mode)
+
+    Returns:
+        Dictionary mapping field names to their schema default values.
+        Only fields with Default markers are included.
+
+    """
+    defaults: dict[str, Any] = {}
+    hints = get_type_hints(schema_class, include_extras=True)
+
+    for field_name, field_type in hints.items():
+        # Handle NotRequired wrapper
+        origin = get_origin(field_type)
+        if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "NotRequired":
+            inner_type = get_args(field_type)[0]
+        else:
+            inner_type = field_type
+
+        # Extract Default from Annotated type
+        if get_origin(inner_type) is Annotated:
+            for meta in inner_type.__metadata__:
+                if isinstance(meta, Default) and meta.schema is not None:
+                    defaults[field_name] = meta.schema
+                    break
+
+    return defaults
+
+
+def get_data_defaults(data_class: type) -> dict[str, float | bool]:
+    """Extract data default values from a ConfigData type.
+
+    Iterates through field annotations and extracts Default.data_default values
+    for use when loading configs where a field was not configured.
+
+    Args:
+        data_class: TypedDict config data class (Data mode)
+
+    Returns:
+        Dictionary mapping field names to their data default values.
+        Only fields with Default markers (with data or schema defaults) are included.
+
+    """
+    defaults: dict[str, float | bool] = {}
+    hints = get_type_hints(data_class, include_extras=True)
+
+    for field_name, field_type in hints.items():
+        # Handle NotRequired wrapper
+        origin = get_origin(field_type)
+        if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "NotRequired":
+            inner_type = get_args(field_type)[0]
+        else:
+            inner_type = field_type
+
+        # Extract Default from Annotated type
+        if get_origin(inner_type) is Annotated:
+            for meta in inner_type.__metadata__:
+                if isinstance(meta, Default):
+                    data_default = meta.data_default
+                    if data_default is not None:
+                        defaults[field_name] = data_default
+                    break
+
+    return defaults
 
 
 def get_loader_instance(field_name: str, config_class: type) -> Loader:
@@ -151,20 +228,48 @@ async def load(
     data_config_class = _get_registry_entry(element_type).data
 
     hints = get_type_hints(data_config_class, include_extras=True)
+    data_defaults = get_data_defaults(data_config_class)
     loaded: dict[str, Any] = {}
+    n_periods = len(forecast_times) - 1
 
-    for field_name in hints:
+    for field_name, field_type in hints.items():
         field_value = config.get(field_name)
 
-        # Pass through metadata fields and None values
+        # If field is not configured, check for data default
         if field_value is None:
-            continue  # Skip optional fields
+            data_default = data_defaults.get(field_name)
+            if data_default is not None:
+                # Check if the field expects a list/tuple (time series) or scalar
+                # Unwrap NotRequired and Annotated to get the base type
+                base_type = _unwrap_type(field_type)
+                origin = get_origin(base_type)
+                if origin is list or origin is tuple:
+                    # Time series field - expand default to tuple
+                    loaded[field_name] = tuple([data_default] * n_periods)
+                else:
+                    # Scalar field - use default directly
+                    loaded[field_name] = data_default
+            continue  # Skip fields with no value and no default
 
         # Get loader and load the field
         loader_instance = get_loader_instance(field_name, data_config_class)
         loaded[field_name] = await loader_instance.load(value=field_value, hass=hass, forecast_times=forecast_times)
 
     return cast("ElementConfigData", loaded)
+
+
+def _unwrap_type(field_type: Any) -> Any:
+    """Unwrap NotRequired and Annotated wrappers to get the base type."""
+    # Handle NotRequired wrapper
+    origin = get_origin(field_type)
+    if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "NotRequired":
+        field_type = get_args(field_type)[0]
+
+    # Handle Annotated wrapper
+    if get_origin(field_type) is Annotated:
+        field_type = get_args(field_type)[0]
+
+    return field_type
 
 
 def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool]]:
@@ -208,12 +313,14 @@ def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool]]:
                         unwrapped_tp = arg
                         break
 
-        # Extract Annotated metadata
+        # Extract Annotated metadata - search for FieldMeta in all metadata items
         if get_origin(unwrapped_tp) is Annotated:
-            *_, meta = get_args(unwrapped_tp)
-
-            if isinstance(meta, FieldMeta):
-                annotated[field_name] = (meta, is_optional)
+            args = get_args(unwrapped_tp)
+            # Skip the first arg (the base type), then find FieldMeta
+            for arg in args[1:]:
+                if isinstance(arg, FieldMeta):
+                    annotated[field_name] = (arg, is_optional)
+                    break
 
     return annotated
 
@@ -228,12 +335,20 @@ def schema_for_type(cls: type, **schema_params: Unpack[SchemaParams]) -> vol.Sch
     Returns:
         Voluptuous schema
 
+    Note:
+        Sensor fields are always made optional in the schema, regardless of their
+        NotRequired status. The required/optional distinction for sensor fields
+        affects whether the corresponding input entity starts enabled or disabled,
+        not whether the user must provide a value in the config flow.
+
     """
     annotated_fields = _get_annotated_fields(cls)
     schema: dict[vol.Required | vol.Optional, vol.All] = {}
     for field, (meta, is_optional) in annotated_fields.items():
         validator = meta.create_schema(**schema_params)
-        schema_key = (vol.Optional if is_optional else vol.Required)(field)
+        # Sensor fields are always optional in schema - required status affects entity enabled state
+        is_schema_optional = is_optional or meta.field_type == "sensor"
+        schema_key = (vol.Optional if is_schema_optional else vol.Required)(field)
         schema[schema_key] = validator
 
     return vol.Schema(schema)

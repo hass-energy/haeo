@@ -117,6 +117,7 @@ async def test_time_series_loader_load_merges_present_and_forecast(
     )
 
     # Verify correct number of interval values
+    assert result is not None
     assert len(result) == 4
     assert result[0] == pytest.approx(1.5)
     # Remaining values are computed by fusion logic (tested in test_forecast_fuser.py)
@@ -146,7 +147,9 @@ async def test_time_series_loader_load_present_only(hass: HomeAssistant, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_time_series_loader_load_returns_empty_for_missing_horizon(hass: HomeAssistant) -> None:
+async def test_time_series_loader_load_returns_empty_for_missing_horizon(
+    hass: HomeAssistant,
+) -> None:
     """load() should return an empty series when forecast_times is empty."""
 
     loader = TimeSeriesLoader()
@@ -161,17 +164,19 @@ async def test_time_series_loader_load_returns_empty_for_missing_horizon(hass: H
 
 
 @pytest.mark.asyncio
-async def test_time_series_loader_load_requires_entity_ids(hass: HomeAssistant) -> None:
-    """load() should reject configurations without sensor references."""
+async def test_time_series_loader_load_returns_none_without_entity_ids(
+    hass: HomeAssistant,
+) -> None:
+    """load() should return None when no sensor references are provided."""
 
     loader = TimeSeriesLoader()
 
-    with pytest.raises(ValueError, match="At least one sensor entity is required"):
-        await loader.load(
-            hass=hass,
-            value=(),
-            forecast_times=[0, 60],
-        )
+    result = await loader.load(
+        hass=hass,
+        value=(),
+        forecast_times=[0, 60],
+    )
+    assert result is None
 
 
 @pytest.mark.asyncio

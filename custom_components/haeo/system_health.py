@@ -68,7 +68,7 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
         if duration_output and duration_output.state is not None:
             health_info[f"{prefix}last_optimization_duration"] = round(float(duration_output.state), 3)
 
-        last_update_time = getattr(coordinator, "last_update_success_time", None)
+        last_update_time = coordinator.last_update_success_time
         if last_update_time is not None:
             health_info[f"{prefix}last_optimization_time"] = last_update_time.isoformat()
 

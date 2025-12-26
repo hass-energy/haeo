@@ -24,7 +24,6 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (5.0, 5.0, 5.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "connection_power_max_source_target": {"type": "power_limit", "unit": "kW", "values": (5.0, 5.0, 5.0)},
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)},
         },
     },
@@ -47,7 +46,6 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0, 0.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (3.0, 3.0, 3.0)},
-            "connection_power_max_target_source": {"type": "power_limit", "unit": "kW", "values": (3.0, 3.0, 3.0)},
             "connection_shadow_power_max_target_source": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)},
         },
     },
@@ -70,7 +68,6 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (4.0, 4.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
-            "connection_power_max_source_target": {"type": "power_limit", "unit": "kW", "values": (4.0, 4.0)},
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1)},
         },
     },
@@ -94,7 +91,6 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (5.0, 5.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
-            "connection_power_max_source_target": {"type": "power_limit", "unit": "kW", "values": (10.0, 10.0)},
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
         },
     },
@@ -117,7 +113,6 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
-            "connection_price_source_target": {"type": "price", "unit": "$/kWh", "values": (0.5, 0.5)},
         },
     },
     {
@@ -139,7 +134,6 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (10.0, 5.0, 8.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0, 0.0)},
-            "connection_power_max_source_target": {"type": "power_limit", "unit": "kW", "values": (10.0, 5.0, 8.0)},
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.1, -0.1, -0.1)},
         },
     },
@@ -163,8 +157,6 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
-            "connection_price_source_target": {"type": "price", "unit": "$/kWh", "values": (0.1, 0.1)},
-            "connection_price_target_source": {"type": "price", "unit": "$/kWh", "values": (0.15, 0.15)},
         },
     },
     {
@@ -189,8 +181,6 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (5.0, 0.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 3.0)},
-            "connection_power_max_source_target": {"type": "power_limit", "unit": "kW", "values": (10.0, 10.0)},
-            "connection_power_max_target_source": {"type": "power_limit", "unit": "kW", "values": (10.0, 10.0)},
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
             "connection_shadow_power_max_target_source": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
             "connection_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
@@ -216,7 +206,6 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (4.0, 4.0)},
-            "connection_power_max_target_source": {"type": "power_limit", "unit": "kW", "values": (4.0, 4.0)},
             "connection_shadow_power_max_target_source": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
         },
     },

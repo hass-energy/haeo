@@ -2,19 +2,17 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
 
 import numpy as np
 
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import OUTPUT_TYPE_PRICE, ModelOutputName
 from custom_components.haeo.model import battery as model_battery
-from custom_components.haeo.model import power_connection as model_connection
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SOC
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import Default
 from custom_components.haeo.schema.fields import (
-    BatterySOCFieldData,
-    BatterySOCFieldSchema,
     BatterySOCSensorFieldData,
     BatterySOCSensorFieldSchema,
     ElementNameFieldSchema,
@@ -22,8 +20,8 @@ from custom_components.haeo.schema.fields import (
     EnergySensorFieldSchema,
     NameFieldData,
     NameFieldSchema,
-    PercentageFieldData,
-    PercentageFieldSchema,
+    PercentageSensorFieldData,
+    PercentageSensorFieldSchema,
     PowerSensorFieldData,
     PowerSensorFieldSchema,
     PriceFieldData,
@@ -33,6 +31,17 @@ from custom_components.haeo.schema.fields import (
 )
 
 ELEMENT_TYPE: Final = "battery"
+
+# Field type aliases with defaults for required sensor fields
+# These provide sensible data defaults when the user doesn't configure a sensor
+MinChargePercentageFieldSchema = Annotated[BatterySOCSensorFieldSchema, Default(data=0.0)]
+MinChargePercentageFieldData = Annotated[BatterySOCSensorFieldData, Default(data=0.0)]
+MaxChargePercentageFieldSchema = Annotated[BatterySOCSensorFieldSchema, Default(data=100.0)]
+MaxChargePercentageFieldData = Annotated[BatterySOCSensorFieldData, Default(data=100.0)]
+EfficiencyFieldSchema = Annotated[PercentageSensorFieldSchema, Default(data=95.0)]
+EfficiencyFieldData = Annotated[PercentageSensorFieldData, Default(data=95.0)]
+EarlyChargeIncentiveFieldSchema = Annotated[PriceFieldSchema, Default(schema=0.001)]
+EarlyChargeIncentiveFieldData = Annotated[PriceFieldData, Default(schema=0.001)]
 
 type BatteryDeviceName = Literal[
     "battery",
@@ -107,15 +116,15 @@ class BatteryConfigSchema(TypedDict):
     connection: ElementNameFieldSchema  # Connection ID that battery connects to
     capacity: EnergySensorFieldSchema
     initial_charge_percentage: BatterySOCSensorFieldSchema
-    min_charge_percentage: BatterySOCFieldSchema
-    max_charge_percentage: BatterySOCFieldSchema
-    efficiency: PercentageFieldSchema
+    min_charge_percentage: MinChargePercentageFieldSchema
+    max_charge_percentage: MaxChargePercentageFieldSchema
+    efficiency: EfficiencyFieldSchema
     max_charge_power: NotRequired[PowerSensorFieldSchema]
     max_discharge_power: NotRequired[PowerSensorFieldSchema]
-    early_charge_incentive: NotRequired[PriceFieldSchema]
+    early_charge_incentive: NotRequired[EarlyChargeIncentiveFieldSchema]
     discharge_cost: NotRequired[PriceSensorsFieldSchema]
-    undercharge_percentage: NotRequired[BatterySOCFieldSchema]
-    overcharge_percentage: NotRequired[BatterySOCFieldSchema]
+    undercharge_percentage: NotRequired[BatterySOCSensorFieldSchema]
+    overcharge_percentage: NotRequired[BatterySOCSensorFieldSchema]
     undercharge_cost: NotRequired[PriceSensorsFieldSchema]
     overcharge_cost: NotRequired[PriceSensorsFieldSchema]
 
@@ -128,25 +137,17 @@ class BatteryConfigData(TypedDict):
     connection: ElementNameFieldSchema  # Connection ID that battery connects to
     capacity: EnergySensorFieldData
     initial_charge_percentage: BatterySOCSensorFieldData
-    min_charge_percentage: BatterySOCFieldData
-    max_charge_percentage: BatterySOCFieldData
-    efficiency: PercentageFieldData
+    min_charge_percentage: MinChargePercentageFieldData
+    max_charge_percentage: MaxChargePercentageFieldData
+    efficiency: EfficiencyFieldData
     max_charge_power: NotRequired[PowerSensorFieldData]
     max_discharge_power: NotRequired[PowerSensorFieldData]
-    early_charge_incentive: NotRequired[PriceFieldData]
+    early_charge_incentive: NotRequired[EarlyChargeIncentiveFieldData]
     discharge_cost: NotRequired[PriceSensorsFieldData]
-    undercharge_percentage: NotRequired[BatterySOCFieldData]
-    overcharge_percentage: NotRequired[BatterySOCFieldData]
+    undercharge_percentage: NotRequired[BatterySOCSensorFieldData]
+    overcharge_percentage: NotRequired[BatterySOCSensorFieldData]
     undercharge_cost: NotRequired[PriceSensorsFieldData]
     overcharge_cost: NotRequired[PriceSensorsFieldData]
-
-
-CONFIG_DEFAULTS: dict[str, Any] = {
-    CONF_MIN_CHARGE_PERCENTAGE: 0.0,
-    CONF_MAX_CHARGE_PERCENTAGE: 100.0,
-    CONF_EFFICIENCY: 99.0,
-    CONF_EARLY_CHARGE_INCENTIVE: 0.001,
-}
 
 
 def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
@@ -162,19 +163,17 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     capacity = config["capacity"][0]
     initial_soc = config["initial_charge_percentage"][0]
 
-    # Convert percentages to ratios
-    min_ratio = config["min_charge_percentage"] / 100.0
-    max_ratio = config["max_charge_percentage"] / 100.0
-    undercharge_ratio = (
-        config.get("undercharge_percentage", min_ratio) / 100.0 if config.get("undercharge_percentage") else None
-    )
-    overcharge_ratio = (
-        config.get("overcharge_percentage", max_ratio) / 100.0 if config.get("overcharge_percentage") else None
-    )
+    # Convert percentages to ratios (take first value if list)
+    min_ratio = config["min_charge_percentage"][0] / 100.0
+    max_ratio = config["max_charge_percentage"][0] / 100.0
+    undercharge_percentage = config.get("undercharge_percentage")
+    undercharge_ratio = undercharge_percentage[0] / 100.0 if undercharge_percentage is not None else None
+    overcharge_percentage = config.get("overcharge_percentage")
+    overcharge_ratio = overcharge_percentage[0] / 100.0 if overcharge_percentage is not None else None
     initial_soc_ratio = initial_soc / 100.0
 
-    # Calculate early charge/discharge incentives
-    early_charge_incentive: float = config.get("early_charge_incentive", CONFIG_DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE])
+    # Calculate early charge/discharge incentives - default from EarlyChargeIncentiveFieldSchema
+    early_charge_incentive: float = config.get("early_charge_incentive", 0.001)
 
     # Determine unusable ratio (inaccessible energy)
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
@@ -315,13 +314,11 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: BatteryConfigData
+    name: str,
+    outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+    config: BatteryConfigData,
 ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
-    """Map model outputs to battery-specific output names.
-
-    Aggregates outputs from multiple battery sections and connections.
-    Returns multiple devices for SOC regions based on what's configured.
-    """
+    """Provide state updates for battery output sensors."""
     # Collect section outputs
     section_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {}
     section_names: list[str] = []
@@ -347,14 +344,6 @@ def outputs(
     # Get node outputs for power balance
     node_name = f"{name}:node"
     node_outputs = outputs.get(node_name, {})
-
-    # Get connection outputs for prices
-    connection_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {}
-    for section_key in section_names:
-        section_full_name = f"{name}:{section_key}"
-        conn_name = f"{section_full_name}:to_node"
-        if conn_name in outputs:
-            connection_outputs[section_key] = outputs[conn_name]
 
     # Calculate aggregate outputs
     # Sum power charge/discharge across all sections
@@ -404,10 +393,43 @@ def outputs(
 
     result: dict[BatteryDeviceName, dict[BatteryOutputName, OutputData]] = {BATTERY_DEVICE_BATTERY: aggregate_outputs}
 
+    # Calculate section-specific prices from config (same logic as create_model_elements)
+    n_periods = len(config["capacity"])
+    early_charge_incentive = config.get("early_charge_incentive", 0.001)
+
+    charge_early_incentive = [
+        -early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+    ]
+    discharge_early_incentive = [
+        early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+    ]
+
+    undercharge_cost_array: list[float] = (
+        list(config["undercharge_cost"]) if "undercharge_cost" in config else [0.0] * n_periods
+    )
+    overcharge_cost_array: list[float] = (
+        list(config["overcharge_cost"]) if "overcharge_cost" in config else [0.0] * n_periods
+    )
+
+    def get_section_prices(section_key: str) -> tuple[list[float], list[float]]:
+        """Get charge and discharge prices for a battery section."""
+        if section_key == "undercharge":
+            charge_price = [c * 3 for c in charge_early_incentive]
+            discharge_price = [
+                d * 1 + uc for d, uc in zip(discharge_early_incentive, undercharge_cost_array, strict=True)
+            ]
+        elif section_key == "overcharge":
+            charge_price = [c * 1 + oc for c, oc in zip(charge_early_incentive, overcharge_cost_array, strict=True)]
+            discharge_price = [d * 3 for d in discharge_early_incentive]
+        else:  # normal
+            charge_price = [c * 2 for c in charge_early_incentive]
+            discharge_price = [d * 2 for d in discharge_early_incentive]
+        return charge_price, discharge_price
+
     # Add section-specific device outputs
     for section_key in section_names:
         section_data = section_outputs[section_key]
-        conn_data = connection_outputs.get(section_key, {})
+        charge_price, discharge_price = get_section_prices(section_key)
 
         section_device_outputs: dict[BatteryOutputName, OutputData] = {
             BATTERY_ENERGY_STORED: replace(section_data[model_battery.BATTERY_ENERGY_STORED], advanced=True),
@@ -417,17 +439,21 @@ def outputs(
             BATTERY_ENERGY_OUT_FLOW: replace(section_data[model_battery.BATTERY_ENERGY_OUT_FLOW], advanced=True),
             BATTERY_SOC_MAX: replace(section_data[model_battery.BATTERY_SOC_MAX], advanced=True),
             BATTERY_SOC_MIN: replace(section_data[model_battery.BATTERY_SOC_MIN], advanced=True),
+            BATTERY_CHARGE_PRICE: OutputData(
+                type=OUTPUT_TYPE_PRICE,
+                unit="$/kWh",
+                values=tuple(charge_price),
+                direction="-",
+                advanced=True,
+            ),
+            BATTERY_DISCHARGE_PRICE: OutputData(
+                type=OUTPUT_TYPE_PRICE,
+                unit="$/kWh",
+                values=tuple(discharge_price),
+                direction="+",
+                advanced=True,
+            ),
         }
-
-        # Add connection prices
-        if model_connection.CONNECTION_PRICE_TARGET_SOURCE in conn_data:
-            section_device_outputs[BATTERY_CHARGE_PRICE] = replace(
-                conn_data[model_connection.CONNECTION_PRICE_TARGET_SOURCE], advanced=True
-            )
-        if model_connection.CONNECTION_PRICE_SOURCE_TARGET in conn_data:
-            section_device_outputs[BATTERY_DISCHARGE_PRICE] = replace(
-                conn_data[model_connection.CONNECTION_PRICE_SOURCE_TARGET], advanced=True
-            )
 
         # Map to device name
         if section_key == "undercharge":
@@ -462,10 +488,9 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
     """Calculate total energy stored including inaccessible energy below min SOC."""
     capacity = np.array(config["capacity"])
 
-    min_ratio = config["min_charge_percentage"] / 100.0
-    undercharge_ratio = (
-        config.get("undercharge_percentage", min_ratio) / 100.0 if config.get("undercharge_percentage") else None
-    )
+    min_ratio = config["min_charge_percentage"][0] / 100.0
+    undercharge_percentage = config.get("undercharge_percentage")
+    undercharge_ratio = undercharge_percentage[0] / 100.0 if undercharge_percentage is not None else None
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
 
     # Fence-post: energy has n+1 values, capacity has n periods

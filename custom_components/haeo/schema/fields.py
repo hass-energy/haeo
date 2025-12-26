@@ -3,8 +3,10 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Annotated, Any, Final, Literal, Unpack
 
+from homeassistant.components.number import NumberDeviceClass
 from homeassistant.const import CURRENCY_DOLLAR, PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.selector import (
     BooleanSelector,
@@ -15,6 +17,7 @@ from homeassistant.helpers.selector import (
     NumberSelectorConfig,
     NumberSelectorMode,
     SelectOptionDict,
+    Selector,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -28,12 +31,81 @@ from .params import SchemaParams
 from .util import UnitSpec
 
 
+class Direction(StrEnum):
+    """Direction marker for field visualization.
+
+    Used in Annotated composition to indicate whether a field represents
+    production/revenue (+) or consumption/cost (-).
+    """
+
+    PRODUCTION = "+"  # Adds to system (solar generation, export revenue)
+    CONSUMPTION = "-"  # Takes from system (loads, import costs)
+
+
+@dataclass(frozen=True, kw_only=True)
+class Default:
+    """Default value marker for field composition.
+
+    Used in Annotated composition to specify default values for fields.
+
+    Attributes:
+        schema: Default value shown in config flow UI when adding new elements.
+            If None, the field has no pre-filled value in the UI.
+        data: Default value used for editable entities when no sensor is configured.
+            If None, falls back to schema default.
+
+    Examples:
+        # Same default for both schema and data
+        Default(schema=95.0)
+
+        # Different defaults (show 0 in UI, but use 95 if user doesn't change)
+        Default(schema=0.0, data=95.0)
+
+        # Only data default (no pre-fill in UI, but has runtime default)
+        Default(data=0.001)
+
+    """
+
+    schema: float | bool | None = None
+    data: float | bool | None = None
+
+    @property
+    def schema_default(self) -> float | bool | None:
+        """Get the default value for config flow UI."""
+        return self.schema
+
+    @property
+    def data_default(self) -> float | bool | None:
+        """Get the default value for editable entities, falling back to schema."""
+        return self.data if self.data is not None else self.schema
+
+
+@dataclass(frozen=True)
+class NumberLimits:
+    """Number limits override marker for field composition.
+
+    Used in Annotated composition to override min/max/step values
+    from the base FieldMeta for specific field instances.
+    """
+
+    min: float | None = None
+    max: float | None = None
+    step: float | None = None
+
+
 @dataclass(frozen=True)
 class FieldMeta(ABC):
     """Base metadata describing schema and data behaviour for a field."""
 
     field_type: str
     loader: Loader
+
+    # UI Metadata
+    min: float | None = None
+    max: float | None = None
+    step: float | None = None
+    unit: str | None = None
+    device_class: NumberDeviceClass | None = None
 
     def create_schema(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
         """Return the voluptuous validators for this field."""
@@ -50,20 +122,54 @@ class PowerFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    min: float = 0.0
+    step: float = 0.001
+    unit: str = UnitOfPower.KILO_WATT
+    device_class: NumberDeviceClass = NumberDeviceClass.POWER
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
-            vol.Range(min=0, min_included=True, msg="Value must be positive"),
+            vol.Range(min=self.min, min_included=True, msg="Value must be positive"),
             NumberSelector(
                 NumberSelectorConfig(
                     mode=NumberSelectorMode.BOX,
-                    min=0,
-                    step=0.001,
-                    unit_of_measurement=UnitOfPower.KILO_WATT,
+                    min=self.min,
+                    step=self.step,
+                    unit_of_measurement=self.unit,
                 )
             ),
         )
+
+
+class _FloatOrEntitySelector(Selector[EntitySelectorConfig]):
+    """Selector that accepts float values or entity IDs.
+
+    This wrapper allows stored configuration to contain float default values
+    while presenting only an entity selector in the config flow UI. The UI
+    serialization delegates to the underlying EntitySelector, so users only
+    see entity selection. Float values are accepted during validation for
+    stored defaults but cannot be entered through the UI.
+    """
+
+    selector_type = "entity"
+
+    def __init__(self, entity_selector: Any) -> None:
+        # Don't call super().__init__ - we're wrapping an existing selector
+        self._entity_selector = entity_selector
+        # Copy config from wrapped selector for compatibility
+        self.config = entity_selector.config
+
+    def __call__(self, value: Any) -> Any:
+        """Validate input - accept floats or delegate to entity selector."""
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+        # EntitySelector validates and returns entity ID(s)
+        return self._entity_selector(value)
+
+    def serialize(self) -> dict[str, Any]:
+        """Serialize as entity selector for UI rendering."""
+        return self._entity_selector.serialize()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -76,22 +182,29 @@ class SensorFieldMeta(FieldMeta):
     field_type: Literal["sensor"] = "sensor"
 
     def _get_field_validators(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
-        """Return entity selector with unit-based filtering."""
+        """Return entity selector with unit-based filtering.
+
+        The validator accepts both entity IDs (for UI selection) and float values
+        (for stored defaults). Float values are used as initial values for editable
+        number entities but are not presented in the config flow UI.
+        """
         # Filter incompatible entities based on accepted_units
         entity_metadata: Sequence[EntityMetadata] = schema_params.get("entity_metadata", [])
         incompatible_entities: list[str] = [
             v.entity_id for v in entity_metadata if not v.is_compatible_with(self.accepted_units)
         ]
 
-        return vol.All(
-            EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=self.multiple,
-                    exclude_entities=incompatible_entities,
-                )
-            ),
+        entity_selector = EntitySelector(
+            EntitySelectorConfig(
+                domain=["sensor", "input_number"],
+                multiple=self.multiple,
+                exclude_entities=incompatible_entities,
+            )
         )
+
+        # Accept either entity IDs (via selector) or float values (for defaults)
+        # Use custom wrapper that serializes as entity selector for UI
+        return vol.All(_FloatOrEntitySelector(entity_selector))
 
 
 @dataclass(frozen=True)
@@ -100,17 +213,21 @@ class EnergyFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    min: float = 0.0
+    step: float = 0.001
+    unit: str = UnitOfEnergy.KILO_WATT_HOUR
+    device_class: NumberDeviceClass = NumberDeviceClass.ENERGY
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
-            vol.Range(min=0, min_included=True, msg="Value must be positive"),
+            vol.Range(min=self.min, min_included=True, msg="Value must be positive"),
             NumberSelector(
                 NumberSelectorConfig(
                     mode=NumberSelectorMode.BOX,
-                    min=0,
-                    step=0.001,
-                    unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    min=self.min,
+                    step=self.step,
+                    unit_of_measurement=self.unit,
                 )
             ),
         )
@@ -122,6 +239,9 @@ class PriceFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    step: float = 0.001
+    unit: str = f"{CURRENCY_DOLLAR}/{UnitOfEnergy.KILO_WATT_HOUR}"
+    device_class: NumberDeviceClass = NumberDeviceClass.MONETARY
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
@@ -129,8 +249,8 @@ class PriceFieldMeta(FieldMeta):
             NumberSelector(
                 NumberSelectorConfig(
                     mode=NumberSelectorMode.BOX,
-                    step=0.001,
-                    unit_of_measurement=f"{CURRENCY_DOLLAR}/{UnitOfEnergy.KILO_WATT_HOUR}",
+                    step=self.step,
+                    unit_of_measurement=self.unit,
                 )
             ),
         )
@@ -142,9 +262,15 @@ class PercentageFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    min: float | None = 0.0
+    max: float | None = 100.0
+    unit: str | None = PERCENTAGE
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
-        return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
+        return vol.All(
+            vol.Coerce(float),
+            vol.Range(min=self.min, max=self.max, msg="Value must be between 0 and 100"),
+        )
 
 
 @dataclass(frozen=True)
@@ -205,12 +331,19 @@ class PowerFlowFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    step: float = 0.001
+    unit: str = UnitOfPower.KILO_WATT
+    device_class: NumberDeviceClass = NumberDeviceClass.POWER
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
         return vol.All(
             vol.Coerce(float),
             NumberSelector(
-                NumberSelectorConfig(mode=NumberSelectorMode.BOX, step=0.001, unit_of_measurement=UnitOfPower.KILO_WATT)
+                NumberSelectorConfig(
+                    mode=NumberSelectorMode.BOX,
+                    step=self.step,
+                    unit_of_measurement=self.unit,
+                )
             ),
         )
 
@@ -221,9 +354,16 @@ class BatterySOCFieldMeta(FieldMeta):
 
     field_type: Literal["constant"] = "constant"
     loader: ConstantLoader[float] = field(default_factory=lambda: ConstantLoader[float](float))
+    min: float | None = 0.0
+    max: float | None = 100.0
+    unit: str | None = PERCENTAGE
+    device_class: NumberDeviceClass | None = NumberDeviceClass.BATTERY
 
     def _get_field_validators(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
-        return vol.All(vol.Coerce(float), vol.Range(min=0, max=100, msg="Value must be between 0 and 100"))
+        return vol.All(
+            vol.Coerce(float),
+            vol.Range(min=self.min, max=self.max, msg="Value must be between 0 and 100"),
+        )
 
 
 # Define unit sets for sensor filtering
@@ -234,23 +374,35 @@ PERCENTAGE_UNITS: Final = [PERCENTAGE]
 # For composite patterns, create tuples for each energy unit
 PRICE_UNITS: Final[list[UnitSpec]] = [("*", "/", unit.value) for unit in UnitOfEnergy]
 
-# Schema mode type aliases (configuration with entity IDs)
+# Schema mode type aliases (configuration with entity IDs or constant fallbacks)
+# Float values can be stored as defaults but are not presented in the UI
 PowerFieldSchema = Annotated[float, PowerFieldMeta()]
-PowerSensorFieldSchema = Annotated[Sequence[str], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=False)]
-PowerSensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True)]
+PowerSensorFieldSchema = Annotated[Sequence[str] | float, SensorFieldMeta(accepted_units=POWER_UNITS, multiple=False)]
+PowerSensorsFieldSchema = Annotated[Sequence[str] | float, SensorFieldMeta(accepted_units=POWER_UNITS, multiple=True)]
 PowerFlowFieldSchema = Annotated[float, PowerFlowFieldMeta()]
 EnergyFieldSchema = Annotated[float, EnergyFieldMeta()]
-EnergySensorFieldSchema = Annotated[str, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)]
-EnergySensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)]
+EnergySensorFieldSchema = Annotated[str | float, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=False)]
+EnergySensorsFieldSchema = Annotated[Sequence[str] | float, SensorFieldMeta(accepted_units=ENERGY_UNITS, multiple=True)]
 PercentageFieldSchema = Annotated[float, PercentageFieldMeta()]
-PercentageSensorFieldSchema = Annotated[str, SensorFieldMeta(accepted_units=PERCENTAGE_UNITS, multiple=False)]
+PercentageSensorFieldSchema = Annotated[str | float, SensorFieldMeta(accepted_units=PERCENTAGE_UNITS, multiple=False)]
 BooleanFieldSchema = Annotated[bool, BooleanFieldMeta()]
 ElementNameFieldSchema = Annotated[str, ElementNameFieldMeta()]
 NameFieldSchema = Annotated[str, NameFieldMeta()]
 BatterySOCFieldSchema = Annotated[float, BatterySOCFieldMeta()]
-BatterySOCSensorFieldSchema = Annotated[str, SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)]
+BatterySOCSensorFieldSchema = Annotated[str | float, SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)]
 PriceFieldSchema = Annotated[float, PriceFieldMeta()]
-PriceSensorsFieldSchema = Annotated[Sequence[str], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
+PriceSensorsFieldSchema = Annotated[Sequence[str] | float, SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
+
+# Direction-aware schema type aliases for visualization
+# These compose the base type with a Direction marker - Python flattens nested Annotated
+# Power production (solar, generators): adds power to the system (+)
+PowerProductionSensorsFieldSchema = Annotated[PowerSensorsFieldSchema, Direction.PRODUCTION]
+# Power consumption (loads): takes power from the system (-)
+PowerConsumptionSensorsFieldSchema = Annotated[PowerSensorsFieldSchema, Direction.CONSUMPTION]
+# Price for import/consumption: cost to the user (-)
+PriceImportSensorsFieldSchema = Annotated[PriceSensorsFieldSchema, Direction.CONSUMPTION]
+# Price for export/production: revenue for the user (+)
+PriceExportSensorsFieldSchema = Annotated[PriceSensorsFieldSchema, Direction.PRODUCTION]
 
 # Data mode type aliases (loaded runtime values)
 PowerFieldData = Annotated[float, PowerFieldMeta()]
@@ -269,3 +421,9 @@ BatterySOCFieldData = Annotated[float, BatterySOCFieldMeta()]
 BatterySOCSensorFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=BATTERY_UNITS, multiple=False)]
 PriceFieldData = Annotated[float, PriceFieldMeta()]
 PriceSensorsFieldData = Annotated[list[float], SensorFieldMeta(accepted_units=PRICE_UNITS, multiple=True)]
+
+# Direction-aware data type aliases - compose base types with Direction
+PowerProductionSensorsFieldData = Annotated[PowerSensorsFieldData, Direction.PRODUCTION]
+PowerConsumptionSensorsFieldData = Annotated[PowerSensorsFieldData, Direction.CONSUMPTION]
+PriceImportSensorsFieldData = Annotated[PriceSensorsFieldData, Direction.CONSUMPTION]
+PriceExportSensorsFieldData = Annotated[PriceSensorsFieldData, Direction.PRODUCTION]

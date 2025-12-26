@@ -35,6 +35,7 @@ from .const import (
 )
 from .elements import (
     ELEMENT_TYPES,
+    ElementConfigData,
     ElementConfigSchema,
     ElementDeviceName,
     ElementOutputName,
@@ -236,8 +237,35 @@ def _build_coordinator_output(
     )
 
 
-type SubentryDevices = dict[ElementDeviceName, dict[ElementOutputName | NetworkOutputName, CoordinatorOutput]]
-type CoordinatorData = dict[str, SubentryDevices]
+type SubentryDevices = dict[
+    ElementDeviceName,
+    dict[ElementOutputName | NetworkOutputName, CoordinatorOutput],
+]
+
+
+class ElementData(TypedDict):
+    """Data structure for a single element's inputs and outputs.
+
+    Attributes:
+        inputs: Loaded configuration with resolved sensor/forecast values
+        outputs: Sensor outputs grouped by device and output name
+
+    """
+
+    inputs: ElementConfigData
+    outputs: SubentryDevices
+
+
+class CoordinatorData(TypedDict):
+    """Data structure returned by the coordinator update cycle.
+
+    This provides all data needed by HAEO entities:
+    - elements: Per-element data with inputs (loaded config) and outputs (sensor data)
+    - forecast_timestamps: Timestamps for each forecast period (fence posts)
+    """
+
+    elements: dict[str, ElementData]
+    forecast_timestamps: tuple[float, ...]
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
@@ -249,8 +277,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
 
-        # Runtime attributes exposed to other integration modules
+        # Runtime state for diagnostics (set after successful optimization)
         self.network: Network | None = None
+        self.last_update_success_time: datetime | None = None
 
         self._participant_configs: dict[str, ElementConfigSchema] = {
             participant.name: participant.config for participant in collect_element_subentries(config_entry)
@@ -352,18 +381,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 OUTPUT_TYPE_STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
             ),
             OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
-                OUTPUT_TYPE_DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
+                OUTPUT_TYPE_DURATION,
+                unit=UnitOfTime.SECONDS,
+                values=(optimization_duration,),
             ),
-        }
-
-        result: CoordinatorData = {
-            # Hub outputs use config entry title as subentry, network element type as device
-            self.config_entry.title: {
-                ELEMENT_TYPE_NETWORK: {
-                    name: _build_coordinator_output(name, output, forecast_times=None)
-                    for name, output in network_output_data.items()
-                }
-            }
         }
 
         # Build nested outputs structure from all network model elements
@@ -371,12 +392,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             element_name: element.outputs() for element_name, element in network.elements.items()
         }
 
-        # Process each config element using its outputs function to transform model outputs into device outputs
+        # Build elements dict with inputs and outputs for each element
+        elements: dict[str, ElementData] = {}
+
+        # Process each config element using its outputs function to get output sensor states
         for element_name, element_config in self._participant_configs.items():
             element_type = element_config["element_type"]
             outputs_fn = ELEMENT_TYPES[element_type].outputs
 
-            # outputs function returns {device_name: {output_name: OutputData}}
+            # outputs function returns {device_name: {sensor_name: OutputData}}
             # May return multiple devices per config element (e.g., battery regions)
             try:
                 adapter_outputs: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = outputs_fn(
@@ -384,7 +408,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 )
             except KeyError:
                 _LOGGER.exception(
-                    "Failed to get outputs for config element %r (type=%r): missing model element. "
+                    "Failed to get sensor outputs for config element %r (type=%r): missing model element. "
                     "Available model elements: %s",
                     element_name,
                     element_type,
@@ -392,22 +416,43 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 )
                 raise
 
-            # Process each device's outputs, grouping under the subentry (element_name)
+            # Process each device's sensor outputs
             subentry_devices: SubentryDevices = {}
             for device_name, device_outputs in adapter_outputs.items():
-                processed_outputs: dict[ElementOutputName, CoordinatorOutput] = {
-                    output_name: _build_coordinator_output(
-                        output_name,
-                        output_data,
+                processed_outputs: dict[ElementOutputName | NetworkOutputName, CoordinatorOutput] = {
+                    sensor_name: _build_coordinator_output(
+                        sensor_name,
+                        sensor_data,
                         forecast_times=forecast_timestamps,
                     )
-                    for output_name, output_data in device_outputs.items()
+                    for sensor_name, sensor_data in device_outputs.items()
                 }
 
                 if processed_outputs:
                     subentry_devices[device_name] = processed_outputs
 
-            if subentry_devices:
-                result[element_name] = subentry_devices
+            # Store element data with both inputs (loaded config) and outputs
+            elements[element_name] = ElementData(
+                inputs=loaded_configs[element_name],
+                outputs=subentry_devices,
+            )
 
-        return result
+        # Add hub/network outputs as a special element
+        # The hub uses config entry title as element name, network as device
+        elements[self.config_entry.title] = ElementData(
+            inputs={},  # type: ignore[typeddict-item]  # Hub has no config inputs
+            outputs={
+                ELEMENT_TYPE_NETWORK: {
+                    name: _build_coordinator_output(name, output, forecast_times=None)
+                    for name, output in network_output_data.items()
+                }
+            },
+        )
+
+        # Record successful update time for diagnostics
+        self.last_update_success_time = dt_util.utcnow()
+
+        return CoordinatorData(
+            elements=elements,
+            forecast_timestamps=forecast_timestamps,
+        )

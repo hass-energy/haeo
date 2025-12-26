@@ -7,17 +7,11 @@ from typing import Any, Final, Literal, NotRequired, TypedDict
 from custom_components.haeo.model import OUTPUT_TYPE_POWER_FLOW, ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_ACTIVE,
-    CONNECTION_POWER_MAX_SOURCE_TARGET,
-    CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
-    CONNECTION_PRICE_SOURCE_TARGET,
-    CONNECTION_PRICE_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
     CONNECTION_TIME_SLICE,
-    POWER_CONNECTION_OUTPUT_NAMES,
     PowerConnectionOutputName,
 )
 from custom_components.haeo.schema.fields import (
@@ -43,6 +37,28 @@ CONF_EFFICIENCY_SOURCE_TARGET: Final = "efficiency_source_target"
 CONF_EFFICIENCY_TARGET_SOURCE: Final = "efficiency_target_source"
 CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
 CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
+
+# Output names for connection elements
+type ConnectionOutputName = Literal[
+    "connection_power_source_target",
+    "connection_power_target_source",
+    "connection_power_active",
+    "connection_shadow_power_max_source_target",
+    "connection_shadow_power_max_target_source",
+    "connection_time_slice",
+]
+
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
+    (
+        CONNECTION_POWER_SOURCE_TARGET,
+        CONNECTION_POWER_TARGET_SOURCE,
+        CONNECTION_POWER_ACTIVE := "connection_power_active",
+        # Shadow prices
+        CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
+        CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
+        CONNECTION_TIME_SLICE,
+    )
+)
 
 
 class ConnectionConfigSchema(TypedDict):
@@ -79,10 +95,6 @@ class ConnectionConfigData(TypedDict):
     price_target_source: NotRequired[PriceSensorsFieldData]
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {}
-
-CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = POWER_CONNECTION_OUTPUT_NAMES
-
 type ConnectionDeviceName = Literal["connection"]
 
 CONNECTION_DEVICE_NAMES: Final[frozenset[ConnectionDeviceName]] = frozenset(
@@ -109,9 +121,11 @@ def create_model_elements(config: ConnectionConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: ConnectionConfigData
+    name: str,
+    outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+    config: ConnectionConfigData,
 ) -> Mapping[ConnectionDeviceName, Mapping[PowerConnectionOutputName, OutputData]]:
-    """Map model outputs to connection-specific output names."""
+    """Provide state updates for connection output sensors."""
     connection = outputs[name]
 
     connection_outputs: dict[PowerConnectionOutputName, OutputData] = {
@@ -134,24 +148,16 @@ def outputs(
         type=OUTPUT_TYPE_POWER_FLOW,
     )
 
-    # Optional outputs (only present if configured)
-    if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
-        connection_outputs[CONNECTION_POWER_MAX_SOURCE_TARGET] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+    # Shadow prices for power limits (only if limits are set)
+    if CONF_MAX_POWER_SOURCE_TARGET in config:
         connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = connection[
             CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
         ]
 
-    if CONNECTION_POWER_MAX_TARGET_SOURCE in connection:
-        connection_outputs[CONNECTION_POWER_MAX_TARGET_SOURCE] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
+    if CONF_MAX_POWER_TARGET_SOURCE in config:
         connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = connection[
             CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
         ]
-
-    if CONNECTION_PRICE_SOURCE_TARGET in connection:
-        connection_outputs[CONNECTION_PRICE_SOURCE_TARGET] = connection[CONNECTION_PRICE_SOURCE_TARGET]
-
-    if CONNECTION_PRICE_TARGET_SOURCE in connection:
-        connection_outputs[CONNECTION_PRICE_TARGET_SOURCE] = connection[CONNECTION_PRICE_TARGET_SOURCE]
 
     if CONNECTION_TIME_SLICE in connection:
         connection_outputs[CONNECTION_TIME_SLICE] = connection[CONNECTION_TIME_SLICE]
@@ -170,12 +176,8 @@ __all__ = [
     "CONF_TARGET",
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER_ACTIVE",
-    "CONNECTION_POWER_MAX_SOURCE_TARGET",
-    "CONNECTION_POWER_MAX_TARGET_SOURCE",
     "CONNECTION_POWER_SOURCE_TARGET",
     "CONNECTION_POWER_TARGET_SOURCE",
-    "CONNECTION_PRICE_SOURCE_TARGET",
-    "CONNECTION_PRICE_TARGET_SOURCE",
     "CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET",
     "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
     "CONNECTION_TIME_SLICE",

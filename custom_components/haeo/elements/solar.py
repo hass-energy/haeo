@@ -2,17 +2,16 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_MAX_SOURCE_TARGET,
     CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_PRICE_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
+from custom_components.haeo.schema import Default
 from custom_components.haeo.schema.fields import (
     BooleanFieldData,
     BooleanFieldSchema,
@@ -20,10 +19,10 @@ from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
     NameFieldData,
     NameFieldSchema,
-    PowerSensorsFieldData,
-    PowerSensorsFieldSchema,
-    PriceFieldData,
-    PriceFieldSchema,
+    PowerProductionSensorsFieldData,
+    PowerProductionSensorsFieldSchema,
+    PriceExportSensorsFieldData,
+    PriceExportSensorsFieldSchema,
 )
 
 ELEMENT_TYPE: Final = "solar"
@@ -35,9 +34,12 @@ CONF_PRICE_CONSUMPTION: Final = "price_consumption"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
 
+# Field type aliases with defaults
+CurtailmentFieldSchema = Annotated[BooleanFieldSchema, Default(schema=True)]
+CurtailmentFieldData = Annotated[BooleanFieldData, Default(schema=True)]
+
 type SolarOutputName = Literal[
     "solar_power",
-    "solar_power_available",
     "solar_price",
     # Shadow prices
     "solar_forecast_limit",
@@ -46,7 +48,6 @@ type SolarOutputName = Literal[
 SOLAR_OUTPUT_NAMES: Final[frozenset[SolarOutputName]] = frozenset(
     (
         SOLAR_POWER := "solar_power",
-        SOLAR_POWER_AVAILABLE := "solar_power_available",
         SOLAR_PRICE := "solar_price",
         # Shadow prices
         SOLAR_FORECAST_LIMIT := "solar_forecast_limit",
@@ -64,11 +65,11 @@ class SolarConfigSchema(TypedDict):
     element_type: Literal["solar"]
     name: NameFieldSchema
     connection: ElementNameFieldSchema  # Node to connect to
-    forecast: PowerSensorsFieldSchema
+    forecast: PowerProductionSensorsFieldSchema
 
     # Optional fields
-    price_production: NotRequired[PriceFieldSchema]
-    curtailment: NotRequired[BooleanFieldSchema]
+    price_production: NotRequired[PriceExportSensorsFieldSchema]
+    curtailment: NotRequired[CurtailmentFieldSchema]
 
 
 class SolarConfigData(TypedDict):
@@ -77,23 +78,23 @@ class SolarConfigData(TypedDict):
     element_type: Literal["solar"]
     name: NameFieldData
     connection: ElementNameFieldData  # Node to connect to
-    forecast: PowerSensorsFieldData
+    forecast: PowerProductionSensorsFieldData
 
     # Optional fields
-    price_production: NotRequired[PriceFieldData]
-    curtailment: NotRequired[BooleanFieldData]
-
-
-CONFIG_DEFAULTS: dict[str, Any] = {
-    CONF_CURTAILMENT: True,
-}
+    price_production: NotRequired[PriceExportSensorsFieldData]
+    curtailment: NotRequired[CurtailmentFieldData]
 
 
 def create_model_elements(config: SolarConfigData) -> list[dict[str, Any]]:
     """Create model elements for Solar configuration."""
 
     return [
-        {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": False},
+        {
+            "element_type": "node",
+            "name": config["name"],
+            "is_source": True,
+            "is_sink": False,
+        },
         {
             "element_type": "connection",
             "name": f"{config['name']}:connection",
@@ -108,19 +109,16 @@ def create_model_elements(config: SolarConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: SolarConfigData
+    name: str,
+    outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+    _config: SolarConfigData,
 ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
-    """Map model outputs to solar-specific output names."""
-
+    """Provide state updates for solar output sensors."""
     connection = outputs[f"{name}:connection"]
 
     solar_outputs: dict[SolarOutputName, OutputData] = {
         SOLAR_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER),
-        SOLAR_POWER_AVAILABLE: connection[CONNECTION_POWER_MAX_SOURCE_TARGET],
         SOLAR_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
     }
-
-    if CONNECTION_PRICE_SOURCE_TARGET in connection:
-        solar_outputs[SOLAR_PRICE] = connection[CONNECTION_PRICE_SOURCE_TARGET]
 
     return {SOLAR_DEVICE_SOLAR: solar_outputs}
