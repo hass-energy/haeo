@@ -3,14 +3,14 @@
 from typing import Annotated, TypedDict
 
 from custom_components.haeo.schema import _get_annotated_fields
-from custom_components.haeo.schema.fields import PowerFieldMeta
+from custom_components.haeo.schema.fields import ConstantFloat, PositiveKW
 
 
 class _DummyConfig(TypedDict, total=False):
     """Config with optional annotated field."""
 
     element_type: str
-    optional_field: Annotated[int | None, PowerFieldMeta()]
+    optional_field: Annotated[int | None, PositiveKW(), ConstantFloat()]
 
 
 def test_get_annotated_fields_marks_optional() -> None:
@@ -19,8 +19,8 @@ def test_get_annotated_fields_marks_optional() -> None:
     annotated = _get_annotated_fields(_DummyConfig)
 
     assert "optional_field" in annotated
-    meta, is_optional = annotated["optional_field"]
-    assert isinstance(meta, PowerFieldMeta)
+    validator, is_optional = annotated["optional_field"]
+    assert isinstance(validator, PositiveKW)
     assert is_optional is True
 
 
@@ -28,7 +28,7 @@ class _DummyConfigUnion(TypedDict):
     """Config using Union to represent optional annotated field."""
 
     element_type: str
-    optional_field: Annotated[int, PowerFieldMeta()] | None
+    optional_field: Annotated[int, PositiveKW(), ConstantFloat()] | None
 
 
 def test_get_annotated_fields_marks_optional_union() -> None:
@@ -36,6 +36,6 @@ def test_get_annotated_fields_marks_optional_union() -> None:
 
     annotated = _get_annotated_fields(_DummyConfigUnion)
 
-    meta, is_optional = annotated["optional_field"]
-    assert isinstance(meta, PowerFieldMeta)
+    validator, is_optional = annotated["optional_field"]
+    assert isinstance(validator, PositiveKW)
     assert is_optional is True
