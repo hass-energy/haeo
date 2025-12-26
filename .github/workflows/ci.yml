@@ -9,79 +9,235 @@ on:
       - main
   merge_group:
     types: [checks_requested]
+  release:
+    types: [published]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   checks: write
 
 jobs:
-  linting-and-formatting:
-    name: "Linting and Formatting"
-    runs-on: "ubuntu-latest"
-    env:
-      REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # =============================================================================
+  # Release validation (only on release)
+  # =============================================================================
+
+  validate-release:
+    name: Validate release version
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
 
-      # Install job dependencies
+      - name: Install uv
+        uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+
+      - name: Extract and validate version from release tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          echo "Tag: $TAG"
+          echo "Version: $VERSION"
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag '$TAG' does not match semantic versioning format (vX.Y.Z)"
+            exit 1
+          fi
+
+      - name: Check pyproject.toml version matches tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          TAG_VERSION="${TAG#v}"
+          PYPROJECT_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          echo "Tag version: $TAG_VERSION"
+          echo "pyproject.toml version: $PYPROJECT_VERSION"
+          if [[ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match pyproject.toml version ($PYPROJECT_VERSION)"
+            exit 1
+          fi
+
+      - name: Check manifest.json version matches tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          TAG_VERSION="${TAG#v}"
+          MANIFEST_VERSION=$(jq -r '.version' custom_components/haeo/manifest.json)
+          echo "Tag version: $TAG_VERSION"
+          echo "manifest.json version: $MANIFEST_VERSION"
+          if [[ "$TAG_VERSION" != "$MANIFEST_VERSION" ]]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match manifest.json version ($MANIFEST_VERSION)"
+            exit 1
+          fi
+
+  # =============================================================================
+  # Linting and formatting checks
+  # =============================================================================
+
+  ruff-format:
+    name: Ruff format
+    runs-on: ubuntu-latest
+    env:
+      REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
       - uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
-      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-      - uses: reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f # v1.5.0
-        with:
-          reviewdog_version: v0.20.3
 
       - name: Install python dependencies
         run: uv sync --locked --all-extras --dev
 
-      - name: Format
-        if: ${{ !cancelled() }}
+      - name: Setup reviewdog
+        if: github.event_name == 'pull_request'
+        uses: reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f # v1.5.0
+        with:
+          reviewdog_version: v0.20.3
+
+      - name: Ruff format (reviewdog)
+        if: github.event_name == 'pull_request'
         run: |
           uv run ruff format --diff \
             | reviewdog -f=diff -name="ruff format" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
-      - name: Lint
-        if: ${{ !cancelled() }}
+      - name: Ruff format (check)
+        if: github.event_name != 'pull_request'
+        run: uv run ruff format --check
+
+  ruff-lint:
+    name: Ruff lint
+    runs-on: ubuntu-latest
+    env:
+      REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+
+      - name: Install python dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Setup reviewdog
+        if: github.event_name == 'pull_request'
+        uses: reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f # v1.5.0
+        with:
+          reviewdog_version: v0.20.3
+
+      - name: Ruff lint (reviewdog)
+        if: github.event_name == 'pull_request'
         run: |
           uv run ruff check --output-format rdjson \
             | reviewdog -f=rdjson -name="ruff lint" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
-      - name: Type Check
-        if: ${{ !cancelled() }}
+      - name: Ruff lint (check)
+        if: github.event_name != 'pull_request'
+        run: uv run ruff check
+
+  pyright:
+    name: Pyright
+    runs-on: ubuntu-latest
+    env:
+      REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+
+      - name: Install python dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Setup reviewdog
+        if: github.event_name == 'pull_request'
+        uses: reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f # v1.5.0
+        with:
+          reviewdog_version: v0.20.3
+
+      - name: Pyright (reviewdog)
+        if: github.event_name == 'pull_request'
         run: |
           uv run pyright \
             | reviewdog -efm="%f:%l:%c - %t%*[^:]: %m" -name="pyright type check" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
-      - name: Prettier
-        if: ${{ !cancelled() }}
+      - name: Pyright (check)
+        if: github.event_name != 'pull_request'
+        run: uv run pyright
+
+  prettier:
+    name: Prettier
+    runs-on: ubuntu-latest
+    env:
+      REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+
+      - name: Setup reviewdog
+        if: github.event_name == 'pull_request'
+        uses: reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f # v1.5.0
+        with:
+          reviewdog_version: v0.20.3
+
+      - name: Prettier (reviewdog)
+        if: github.event_name == 'pull_request'
         run: |
-          git clean -d -f -x
           npm ci
           npx --yes prettier@3 --write .
           git diff \
             | reviewdog -f=diff -name="prettier" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
-      - name: Markdown Format
-        if: ${{ !cancelled() }}
+      - name: Prettier (check)
+        if: github.event_name != 'pull_request'
         run: |
-          git clean -d -f -x
+          npm ci
+          npx --yes prettier@3 --check .
+
+  mdformat:
+    name: Markdown format
+    runs-on: ubuntu-latest
+    env:
+      REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+
+      - name: Install python dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Setup reviewdog
+        if: github.event_name == 'pull_request'
+        uses: reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f # v1.5.0
+        with:
+          reviewdog_version: v0.20.3
+
+      - name: Markdown format (reviewdog)
+        if: github.event_name == 'pull_request'
+        run: |
           uv run mdformat $(git ls-files '*.md' '*.mdx')
           git diff \
             | reviewdog -f=diff -name="mdformat" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
+      - name: Markdown format (check)
+        if: github.event_name != 'pull_request'
+        run: uv run mdformat --check $(git ls-files '*.md' '*.mdx')
+
+  # =============================================================================
+  # Tests
+  # =============================================================================
+
   test:
-    name: "Run Tests"
-    runs-on: "ubuntu-latest"
+    name: Tests
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
 
-      # Install job dependencies
       - name: Install uv
         uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
 
@@ -92,21 +248,25 @@ jobs:
         run: uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+        if: ${{ github.event_name != 'release' && !cancelled() }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           report_type: test_results
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage to Codecov
-        if: ${{ !cancelled() }}
+        if: ${{ github.event_name != 'release' && !cancelled() }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
-  hassfest: # https://developers.home-assistant.io/blog/2020/04/16/hassfest
-    name: Hassfest validation
+  # =============================================================================
+  # Validation checks
+  # =============================================================================
+
+  hassfest:
+    name: Hassfest
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
@@ -116,7 +276,7 @@ jobs:
         uses: home-assistant/actions/hassfest@87c064c607f3c5cc673a24258d0c98d23033bfc3 # master
 
   version-check:
-    name: Version consistency check
+    name: Version consistency
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
@@ -139,8 +299,8 @@ jobs:
           echo "pyproject.toml=$PYPROJECT hacs.json=$HACS"
           [[ "$PYPROJECT" == "$HACS" ]]
 
-  hacs: # https://github.com/hacs/action
-    name: HACS validation
+  hacs:
+    name: HACS
     runs-on: ubuntu-latest
     steps:
       - name: Run HACS validation
@@ -149,3 +309,79 @@ jobs:
           category: integration
           # Remove this 'ignore' key when you have added brand images for your integration to https://github.com/home-assistant/brands
           ignore: brands
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build documentation
+        run: uv run mkdocs build --strict
+
+  # =============================================================================
+  # CI passed (single required check)
+  # =============================================================================
+
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs:
+      - ruff-format
+      - ruff-lint
+      - pyright
+      - prettier
+      - mdformat
+      - test
+      - hassfest
+      - version-check
+      - hacs
+      - docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "::error::One or more required jobs failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "::error::One or more required jobs were cancelled"
+            exit 1
+          fi
+          echo "All required jobs passed!"
+
+  # =============================================================================
+  # Release assets (only on release)
+  # =============================================================================
+
+  upload-assets:
+    name: Upload release assets
+    if: github.event_name == 'release'
+    needs:
+      - validate-release
+      - ci-passed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Create release package
+        run: |
+          cd custom_components
+          zip -r ../haeo.zip haeo
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
+        with:
+          files: |
+            haeo.zip
