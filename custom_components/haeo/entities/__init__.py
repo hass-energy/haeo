@@ -135,7 +135,7 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
             device_id = f"{subentry.subentry_id}_{element_type}" if is_sub_device else subentry.subentry_id
 
             # Register device with same pattern as sensors
-            dr.async_get_or_create(
+            device_entry = dr.async_get_or_create(
                 identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id}")},
                 config_entry_id=config_entry.entry_id,
                 config_subentry_id=subentry.subentry_id,
@@ -152,7 +152,7 @@ async def async_setup_input_entities[TInputEntity: (HaeoInputNumber, HaeoInputSw
                         config_entry=config_entry,
                         subentry=subentry,
                         field_info=field_info,
-                        device_id=device_id,
+                        device_entry=device_entry,
                     )
                     entities.append(entity)
 

@@ -8,12 +8,11 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceEntry, DeviceInfo
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.schema.input_fields import InputFieldInfo
 
@@ -46,7 +45,7 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
         config_entry: ConfigEntry,
         subentry: ConfigSubentry,
         field_info: InputFieldInfo,
-        device_id: str,
+        device_entry: DeviceEntry,
     ) -> None:
         """Initialize the input switch entity.
 
@@ -56,7 +55,7 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
             config_entry: Parent config entry
             subentry: Element subentry containing configuration
             field_info: Metadata about this input field
-            device_id: Device identifier for grouping entities
+            device_entry: Device registry entry for this entity's device
 
         """
         super().__init__(coordinator)
@@ -101,9 +100,9 @@ class HaeoInputSwitch(  # pyright: ignore[reportIncompatibleVariableOverride]
         self._attr_translation_key = field_info.translation_key
         self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
 
-        # Device info
+        # Device info - use identifiers from device_entry to ensure proper subentry association
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id}")},
+            identifiers=device_entry.identifiers,
         )
 
         # Note: device_class not used for switches since InputFieldInfo is number-focused

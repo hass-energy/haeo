@@ -155,6 +155,14 @@ def curtailment_field_info() -> InputFieldInfo:
     )
 
 
+def _create_mock_device_entry(config_entry: MockConfigEntry, subentry: ConfigSubentry) -> Mock:
+    """Create a mock DeviceEntry with identifiers matching the expected pattern."""
+    device_entry = Mock()
+    device_id = subentry.subentry_id
+    device_entry.identifiers = {(DOMAIN, f"{config_entry.entry_id}_{device_id}")}
+    return device_entry
+
+
 class TestHaeoInputNumberEditable:
     """Test HaeoInputNumber in Editable mode."""
 
@@ -173,7 +181,7 @@ class TestHaeoInputNumberEditable:
             config_entry=config_entry,
             subentry=battery_subentry,
             field_info=capacity_field_info,
-            device_id=battery_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, battery_subentry),
         )
 
         assert entity._entity_mode == ConfigEntityMode.EDITABLE
@@ -198,7 +206,7 @@ class TestHaeoInputNumberEditable:
             config_entry=config_entry,
             subentry=battery_subentry,
             field_info=capacity_field_info,
-            device_id=battery_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, battery_subentry),
         )
 
         attrs = entity._attr_extra_state_attributes
@@ -224,7 +232,7 @@ class TestHaeoInputNumberEditable:
             config_entry=config_entry,
             subentry=battery_subentry,
             field_info=capacity_field_info,
-            device_id=battery_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, battery_subentry),
         )
 
         # Mock async_write_ha_state to avoid registration issues
@@ -252,7 +260,7 @@ class TestHaeoInputNumberEditable:
             config_entry=config_entry,
             subentry=battery_subentry,
             field_info=capacity_field_info,
-            device_id=battery_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, battery_subentry),
         )
 
         assert entity.get_current_value() == 13.5
@@ -283,7 +291,7 @@ class TestHaeoInputNumberDriven:
             config_entry=config_entry,
             subentry=driven_subentry,
             field_info=capacity_field_info,
-            device_id=driven_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, driven_subentry),
         )
 
         assert entity._entity_mode == ConfigEntityMode.DRIVEN
@@ -311,7 +319,7 @@ class TestHaeoInputNumberDriven:
             config_entry=config_entry,
             subentry=driven_subentry,
             field_info=capacity_field_info,
-            device_id=driven_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, driven_subentry),
         )
 
         attrs = entity._attr_extra_state_attributes
@@ -339,7 +347,7 @@ class TestHaeoInputNumberDriven:
             config_entry=config_entry,
             subentry=driven_subentry,
             field_info=capacity_field_info,
-            device_id=driven_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, driven_subentry),
         )
 
         entity.async_write_ha_state = Mock()
@@ -371,7 +379,7 @@ class TestHaeoInputNumberCoordinatorUpdates:
             config_entry=config_entry,
             subentry=battery_subentry,
             field_info=capacity_field_info,
-            device_id=battery_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, battery_subentry),
         )
 
         entity.async_write_ha_state = Mock()
@@ -426,7 +434,7 @@ class TestHaeoInputNumberCoordinatorUpdates:
             config_entry=config_entry,
             subentry=driven_subentry,
             field_info=capacity_field_info,
-            device_id=driven_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, driven_subentry),
         )
 
         entity.async_write_ha_state = Mock()
@@ -475,7 +483,7 @@ class TestHaeoInputNumberCoordinatorUpdates:
             config_entry=config_entry,
             subentry=battery_subentry,
             field_info=capacity_field_info,
-            device_id=battery_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, battery_subentry),
         )
 
         entity.async_write_ha_state = Mock()
@@ -534,7 +542,7 @@ class TestHaeoInputSwitch:
             config_entry=config_entry,
             subentry=solar_subentry,
             field_info=curtailment_field_info,
-            device_id=solar_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, solar_subentry),
         )
 
         assert entity._entity_mode == ConfigEntityMode.EDITABLE
@@ -562,7 +570,7 @@ class TestHaeoInputSwitch:
             config_entry=config_entry,
             subentry=solar_subentry,
             field_info=curtailment_field_info,
-            device_id=solar_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, solar_subentry),
         )
 
         attrs = entity._attr_extra_state_attributes
@@ -606,7 +614,7 @@ class TestHaeoInputSwitch:
             config_entry=config_entry,
             subentry=modified_subentry,
             field_info=curtailment_field_info,
-            device_id=solar_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, solar_subentry),
         )
 
         entity.async_write_ha_state = Mock()
@@ -641,7 +649,7 @@ class TestHaeoInputSwitch:
             config_entry=config_entry,
             subentry=solar_subentry,
             field_info=curtailment_field_info,
-            device_id=solar_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, solar_subentry),
         )
 
         entity.async_write_ha_state = Mock()
@@ -676,7 +684,7 @@ class TestHaeoInputSwitch:
             config_entry=config_entry,
             subentry=solar_subentry,
             field_info=curtailment_field_info,
-            device_id=solar_subentry.subentry_id,
+            device_entry=_create_mock_device_entry(config_entry, solar_subentry),
         )
 
         assert entity.get_current_value() is True
