@@ -127,6 +127,7 @@ def get_hub_setup_schema() -> vol.Schema:
 
     Returns:
         Voluptuous schema with name, horizon preset, and basic settings.
+        Update interval and debounce settings are hidden during add and use defaults.
 
     """
     return vol.Schema(
@@ -143,24 +144,6 @@ def get_hub_setup_schema() -> vol.Schema:
                     mode=SelectSelectorMode.DROPDOWN,
                     translation_key="horizon_preset",
                 )
-            ),
-            vol.Required(
-                CONF_UPDATE_INTERVAL_MINUTES,
-                default=DEFAULT_UPDATE_INTERVAL_MINUTES,
-            ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.SLIDER),
-                ),
-                vol.Coerce(int),
-            ),
-            vol.Required(
-                CONF_DEBOUNCE_SECONDS,
-                default=DEFAULT_DEBOUNCE_SECONDS,
-            ): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.SLIDER),
-                ),
-                vol.Coerce(int),
             ),
             vol.Required(CONF_ADVANCED_MODE, default=False): bool,
         }

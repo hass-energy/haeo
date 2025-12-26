@@ -15,6 +15,8 @@ from custom_components.haeo.const import (
     CONF_HORIZON_PRESET,
     CONF_INTEGRATION_TYPE,
     CONF_UPDATE_INTERVAL_MINUTES,
+    DEFAULT_DEBOUNCE_SECONDS,
+    DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
@@ -98,6 +100,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
         # Create the hub entry with initial subentries
+        # Update interval and debounce use defaults (can be changed in options/edit)
         return self.async_create_entry(
             title=hub_name,
             data={
@@ -105,8 +108,8 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_NAME: hub_name,
                 CONF_HORIZON_PRESET: stored_preset,
                 **tier_config,
-                CONF_UPDATE_INTERVAL_MINUTES: self._user_input[CONF_UPDATE_INTERVAL_MINUTES],
-                CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],
+                CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
+                CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
                 CONF_ADVANCED_MODE: self._user_input[CONF_ADVANCED_MODE],
             },
             subentries=[
