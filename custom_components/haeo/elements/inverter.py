@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER_FLOW
@@ -16,6 +16,7 @@ from custom_components.haeo.model.power_connection import (
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
+from custom_components.haeo.schema import Default
 from custom_components.haeo.schema.fields import (
     ElementNameFieldData,
     ElementNameFieldSchema,
@@ -68,6 +69,12 @@ INVERTER_DEVICE_NAMES: Final[frozenset[InverterDeviceName]] = frozenset(
     (INVERTER_DEVICE_INVERTER := ELEMENT_TYPE,),
 )
 
+# Field type aliases with defaults
+EfficiencyDCToACFieldSchema = Annotated[PercentageFieldSchema, Default(value=100.0)]
+EfficiencyDCToACFieldData = Annotated[PercentageFieldData, Default(value=100.0)]
+EfficiencyACToDCFieldSchema = Annotated[PercentageFieldSchema, Default(value=100.0)]
+EfficiencyACToDCFieldData = Annotated[PercentageFieldData, Default(value=100.0)]
+
 
 class InverterConfigSchema(TypedDict):
     """Inverter element configuration."""
@@ -79,8 +86,8 @@ class InverterConfigSchema(TypedDict):
     max_power_ac_to_dc: PowerSensorFieldSchema
 
     # Optional fields
-    efficiency_dc_to_ac: NotRequired[PercentageFieldSchema]
-    efficiency_ac_to_dc: NotRequired[PercentageFieldSchema]
+    efficiency_dc_to_ac: NotRequired[EfficiencyDCToACFieldSchema]
+    efficiency_ac_to_dc: NotRequired[EfficiencyACToDCFieldSchema]
 
 
 class InverterConfigData(TypedDict):
@@ -93,14 +100,8 @@ class InverterConfigData(TypedDict):
     max_power_ac_to_dc: PowerSensorFieldData
 
     # Optional fields
-    efficiency_dc_to_ac: NotRequired[PercentageFieldData]
-    efficiency_ac_to_dc: NotRequired[PercentageFieldData]
-
-
-CONFIG_DEFAULTS: dict[str, Any] = {
-    "efficiency_dc_to_ac": 100.0,
-    "efficiency_ac_to_dc": 100.0,
-}
+    efficiency_dc_to_ac: NotRequired[EfficiencyDCToACFieldData]
+    efficiency_ac_to_dc: NotRequired[EfficiencyACToDCFieldData]
 
 
 def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:

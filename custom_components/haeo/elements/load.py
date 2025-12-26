@@ -65,9 +65,6 @@ class LoadConfigData(TypedDict):
     forecast: PowerSensorsFieldData
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {}
-
-
 def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
     """Create model elements for Load configuration."""
 

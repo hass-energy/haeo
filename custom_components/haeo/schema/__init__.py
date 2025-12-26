@@ -10,15 +10,17 @@ import voluptuous as vol
 from custom_components.haeo.data.loader import ConstantLoader, Loader
 from custom_components.haeo.data.loader.extractors import EntityMetadata
 
-from .fields import FieldMeta
+from .fields import Default, FieldMeta
 from .params import SchemaParams
 
 __all__ = [
+    "Default",
     "EntityMetadata",
     "FieldMeta",
     "available",
     "get_field_meta",
     "get_loader_instance",
+    "get_schema_defaults",
     "load",
     "schema_for_type",
 ]
@@ -210,12 +212,48 @@ def _get_annotated_fields(cls: type) -> dict[str, tuple[FieldMeta, bool]]:
 
         # Extract Annotated metadata
         if get_origin(unwrapped_tp) is Annotated:
-            *_, meta = get_args(unwrapped_tp)
-
-            if isinstance(meta, FieldMeta):
-                annotated[field_name] = (meta, is_optional)
+            # Find FieldMeta in the annotations (may be composed with other annotations like Default)
+            for meta in unwrapped_tp.__metadata__:
+                if isinstance(meta, FieldMeta):
+                    annotated[field_name] = (meta, is_optional)
+                    break
 
     return annotated
+
+
+def get_schema_defaults(schema_class: type) -> dict[str, Any]:
+    """Extract schema default values from a ConfigSchema type.
+
+    Iterates through field annotations and extracts Default.value values
+    for use as suggested values in config flow forms.
+
+    Args:
+        schema_class: TypedDict config schema class (Schema mode)
+
+    Returns:
+        Dictionary mapping field names to their schema default values.
+        Only fields with Default markers are included.
+
+    """
+    defaults: dict[str, Any] = {}
+    hints = get_type_hints(schema_class, include_extras=True)
+
+    for field_name, field_type in hints.items():
+        # Handle NotRequired wrapper
+        origin = get_origin(field_type)
+        if origin is not None and hasattr(origin, "__name__") and origin.__name__ == "NotRequired":
+            inner_type = get_args(field_type)[0]
+        else:
+            inner_type = field_type
+
+        # Extract Default from Annotated type
+        if get_origin(inner_type) is Annotated:
+            for meta in inner_type.__metadata__:
+                if isinstance(meta, Default):
+                    defaults[field_name] = meta.value
+                    break
+
+    return defaults
 
 
 def schema_for_type(cls: type, **schema_params: Unpack[SchemaParams]) -> vol.Schema:

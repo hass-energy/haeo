@@ -1,11 +1,12 @@
 """Network node element configuration for HAEO integration."""
 
 from collections.abc import Mapping
-from typing import Any, Final, Literal, TypedDict
+from typing import Annotated, Any, Final, Literal, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.schema import Default
 from custom_components.haeo.schema.fields import BooleanFieldData, BooleanFieldSchema, NameFieldData, NameFieldSchema
 
 ELEMENT_TYPE: Final = "node"
@@ -24,6 +25,12 @@ NODE_DEVICE_NAMES: Final[frozenset[NodeDeviceName]] = frozenset(
     (NODE_DEVICE_NODE := ELEMENT_TYPE,),
 )
 
+# Field type aliases with defaults
+IsSourceFieldSchema = Annotated[BooleanFieldSchema, Default(value=False)]
+IsSourceFieldData = Annotated[BooleanFieldData, Default(value=False)]
+IsSinkFieldSchema = Annotated[BooleanFieldSchema, Default(value=False)]
+IsSinkFieldData = Annotated[BooleanFieldData, Default(value=False)]
+
 
 class NodeConfigSchema(TypedDict):
     """Node element configuration.
@@ -39,8 +46,8 @@ class NodeConfigSchema(TypedDict):
     element_type: Literal["node"]
     name: NameFieldSchema
 
-    is_source: BooleanFieldSchema
-    is_sink: BooleanFieldSchema
+    is_source: IsSourceFieldSchema
+    is_sink: IsSinkFieldSchema
 
 
 class NodeConfigData(TypedDict):
@@ -49,14 +56,8 @@ class NodeConfigData(TypedDict):
     element_type: Literal["node"]
     name: NameFieldData
 
-    is_source: BooleanFieldData
-    is_sink: BooleanFieldData
-
-
-CONFIG_DEFAULTS: dict[str, Any] = {
-    CONF_IS_SOURCE: False,
-    CONF_IS_SINK: False,
-}
+    is_source: IsSourceFieldData
+    is_sink: IsSinkFieldData
 
 
 def create_model_elements(config: NodeConfigData) -> list[dict[str, Any]]:

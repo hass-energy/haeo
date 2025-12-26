@@ -28,6 +28,28 @@ from .params import SchemaParams
 from .util import UnitSpec
 
 
+@dataclass(frozen=True, kw_only=True)
+class Default:
+    """Default value marker for field composition.
+
+    Used in Annotated composition to specify default values for fields.
+
+    Attributes:
+        value: Default value shown in config flow UI when adding new elements.
+            This value is used as the suggested value in the form.
+
+    Examples:
+        # Field with default value
+        Annotated[BatterySOCFieldSchema, Default(value=95.0)]
+
+        # Field with boolean default
+        Annotated[BooleanFieldSchema, Default(value=True)]
+
+    """
+
+    value: float | bool
+
+
 @dataclass(frozen=True)
 class FieldMeta(ABC):
     """Base metadata describing schema and data behaviour for a field."""
