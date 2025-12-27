@@ -1,5 +1,6 @@
 """HAEO energy modeling components."""
 
+from .battery_balance_connection import BatteryBalanceConnection as BatteryBalanceConnection
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
 from .connection import CONNECTION_POWER_TARGET_SOURCE as CONNECTION_POWER_TARGET_SOURCE
@@ -44,6 +45,7 @@ __all__ = [
     "OUTPUT_TYPE_SOC",
     "OUTPUT_TYPE_STATUS",
     "POWER_CONNECTION_OUTPUT_NAMES",
+    "BatteryBalanceConnection",
     "Connection",
     "ConnectionConstraintName",
     "ConnectionOutputName",

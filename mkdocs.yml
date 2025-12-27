@@ -64,9 +64,6 @@ theme:
 plugins:
   - search:
       separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
-  - git-revision-date-localized:
-      enable_creation_date: true
-      type: timeago
 
 markdown_extensions:
   # Python Markdown
@@ -112,6 +109,9 @@ markdown_extensions:
   - pymdownx.tilde
 
 extra:
+  analytics:
+    provider: google
+    property: G-ZQ0CM215M1
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/hass-energy/haeo
@@ -166,7 +166,8 @@ nav:
           - Connections:
               - modeling/model-layer/connections/index.md
               - Connection: modeling/model-layer/connections/connection.md
-              - PowerConnection: modeling/model-layer/connections/power-connection.md
+              - Power Connection: modeling/model-layer/connections/power-connection.md
+              - Battery Balance Connection: modeling/model-layer/battery-balance-connection.md
       - Device Layer:
           - modeling/device-layer/index.md
           - Battery: modeling/device-layer/battery.md
