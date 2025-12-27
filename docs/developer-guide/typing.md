@@ -93,10 +93,10 @@ class BatteryConfigData(TypedDict):
 
     element_type: Literal["battery"]
     name: NameFieldData  # Loaded name value
-    capacity: EnergySensorFieldData  # Loaded float value in kWh
+    capacity: EnergySensorFieldData  # Loaded float values in kWh
 ```
 
-Fields use `Annotated` types that attach `FieldMeta` metadata for validation and loading.
+Fields use `Annotated` types that attach composable metadata (Validator, LoaderMeta, Default) for validation and loading.
 The `load()` function converts from Schema mode to Data mode, performing type narrowing at the boundary.
 
 ## TypeGuard for narrowing
@@ -120,23 +120,24 @@ def process_element(config: ElementConfigData) -> None:
 
 ## Annotated for metadata
 
-HAEO uses `Annotated` types to attach field metadata without affecting the base type:
+HAEO uses `Annotated` types to compose field metadata without affecting the base type:
 
 ```python
 from typing import Annotated
 
-# Field type aliases combine base type with metadata
+# Field type aliases compose multiple metadata markers
 PowerSensorFieldSchema = Annotated[
-    str | list[str],
-    SensorFieldMeta(accepted_units=[UnitSpec(...)], multiple=True),
+    str,
+    EntitySelect(accepted_units=POWER_UNITS),
+    TimeSeries(accepted_units=POWER_UNITS),
 ]
 
 
 class SolarConfigSchema(TypedDict):
-    power: PowerSensorFieldSchema  # Entity ID(s) with attached loader metadata
+    power: PowerSensorFieldSchema  # Entity ID with attached validation and loader metadata
 ```
 
-The metadata is extracted at runtime using `get_type_hints(cls, include_extras=True)`.
+The `compose_field()` function extracts metadata at runtime using `get_type_hints(cls, include_extras=True)`.
 
 ## Pyright configuration
 

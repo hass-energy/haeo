@@ -1,6 +1,6 @@
 """Loader type alias for field type-specific data loading.
 
-Loader instances are accessed through FieldMeta.loader, providing full type safety.
+Loader instances are created from LoaderMeta markers via compose_field().
 Individual loaders are defined in their respective modules and should not be imported directly.
 """
 

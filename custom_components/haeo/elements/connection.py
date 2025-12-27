@@ -79,8 +79,6 @@ class ConnectionConfigData(TypedDict):
     price_target_source: NotRequired[PriceSensorsFieldData]
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {}
-
 CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = POWER_CONNECTION_OUTPUT_NAMES
 
 type ConnectionDeviceName = Literal["connection"]

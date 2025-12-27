@@ -26,7 +26,7 @@ Each element type follows a consistent pattern:
 
 ## Data loading
 
-- Field types use the schema system (FieldMeta + Loaders) defined in `schema/`
+- Field types use the composable metadata system (Validator, LoaderMeta, Default) defined in `schema/`
 - Loaders handle sensor data extraction and constant value conversion
 - Data availability is validated during config flow via `evaluate_network_connectivity()`
 

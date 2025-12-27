@@ -486,33 +486,6 @@ def test_extract_entity_ids_skips_constant_fields() -> None:
     assert extracted == {"sensor.capacity", "sensor.soc"}
 
 
-def test_extract_entity_ids_skips_missing_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fields without schema metadata should be ignored when collecting entity identifiers."""
-    config: ElementConfigSchema = {
-        CONF_NAME: "Battery",
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-        CONF_CAPACITY: "sensor.capacity",
-        CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.soc",
-        CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-        CONF_MAX_CHARGE_PERCENTAGE: 80.0,
-        CONF_EFFICIENCY: 95.0,
-        CONF_CONNECTION: "DC Bus",
-    }
-
-    original_get_field_meta = extract_entity_ids_from_config.__globals__["get_field_meta"]
-
-    def fake_get_field_meta(field_name: str, config_class: type) -> Any:
-        if field_name == CONF_CAPACITY:
-            return None
-        return original_get_field_meta(field_name, config_class)
-
-    monkeypatch.setattr("custom_components.haeo.coordinator.get_field_meta", fake_get_field_meta)
-
-    extracted = extract_entity_ids_from_config(config)
-
-    assert extracted == {"sensor.soc"}
-
-
 def test_extract_entity_ids_catches_type_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     """Unexpected type errors should fall back to an empty identifier set."""
     config: ElementConfigSchema = {

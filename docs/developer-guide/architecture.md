@@ -194,10 +194,9 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
 Extend `schema/fields.py`:
 
-- Create new `FieldMeta` subclass
-- Define validation schema
-- Implement loader logic
-- Register with field type system
+- Create new Validator subclass with `create_schema()` method
+- Add LoaderMeta subclass if needed for custom loading behavior
+- Define field type aliases composing Validator, LoaderMeta, and optional Default
 
 ## Related Documentation
 
