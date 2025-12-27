@@ -12,6 +12,9 @@ from .const import OUTPUT_TYPE_POWER_FLOW
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
+# Model element type for battery balance connections
+ELEMENT_TYPE: Final = "battery_balance_connection"
+
 if TYPE_CHECKING:
     from .battery import Battery
 
