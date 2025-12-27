@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Annotated, Any, TypeVar, Union, Unpack, cast, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Annotated, Any, Union, Unpack, cast, get_args, get_origin, get_type_hints
 from typing import get_origin as typing_get_origin
 
 from homeassistant.core import HomeAssistant
@@ -20,6 +20,7 @@ __all__ = [
     "FieldSpec",
     "available",
     "compose_field",
+    "get_default",
     "get_loader_instance",
     "get_schema_defaults",
     "load",
@@ -34,8 +35,6 @@ if TYPE_CHECKING:
         ElementRegistryEntry,
         ElementType,
     )
-
-T = TypeVar("T")
 
 
 @dataclass(frozen=True)
@@ -96,6 +95,32 @@ def compose_field(field_type: Any) -> FieldSpec:
                 default = meta
 
     return FieldSpec(validator=validator, loader=loader, default=default)
+
+
+def get_default[T](field_name: str, config_class: type, fallback: T) -> T:
+    """Get the default value for a field from its schema annotation.
+
+    Extracts the Default metadata from a field's Annotated type and returns
+    the default value. Returns the fallback if no default is defined.
+
+    Args:
+        field_name: Name of the field in the TypedDict.
+        config_class: The TypedDict config class (Schema or Data mode).
+        fallback: Value to return if no default is defined.
+
+    Returns:
+        The default value from the field's annotation, or fallback.
+
+    """
+    hints = get_type_hints(config_class, include_extras=True)
+    field_type = hints.get(field_name)
+    if field_type is None:
+        return fallback
+
+    spec = compose_field(field_type)
+    if spec.default is not None:
+        return cast("T", spec.default.value)
+    return fallback
 
 
 def _get_loader_from_meta(loader_meta: LoaderMeta | None) -> Loader:

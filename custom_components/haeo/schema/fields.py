@@ -40,10 +40,7 @@ from custom_components.haeo.data.loader.extractors import EntityMetadata
 from .params import SchemaParams
 from .util import UnitSpec
 
-
-# =============================================================================
-# Default metadata
-# =============================================================================
+# Default metadata type
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -60,13 +57,11 @@ class Default:
     value: float | bool
 
 
-# =============================================================================
-# Loader metadata
-# =============================================================================
+# Loader metadata types
 
 
 @dataclass(frozen=True)
-class LoaderMeta(ABC):
+class LoaderMeta:
     """Base class for loader metadata markers."""
 
 
@@ -99,9 +94,7 @@ class TimeSeries(LoaderMeta):
     multiple: bool = False
 
 
-# =============================================================================
-# Validator metadata
-# =============================================================================
+# Validator metadata types
 
 
 @dataclass(frozen=True)
@@ -121,6 +114,7 @@ class PositiveKW(Validator):
     """Validates positive power values in kilowatts."""
 
     def create_schema(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        """Return voluptuous validators for positive power in kW."""
         return vol.All(
             vol.Coerce(float),
             vol.Range(min=0, min_included=True, msg="Value must be positive"),
@@ -140,6 +134,7 @@ class AnyKW(Validator):
     """Validates power flow values (positive or negative) in kilowatts."""
 
     def create_schema(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        """Return voluptuous validators for power flow in kW."""
         return vol.All(
             vol.Coerce(float),
             NumberSelector(
@@ -157,6 +152,7 @@ class PositiveKWH(Validator):
     """Validates positive energy values in kilowatt-hours."""
 
     def create_schema(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        """Return voluptuous validators for positive energy in kWh."""
         return vol.All(
             vol.Coerce(float),
             vol.Range(min=0, min_included=True, msg="Value must be positive"),
@@ -176,6 +172,7 @@ class Price(Validator):
     """Validates price values in $/kWh."""
 
     def create_schema(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        """Return voluptuous validators for price in $/kWh."""
         return vol.All(
             vol.Coerce(float),
             NumberSelector(
@@ -193,6 +190,7 @@ class Percentage(Validator):
     """Validates percentage values (0-100)."""
 
     def create_schema(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        """Return voluptuous validators for percentage."""
         return vol.All(
             vol.Coerce(float),
             vol.Range(min=0, max=100, msg="Value must be between 0 and 100"),
@@ -204,6 +202,7 @@ class BatterySOC(Validator):
     """Validates battery state-of-charge percentages (0-100)."""
 
     def create_schema(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        """Return voluptuous validators for battery SOC percentage."""
         return vol.All(
             vol.Coerce(float),
             vol.Range(min=0, max=100, msg="Value must be between 0 and 100"),
@@ -215,6 +214,7 @@ class Boolean(Validator):
     """Validates boolean toggle values."""
 
     def create_schema(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        """Return voluptuous validators for boolean."""
         return vol.All(vol.Coerce(bool), BooleanSelector(BooleanSelectorConfig()))
 
 
@@ -223,6 +223,7 @@ class Name(Validator):
     """Validates free-form name strings."""
 
     def create_schema(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
+        """Return voluptuous validators for name string."""
         return vol.All(
             vol.Coerce(str),
             vol.Strip,
@@ -235,6 +236,7 @@ class ElementName(Validator):
     """Validates element name selection from available participants."""
 
     def create_schema(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
+        """Return voluptuous validators for element name selection."""
         participants: Sequence[str] | None = schema_params.get("participants")
         current_element_name: str | None = schema_params.get("current_element_name")
 
@@ -271,6 +273,7 @@ class EntitySelect(Validator):
     multiple: bool = False
 
     def create_schema(self, **schema_params: Unpack[SchemaParams]) -> vol.All:
+        """Return voluptuous validators for entity selection."""
         entity_metadata: Sequence[EntityMetadata] = schema_params.get("entity_metadata", [])
         incompatible_entities: list[str] = [
             v.entity_id for v in entity_metadata if not v.is_compatible_with(self.accepted_units)
@@ -287,9 +290,7 @@ class EntitySelect(Validator):
         )
 
 
-# =============================================================================
 # Unit sets for sensor filtering
-# =============================================================================
 
 POWER_UNITS: Final = UnitOfPower
 ENERGY_UNITS: Final = UnitOfEnergy
@@ -298,104 +299,107 @@ PERCENTAGE_UNITS: Final = [PERCENTAGE]
 PRICE_UNITS: Final[list[UnitSpec]] = [("*", "/", unit.value) for unit in UnitOfEnergy]
 
 
-# =============================================================================
-# Schema mode type aliases (configuration with entity IDs)
-# =============================================================================
+# Field type aliases
+# Schema mode: entity IDs for configuration
+# Data mode: loaded values for runtime
 
-# Constant fields
 PowerFieldSchema = Annotated[float, PositiveKW(), ConstantFloat()]
-PowerFlowFieldSchema = Annotated[float, AnyKW(), ConstantFloat()]
-EnergyFieldSchema = Annotated[float, PositiveKWH(), ConstantFloat()]
-PercentageFieldSchema = Annotated[float, Percentage(), ConstantFloat()]
-BooleanFieldSchema = Annotated[bool, Boolean(), ConstantBool()]
-NameFieldSchema = Annotated[str, Name(), ConstantStr()]
-ElementNameFieldSchema = Annotated[str, ElementName(), ConstantStr()]
-BatterySOCFieldSchema = Annotated[float, BatterySOC(), ConstantFloat()]
-PriceFieldSchema = Annotated[float, Price(), ConstantFloat()]
+PowerFieldData = Annotated[float, PositiveKW(), ConstantFloat()]
 
-# Sensor fields
+PowerFlowFieldSchema = Annotated[float, AnyKW(), ConstantFloat()]
+PowerFlowFieldData = Annotated[float, AnyKW(), ConstantFloat()]
+
+EnergyFieldSchema = Annotated[float, PositiveKWH(), ConstantFloat()]
+EnergyFieldData = Annotated[float, PositiveKWH(), ConstantFloat()]
+
+PercentageFieldSchema = Annotated[float, Percentage(), ConstantFloat()]
+PercentageFieldData = Annotated[float, Percentage(), ConstantFloat()]
+
+BooleanFieldSchema = Annotated[bool, Boolean(), ConstantBool()]
+BooleanFieldData = Annotated[bool, Boolean(), ConstantBool()]
+
+NameFieldSchema = Annotated[str, Name(), ConstantStr()]
+NameFieldData = Annotated[str, Name(), ConstantStr()]
+
+ElementNameFieldSchema = Annotated[str, ElementName(), ConstantStr()]
+ElementNameFieldData = Annotated[str, ElementName(), ConstantStr()]
+
+BatterySOCFieldSchema = Annotated[float, BatterySOC(), ConstantFloat()]
+BatterySOCFieldData = Annotated[float, BatterySOC(), ConstantFloat()]
+
+PriceFieldSchema = Annotated[float, Price(), ConstantFloat()]
+PriceFieldData = Annotated[float, Price(), ConstantFloat()]
+
 PowerSensorFieldSchema = Annotated[
     str,
     EntitySelect(accepted_units=POWER_UNITS, multiple=False),
     TimeSeries(accepted_units=POWER_UNITS, multiple=False),
 ]
-PowerSensorsFieldSchema = Annotated[
-    Sequence[str],
-    EntitySelect(accepted_units=POWER_UNITS, multiple=True),
-    TimeSeries(accepted_units=POWER_UNITS, multiple=True),
-]
-EnergySensorFieldSchema = Annotated[
-    str,
-    EntitySelect(accepted_units=ENERGY_UNITS, multiple=False),
-    TimeSeries(accepted_units=ENERGY_UNITS, multiple=False),
-]
-EnergySensorsFieldSchema = Annotated[
-    Sequence[str],
-    EntitySelect(accepted_units=ENERGY_UNITS, multiple=True),
-    TimeSeries(accepted_units=ENERGY_UNITS, multiple=True),
-]
-PercentageSensorFieldSchema = Annotated[
-    str,
-    EntitySelect(accepted_units=PERCENTAGE_UNITS, multiple=False),
-    TimeSeries(accepted_units=PERCENTAGE_UNITS, multiple=False),
-]
-BatterySOCSensorFieldSchema = Annotated[
-    str,
-    EntitySelect(accepted_units=BATTERY_UNITS, multiple=False),
-    TimeSeries(accepted_units=BATTERY_UNITS, multiple=False),
-]
-PriceSensorsFieldSchema = Annotated[
-    Sequence[str],
-    EntitySelect(accepted_units=PRICE_UNITS, multiple=True),
-    TimeSeries(accepted_units=PRICE_UNITS, multiple=True),
-]
-
-
-# =============================================================================
-# Data mode type aliases (loaded runtime values)
-# =============================================================================
-
-# Constant fields (same type after loading)
-PowerFieldData = Annotated[float, PositiveKW(), ConstantFloat()]
-PowerFlowFieldData = Annotated[float, AnyKW(), ConstantFloat()]
-EnergyFieldData = Annotated[float, PositiveKWH(), ConstantFloat()]
-PercentageFieldData = Annotated[float, Percentage(), ConstantFloat()]
-BooleanFieldData = Annotated[bool, Boolean(), ConstantBool()]
-NameFieldData = Annotated[str, Name(), ConstantStr()]
-ElementNameFieldData = Annotated[str, ElementName(), ConstantStr()]
-BatterySOCFieldData = Annotated[float, BatterySOC(), ConstantFloat()]
-PriceFieldData = Annotated[float, Price(), ConstantFloat()]
-
-# Sensor fields (become list[float] after loading)
 PowerSensorFieldData = Annotated[
     list[float],
     EntitySelect(accepted_units=POWER_UNITS, multiple=False),
     TimeSeries(accepted_units=POWER_UNITS, multiple=False),
+]
+
+PowerSensorsFieldSchema = Annotated[
+    Sequence[str],
+    EntitySelect(accepted_units=POWER_UNITS, multiple=True),
+    TimeSeries(accepted_units=POWER_UNITS, multiple=True),
 ]
 PowerSensorsFieldData = Annotated[
     list[float],
     EntitySelect(accepted_units=POWER_UNITS, multiple=True),
     TimeSeries(accepted_units=POWER_UNITS, multiple=True),
 ]
+
+EnergySensorFieldSchema = Annotated[
+    str,
+    EntitySelect(accepted_units=ENERGY_UNITS, multiple=False),
+    TimeSeries(accepted_units=ENERGY_UNITS, multiple=False),
+]
 EnergySensorFieldData = Annotated[
     list[float],
     EntitySelect(accepted_units=ENERGY_UNITS, multiple=False),
     TimeSeries(accepted_units=ENERGY_UNITS, multiple=False),
+]
+
+EnergySensorsFieldSchema = Annotated[
+    Sequence[str],
+    EntitySelect(accepted_units=ENERGY_UNITS, multiple=True),
+    TimeSeries(accepted_units=ENERGY_UNITS, multiple=True),
 ]
 EnergySensorsFieldData = Annotated[
     list[float],
     EntitySelect(accepted_units=ENERGY_UNITS, multiple=True),
     TimeSeries(accepted_units=ENERGY_UNITS, multiple=True),
 ]
+
+PercentageSensorFieldSchema = Annotated[
+    str,
+    EntitySelect(accepted_units=PERCENTAGE_UNITS, multiple=False),
+    TimeSeries(accepted_units=PERCENTAGE_UNITS, multiple=False),
+]
 PercentageSensorFieldData = Annotated[
     list[float],
     EntitySelect(accepted_units=PERCENTAGE_UNITS, multiple=False),
     TimeSeries(accepted_units=PERCENTAGE_UNITS, multiple=False),
 ]
+
+BatterySOCSensorFieldSchema = Annotated[
+    str,
+    EntitySelect(accepted_units=BATTERY_UNITS, multiple=False),
+    TimeSeries(accepted_units=BATTERY_UNITS, multiple=False),
+]
 BatterySOCSensorFieldData = Annotated[
     list[float],
     EntitySelect(accepted_units=BATTERY_UNITS, multiple=False),
     TimeSeries(accepted_units=BATTERY_UNITS, multiple=False),
+]
+
+PriceSensorsFieldSchema = Annotated[
+    Sequence[str],
+    EntitySelect(accepted_units=PRICE_UNITS, multiple=True),
+    TimeSeries(accepted_units=PRICE_UNITS, multiple=True),
 ]
 PriceSensorsFieldData = Annotated[
     list[float],

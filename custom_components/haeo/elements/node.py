@@ -25,11 +25,9 @@ NODE_DEVICE_NAMES: Final[frozenset[NodeDeviceName]] = frozenset(
     (NODE_DEVICE_NODE := ELEMENT_TYPE,),
 )
 
-# Field type aliases with defaults
-IsSourceFieldSchema = Annotated[BooleanFieldSchema, Default(value=False)]
-IsSourceFieldData = Annotated[BooleanFieldData, Default(value=False)]
-IsSinkFieldSchema = Annotated[BooleanFieldSchema, Default(value=False)]
-IsSinkFieldData = Annotated[BooleanFieldData, Default(value=False)]
+# Field type alias with default (false by default)
+DefaultFalseFieldSchema = Annotated[BooleanFieldSchema, Default(value=False)]
+DefaultFalseFieldData = Annotated[BooleanFieldData, Default(value=False)]
 
 
 class NodeConfigSchema(TypedDict):
@@ -46,8 +44,8 @@ class NodeConfigSchema(TypedDict):
     element_type: Literal["node"]
     name: NameFieldSchema
 
-    is_source: IsSourceFieldSchema
-    is_sink: IsSinkFieldSchema
+    is_source: DefaultFalseFieldSchema
+    is_sink: DefaultFalseFieldSchema
 
 
 class NodeConfigData(TypedDict):
@@ -56,8 +54,8 @@ class NodeConfigData(TypedDict):
     element_type: Literal["node"]
     name: NameFieldData
 
-    is_source: IsSourceFieldData
-    is_sink: IsSinkFieldData
+    is_source: DefaultFalseFieldData
+    is_sink: DefaultFalseFieldData
 
 
 def create_model_elements(config: NodeConfigData) -> list[dict[str, Any]]:

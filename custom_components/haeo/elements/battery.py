@@ -12,7 +12,7 @@ from custom_components.haeo.model import power_connection as model_connection
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SOC
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.schema import Default
+from custom_components.haeo.schema import Default, get_default
 from custom_components.haeo.schema.fields import (
     BatterySOCFieldData,
     BatterySOCFieldSchema,
@@ -176,8 +176,11 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     )
     initial_soc_ratio = initial_soc / 100.0
 
-    # Calculate early charge/discharge incentives (use 0.001 as default)
-    early_charge_incentive: float = config.get("early_charge_incentive", 0.001)
+    # Calculate early charge/discharge incentives
+    early_charge_incentive = config.get(
+        "early_charge_incentive",
+        get_default("early_charge_incentive", BatteryConfigData, 0.0),
+    )
 
     # Determine unusable ratio (inaccessible energy)
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
