@@ -20,6 +20,8 @@ VALID_CASES: list[ElementTestCase] = [
         "data": {
             "name": "hub_node",
             "periods": [1.0] * 3,
+            "is_source": False,
+            "is_sink": False,
         },
         "inputs": {
             "power": [0.0, 0.0, 0.0],  # Balanced power at node

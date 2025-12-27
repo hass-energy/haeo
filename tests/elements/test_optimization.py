@@ -19,7 +19,7 @@ from tests.test_data.elements import VALID_CONFIGS_BY_TYPE, ElementValidCase
 # Model element constructors by element_type string
 MODEL_ELEMENT_TYPES: dict[str, str] = {
     "battery": "battery",
-    "source_sink": "source_sink",
+    "node": "node",
     "connection": "connection",
 }
 
@@ -59,10 +59,10 @@ def test_element_optimization(
     # Create network with the given periods
     network = Network(name="test_network", periods=periods)
 
-    # Find and add external connection target (e.g., "network") as a source_sink
+    # Find and add external connection target (e.g., "network") as a node
     external_targets = _find_external_targets(model_elements)
     for target_name in external_targets:
-        network.add("source_sink", target_name, is_source=True, is_sink=True)
+        network.add("node", target_name, is_source=True, is_sink=True)
 
     # Add all model elements to the network
     for model_element in model_elements:

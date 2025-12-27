@@ -1,820 +1,385 @@
-"""Model battery balance connection tests.
+"""Tests for BatteryBalanceConnection constraints.
 
-Tests for the BatteryBalanceConnection element which provides lossless energy
-redistribution between adjacent battery sections, enforcing that lower sections
-fill to capacity before upper sections can hold energy.
+This test suite verifies the battery balance connection's constraint formulation
+using simplified mock batteries with controlled stored_energy values and SOC
+constraints. The tests confirm that:
+
+1. Downward flow: power_down = min(demand, available)
+   - When demand <= available: power_down = demand (limited by lower's capacity)
+   - When demand > available: power_down = available (limited by upper's energy)
+
+2. Upward flow: power_up = max(0, excess)
+   - When capacity stable: power_up = 0
+   - When capacity shrinks: power_up = excess amount
+
+The battery balance connection only provides one-sided bounds; the external SOC
+constraints (E >= 0, E <= C) fully bind the solution to exact values.
 """
 
+from dataclasses import dataclass
+from functools import reduce
+from typing import Self
+
+from highspy import Highs
+from highspy.highs import HighspyArray
+import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.model.battery_balance_connection import BatteryBalanceConnection
-from custom_components.haeo.model.network import Network
 
 
-def add_economic_objective(network: Network) -> None:
-    """Add infrastructure for economic objective to drive optimal solutions.
+@dataclass
+class MockBattery:
+    """Simplified battery for testing balance connection constraints.
 
-    Without priced connections, slack variables have no incentive to minimize.
-    A grid with import/export pricing provides the objective function.
+    Provides stored_energy as HiGHS linear expressions and adds basic SOC
+    constraints (0 <= E <= capacity) to the solver.
     """
-    network.add("node", "grid_bus")
-    network.add("source_sink", "grid", is_source=True, is_sink=True)
-    network.add(
-        "connection",
-        "grid_conn",
-        source="grid",
-        target="grid_bus",
-        price_source_target=0.30,
-        price_target_source=0.10,
-    )
-    network.add("connection", "lower_conn", source="lower_section", target="grid_bus")
-    network.add("connection", "upper_conn", source="upper_section", target="grid_bus")
 
+    name: str
+    n_periods: int
+    capacity: tuple[float, ...]
+    initial_charge: float
+    _solver: Highs
+    stored_energy: HighspyArray
+    _energy_in: HighspyArray
+    _energy_out: HighspyArray
+    _connections: list[tuple[BatteryBalanceConnection, str]]
 
-# =============================================================================
-# Upward Power Computation Tests
-# =============================================================================
+    @classmethod
+    def create(
+        cls,
+        name: str,
+        n_periods: int,
+        capacity: float | tuple[float, ...],
+        initial_charge: float,
+        solver: Highs,
+    ) -> Self:
+        """Create a mock battery with SOC constraints."""
+        # Broadcast capacity to T+1 fence posts
+        cap = tuple([float(capacity)] * (n_periods + 1)) if isinstance(capacity, float | int) else capacity
 
+        # Create cumulative energy variables (T+1 values)
+        energy_in = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_e_in_", out_array=True)
+        energy_out = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_e_out_", out_array=True)
 
-def test_balance_connection_upward_power_no_capacity_change() -> None:
-    """With constant capacity, power_up = 0 since no energy needs to move up."""
-    periods = [1.0] * 3
-    network = Network(name="test", periods=periods)
+        # Initial conditions
+        solver.addConstr(energy_in[0] == initial_charge)
+        solver.addConstr(energy_out[0] == 0.0)
 
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=2.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=5.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
-    )
-    add_economic_objective(network)
+        # Energy can only increase (cumulative)
+        solver.addConstrs(energy_in[1:] >= energy_in[:-1])
+        solver.addConstrs(energy_out[1:] >= energy_out[:-1])
 
-    network.optimize()
+        # Stored energy = cumulative in - cumulative out
+        stored_energy = energy_in - energy_out
 
-    balance = network.elements["balance"]
-    power_up = balance.outputs()["balance_power_up"].values
+        # SOC constraints: 0 <= stored <= capacity
+        for t in range(n_periods + 1):
+            solver.addConstr(stored_energy[t] >= 0)
+            solver.addConstr(stored_energy[t] <= cap[t])
 
-    assert power_up == pytest.approx((0.0, 0.0, 0.0), rel=1e-9, abs=1e-9)
-
-
-def test_balance_connection_upward_power_with_capacity_shrinkage() -> None:
-    """Capacity shrinkage forces energy to move up to maintain ordering.
-
-    Setup:
-        Lower: capacity shrinks 5→4→3→3, initial=2 kWh
-        Upper: capacity=10 kWh, initial=5 kWh
-        Total: 7 kWh
-
-    Expected flow by period:
-        t=1: overflow = max(0, 7-4) = 3, upper=3, lower=4
-             lower 2→4 (+2), upper 5→3 (-2): power_down=2, power_up=0
-        t=2: overflow = max(0, 7-3) = 4, upper=4, lower=3
-             lower 4→3 (-1), upper 3→4 (+1): power_down=0, power_up=1
-        t=3: overflow = max(0, 7-3) = 4, upper=4, lower=3
-             lower 3→3 (0), upper 4→4 (0): no flow
-    """
-    periods = [1.0] * 3
-    network = Network(name="test", periods=periods)
-
-    network.add("battery", "lower_section", capacity=[5.0, 4.0, 3.0, 3.0], initial_charge=2.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=5.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=[5.0, 4.0, 3.0, 3.0],
-    )
-
-    network.optimize()
-
-    balance = network.elements["balance"]
-    power_up = balance.outputs()["balance_power_up"].values
-
-    assert power_up == pytest.approx((0.0, 1.0, 0.0), rel=1e-9, abs=1e-9)
-
-
-def test_balance_connection_upward_power_with_capacity_growth() -> None:
-    """Capacity growth allows more energy in lower, so energy flows down.
-
-    Setup:
-        Lower: capacity grows 3→4→5→5, initial=2 kWh
-        Upper: capacity=10 kWh, initial=5 kWh
-        Total: 7 kWh
-
-    Expected:
-        As capacity grows, lower can hold more, so energy flows DOWN to fill it
-        power_up = 0 throughout (no upward flow needed)
-    """
-    periods = [1.0] * 3
-    network = Network(name="test", periods=periods)
-
-    network.add("battery", "lower_section", capacity=[3.0, 4.0, 5.0, 5.0], initial_charge=2.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=5.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=[3.0, 4.0, 5.0, 5.0],
-    )
-
-    network.optimize()
-
-    balance = network.elements["balance"]
-    power_up = balance.outputs()["balance_power_up"].values
-
-    assert power_up == pytest.approx((0.0, 0.0, 0.0), rel=1e-9, abs=1e-9)
-
-
-def test_balance_connection_upward_power_variable_period_durations() -> None:
-    """Power scales correctly with variable period durations.
-
-    Setup:
-        Periods: [0.5h, 1.0h, 2.0h]
-        Lower: capacity shrinks 5→4→3→3, initial=2 kWh
-        Upper: capacity=10 kWh, initial=5 kWh
-        Total: 7 kWh
-
-    Expected (same energy transitions, different power):
-        Period 0 (0.5h): lower 2→4 (+2 kWh): power_down = 2/0.5 = 4 kW, power_up = 0
-        Period 1 (1.0h): lower 4→3 (-1 kWh), upper 3→4 (+1 kWh): power_up = 1/1.0 = 1 kW
-        Period 2 (2.0h): no change: power_up = 0
-    """
-    periods = [0.5, 1.0, 2.0]
-    network = Network(name="test", periods=periods)
-
-    network.add("battery", "lower_section", capacity=[5.0, 4.0, 3.0, 3.0], initial_charge=2.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=5.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=[5.0, 4.0, 3.0, 3.0],
-    )
-
-    network.optimize()
-
-    balance = network.elements["balance"]
-    power_up = balance.outputs()["balance_power_up"].values
-
-    assert power_up == pytest.approx((0.0, 1.0, 0.0), rel=1e-9, abs=1e-9)
-
-
-# =============================================================================
-# Network Integration Tests
-# =============================================================================
-
-
-def test_balance_connection_network_integration() -> None:
-    """BatteryBalanceConnection should integrate with Network.add() correctly."""
-    periods = [1.0, 1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    # Add batteries first
-    network.add("battery", "lower_section", capacity=[5.0, 4.0, 3.0, 3.0], initial_charge=3.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=5.0)
-
-    # Add balance connection
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=[5.0, 4.0, 3.0, 3.0],
-    )
-
-    # Verify the balance connection was registered correctly
-    balance = network.elements["balance"]
-    assert isinstance(balance, BatteryBalanceConnection)
-    assert balance._upper_battery is not None
-    assert balance._lower_battery is not None
-    assert balance._upper_battery.name == "upper_section"
-    assert balance._lower_battery.name == "lower_section"
-
-
-def test_balance_connection_network_validation_missing_upper() -> None:
-    """Network should raise error when balance connection upper battery is missing."""
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=2.0)
-
-    with pytest.raises(TypeError, match="Upper element 'missing_battery' is not a battery"):
-        network.add(
-            "battery_balance_connection",
-            "balance",
-            upper="missing_battery",
-            lower="lower_section",
-            capacity_lower=[5.0, 5.0, 5.0],
+        return cls(
+            name=name,
+            n_periods=n_periods,
+            capacity=cap,
+            initial_charge=initial_charge,
+            _solver=solver,
+            stored_energy=stored_energy,
+            _energy_in=energy_in,
+            _energy_out=energy_out,
+            _connections=[],
         )
 
+    def register_connection(self, connection: BatteryBalanceConnection, end: str) -> None:
+        """Register a connection to this battery."""
+        self._connections.append((connection, end))
 
-def test_balance_connection_network_validation_missing_lower() -> None:
-    """Network should raise error when balance connection lower battery is missing."""
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
+    def connection_power(self, _periods: NDArray[np.floating]) -> HighspyArray:
+        """Calculate net power from all registered connections."""
+        n = self.n_periods
+        # Start with zero power
+        net_power: HighspyArray | float = 0.0
 
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=5.0)
+        for conn, end in self._connections:
+            # Power flowing into this battery from the connection
+            power = conn.power_into_source if end == "source" else conn.power_into_target
+            net_power = net_power + power
 
-    with pytest.raises(TypeError, match="Lower element 'missing_battery' is not a battery"):
-        network.add(
-            "battery_balance_connection",
-            "balance",
-            upper="upper_section",
-            lower="missing_battery",
-            capacity_lower=[5.0, 5.0, 5.0],
-        )
+        # If still a scalar, create array
+        if isinstance(net_power, float | int):
+            return self._solver.addVariables(n, lb=0.0, ub=0.0, name_prefix="zero_power_", out_array=True)
+        return net_power
+
+    def build_power_balance(self, periods: tuple[float, ...]) -> None:
+        """Build power balance constraint linking connections to energy change."""
+        periods_array = np.array(periods)
+        # HiGHS expressions need multiplication by reciprocal, not division
+        power_charge = (self._energy_in[1:] - self._energy_in[:-1]) * (1.0 / periods_array)
+        power_discharge = (self._energy_out[1:] - self._energy_out[:-1]) * (1.0 / periods_array)
+        net_battery_power = power_charge - power_discharge
+
+        connection_power = self.connection_power(periods_array)
+        self._solver.addConstrs(connection_power == net_battery_power)
 
 
-# =============================================================================
-# Energy Conservation Tests
-# =============================================================================
+@dataclass
+class BalanceTestScenario:
+    """Test scenario for battery balance connection."""
+
+    description: str
+    n_periods: int
+    periods: tuple[float, ...]
+    # Upper battery config
+    upper_capacity: float | tuple[float, ...]
+    upper_initial: float
+    # Lower battery config (capacity can change over time for upward flow tests)
+    lower_capacity: float | tuple[float, ...]
+    lower_initial: float
+    # Expected results
+    expected_power_down: tuple[float, ...]
+    expected_power_up: tuple[float, ...]
 
 
-def test_balance_connection_conserves_energy_isolated_system() -> None:
-    """Energy should be conserved when batteries are isolated (no external source/sink)."""
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
+BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
+    # Downward flow: demand <= available (limited by lower's space)
+    BalanceTestScenario(
+        description="Downward: lower has space, upper has more than enough",
+        n_periods=1,
+        periods=(1.0,),
+        upper_capacity=10.0,
+        upper_initial=8.0,  # 8 kWh available
+        lower_capacity=10.0,
+        lower_initial=7.0,  # 3 kWh space (demand = 10 - 7 = 3)
+        expected_power_down=(3.0,),  # min(3, 8) = 3
+        expected_power_up=(0.0,),
+    ),
+    # Downward flow: demand > available (limited by upper's energy)
+    BalanceTestScenario(
+        description="Downward: lower has more space than upper has energy",
+        n_periods=1,
+        periods=(1.0,),
+        upper_capacity=10.0,
+        upper_initial=2.0,  # Only 2 kWh available
+        lower_capacity=10.0,
+        lower_initial=3.0,  # 7 kWh space (demand = 10 - 3 = 7)
+        expected_power_down=(2.0,),  # min(7, 2) = 2
+        expected_power_up=(0.0,),
+    ),
+    # Downward flow: lower is full
+    BalanceTestScenario(
+        description="Downward: lower section full, no transfer needed",
+        n_periods=1,
+        periods=(1.0,),
+        upper_capacity=10.0,
+        upper_initial=5.0,
+        lower_capacity=10.0,
+        lower_initial=10.0,  # Full - no space
+        expected_power_down=(0.0,),  # min(0, 5) = 0
+        expected_power_up=(0.0,),
+    ),
+    # Downward flow: upper is empty
+    BalanceTestScenario(
+        description="Downward: upper section empty, nothing to transfer",
+        n_periods=1,
+        periods=(1.0,),
+        upper_capacity=10.0,
+        upper_initial=0.0,  # Empty
+        lower_capacity=10.0,
+        lower_initial=5.0,  # 5 kWh space
+        expected_power_down=(0.0,),  # min(5, 0) = 0
+        expected_power_up=(0.0,),
+    ),
+    # Upward flow: capacity shrinks
+    BalanceTestScenario(
+        description="Upward: capacity shrinks, excess moves up",
+        n_periods=1,
+        periods=(1.0,),
+        upper_capacity=10.0,
+        upper_initial=0.0,
+        # Capacity shrinks from 10 to 7 kWh
+        lower_capacity=(10.0, 7.0),
+        lower_initial=9.0,  # 9 kWh stored, excess = 9 - 7 = 2
+        # demand = 10 - 9 = 1, but available = 0 (upper empty)
+        expected_power_down=(0.0,),  # min(1, 0) = 0
+        expected_power_up=(2.0,),  # max(0, 9 - 7) = 2
+    ),
+    # Upward flow: no capacity change
+    BalanceTestScenario(
+        description="Upward: capacity stable, no upward flow",
+        n_periods=1,
+        periods=(1.0,),
+        upper_capacity=10.0,
+        upper_initial=3.0,
+        lower_capacity=10.0,  # Stable capacity
+        lower_initial=8.0,
+        expected_power_down=(2.0,),  # Fill remaining space: 10 - 8 = 2
+        expected_power_up=(0.0,),  # No excess
+    ),
+    # Multi-period scenario
+    BalanceTestScenario(
+        description="Multi-period: varying conditions",
+        n_periods=3,
+        periods=(1.0, 1.0, 1.0),
+        upper_capacity=10.0,
+        upper_initial=6.0,
+        # Lower capacity shrinks from 10->8 between period 1 and 2
+        lower_capacity=(10.0, 10.0, 8.0, 8.0),
+        lower_initial=5.0,
+        # Period 0: demand=5, available=6 -> power_down=5
+        #   lower: 5+5=10, upper: 6-5=1
+        # Period 1: demand=0, available=1, excess=10-8=2 -> power_up=2
+        #   lower: 10-2=8, upper: 1+2=3
+        # Period 2: demand=0, available=3, excess=0 -> no transfer
+        expected_power_down=(5.0, 0.0, 0.0),
+        expected_power_up=(0.0, 2.0, 0.0),
+    ),
+    # Edge case: both sections empty
+    BalanceTestScenario(
+        description="Edge: both sections empty",
+        n_periods=1,
+        periods=(1.0,),
+        upper_capacity=10.0,
+        upper_initial=0.0,
+        lower_capacity=10.0,
+        lower_initial=0.0,
+        expected_power_down=(0.0,),  # min(10, 0) = 0
+        expected_power_up=(0.0,),
+    ),
+    # Edge case: both sections full
+    BalanceTestScenario(
+        description="Edge: both sections full",
+        n_periods=1,
+        periods=(1.0,),
+        upper_capacity=10.0,
+        upper_initial=10.0,
+        lower_capacity=10.0,
+        lower_initial=10.0,
+        expected_power_down=(0.0,),  # min(0, 10) = 0
+        expected_power_up=(0.0,),
+    ),
+]
 
-    # Lower: 5 kWh capacity, starts with 2 kWh
-    # Upper: 5 kWh capacity, starts with 0 kWh
-    # Total: 2 kWh - should remain 2 kWh
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=2.0)
-    network.add("battery", "upper_section", capacity=5.0, initial_charge=0.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
+
+@pytest.mark.parametrize(
+    "scenario",
+    BALANCE_TEST_SCENARIOS,
+    ids=lambda s: s.description.lower().replace(" ", "_").replace(",", "").replace(":", ""),
+)
+def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs) -> None:
+    """Verify balance connection produces correct power flows."""
+    # Create mock batteries
+    upper = MockBattery.create(
+        name="upper",
+        n_periods=scenario.n_periods,
+        capacity=scenario.upper_capacity,
+        initial_charge=scenario.upper_initial,
+        solver=solver,
+    )
+    lower = MockBattery.create(
+        name="lower",
+        n_periods=scenario.n_periods,
+        capacity=scenario.lower_capacity,
+        initial_charge=scenario.lower_initial,
+        solver=solver,
     )
 
-    network.optimize()
-
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-    lower_stored = lower.outputs()["battery_energy_stored"].values
-    upper_stored = upper.outputs()["battery_energy_stored"].values
-
-    # Total energy should be conserved
-    initial_total = lower_stored[0] + upper_stored[0]
-    final_total = lower_stored[-1] + upper_stored[-1]
-    assert final_total == pytest.approx(initial_total, rel=1e-6), "Total energy should be conserved"
-    assert final_total == pytest.approx(2.0, rel=1e-6), "Total should be 2 kWh"
-
-
-def test_balance_connection_conserves_energy_with_capacity_shrinkage() -> None:
-    """Energy should be conserved even when capacity shrinks."""
-    periods = [1.0]
-    network = Network(name="test", periods=periods)
-
-    # Lower: capacity shrinks from 5 to 4, starts with 2 kWh
-    # Upper: 5 kWh capacity, starts with 0 kWh
-    # Total: 2 kWh - should remain 2 kWh
-    network.add("battery", "lower_section", capacity=[5.0, 4.0], initial_charge=2.0)
-    network.add("battery", "upper_section", capacity=5.0, initial_charge=0.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=[5.0, 4.0],
+    # Create balance connection
+    connection = BatteryBalanceConnection(
+        name="balance",
+        periods=scenario.periods,
+        solver=solver,
+        upper="upper",
+        lower="lower",
+        capacity_lower=scenario.lower_capacity,
     )
 
-    network.optimize()
+    # Set battery references and build constraints
+    # MockBattery provides the same interface as Battery but isn't a subtype
+    connection.set_battery_references(upper, lower)  # type: ignore[arg-type]
 
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-    lower_stored = lower.outputs()["battery_energy_stored"].values
-    upper_stored = upper.outputs()["battery_energy_stored"].values
+    # Build power balance for batteries (links connections to energy change)
+    upper.build_power_balance(scenario.periods)
+    lower.build_power_balance(scenario.periods)
 
-    # Total energy should be conserved
-    initial_total = lower_stored[0] + upper_stored[0]
-    final_total = lower_stored[-1] + upper_stored[-1]
-    assert final_total == pytest.approx(initial_total, rel=1e-6), "Total energy should be conserved"
+    # Build balance connection constraints
+    connection.build_constraints()
 
+    # Add slack penalties to objective (required for min/max constraint behavior)
+    costs = connection.cost()
+    if len(costs) > 0:
+        # Use reduce to avoid sum() returning Literal[0] when sequence is empty
+        solver.minimize(reduce(lambda a, b: a + b, costs))
 
-def test_balance_connection_conserves_energy_both_have_charge() -> None:
-    """Energy should be conserved when both sections have initial charge."""
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
+    # Solve
+    solver.run()
 
-    # Lower: 5 kWh capacity, starts with 2 kWh
-    # Upper: 5 kWh capacity, starts with 3 kWh
-    # Total: 5 kWh - should remain 5 kWh
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=2.0)
-    network.add("battery", "upper_section", capacity=5.0, initial_charge=3.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
-    )
-
-    network.optimize()
-
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-    lower_stored = lower.outputs()["battery_energy_stored"].values
-    upper_stored = upper.outputs()["battery_energy_stored"].values
-
-    # Total energy should be conserved at all time points
-    for t in range(len(lower_stored)):
-        total = lower_stored[t] + upper_stored[t]
-        assert total == pytest.approx(5.0, rel=1e-6), f"Total should be 5 kWh at t={t}"
-
-
-# =============================================================================
-# Capacity Shrinkage Constraint Tests
-# =============================================================================
-
-
-def test_balance_connection_downward_transfer_minimum() -> None:
-    """Downward transfer should be at least equal to upward transfer."""
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    # Lower section capacity shrinks from 5 to 4 kWh
-    # This computes power_up = 1.0 kW (bookkeeping constant)
-    network.add("battery", "lower_section", capacity=[5.0, 4.0, 4.0], initial_charge=3.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=5.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=[5.0, 4.0, 4.0],
-    )
-
-    network.optimize()
-
-    balance = network.elements["balance"]
-    outputs = balance.outputs()
-
-    power_up = outputs["balance_power_up"].values
+    # Extract results
+    outputs = connection.outputs()
     power_down = outputs["balance_power_down"].values
-
-    # Downward transfer should be >= upward transfer (constraint 1)
-    for i, (up, down) in enumerate(zip(power_up, power_down, strict=True)):
-        assert down >= up - 1e-9, f"Period {i}: power_down ({down}) should be >= power_up ({up})"
-
-
-def test_balance_connection_shrinking_capacity_computes_upward_power() -> None:
-    """Upward power is computed when stored energy exceeds new capacity.
-
-    Setup:
-        Lower: capacity=5, initial_charge=4 kWh (almost full)
-        Upper: capacity=10, initial_charge=3 kWh
-        capacity_lower shrinks: [5, 3, 3]
-        Total: 7 kWh
-
-    Expected:
-        t=0: excess = stored[0] - capacity[1] = 4 - 3 = 1 kWh
-             Lower must push 1 kWh up because it exceeds new capacity
-             power_up = 1.0 kW
-        t=1: excess = 3 - 3 = 0, no upward flow
-             power_up = 0.0 kW
-    """
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    # Lower starts almost full so capacity shrinkage forces upward flow
-    network.add("source_sink", "sink", is_source=False, is_sink=True)
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=4.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=3.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=[5.0, 3.0, 3.0],
-    )
-    network.add("connection", "upper_to_sink", source="upper_section", target="sink")
-
-    network.optimize()
-
-    balance = network.elements["balance"]
-    outputs = balance.outputs()
-
     power_up = outputs["balance_power_up"].values
 
-    # power_up is computed from excess = stored - new_capacity
-    # t=0: excess = 4 - 3 = 1, so power_up = 1.0 kW
-    assert power_up[0] == pytest.approx(1.0, rel=1e-6), "Upward power should be 1.0 kW from excess"
-    assert power_up[1] == pytest.approx(0.0, rel=1e-6), "No excess in period 1"
-
-
-def test_balance_connection_shrinking_then_stable() -> None:
-    """Power flows adapt to energy needs, not just capacity shrinkage."""
-    periods = [1.0, 1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    # capacity_lower shrinks: 5→4→3→3
-    # Lower: initial_charge=2, Upper: initial_charge=5, Total=7
-    # With a sink, energy can leave the system
-    network.add("source_sink", "sink", is_source=False, is_sink=True)
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=2.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=5.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=[5.0, 4.0, 3.0, 3.0],
+    # Verify power flows match expectations
+    assert power_down == pytest.approx(scenario.expected_power_down, abs=1e-6), (
+        f"power_down mismatch: got {power_down}, expected {scenario.expected_power_down}"
     )
-    network.add("connection", "upper_to_sink", source="upper_section", target="sink")
-
-    network.optimize()
-
-    balance = network.elements["balance"]
-    power_up = balance.outputs()["balance_power_up"].values
-
-    # Power flows are determined by ordering constraint, not capacity shrinkage
-    # The sink allows energy to leave, so the actual flows depend on optimization
-    # Key invariant: power_up[2] should be 0 when capacity is stable
-    assert power_up[2] == pytest.approx(0.0, rel=1e-6), "Period 2: no capacity change, no upward flow needed"
-
-
-# =============================================================================
-# Power Flow Direction Tests
-# =============================================================================
-
-
-def test_balance_connection_net_flow_is_nonnegative() -> None:
-    """Net power flow (down - up) should be >= 0 due to constraint."""
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    # No capacity shrinkage, so power_up = 0 and power_down >= 0
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=2.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=8.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
+    assert power_up == pytest.approx(scenario.expected_power_up, abs=1e-6), (
+        f"power_up mismatch: got {power_up}, expected {scenario.expected_power_up}"
     )
 
-    network.optimize()
 
-    balance = network.elements["balance"]
-    outputs = balance.outputs()
-
-    power_up = outputs["balance_power_up"].values
-    power_down = outputs["balance_power_down"].values
-
-    # Net flow = down - up (should be >= 0 for all periods)
-    for i, (up, down) in enumerate(zip(power_up, power_down, strict=True)):
-        net_down = down - up
-        assert net_down >= -1e-6, f"Period {i}: Net flow should be >= 0 (down={down}, up={up})"
-
-
-def test_balance_connection_allows_bidirectional_bookkeeping() -> None:
-    """Balance connection allows energy to flow in either direction as needed."""
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    # Lower: initial_charge=3, capacity shrinks 5→4→4
-    # Upper: initial_charge=5, total=8
-    # At t=1: capacity_lower=4, overflow=max(0,8-4)=4, so upper=4, lower=4
-    # From (lower=3, upper=5) to (lower=4, upper=4): 1 kWh flows down
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=3.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=5.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=[5.0, 4.0, 4.0],
+def test_battery_balance_connection_missing_references(solver: Highs) -> None:
+    """Verify error when battery references not set."""
+    connection = BatteryBalanceConnection(
+        name="balance",
+        periods=(1.0,),
+        solver=solver,
+        upper="upper",
+        lower="lower",
+        capacity_lower=10.0,
     )
 
-    network.optimize()
-
-    balance = network.elements["balance"]
-    outputs = balance.outputs()
-
-    power_up = outputs["balance_power_up"].values
-    power_down = outputs["balance_power_down"].values
-
-    # In period 0: lower increases from 3 to 4 (+1), upper decreases from 5 to 4 (-1)
-    # This means 1 kWh flows DOWN, not up
-    assert power_down[0] == pytest.approx(1.0, rel=1e-6), "Downward flow to fill lower"
-    assert power_up[0] == pytest.approx(0.0, rel=1e-6), "No upward flow needed"
+    with pytest.raises(ValueError, match="Battery references not set"):
+        connection.build_constraints()
 
 
-# =============================================================================
-# Edge Case Tests
-# =============================================================================
+def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
+    """Verify outputs method returns expected structure before optimization."""
+    upper = MockBattery.create("upper", 2, 10.0, 5.0, solver)
+    lower = MockBattery.create("lower", 2, 10.0, 3.0, solver)
 
-
-def test_balance_connection_both_empty() -> None:
-    """Both sections empty - system stays at zero energy."""
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=0.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=0.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
+    connection = BatteryBalanceConnection(
+        name="balance",
+        periods=(1.0, 1.0),
+        solver=solver,
+        upper="upper",
+        lower="lower",
+        capacity_lower=10.0,
     )
-
-    network.optimize()
-
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-
-    # Both should stay at zero (no energy in system)
-    assert lower.outputs()["battery_energy_stored"].values[-1] == pytest.approx(0.0, rel=1e-6)
-    assert upper.outputs()["battery_energy_stored"].values[-1] == pytest.approx(0.0, rel=1e-6)
-
-
-def test_balance_connection_both_full() -> None:
-    """Both sections full - energy is conserved."""
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=5.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=10.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
-    )
-
-    network.optimize()
-
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-
-    # Both should stay full (energy conserved)
-    assert lower.outputs()["battery_energy_stored"].values[-1] == pytest.approx(5.0, rel=1e-6)
-    assert upper.outputs()["battery_energy_stored"].values[-1] == pytest.approx(10.0, rel=1e-6)
-
-
-def test_balance_connection_lower_full_upper_empty() -> None:
-    """Lower full, upper empty - no transfer needed."""
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=5.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=0.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
-    )
-
-    network.optimize()
-
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-
-    # Energy conserved: lower stays full, upper stays empty
-    assert lower.outputs()["battery_energy_stored"].values[-1] == pytest.approx(5.0, rel=1e-6)
-    assert upper.outputs()["battery_energy_stored"].values[-1] == pytest.approx(0.0, rel=1e-6)
-
-
-def test_balance_connection_no_transfer_when_lower_full() -> None:
-    """When lower is full, balance connection doesn't force extra transfer."""
-    periods = [1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    # Lower full, upper has energy
-    # Total = 13 kWh, should remain 13 kWh
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=5.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=8.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
-    )
-
-    network.optimize()
-
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-
-    lower_stored = lower.outputs()["battery_energy_stored"].values
-    upper_stored = upper.outputs()["battery_energy_stored"].values
-
-    # Total energy conserved
-    final_total = lower_stored[-1] + upper_stored[-1]
-    assert final_total == pytest.approx(13.0, rel=1e-6), "Total should be 13 kWh"
-
-    # Lower stays full
-    assert lower_stored[-1] == pytest.approx(5.0, rel=1e-6), "Lower should remain at capacity"
-
-
-# =============================================================================
-# Ordering Constraint Tests
-# =============================================================================
-
-
-def test_balance_connection_ordering_lower_fills_before_upper() -> None:
-    """Lower section should fill to capacity before upper gets any energy.
-
-    This tests the ordering constraint: upper_stored <= max(0, total - capacity_lower).
-    When total < capacity_lower, upper must be empty.
-    When total >= capacity_lower, lower must be full.
-    """
-    periods = [1.0]
-    network = Network(name="test", periods=periods)
-
-    # Lower: 5 kWh capacity, starts empty
-    # Upper: 5 kWh capacity, starts with 3 kWh
-    # Total: 3 kWh < lower capacity (5 kWh)
-    # Result: All 3 kWh should end up in lower, upper should be empty
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=0.0)
-    network.add("battery", "upper_section", capacity=5.0, initial_charge=3.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
-    )
-
-    network.optimize()
-
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-    lower_stored = lower.outputs()["battery_energy_stored"].values
-    upper_stored = upper.outputs()["battery_energy_stored"].values
-
-    # Total should be conserved
-    assert lower_stored[-1] + upper_stored[-1] == pytest.approx(3.0, rel=1e-6)
-
-    # All energy should be in lower (ordering enforced by constraint)
-    assert lower_stored[-1] == pytest.approx(3.0, rel=1e-6), "Lower should have all 3 kWh"
-    assert upper_stored[-1] == pytest.approx(0.0, rel=1e-6), "Upper should be empty"
-
-
-def test_balance_connection_ordering_upper_gets_overflow() -> None:
-    """Upper section can hold energy beyond what fits in lower.
-
-    When total > capacity_lower, lower fills to capacity and upper holds the rest.
-    """
-    periods = [1.0]
-    network = Network(name="test", periods=periods)
-
-    # Lower: 5 kWh capacity, starts with 2 kWh
-    # Upper: 10 kWh capacity, starts with 6 kWh
-    # Total: 8 kWh > lower capacity (5 kWh)
-    # Result: Lower should be full (5 kWh), upper should have 3 kWh
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=2.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=6.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
-    )
-
-    network.optimize()
-
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-    lower_stored = lower.outputs()["battery_energy_stored"].values
-    upper_stored = upper.outputs()["battery_energy_stored"].values
-
-    # Total should be conserved
-    assert lower_stored[-1] + upper_stored[-1] == pytest.approx(8.0, rel=1e-6)
-
-    # Lower fills to capacity, upper gets the rest
-    assert lower_stored[-1] == pytest.approx(5.0, rel=1e-6), "Lower should be at capacity"
-    assert upper_stored[-1] == pytest.approx(3.0, rel=1e-6), "Upper should have the overflow"
-
-
-def test_balance_connection_ordering_with_shrinking_capacity() -> None:
-    """Ordering constraint works with shrinking lower capacity.
-
-    When capacity shrinks, the ordering constraint adapts.
-    """
-    periods = [1.0]
-    network = Network(name="test", periods=periods)
-
-    # Lower: capacity shrinks from 5 to 3 kWh, starts with 4 kWh
-    # Upper: 10 kWh capacity, starts with 0 kWh
-    # Total: 4 kWh > final lower capacity (3 kWh)
-    # At end: lower should be full (3 kWh), upper should have 1 kWh
-    network.add("battery", "lower_section", capacity=[5.0, 3.0], initial_charge=4.0)
-    network.add("battery", "upper_section", capacity=10.0, initial_charge=0.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=[5.0, 3.0],
-    )
-
-    network.optimize()
-
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-    lower_stored = lower.outputs()["battery_energy_stored"].values
-    upper_stored = upper.outputs()["battery_energy_stored"].values
-
-    # Total should be conserved
-    assert lower_stored[-1] + upper_stored[-1] == pytest.approx(4.0, rel=1e-6)
-
-    # Lower fills to its new capacity (3 kWh), upper gets the rest (1 kWh)
-    assert lower_stored[-1] == pytest.approx(3.0, rel=1e-6), "Lower should be at (reduced) capacity"
-    assert upper_stored[-1] == pytest.approx(1.0, rel=1e-6), "Upper should have the overflow"
-
-
-def test_balance_connection_ordering_exact_fit() -> None:
-    """When total exactly equals lower capacity, lower is full, upper is empty."""
-    periods = [1.0]
-    network = Network(name="test", periods=periods)
-
-    # Lower: 5 kWh capacity, starts with 3 kWh
-    # Upper: 5 kWh capacity, starts with 2 kWh
-    # Total: 5 kWh = lower capacity
-    # Result: Lower should be full (5 kWh), upper should be empty (0 kWh)
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=3.0)
-    network.add("battery", "upper_section", capacity=5.0, initial_charge=2.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
-    )
-
-    network.optimize()
-
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-    lower_stored = lower.outputs()["battery_energy_stored"].values
-    upper_stored = upper.outputs()["battery_energy_stored"].values
-
-    # Total should be conserved
-    assert lower_stored[-1] + upper_stored[-1] == pytest.approx(5.0, rel=1e-6)
-
-    # Lower is exactly full, upper is empty
-    assert lower_stored[-1] == pytest.approx(5.0, rel=1e-6), "Lower should be at capacity"
-    assert upper_stored[-1] == pytest.approx(0.0, rel=1e-6), "Upper should be empty"
-
-
-def test_balance_connection_ordering_over_multiple_periods() -> None:
-    """Ordering is enforced at every energy boundary after the initial state.
-
-    The ordering constraint applies from t=1 onwards because initial states (t=0)
-    are fixed by the batteries' initial_charge values.
-    """
-    periods = [1.0, 1.0, 1.0]
-    network = Network(name="test", periods=periods)
-
-    # Lower: 5 kWh capacity, starts with 1 kWh
-    # Upper: 5 kWh capacity, starts with 2 kWh
-    # Total: 3 kWh (conserved)
-    # Initial state (t=0) may violate ordering, but t=1+ should be correctly ordered
-    network.add("battery", "lower_section", capacity=5.0, initial_charge=1.0)
-    network.add("battery", "upper_section", capacity=5.0, initial_charge=2.0)
-    network.add(
-        "battery_balance_connection",
-        "balance",
-        upper="upper_section",
-        lower="lower_section",
-        capacity_lower=5.0,
-    )
-
-    network.optimize()
-
-    lower = network.elements["lower_section"]
-    upper = network.elements["upper_section"]
-    lower_stored = lower.outputs()["battery_energy_stored"].values
-    upper_stored = upper.outputs()["battery_energy_stored"].values
-
-    # Check ordering at energy boundaries AFTER initial state (t=1 onwards)
-    for t in range(1, len(lower_stored)):
-        total = lower_stored[t] + upper_stored[t]
-        capacity_lower = 5.0
-
-        # Total should be conserved
-        assert total == pytest.approx(3.0, rel=1e-6), f"Total at t={t} should be 3 kWh"
-
-        if total <= capacity_lower:
-            # All energy should be in lower
-            assert upper_stored[t] == pytest.approx(0.0, rel=1e-6), f"Upper at t={t} should be empty"
-        else:
-            # Lower should be full
-            assert lower_stored[t] == pytest.approx(capacity_lower, rel=1e-6), f"Lower at t={t} should be full"
+    # MockBattery provides the same interface as Battery but isn't a subtype
+    connection.set_battery_references(upper, lower)  # type: ignore[arg-type]
+    connection.build_constraints()
+
+    # Run solver
+    solver.run()
+
+    outputs = connection.outputs()
+
+    # Check required outputs exist
+    assert "balance_power_down" in outputs
+    assert "balance_power_up" in outputs
+    assert "balance_unmet_demand" in outputs
+    assert "balance_absorbed_excess" in outputs
+
+    # Check constraint shadow prices exist
+    assert "balance_down_lower_bound" in outputs
+    assert "balance_down_slack_bound" in outputs
+    assert "balance_up_upper_bound" in outputs
+    assert "balance_up_slack_bound" in outputs
+
+    # Verify output metadata
+    assert outputs["balance_power_down"].unit == "kW"
+    assert outputs["balance_power_up"].unit == "kW"
+    assert outputs["balance_power_down"].direction == "+"
+    assert outputs["balance_power_up"].direction == "-"

@@ -11,11 +11,7 @@ from numpy.typing import NDArray
 from .output_data import OutputData
 
 if TYPE_CHECKING:
-    from .battery_balance_connection import BatteryBalanceConnection  # Circular import
-    from .connection import Connection  # Circular import
-
-# Type alias for connections that can be registered with an element
-type RegisterableConnection = "Connection | BatteryBalanceConnection"
+    from .connection import Connection
 
 # Type alias for values that can be in constraint storage
 type ConstraintValue = highs_cons | Sequence[highs_cons]
@@ -52,14 +48,14 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         self._constraints: dict[ConstraintNameT, ConstraintValue] = {}
 
         # Track connections for power balance
-        self._connections: list[tuple[RegisterableConnection, Literal["source", "target"]]] = []
+        self._connections: list[tuple[Connection[Any, Any], Literal["source", "target"]]] = []
 
     @property
     def n_periods(self) -> int:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def register_connection(self, connection: RegisterableConnection, end: Literal["source", "target"]) -> None:
+    def register_connection(self, connection: "Connection[Any, Any]", end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
         Args:
@@ -91,15 +87,11 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
 
         for conn, end in self._connections:
             if end == "source":
-                # Power leaving source (negative)
-                total_power = total_power - conn.power_source_target
-                # Power entering source from target (positive, with efficiency applied)
-                total_power = total_power + conn.power_target_source * conn.efficiency_target_source
+                # Power flowing into this element (as source)
+                total_power = total_power + conn.power_into_source
             elif end == "target":
-                # Power entering target from source (positive, with efficiency applied)
-                total_power = total_power + conn.power_source_target * conn.efficiency_source_target
-                # Power leaving target (negative)
-                total_power = total_power - conn.power_target_source
+                # Power flowing into this element (as target)
+                total_power = total_power + conn.power_into_target
 
         return total_power
 

@@ -2,9 +2,10 @@
 
 from collections.abc import Mapping, Sequence
 
-from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID, ELEMENT_TYPE_INVERTER, ELEMENT_TYPE_LOAD, ELEMENT_TYPE_NODE, ElementConfigData, ElementConfigSchema, ElementType, ELEMENT_TYPE_SOLAR
+from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_BATTERY_SECTION, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID, ELEMENT_TYPE_INVERTER, ELEMENT_TYPE_LOAD, ELEMENT_TYPE_NODE, ElementConfigData, ElementConfigSchema, ElementType, ELEMENT_TYPE_SOLAR
 
 from . import battery as battery_data
+from . import battery_section as battery_section_data
 from . import connection as connection_data
 from . import grid as grid_data
 from . import inverter as inverter_data
@@ -16,6 +17,7 @@ from .types import ElementValidCase, InvalidModelCase, InvalidSchemaCase
 INVALID_SCHEMAS_BY_TYPE: Mapping[ElementType, Sequence[InvalidSchemaCase[ElementConfigSchema]]] = {
     ELEMENT_TYPE_INVERTER: inverter_data.INVALID_SCHEMA,
     ELEMENT_TYPE_BATTERY: battery_data.INVALID_SCHEMA,
+    ELEMENT_TYPE_BATTERY_SECTION: battery_section_data.INVALID_SCHEMA,
     ELEMENT_TYPE_GRID: grid_data.INVALID_SCHEMA,
     ELEMENT_TYPE_CONNECTION: connection_data.INVALID_SCHEMA,
     ELEMENT_TYPE_SOLAR: solar_data.INVALID_SCHEMA,
@@ -26,6 +28,7 @@ INVALID_SCHEMAS_BY_TYPE: Mapping[ElementType, Sequence[InvalidSchemaCase[Element
 VALID_CONFIGS_BY_TYPE: Mapping[ElementType, Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]]] = {
     ELEMENT_TYPE_INVERTER: inverter_data.VALID,
     ELEMENT_TYPE_BATTERY: battery_data.VALID,
+    ELEMENT_TYPE_BATTERY_SECTION: battery_section_data.VALID,
     ELEMENT_TYPE_GRID: grid_data.VALID,
     ELEMENT_TYPE_CONNECTION: connection_data.VALID,
     ELEMENT_TYPE_SOLAR: solar_data.VALID,
@@ -36,6 +39,7 @@ VALID_CONFIGS_BY_TYPE: Mapping[ElementType, Sequence[ElementValidCase[ElementCon
 INVALID_MODEL_PARAMS_BY_TYPE: Mapping[ElementType, Sequence[InvalidModelCase[ElementConfigData]]] = {
     ELEMENT_TYPE_INVERTER: inverter_data.INVALID_MODEL_PARAMS,
     ELEMENT_TYPE_BATTERY: battery_data.INVALID_MODEL_PARAMS,
+    ELEMENT_TYPE_BATTERY_SECTION: battery_section_data.INVALID_MODEL_PARAMS,
     ELEMENT_TYPE_GRID: grid_data.INVALID_MODEL_PARAMS,
     ELEMENT_TYPE_CONNECTION: connection_data.INVALID_MODEL_PARAMS,
     ELEMENT_TYPE_SOLAR: solar_data.INVALID_MODEL_PARAMS,

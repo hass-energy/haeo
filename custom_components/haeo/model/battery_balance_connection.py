@@ -4,12 +4,11 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Final, Literal
 
 from highspy import Highs
-from highspy.highs import HighspyArray
+from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
-from numpy.typing import NDArray
 
+from .connection import Connection
 from .const import OUTPUT_TYPE_POWER_FLOW
-from .element import Element
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
@@ -17,20 +16,18 @@ if TYPE_CHECKING:
     from .battery import Battery
 
 type BatteryBalanceConnectionConstraintName = Literal[
-    "balance_down_demand",
-    "balance_down_available",
-    "balance_down_slack_min",
-    "balance_up_excess",
-    "balance_up_slack_min",
-    "balance_up_max",
+    "balance_down_lower_bound",
+    "balance_down_slack_bound",
+    "balance_up_upper_bound",
+    "balance_up_slack_bound",
 ]
 
 type BatteryBalanceConnectionOutputName = (
     Literal[
         "balance_power_down",
         "balance_power_up",
-        "balance_slack_down",
-        "balance_slack_up",
+        "balance_unmet_demand",
+        "balance_absorbed_excess",
     ]
     | BatteryBalanceConnectionConstraintName
 )
@@ -39,19 +36,17 @@ BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES: Final[frozenset[BatteryBalanceConnectio
     (
         BALANCE_POWER_DOWN := "balance_power_down",
         BALANCE_POWER_UP := "balance_power_up",
-        BALANCE_SLACK_DOWN := "balance_slack_down",
-        BALANCE_SLACK_UP := "balance_slack_up",
-        BALANCE_DOWN_DEMAND := "balance_down_demand",
-        BALANCE_DOWN_AVAILABLE := "balance_down_available",
-        BALANCE_DOWN_SLACK_MIN := "balance_down_slack_min",
-        BALANCE_UP_EXCESS := "balance_up_excess",
-        BALANCE_UP_SLACK_MIN := "balance_up_slack_min",
-        BALANCE_UP_MAX := "balance_up_max",
+        BALANCE_UNMET_DEMAND := "balance_unmet_demand",
+        BALANCE_ABSORBED_EXCESS := "balance_absorbed_excess",
+        BALANCE_DOWN_LOWER_BOUND := "balance_down_lower_bound",
+        BALANCE_DOWN_SLACK_BOUND := "balance_down_slack_bound",
+        BALANCE_UP_UPPER_BOUND := "balance_up_upper_bound",
+        BALANCE_UP_SLACK_BOUND := "balance_up_slack_bound",
     )
 )
 
 
-class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, BatteryBalanceConnectionConstraintName]):
+class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName, BatteryBalanceConnectionConstraintName]):
     """Lossless energy redistribution between adjacent battery sections.
 
     Enforces ordering (lower fills before upper) and handles capacity changes
@@ -66,6 +61,10 @@ class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, Batte
         excess = E_lower - C_new (energy above new capacity)
     """
 
+    # Default penalty for slack variables in $/kWh
+    # Must be larger than any reasonable energy price to ensure slacks are minimized
+    DEFAULT_SLACK_PENALTY: Final[float] = 100.0
+
     def __init__(
         self,
         name: str,
@@ -75,6 +74,7 @@ class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, Batte
         upper: str,
         lower: str,
         capacity_lower: Sequence[float] | float,
+        slack_penalty: float | None = None,
     ) -> None:
         """Initialize a battery balance connection.
 
@@ -85,20 +85,22 @@ class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, Batte
             upper: Name of upper battery section (receives upward transfer)
             lower: Name of lower battery section (receives downward transfer)
             capacity_lower: Lower section capacity in kWh (T+1 fence-posted values)
+            slack_penalty: Penalty in $/kWh for slack variables (default: 1.0).
+                Must be larger than typical energy prices to ensure min/max
+                constraints are enforced correctly.
 
         """
-        super().__init__(name=name, periods=periods, solver=solver)
+        super().__init__(name=name, periods=periods, solver=solver, source=upper, target=lower)
         n_periods = self.n_periods
         h = solver
 
-        self.upper = upper
-        self.lower = lower
         self.capacity_lower = broadcast_to_sequence(capacity_lower, n_periods + 1)
+        self._slack_penalty = slack_penalty if slack_penalty is not None else self.DEFAULT_SLACK_PENALTY
 
-        self.power_down = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_down_", out_array=True)
-        self.power_up = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_up_", out_array=True)
-        self.slack_down = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_slack_down_", out_array=True)
-        self.slack_up = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_slack_up_", out_array=True)
+        self._power_down = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_down_", out_array=True)
+        self._power_up = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_up_", out_array=True)
+        self.unmet_demand = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_unmet_demand_", out_array=True)
+        self.absorbed_excess = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_absorbed_excess_", out_array=True)
 
         self._upper_battery: Battery | None = None
         self._lower_battery: Battery | None = None
@@ -111,76 +113,55 @@ class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, Batte
         lower_battery.register_connection(self, "target")
 
     @property
-    def power_source_target(self) -> HighspyArray:
-        """Power flowing from source (upper) to target (lower)."""
-        return self.power_down
+    def power_into_source(self) -> HighspyArray:
+        """Return effective power flowing into the source (upper) element.
+
+        Power flowing up from lower (positive) minus power flowing down to lower (negative).
+        Balance transfers are lossless.
+        """
+        return self._power_up - self._power_down
 
     @property
-    def power_target_source(self) -> HighspyArray:
-        """Power flowing from target (lower) to source (upper)."""
-        return self.power_up
+    def power_into_target(self) -> HighspyArray:
+        """Return effective power flowing into the target (lower) element.
 
-    @property
-    def efficiency_source_target(self) -> NDArray[np.floating]:
-        """Efficiency for downward transfer. Balance transfers are lossless."""
-        return np.ones(self.n_periods)
-
-    @property
-    def efficiency_target_source(self) -> NDArray[np.floating]:
-        """Efficiency for upward transfer. Balance transfers are lossless."""
-        return np.ones(self.n_periods)
+        Power flowing down from upper (positive) minus power flowing up to upper (negative).
+        Balance transfers are lossless.
+        """
+        return self._power_down - self._power_up
 
     def build_constraints(self) -> None:
         """Build constraints for the battery balance connection.
 
-        Downward flow implements P_down = min(demand, E_upper):
-            P_down + S_down = demand
-            P_down <= E_upper
-            S_down >= demand - E_upper
+        Downward flow implements energy_down >= min(demand, available):
+            energy_down >= demand - unmet_demand
+            unmet_demand >= demand - available
+            unmet_demand >= 0 (variable bound)
+            energy_down >= 0 (variable bound)
 
-        Upward flow implements P_up = max(0, excess):
-            P_up - S_up = excess
-            S_up >= -excess
+        When demand <= available: unmet_demand lower bound is negative (demand - available < 0),
+        so unmet_demand = 0 and energy_down >= demand.
+        When demand > available: unmet_demand >= demand - available,
+        so energy_down >= available.
 
-        Battery SOC constraints (E >= 0, E <= C) fully bind these to unique values.
-        When excess > 0, lower's capacity constraint forces P_up = excess.
-        When excess <= 0, the slack absorbs the negative and P_up = 0.
+        The min() behavior requires the cost() penalty on unmet_demand to push it
+        to its minimum value; without an objective term, the solver could set
+        unmet_demand arbitrarily high.
+
+        Upward flow implements 0 <= energy_up <= max(0, excess):
+            energy_up <= excess + absorbed_excess
+            absorbed_excess >= -excess
+            absorbed_excess >= 0 (variable bound)
+            energy_up >= 0 (variable bound)
+
+        When excess <= 0: absorbed_excess >= -excess (positive) absorbs the negative,
+        so energy_up <= 0, combined with energy_up >= 0 gives energy_up = 0.
+        When excess > 0: absorbed_excess = 0, so energy_up <= excess.
+
+        The max() behavior requires the cost() penalty on absorbed_excess to push
+        it to its minimum value.
         """
-
         h = self._solver
-
-        # Power down must be at least the amount of energy needed in the lower battery or the amount available in the upper battery.
-        # The goal of this constraint is to force energy transfer down to the lowest section possible.
-        # Given that the amount of energy in the upper battery is always >= 0 this also ensures that it is positive
-        #
-        # Thus the constraint is:
-        #
-        #  power_down >= min(energy_missing_in_lower, energy_available_in_upper)
-        #
-        # This can be implemented using a single slack variable S_down
-        #
-        # The resulting power transfer is in theory unbounded above at this point, however however the battery SOC constraints fix it to a single value
-        # Consider the two cases:
-        # 1. energy_missing_in_lower <= energy_available_in_upper
-        #    In this case if we tried to move more than energy_missing_in_lower into the lower battery it would exceed its capacity, which is forbidden by the battery SOC constraints
-        #    Thus the battery SOC constraints force power_down == energy_missing_in_lower
-        # 2. energy_missing_in_lower > energy_available_in_upper
-        #    In this case if we tried to move more than energy_available_in_upper out of the upper battery it would go negative, which is forbidden by the battery SOC constraints
-        #    Thus the battery SOC constraints force power_down == energy_available_in_upper
-        #
-        # Power up is used as a relief valve so that if there is excess energy in the lower battery due to changing capacity it can be moved up to the upper battery without cost penalty.
-        # Power up must be no more than how much the lower battery is about to exceed its capacity by\
-        #
-        # Thus the constraint is:
-        #
-        # 0 <= power_up <= max(0, current_energy - next_capacity)
-        #
-        # This can also be implemented using a single slack variable S_up
-        # The battery SOC constraints then fully bind power_up to a single value
-        # The only non trivial case here is when next_capacity has shrunk, otherwise current_energy would never exceed next_capacity due to the battery SOC constraints
-        # So when it does shrink then the max(0, current_energy - next_capacity) can be positive.
-        # In that case though, the amount it is positive is exactly how much energy needs to be moved up to the upper battery to prevent the lower battery from exceeding its capacity
-        # Therefore the battery SOC constraints force power_up == current_energy - next_capacity giving only a single feasible value
 
         if self._lower_battery is None or self._upper_battery is None:
             msg = f"Battery references not set for {self.name}"
@@ -191,30 +172,47 @@ class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, Batte
         capacity_lower = np.array(self.capacity_lower)
         periods = self.periods
 
-        energy_down = self.power_down * periods
-        energy_up = self.power_up * periods
-        slack_energy_down = self.slack_down * periods
-        slack_energy_up = self.slack_up * periods
+        energy_down = self._power_down * periods
+        energy_up = self._power_up * periods
+        unmet_demand_energy = self.unmet_demand * periods
+        absorbed_excess_energy = self.absorbed_excess * periods
 
+        # demand = room in lower section = capacity - current energy
         demand = capacity_lower[:-1] - lower_stored[:-1]
+        # available = energy in upper section
+        available = upper_stored[:-1]
+        # excess = current energy - next capacity (positive when capacity shrinks)
         excess = lower_stored[:-1] - capacity_lower[1:]
 
-        # Downward: P_down = min(demand, E_upper)
-        self._constraints[BALANCE_DOWN_DEMAND] = h.addConstrs(energy_down + slack_energy_down == demand)
-        self._constraints[BALANCE_DOWN_AVAILABLE] = h.addConstrs(energy_down <= upper_stored[:-1])
-        self._constraints[BALANCE_DOWN_SLACK_MIN] = h.addConstrs(slack_energy_down >= demand - upper_stored[:-1])
+        # Downward flow constraint: energy_down >= min(demand, available)
+        # Lower bound constraint - SOC constraints provide upper bound
+        self._constraints[BALANCE_DOWN_LOWER_BOUND] = h.addConstrs(energy_down >= demand - unmet_demand_energy)
+        self._constraints[BALANCE_DOWN_SLACK_BOUND] = h.addConstrs(unmet_demand_energy >= demand - available)
 
-        # Upward: 0 <= P_up <= max(0, excess)
-        # Lower bound via equality: P_up = excess + S_up with S_up >= max(0, -excess)
-        # Upper bound: P_up <= excess + S_max with S_max >= max(0, -excess)
-        # Battery SOC constraints then force P_up = max(0, excess) exactly.
-        self._constraints[BALANCE_UP_EXCESS] = h.addConstrs(energy_up - slack_energy_up == excess)
-        self._constraints[BALANCE_UP_SLACK_MIN] = h.addConstrs(slack_energy_up >= -excess)
+        # Upward flow constraint: 0 <= energy_up <= max(0, excess)
+        # Upper bound constraint - SOC constraints force equality when excess > 0
+        self._constraints[BALANCE_UP_UPPER_BOUND] = h.addConstrs(energy_up <= excess + absorbed_excess_energy)
+        self._constraints[BALANCE_UP_SLACK_BOUND] = h.addConstrs(absorbed_excess_energy >= -excess)
 
-        # Upper bound on P_up
-        slack_energy_up_max = self.slack_up_max * periods
-        self._constraints[BALANCE_UP_MAX] = h.addConstrs(energy_up <= excess + slack_energy_up_max)
-        h.addConstrs(slack_energy_up_max >= -excess)
+    def cost(self) -> Sequence[highs_linear_expression]:
+        """Return cost expressions penalizing slack variables.
+
+        The slack variables allow min/max constraints to be implemented in LP form.
+        Without penalties, the solver could set slack arbitrarily, breaking the
+        intended behavior:
+        - unmet_demand slack: minimizing achieves power_down >= min(demand, available)
+        - absorbed_excess slack: minimizing achieves power_up <= max(0, excess)
+
+        The penalty must be larger than typical energy prices to ensure slacks are
+        minimized regardless of other optimization objectives.
+        """
+        periods = self.periods
+
+        # Penalize both slack variables
+        unmet_cost = self.unmet_demand * periods * self._slack_penalty
+        absorbed_cost = self.absorbed_excess * periods * self._slack_penalty
+
+        return [*list(unmet_cost), *list(absorbed_cost)]
 
     def outputs(self) -> Mapping[BatteryBalanceConnectionOutputName, OutputData]:
         """Return output specifications for the balance connection."""
@@ -222,24 +220,24 @@ class BatteryBalanceConnection(Element[BatteryBalanceConnectionOutputName, Batte
             BALANCE_POWER_DOWN: OutputData(
                 type=OUTPUT_TYPE_POWER_FLOW,
                 unit="kW",
-                values=self.extract_values(self.power_down),
+                values=self.extract_values(self._power_down),
                 direction="+",
             ),
             BALANCE_POWER_UP: OutputData(
                 type=OUTPUT_TYPE_POWER_FLOW,
                 unit="kW",
-                values=self.extract_values(self.power_up),
+                values=self.extract_values(self._power_up),
                 direction="-",
             ),
-            BALANCE_SLACK_DOWN: OutputData(
+            BALANCE_UNMET_DEMAND: OutputData(
                 type=OUTPUT_TYPE_POWER_FLOW,
                 unit="kW",
-                values=self.extract_values(self.slack_down),
+                values=self.extract_values(self.unmet_demand),
             ),
-            BALANCE_SLACK_UP: OutputData(
+            BALANCE_ABSORBED_EXCESS: OutputData(
                 type=OUTPUT_TYPE_POWER_FLOW,
                 unit="kW",
-                values=self.extract_values(self.slack_up),
+                values=self.extract_values(self.absorbed_excess),
             ),
         }
 

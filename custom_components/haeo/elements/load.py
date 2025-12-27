@@ -5,13 +5,13 @@ from dataclasses import replace
 from typing import Any, Final, Literal, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model.connection import (
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.power_connection import (
     CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
-from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     ElementNameFieldSchema,
     NameFieldData,
@@ -72,8 +72,8 @@ def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
     """Create model elements for Load configuration."""
 
     elements: list[dict[str, Any]] = [
-        # Create SourceSink for the load (sink only - consumes power)
-        {"element_type": "source_sink", "name": config["name"], "is_source": False, "is_sink": True},
+        # Create Node for the load (sink only - consumes power)
+        {"element_type": "node", "name": config["name"], "is_source": False, "is_sink": True},
         # Create Connection from node to load (power flows TO the load)
         {
             "element_type": "connection",

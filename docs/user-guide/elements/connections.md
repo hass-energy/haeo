@@ -2,6 +2,12 @@
 
 Connections define how power flows between elements in your network with support for bidirectional flow, efficiency losses, and transmission costs.
 
+!!! warning "Advanced Element"
+
+    Connection is only available when **Advanced Mode** is enabled on your hub.
+    This element is intended for advanced users who need explicit control over power flow paths.
+    Most users should rely on implicit connections created automatically by other elements.
+
 !!! note "Implicit connections"
 
     Many elements create implicit connections automatically.
@@ -29,17 +35,41 @@ Connections define how power flows between elements in your network with support
 
 Use [input number helpers](https://www.home-assistant.io/integrations/input_number/) to configure constant values.
 
+### Connection Endpoint Selection
+
+The **Source** and **Target** fields show a dropdown of available elements that can be used as connection endpoints.
+The list of available elements is filtered based on connectivity level and your hub's Advanced Mode setting.
+
+**Why filtering?**
+Standard elements (Grid, Battery, Solar, Load) create implicit connections automatically.
+Explicit connections between these elements are usually unnecessary and can lead to configuration errors.
+The filtering hides these elements by default to prevent common mistakes.
+
+**Filtering behavior:**
+
+- Advanced elements that require manual connection setup always appear in the selector regardless of Advanced Mode.
+- Standard elements that create implicit connections automatically only appear when Advanced Mode is enabled.
+- Connection elements never appear as endpoints to prevent invalid connection topologies.
+
+This filtering ensures that connection endpoints are appropriate for your configuration level.
+Each element's documentation describes its connectivity level and when it appears in connection selectors.
+
 ## Configuration Example
 
-Bidirectional connection between grid and battery:
+Bidirectional connection between two network nodes:
 
-| Field                       | Value                             |
-| --------------------------- | --------------------------------- |
-| **Name**                    | Grid to Battery                   |
-| **Source**                  | Grid                              |
-| **Target**                  | Battery                           |
-| **Max Power Source→Target** | input_number.grid_charge_limit    |
-| **Max Power Target→Source** | input_number.grid_discharge_limit |
+| Field                       | Value                  |
+| --------------------------- | ---------------------- |
+| **Name**                    | DC Bus to AC Bus       |
+| **Source**                  | DC Node                |
+| **Target**                  | AC Node                |
+| **Max Power Source→Target** | input_number.max_power |
+| **Max Power Target→Source** | input_number.max_power |
+
+!!! note "Advanced Mode required for standard elements"
+
+    This example uses elements that are always available in connection selectors.
+    To connect standard elements that create implicit connections, enable Advanced Mode on your hub.
 
 ## Physical Interpretation
 
@@ -64,17 +94,18 @@ Connection pricing models fees for using a power transfer path (wheeling charges
 
 Leave both power limits unset for unlimited flow in both directions:
 
-| Field                       | Value           |
-| --------------------------- | --------------- |
-| **Name**                    | Solar to Main   |
-| **Source**                  | Solar           |
-| **Target**                  | Main Node       |
-| **Max Power Source→Target** | _(leave empty)_ |
-| **Max Power Target→Source** | _(leave empty)_ |
+| Field                       | Value            |
+| --------------------------- | ---------------- |
+| **Name**                    | DC Bus to AC Bus |
+| **Source**                  | DC Node          |
+| **Target**                  | AC Node          |
+| **Max Power Source→Target** | _(leave empty)_  |
+| **Max Power Target→Source** | _(leave empty)_  |
 
-!!! note
+!!! note "Advanced Mode required for standard elements"
 
-    Solar will only produce, so reverse flow won't occur naturally.
+    This example uses elements that are always available in connection selectors.
+    To connect standard elements that create implicit connections, enable Advanced Mode on your hub.
 
 ### Unidirectional Connection
 
@@ -82,29 +113,29 @@ Set one direction's limit to 0 to prevent flow:
 
 | Field                       | Value                  |
 | --------------------------- | ---------------------- |
-| **Name**                    | Solar to Main          |
-| **Source**                  | Solar                  |
-| **Target**                  | Main Node              |
-| **Max Power Source→Target** | input_number.solar_max |
+| **Name**                    | DC Bus to AC Bus       |
+| **Source**                  | DC Node                |
+| **Target**                  | AC Node                |
+| **Max Power Source→Target** | input_number.max_power |
 | **Max Power Target→Source** | input_number.zero      |
 
 !!! note
 
     Set `input_number.zero` value to `0` to prevent reverse flow.
 
-### Hybrid Inverter
+### Bidirectional Connection with Efficiency
 
-Model AC-DC conversion with efficiency:
+Model power conversion with efficiency losses:
 
-| Field                        | Value                            |
-| ---------------------------- | -------------------------------- |
-| **Name**                     | DC to AC Inverter                |
-| **Source**                   | DC_Node                          |
-| **Target**                   | AC_Node                          |
-| **Max Power Source→Target**  | input_number.inverter_rating     |
-| **Max Power Target→Source**  | input_number.inverter_rating     |
-| **Efficiency Source→Target** | input_number.inverter_efficiency |
-| **Efficiency Target→Source** | input_number.inverter_efficiency |
+| Field                        | Value                   |
+| ---------------------------- | ----------------------- |
+| **Name**                     | DC Bus to AC Bus        |
+| **Source**                   | DC_Node                 |
+| **Target**                   | AC_Node                 |
+| **Max Power Source→Target**  | input_number.max_power  |
+| **Max Power Target→Source**  | input_number.max_power  |
+| **Efficiency Source→Target** | input_number.efficiency |
+| **Efficiency Target→Source** | input_number.efficiency |
 
 ### Availability Windows
 
@@ -136,6 +167,10 @@ Then configure the connection:
 | **Target**                  | EV_Battery                      |
 | **Max Power Source→Target** | sensor.ev_charging_availability |
 
+!!! note "Advanced Mode required"
+
+    This example uses standard elements that require Advanced Mode to appear in connection selectors.
+
 The optimizer will only schedule charging when the sensor value is non-zero.
 
 ## Sensors Created
@@ -144,7 +179,7 @@ A Connection element creates 1 device in Home Assistant with the following senso
 Not all sensors are created for every connection - only those relevant to the configuration.
 
 The sensor display names use the actual source and target element names configured for the connection.
-For example, a connection from "Battery" to "Grid" would show "Battery to Grid Power" instead of generic "Source to Target".
+For example, a connection between two elements would show their actual names in the sensor name instead of generic "Source to Target".
 
 | Sensor                                                                                     | Unit   | Description                             |
 | ------------------------------------------------------------------------------------------ | ------ | --------------------------------------- |

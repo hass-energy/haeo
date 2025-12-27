@@ -6,6 +6,15 @@ Elements at this layer define decision variables, constraints, and cost contribu
 ## Architecture
 
 The Model Layer uses a minimal set of mathematical primitives that compose to represent complex energy system behaviors.
+These primitives are organized into two categories:
+
+**[Elements](elements/index.md)**: Represent physical devices that produce, consume, or store power.
+Elements define their own state (energy, power) and constraints (capacity, balance).
+
+**[Connections](connections/index.md)**: Model power flow paths between elements.
+Connections handle power transfer, efficiency losses, limits, and pricing.
+
+This separation enables flexible network topologies where the same element types can be connected in different ways.
 
 ## Design principles
 
@@ -39,36 +48,36 @@ The total objective is the sum of all element cost contributions.
 
 <div class="grid cards" markdown>
 
-- :material-battery-charging:{ .lg .middle } **Battery model**
+- :material-battery-charging:{ .lg .middle } **Elements**
 
     ---
 
-    Energy storage with cumulative energy tracking.
+    Battery and Node model elements for storage and power balance.
 
-    [:material-arrow-right: Battery formulation](battery.md)
+    [:material-arrow-right: Element types](elements/index.md)
 
-- :material-scale-balance:{ .lg .middle } **Balance connection model**
+- :material-connection:{ .lg .middle } **Connections**
+
+    ---
+
+    Power flow paths with efficiency, limits, and pricing.
+
+    [:material-arrow-right: Connection types](connections/index.md)
+
+- :material-layers:{ .lg .middle } **Device Layer**
+
+    ---
+
+    How user configuration maps to Model Layer elements.
+
+    [:material-arrow-right: Device Layer](../device-layer/index.md)
+
+- :material-scale-balance:{ .lg .middle } **Battery balance connection**
 
     ---
 
     Energy redistribution between battery sections.
 
     [:material-arrow-right: Balance connection formulation](battery-balance-connection.md)
-
-- :material-power-plug:{ .lg .middle } **SourceSink model**
-
-    ---
-
-    Unified model for sources, sinks, and junctions.
-
-    [:material-arrow-right: SourceSink formulation](source-sink.md)
-
-- :material-connection:{ .lg .middle } **Connection model**
-
-    ---
-
-    Bidirectional power flow with constraints.
-
-    [:material-arrow-right: Connection formulation](connection.md)
 
 </div>

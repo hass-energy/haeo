@@ -7,7 +7,6 @@ from typing import Literal, Protocol, TypedDict, TypeGuard
 
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import State
-import numpy as np
 
 from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
@@ -67,30 +66,33 @@ class Parser:
         )
 
     @staticmethod
-    def _round_to_minute(timestamp: str | datetime) -> float:
+    def _round_to_minute(timestamp: str | datetime) -> int:
         """Round timestamp to nearest minute (Amber provides times 1 second into each period)."""
-        raw = float(parse_datetime_to_timestamp(timestamp))
-        return round(raw / 60.0) * 60.0
+        raw = parse_datetime_to_timestamp(timestamp)
+        return int(round(raw / 60.0) * 60.0)
 
     @staticmethod
-    def extract(state: AmberElectricState) -> tuple[Sequence[tuple[float, float]], str, SensorDeviceClass]:
+    def extract(state: AmberElectricState) -> tuple[Sequence[tuple[int, float]], str, SensorDeviceClass]:
         """Extract forecast data from Amber Electric pricing format.
 
         Emits boundary prices to create step functions: each window produces two points
-        (start, price) and (nextafter(next_start, -inf), price) to ensure constant pricing
-        within the window without linear interpolation.
+        (start, price) and (end, price) to ensure constant pricing within the window
+        without linear interpolation. Adjacent windows will have the same timestamp
+        at boundaries to prevent interpolation.
+
+        Returns timestamps in seconds as integers.
         """
         forecasts = list(state.attributes["forecasts"])
-        parsed: list[tuple[float, float]] = []
+        parsed: list[tuple[int, float]] = []
 
         for item in forecasts:
             start = Parser._round_to_minute(item["start_time"])
             end = Parser._round_to_minute(item["end_time"])
             price = item["per_kwh"]
 
-            # Emit start of window and end of window
+            # Emit start of window and end of window with same price
             parsed.append((start, price))
-            parsed.append((np.nextafter(end, -np.inf), price))
+            parsed.append((end, price))
 
         parsed.sort(key=lambda x: x[0])
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

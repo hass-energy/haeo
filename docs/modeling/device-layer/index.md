@@ -78,4 +78,12 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Load modeling](loads.md)
 
+- :material-battery-charging:{ .lg .middle } **Battery Section**
+
+    ---
+
+    Direct access to model layer Battery element.
+
+    [:material-arrow-right: Battery Section modeling](battery_section.md)
+
 </div>

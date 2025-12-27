@@ -6,7 +6,7 @@ Guide for adding new element types to HAEO's optimization engine.
 
 HAEO uses a [layered architecture](architecture.md#layered-architecture):
 
-- **Model Layer**: Mathematical building blocks (`battery`, `source_sink`, `connection`) that form the LP problem
+- **Model Layer**: Mathematical building blocks that form the LP problem
 - **Device Layer**: User-configured elements that compose Model Layer elements via the [Adapter Layer](adapter-layer.md)
 
 When adding a new element type, decide which layer it belongs to:
@@ -14,7 +14,7 @@ When adding a new element type, decide which layer it belongs to:
 - **Model Layer**: New mathematical formulation not representable by existing models
 - **Device Layer**: New user-facing element that composes existing Model Layer elements
 
-Most new elements will be Device Layer elements that compose `source_sink` and `connection` models with different parameter mappings.
+Most new elements will be Device Layer elements that compose `node` and `connection` models with different parameter mappings.
 
 ## Workflow overview
 
@@ -119,7 +119,7 @@ If the element interacts with external tariffs or degradation models, expose the
 
     Example of a storage formulation.
 
-    [:material-arrow-right: Battery modeling](../modeling/model-layer/battery.md)
+    [:material-arrow-right: Battery modeling](../modeling/model-layer/elements/battery.md)
 
 - :material-test-tube:{ .lg .middle } **Testing**
 

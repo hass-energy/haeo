@@ -5,14 +5,14 @@ from dataclasses import replace
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model.connection import (
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.power_connection import (
     CONNECTION_POWER_MAX_SOURCE_TARGET,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_PRICE_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
-from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema.fields import (
     BooleanFieldData,
     BooleanFieldSchema,
@@ -93,7 +93,7 @@ def create_model_elements(config: SolarConfigData) -> list[dict[str, Any]]:
     """Create model elements for Solar configuration."""
 
     return [
-        {"element_type": "source_sink", "name": config["name"], "is_source": True, "is_sink": False},
+        {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": False},
         {
             "element_type": "connection",
             "name": f"{config['name']}:connection",

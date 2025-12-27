@@ -10,24 +10,24 @@ from custom_components.haeo.data.loader.extractors.utils.parse_datetime import p
 def test_parse_datetime_string() -> None:
     """Test parsing ISO format datetime strings."""
     result = parse_datetime_to_timestamp("2025-10-06T00:00:00+11:00")
-    assert isinstance(result, float)
+    assert isinstance(result, int)
     # Account for the +11:00 offset (00:00 +11:00 is 13:00 UTC previous day)
-    assert result == datetime(2025, 10, 5, 13, 0, 0, tzinfo=UTC).timestamp()
+    assert result == int(datetime(2025, 10, 5, 13, 0, 0, tzinfo=UTC).timestamp())
 
 
 def test_parse_datetime_object() -> None:
     """Test parsing datetime objects directly."""
     dt = datetime(2025, 10, 6, 0, 0, 0, tzinfo=UTC)
     result = parse_datetime_to_timestamp(dt)
-    assert isinstance(result, float)
-    assert result == dt.timestamp()
+    assert isinstance(result, int)
+    assert result == int(dt.timestamp())
 
 
 def test_parse_datetime_object_no_timezone() -> None:
     """Test parsing naive datetime objects (no timezone info)."""
     dt = datetime(2025, 10, 6, 12, 30, 0, tzinfo=UTC)
     result = parse_datetime_to_timestamp(dt)
-    assert isinstance(result, float)
+    assert isinstance(result, int)
 
 
 def test_parse_invalid_string_raises_error() -> None:

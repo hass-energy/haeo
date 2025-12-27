@@ -8,17 +8,18 @@ from typing import Final
 
 from .battery import BATTERY_OUTPUT_NAMES, BatteryOutputName
 from .connection import CONNECTION_OUTPUT_NAMES, ConnectionOutputName
-from .source_sink import SOURCE_SINK_OUTPUT_NAMES, SourceSinkOutputName
+from .node import NODE_OUTPUT_NAMES, NodeOutputName
+from .power_connection import POWER_CONNECTION_OUTPUT_NAMES, PowerConnectionOutputName
 
 # Combined type for all possible output names
-type ModelOutputName = BatteryOutputName | ConnectionOutputName | SourceSinkOutputName
+type ModelOutputName = BatteryOutputName | PowerConnectionOutputName | NodeOutputName
 
 # Model-level output names
 MODEL_OUTPUT_NAMES: Final[frozenset[str]] = frozenset(
     {
         *BATTERY_OUTPUT_NAMES,
-        *CONNECTION_OUTPUT_NAMES,
-        *SOURCE_SINK_OUTPUT_NAMES,
+        *POWER_CONNECTION_OUTPUT_NAMES,
+        *NODE_OUTPUT_NAMES,
     }
 )
 
@@ -26,9 +27,11 @@ __all__ = [
     "BATTERY_OUTPUT_NAMES",
     "CONNECTION_OUTPUT_NAMES",
     "MODEL_OUTPUT_NAMES",
-    "SOURCE_SINK_OUTPUT_NAMES",
+    "NODE_OUTPUT_NAMES",
+    "POWER_CONNECTION_OUTPUT_NAMES",
     "BatteryOutputName",
     "ConnectionOutputName",
     "ModelOutputName",
-    "SourceSinkOutputName",
+    "NodeOutputName",
+    "PowerConnectionOutputName",
 ]

@@ -1,13 +1,13 @@
 """Test data and factories for Connection element."""
 
-from custom_components.haeo.model.connection import Connection
+from custom_components.haeo.model.power_connection import PowerConnection
 
 from .connection_types import ConnectionTestCase
 
 VALID_CASES: list[ConnectionTestCase] = [
     {
         "description": "Connection with forward flow only",
-        "factory": Connection,
+        "factory": PowerConnection,
         "data": {
             "name": "forward_connection",
             "periods": [1.0] * 3,
@@ -30,7 +30,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with reverse flow only",
-        "factory": Connection,
+        "factory": PowerConnection,
         "data": {
             "name": "reverse_connection",
             "periods": [1.0] * 3,
@@ -53,7 +53,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection respecting forward power limit",
-        "factory": Connection,
+        "factory": PowerConnection,
         "data": {
             "name": "limited_forward",
             "periods": [1.0] * 2,
@@ -76,7 +76,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with efficiency losses",
-        "factory": Connection,
+        "factory": PowerConnection,
         "data": {
             "name": "inverter",
             "periods": [1.0] * 2,
@@ -100,7 +100,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with transfer pricing discouraging flow",
-        "factory": Connection,
+        "factory": PowerConnection,
         "data": {
             "name": "priced_link",
             "periods": [1.0] * 2,
@@ -122,7 +122,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with time-varying limits",
-        "factory": Connection,
+        "factory": PowerConnection,
         "data": {
             "name": "varying_connection",
             "periods": [1.0] * 3,
@@ -145,7 +145,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with bidirectional transfer pricing",
-        "factory": Connection,
+        "factory": PowerConnection,
         "data": {
             "name": "bidirectional_priced",
             "periods": [1.0] * 2,
@@ -169,7 +169,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with bidirectional efficiency losses",
-        "factory": Connection,
+        "factory": PowerConnection,
         "data": {
             "name": "bidirectional_converter",
             "periods": [1.0] * 2,
@@ -198,7 +198,7 @@ VALID_CASES: list[ConnectionTestCase] = [
     },
     {
         "description": "Connection with fixed power in reverse direction",
-        "factory": Connection,
+        "factory": PowerConnection,
         "data": {
             "name": "fixed_reverse",
             "periods": [1.0] * 2,
