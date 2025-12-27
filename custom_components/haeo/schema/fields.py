@@ -122,44 +122,6 @@ class PositiveKW(Validator):
 
 
 @dataclass(frozen=True)
-class AnyKW(Validator):
-    """Validates power flow values (positive or negative) in kilowatts."""
-
-    def create_schema(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
-        """Return voluptuous validators for power flow in kW."""
-        return vol.All(
-            vol.Coerce(float),
-            NumberSelector(
-                NumberSelectorConfig(
-                    mode=NumberSelectorMode.BOX,
-                    step="any",
-                    unit_of_measurement=UnitOfPower.KILO_WATT,
-                )
-            ),
-        )
-
-
-@dataclass(frozen=True)
-class PositiveKWH(Validator):
-    """Validates positive energy values in kilowatt-hours."""
-
-    def create_schema(self, **_schema_params: Unpack[SchemaParams]) -> vol.All:
-        """Return voluptuous validators for positive energy in kWh."""
-        return vol.All(
-            vol.Coerce(float),
-            vol.Range(min=0, min_included=True, msg="Value must be positive"),
-            NumberSelector(
-                NumberSelectorConfig(
-                    mode=NumberSelectorMode.BOX,
-                    min=0,
-                    step="any",
-                    unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                )
-            ),
-        )
-
-
-@dataclass(frozen=True)
 class Price(Validator):
     """Validates price values in $/kWh."""
 
@@ -292,12 +254,6 @@ PRICE_UNITS: Final[list[UnitSpec]] = [("*", "/", unit.value) for unit in UnitOfE
 PowerFieldSchema = Annotated[float, PositiveKW(), Constant(float)]
 PowerFieldData = Annotated[float, PositiveKW(), Constant(float)]
 
-PowerFlowFieldSchema = Annotated[float, AnyKW(), Constant(float)]
-PowerFlowFieldData = Annotated[float, AnyKW(), Constant(float)]
-
-EnergyFieldSchema = Annotated[float, PositiveKWH(), Constant(float)]
-EnergyFieldData = Annotated[float, PositiveKWH(), Constant(float)]
-
 PercentageFieldSchema = Annotated[float, Percentage(), Constant(float)]
 PercentageFieldData = Annotated[float, Percentage(), Constant(float)]
 
@@ -324,9 +280,6 @@ PowerSensorsFieldData = Annotated[list[float], EntitySelect(POWER_UNITS, multipl
 
 EnergySensorFieldSchema = Annotated[str, EntitySelect(ENERGY_UNITS), TimeSeries()]
 EnergySensorFieldData = Annotated[list[float], EntitySelect(ENERGY_UNITS), TimeSeries()]
-
-EnergySensorsFieldSchema = Annotated[Sequence[str], EntitySelect(ENERGY_UNITS, multiple=True), TimeSeries()]
-EnergySensorsFieldData = Annotated[list[float], EntitySelect(ENERGY_UNITS, multiple=True), TimeSeries()]
 
 PercentageSensorFieldSchema = Annotated[str, EntitySelect(PERCENTAGE_UNITS), TimeSeries()]
 PercentageSensorFieldData = Annotated[list[float], EntitySelect(PERCENTAGE_UNITS), TimeSeries()]
