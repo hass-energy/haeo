@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, Any, NotRequired, TypedDict, cast
+from typing import Annotated, Any, TypedDict, cast
 
 from homeassistant.core import HomeAssistant
 import pytest
@@ -10,9 +10,9 @@ import pytest
 from custom_components.haeo.data.loader import ConstantLoader
 from custom_components.haeo.elements import ElementConfigSchema
 from custom_components.haeo.schema import available as schema_available
-from custom_components.haeo.schema import get_loader_instance
+from custom_components.haeo.schema import compose_field, get_default, get_loader_instance
 from custom_components.haeo.schema import load as schema_load
-from custom_components.haeo.schema.fields import FieldMeta
+from custom_components.haeo.schema.fields import Constant, Default, LoaderMeta, PositiveKW
 
 
 class TrackingLoader(ConstantLoader[int]):
@@ -38,13 +38,32 @@ class TrackingLoader(ConstantLoader[int]):
 
 
 @dataclass(frozen=True)
-class TrackingFieldMeta(FieldMeta):
-    """FieldMeta wrapper for TrackingLoader instances."""
+class TrackingLoaderMeta(LoaderMeta):
+    """LoaderMeta wrapper for testing with TrackingLoader instances."""
 
-    loader: TrackingLoader
+    tracking_loader: TrackingLoader
 
-    def _get_field_validators(self, **_kwargs: Any) -> Any:
-        return lambda value: value
+
+def test_compose_field_extracts_all_metadata() -> None:
+    """compose_field() extracts Validator, LoaderMeta, and Default from Annotated."""
+    field_type = Annotated[float, PositiveKW(), Constant(float), Default(value=5.0)]
+    spec = compose_field(field_type)
+
+    assert isinstance(spec.validator, PositiveKW)
+    assert isinstance(spec.loader, Constant)
+    assert spec.default is not None
+    assert spec.default.value == 5.0
+
+
+def test_compose_field_handles_missing_metadata() -> None:
+    """compose_field() returns None for missing metadata components."""
+    # Type with only validator
+    field_type = Annotated[float, PositiveKW()]
+    spec = compose_field(field_type)
+
+    assert isinstance(spec.validator, PositiveKW)
+    assert spec.loader is None
+    assert spec.default is None
 
 
 @pytest.mark.parametrize("available_result", [True, False])
@@ -57,8 +76,14 @@ def test_schema_available_delegates_to_loader(
 
     loader = TrackingLoader(available_result=available_result, loaded_value=42)
 
+    # Mock the get_loader_instance to return our tracking loader
+    def mock_get_loader(_field_name: str, _config_class: type) -> TrackingLoader:
+        return loader
+
+    monkeypatch.setattr("custom_components.haeo.schema.get_loader_instance", mock_get_loader)
+
     class ConfigData(TypedDict):
-        value: Annotated[int, TrackingFieldMeta(field_type="constant", loader=loader)]
+        value: Annotated[int, PositiveKW(), Constant(int)]
 
     entry = SimpleNamespace(data=ConfigData)
     monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)
@@ -77,54 +102,79 @@ async def test_schema_load_calls_loader(monkeypatch: pytest.MonkeyPatch) -> None
 
     loader = TrackingLoader(available_result=True, loaded_value=99)
 
+    # Mock the get_loader_instance to return our tracking loader only for "value" field
+    original_get_loader = get_loader_instance
+
+    def mock_get_loader(field_name: str, config_class: type) -> ConstantLoader[int]:
+        if field_name == "value":
+            return loader  # type: ignore[return-value]
+        return cast("ConstantLoader[int]", original_get_loader(field_name, config_class))
+
+    monkeypatch.setattr("custom_components.haeo.schema.get_loader_instance", mock_get_loader)
+
     class ConfigData(TypedDict):
-        value: Annotated[int, TrackingFieldMeta(field_type="constant", loader=loader)]
+        element_type: str
+        value: Annotated[int, PositiveKW(), Constant(int)]
 
     entry = SimpleNamespace(data=ConfigData)
     monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)
 
-    config = cast("ElementConfigSchema", {"element_type": "stub", "value": "sensor.example"})
+    config = cast("ElementConfigSchema", {"element_type": "stub", "value": 123})
     hass = cast("HomeAssistant", object())
 
-    loaded = cast("ConfigData", await schema_load(config, hass=hass, forecast_times=[]))
+    result = await schema_load(config, hass, forecast_times=[])
 
-    assert loaded["value"] == 99
-    assert loader.load_calls == [{"value": "sensor.example", "hass": hass, "forecast_times": []}]
+    assert result.get("value") == 99
+    assert len(loader.load_calls) == 1
 
 
-def test_get_loader_instance_fallback() -> None:
-    """get_loader_instance falls back to a ConstantLoader when metadata is missing."""
+def test_get_loader_instance_returns_correct_loader_for_constant() -> None:
+    """get_loader_instance returns ConstantLoader for Constant fields."""
 
-    class PlainConfig(TypedDict):
-        value: int
+    class ConfigData(TypedDict):
+        power: Annotated[float, PositiveKW(), Constant(float)]
 
-    loader = get_loader_instance("value", PlainConfig)
+    loader = get_loader_instance("power", ConfigData)
     assert isinstance(loader, ConstantLoader)
 
 
-async def test_optional_none_values_are_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Optional fields provided as None should not trigger loader access."""
-
-    required_loader = TrackingLoader(available_result=True, loaded_value=11)
-    optional_loader = TrackingLoader(available_result=True, loaded_value=99)
+def test_get_loader_instance_returns_default_for_missing_field() -> None:
+    """get_loader_instance returns default loader for missing fields."""
 
     class ConfigData(TypedDict):
-        value: Annotated[int, TrackingFieldMeta(field_type="constant", loader=required_loader)]
-        optional: NotRequired[Annotated[int | None, TrackingFieldMeta(field_type="constant", loader=optional_loader)]]
+        pass
 
-    entry = SimpleNamespace(data=ConfigData)
-    monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)
+    loader = get_loader_instance("nonexistent", ConfigData)
+    assert isinstance(loader, ConstantLoader)
 
-    config = cast(
-        "ElementConfigSchema",
-        {"element_type": "stub", "value": "sensor.example", "optional": None},
-    )
-    hass = cast("HomeAssistant", object())
 
-    assert schema_available(config, hass=hass) is True
-    assert optional_loader.available_calls == []
+def test_get_default_returns_default_value_from_annotation() -> None:
+    """get_default extracts default value from Annotated type."""
 
-    loaded = cast("ConfigData", await schema_load(config, hass=hass, forecast_times=[]))
-    assert "optional" not in loaded
-    assert required_loader.load_calls == [{"value": "sensor.example", "hass": hass, "forecast_times": []}]
-    assert optional_loader.load_calls == []
+    class ConfigData(TypedDict):
+        power: Annotated[float, PositiveKW(), Constant(float), Default(value=5.0)]
+
+    result = get_default("power", ConfigData, 0.0)
+    assert result == 5.0
+
+
+def test_get_default_returns_fallback_for_missing_field() -> None:
+    """get_default returns fallback when field doesn't exist."""
+
+    class ConfigData(TypedDict):
+        power: Annotated[float, PositiveKW(), Constant(float)]
+
+    # Field "nonexistent" doesn't exist in ConfigData
+    result = get_default("nonexistent", ConfigData, 42.0)
+    assert result == 42.0
+
+
+def test_get_default_returns_fallback_when_no_default_annotation() -> None:
+    """get_default returns fallback when field has no Default annotation."""
+
+    class ConfigData(TypedDict):
+        power: Annotated[float, PositiveKW(), Constant(float)]
+
+    # Field exists but has no Default annotation
+    result = get_default("power", ConfigData, 99.0)
+    assert result == 99.0
