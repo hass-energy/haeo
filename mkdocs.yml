@@ -166,7 +166,8 @@ nav:
           - Connections:
               - modeling/model-layer/connections/index.md
               - Connection: modeling/model-layer/connections/connection.md
-              - PowerConnection: modeling/model-layer/connections/power-connection.md
+              - Power Connection: modeling/model-layer/connections/power-connection.md
+              - Battery Balance Connection: modeling/model-layer/battery-balance-connection.md
       - Device Layer:
           - modeling/device-layer/index.md
           - Battery: modeling/device-layer/battery.md
