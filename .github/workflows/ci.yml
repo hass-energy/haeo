@@ -275,7 +275,7 @@ jobs:
         run: uv sync
 
       - name: Build documentation
-        run: uv run mkdocs build --strict
+        run: uv run zensical build
 
   # =============================================================================
   # CI passed (single required check)
