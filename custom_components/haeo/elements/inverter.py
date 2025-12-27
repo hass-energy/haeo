@@ -69,9 +69,9 @@ INVERTER_DEVICE_NAMES: Final[frozenset[InverterDeviceName]] = frozenset(
     (INVERTER_DEVICE_INVERTER := ELEMENT_TYPE,),
 )
 
-# Field type aliases with defaults (perfect efficiency = 100%)
-PerfectEfficiencyFieldSchema = Annotated[PercentageFieldSchema, Default(value=100.0)]
-PerfectEfficiencyFieldData = Annotated[PercentageFieldData, Default(value=100.0)]
+# Field type aliases with defaults
+EfficiencyFieldSchema = Annotated[PercentageFieldSchema, Default(value=100.0)]
+EfficiencyFieldData = Annotated[PercentageFieldData, Default(value=100.0)]
 
 
 class InverterConfigSchema(TypedDict):
@@ -84,8 +84,8 @@ class InverterConfigSchema(TypedDict):
     max_power_ac_to_dc: PowerSensorFieldSchema
 
     # Optional fields
-    efficiency_dc_to_ac: NotRequired[PerfectEfficiencyFieldSchema]
-    efficiency_ac_to_dc: NotRequired[PerfectEfficiencyFieldSchema]
+    efficiency_dc_to_ac: NotRequired[EfficiencyFieldSchema]
+    efficiency_ac_to_dc: NotRequired[EfficiencyFieldSchema]
 
 
 class InverterConfigData(TypedDict):
@@ -98,8 +98,8 @@ class InverterConfigData(TypedDict):
     max_power_ac_to_dc: PowerSensorFieldData
 
     # Optional fields
-    efficiency_dc_to_ac: NotRequired[PerfectEfficiencyFieldData]
-    efficiency_ac_to_dc: NotRequired[PerfectEfficiencyFieldData]
+    efficiency_dc_to_ac: NotRequired[EfficiencyFieldData]
+    efficiency_ac_to_dc: NotRequired[EfficiencyFieldData]
 
 
 def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:
