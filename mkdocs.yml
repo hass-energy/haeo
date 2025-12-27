@@ -112,6 +112,9 @@ markdown_extensions:
   - pymdownx.tilde
 
 extra:
+  analytics:
+    provider: google
+    property: G-ZQ0CM215M1
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/hass-energy/haeo
