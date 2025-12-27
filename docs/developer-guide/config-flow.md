@@ -212,6 +212,7 @@ EnergySensorFieldSchema = Annotated[
     TimeSeries(accepted_units=ENERGY_UNITS),
 ]
 
+
 class BatteryConfigSchema(TypedDict):
     capacity: EnergySensorFieldSchema  # Entity ID with attached metadata
 ```
@@ -226,18 +227,18 @@ The composable metadata types are:
 
 Field types are defined in `custom_components/haeo/schema/fields.py`:
 
-| Validator Class  | Purpose                      | Base Type |
-| ---------------- | ---------------------------- | --------- |
-| `PositiveKW`     | Positive power values in kW  | `float`   |
-| `AnyKW`          | Power flow (pos or neg) in kW| `float`   |
-| `PositiveKWH`    | Positive energy values in kWh| `float`   |
-| `Price`          | Price values in $/kWh        | `float`   |
-| `Percentage`     | Percentage values (0-100)    | `float`   |
-| `BatterySOC`     | Battery SOC percentage       | `float`   |
-| `Boolean`        | Boolean flags                | `bool`    |
-| `Name`           | Free-form text names         | `str`     |
-| `ElementName`    | References to other elements | `str`     |
-| `EntitySelect`   | Entity sensor references     | `str`     |
+| Validator Class | Purpose                       | Base Type |
+| --------------- | ----------------------------- | --------- |
+| `PositiveKW`    | Positive power values in kW   | `float`   |
+| `AnyKW`         | Power flow (pos or neg) in kW | `float`   |
+| `PositiveKWH`   | Positive energy values in kWh | `float`   |
+| `Price`         | Price values in \$/kWh        | `float`   |
+| `Percentage`    | Percentage values (0-100)     | `float`   |
+| `BatterySOC`    | Battery SOC percentage        | `float`   |
+| `Boolean`       | Boolean flags                 | `bool`    |
+| `Name`          | Free-form text names          | `str`     |
+| `ElementName`   | References to other elements  | `str`     |
+| `EntitySelect`  | Entity sensor references      | `str`     |
 
 ### Data Loading Flow
 
