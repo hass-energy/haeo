@@ -80,18 +80,9 @@ class ConstantStr(LoaderMeta):
     """Marker for constant string values loaded directly from config."""
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True)
 class TimeSeries(LoaderMeta):
-    """Marker for time series data loaded from sensors/forecasts.
-
-    Attributes:
-        accepted_units: Unit patterns for filtering compatible entities.
-        multiple: Whether multiple entities can be selected.
-
-    """
-
-    accepted_units: UnitSpec | list[UnitSpec]
-    multiple: bool = False
+    """Marker for time series data loaded from sensors/forecasts."""
 
 
 # Validator metadata types
@@ -259,15 +250,9 @@ class ElementName(Validator):
         return vol.All(*validators)
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True)
 class EntitySelect(Validator):
-    """Validates entity selection with unit-based filtering.
-
-    Attributes:
-        accepted_units: Unit patterns for filtering compatible entities.
-        multiple: Whether multiple entities can be selected.
-
-    """
+    """Validates entity selection with unit-based filtering."""
 
     accepted_units: UnitSpec | list[UnitSpec]
     multiple: bool = False
@@ -330,79 +315,23 @@ BatterySOCFieldData = Annotated[float, BatterySOC(), ConstantFloat()]
 PriceFieldSchema = Annotated[float, Price(), ConstantFloat()]
 PriceFieldData = Annotated[float, Price(), ConstantFloat()]
 
-PowerSensorFieldSchema = Annotated[
-    str,
-    EntitySelect(accepted_units=POWER_UNITS, multiple=False),
-    TimeSeries(accepted_units=POWER_UNITS, multiple=False),
-]
-PowerSensorFieldData = Annotated[
-    list[float],
-    EntitySelect(accepted_units=POWER_UNITS, multiple=False),
-    TimeSeries(accepted_units=POWER_UNITS, multiple=False),
-]
+PowerSensorFieldSchema = Annotated[str, EntitySelect(POWER_UNITS), TimeSeries()]
+PowerSensorFieldData = Annotated[list[float], EntitySelect(POWER_UNITS), TimeSeries()]
 
-PowerSensorsFieldSchema = Annotated[
-    Sequence[str],
-    EntitySelect(accepted_units=POWER_UNITS, multiple=True),
-    TimeSeries(accepted_units=POWER_UNITS, multiple=True),
-]
-PowerSensorsFieldData = Annotated[
-    list[float],
-    EntitySelect(accepted_units=POWER_UNITS, multiple=True),
-    TimeSeries(accepted_units=POWER_UNITS, multiple=True),
-]
+PowerSensorsFieldSchema = Annotated[Sequence[str], EntitySelect(POWER_UNITS, multiple=True), TimeSeries()]
+PowerSensorsFieldData = Annotated[list[float], EntitySelect(POWER_UNITS, multiple=True), TimeSeries()]
 
-EnergySensorFieldSchema = Annotated[
-    str,
-    EntitySelect(accepted_units=ENERGY_UNITS, multiple=False),
-    TimeSeries(accepted_units=ENERGY_UNITS, multiple=False),
-]
-EnergySensorFieldData = Annotated[
-    list[float],
-    EntitySelect(accepted_units=ENERGY_UNITS, multiple=False),
-    TimeSeries(accepted_units=ENERGY_UNITS, multiple=False),
-]
+EnergySensorFieldSchema = Annotated[str, EntitySelect(ENERGY_UNITS), TimeSeries()]
+EnergySensorFieldData = Annotated[list[float], EntitySelect(ENERGY_UNITS), TimeSeries()]
 
-EnergySensorsFieldSchema = Annotated[
-    Sequence[str],
-    EntitySelect(accepted_units=ENERGY_UNITS, multiple=True),
-    TimeSeries(accepted_units=ENERGY_UNITS, multiple=True),
-]
-EnergySensorsFieldData = Annotated[
-    list[float],
-    EntitySelect(accepted_units=ENERGY_UNITS, multiple=True),
-    TimeSeries(accepted_units=ENERGY_UNITS, multiple=True),
-]
+EnergySensorsFieldSchema = Annotated[Sequence[str], EntitySelect(ENERGY_UNITS, multiple=True), TimeSeries()]
+EnergySensorsFieldData = Annotated[list[float], EntitySelect(ENERGY_UNITS, multiple=True), TimeSeries()]
 
-PercentageSensorFieldSchema = Annotated[
-    str,
-    EntitySelect(accepted_units=PERCENTAGE_UNITS, multiple=False),
-    TimeSeries(accepted_units=PERCENTAGE_UNITS, multiple=False),
-]
-PercentageSensorFieldData = Annotated[
-    list[float],
-    EntitySelect(accepted_units=PERCENTAGE_UNITS, multiple=False),
-    TimeSeries(accepted_units=PERCENTAGE_UNITS, multiple=False),
-]
+PercentageSensorFieldSchema = Annotated[str, EntitySelect(PERCENTAGE_UNITS), TimeSeries()]
+PercentageSensorFieldData = Annotated[list[float], EntitySelect(PERCENTAGE_UNITS), TimeSeries()]
 
-BatterySOCSensorFieldSchema = Annotated[
-    str,
-    EntitySelect(accepted_units=BATTERY_UNITS, multiple=False),
-    TimeSeries(accepted_units=BATTERY_UNITS, multiple=False),
-]
-BatterySOCSensorFieldData = Annotated[
-    list[float],
-    EntitySelect(accepted_units=BATTERY_UNITS, multiple=False),
-    TimeSeries(accepted_units=BATTERY_UNITS, multiple=False),
-]
+BatterySOCSensorFieldSchema = Annotated[str, EntitySelect(BATTERY_UNITS), TimeSeries()]
+BatterySOCSensorFieldData = Annotated[list[float], EntitySelect(BATTERY_UNITS), TimeSeries()]
 
-PriceSensorsFieldSchema = Annotated[
-    Sequence[str],
-    EntitySelect(accepted_units=PRICE_UNITS, multiple=True),
-    TimeSeries(accepted_units=PRICE_UNITS, multiple=True),
-]
-PriceSensorsFieldData = Annotated[
-    list[float],
-    EntitySelect(accepted_units=PRICE_UNITS, multiple=True),
-    TimeSeries(accepted_units=PRICE_UNITS, multiple=True),
-]
+PriceSensorsFieldSchema = Annotated[Sequence[str], EntitySelect(PRICE_UNITS, multiple=True), TimeSeries()]
+PriceSensorsFieldData = Annotated[list[float], EntitySelect(PRICE_UNITS, multiple=True), TimeSeries()]

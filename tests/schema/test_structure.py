@@ -12,7 +12,7 @@ from custom_components.haeo.elements import ElementConfigSchema
 from custom_components.haeo.schema import available as schema_available
 from custom_components.haeo.schema import compose_field, get_loader_instance
 from custom_components.haeo.schema import load as schema_load
-from custom_components.haeo.schema.fields import ConstantFloat, LoaderMeta, PositiveKW
+from custom_components.haeo.schema.fields import ConstantFloat, Default, LoaderMeta, PositiveKW
 
 
 class TrackingLoader(ConstantLoader[int]):
@@ -46,10 +46,8 @@ class TrackingLoaderMeta(LoaderMeta):
 
 def test_compose_field_extracts_all_metadata() -> None:
     """compose_field() extracts Validator, LoaderMeta, and Default from Annotated."""
-    from custom_components.haeo.schema.fields import Default
-
-    FieldType = Annotated[float, PositiveKW(), ConstantFloat(), Default(value=5.0)]
-    spec = compose_field(FieldType)
+    field_type = Annotated[float, PositiveKW(), ConstantFloat(), Default(value=5.0)]
+    spec = compose_field(field_type)
 
     assert isinstance(spec.validator, PositiveKW)
     assert isinstance(spec.loader, ConstantFloat)
@@ -60,8 +58,8 @@ def test_compose_field_extracts_all_metadata() -> None:
 def test_compose_field_handles_missing_metadata() -> None:
     """compose_field() returns None for missing metadata components."""
     # Type with only validator
-    FieldType = Annotated[float, PositiveKW()]
-    spec = compose_field(FieldType)
+    field_type = Annotated[float, PositiveKW()]
+    spec = compose_field(field_type)
 
     assert isinstance(spec.validator, PositiveKW)
     assert spec.loader is None
