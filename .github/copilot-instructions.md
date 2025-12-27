@@ -137,8 +137,8 @@ Avoid special characters in translation display names as they are used in entity
 
 This repository uses path-specific instruction files in `.github/instructions/` that apply additional context based on the files being edited.
 
-| Instruction File                                                                    | Applies To                                    | When To Use                                                                         |
-| ----------------------------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Instruction File                                                                    | Applies To                                    | When To Use                                                                                    |
+| ----------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | [config-flow.instructions.md](.github/instructions/config-flow.instructions.md)     | `**/config_flow.py`, `**/flows/**`            | Developing config flows, element configuration UI, schema generation, validation logic         |
 | [documentation.instructions.md](.github/instructions/documentation.instructions.md) | `docs/**`                                     | Writing or updating user guides, developer documentation, modeling docs, adding examples       |
 | [elements.instructions.md](.github/instructions/elements.instructions.md)           | `custom_components/haeo/elements/**`          | Creating or modifying element adapters, schema/data types, field metadata                      |
