@@ -101,9 +101,6 @@ class GridConfigData(TypedDict):
     export_limit: NotRequired[PowerFieldData]
 
 
-CONFIG_DEFAULTS: dict[str, Any] = {}
-
-
 def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
     """Create model elements for Grid configuration."""
 

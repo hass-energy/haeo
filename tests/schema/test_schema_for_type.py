@@ -14,7 +14,6 @@ from custom_components.haeo.schema.fields import (
     BatterySOCSensorFieldSchema,
     BooleanFieldSchema,
     ElementNameFieldSchema,
-    EnergyFieldSchema,
     NameFieldSchema,
     PercentageFieldSchema,
     PowerFieldSchema,
@@ -38,7 +37,6 @@ class ConstantFieldTestConfig(TypedDict):
     """Test config for constant field types."""
 
     power: PowerFieldSchema
-    energy: EnergyFieldSchema
     price: PriceFieldSchema
     percentage: PercentageFieldSchema
     boolean: BooleanFieldSchema
@@ -81,7 +79,6 @@ def test_constant_field_extraction() -> None:
 
     expected_fields = {
         "power",
-        "energy",
         "price",
         "percentage",
         "boolean",
@@ -143,7 +140,6 @@ def test_constant_field_schema_creation(schema_params: dict[str, Any]) -> None:
     schema_dict = schema.schema
     expected_keys = {
         "power",
-        "energy",
         "price",
         "percentage",
         "boolean",
@@ -180,8 +176,9 @@ def test_union_field_uses_first_annotated_metadata() -> None:
 
     annotated_fields = _get_annotated_fields(UnionFieldConfig)
 
-    field_meta, is_optional = annotated_fields["value"]
-    assert field_meta.field_type == "constant"
+    validator, is_optional = annotated_fields["value"]
+    # Price validator is first in the Union, so it should be selected
+    assert validator.__class__.__name__ == "Price"
     assert not is_optional
 
 
@@ -191,7 +188,6 @@ def test_constant_field_schema_validation(schema_params: dict[str, Any]) -> None
 
     valid_data = {
         "power": 100.0,
-        "energy": 500.0,
         "price": 0.15,
         "percentage": 80.0,
         "boolean": True,

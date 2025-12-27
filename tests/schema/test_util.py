@@ -5,7 +5,7 @@ from enum import Enum
 from homeassistant.const import UnitOfPower
 import pytest
 
-from custom_components.haeo.schema.fields import SensorFieldMeta
+from custom_components.haeo.schema.fields import EntitySelect
 from custom_components.haeo.schema.util import UnitSpec, matches_unit_spec
 
 
@@ -78,54 +78,43 @@ UNIT_MATCHING_TEST_CASES = [
     ("kW", ("*", "/", "kWh"), False),
     # Tuple patterns - wrong part count
     ("kWh", ("*", "/", "kWh"), False),
-    ("$/AUD/kWh", ("*", "/", "kWh"), False),
-    # Tuple patterns - enum as iterable (concatenated without separator)
-    ("WWh", UnitOfPower, False),  # UnitOfPower contains "W", not "WWh"
-    ("kW", UnitOfPower, True),  # Exact match for enum value
-    ("W", UnitOfPower, True),  # Exact match for enum value
-    # Sequences of specs
-    ("kW", ["kW", "MW"], True),
-    ("kW", ["W", "MW"], False),
-    ("kW", [UnitOfPower, "GW"], True),
+    ("a/b/c", ("a", "/", "b"), False),
+    ("a/b", ("a", "/", "b", "/", "c"), False),
+    # Special case from pricing - $ with wildcard
+    ("$/kWh", ("$", "/", "*"), True),
+    ("$/MWh", ("$", "/", "*"), True),
+    ("$/Wh", ("$", "/", "*"), True),
+    ("AUD/kWh", ("$", "/", "*"), False),
 ]
 
 
 @pytest.mark.parametrize(("unit", "pattern", "expected"), UNIT_MATCHING_TEST_CASES)
-def test_matches_unit_spec(unit: str, pattern: UnitSpec | list[UnitSpec], *, expected: bool) -> None:
-    """Test unit matching logic with comprehensive pattern coverage.
-
-    This tests matches_unit_spec() which is the core unit matching function.
-    Other components like EntityMetadata.is_compatible_with() delegate to this,
-    so testing this function provides full coverage.
-    """
-    assert matches_unit_spec(unit, pattern) == expected
+def test_matches_unit_spec(unit: str, pattern: UnitSpec, *, expected: bool) -> None:
+    """Unit patterns should match units according to specification."""
+    result = matches_unit_spec(unit, pattern)
+    assert result == expected, f"Expected {unit!r} to {'match' if expected else 'not match'} {pattern!r}"
 
 
-# Test cases for SensorFieldMeta: (accepted_units, multiple, expected_field_type_platform)
-SENSOR_FIELD_META_TEST_CASES = [
-    # Enum type - uses first enum value (don't test specific value)
-    (UnitOfPower, False, "sensor"),
-    # Sequence of strings
-    (["kW", "MW"], False, "sensor"),
-    # Tuple pattern - concatenates to string
-    (("*", "/", "kWh"), False, "sensor"),
-    # Mixed sequence
-    (["kW", ("*", "/", "kWh")], True, "sensor"),
-]
+def test_entity_select_stores_accepted_units() -> None:
+    """EntitySelect should store accepted_units for filtering."""
+    validator = EntitySelect(UnitOfPower, multiple=True)
+
+    assert validator.accepted_units == UnitOfPower
+    assert validator.multiple is True
+
+
+PRICE_UNITS: list[UnitSpec] = [("*", "/", "kWh"), ("*", "/", "MWh"), ("*", "/", "Wh")]
 
 
 @pytest.mark.parametrize(
-    ("accepted_units", "multiple", "expected_platform"),
-    SENSOR_FIELD_META_TEST_CASES,
+    "price_pattern",
+    PRICE_UNITS,
 )
-def test_sensor_field_meta(
-    accepted_units: UnitSpec | list[UnitSpec],
-    expected_platform: str,
-    *,
-    multiple: bool,
-) -> None:
-    """Test SensorFieldMeta initialization and properties."""
-    meta = SensorFieldMeta(accepted_units=accepted_units, multiple=multiple)
-    assert meta.accepted_units == accepted_units
-    assert meta.multiple == multiple
-    assert meta.field_type == expected_platform
+def test_price_patterns_match_common_currencies(price_pattern: tuple[str, ...]) -> None:
+    """Price unit patterns should match common currency symbols."""
+    currencies = ["$", "USD", "AUD", "EUR", "¢", "€", "£", "GBP"]
+    energy_suffix = price_pattern[-1]
+
+    for currency in currencies:
+        unit = f"{currency}/{energy_suffix}"
+        assert matches_unit_spec(unit, price_pattern), f"{unit} should match {price_pattern}"
