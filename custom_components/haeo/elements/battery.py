@@ -153,16 +153,13 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     """Create model elements for Battery configuration.
 
     Creates 1-3 battery sections, an internal node, connections from sections to node,
-    balance connections between adjacent sections, and a connection from node to target.
+    and a connection from node to target.
     """
     name = config["name"]
     elements: list[dict[str, Any]] = []
 
-    # Get capacity time series (T values)
-    capacity_series = config["capacity"]
-    n_periods = len(capacity_series)
-
-    # Get initial SOC from first period
+    # Get capacity and initial SOC from first period
+    capacity = config["capacity"][0]
     initial_soc = config["initial_charge_percentage"][0]
 
     # Convert percentages to ratios
@@ -176,33 +173,30 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     )
     initial_soc_ratio = initial_soc / 100.0
 
+    # Calculate early charge/discharge incentives
+    early_charge_incentive: float = config.get("early_charge_incentive", CONFIG_DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE])
+
     # Determine unusable ratio (inaccessible energy)
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
 
     # Calculate initial charge in kWh (remove unusable percentage)
-    initial_charge = max((initial_soc_ratio - unusable_ratio) * capacity_series[0], 0.0)
+    initial_charge = max((initial_soc_ratio - unusable_ratio) * capacity, 0.0)
 
-    # Track sections for balance connections and output mapping
+    # Create battery sections
     section_names: list[str] = []
-    section_capacities: dict[str, list[float]] = {}
 
     # 1. Undercharge section (if configured)
-    undercharge_cost = config.get("undercharge_cost")
-    if undercharge_ratio is not None and undercharge_cost is not None:
+    if undercharge_ratio is not None and config.get("undercharge_cost") is not None:
         section_name = f"{name}:undercharge"
         section_names.append(section_name)
-
-        # Calculate per-period capacity for this section
-        undercharge_capacities = [(min_ratio - undercharge_ratio) * cap for cap in capacity_series]
-        section_capacities[section_name] = undercharge_capacities
-
-        section_initial_charge = min(initial_charge, undercharge_capacities[0])
+        undercharge_capacity = (min_ratio - undercharge_ratio) * capacity
+        section_initial_charge = min(initial_charge, undercharge_capacity)
 
         elements.append(
             {
                 "element_type": "battery",
                 "name": section_name,
-                "capacity": undercharge_capacities,
+                "capacity": undercharge_capacity,
                 "initial_charge": section_initial_charge,
             }
         )
@@ -210,20 +204,16 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
         initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
     # 2. Normal section (always present)
-    normal_section_name = f"{name}:normal"
-    section_names.append(normal_section_name)
-
-    # Calculate per-period capacity for normal section
-    normal_capacities = [(max_ratio - min_ratio) * cap for cap in capacity_series]
-    section_capacities[normal_section_name] = normal_capacities
-
-    section_initial_charge = min(initial_charge, normal_capacities[0])
+    section_name = f"{name}:normal"
+    section_names.append(section_name)
+    normal_capacity = (max_ratio - min_ratio) * capacity
+    section_initial_charge = min(initial_charge, normal_capacity)
 
     elements.append(
         {
             "element_type": "battery",
-            "name": normal_section_name,
-            "capacity": normal_capacities,
+            "name": section_name,
+            "capacity": normal_capacity,
             "initial_charge": section_initial_charge,
         }
     )
@@ -231,22 +221,17 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
     # 3. Overcharge section (if configured)
-    overcharge_cost = config.get("overcharge_cost")
-    if overcharge_ratio is not None and overcharge_cost is not None:
+    if overcharge_ratio is not None and config.get("overcharge_cost") is not None:
         section_name = f"{name}:overcharge"
         section_names.append(section_name)
-
-        # Calculate per-period capacity for this section
-        overcharge_capacities = [(overcharge_ratio - max_ratio) * cap for cap in capacity_series]
-        section_capacities[section_name] = overcharge_capacities
-
-        section_initial_charge = min(initial_charge, overcharge_capacities[0])
+        overcharge_capacity = (overcharge_ratio - max_ratio) * capacity
+        section_initial_charge = min(initial_charge, overcharge_capacity)
 
         elements.append(
             {
                 "element_type": "battery",
                 "name": section_name,
-                "capacity": overcharge_capacities,
+                "capacity": overcharge_capacity,
                 "initial_charge": section_initial_charge,
             }
         )
@@ -263,6 +248,18 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     )
 
     # 5. Create connections from sections to internal node
+    n_periods = len(config["capacity"])
+
+    # Create time-varying early charge/discharge incentive arrays using linspace
+    # Charge incentive decreases over time (from -incentive to 0)
+    # Discharge cost increases over time (from incentive to 2*incentive)
+    charge_early_incentive = [
+        -early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+    ]
+    discharge_early_incentive = [
+        early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+    ]
+
     # Get undercharge/overcharge cost arrays (or broadcast scalars to arrays)
     undercharge_cost_array: list[float] = (
         list(config["undercharge_cost"]) if "undercharge_cost" in config else [0.0] * n_periods
@@ -273,17 +270,20 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
 
     for section_name in section_names:
         # Determine charge/discharge costs based on section
-        # Only undercharge has discharge penalty, only overcharge has charge penalty
         if "undercharge" in section_name:
-            charge_price = None  # No charge cost for undercharge
-            discharge_price = undercharge_cost_array  # Discharge penalty
+            # Undercharge: strong charge preference (3x), weak discharge + penalty
+            charge_price = [c * 3 for c in charge_early_incentive]
+            discharge_price = [
+                d * 1 + uc for d, uc in zip(discharge_early_incentive, undercharge_cost_array, strict=True)
+            ]
         elif "overcharge" in section_name:
-            charge_price = overcharge_cost_array  # Charge penalty
-            discharge_price = None  # No discharge cost for overcharge
+            # Overcharge: weak charge + penalty, strong discharge preference (3x)
+            charge_price = [c * 1 + oc for c, oc in zip(charge_early_incentive, overcharge_cost_array, strict=True)]
+            discharge_price = [d * 3 for d in discharge_early_incentive]
         else:
-            # Normal section: no section-specific costs
-            charge_price = None
-            discharge_price = None
+            # Normal: moderate preferences (2x)
+            charge_price = [c * 2 for c in charge_early_incentive]
+            discharge_price = [d * 2 for d in discharge_early_incentive]
 
         elements.append(
             {
@@ -296,45 +296,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
             }
         )
 
-    # 6. Create battery balance connections between adjacent sections
-    # Balance connections enforce energy redistribution when capacities change
-    # Order is: undercharge (lowest) -> normal -> overcharge (highest)
-    for i in range(len(section_names) - 1):
-        lower_section = section_names[i]
-        upper_section = section_names[i + 1]
-
-        elements.append(
-            {
-                "element_type": "battery_balance_connection",
-                "name": f"{name}:balance:{lower_section.split(':')[-1]}_to_{upper_section.split(':')[-1]}",
-                "upper": upper_section,
-                "lower": lower_section,
-                "capacity_lower": section_capacities[lower_section],
-            }
-        )
-
-    # 7. Create connection from internal node to target with early charge incentive
-    early_charge_incentive: float = config.get("early_charge_incentive", CONFIG_DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE])
-
-    # Create time-varying early charge/discharge incentive arrays
-    # Charge incentive decreases over time (from -incentive to 0) - encourages charging early
-    # Discharge cost increases over time (from incentive to 2*incentive) - discourages discharging early
-    charge_early_incentive = [
-        -early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
-    ]
-    discharge_early_incentive = [
-        early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
-    ]
-
-    # Combine early incentive with discharge cost if provided
-    discharge_cost_base = config.get("discharge_cost")
-    if discharge_cost_base is not None:
-        discharge_price_final = [
-            base + incentive for base, incentive in zip(discharge_cost_base, discharge_early_incentive, strict=True)
-        ]
-    else:
-        discharge_price_final = discharge_early_incentive
-
+    # 6. Create connection from internal node to target
     elements.append(
         {
             "element_type": "connection",
@@ -345,8 +307,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
             "efficiency_target_source": config["efficiency"],  # Network to node (charge)
             "max_power_source_target": config.get("max_discharge_power"),
             "max_power_target_source": config.get("max_charge_power"),
-            "price_source_target": discharge_price_final,  # Discharge cost (degradation + early incentive)
-            "price_target_source": charge_early_incentive,  # Charge incentive
+            "price_source_target": config.get("discharge_cost"),  # Discharge cost (degradation)
         }
     )
 

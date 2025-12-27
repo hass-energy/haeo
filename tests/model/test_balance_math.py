@@ -23,6 +23,7 @@ def check_downward_constraints(
 
     Returns:
         (is_feasible, list of violated constraints)
+
     """
     violations = []
 
@@ -66,6 +67,7 @@ def check_upward_constraints(
 
     Returns:
         (is_feasible, list of violated constraints)
+
     """
     violations = []
 
