@@ -23,6 +23,7 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 from custom_components.haeo.network import evaluate_network_connectivity
 
 
@@ -57,7 +58,9 @@ async def test_evaluate_network_connectivity_connected(
     """Network with a single node should be considered connected."""
 
     node_a = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node A"}),
+        data=MappingProxyType(
+            {CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node A", CONF_IS_SOURCE: False, CONF_IS_SINK: False}
+        ),
         subentry_type=ELEMENT_TYPE_NODE,
         title="Node A",
         unique_id=None,
@@ -79,13 +82,17 @@ async def test_evaluate_network_connectivity_disconnected(
     """Network with isolated nodes should create a repair issue."""
 
     node_a = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node A"}),
+        data=MappingProxyType(
+            {CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node A", CONF_IS_SOURCE: False, CONF_IS_SINK: False}
+        ),
         subentry_type=ELEMENT_TYPE_NODE,
         title="Node A",
         unique_id=None,
     )
     node_b = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node B"}),
+        data=MappingProxyType(
+            {CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node B", CONF_IS_SOURCE: False, CONF_IS_SINK: False}
+        ),
         subentry_type=ELEMENT_TYPE_NODE,
         title="Node B",
         unique_id=None,
@@ -109,13 +116,17 @@ async def test_evaluate_network_connectivity_resolves_issue(
     """Validation should clear the issue when connectivity is restored."""
 
     node_a = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node A"}),
+        data=MappingProxyType(
+            {CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node A", CONF_IS_SOURCE: False, CONF_IS_SINK: False}
+        ),
         subentry_type=ELEMENT_TYPE_NODE,
         title="Node A",
         unique_id=None,
     )
     node_b = ConfigSubentry(
-        data=MappingProxyType({CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node B"}),
+        data=MappingProxyType(
+            {CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE, CONF_NAME: "Node B", CONF_IS_SOURCE: False, CONF_IS_SINK: False}
+        ),
         subentry_type=ELEMENT_TYPE_NODE,
         title="Node B",
         unique_id=None,

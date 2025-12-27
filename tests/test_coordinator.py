@@ -302,6 +302,9 @@ async def test_async_update_data_returns_outputs(
         },
     }
 
+    # Mock translations to return the expected network subentry name
+    mock_translations = AsyncMock(return_value={"component.haeo.common.network_subentry_name": "System"})
+
     # Patch the registry entries to use our mocked output functions
     with (
         patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
@@ -313,6 +316,7 @@ async def test_async_update_data_returns_outputs(
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.dt_util.utcnow", return_value=generated_at),
+        patch("custom_components.haeo.coordinator.async_get_translations", mock_translations),
         patch.dict(
             ELEMENT_TYPES,
             {
@@ -334,6 +338,7 @@ async def test_async_update_data_returns_outputs(
         expected_forecast_times,
     )
     mock_load.assert_awaited_once_with(
+        hass,
         mock_hub_entry,
         periods_seconds=[30 * 60, 30 * 60],  # Two 30-minute intervals
         participants=mock_loaded_configs,
@@ -341,7 +346,7 @@ async def test_async_update_data_returns_outputs(
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
-    network_outputs = result[mock_hub_entry.title][ELEMENT_TYPE_NETWORK]
+    network_outputs = result["System"][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OUTPUT_TYPE_COST
     assert cost_output.unit == hass.config.currency
@@ -398,6 +403,7 @@ async def test_async_update_data_handles_none_required_energy(
     fake_network.required_energy = None
 
     mock_adapter = MagicMock(return_value={})
+    mock_translations = AsyncMock(return_value={"component.haeo.common.network_subentry_name": "System"})
 
     with (
         patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
@@ -413,6 +419,7 @@ async def test_async_update_data_handles_none_required_energy(
         patch("custom_components.haeo.coordinator.data_module.load_network", new_callable=AsyncMock) as mock_load,
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, return_value=0.0),
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue"),
+        patch("custom_components.haeo.coordinator.async_get_translations", mock_translations),
         patch.dict(
             ELEMENT_TYPES,
             {
@@ -427,7 +434,7 @@ async def test_async_update_data_handles_none_required_energy(
         result = await coordinator._async_update_data()
 
     # When required_energy is None, the output should have a fallback value of (0.0,)
-    network_outputs = result[mock_hub_entry.title][ELEMENT_TYPE_NETWORK]
+    network_outputs = result["System"][ELEMENT_TYPE_NETWORK]
     required_energy_output = network_outputs[OUTPUT_NAME_REQUIRED_ENERGY]
     assert required_energy_output.state == 0.0
     assert required_energy_output.unit == "kWh"

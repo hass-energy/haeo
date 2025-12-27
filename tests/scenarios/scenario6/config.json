@@ -60,7 +60,9 @@
     },
     "Switchboard": {
       "name": "Switchboard",
-      "element_type": "node"
+      "element_type": "node",
+      "is_sink": false,
+      "is_source": false
     }
   }
 }

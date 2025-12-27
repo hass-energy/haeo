@@ -509,8 +509,8 @@
       "unit_of_measurement": "kWh"
     }
   },
-  "sensor.battery_normal_region_charge_power": {
-    "entity_id": "sensor.battery_normal_region_charge_power",
+  "sensor.battery_main_partition_charge_power": {
+    "entity_id": "sensor.battery_main_partition_charge_power",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -630,15 +630,15 @@
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region Charge power",
+      "friendly_name": "Battery Main Partition Charge power",
       "output_name": "battery_power_charge",
       "output_type": "power",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
   },
-  "sensor.battery_normal_region_charge_price": {
-    "entity_id": "sensor.battery_normal_region_charge_price",
+  "sensor.battery_main_partition_charge_price": {
+    "entity_id": "sensor.battery_main_partition_charge_price",
     "state": "-0.002",
     "attributes": {
       "advanced": true,
@@ -758,14 +758,14 @@
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region Charge price",
+      "friendly_name": "Battery Main Partition Charge price",
       "output_name": "battery_charge_price",
       "output_type": "price",
       "unit_of_measurement": "$/kWh"
     }
   },
-  "sensor.battery_normal_region_discharge_power": {
-    "entity_id": "sensor.battery_normal_region_discharge_power",
+  "sensor.battery_main_partition_discharge_power": {
+    "entity_id": "sensor.battery_main_partition_discharge_power",
     "state": "1.01",
     "attributes": {
       "advanced": true,
@@ -885,15 +885,15 @@
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 31.31 },
         { "time": "2025-11-14T02:26:00.000000-0800", "value": 16.79 }
       ],
-      "friendly_name": "Battery Normal Region Discharge power",
+      "friendly_name": "Battery Main Partition Discharge power",
       "output_name": "battery_power_discharge",
       "output_type": "power",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
   },
-  "sensor.battery_normal_region_discharge_price": {
-    "entity_id": "sensor.battery_normal_region_discharge_price",
+  "sensor.battery_main_partition_discharge_price": {
+    "entity_id": "sensor.battery_main_partition_discharge_price",
     "state": "0.002",
     "attributes": {
       "advanced": true,
@@ -1013,14 +1013,14 @@
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.004 },
         { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.004 }
       ],
-      "friendly_name": "Battery Normal Region Discharge price",
+      "friendly_name": "Battery Main Partition Discharge price",
       "output_name": "battery_discharge_price",
       "output_type": "price",
       "unit_of_measurement": "$/kWh"
     }
   },
-  "sensor.battery_normal_region_energy_in_flow_shadow_price": {
-    "entity_id": "sensor.battery_normal_region_energy_in_flow_shadow_price",
+  "sensor.battery_main_partition_energy_in_flow_shadow_price": {
+    "entity_id": "sensor.battery_main_partition_energy_in_flow_shadow_price",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -1139,14 +1139,14 @@
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region Energy in flow shadow price",
+      "friendly_name": "Battery Main Partition Energy in flow shadow price",
       "output_name": "battery_energy_in_flow",
       "output_type": "shadow_price",
       "unit_of_measurement": "$/kWh"
     }
   },
-  "sensor.battery_normal_region_energy_out_flow_shadow_price": {
-    "entity_id": "sensor.battery_normal_region_energy_out_flow_shadow_price",
+  "sensor.battery_main_partition_energy_out_flow_shadow_price": {
+    "entity_id": "sensor.battery_main_partition_energy_out_flow_shadow_price",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -1265,14 +1265,14 @@
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region Energy out flow shadow price",
+      "friendly_name": "Battery Main Partition Energy out flow shadow price",
       "output_name": "battery_energy_out_flow",
       "output_type": "shadow_price",
       "unit_of_measurement": "$/kWh"
     }
   },
-  "sensor.battery_normal_region_energy_stored": {
-    "entity_id": "sensor.battery_normal_region_energy_stored",
+  "sensor.battery_main_partition_energy_stored": {
+    "entity_id": "sensor.battery_main_partition_energy_stored",
     "state": "24.38",
     "attributes": {
       "advanced": true,
@@ -1392,14 +1392,14 @@
         { "time": "2025-11-14T02:26:00.000000-0800", "value": 16.79 },
         { "time": "2025-11-14T03:26:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region Energy stored",
+      "friendly_name": "Battery Main Partition Energy stored",
       "output_name": "battery_energy_stored",
       "output_type": "energy",
       "unit_of_measurement": "kWh"
     }
   },
-  "sensor.battery_normal_region_soc_max_shadow_price": {
-    "entity_id": "sensor.battery_normal_region_soc_max_shadow_price",
+  "sensor.battery_main_partition_soc_max_shadow_price": {
+    "entity_id": "sensor.battery_main_partition_soc_max_shadow_price",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -1512,20 +1512,20 @@
         { "time": "2025-11-13T19:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T20:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T21:26:00.000000-0800", "value": -0.0028 },
-        { "time": "2025-11-13T22:26:00.000000-0800", "value": -0.0829 },
+        { "time": "2025-11-13T22:26:00.000000-0800", "value": -0.0847 },
         { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region SOC max shadow price",
+      "friendly_name": "Battery Main Partition SOC max shadow price",
       "output_name": "battery_soc_max",
       "output_type": "shadow_price",
       "unit_of_measurement": "$/kWh"
     }
   },
-  "sensor.battery_normal_region_soc_min_shadow_price": {
-    "entity_id": "sensor.battery_normal_region_soc_min_shadow_price",
+  "sensor.battery_main_partition_soc_min_shadow_price": {
+    "entity_id": "sensor.battery_main_partition_soc_min_shadow_price",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -1642,9 +1642,9 @@
         { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.0 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.0856 }
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.0874 }
       ],
-      "friendly_name": "Battery Normal Region SOC min shadow price",
+      "friendly_name": "Battery Main Partition SOC min shadow price",
       "output_name": "battery_soc_min",
       "output_type": "shadow_price",
       "unit_of_measurement": "$/kWh"
@@ -1765,10 +1765,10 @@
         { "time": "2025-11-13T20:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T21:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T22:26:00.000000-0800", "value": 0.0028 },
-        { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.0895 },
-        { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.0895 },
-        { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.0895 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.0896 }
+        { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.0914 },
+        { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.0914 },
+        { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.0914 },
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.0914 }
       ],
       "friendly_name": "Battery Power balance shadow price",
       "output_name": "battery_power_balance",
@@ -2019,10 +2019,10 @@
         { "time": "2025-11-13T20:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T21:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T22:26:00.000000-0800", "value": 0.023 },
-        { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.1106 },
-        { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.1106 },
-        { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.1106 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.1107 }
+        { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.1125 },
+        { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.1125 },
+        { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.1125 },
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.1125 }
       ],
       "friendly_name": "Constant Load Forecast limit shadow price",
       "output_name": "load_forecast_limit_price",
@@ -2552,11 +2552,11 @@
       "element_type": "grid",
       "forecast": [
         { "time": "2025-11-11T03:26:00.000000-0800", "value": 0.11 },
-        { "time": "2025-11-11T03:27:00.000000-0800", "value": 0.11 },
-        { "time": "2025-11-11T03:28:00.000000-0800", "value": 0.11 },
-        { "time": "2025-11-11T03:29:00.000000-0800", "value": 0.11 },
-        { "time": "2025-11-11T03:30:00.000000-0800", "value": 0.12 },
-        { "time": "2025-11-11T03:31:00.000000-0800", "value": 0.12 },
+        { "time": "2025-11-11T03:27:00.000000-0800", "value": 0.12 },
+        { "time": "2025-11-11T03:28:00.000000-0800", "value": 0.12 },
+        { "time": "2025-11-11T03:29:00.000000-0800", "value": 0.115 },
+        { "time": "2025-11-11T03:30:00.000000-0800", "value": 0.111 },
+        { "time": "2025-11-11T03:31:00.000000-0800", "value": 0.1168 },
         { "time": "2025-11-11T03:36:00.000000-0800", "value": 0.12 },
         { "time": "2025-11-11T03:41:00.000000-0800", "value": 0.118 },
         { "time": "2025-11-11T03:46:00.000000-0800", "value": 0.11 },
@@ -2612,8 +2612,8 @@
         { "time": "2025-11-12T01:26:00.000000-0800", "value": 0.1513 },
         { "time": "2025-11-12T01:56:00.000000-0800", "value": 0.124 },
         { "time": "2025-11-12T02:26:00.000000-0800", "value": 0.1113 },
-        { "time": "2025-11-12T02:56:00.000000-0800", "value": 0.11 },
-        { "time": "2025-11-12T03:26:00.000000-0800", "value": 0.1168 },
+        { "time": "2025-11-12T02:56:00.000000-0800", "value": 0.1138 },
+        { "time": "2025-11-12T03:26:00.000000-0800", "value": 0.1167 },
         { "time": "2025-11-12T04:26:00.000000-0800", "value": 0.1287 },
         { "time": "2025-11-12T05:26:00.000000-0800", "value": 0.1263 },
         { "time": "2025-11-12T06:26:00.000000-0800", "value": 0.1157 },
@@ -2636,8 +2636,8 @@
         { "time": "2025-11-12T23:26:00.000000-0800", "value": 0.094 },
         { "time": "2025-11-13T00:26:00.000000-0800", "value": 0.1573 },
         { "time": "2025-11-13T01:26:00.000000-0800", "value": 0.1377 },
-        { "time": "2025-11-13T02:26:00.000000-0800", "value": 0.1107 },
-        { "time": "2025-11-13T03:26:00.000000-0800", "value": 0.1168 },
+        { "time": "2025-11-13T02:26:00.000000-0800", "value": 0.1125 },
+        { "time": "2025-11-13T03:26:00.000000-0800", "value": 0.1167 },
         { "time": "2025-11-13T04:26:00.000000-0800", "value": 0.1287 },
         { "time": "2025-11-13T05:26:00.000000-0800", "value": 0.1263 },
         { "time": "2025-11-13T06:26:00.000000-0800", "value": 0.1157 },
@@ -2660,7 +2660,7 @@
         { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.094 },
         { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.1573 },
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.1377 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.1107 }
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.1125 }
       ],
       "friendly_name": "Grid Export price",
       "output_name": "grid_price_export",
@@ -2807,11 +2807,11 @@
       "element_type": "grid",
       "forecast": [
         { "time": "2025-11-11T03:26:00.000000-0800", "value": 0.21 },
-        { "time": "2025-11-11T03:27:00.000000-0800", "value": 0.21 },
-        { "time": "2025-11-11T03:28:00.000000-0800", "value": 0.21 },
-        { "time": "2025-11-11T03:29:00.000000-0800", "value": 0.21 },
-        { "time": "2025-11-11T03:30:00.000000-0800", "value": 0.22 },
-        { "time": "2025-11-11T03:31:00.000000-0800", "value": 0.22 },
+        { "time": "2025-11-11T03:27:00.000000-0800", "value": 0.22 },
+        { "time": "2025-11-11T03:28:00.000000-0800", "value": 0.22 },
+        { "time": "2025-11-11T03:29:00.000000-0800", "value": 0.215 },
+        { "time": "2025-11-11T03:30:00.000000-0800", "value": 0.211 },
+        { "time": "2025-11-11T03:31:00.000000-0800", "value": 0.2168 },
         { "time": "2025-11-11T03:36:00.000000-0800", "value": 0.22 },
         { "time": "2025-11-11T03:41:00.000000-0800", "value": 0.22 },
         { "time": "2025-11-11T03:46:00.000000-0800", "value": 0.218 },
@@ -2867,8 +2867,8 @@
         { "time": "2025-11-12T01:26:00.000000-0800", "value": 0.2127 },
         { "time": "2025-11-12T01:56:00.000000-0800", "value": 0.2187 },
         { "time": "2025-11-12T02:26:00.000000-0800", "value": 0.2113 },
-        { "time": "2025-11-12T02:56:00.000000-0800", "value": 0.21 },
-        { "time": "2025-11-12T03:26:00.000000-0800", "value": 0.2177 },
+        { "time": "2025-11-12T02:56:00.000000-0800", "value": 0.2138 },
+        { "time": "2025-11-12T03:26:00.000000-0800", "value": 0.2175 },
         { "time": "2025-11-12T04:26:00.000000-0800", "value": 0.238 },
         { "time": "2025-11-12T05:26:00.000000-0800", "value": 0.2313 },
         { "time": "2025-11-12T06:26:00.000000-0800", "value": 0.2213 },
@@ -2891,8 +2891,8 @@
         { "time": "2025-11-12T23:26:00.000000-0800", "value": 0.1533 },
         { "time": "2025-11-13T00:26:00.000000-0800", "value": 0.2217 },
         { "time": "2025-11-13T01:26:00.000000-0800", "value": 0.2157 },
-        { "time": "2025-11-13T02:26:00.000000-0800", "value": 0.2107 },
-        { "time": "2025-11-13T03:26:00.000000-0800", "value": 0.2177 },
+        { "time": "2025-11-13T02:26:00.000000-0800", "value": 0.2125 },
+        { "time": "2025-11-13T03:26:00.000000-0800", "value": 0.2175 },
         { "time": "2025-11-13T04:26:00.000000-0800", "value": 0.238 },
         { "time": "2025-11-13T05:26:00.000000-0800", "value": 0.2313 },
         { "time": "2025-11-13T06:26:00.000000-0800", "value": 0.2213 },
@@ -2915,7 +2915,7 @@
         { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.1533 },
         { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.2217 },
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.2157 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.2107 }
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.2125 }
       ],
       "friendly_name": "Grid Import price",
       "output_name": "grid_price_import",
@@ -3167,8 +3167,8 @@
         { "time": "2025-11-13T21:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T22:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.0 },
-        { "time": "2025-11-14T00:26:00.000000-0800", "value": -0.0467 },
-        { "time": "2025-11-14T01:26:00.000000-0800", "value": -0.027 },
+        { "time": "2025-11-14T00:26:00.000000-0800", "value": -0.0448 },
+        { "time": "2025-11-14T01:26:00.000000-0800", "value": -0.0251 },
         { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.0 }
       ],
       "friendly_name": "Grid Max export power shadow price",
@@ -3801,10 +3801,10 @@
         { "time": "2025-11-13T20:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T21:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T22:26:00.000000-0800", "value": 0.023 },
-        { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.1106 },
-        { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.1106 },
-        { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.1106 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.1107 }
+        { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.1125 },
+        { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.1125 },
+        { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.1125 },
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.1125 }
       ],
       "friendly_name": "Inverter DC bus power balance shadow price",
       "output_name": "inverter_dc_bus_power_balance",
@@ -4448,24 +4448,15 @@
       "unit_of_measurement": "$/kW"
     }
   },
-  "sensor.mock_title_optimization_cost": { "entity_id": "sensor.mock_title_optimization_cost", "state": "-30.35", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization cost", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "EUR" } },
-  "sensor.mock_title_optimization_duration": {
-    "entity_id": "sensor.mock_title_optimization_duration",
-    "state": "0.0",
-    "attributes": { "advanced": false, "device_class": "duration", "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization duration", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" }
-  },
-  "sensor.mock_title_optimization_status": {
-    "entity_id": "sensor.mock_title_optimization_status",
-    "state": "success",
-    "attributes": { "advanced": false, "device_class": "enum", "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization status", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" }
-  },
-  "sensor.mock_title_required_energy": {
-    "entity_id": "sensor.mock_title_required_energy",
+  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-30.38", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "EUR" } },
+  "sensor.optimizer_duration": { "entity_id": "sensor.optimizer_duration", "state": "0.0", "attributes": { "advanced": false, "device_class": "duration", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Duration", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" } },
+  "sensor.optimizer_required_energy": {
+    "entity_id": "sensor.optimizer_required_energy",
     "state": "6.99",
     "attributes": {
       "advanced": false,
       "device_class": "energy",
-      "element_name": "Mock Title",
+      "element_name": "System",
       "element_type": "network",
       "forecast": [
         { "time": "2025-11-11T03:26:00.000000-0800", "value": 6.99 },
@@ -4580,12 +4571,13 @@
         { "time": "2025-11-14T02:26:00.000000-0800", "value": 1.0 },
         { "time": "2025-11-14T03:26:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Mock Title Required energy",
+      "friendly_name": "Optimizer Required energy",
       "output_name": "network_required_energy",
       "output_type": "energy",
       "unit_of_measurement": "kWh"
     }
   },
+  "sensor.optimizer_status": { "entity_id": "sensor.optimizer_status", "state": "success", "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Status", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" } },
   "sensor.solar_forecast_limit_shadow_price": {
     "entity_id": "sensor.solar_forecast_limit_shadow_price",
     "state": "-0.0023",
@@ -4701,10 +4693,10 @@
         { "time": "2025-11-13T20:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T21:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T22:26:00.000000-0800", "value": -0.023 },
-        { "time": "2025-11-13T23:26:00.000000-0800", "value": -0.1106 },
-        { "time": "2025-11-14T00:26:00.000000-0800", "value": -0.1106 },
-        { "time": "2025-11-14T01:26:00.000000-0800", "value": -0.1106 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": -0.1107 }
+        { "time": "2025-11-13T23:26:00.000000-0800", "value": -0.1125 },
+        { "time": "2025-11-14T00:26:00.000000-0800", "value": -0.1125 },
+        { "time": "2025-11-14T01:26:00.000000-0800", "value": -0.1125 },
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": -0.1125 }
       ],
       "friendly_name": "Solar Forecast limit shadow price",
       "output_name": "solar_forecast_limit",
@@ -5083,10 +5075,10 @@
         { "time": "2025-11-13T20:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T21:26:00.000000-0800", "value": 0.0 },
         { "time": "2025-11-13T22:26:00.000000-0800", "value": 0.023 },
-        { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.1106 },
-        { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.1106 },
-        { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.1106 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.1107 }
+        { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.1125 },
+        { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.1125 },
+        { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.1125 },
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.1125 }
       ],
       "friendly_name": "Switchboard Power balance shadow price",
       "output_name": "node_power_balance",

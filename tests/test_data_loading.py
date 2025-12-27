@@ -18,6 +18,7 @@ from custom_components.haeo.elements.battery import (
 )
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 
 
 async def test_load_network_successful_loads_load_participant(hass: HomeAssistant) -> None:
@@ -35,6 +36,8 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
             "node": {
                 CONF_ELEMENT_TYPE: "node",
                 CONF_NAME: "main_bus",
+                CONF_IS_SOURCE: False,
+                CONF_IS_SINK: False,
             },
             "load": {
                 CONF_ELEMENT_TYPE: "load",
@@ -55,6 +58,7 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
     )
 
     result = await load_network(
+        hass,
         entry,
         periods_seconds=[1800] * 4,
         participants=loaded_configs,
@@ -133,6 +137,7 @@ async def test_load_network_without_participants_raises(hass: HomeAssistant) -> 
 
     with pytest.raises(ValueError, match="No participants configured"):
         await load_network(
+            hass,
             entry,
             periods_seconds=[1800],
             participants={},
@@ -157,15 +162,20 @@ async def test_load_network_sorts_connections_after_elements(hass: HomeAssistant
             "node_a": {
                 CONF_ELEMENT_TYPE: "node",
                 CONF_NAME: "node_a",
+                CONF_IS_SOURCE: False,
+                CONF_IS_SINK: False,
             },
             "node_b": {
                 CONF_ELEMENT_TYPE: "node",
                 CONF_NAME: "node_b",
+                CONF_IS_SOURCE: False,
+                CONF_IS_SINK: False,
             },
         },
     )
 
     network = await load_network(
+        hass,
         entry,
         periods_seconds=[900],
         participants=participants,
@@ -184,7 +194,7 @@ async def test_load_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypa
     participants = cast(
         "dict[str, ElementConfigData]",
         {
-            "node": {CONF_ELEMENT_TYPE: "node", CONF_NAME: "node"},
+            "node": {CONF_ELEMENT_TYPE: "node", CONF_NAME: "node", CONF_IS_SOURCE: False, CONF_IS_SINK: False},
         },
     )
 
@@ -197,6 +207,7 @@ async def test_load_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypa
 
     with pytest.raises(ValueError, match="Failed to add model element 'node'"):
         await load_network(
+            hass,
             entry,
             periods_seconds=[900],
             participants=participants,

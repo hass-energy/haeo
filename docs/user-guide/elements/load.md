@@ -3,6 +3,10 @@
 Loads represent power consumption in your system.
 The Load element uses forecast data to model any type of consumption pattern from fixed baseline loads to variable time-varying consumption.
 
+!!! note "Connection endpoints"
+
+    Load elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+
 ## Configuration
 
 | Field                     | Type                                     | Required | Default | Description                               |

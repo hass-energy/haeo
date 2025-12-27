@@ -1,4 +1,5 @@
 {
+  "number.optimizer_blackout_slack_penalty": { "entity_id": "number.optimizer_blackout_slack_penalty", "state": "0.2", "attributes": { "friendly_name": "Optimizer Blackout slack penalty", "max": 1000.0, "min": 0.0, "mode": "box", "step": 0.01 } },
   "sensor.battery_active_power": {
     "entity_id": "sensor.battery_active_power",
     "state": "-32.62",
@@ -701,8 +702,8 @@
       "unit_of_measurement": "kWh"
     }
   },
-  "sensor.battery_normal_region_charge_power": {
-    "entity_id": "sensor.battery_normal_region_charge_power",
+  "sensor.battery_main_partition_charge_power": {
+    "entity_id": "sensor.battery_main_partition_charge_power",
     "state": "32.62",
     "attributes": {
       "advanced": true,
@@ -870,15 +871,15 @@
         { "time": "2025-12-24T20:00:00.000000-0800", "value": 2.69 },
         { "time": "2025-12-24T21:00:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region Charge power",
+      "friendly_name": "Battery Main Partition Charge power",
       "output_name": "battery_power_charge",
       "output_type": "power",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
   },
-  "sensor.battery_normal_region_charge_price": {
-    "entity_id": "sensor.battery_normal_region_charge_price",
+  "sensor.battery_main_partition_charge_price": {
+    "entity_id": "sensor.battery_main_partition_charge_price",
     "state": "-0.002",
     "attributes": {
       "advanced": true,
@@ -1046,14 +1047,14 @@
         { "time": "2025-12-24T20:00:00.000000-0800", "value": 0.0 },
         { "time": "2025-12-24T21:00:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region Charge price",
+      "friendly_name": "Battery Main Partition Charge price",
       "output_name": "battery_charge_price",
       "output_type": "price",
       "unit_of_measurement": "$/kWh"
     }
   },
-  "sensor.battery_normal_region_discharge_power": {
-    "entity_id": "sensor.battery_normal_region_discharge_power",
+  "sensor.battery_main_partition_discharge_power": {
+    "entity_id": "sensor.battery_main_partition_discharge_power",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -1221,15 +1222,15 @@
         { "time": "2025-12-24T20:00:00.000000-0800", "value": 0.0 },
         { "time": "2025-12-24T21:00:00.000000-0800", "value": 26.24 }
       ],
-      "friendly_name": "Battery Normal Region Discharge power",
+      "friendly_name": "Battery Main Partition Discharge power",
       "output_name": "battery_power_discharge",
       "output_type": "power",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
   },
-  "sensor.battery_normal_region_discharge_price": {
-    "entity_id": "sensor.battery_normal_region_discharge_price",
+  "sensor.battery_main_partition_discharge_price": {
+    "entity_id": "sensor.battery_main_partition_discharge_price",
     "state": "0.002",
     "attributes": {
       "advanced": true,
@@ -1397,14 +1398,14 @@
         { "time": "2025-12-24T20:00:00.000000-0800", "value": 0.004 },
         { "time": "2025-12-24T21:00:00.000000-0800", "value": 0.004 }
       ],
-      "friendly_name": "Battery Normal Region Discharge price",
+      "friendly_name": "Battery Main Partition Discharge price",
       "output_name": "battery_discharge_price",
       "output_type": "price",
       "unit_of_measurement": "$/kWh"
     }
   },
-  "sensor.battery_normal_region_energy_in_flow_shadow_price": {
-    "entity_id": "sensor.battery_normal_region_energy_in_flow_shadow_price",
+  "sensor.battery_main_partition_energy_in_flow_shadow_price": {
+    "entity_id": "sensor.battery_main_partition_energy_in_flow_shadow_price",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -1571,14 +1572,14 @@
         { "time": "2025-12-24T20:00:00.000000-0800", "value": 0.0 },
         { "time": "2025-12-24T21:00:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region Energy in flow shadow price",
+      "friendly_name": "Battery Main Partition Energy in flow shadow price",
       "output_name": "battery_energy_in_flow",
       "output_type": "shadow_price",
       "unit_of_measurement": "$/kWh"
     }
   },
-  "sensor.battery_normal_region_energy_out_flow_shadow_price": {
-    "entity_id": "sensor.battery_normal_region_energy_out_flow_shadow_price",
+  "sensor.battery_main_partition_energy_out_flow_shadow_price": {
+    "entity_id": "sensor.battery_main_partition_energy_out_flow_shadow_price",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -1745,14 +1746,14 @@
         { "time": "2025-12-24T20:00:00.000000-0800", "value": 0.0 },
         { "time": "2025-12-24T21:00:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region Energy out flow shadow price",
+      "friendly_name": "Battery Main Partition Energy out flow shadow price",
       "output_name": "battery_energy_out_flow",
       "output_type": "shadow_price",
       "unit_of_measurement": "$/kWh"
     }
   },
-  "sensor.battery_normal_region_energy_stored": {
-    "entity_id": "sensor.battery_normal_region_energy_stored",
+  "sensor.battery_main_partition_energy_stored": {
+    "entity_id": "sensor.battery_main_partition_energy_stored",
     "state": "39.19",
     "attributes": {
       "advanced": true,
@@ -1920,14 +1921,14 @@
         { "time": "2025-12-24T21:00:00.000000-0800", "value": 26.24 },
         { "time": "2025-12-24T22:00:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region Energy stored",
+      "friendly_name": "Battery Main Partition Energy stored",
       "output_name": "battery_energy_stored",
       "output_type": "energy",
       "unit_of_measurement": "kWh"
     }
   },
-  "sensor.battery_normal_region_soc_max_shadow_price": {
-    "entity_id": "sensor.battery_normal_region_soc_max_shadow_price",
+  "sensor.battery_main_partition_soc_max_shadow_price": {
+    "entity_id": "sensor.battery_main_partition_soc_max_shadow_price",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -1995,10 +1996,10 @@
         { "time": "2025-12-20T19:30:00.000000-0800", "value": -0.0093 },
         { "time": "2025-12-20T20:00:00.000000-0800", "value": -0.0142 },
         { "time": "2025-12-20T20:30:00.000000-0800", "value": -0.0117 },
-        { "time": "2025-12-20T21:00:00.000000-0800", "value": -0.0117 },
-        { "time": "2025-12-20T21:30:00.000000-0800", "value": -0.0488 },
-        { "time": "2025-12-20T22:00:00.000000-0800", "value": -0.1007 },
-        { "time": "2025-12-20T23:00:00.000000-0800", "value": -0.0429 },
+        { "time": "2025-12-20T21:00:00.000000-0800", "value": -0.0085 },
+        { "time": "2025-12-20T21:30:00.000000-0800", "value": -0.0521 },
+        { "time": "2025-12-20T22:00:00.000000-0800", "value": -0.0991 },
+        { "time": "2025-12-20T23:00:00.000000-0800", "value": -0.0445 },
         { "time": "2025-12-21T00:00:00.000000-0800", "value": 0.0 },
         { "time": "2025-12-21T01:00:00.000000-0800", "value": 0.0 },
         { "time": "2025-12-21T02:00:00.000000-0800", "value": 0.0 },
@@ -2094,14 +2095,14 @@
         { "time": "2025-12-24T20:00:00.000000-0800", "value": 0.0 },
         { "time": "2025-12-24T21:00:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Battery Normal Region SOC max shadow price",
+      "friendly_name": "Battery Main Partition SOC max shadow price",
       "output_name": "battery_soc_max",
       "output_type": "shadow_price",
       "unit_of_measurement": "$/kWh"
     }
   },
-  "sensor.battery_normal_region_soc_min_shadow_price": {
-    "entity_id": "sensor.battery_normal_region_soc_min_shadow_price",
+  "sensor.battery_main_partition_soc_min_shadow_price": {
+    "entity_id": "sensor.battery_main_partition_soc_min_shadow_price",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -2268,7 +2269,7 @@
         { "time": "2025-12-24T20:00:00.000000-0800", "value": 0.0 },
         { "time": "2025-12-24T21:00:00.000000-0800", "value": 0.0717 }
       ],
-      "friendly_name": "Battery Normal Region SOC min shadow price",
+      "friendly_name": "Battery Main Partition SOC min shadow price",
       "output_name": "battery_soc_min",
       "output_type": "shadow_price",
       "unit_of_measurement": "$/kWh"
@@ -2344,7 +2345,7 @@
         { "time": "2025-12-20T20:00:00.000000-0800", "value": 0.0235 },
         { "time": "2025-12-20T20:30:00.000000-0800", "value": 0.0298 },
         { "time": "2025-12-20T21:00:00.000000-0800", "value": 0.0357 },
-        { "time": "2025-12-20T21:30:00.000000-0800", "value": 0.0415 },
+        { "time": "2025-12-20T21:30:00.000000-0800", "value": 0.0407 },
         { "time": "2025-12-20T22:00:00.000000-0800", "value": 0.1319 },
         { "time": "2025-12-20T23:00:00.000000-0800", "value": 0.2326 },
         { "time": "2025-12-21T00:00:00.000000-0800", "value": 0.2772 },
@@ -6128,24 +6129,15 @@
       "unit_of_measurement": "kW"
     }
   },
-  "sensor.mock_title_optimization_cost": { "entity_id": "sensor.mock_title_optimization_cost", "state": "-13.39", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization cost", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "EUR" } },
-  "sensor.mock_title_optimization_duration": {
-    "entity_id": "sensor.mock_title_optimization_duration",
-    "state": "0.0",
-    "attributes": { "advanced": false, "device_class": "duration", "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization duration", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" }
-  },
-  "sensor.mock_title_optimization_status": {
-    "entity_id": "sensor.mock_title_optimization_status",
-    "state": "success",
-    "attributes": { "advanced": false, "device_class": "enum", "element_name": "Mock Title", "element_type": "network", "friendly_name": "Mock Title Optimization status", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" }
-  },
-  "sensor.mock_title_required_energy": {
-    "entity_id": "sensor.mock_title_required_energy",
+  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-13.39", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "EUR" } },
+  "sensor.optimizer_duration": { "entity_id": "sensor.optimizer_duration", "state": "0.0", "attributes": { "advanced": false, "device_class": "duration", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Duration", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" } },
+  "sensor.optimizer_required_energy": {
+    "entity_id": "sensor.optimizer_required_energy",
     "state": "46.06",
     "attributes": {
       "advanced": false,
       "device_class": "energy",
-      "element_name": "Mock Title",
+      "element_name": "System",
       "element_type": "network",
       "forecast": [
         { "time": "2025-12-19T22:00:00.000000-0800", "value": 46.06 },
@@ -6308,12 +6300,13 @@
         { "time": "2025-12-24T21:00:00.000000-0800", "value": 0.0 },
         { "time": "2025-12-24T22:00:00.000000-0800", "value": 0.0 }
       ],
-      "friendly_name": "Mock Title Required energy",
+      "friendly_name": "Optimizer Required energy",
       "output_name": "network_required_energy",
       "output_type": "energy",
       "unit_of_measurement": "kWh"
     }
   },
+  "sensor.optimizer_status": { "entity_id": "sensor.optimizer_status", "state": "success", "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Status", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" } },
   "sensor.solar_forecast_limit_shadow_price": {
     "entity_id": "sensor.solar_forecast_limit_shadow_price",
     "state": "-0.0036",

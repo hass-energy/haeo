@@ -10,7 +10,7 @@ HAEO separates user configuration from mathematical modeling through two distinc
 
 **Device Layer**: User-configured elements (Battery, Grid, Solar, Load, Node, Connection) that integrate with Home Assistant sensors and present user-friendly outputs.
 
-**Model Layer**: Mathematical building blocks (battery, source_sink, connection) that form the linear programming problem.
+**Model Layer**: Mathematical building blocks that form the linear programming problem.
 
 The [Adapter Layer](adapter-layer.md) transforms between these layers, enabling composition where a single Device Layer element creates multiple Model Layer elements and devices.
 
@@ -137,7 +137,8 @@ Separate subsystem implementing the optimization model:
 
 - `Element`: Base class with power/energy variable patterns
 - Entity classes: Battery, Grid, Solar, Loads, Node
-- `Connection`: Power flow with limits
+- `Connection`: Base class for power flow between elements
+- `PowerConnection`: Connection with limits, efficiency, and pricing
 - `Network`: Container with `optimize()` method
 
 ## Code Organization
