@@ -331,27 +331,3 @@ def schema_for_type(cls: type, **schema_params: Unpack[SchemaParams]) -> vol.Sch
         schema[schema_key] = vol_schema
 
     return vol.Schema(schema)
-
-
-def is_element_config_schema(config: dict[str, Any], element_type: "ElementType") -> bool:
-    """Check if a config dict matches an element's config schema structure.
-
-    Args:
-        config: Dictionary to validate
-        element_type: Element type to validate against
-
-    Returns:
-        True if the config matches the schema structure
-
-    """
-    registry_entry = _get_registry_entry(element_type)
-    schema_class = registry_entry.schema
-
-    # Get annotated fields from schema
-    annotated_fields = _get_annotated_fields(schema_class)
-
-    # Check that at least one annotated field exists in config
-    config_fields = set(config.keys()) - {"element_type"}
-    schema_fields = set(annotated_fields.keys())
-
-    return len(config_fields & schema_fields) > 0

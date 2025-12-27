@@ -10,7 +10,7 @@ import pytest
 from custom_components.haeo.data.loader import ConstantLoader
 from custom_components.haeo.elements import ElementConfigSchema
 from custom_components.haeo.schema import available as schema_available
-from custom_components.haeo.schema import compose_field, get_default, get_loader_instance, is_element_config_schema
+from custom_components.haeo.schema import compose_field, get_default, get_loader_instance
 from custom_components.haeo.schema import load as schema_load
 from custom_components.haeo.schema.fields import Constant, Default, LoaderMeta, PositiveKW
 
@@ -178,30 +178,3 @@ def test_get_default_returns_fallback_when_no_default_annotation() -> None:
     # Field exists but has no Default annotation
     result = get_default("power", ConfigData, 99.0)
     assert result == 99.0
-
-
-def test_is_element_config_schema_returns_true_for_valid_config() -> None:
-    """is_element_config_schema returns True when config has matching fields."""
-    # Use a real element type that exists in the registry
-    config = {
-        "element_type": "node",
-        "name": "test_node",
-        "is_source": False,
-        "is_sink": False,
-    }
-
-    result = is_element_config_schema(config, "node")
-    assert result is True
-
-
-def test_is_element_config_schema_returns_false_for_invalid_config() -> None:
-    """is_element_config_schema returns False when config has no matching fields."""
-    # Config with only unknown fields
-    config = {
-        "element_type": "node",
-        "unknown_field": "value",
-        "another_unknown": 123,
-    }
-
-    result = is_element_config_schema(config, "node")
-    assert result is False
