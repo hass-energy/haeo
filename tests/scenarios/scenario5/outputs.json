@@ -511,8 +511,6 @@
   },
   "sensor.battery_main_partition_charge_power": {
     "entity_id": "sensor.battery_main_partition_charge_power",
-    "entity_id": "sensor.battery_main_partition_charge_power",
-    "state": "0.0",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -641,8 +639,6 @@
   },
   "sensor.battery_main_partition_charge_price": {
     "entity_id": "sensor.battery_main_partition_charge_price",
-    "entity_id": "sensor.battery_main_partition_charge_price",
-    "state": "-0.002",
     "state": "-0.002",
     "attributes": {
       "advanced": true,
@@ -770,8 +766,6 @@
   },
   "sensor.battery_main_partition_discharge_power": {
     "entity_id": "sensor.battery_main_partition_discharge_power",
-    "entity_id": "sensor.battery_main_partition_discharge_power",
-    "state": "1.01",
     "state": "1.01",
     "attributes": {
       "advanced": true,
@@ -900,8 +894,6 @@
   },
   "sensor.battery_main_partition_discharge_price": {
     "entity_id": "sensor.battery_main_partition_discharge_price",
-    "entity_id": "sensor.battery_main_partition_discharge_price",
-    "state": "0.002",
     "state": "0.002",
     "attributes": {
       "advanced": true,
@@ -1029,8 +1021,6 @@
   },
   "sensor.battery_main_partition_energy_in_flow_shadow_price": {
     "entity_id": "sensor.battery_main_partition_energy_in_flow_shadow_price",
-    "entity_id": "sensor.battery_main_partition_energy_in_flow_shadow_price",
-    "state": "0.0",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -1157,8 +1147,6 @@
   },
   "sensor.battery_main_partition_energy_out_flow_shadow_price": {
     "entity_id": "sensor.battery_main_partition_energy_out_flow_shadow_price",
-    "entity_id": "sensor.battery_main_partition_energy_out_flow_shadow_price",
-    "state": "0.0",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -1285,8 +1273,6 @@
   },
   "sensor.battery_main_partition_energy_stored": {
     "entity_id": "sensor.battery_main_partition_energy_stored",
-    "entity_id": "sensor.battery_main_partition_energy_stored",
-    "state": "24.38",
     "state": "24.38",
     "attributes": {
       "advanced": true,
@@ -1414,8 +1400,6 @@
   },
   "sensor.battery_main_partition_soc_max_shadow_price": {
     "entity_id": "sensor.battery_main_partition_soc_max_shadow_price",
-    "entity_id": "sensor.battery_main_partition_soc_max_shadow_price",
-    "state": "0.0",
     "state": "0.0",
     "attributes": {
       "advanced": true,
@@ -1542,8 +1526,6 @@
   },
   "sensor.battery_main_partition_soc_min_shadow_price": {
     "entity_id": "sensor.battery_main_partition_soc_min_shadow_price",
-    "entity_id": "sensor.battery_main_partition_soc_min_shadow_price",
-    "state": "0.0",
     "state": "0.0",
     "attributes": {
       "advanced": true,
