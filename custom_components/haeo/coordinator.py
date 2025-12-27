@@ -11,6 +11,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.translation import async_get_translations
@@ -20,18 +21,22 @@ from homeassistant.util import dt as dt_util
 
 from . import data as data_module
 from .const import (
+    CONF_BLACKOUT_PROTECTION,
     CONF_DEBOUNCE_SECONDS,
     CONF_UPDATE_INTERVAL_MINUTES,
+    DEFAULT_BLACKOUT_PROTECTION,
     DEFAULT_DEBOUNCE_SECONDS,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
+    NETWORK_DEVICE_NETWORK,
     OPTIMIZATION_STATUS_FAILED,
     OPTIMIZATION_STATUS_PENDING,
     OPTIMIZATION_STATUS_SUCCESS,
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
+    OUTPUT_NAME_REQUIRED_ENERGY,
     NetworkOutputName,
 )
 from .elements import (
@@ -62,6 +67,9 @@ from .schema import get_field_meta
 from .util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 _LOGGER = logging.getLogger(__name__)
+
+# Entity key for the blackout slack penalty number (must match number.py and data/__init__.py)
+_BLACKOUT_SLACK_PENALTY_KEY = "blackout_slack_penalty"
 
 
 def collect_entity_ids(value: Any) -> set[str]:
@@ -277,6 +285,22 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         for config in self._participant_configs.values():
             all_entity_ids.update(extract_entity_ids_from_config(config))
 
+        # Add blackout slack penalty entity to tracked entities if blackout protection is enabled
+        blackout_protection = config_entry.data.get(CONF_BLACKOUT_PROTECTION, DEFAULT_BLACKOUT_PROTECTION)
+        if blackout_protection:
+            # Find the Network subentry to construct the entity unique_id
+            for subentry in config_entry.subentries.values():
+                if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
+                    unique_id = (
+                        f"{config_entry.entry_id}_{subentry.subentry_id}_"
+                        f"{NETWORK_DEVICE_NETWORK}_{_BLACKOUT_SLACK_PENALTY_KEY}"
+                    )
+                    entity_registry = er.async_get(hass)
+                    entity_id = entity_registry.async_get_entity_id("number", DOMAIN, unique_id)
+                    if entity_id:
+                        all_entity_ids.add(entity_id)
+                    break
+
         # Set up state change listeners for all entity IDs in configuration
         if all_entity_ids:
             self._state_change_unsub = async_track_state_change_event(
@@ -330,6 +354,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Build network with loaded configurations
         network = await data_module.load_network(
+            self.hass,
             self.config_entry,
             periods_seconds=periods_seconds,
             participants=loaded_configs,
@@ -355,6 +380,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
                 OUTPUT_TYPE_DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
             ),
+            OUTPUT_NAME_REQUIRED_ENERGY: OutputData(
+                OUTPUT_TYPE_ENERGY,
+                unit="kWh",
+                values=tuple(network.required_energy) if network.required_energy else (0.0,),
+            ),
         }
 
         # Load the network subentry name from translations
@@ -367,7 +397,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # HAEO outputs use network subentry name as key, network element type as device
             network_subentry_name: {
                 ELEMENT_TYPE_NETWORK: {
-                    name: _build_coordinator_output(name, output, forecast_times=None)
+                    name: _build_coordinator_output(
+                        name,
+                        output,
+                        # Pass forecast_times for required_energy (has forecast), None for scalar outputs
+                        forecast_times=forecast_timestamps if name == OUTPUT_NAME_REQUIRED_ENERGY else None,
+                    )
                     for name, output in network_output_data.items()
                 }
             }

@@ -52,6 +52,12 @@ DEFAULT_TIER_4_DURATION: Final = 60
 DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default
 DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
+# Blackout protection configuration
+CONF_BLACKOUT_PROTECTION: Final = "blackout_protection"
+CONF_BLACKOUT_DURATION_HOURS: Final = "blackout_duration_hours"
+DEFAULT_BLACKOUT_PROTECTION: Final = False
+DEFAULT_BLACKOUT_DURATION_HOURS: Final = 4.0  # 4 hours default
+
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"
 OPTIMIZATION_STATUS_FAILED: Final = "failed"
@@ -62,12 +68,14 @@ type NetworkOutputName = Literal[
     "network_optimization_cost",
     "network_optimization_status",
     "network_optimization_duration",
+    "network_required_energy",
 ]
 NETWORK_OUTPUT_NAMES: Final[frozenset[NetworkOutputName]] = frozenset(
     [
         OUTPUT_NAME_OPTIMIZATION_COST := "network_optimization_cost",
         OUTPUT_NAME_OPTIMIZATION_STATUS := "network_optimization_status",
         OUTPUT_NAME_OPTIMIZATION_DURATION := "network_optimization_duration",
+        OUTPUT_NAME_REQUIRED_ENERGY := "network_required_energy",
     ]
 )
 

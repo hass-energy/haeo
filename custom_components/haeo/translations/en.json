@@ -355,6 +355,7 @@
     "solar": { "name": "{name}" }
   },
   "entity": {
+    "number": { "blackout_slack_penalty": { "name": "Blackout slack penalty" } },
     "sensor": {
       "battery_charge_price": { "name": "Charge price" },
       "battery_discharge_price": { "name": "Discharge price" },
@@ -410,6 +411,7 @@
       "network_optimization_cost": { "name": "Cost" },
       "network_optimization_duration": { "name": "Duration" },
       "network_optimization_status": { "name": "Status" },
+      "network_required_energy": { "name": "Required energy" },
       "node_power_balance": { "name": "Power balance shadow price" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
       "solar_power": { "name": "Power" },

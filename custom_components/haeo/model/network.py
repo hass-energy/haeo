@@ -7,6 +7,7 @@ from typing import Any
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons
+import numpy as np
 
 from .battery import Battery
 from .connection import Connection
@@ -33,6 +34,10 @@ class Network:
     name: str
     periods: Sequence[float]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
+    required_energy: Sequence[float] | None = None  # kWh at each timestep boundary, available to model elements
+    blackout_protection: bool = False  # Enable blackout protection constraints
+    blackout_slack_penalty: float = 0.2  # Penalty for blackout protection slack variables
+    net_power: Sequence[float] | None = None  # kW per period, positive = surplus, negative = deficit
     _solver: Highs = field(default_factory=Highs, repr=False)
 
     def __post_init__(self) -> None:
@@ -120,8 +125,15 @@ class Network:
                 msg = f"Failed to build constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
+        # Build blackout protection constraints if enabled (returns slack penalty costs)
+        blackout_slack_costs: list[Any] = []
+        if self.blackout_protection:
+            blackout_slack_costs = self._build_blackout_protection_constraints()
+
         # Collect all cost expressions from elements and set objective
         costs = [c for element in self.elements.values() for c in element.cost()]
+        # Include blackout slack penalties in the objective
+        costs.extend(blackout_slack_costs)
         if costs:
             h.minimize(Highs.qsum(costs))
         else:
@@ -135,6 +147,66 @@ class Network:
 
         msg = f"Optimization failed with status: {h.modelStatusToString(status)}"
         raise ValueError(msg)
+
+    def _build_blackout_protection_constraints(self) -> list[Any]:
+        """Build blackout protection constraints as soft constraints with slack variables.
+
+        Enforces stored_energy >= required_energy during deficit periods (load > solar).
+        This ensures the battery has enough charge to survive a grid outage.
+        Uses slack variables to make constraints soft - the optimizer prefers to satisfy
+        them but won't fail if infeasible.
+
+        Returns:
+            List of penalty cost expressions for slack variables to add to objective.
+
+        """
+        if self.required_energy is None or self.net_power is None:
+            _LOGGER.warning("Blackout protection enabled but required_energy or net_power not set")
+            return []
+
+        # Find all Battery elements and sum their stored_energy
+        batteries = [e for e in self.elements.values() if isinstance(e, Battery)]
+        if not batteries:
+            _LOGGER.warning("Blackout protection enabled but no batteries found")
+            return []
+
+        h = self._solver
+        slack_costs: list[Any] = []
+
+        # Sum stored_energy across all batteries (n_periods + 1 values)
+        # Each battery's stored_energy is an array of expressions
+        total_stored = batteries[0].stored_energy
+        for battery in batteries[1:]:
+            total_stored = total_stored + battery.stored_energy
+
+        # Calculate total battery capacity at each timestep boundary (T+1 values)
+        # Sum capacity across all battery sections
+        total_capacity = np.zeros(self.n_periods + 1)
+        for battery in batteries:
+            total_capacity += np.array(battery.capacity)
+
+        # Add soft constraint for each deficit period (where net_power < 0)
+        # The constraint is applied at the START of each deficit period (stored_energy[t])
+        for t, net_pwr in enumerate(self.net_power):
+            if net_pwr < 0:  # Deficit period: load > solar
+                required = self.required_energy[t]
+                # Cap at battery capacity to ensure feasibility
+                max_required = min(required, total_capacity[t])
+                if max_required > 0:
+                    # Create slack variable for soft constraint
+                    slack = h.addVariable(lb=0.0, name=f"blackout_slack_{t}")
+                    # Soft constraint: total_stored[t] + slack >= max_required
+                    h.addConstr(total_stored[t] + slack >= max_required)
+                    # Add penalty cost for using slack
+                    slack_costs.append(self.blackout_slack_penalty * slack)
+                    _LOGGER.debug(
+                        "Blackout protection: period %d (deficit), stored_energy >= %.2f kWh (soft, capped from %.2f)",
+                        t,
+                        max_required,
+                        required,
+                    )
+
+        return slack_costs
 
     def validate(self) -> None:
         """Validate the network."""
