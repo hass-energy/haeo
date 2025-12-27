@@ -375,6 +375,23 @@ async def test_async_update_data_returns_outputs(
     mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
 
 
+async def test_async_update_data_raises_on_missing_sensors(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: ConfigSubentry,
+    mock_grid_subentry: ConfigSubentry,
+) -> None:
+    """Coordinator raises UpdateFailed when sensor data is unavailable."""
+    # config_available returns False to simulate missing sensor data
+    with patch("custom_components.haeo.coordinator.data_module.config_available", return_value=False):
+        coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+        with pytest.raises(UpdateFailed) as exc_info:
+            await coordinator._async_update_data()
+
+        # Verify the error contains the element names with missing sensors
+        assert exc_info.value.translation_key == "missing_sensors"
+
+
 async def test_async_update_data_propagates_update_failed(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
