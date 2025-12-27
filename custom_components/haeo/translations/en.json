@@ -342,6 +342,7 @@
   "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
+    "battery_device_balance": { "name": "{name} Balance" },
     "battery_device_normal": { "name": "{name} Main Partition" },
     "battery_device_overcharge": { "name": "{name} Overcharge Partition" },
     "battery_device_undercharge": { "name": "{name} Undercharge Partition" },
@@ -356,6 +357,8 @@
   },
   "entity": {
     "sensor": {
+      "battery_balance_power_down": { "name": "Balance power down" },
+      "battery_balance_power_up": { "name": "Balance power up" },
       "battery_charge_price": { "name": "Charge price" },
       "battery_discharge_price": { "name": "Discharge price" },
       "battery_energy_in_flow": { "name": "Energy in flow shadow price" },

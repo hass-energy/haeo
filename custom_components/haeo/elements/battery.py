@@ -8,8 +8,9 @@ import numpy as np
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
+from custom_components.haeo.model import battery_balance_connection as model_balance
 from custom_components.haeo.model import power_connection as model_connection
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SOC
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_SOC
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.schema import Default, get_default
@@ -40,6 +41,7 @@ type BatteryDeviceName = Literal[
     "battery_device_undercharge",
     "battery_device_normal",
     "battery_device_overcharge",
+    "battery_device_balance",
 ]
 
 BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset(
@@ -48,6 +50,7 @@ BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset(
         BATTERY_DEVICE_UNDERCHARGE := "battery_device_undercharge",
         BATTERY_DEVICE_NORMAL := "battery_device_normal",
         BATTERY_DEVICE_OVERCHARGE := "battery_device_overcharge",
+        BATTERY_DEVICE_BALANCE := "battery_device_balance",
     )
 )
 
@@ -80,6 +83,8 @@ type BatteryOutputName = Literal[
     "battery_energy_out_flow",
     "battery_soc_max",
     "battery_soc_min",
+    "battery_balance_power_down",
+    "battery_balance_power_up",
 ]
 
 BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
@@ -96,6 +101,8 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
         BATTERY_ENERGY_OUT_FLOW := "battery_energy_out_flow",
         BATTERY_SOC_MAX := "battery_soc_max",
         BATTERY_SOC_MIN := "battery_soc_min",
+        BATTERY_BALANCE_POWER_DOWN := "battery_balance_power_down",
+        BATTERY_BALANCE_POWER_UP := "battery_balance_power_up",
     )
 )
 
@@ -256,16 +263,6 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     # 5. Create connections from sections to internal node
     n_periods = len(config["capacity"])
 
-    # Create time-varying early charge/discharge incentive arrays using linspace
-    # Charge incentive decreases over time (from -incentive to 0)
-    # Discharge cost increases over time (from incentive to 2*incentive)
-    charge_early_incentive = [
-        -early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
-    ]
-    discharge_early_incentive = [
-        early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
-    ]
-
     # Get undercharge/overcharge cost arrays (or broadcast scalars to arrays)
     undercharge_cost_array: list[float] = (
         list(config["undercharge_cost"]) if "undercharge_cost" in config else [0.0] * n_periods
@@ -275,21 +272,24 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     )
 
     for section_name in section_names:
-        # Determine charge/discharge costs based on section
+        # Determine discharge costs based on section (undercharge/overcharge penalties)
+        # Ordering is enforced by balance connections, not price incentives
         if "undercharge" in section_name:
-            # Undercharge: strong charge preference (3x), weak discharge + penalty
-            charge_price = [c * 3 for c in charge_early_incentive]
-            discharge_price = [
-                d * 1 + uc for d, uc in zip(discharge_early_incentive, undercharge_cost_array, strict=True)
-            ]
+            discharge_price = undercharge_cost_array
         elif "overcharge" in section_name:
-            # Overcharge: weak charge + penalty, strong discharge preference (3x)
-            charge_price = [c * 1 + oc for c, oc in zip(charge_early_incentive, overcharge_cost_array, strict=True)]
-            discharge_price = [d * 3 for d in discharge_early_incentive]
+            charge_price: list[float] = overcharge_cost_array
+            elements.append(
+                {
+                    "element_type": "connection",
+                    "name": f"{section_name}:to_node",
+                    "source": section_name,
+                    "target": node_name,
+                    "price_target_source": charge_price,  # Overcharge penalty when charging
+                }
+            )
+            continue
         else:
-            # Normal: moderate preferences (2x)
-            charge_price = [c * 2 for c in charge_early_incentive]
-            discharge_price = [d * 2 for d in discharge_early_incentive]
+            discharge_price = None
 
         elements.append(
             {
@@ -297,12 +297,45 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
                 "name": f"{section_name}:to_node",
                 "source": section_name,
                 "target": node_name,
-                "price_target_source": charge_price,  # Charging cost (node to section)
-                "price_source_target": discharge_price,  # Discharging cost (section to node)
+                "price_source_target": discharge_price,  # Undercharge penalty when discharging
             }
         )
 
-    # 6. Create connection from internal node to target
+    # 6. Create balance connections between adjacent sections (enforces fill ordering)
+    # Balance connections ensure lower sections fill before upper sections
+    section_capacities: dict[str, float] = {}
+    for section_name in section_names:
+        if "undercharge" in section_name:
+            section_capacities[section_name] = (min_ratio - undercharge_ratio) * capacity  # type: ignore[operator]
+        elif "overcharge" in section_name:
+            section_capacities[section_name] = (overcharge_ratio - max_ratio) * capacity  # type: ignore[operator]
+        else:
+            section_capacities[section_name] = normal_capacity
+
+    for i in range(len(section_names) - 1):
+        lower_section = section_names[i]
+        upper_section = section_names[i + 1]
+        lower_capacity = section_capacities[lower_section]
+
+        elements.append(
+            {
+                "element_type": "battery_balance_connection",
+                "name": f"{name}:balance:{lower_section.split(':')[-1]}:{upper_section.split(':')[-1]}",
+                "upper": upper_section,
+                "lower": lower_section,
+                "capacity_lower": lower_capacity,
+            }
+        )
+
+    # 7. Create connection from internal node to target
+    # Time-varying early charge incentive applied here (charge earlier in horizon)
+    charge_early_incentive = [
+        -early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+    ]
+    discharge_early_incentive = [
+        early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+    ]
+
     elements.append(
         {
             "element_type": "connection",
@@ -313,7 +346,12 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
             "efficiency_target_source": config["efficiency"],  # Network to node (charge)
             "max_power_source_target": config.get("max_discharge_power"),
             "max_power_target_source": config.get("max_charge_power"),
-            "price_source_target": config.get("discharge_cost"),  # Discharge cost (degradation)
+            "price_target_source": charge_early_incentive,  # Charge early incentive
+            "price_source_target": (
+                [d + dc for d, dc in zip(discharge_early_incentive, config["discharge_cost"], strict=True)]
+                if "discharge_cost" in config
+                else discharge_early_incentive
+            ),  # Discharge cost + early incentive
         }
     )
 
@@ -442,6 +480,31 @@ def outputs(
             result[BATTERY_DEVICE_NORMAL] = section_device_outputs
         elif section_key == "overcharge":
             result[BATTERY_DEVICE_OVERCHARGE] = section_device_outputs
+
+    # Add balance connection device outputs
+    balance_device_outputs: dict[BatteryOutputName, OutputData] = {}
+    for i in range(len(section_names) - 1):
+        lower_key = section_names[i]
+        upper_key = section_names[i + 1]
+        balance_name = f"{name}:balance:{lower_key}:{upper_key}"
+        if balance_name in outputs:
+            balance_data = outputs[balance_name]
+            # Use the last balance connection's outputs (most relevant for multi-section batteries)
+            if model_balance.BALANCE_POWER_DOWN in balance_data:
+                balance_device_outputs[BATTERY_BALANCE_POWER_DOWN] = replace(
+                    balance_data[model_balance.BALANCE_POWER_DOWN],
+                    type=OUTPUT_TYPE_POWER_FLOW,
+                    advanced=True,
+                )
+            if model_balance.BALANCE_POWER_UP in balance_data:
+                balance_device_outputs[BATTERY_BALANCE_POWER_UP] = replace(
+                    balance_data[model_balance.BALANCE_POWER_UP],
+                    type=OUTPUT_TYPE_POWER_FLOW,
+                    advanced=True,
+                )
+
+    if balance_device_outputs:
+        result[BATTERY_DEVICE_BALANCE] = balance_device_outputs
 
     return result
 
