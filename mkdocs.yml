@@ -64,9 +64,6 @@ theme:
 plugins:
   - search:
       separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
-  - git-revision-date-localized:
-      enable_creation_date: true
-      type: timeago
 
 markdown_extensions:
   # Python Markdown
@@ -112,6 +109,9 @@ markdown_extensions:
   - pymdownx.tilde
 
 extra:
+  analytics:
+    provider: google
+    property: G-ZQ0CM215M1
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/hass-energy/haeo

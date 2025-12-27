@@ -58,8 +58,6 @@ async def test_user_flow_success_with_preset(hass: HomeAssistant) -> None:
         user_input={
             CONF_NAME: "Test Hub",
             CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
-            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
     )
 
@@ -98,8 +96,6 @@ async def test_user_flow_custom_preset_shows_second_step(hass: HomeAssistant) ->
         user_input={
             CONF_NAME: "Custom Hub",
             CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM,
-            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
-            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
     )
 
@@ -126,8 +122,6 @@ async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None
         user_input={
             CONF_NAME: "Custom Hub",
             CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM,
-            CONF_UPDATE_INTERVAL_MINUTES: 10,
-            CONF_DEBOUNCE_SECONDS: 3,
         },
     )
 
@@ -161,8 +155,9 @@ async def test_user_flow_custom_tiers_creates_entry(hass: HomeAssistant) -> None
     assert data[CONF_TIER_1_COUNT] == 10
     assert data[CONF_TIER_1_DURATION] == 2
     assert data[CONF_TIER_4_COUNT] == custom_tier_4_count
-    assert data[CONF_UPDATE_INTERVAL_MINUTES] == 10
-    assert data[CONF_DEBOUNCE_SECONDS] == 3
+    # Verify defaults were used for update interval and debounce (they're hidden during add)
+    assert data[CONF_UPDATE_INTERVAL_MINUTES] == DEFAULT_UPDATE_INTERVAL_MINUTES
+    assert data[CONF_DEBOUNCE_SECONDS] == DEFAULT_DEBOUNCE_SECONDS
 
 
 async def test_user_flow_different_presets(hass: HomeAssistant) -> None:
@@ -175,8 +170,6 @@ async def test_user_flow_different_presets(hass: HomeAssistant) -> None:
         user_input={
             CONF_NAME: "5 Day Hub",
             CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS,
-            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
-            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
     )
 
@@ -219,8 +212,6 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         user_input={
             CONF_NAME: "Existing Hub",
             CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
-            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
     )
 
@@ -233,8 +224,6 @@ async def test_user_flow_duplicate_name(hass: HomeAssistant) -> None:
         user_input={
             CONF_NAME: "New Hub",
             CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
-            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
     )
 
@@ -252,8 +241,6 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
         user_input={
             CONF_NAME: "Test Hub",
             CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
-            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
     )
 
@@ -267,8 +254,6 @@ async def test_user_flow_unique_id_prevents_duplicate(hass: HomeAssistant) -> No
         user_input={
             CONF_NAME: "test hub",  # Same name, different case
             CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS,
-            CONF_UPDATE_INTERVAL_MINUTES: DEFAULT_UPDATE_INTERVAL_MINUTES,
-            CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
         },
     )
 
