@@ -8,7 +8,7 @@ This module provides composable metadata types for defining field behavior:
 
 These metadata types compose via `Annotated` to define complete field behavior:
 
-    PowerFieldSchema = Annotated[float, PositiveKW(), ConstantFloat()]
+    PowerFieldSchema = Annotated[float, PositiveKW(), Constant(float)]
 
 The `compose_field()` function in schema/__init__.py extracts and combines
 these metadata into a unified `FieldSpec` for use by schema generation and loading.
@@ -50,7 +50,7 @@ class Default:
     Specifies the default value shown in config flow UI when adding new elements.
 
     Examples:
-        Annotated[float, PositiveKW(), ConstantFloat(), Default(value=5.0)]
+        Annotated[float, PositiveKW(), Constant(float), Default(value=5.0)]
 
     """
 
@@ -66,18 +66,19 @@ class LoaderMeta:
 
 
 @dataclass(frozen=True)
-class ConstantFloat(LoaderMeta):
-    """Marker for constant float values loaded directly from config."""
+class Constant(LoaderMeta):
+    """Marker for constant values loaded directly from config.
 
+    Args:
+        value_type: The Python type of the constant value (float, bool, str).
 
-@dataclass(frozen=True)
-class ConstantBool(LoaderMeta):
-    """Marker for constant boolean values loaded directly from config."""
+    Examples:
+        Annotated[float, PositiveKW(), Constant(float)]
+        Annotated[bool, BooleanField(), Constant(bool)]
 
+    """
 
-@dataclass(frozen=True)
-class ConstantStr(LoaderMeta):
-    """Marker for constant string values loaded directly from config."""
+    value_type: type
 
 
 @dataclass(frozen=True)
@@ -288,32 +289,32 @@ PRICE_UNITS: Final[list[UnitSpec]] = [("*", "/", unit.value) for unit in UnitOfE
 # Schema mode: entity IDs for configuration
 # Data mode: loaded values for runtime
 
-PowerFieldSchema = Annotated[float, PositiveKW(), ConstantFloat()]
-PowerFieldData = Annotated[float, PositiveKW(), ConstantFloat()]
+PowerFieldSchema = Annotated[float, PositiveKW(), Constant(float)]
+PowerFieldData = Annotated[float, PositiveKW(), Constant(float)]
 
-PowerFlowFieldSchema = Annotated[float, AnyKW(), ConstantFloat()]
-PowerFlowFieldData = Annotated[float, AnyKW(), ConstantFloat()]
+PowerFlowFieldSchema = Annotated[float, AnyKW(), Constant(float)]
+PowerFlowFieldData = Annotated[float, AnyKW(), Constant(float)]
 
-EnergyFieldSchema = Annotated[float, PositiveKWH(), ConstantFloat()]
-EnergyFieldData = Annotated[float, PositiveKWH(), ConstantFloat()]
+EnergyFieldSchema = Annotated[float, PositiveKWH(), Constant(float)]
+EnergyFieldData = Annotated[float, PositiveKWH(), Constant(float)]
 
-PercentageFieldSchema = Annotated[float, Percentage(), ConstantFloat()]
-PercentageFieldData = Annotated[float, Percentage(), ConstantFloat()]
+PercentageFieldSchema = Annotated[float, Percentage(), Constant(float)]
+PercentageFieldData = Annotated[float, Percentage(), Constant(float)]
 
-BooleanFieldSchema = Annotated[bool, Boolean(), ConstantBool()]
-BooleanFieldData = Annotated[bool, Boolean(), ConstantBool()]
+BooleanFieldSchema = Annotated[bool, Boolean(), Constant(bool)]
+BooleanFieldData = Annotated[bool, Boolean(), Constant(bool)]
 
-NameFieldSchema = Annotated[str, Name(), ConstantStr()]
-NameFieldData = Annotated[str, Name(), ConstantStr()]
+NameFieldSchema = Annotated[str, Name(), Constant(str)]
+NameFieldData = Annotated[str, Name(), Constant(str)]
 
-ElementNameFieldSchema = Annotated[str, ElementName(), ConstantStr()]
-ElementNameFieldData = Annotated[str, ElementName(), ConstantStr()]
+ElementNameFieldSchema = Annotated[str, ElementName(), Constant(str)]
+ElementNameFieldData = Annotated[str, ElementName(), Constant(str)]
 
-BatterySOCFieldSchema = Annotated[float, BatterySOC(), ConstantFloat()]
-BatterySOCFieldData = Annotated[float, BatterySOC(), ConstantFloat()]
+BatterySOCFieldSchema = Annotated[float, BatterySOC(), Constant(float)]
+BatterySOCFieldData = Annotated[float, BatterySOC(), Constant(float)]
 
-PriceFieldSchema = Annotated[float, Price(), ConstantFloat()]
-PriceFieldData = Annotated[float, Price(), ConstantFloat()]
+PriceFieldSchema = Annotated[float, Price(), Constant(float)]
+PriceFieldData = Annotated[float, Price(), Constant(float)]
 
 PowerSensorFieldSchema = Annotated[str, EntitySelect(POWER_UNITS), TimeSeries()]
 PowerSensorFieldData = Annotated[list[float], EntitySelect(POWER_UNITS), TimeSeries()]

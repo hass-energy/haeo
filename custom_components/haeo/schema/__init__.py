@@ -11,7 +11,7 @@ import voluptuous as vol
 from custom_components.haeo.data.loader import ConstantLoader, Loader, TimeSeriesLoader
 from custom_components.haeo.data.loader.extractors import EntityMetadata
 
-from .fields import ConstantBool, ConstantFloat, ConstantStr, Default, LoaderMeta, TimeSeries, Validator
+from .fields import Constant, Default, LoaderMeta, TimeSeries, Validator
 from .params import SchemaParams
 
 __all__ = [
@@ -134,12 +134,8 @@ def _get_loader_from_meta(loader_meta: LoaderMeta | None) -> Loader:
 
     """
     match loader_meta:
-        case ConstantFloat():
-            return ConstantLoader[float](float)
-        case ConstantBool():
-            return ConstantLoader[bool](bool)
-        case ConstantStr():
-            return ConstantLoader[str](str)
+        case Constant(value_type=value_type):
+            return ConstantLoader[Any](value_type)
         case TimeSeries():
             return TimeSeriesLoader()
         case None | _:

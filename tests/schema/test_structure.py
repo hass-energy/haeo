@@ -12,7 +12,7 @@ from custom_components.haeo.elements import ElementConfigSchema
 from custom_components.haeo.schema import available as schema_available
 from custom_components.haeo.schema import compose_field, get_loader_instance
 from custom_components.haeo.schema import load as schema_load
-from custom_components.haeo.schema.fields import ConstantFloat, Default, LoaderMeta, PositiveKW
+from custom_components.haeo.schema.fields import Constant, Default, LoaderMeta, PositiveKW
 
 
 class TrackingLoader(ConstantLoader[int]):
@@ -46,11 +46,11 @@ class TrackingLoaderMeta(LoaderMeta):
 
 def test_compose_field_extracts_all_metadata() -> None:
     """compose_field() extracts Validator, LoaderMeta, and Default from Annotated."""
-    field_type = Annotated[float, PositiveKW(), ConstantFloat(), Default(value=5.0)]
+    field_type = Annotated[float, PositiveKW(), Constant(float), Default(value=5.0)]
     spec = compose_field(field_type)
 
     assert isinstance(spec.validator, PositiveKW)
-    assert isinstance(spec.loader, ConstantFloat)
+    assert isinstance(spec.loader, Constant)
     assert spec.default is not None
     assert spec.default.value == 5.0
 
@@ -83,7 +83,7 @@ def test_schema_available_delegates_to_loader(
     monkeypatch.setattr("custom_components.haeo.schema.get_loader_instance", mock_get_loader)
 
     class ConfigData(TypedDict):
-        value: Annotated[int, PositiveKW(), ConstantFloat()]
+        value: Annotated[int, PositiveKW(), Constant(int)]
 
     entry = SimpleNamespace(data=ConfigData)
     monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)
@@ -114,7 +114,7 @@ async def test_schema_load_calls_loader(monkeypatch: pytest.MonkeyPatch) -> None
 
     class ConfigData(TypedDict):
         element_type: str
-        value: Annotated[int, PositiveKW(), ConstantFloat()]
+        value: Annotated[int, PositiveKW(), Constant(int)]
 
     entry = SimpleNamespace(data=ConfigData)
     monkeypatch.setattr("custom_components.haeo.schema._get_registry_entry", lambda _element: entry)
@@ -128,11 +128,11 @@ async def test_schema_load_calls_loader(monkeypatch: pytest.MonkeyPatch) -> None
     assert len(loader.load_calls) == 1
 
 
-def test_get_loader_instance_returns_correct_loader_for_constant_float() -> None:
-    """get_loader_instance returns ConstantLoader for ConstantFloat fields."""
+def test_get_loader_instance_returns_correct_loader_for_constant() -> None:
+    """get_loader_instance returns ConstantLoader for Constant fields."""
 
     class ConfigData(TypedDict):
-        power: Annotated[float, PositiveKW(), ConstantFloat()]
+        power: Annotated[float, PositiveKW(), Constant(float)]
 
     loader = get_loader_instance("power", ConfigData)
     assert isinstance(loader, ConstantLoader)
