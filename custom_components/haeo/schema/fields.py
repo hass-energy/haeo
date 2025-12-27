@@ -272,19 +272,19 @@ BatterySOCFieldData = Annotated[float, BatterySOC(), Constant(float)]
 PriceFieldSchema = Annotated[float, Price(), Constant(float)]
 PriceFieldData = Annotated[float, Price(), Constant(float)]
 
-PowerSensorFieldSchema = Annotated[str, EntitySelect(POWER_UNITS), TimeSeries()]
+PowerSensorFieldSchema = Annotated[Sequence[str], EntitySelect(POWER_UNITS), TimeSeries()]
 PowerSensorFieldData = Annotated[list[float], EntitySelect(POWER_UNITS), TimeSeries()]
 
 PowerSensorsFieldSchema = Annotated[Sequence[str], EntitySelect(POWER_UNITS, multiple=True), TimeSeries()]
 PowerSensorsFieldData = Annotated[list[float], EntitySelect(POWER_UNITS, multiple=True), TimeSeries()]
 
-EnergySensorFieldSchema = Annotated[str, EntitySelect(ENERGY_UNITS), TimeSeries()]
+EnergySensorFieldSchema = Annotated[Sequence[str], EntitySelect(ENERGY_UNITS), TimeSeries()]
 EnergySensorFieldData = Annotated[list[float], EntitySelect(ENERGY_UNITS), TimeSeries()]
 
-PercentageSensorFieldSchema = Annotated[str, EntitySelect(PERCENTAGE_UNITS), TimeSeries()]
+PercentageSensorFieldSchema = Annotated[Sequence[str], EntitySelect(PERCENTAGE_UNITS), TimeSeries()]
 PercentageSensorFieldData = Annotated[list[float], EntitySelect(PERCENTAGE_UNITS), TimeSeries()]
 
-BatterySOCSensorFieldSchema = Annotated[str, EntitySelect(BATTERY_UNITS), TimeSeries()]
+BatterySOCSensorFieldSchema = Annotated[Sequence[str], EntitySelect(BATTERY_UNITS), TimeSeries()]
 BatterySOCSensorFieldData = Annotated[list[float], EntitySelect(BATTERY_UNITS), TimeSeries()]
 
 PriceSensorsFieldSchema = Annotated[Sequence[str], EntitySelect(PRICE_UNITS, multiple=True), TimeSeries()]

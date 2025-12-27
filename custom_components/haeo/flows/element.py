@@ -193,9 +193,7 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         return None
 
 
-def create_subentry_flow_class(
-    element_type: str, schema_cls: type[ElementConfigSchema]
-) -> type[ElementSubentryFlow]:
+def create_subentry_flow_class(element_type: str, schema_cls: type[ElementConfigSchema]) -> type[ElementSubentryFlow]:
     """Create strongly-typed subentry flow class for element type."""
 
     class TypedElementSubentryFlow(ElementSubentryFlow):

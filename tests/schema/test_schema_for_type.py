@@ -14,7 +14,6 @@ from custom_components.haeo.schema.fields import (
     BatterySOCSensorFieldSchema,
     BooleanFieldSchema,
     ElementNameFieldSchema,
-    EnergyFieldSchema,
     NameFieldSchema,
     PercentageFieldSchema,
     PowerFieldSchema,
@@ -38,7 +37,6 @@ class ConstantFieldTestConfig(TypedDict):
     """Test config for constant field types."""
 
     power: PowerFieldSchema
-    energy: EnergyFieldSchema
     price: PriceFieldSchema
     percentage: PercentageFieldSchema
     boolean: BooleanFieldSchema
@@ -81,7 +79,6 @@ def test_constant_field_extraction() -> None:
 
     expected_fields = {
         "power",
-        "energy",
         "price",
         "percentage",
         "boolean",
@@ -143,7 +140,6 @@ def test_constant_field_schema_creation(schema_params: dict[str, Any]) -> None:
     schema_dict = schema.schema
     expected_keys = {
         "power",
-        "energy",
         "price",
         "percentage",
         "boolean",
@@ -192,7 +188,6 @@ def test_constant_field_schema_validation(schema_params: dict[str, Any]) -> None
 
     valid_data = {
         "power": 100.0,
-        "energy": 500.0,
         "price": 0.15,
         "percentage": 80.0,
         "boolean": True,
