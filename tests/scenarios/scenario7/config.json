@@ -22,7 +22,7 @@
       "max_charge_power": "sensor.sigen_plant_ess_rated_charging_power",
       "max_discharge_power": "sensor.sigen_plant_ess_rated_discharging_power",
       "min_charge_percentage": 0.0,
-      "undercharge_cost": ["input_number.battery_undercharge_cost"]
+      "undercharge_cost": ["input_number.undercharge_cost"]
     },
     "Grid": {
       "name": "Grid",
@@ -56,7 +56,11 @@
       "forecast": [
         "sensor.solcast_pv_forecast_forecast_today",
         "sensor.solcast_pv_forecast_forecast_tomorrow",
-        "sensor.solcast_pv_forecast_forecast_day_3"
+        "sensor.solcast_pv_forecast_forecast_day_3",
+        "sensor.solcast_pv_forecast_forecast_day_4",
+        "sensor.solcast_pv_forecast_forecast_day_5",
+        "sensor.solcast_pv_forecast_forecast_day_6",
+        "sensor.solcast_pv_forecast_forecast_day_7"
       ]
     },
     "Switchboard": {
