@@ -14,7 +14,7 @@ Loads can optionally be configured as sheddable with a value when running.
 | ---------------------------------------- | ---------------------------------------- | -------- | ------- | ------------------------------------------------- |
 | **[Name](#name)**                        | String                                   | Yes      | -       | Unique identifier for this load                   |
 | **[Forecast](#forecast)**                | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW)         |
-| **[Shedding](#shedding)**                | Boolean                                  | No       | `true`  | Allow load to be shed when economically favorable |
+| **[Sheddable](#sheddable)**              | Boolean                                  | No       | `false` | Allow load to be shed when economically favorable |
 | **[Value When Running](#value-running)** | [sensor(s)](../forecasts-and-sensors.md) | No       | -       | Value in \$/kWh when load is running              |
 
 ## Name
@@ -44,15 +44,15 @@ The Load element is flexible and works with both constant and time-varying patte
 Provide all load forecasts to get accurate total consumption predictions.
 See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.
 
-## Shedding
+## Sheddable
 
 Enable or disable load shedding for this load.
-When shedding is enabled (`true`, the default), the optimizer can reduce or eliminate power to this load when it is economically favorable.
-When shedding is disabled (`false`), the load must always receive its full forecasted power.
+When sheddable is enabled (`true`), the optimizer can reduce or eliminate power to this load when it is economically favorable.
+When sheddable is disabled (`false`, the default), the load must always receive its full forecasted power.
 
-**Default**: `true` (shedding allowed)
+**Default**: `false` (load is fixed, not sheddable)
 
-**When to enable shedding**:
+**When to enable sheddable**:
 
 - Discretionary loads (air conditioning, pool pumps, bitcoin miners)
 - Loads that can be deferred or reduced during peak pricing
@@ -293,7 +293,7 @@ Air conditioning that can be shed during peak prices:
 | ---------------------- | -------------------------- |
 | **Name**               | HVAC                       |
 | **Forecast**           | sensor.hvac_power_forecast |
-| **Shedding**           | `true`                     |
+| **Sheddable**          | `true`                     |
 | **Value When Running** | input_number.comfort_value |
 
 Set the comfort value helper to express your willingness to pay for cooling (e.g., 0.35 = \$0.35/kWh).
@@ -307,7 +307,7 @@ Pool pump that can be deferred to off-peak times:
 | ---------------------- | ---------------------------- |
 | **Name**               | Pool Pump                    |
 | **Forecast**           | input_number.pool_pump_power |
-| **Shedding**           | `true`                       |
+| **Sheddable**          | `true`                       |
 | **Value When Running** | `0.15`                       |
 
 With a low value, the pump will run primarily during cheap energy periods (solar excess, off-peak grid prices).
@@ -316,11 +316,11 @@ With a low value, the pump will run primarily during cheap energy periods (solar
 
 Essential equipment that must always run:
 
-| Field        | Value                 |
-| ------------ | --------------------- |
-| **Name**     | Critical Equipment    |
-| **Forecast** | sensor.critical_power |
-| **Shedding** | `false`               |
+| Field         | Value                 |
+| ------------- | --------------------- |
+| **Name**      | Critical Equipment    |
+| **Forecast**  | sensor.critical_power |
+| **Sheddable** | `false`               |
 
 The load will always receive full power regardless of energy costs.
 
@@ -339,10 +339,10 @@ A Load element creates 1 device in Home Assistant with the following sensors.
 
 The optimal power consumed by this load at each time period.
 
-**For fixed loads** (shedding disabled): This value matches the forecast or constant value provided in the configuration.
+**For fixed loads** (sheddable disabled): This value matches the forecast or constant value provided in the configuration.
 The optimization determines how to supply this power (from grid, battery, or solar), but the load consumption itself is fixed.
 
-**For sheddable loads** (shedding enabled): This value may be less than the forecast if the optimizer determines it is more economical to shed the load.
+**For sheddable loads** (sheddable enabled): This value may be less than the forecast if the optimizer determines it is more economical to shed the load.
 The actual power consumed reflects the optimization decision based on energy costs and the load's value when running.
 
 **For constant loads**: The sensor shows the same value for all periods (the configured constant power or zero if shed).

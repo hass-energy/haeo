@@ -9,7 +9,7 @@ Loads can optionally be configured as sheddable with a value when running.
 graph LR
     subgraph "Device"
         SS["Node<br/>(is_source=false, is_sink=true)"]
-        Conn["PowerConnection<br/>{name}:connection<br/>(fixed_power based on shedding)"]
+        Conn["PowerConnection<br/>{name}:connection<br/>(fixed_power based on sheddable)"]
     end
 
     Node[Connection Target]
@@ -19,10 +19,10 @@ graph LR
     Node -->|connects to| Conn
 ```
 
-| Model Element                                                     | Name                | Parameters From Configuration                       |
-| ----------------------------------------------------------------- | ------------------- | --------------------------------------------------- |
-| [Node](../model-layer/elements/node.md)                           | `{name}`            | is_source=false, is_sink=true                       |
-| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:connection` | forecast, shedding flag, and optional value pricing |
+| Model Element                                                     | Name                | Parameters From Configuration                        |
+| ----------------------------------------------------------------- | ------------------- | ---------------------------------------------------- |
+| [Node](../model-layer/elements/node.md)                           | `{name}`            | is_source=false, is_sink=true                        |
+| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}:connection` | forecast, sheddable flag, and optional value pricing |
 
 ## Devices Created
 
@@ -36,21 +36,21 @@ Load creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into model parameters:
 
-| User Configuration | Model Element   | Model Parameter           | Notes                                                    |
-| ------------------ | --------------- | ------------------------- | -------------------------------------------------------- |
-| `forecast`         | PowerConnection | `max_power_target_source` | Power consumption at each time period                    |
-| `connection`       | PowerConnection | `source`                  | Node to connect from                                     |
-| `shedding`         | PowerConnection | `fixed_power`             | `!shedding` (true means fixed, false allows shedding)    |
-| `value_running`    | PowerConnection | `price_target_source`     | Economic value in \$/kWh when load is running (optional) |
-| —                  | Node            | `is_source=false`         | Load cannot provide power                                |
-| —                  | Node            | `is_sink=true`            | Load consumes power                                      |
+| User Configuration | Model Element   | Model Parameter           | Notes                                                          |
+| ------------------ | --------------- | ------------------------- | -------------------------------------------------------------- |
+| `forecast`         | PowerConnection | `max_power_target_source` | Power consumption at each time period                          |
+| `connection`       | PowerConnection | `source`                  | Node to connect from                                           |
+| `sheddable`        | PowerConnection | `fixed_power`             | `!sheddable` (true means sheddable, becomes fixed_power=false) |
+| `value_running`    | PowerConnection | `price_target_source`     | Economic value in \$/kWh when load is running (optional)       |
+| —                  | Node            | `is_source=false`         | Load cannot provide power                                      |
+| —                  | Node            | `is_sink=true`            | Load consumes power                                            |
 
 ## Shedding Behavior
 
-**Fixed loads** (`shedding=false`): The connection uses `fixed_power=true`, making consumption equal to the forecast at all times.
+**Fixed loads** (`sheddable=false`, the default): The connection uses `fixed_power=true`, making consumption equal to the forecast at all times.
 The optimizer must supply this power.
 
-**Sheddable loads** (`shedding=true`): The connection uses `fixed_power=false`, allowing consumption to be less than or equal to the forecast.
+**Sheddable loads** (`sheddable=true`): The connection uses `fixed_power=false`, allowing consumption to be less than or equal to the forecast.
 The optimizer can reduce or eliminate power to this load when economically favorable.
 
 **Value pricing**: When `value_running` is specified, it adds a negative cost term (benefit) to the objective function.
