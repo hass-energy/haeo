@@ -41,7 +41,6 @@ type BatteryDeviceName = Literal[
     "battery_device_undercharge",
     "battery_device_normal",
     "battery_device_overcharge",
-    "battery_device_balance",
 ]
 
 BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset(
@@ -50,7 +49,6 @@ BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset(
         BATTERY_DEVICE_UNDERCHARGE := "battery_device_undercharge",
         BATTERY_DEVICE_NORMAL := "battery_device_normal",
         BATTERY_DEVICE_OVERCHARGE := "battery_device_overcharge",
-        BATTERY_DEVICE_BALANCE := "battery_device_balance",
     )
 )
 
@@ -481,30 +479,85 @@ def outputs(
         elif section_key == "overcharge":
             result[BATTERY_DEVICE_OVERCHARGE] = section_device_outputs
 
-    # Add balance connection device outputs
-    balance_device_outputs: dict[BatteryOutputName, OutputData] = {}
-    for i in range(len(section_names) - 1):
-        lower_key = section_names[i]
-        upper_key = section_names[i + 1]
-        balance_name = f"{name}:balance:{lower_key}:{upper_key}"
-        if balance_name in outputs:
-            balance_data = outputs[balance_name]
-            # Use the last balance connection's outputs (most relevant for multi-section batteries)
-            if model_balance.BALANCE_POWER_DOWN in balance_data:
-                balance_device_outputs[BATTERY_BALANCE_POWER_DOWN] = replace(
-                    balance_data[model_balance.BALANCE_POWER_DOWN],
-                    type=OUTPUT_TYPE_POWER_FLOW,
-                    advanced=True,
-                )
-            if model_balance.BALANCE_POWER_UP in balance_data:
-                balance_device_outputs[BATTERY_BALANCE_POWER_UP] = replace(
-                    balance_data[model_balance.BALANCE_POWER_UP],
-                    type=OUTPUT_TYPE_POWER_FLOW,
-                    advanced=True,
-                )
+    # Add balance power outputs to each section device
+    # power_down = energy flowing into this section from above
+    # power_up = energy flowing out of this section to above
+    for i, section_key in enumerate(section_names):
+        # Get device for this section
+        if section_key == "undercharge":
+            device_key = BATTERY_DEVICE_UNDERCHARGE
+        elif section_key == "normal":
+            device_key = BATTERY_DEVICE_NORMAL
+        elif section_key == "overcharge":
+            device_key = BATTERY_DEVICE_OVERCHARGE
+        else:
+            continue
 
-    if balance_device_outputs:
-        result[BATTERY_DEVICE_BALANCE] = balance_device_outputs
+        if device_key not in result:
+            continue
+
+        # Accumulate power_down and power_up from all adjacent balance connections
+        power_down_values: list[float] | None = None
+        power_up_values: list[float] | None = None
+
+        # Check for balance connection with section below (this section is upper)
+        # In this connection: power_down leaves this section, power_up enters this section
+        if i > 0:
+            lower_key = section_names[i - 1]
+            balance_name = f"{name}:balance:{lower_key}:{section_key}"
+            if balance_name in outputs:
+                balance_data = outputs[balance_name]
+                # Power down from this section to lower section (energy leaving downward)
+                if model_balance.BALANCE_POWER_DOWN in balance_data:
+                    down_vals = np.array(balance_data[model_balance.BALANCE_POWER_DOWN].values)
+                    if power_down_values is None:
+                        power_down_values = list(down_vals)
+                    else:
+                        power_down_values = list(np.array(power_down_values) + down_vals)
+                # Power up from lower section to this section (energy entering from below)
+                if model_balance.BALANCE_POWER_UP in balance_data:
+                    up_vals = np.array(balance_data[model_balance.BALANCE_POWER_UP].values)
+                    if power_up_values is None:
+                        power_up_values = list(up_vals)
+                    else:
+                        power_up_values = list(np.array(power_up_values) + up_vals)
+
+        # Check for balance connection with section above (this section is lower)
+        # In this connection: power_down enters this section, power_up leaves this section
+        if i < len(section_names) - 1:
+            upper_key = section_names[i + 1]
+            balance_name = f"{name}:balance:{section_key}:{upper_key}"
+            if balance_name in outputs:
+                balance_data = outputs[balance_name]
+                # Power down from upper section to this section (energy entering from above)
+                if model_balance.BALANCE_POWER_DOWN in balance_data:
+                    down_vals = np.array(balance_data[model_balance.BALANCE_POWER_DOWN].values)
+                    if power_down_values is None:
+                        power_down_values = list(down_vals)
+                    else:
+                        power_down_values = list(np.array(power_down_values) + down_vals)
+                # Power up from this section to upper section (energy leaving upward)
+                if model_balance.BALANCE_POWER_UP in balance_data:
+                    up_vals = np.array(balance_data[model_balance.BALANCE_POWER_UP].values)
+                    if power_up_values is None:
+                        power_up_values = list(up_vals)
+                    else:
+                        power_up_values = list(np.array(power_up_values) + up_vals)
+
+        if power_down_values is not None:
+            result[device_key][BATTERY_BALANCE_POWER_DOWN] = OutputData(
+                type=OUTPUT_TYPE_POWER_FLOW,
+                unit="kW",
+                values=tuple(power_down_values),
+                advanced=True,
+            )
+        if power_up_values is not None:
+            result[device_key][BATTERY_BALANCE_POWER_UP] = OutputData(
+                type=OUTPUT_TYPE_POWER_FLOW,
+                unit="kW",
+                values=tuple(power_up_values),
+                advanced=True,
+            )
 
     return result
 

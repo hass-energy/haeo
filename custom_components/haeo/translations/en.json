@@ -342,7 +342,6 @@
   "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
-    "battery_device_balance": { "name": "{name} Balance" },
     "battery_device_normal": { "name": "{name} Main Partition" },
     "battery_device_overcharge": { "name": "{name} Overcharge Partition" },
     "battery_device_undercharge": { "name": "{name} Undercharge Partition" },

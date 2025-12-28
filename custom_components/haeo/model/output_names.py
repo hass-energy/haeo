@@ -7,10 +7,7 @@ translations, and other integration code that needs to reference all possible ou
 from typing import Final
 
 from .battery import BATTERY_OUTPUT_NAMES, BatteryOutputName
-from .battery_balance_connection import (
-    BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES,
-    BatteryBalanceConnectionOutputName,
-)
+from .battery_balance_connection import BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES, BatteryBalanceConnectionOutputName
 from .connection import CONNECTION_OUTPUT_NAMES, ConnectionOutputName
 from .node import NODE_OUTPUT_NAMES, NodeOutputName
 from .power_connection import POWER_CONNECTION_OUTPUT_NAMES, PowerConnectionOutputName
