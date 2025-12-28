@@ -9,11 +9,7 @@ from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import inverter as inverter_element
 from custom_components.haeo.elements.inverter import InverterConfigData
 from custom_components.haeo.model import ModelOutputName, power_connection
-from custom_components.haeo.model.const import (
-    OUTPUT_TYPE_POWER_FLOW,
-    OUTPUT_TYPE_POWER_LIMIT,
-    OUTPUT_TYPE_SHADOW_PRICE,
-)
+from custom_components.haeo.model.const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_POWER_LIMIT, OUTPUT_TYPE_SHADOW_PRICE
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
