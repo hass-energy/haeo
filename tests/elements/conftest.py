@@ -1,7 +1,8 @@
 """Shared fixtures for element tests."""
 
+from collections.abc import Sequence
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Final
 
 import pytest
 from homeassistant.config_entries import ConfigSubentry
@@ -17,6 +18,9 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES, ElementType
+
+# Default forecast times for adapter load tests (0s, 30min)
+FORECAST_TIMES: Final[Sequence[float]] = (0.0, 1800.0)
 
 
 @pytest.fixture
@@ -65,3 +69,19 @@ def add_participant(
     )
     hass.config_entries.async_add_subentry(hub_entry, subentry)
     return subentry
+
+
+def set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
+    """Set a sensor state in hass."""
+    hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
+
+
+def set_forecast_sensor(
+    hass: HomeAssistant,
+    entity_id: str,
+    value: str,
+    forecast: list[dict[str, Any]],
+    unit: str = "kW",
+) -> None:
+    """Set a sensor state with forecast attribute in hass."""
+    hass.states.async_set(entity_id, value, {"unit_of_measurement": unit, "forecast": forecast})

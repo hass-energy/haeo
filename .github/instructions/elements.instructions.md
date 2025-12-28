@@ -93,6 +93,7 @@ ElementRegistryEntry(
 3. Implement config flow in `flow.py`
 4. Implement `available()`, `load()`, `create_model_elements()`, `outputs()` in `adapter.py`
 5. Register in `ELEMENT_TYPES` in `elements/__init__.py`
-6. Add test data in `tests/test_data/elements/`
-7. Add translations in `translations/en.json`
-8. Document in `docs/user-guide/elements/` and `docs/modeling/device-layer/`
+6. Add flow test data in `tests/flows/test_data/{element_type}.py`
+7. Add element tests in `tests/elements/{element_type}/` with `test_adapter.py`, `test_flow.py`, `test_model.py`
+8. Add translations in `translations/en.json`
+9. Document in `docs/user-guide/elements/` and `docs/modeling/device-layer/`
