@@ -25,7 +25,7 @@ def test_is_not_element_config_schema(input_data: Any) -> None:
     [
         {"element_type": "unknown_type", "name": "test"},  # Unknown element type
         {"name": "test"},  # Missing element_type
-        {"element_type": "battery"},  # Missing name
+        {"element_type": "battery"},  # Missing name (invalid schema)
     ],
 )
 def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) -> None:
@@ -38,5 +38,7 @@ def test_is_element_config_schema_valid() -> None:
     valid_config = {
         "element_type": "node",
         "name": "test_node",
+        "is_source": False,
+        "is_sink": False,
     }
     assert is_element_config_schema(valid_config) is True

@@ -356,6 +356,8 @@
   },
   "entity": {
     "sensor": {
+      "battery_balance_power_down": { "name": "Balance power down" },
+      "battery_balance_power_up": { "name": "Balance power up" },
       "battery_charge_price": { "name": "Charge price" },
       "battery_discharge_price": { "name": "Discharge price" },
       "battery_energy_in_flow": { "name": "Energy in flow shadow price" },

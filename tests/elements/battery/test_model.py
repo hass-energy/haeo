@@ -84,30 +84,47 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "is_source": False,
                 "is_sink": False,
             },
+            # Undercharge connection: penalty on discharge (price_source_target)
             {
                 "element_type": "connection",
                 "name": "battery_main:undercharge:to_node",
                 "source": "battery_main:undercharge",
                 "target": "battery_main:node",
-                "price_target_source": [-0.03],
-                "price_source_target": [0.04],
+                "price_source_target": [0.03],
             },
+            # Normal connection: no penalty
             {
                 "element_type": "connection",
                 "name": "battery_main:normal:to_node",
                 "source": "battery_main:normal",
                 "target": "battery_main:node",
-                "price_target_source": [-0.02],
-                "price_source_target": [0.02],
+                "price_source_target": None,
             },
+            # Overcharge connection: penalty on charge (price_target_source)
             {
                 "element_type": "connection",
                 "name": "battery_main:overcharge:to_node",
                 "source": "battery_main:overcharge",
                 "target": "battery_main:node",
-                "price_target_source": [0.03],
-                "price_source_target": [0.03],
+                "price_target_source": [0.04],
             },
+            # Balance connection: undercharge -> normal
+            {
+                "element_type": "battery_balance_connection",
+                "name": "battery_main:balance:undercharge:normal",
+                "upper": "battery_main:normal",
+                "lower": "battery_main:undercharge",
+                "capacity_lower": 0.5,
+            },
+            # Balance connection: normal -> overcharge
+            {
+                "element_type": "battery_balance_connection",
+                "name": "battery_main:balance:normal:overcharge",
+                "upper": "battery_main:overcharge",
+                "lower": "battery_main:normal",
+                "capacity_lower": 8.0,
+            },
+            # Main connection to network
             {
                 "element_type": "connection",
                 "name": "battery_main:connection",
@@ -117,7 +134,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "efficiency_target_source": 95.0,
                 "max_power_source_target": [5.0],
                 "max_power_target_source": [5.0],
-                "price_source_target": [0.02],
+                "price_target_source": [-0.01],
+                "price_source_target": [0.03],  # early_discharge_incentive + discharge_cost
             },
         ],
     },
@@ -150,14 +168,15 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "is_source": False,
                 "is_sink": False,
             },
+            # Normal connection: no penalty
             {
                 "element_type": "connection",
                 "name": "battery_normal:normal:to_node",
                 "source": "battery_normal:normal",
                 "target": "battery_normal:node",
-                "price_target_source": [-0.002],
-                "price_source_target": [0.002],
+                "price_source_target": None,
             },
+            # Main connection to network
             {
                 "element_type": "connection",
                 "name": "battery_normal:connection",
@@ -167,7 +186,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "efficiency_target_source": 95.0,
                 "max_power_source_target": [5.0],
                 "max_power_target_source": [5.0],
-                "price_source_target": [0.002],
+                "price_target_source": [-0.001],
+                "price_source_target": [0.003],  # early_discharge_incentive + discharge_cost
             },
         ],
     },
