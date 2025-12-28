@@ -91,20 +91,25 @@ class LoadConfigData(TypedDict):
 def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
     """Create model elements for Load configuration."""
 
+    connection_params: dict[str, Any] = {
+        "element_type": "connection",
+        "name": f"{config['name']}:connection",
+        "source": config["name"],
+        "target": config["connection"],
+        "max_power_source_target": 0.0,
+        "max_power_target_source": config["forecast"],
+        "fixed_power": not config.get("shedding", True),
+    }
+
+    # Only include price_target_source if value_running is specified
+    if (value_running := config.get("value_running")) is not None:
+        connection_params["price_target_source"] = value_running
+
     elements: list[dict[str, Any]] = [
         # Create Node for the load (sink only - consumes power)
         {"element_type": "node", "name": config["name"], "is_source": False, "is_sink": True},
         # Create Connection from node to load (power flows TO the load)
-        {
-            "element_type": "connection",
-            "name": f"{config['name']}:connection",
-            "source": config["name"],
-            "target": config["connection"],
-            "max_power_source_target": 0.0,
-            "max_power_target_source": config["forecast"],
-            "fixed_power": not config.get("shedding", True),
-            "price_target_source": config.get("value_running"),
-        },
+        connection_params,
     ]
 
     return elements
