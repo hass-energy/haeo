@@ -8,7 +8,6 @@ from homeassistant.core import HomeAssistant
 
 from .const import CONF_ELEMENT_TYPE
 from .elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
-from .schema import load as schema_load
 from .util.forecast_times import generate_forecast_timestamps_from_config
 from .util.graph import ConnectivityResult as NetworkConnectivityResult
 from .util.graph import find_connected_components
@@ -40,12 +39,13 @@ async def _build_adjacency(
     # Collect all model elements from all configs
     for config in participants.values():
         element_type = config[CONF_ELEMENT_TYPE]
+        entry = ELEMENT_TYPES[element_type]
 
         # Load config with actual forecast times to get real sensor data
-        loaded = await schema_load(config, hass=hass, forecast_times=forecast_times)
+        loaded = await entry.load(config, hass=hass, forecast_times=forecast_times)
 
         # Get model elements including implicit connections
-        model_elements = ELEMENT_TYPES[element_type].create_model_elements(loaded)
+        model_elements = entry.create_model_elements(loaded)
 
         # Add non-connection elements as nodes
         for elem in model_elements:

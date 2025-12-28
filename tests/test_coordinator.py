@@ -490,8 +490,8 @@ def test_extract_entity_ids_skips_constant_fields() -> None:
     config: BatteryConfigSchema = {
         CONF_NAME: "Battery",
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-        CONF_CAPACITY: "sensor.capacity",
-        CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.soc",
+        CONF_CAPACITY: ["sensor.capacity"],
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.soc"],
         CONF_MIN_CHARGE_PERCENTAGE: 20.0,
         CONF_MAX_CHARGE_PERCENTAGE: 80.0,
         CONF_EFFICIENCY: 95.0,
@@ -508,8 +508,8 @@ def test_extract_entity_ids_catches_type_errors(monkeypatch: pytest.MonkeyPatch)
     config: ElementConfigSchema = {
         CONF_NAME: "Battery",
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-        CONF_CAPACITY: "sensor.capacity",
-        CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.soc",
+        CONF_CAPACITY: ["sensor.capacity"],
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.soc"],
         CONF_MIN_CHARGE_PERCENTAGE: 20.0,
         CONF_MAX_CHARGE_PERCENTAGE: 80.0,
         CONF_EFFICIENCY: 95.0,

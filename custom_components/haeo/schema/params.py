@@ -1,9 +1,10 @@
 """Parameters for schema generation and field validation."""
 
 from collections.abc import Sequence
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
-from custom_components.haeo.data.loader.extractors import EntityMetadata
+if TYPE_CHECKING:
+    from custom_components.haeo.data.loader.extractors import EntityMetadata
 
 
 class SchemaParams(TypedDict, total=False):
@@ -12,7 +13,4 @@ class SchemaParams(TypedDict, total=False):
     All fields are optional to allow flexibility in what gets passed.
     """
 
-    entity_metadata: Sequence[EntityMetadata]
-    participants: Sequence[str]
-    current_element_name: str | None
-    defaults: dict[str, Any] | None
+    entity_metadata: Sequence["EntityMetadata"]

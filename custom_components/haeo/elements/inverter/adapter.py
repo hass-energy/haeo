@@ -1,9 +1,12 @@
-"""Inverter element configuration for HAEO integration."""
+"""Inverter element adapter for model layer integration."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal
 
+from homeassistant.core import HomeAssistant
+
+from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER_FLOW
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
@@ -16,28 +19,18 @@ from custom_components.haeo.model.power_connection import (
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
-from custom_components.haeo.schema import Default
-from custom_components.haeo.schema.fields import (
-    ElementNameFieldData,
-    ElementNameFieldSchema,
-    NameFieldData,
-    NameFieldSchema,
-    PercentageFieldData,
-    PercentageFieldSchema,
-    PowerSensorFieldData,
-    PowerSensorFieldSchema,
+
+from .schema import (
+    CONF_CONNECTION,
+    CONF_EFFICIENCY_AC_TO_DC,
+    CONF_EFFICIENCY_DC_TO_AC,
+    CONF_MAX_POWER_AC_TO_DC,
+    CONF_MAX_POWER_DC_TO_AC,
+    InverterConfigData,
+    InverterConfigSchema,
 )
 
-ELEMENT_TYPE: Final = "inverter"
-
-# Configuration field names
-CONF_CONNECTION: Final = "connection"
-CONF_EFFICIENCY_DC_TO_AC: Final = "efficiency_dc_to_ac"
-CONF_EFFICIENCY_AC_TO_DC: Final = "efficiency_ac_to_dc"
-CONF_MAX_POWER_DC_TO_AC: Final = "max_power_dc_to_ac"
-CONF_MAX_POWER_AC_TO_DC: Final = "max_power_ac_to_dc"
-
-# Inverter-specific sensor names (for translation/output mapping)
+# Inverter output names
 type InverterOutputName = Literal[
     "inverter_power_dc_to_ac",
     "inverter_power_ac_to_dc",
@@ -66,40 +59,54 @@ INVERTER_OUTPUT_NAMES: Final[frozenset[InverterOutputName]] = frozenset(
 type InverterDeviceName = Literal["inverter"]
 
 INVERTER_DEVICE_NAMES: Final[frozenset[InverterDeviceName]] = frozenset(
-    (INVERTER_DEVICE_INVERTER := ELEMENT_TYPE,),
+    (INVERTER_DEVICE_INVERTER := "inverter",),
 )
 
-# Field type aliases with defaults
-EfficiencyFieldSchema = Annotated[PercentageFieldSchema, Default(value=100.0)]
-EfficiencyFieldData = Annotated[PercentageFieldData, Default(value=100.0)]
+
+def available(config: InverterConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
+    """Check if inverter configuration can be loaded."""
+    ts_loader = TimeSeriesLoader()
+    if not ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_DC_TO_AC]):
+        return False
+    return ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC])
 
 
-class InverterConfigSchema(TypedDict):
-    """Inverter element configuration."""
+async def load(
+    config: InverterConfigSchema,
+    *,
+    hass: HomeAssistant,
+    forecast_times: Sequence[float],
+) -> InverterConfigData:
+    """Load inverter configuration values from sensors."""
+    ts_loader = TimeSeriesLoader()
+    const_loader = ConstantLoader[float](float)
 
-    element_type: Literal["inverter"]
-    name: NameFieldSchema
-    connection: ElementNameFieldSchema  # AC side node to connect to
-    max_power_dc_to_ac: PowerSensorFieldSchema
-    max_power_ac_to_dc: PowerSensorFieldSchema
+    max_power_dc_to_ac = await ts_loader.load(
+        hass=hass,
+        value=config[CONF_MAX_POWER_DC_TO_AC],
+        forecast_times=forecast_times,
+    )
+    max_power_ac_to_dc = await ts_loader.load(
+        hass=hass,
+        value=config[CONF_MAX_POWER_AC_TO_DC],
+        forecast_times=forecast_times,
+    )
 
-    # Optional fields
-    efficiency_dc_to_ac: NotRequired[EfficiencyFieldSchema]
-    efficiency_ac_to_dc: NotRequired[EfficiencyFieldSchema]
+    data: InverterConfigData = {
+        "element_type": config["element_type"],
+        "name": config["name"],
+        "connection": config[CONF_CONNECTION],
+        "max_power_dc_to_ac": max_power_dc_to_ac,
+        "max_power_ac_to_dc": max_power_ac_to_dc,
+    }
 
+    # Load optional fields
+    if CONF_EFFICIENCY_DC_TO_AC in config:
+        data["efficiency_dc_to_ac"] = await const_loader.load(value=config[CONF_EFFICIENCY_DC_TO_AC])
+    if CONF_EFFICIENCY_AC_TO_DC in config:
+        data["efficiency_ac_to_dc"] = await const_loader.load(value=config[CONF_EFFICIENCY_AC_TO_DC])
 
-class InverterConfigData(TypedDict):
-    """Inverter element configuration with loaded sensor values."""
-
-    element_type: Literal["inverter"]
-    name: NameFieldData
-    connection: ElementNameFieldData  # AC side node to connect to
-    max_power_dc_to_ac: PowerSensorFieldData
-    max_power_ac_to_dc: PowerSensorFieldData
-
-    # Optional fields
-    efficiency_dc_to_ac: NotRequired[EfficiencyFieldData]
-    efficiency_ac_to_dc: NotRequired[EfficiencyFieldData]
+    return data
 
 
 def create_model_elements(config: InverterConfigData) -> list[dict[str, Any]]:

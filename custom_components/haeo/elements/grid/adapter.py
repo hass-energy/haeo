@@ -1,9 +1,12 @@
-"""Grid element configuration for HAEO integration."""
+"""Grid element adapter for model layer integration."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal
 
+from homeassistant.core import HomeAssistant
+
+from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
@@ -17,28 +20,10 @@ from custom_components.haeo.model.power_connection import (
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
-from custom_components.haeo.schema.fields import (
-    ElementNameFieldSchema,
-    NameFieldData,
-    NameFieldSchema,
-    PowerFieldData,
-    PowerFieldSchema,
-    PriceSensorsFieldData,
-    PriceSensorsFieldSchema,
-)
 
-ELEMENT_TYPE: Final = "grid"
+from .schema import CONF_CONNECTION, GridConfigData, GridConfigSchema
 
-# Configuration field names
-CONF_IMPORT_PRICE: Final = "import_price"
-CONF_EXPORT_PRICE: Final = "export_price"
-CONF_IMPORT_LIMIT: Final = "import_limit"
-CONF_EXPORT_LIMIT: Final = "export_limit"
-CONF_IMPORT_PRICE_FORECAST: Final = "import_price_forecast"
-CONF_EXPORT_PRICE_FORECAST: Final = "export_price_forecast"
-CONF_CONNECTION: Final = "connection"
-
-# Grid-specific sensor names (for translation/output mapping)
+# Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[
     "grid_power_import",
     "grid_power_export",
@@ -69,41 +54,60 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
 type GridDeviceName = Literal["grid"]
 
 GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset(
-    (GRID_DEVICE_GRID := ELEMENT_TYPE,),
+    (GRID_DEVICE_GRID := "grid",),
 )
 
 
-class GridConfigSchema(TypedDict):
-    """Grid element configuration."""
+def available(config: GridConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
+    """Check if grid configuration can be loaded."""
+    ts_loader = TimeSeriesLoader()
 
-    element_type: Literal["grid"]
-    name: NameFieldSchema
-    connection: ElementNameFieldSchema  # Connection ID that grid connects to
-    import_price: PriceSensorsFieldSchema
-    export_price: PriceSensorsFieldSchema
-
-    # Optional fields
-    import_limit: NotRequired[PowerFieldSchema]
-    export_limit: NotRequired[PowerFieldSchema]
+    # Check required time series fields
+    if not ts_loader.available(hass=hass, value=config["import_price"]):
+        return False
+    return ts_loader.available(hass=hass, value=config["export_price"])
 
 
-class GridConfigData(TypedDict):
-    """Grid element configuration."""
+async def load(
+    config: GridConfigSchema,
+    *,
+    hass: HomeAssistant,
+    forecast_times: Sequence[float],
+) -> GridConfigData:
+    """Load grid configuration values from sensors."""
+    ts_loader = TimeSeriesLoader()
+    const_loader = ConstantLoader[float](float)
 
-    element_type: Literal["grid"]
-    name: NameFieldData
-    connection: ElementNameFieldSchema  # Connection ID that grid connects to
-    import_price: PriceSensorsFieldData
-    export_price: PriceSensorsFieldData
+    import_price = await ts_loader.load(
+        hass=hass,
+        value=config["import_price"],
+        forecast_times=forecast_times,
+    )
+    export_price = await ts_loader.load(
+        hass=hass,
+        value=config["export_price"],
+        forecast_times=forecast_times,
+    )
 
-    # Optional fields
-    import_limit: NotRequired[PowerFieldData]
-    export_limit: NotRequired[PowerFieldData]
+    data: GridConfigData = {
+        "element_type": config["element_type"],
+        "name": config["name"],
+        "connection": config[CONF_CONNECTION],
+        "import_price": import_price,
+        "export_price": export_price,
+    }
+
+    # Load optional fields
+    if "import_limit" in config:
+        data["import_limit"] = await const_loader.load(value=config["import_limit"])
+    if "export_limit" in config:
+        data["export_limit"] = await const_loader.load(value=config["export_limit"])
+
+    return data
 
 
 def create_model_elements(config: GridConfigData) -> list[dict[str, Any]]:
     """Create model elements for Grid configuration."""
-
     return [
         # Create Node for the grid (both source and sink - can import and export)
         {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": True},
@@ -125,7 +129,6 @@ def outputs(
     name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: GridConfigData
 ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
     """Map model outputs to grid-specific output names."""
-
     connection = model_outputs[f"{name}:connection"]
 
     grid_outputs: dict[GridOutputName, OutputData] = {}

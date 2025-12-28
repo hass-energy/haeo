@@ -17,7 +17,7 @@ these metadata into a unified `FieldSpec` for use by schema generation and loadi
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Annotated, Any, Final, Unpack
+from typing import TYPE_CHECKING, Annotated, Any, Final, Unpack
 
 from homeassistant.const import CURRENCY_DOLLAR, PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.selector import (
@@ -35,10 +35,11 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-from custom_components.haeo.data.loader.extractors import EntityMetadata
-
 from .params import SchemaParams
 from .util import UnitSpec
+
+if TYPE_CHECKING:
+    from custom_components.haeo.data.loader.extractors import EntityMetadata
 
 # Default metadata type
 

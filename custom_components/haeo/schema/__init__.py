@@ -1,40 +1,26 @@
 """Schema utilities for HAEO type configurations."""
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, Union, Unpack, cast, get_args, get_origin, get_type_hints
 from typing import get_origin as typing_get_origin
 
-from homeassistant.core import HomeAssistant
 import voluptuous as vol
-
-from custom_components.haeo.data.loader import ConstantLoader, Loader, TimeSeriesLoader
-from custom_components.haeo.data.loader.extractors import EntityMetadata
 
 from .fields import Constant, Default, LoaderMeta, TimeSeries, Validator
 from .params import SchemaParams
 
+if TYPE_CHECKING:
+    from custom_components.haeo.data.loader import Loader
+
 __all__ = [
     "Default",
-    "EntityMetadata",
     "FieldSpec",
-    "available",
     "compose_field",
     "get_default",
     "get_loader_instance",
     "get_schema_defaults",
-    "load",
     "schema_for_type",
 ]
-
-
-if TYPE_CHECKING:
-    from custom_components.haeo.elements import (
-        ElementConfigData,
-        ElementConfigSchema,
-        ElementRegistryEntry,
-        ElementType,
-    )
 
 
 @dataclass(frozen=True)
@@ -123,7 +109,7 @@ def get_default[T](field_name: str, config_class: type, fallback: T) -> T:
     return fallback
 
 
-def _get_loader_from_meta(loader_meta: LoaderMeta | None) -> Loader:
+def _get_loader_from_meta(loader_meta: LoaderMeta | None) -> "Loader":
     """Create a loader instance from a loader metadata marker.
 
     Args:
@@ -133,6 +119,9 @@ def _get_loader_from_meta(loader_meta: LoaderMeta | None) -> Loader:
         Concrete loader instance.
 
     """
+    # Import locally to avoid circular import
+    from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader  # noqa: PLC0415
+
     match loader_meta:
         case Constant(value_type=value_type):
             return ConstantLoader[Any](value_type)
@@ -142,16 +131,7 @@ def _get_loader_from_meta(loader_meta: LoaderMeta | None) -> Loader:
             return ConstantLoader[Any](object)
 
 
-def _get_registry_entry(element_type: "ElementType") -> "ElementRegistryEntry":
-    """Look up the registry entry for an element type."""
-
-    # Import here to avoid circular import
-    from custom_components.haeo.elements import ELEMENT_TYPES  # noqa: PLC0415
-
-    return ELEMENT_TYPES[element_type]
-
-
-def get_loader_instance(field_name: str, config_class: type) -> Loader:
+def get_loader_instance(field_name: str, config_class: type) -> "Loader":
     """Extract the loader instance from a field's annotation.
 
     Args:
@@ -162,6 +142,9 @@ def get_loader_instance(field_name: str, config_class: type) -> Loader:
         The loader instance
 
     """
+    # Import locally to avoid circular import
+    from custom_components.haeo.data.loader import ConstantLoader  # noqa: PLC0415
+
     hints = get_type_hints(config_class, include_extras=True)
     field_type = hints.get(field_name)
     if field_type is None:
@@ -169,80 +152,6 @@ def get_loader_instance(field_name: str, config_class: type) -> Loader:
 
     spec = compose_field(field_type)
     return _get_loader_from_meta(spec.loader)
-
-
-def available(
-    config: "ElementConfigSchema",
-    **kwargs: Any,
-) -> bool:
-    """Check if all fields in a config are available for loading.
-
-    Args:
-        config: Schema mode config (with entity IDs)
-        **kwargs: Additional arguments passed to loader.available() (e.g., hass, forecast_times)
-
-    Returns:
-        True if all required fields are available for loading
-
-    """
-    # Look up data class from element type
-    # Element type must be valid since it was validated during config flow
-    element_type = config["element_type"]
-    data_config_class = _get_registry_entry(element_type).data
-
-    hints = get_type_hints(data_config_class, include_extras=True)
-
-    for field_name in hints:
-        # Skip metadata fields
-        if field_name in ("element_type", "name"):
-            continue
-
-        field_value = config.get(field_name)
-        if field_value is None:
-            continue  # Skip optional fields that weren't provided
-
-        # Get loader and check availability
-        loader_instance = get_loader_instance(field_name, data_config_class)
-        if not loader_instance.available(value=field_value, **kwargs):
-            return False
-
-    return True
-
-
-async def load(
-    config: "ElementConfigSchema", hass: HomeAssistant, forecast_times: Sequence[float]
-) -> "ElementConfigData":
-    """Load all fields in a config, converting from Schema to Data mode.
-
-    Args:
-        config: Schema mode config (with entity IDs)
-        hass: Home Assistant instance
-        forecast_times: Time intervals for data aggregation.
-
-    Returns:
-        Data mode config (with loaded values)
-
-    """
-    # Look up data class from element type
-    # Element type must be valid since it was validated during config flow
-    element_type = config["element_type"]
-    data_config_class = _get_registry_entry(element_type).data
-
-    hints = get_type_hints(data_config_class, include_extras=True)
-    loaded: dict[str, Any] = {}
-
-    for field_name in hints:
-        field_value = config.get(field_name)
-
-        # Pass through metadata fields and None values
-        if field_value is None:
-            continue  # Skip optional fields
-
-        # Get loader and load the field
-        loader_instance = get_loader_instance(field_name, data_config_class)
-        loaded[field_name] = await loader_instance.load(value=field_value, hass=hass, forecast_times=forecast_times)
-
-    return cast("ElementConfigData", loaded)
 
 
 def _get_annotated_fields(cls: type) -> dict[str, tuple[Validator, bool]]:

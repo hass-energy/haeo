@@ -2,18 +2,18 @@
 
 import pytest
 
-from custom_components.haeo.elements.battery import _sum_output_data
+from custom_components.haeo.elements.battery import sum_output_data
 from custom_components.haeo.model.output_data import OutputData
 
 
 def test_sum_output_data_raises_on_empty_list() -> None:
-    """_sum_output_data raises ValueError when given an empty list."""
+    """sum_output_data raises ValueError when given an empty list."""
     with pytest.raises(ValueError, match="Cannot sum empty list of outputs"):
-        _sum_output_data([])
+        sum_output_data([])
 
 
 def test_sum_output_data_sums_multiple_outputs() -> None:
-    """_sum_output_data correctly sums values from multiple OutputData objects."""
+    """sum_output_data correctly sums values from multiple OutputData objects."""
     output1 = OutputData(
         type="power",
         unit="kW",
@@ -29,7 +29,7 @@ def test_sum_output_data_sums_multiple_outputs() -> None:
         advanced=False,
     )
 
-    result = _sum_output_data([output1, output2])
+    result = sum_output_data([output1, output2])
 
     assert result.type == "power"
     assert result.unit == "kW"

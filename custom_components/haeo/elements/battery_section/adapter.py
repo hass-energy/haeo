@@ -1,30 +1,18 @@
-"""Battery section element configuration for HAEO integration.
+"""Battery section element adapter for model layer integration."""
 
-This is an advanced element that provides direct access to the model layer Battery element.
-Unlike the standard Battery element which creates multiple sections and an internal node,
-this element creates a single battery section that must be connected manually via Connection.
-"""
-
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Any, Final, Literal, TypedDict
+from typing import Any, Final, Literal
 
+from homeassistant.core import HomeAssistant
+
+from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.schema.fields import (
-    EnergySensorFieldData,
-    EnergySensorFieldSchema,
-    NameFieldData,
-    NameFieldSchema,
-)
 
-ELEMENT_TYPE: Final = "battery_section"
-
-# Configuration field names
-CONF_CAPACITY: Final = "capacity"
-CONF_INITIAL_CHARGE: Final = "initial_charge"
+from .schema import CONF_CAPACITY, CONF_INITIAL_CHARGE, BatterySectionConfigData, BatterySectionConfigSchema
 
 type BatterySectionOutputName = Literal[
     "battery_section_power_charge",
@@ -55,31 +43,37 @@ BATTERY_SECTION_OUTPUT_NAMES: Final[frozenset[BatterySectionOutputName]] = froze
 type BatterySectionDeviceName = Literal["battery_section"]
 
 BATTERY_SECTION_DEVICE_NAMES: Final[frozenset[BatterySectionDeviceName]] = frozenset(
-    (BATTERY_SECTION_DEVICE := ELEMENT_TYPE,),
+    (BATTERY_SECTION_DEVICE := "battery_section",),
 )
 
 
-class BatterySectionConfigSchema(TypedDict):
-    """Battery section element configuration.
+def available(config: BatterySectionConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
+    """Check if battery section configuration can be loaded."""
+    ts_loader = TimeSeriesLoader()
 
-    A single battery section with capacity and initial charge. Unlike the standard Battery
-    element, this does not create an internal node or implicit connections.
-    Connect to other elements using explicit Connection elements.
-    """
-
-    element_type: Literal["battery_section"]
-    name: NameFieldSchema
-    capacity: EnergySensorFieldSchema
-    initial_charge: EnergySensorFieldSchema
+    # Check required time series fields
+    required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
+    return all(ts_loader.available(hass=hass, value=config[field]) for field in required_fields)
 
 
-class BatterySectionConfigData(TypedDict):
-    """Battery section element configuration with loaded values."""
+async def load(
+    config: BatterySectionConfigSchema,
+    *,
+    hass: HomeAssistant,
+    forecast_times: Sequence[float],
+) -> BatterySectionConfigData:
+    """Load battery section configuration values from sensors."""
+    ts_loader = TimeSeriesLoader()
 
-    element_type: Literal["battery_section"]
-    name: NameFieldData
-    capacity: EnergySensorFieldData
-    initial_charge: EnergySensorFieldData
+    capacity = await ts_loader.load(hass=hass, value=config[CONF_CAPACITY], forecast_times=forecast_times)
+    initial_charge = await ts_loader.load(hass=hass, value=config[CONF_INITIAL_CHARGE], forecast_times=forecast_times)
+
+    return {
+        "element_type": config["element_type"],
+        "name": config["name"],
+        "capacity": capacity,
+        "initial_charge": initial_charge,
+    }
 
 
 def create_model_elements(config: BatterySectionConfigData) -> list[dict[str, Any]]:

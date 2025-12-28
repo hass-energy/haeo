@@ -1,71 +1,42 @@
-"""Battery element configuration for HAEO integration."""
+"""Battery element adapter for model layer integration."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal
 
+from homeassistant.core import HomeAssistant
 import numpy as np
 
+from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import power_connection as model_connection
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SOC
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.schema import Default, get_default
-from custom_components.haeo.schema.fields import (
-    BatterySOCFieldData,
-    BatterySOCFieldSchema,
-    BatterySOCSensorFieldData,
-    BatterySOCSensorFieldSchema,
-    ElementNameFieldSchema,
-    EnergySensorFieldData,
-    EnergySensorFieldSchema,
-    NameFieldData,
-    NameFieldSchema,
-    PercentageFieldData,
-    PercentageFieldSchema,
-    PowerSensorFieldData,
-    PowerSensorFieldSchema,
-    PriceFieldData,
-    PriceFieldSchema,
-    PriceSensorsFieldData,
-    PriceSensorsFieldSchema,
+
+from .schema import (
+    CONF_CAPACITY,
+    CONF_CONNECTION,
+    CONF_DISCHARGE_COST,
+    CONF_EARLY_CHARGE_INCENTIVE,
+    CONF_EFFICIENCY,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_POWER,
+    CONF_MAX_DISCHARGE_POWER,
+    CONF_MIN_CHARGE_PERCENTAGE,
+    CONF_OVERCHARGE_COST,
+    CONF_OVERCHARGE_PERCENTAGE,
+    CONF_UNDERCHARGE_COST,
+    CONF_UNDERCHARGE_PERCENTAGE,
+    DEFAULT_EARLY_CHARGE_INCENTIVE,
+    DEFAULT_EFFICIENCY,
+    DEFAULT_MAX_CHARGE_PERCENTAGE,
+    DEFAULT_MIN_CHARGE_PERCENTAGE,
+    BatteryConfigData,
+    BatteryConfigSchema,
 )
-
-ELEMENT_TYPE: Final = "battery"
-
-type BatteryDeviceName = Literal[
-    "battery",
-    "battery_device_undercharge",
-    "battery_device_normal",
-    "battery_device_overcharge",
-]
-
-BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset(
-    (
-        BATTERY_DEVICE_BATTERY := ELEMENT_TYPE,
-        BATTERY_DEVICE_UNDERCHARGE := "battery_device_undercharge",
-        BATTERY_DEVICE_NORMAL := "battery_device_normal",
-        BATTERY_DEVICE_OVERCHARGE := "battery_device_overcharge",
-    )
-)
-
-# Configuration field names
-CONF_CAPACITY: Final = "capacity"
-CONF_INITIAL_CHARGE_PERCENTAGE: Final = "initial_charge_percentage"
-CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
-CONF_MAX_CHARGE_PERCENTAGE: Final = "max_charge_percentage"
-CONF_EFFICIENCY: Final = "efficiency"
-CONF_MAX_CHARGE_POWER: Final = "max_charge_power"
-CONF_MAX_DISCHARGE_POWER: Final = "max_discharge_power"
-CONF_EARLY_CHARGE_INCENTIVE: Final = "early_charge_incentive"
-CONF_DISCHARGE_COST: Final = "discharge_cost"
-CONF_UNDERCHARGE_PERCENTAGE: Final = "undercharge_percentage"
-CONF_OVERCHARGE_PERCENTAGE: Final = "overcharge_percentage"
-CONF_UNDERCHARGE_COST: Final = "undercharge_cost"
-CONF_OVERCHARGE_COST: Final = "overcharge_cost"
-CONF_CONNECTION: Final = "connection"
 
 type BatteryOutputName = Literal[
     "battery_power_charge",
@@ -99,57 +70,108 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
     )
 )
 
-# Field type aliases with defaults
-MinChargePercentageFieldSchema = Annotated[BatterySOCFieldSchema, Default(value=0.0)]
-MinChargePercentageFieldData = Annotated[BatterySOCFieldData, Default(value=0.0)]
-MaxChargePercentageFieldSchema = Annotated[BatterySOCFieldSchema, Default(value=100.0)]
-MaxChargePercentageFieldData = Annotated[BatterySOCFieldData, Default(value=100.0)]
-EfficiencyFieldSchema = Annotated[PercentageFieldSchema, Default(value=99.0)]
-EfficiencyFieldData = Annotated[PercentageFieldData, Default(value=99.0)]
-EarlyChargeIncentiveFieldSchema = Annotated[PriceFieldSchema, Default(value=0.001)]
-EarlyChargeIncentiveFieldData = Annotated[PriceFieldData, Default(value=0.001)]
+type BatteryDeviceName = Literal[
+    "battery",
+    "battery_device_undercharge",
+    "battery_device_normal",
+    "battery_device_overcharge",
+]
+
+BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset(
+    (
+        BATTERY_DEVICE_BATTERY := "battery",
+        BATTERY_DEVICE_UNDERCHARGE := "battery_device_undercharge",
+        BATTERY_DEVICE_NORMAL := "battery_device_normal",
+        BATTERY_DEVICE_OVERCHARGE := "battery_device_overcharge",
+    )
+)
 
 
-class BatteryConfigSchema(TypedDict):
-    """Battery configuration with sensor entity IDs."""
+def available(config: BatteryConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
+    """Check if battery configuration can be loaded."""
+    ts_loader = TimeSeriesLoader()
 
-    element_type: Literal["battery"]
-    name: NameFieldSchema
-    connection: ElementNameFieldSchema  # Connection ID that battery connects to
-    capacity: EnergySensorFieldSchema
-    initial_charge_percentage: BatterySOCSensorFieldSchema
-    min_charge_percentage: MinChargePercentageFieldSchema
-    max_charge_percentage: MaxChargePercentageFieldSchema
-    efficiency: EfficiencyFieldSchema
-    max_charge_power: NotRequired[PowerSensorFieldSchema]
-    max_discharge_power: NotRequired[PowerSensorFieldSchema]
-    early_charge_incentive: NotRequired[EarlyChargeIncentiveFieldSchema]
-    discharge_cost: NotRequired[PriceSensorsFieldSchema]
-    undercharge_percentage: NotRequired[BatterySOCFieldSchema]
-    overcharge_percentage: NotRequired[BatterySOCFieldSchema]
-    undercharge_cost: NotRequired[PriceSensorsFieldSchema]
-    overcharge_cost: NotRequired[PriceSensorsFieldSchema]
+    # Check required time series fields
+    required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE]
+    for field in required_fields:
+        if not ts_loader.available(hass=hass, value=config[field]):
+            return False
+
+    # Check optional time series fields if present
+    optional_ts_fields = [
+        CONF_MAX_CHARGE_POWER,
+        CONF_MAX_DISCHARGE_POWER,
+        CONF_DISCHARGE_COST,
+        CONF_UNDERCHARGE_COST,
+        CONF_OVERCHARGE_COST,
+    ]
+    for field in optional_ts_fields:
+        if field in config and not ts_loader.available(hass=hass, value=config[field]):
+            return False
+
+    return True
 
 
-class BatteryConfigData(TypedDict):
-    """Battery configuration with loaded sensor values."""
+async def load(
+    config: BatteryConfigSchema,
+    *,
+    hass: HomeAssistant,
+    forecast_times: Sequence[float],
+) -> BatteryConfigData:
+    """Load battery configuration values from sensors."""
+    ts_loader = TimeSeriesLoader()
 
-    element_type: Literal["battery"]
-    name: NameFieldData
-    connection: ElementNameFieldSchema  # Connection ID that battery connects to
-    capacity: EnergySensorFieldData
-    initial_charge_percentage: BatterySOCSensorFieldData
-    min_charge_percentage: MinChargePercentageFieldData
-    max_charge_percentage: MaxChargePercentageFieldData
-    efficiency: EfficiencyFieldData
-    max_charge_power: NotRequired[PowerSensorFieldData]
-    max_discharge_power: NotRequired[PowerSensorFieldData]
-    early_charge_incentive: NotRequired[EarlyChargeIncentiveFieldData]
-    discharge_cost: NotRequired[PriceSensorsFieldData]
-    undercharge_percentage: NotRequired[BatterySOCFieldData]
-    overcharge_percentage: NotRequired[BatterySOCFieldData]
-    undercharge_cost: NotRequired[PriceSensorsFieldData]
-    overcharge_cost: NotRequired[PriceSensorsFieldData]
+    # Load required time series
+    capacity = await ts_loader.load(hass=hass, value=config[CONF_CAPACITY], forecast_times=forecast_times)
+    initial_charge = await ts_loader.load(
+        hass=hass, value=config[CONF_INITIAL_CHARGE_PERCENTAGE], forecast_times=forecast_times
+    )
+
+    # Build data with defaults applied
+    data: BatteryConfigData = {
+        "element_type": config["element_type"],
+        "name": config["name"],
+        "connection": config[CONF_CONNECTION],
+        "capacity": capacity,
+        "initial_charge_percentage": initial_charge,
+        "min_charge_percentage": config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULT_MIN_CHARGE_PERCENTAGE),
+        "max_charge_percentage": config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULT_MAX_CHARGE_PERCENTAGE),
+        "efficiency": config.get(CONF_EFFICIENCY, DEFAULT_EFFICIENCY),
+    }
+
+    # Load optional time series fields
+    if CONF_MAX_CHARGE_POWER in config:
+        data["max_charge_power"] = await ts_loader.load(
+            hass=hass, value=config[CONF_MAX_CHARGE_POWER], forecast_times=forecast_times
+        )
+    if CONF_MAX_DISCHARGE_POWER in config:
+        data["max_discharge_power"] = await ts_loader.load(
+            hass=hass, value=config[CONF_MAX_DISCHARGE_POWER], forecast_times=forecast_times
+        )
+    if CONF_DISCHARGE_COST in config:
+        data["discharge_cost"] = await ts_loader.load(
+            hass=hass, value=config[CONF_DISCHARGE_COST], forecast_times=forecast_times
+        )
+
+    # Load optional scalars
+    if CONF_EARLY_CHARGE_INCENTIVE in config:
+        data["early_charge_incentive"] = config[CONF_EARLY_CHARGE_INCENTIVE]
+    if CONF_UNDERCHARGE_PERCENTAGE in config:
+        data["undercharge_percentage"] = config[CONF_UNDERCHARGE_PERCENTAGE]
+    if CONF_OVERCHARGE_PERCENTAGE in config:
+        data["overcharge_percentage"] = config[CONF_OVERCHARGE_PERCENTAGE]
+
+    # Load optional undercharge/overcharge costs
+    if CONF_UNDERCHARGE_COST in config:
+        data["undercharge_cost"] = await ts_loader.load(
+            hass=hass, value=config[CONF_UNDERCHARGE_COST], forecast_times=forecast_times
+        )
+    if CONF_OVERCHARGE_COST in config:
+        data["overcharge_cost"] = await ts_loader.load(
+            hass=hass, value=config[CONF_OVERCHARGE_COST], forecast_times=forecast_times
+        )
+
+    return data
 
 
 def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
@@ -177,10 +199,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     initial_soc_ratio = initial_soc / 100.0
 
     # Calculate early charge/discharge incentives
-    early_charge_incentive = config.get(
-        "early_charge_incentive",
-        get_default("early_charge_incentive", BatteryConfigData, 0.0),
-    )
+    early_charge_incentive = config.get("early_charge_incentive", DEFAULT_EARLY_CHARGE_INCENTIVE)
 
     # Determine unusable ratio (inaccessible energy)
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
@@ -321,7 +340,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: BatteryConfigData
+    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], config: BatteryConfigData
 ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
     """Map model outputs to battery-specific output names.
 
@@ -334,33 +353,33 @@ def outputs(
 
     # Check for undercharge section
     undercharge_name = f"{name}:undercharge"
-    if undercharge_name in outputs:
-        section_outputs["undercharge"] = outputs[undercharge_name]
+    if undercharge_name in model_outputs:
+        section_outputs["undercharge"] = model_outputs[undercharge_name]
         section_names.append("undercharge")
 
     # Normal section (always present)
     normal_name = f"{name}:normal"
-    if normal_name in outputs:
-        section_outputs["normal"] = outputs[normal_name]
+    if normal_name in model_outputs:
+        section_outputs["normal"] = model_outputs[normal_name]
         section_names.append("normal")
 
     # Check for overcharge section
     overcharge_name = f"{name}:overcharge"
-    if overcharge_name in outputs:
-        section_outputs["overcharge"] = outputs[overcharge_name]
+    if overcharge_name in model_outputs:
+        section_outputs["overcharge"] = model_outputs[overcharge_name]
         section_names.append("overcharge")
 
     # Get node outputs for power balance
     node_name = f"{name}:node"
-    node_outputs = outputs.get(node_name, {})
+    node_outputs = model_outputs.get(node_name, {})
 
     # Get connection outputs for prices
     connection_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {}
     for section_key in section_names:
         section_full_name = f"{name}:{section_key}"
         conn_name = f"{section_full_name}:to_node"
-        if conn_name in outputs:
-            connection_outputs[section_key] = outputs[conn_name]
+        if conn_name in model_outputs:
+            connection_outputs[section_key] = model_outputs[conn_name]
 
     # Calculate aggregate outputs
     # Sum power charge/discharge across all sections
@@ -371,9 +390,9 @@ def outputs(
     all_energy_stored = [section[model_battery.BATTERY_ENERGY_STORED] for section in section_outputs.values()]
 
     # Aggregate power values
-    aggregate_power_charge = _sum_output_data(all_power_charge)
-    aggregate_power_discharge = _sum_output_data(all_power_discharge)
-    aggregate_energy_stored = _sum_output_data(all_energy_stored)
+    aggregate_power_charge = sum_output_data(all_power_charge)
+    aggregate_power_discharge = sum_output_data(all_power_discharge)
+    aggregate_energy_stored = sum_output_data(all_energy_stored)
 
     # Calculate total energy stored (including inaccessible energy below min SOC)
     total_energy_stored = _calculate_total_energy(aggregate_energy_stored, config)
@@ -446,7 +465,7 @@ def outputs(
     return result
 
 
-def _sum_output_data(outputs: list[OutputData]) -> OutputData:
+def sum_output_data(outputs: list[OutputData]) -> OutputData:
     """Sum multiple OutputData objects."""
     if not outputs:
         msg = "Cannot sum empty list of outputs"

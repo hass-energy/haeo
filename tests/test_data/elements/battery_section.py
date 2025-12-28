@@ -28,8 +28,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
         "schema": battery_section_element.BatterySectionConfigSchema(
             element_type="battery_section",
             name="test_section",
-            capacity="sensor.capacity",
-            initial_charge="sensor.initial_charge",
+            capacity=["sensor.capacity"],
+            initial_charge=["sensor.initial_charge"],
         ),
         "data": BatterySectionConfigData(
             element_type="battery_section",
@@ -77,8 +77,8 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
         "schema": battery_section_element.BatterySectionConfigSchema(
             element_type="battery_section",
             name="test_section_minimal",
-            capacity="sensor.capacity",
-            initial_charge="sensor.initial_charge",
+            capacity=["sensor.capacity"],
+            initial_charge=["sensor.initial_charge"],
         ),
         "data": BatterySectionConfigData(
             element_type="battery_section",

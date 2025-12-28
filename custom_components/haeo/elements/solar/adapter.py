@@ -1,9 +1,12 @@
-"""Solar element configuration for HAEO integration."""
+"""Solar element adapter for model layer integration."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal
 
+from homeassistant.core import HomeAssistant
+
+from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
@@ -13,34 +16,22 @@ from custom_components.haeo.model.power_connection import (
     CONNECTION_PRICE_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
-from custom_components.haeo.schema import Default
-from custom_components.haeo.schema.fields import (
-    BooleanFieldData,
-    BooleanFieldSchema,
-    ElementNameFieldData,
-    ElementNameFieldSchema,
-    NameFieldData,
-    NameFieldSchema,
-    PowerSensorsFieldData,
-    PowerSensorsFieldSchema,
-    PriceFieldData,
-    PriceFieldSchema,
+
+from .schema import (
+    CONF_CONNECTION,
+    CONF_CURTAILMENT,
+    CONF_FORECAST,
+    CONF_PRICE_PRODUCTION,
+    DEFAULT_CURTAILMENT,
+    SolarConfigData,
+    SolarConfigSchema,
 )
 
-ELEMENT_TYPE: Final = "solar"
-
-# Configuration field names
-CONF_FORECAST: Final = "forecast"
-CONF_PRICE_PRODUCTION: Final = "price_production"
-CONF_PRICE_CONSUMPTION: Final = "price_consumption"
-CONF_CURTAILMENT: Final = "curtailment"
-CONF_CONNECTION: Final = "connection"
-
+# Solar output names
 type SolarOutputName = Literal[
     "solar_power",
     "solar_power_available",
     "solar_price",
-    # Shadow prices
     "solar_forecast_limit",
 ]
 
@@ -56,42 +47,50 @@ SOLAR_OUTPUT_NAMES: Final[frozenset[SolarOutputName]] = frozenset(
 
 type SolarDeviceName = Literal["solar"]
 
-SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset((SOLAR_DEVICE_SOLAR := ELEMENT_TYPE,))
-
-# Field type aliases with defaults
-CurtailmentFieldSchema = Annotated[BooleanFieldSchema, Default(value=True)]
-CurtailmentFieldData = Annotated[BooleanFieldData, Default(value=True)]
+SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset((SOLAR_DEVICE_SOLAR := "solar",))
 
 
-class SolarConfigSchema(TypedDict):
-    """Solar element configuration."""
-
-    element_type: Literal["solar"]
-    name: NameFieldSchema
-    connection: ElementNameFieldSchema  # Node to connect to
-    forecast: PowerSensorsFieldSchema
-
-    # Optional fields
-    price_production: NotRequired[PriceFieldSchema]
-    curtailment: NotRequired[CurtailmentFieldSchema]
+def available(config: SolarConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
+    """Check if solar configuration can be loaded."""
+    ts_loader = TimeSeriesLoader()
+    return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
 
-class SolarConfigData(TypedDict):
-    """Solar element configuration."""
+async def load(
+    config: SolarConfigSchema,
+    *,
+    hass: HomeAssistant,
+    forecast_times: Sequence[float],
+) -> SolarConfigData:
+    """Load solar configuration values from sensors."""
+    ts_loader = TimeSeriesLoader()
+    const_loader_float = ConstantLoader[float](float)
+    const_loader_bool = ConstantLoader[bool](bool)
 
-    element_type: Literal["solar"]
-    name: NameFieldData
-    connection: ElementNameFieldData  # Node to connect to
-    forecast: PowerSensorsFieldData
+    forecast = await ts_loader.load(
+        hass=hass,
+        value=config[CONF_FORECAST],
+        forecast_times=forecast_times,
+    )
 
-    # Optional fields
-    price_production: NotRequired[PriceFieldData]
-    curtailment: NotRequired[CurtailmentFieldData]
+    data: SolarConfigData = {
+        "element_type": config["element_type"],
+        "name": config["name"],
+        "connection": config[CONF_CONNECTION],
+        "forecast": forecast,
+    }
+
+    # Load optional fields
+    if CONF_PRICE_PRODUCTION in config:
+        data["price_production"] = await const_loader_float.load(value=config[CONF_PRICE_PRODUCTION])
+    if CONF_CURTAILMENT in config:
+        data["curtailment"] = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
+
+    return data
 
 
 def create_model_elements(config: SolarConfigData) -> list[dict[str, Any]]:
     """Create model elements for Solar configuration."""
-
     return [
         {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": False},
         {
@@ -101,18 +100,17 @@ def create_model_elements(config: SolarConfigData) -> list[dict[str, Any]]:
             "target": config["connection"],
             "max_power_source_target": config["forecast"],
             "max_power_target_source": 0.0,
-            "fixed_power": not config.get("curtailment", True),
+            "fixed_power": not config.get("curtailment", DEFAULT_CURTAILMENT),
             "price_source_target": config.get("price_production"),
         },
     ]
 
 
 def outputs(
-    name: str, outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: SolarConfigData
+    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: SolarConfigData
 ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
     """Map model outputs to solar-specific output names."""
-
-    connection = outputs[f"{name}:connection"]
+    connection = model_outputs[f"{name}:connection"]
 
     solar_outputs: dict[SolarOutputName, OutputData] = {
         SOLAR_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER),
