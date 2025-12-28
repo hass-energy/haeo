@@ -73,11 +73,15 @@ Implements config flow using DEFAULTS for suggested values:
 ```python
 from .schema import CONF_NAME, CONF_EFFICIENCY, DEFAULTS
 
+
 def _build_schema() -> vol.Schema:
-    return vol.Schema({
-        vol.Required(CONF_NAME): TextSelector(...),
-        vol.Optional(CONF_EFFICIENCY): NumberSelector(...),  # No default here
-    })
+    return vol.Schema(
+        {
+            vol.Required(CONF_NAME): TextSelector(...),
+            vol.Optional(CONF_EFFICIENCY): NumberSelector(...),  # No default here
+        }
+    )
+
 
 # In flow handler:
 schema = _build_schema()
