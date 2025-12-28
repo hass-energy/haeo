@@ -90,16 +90,17 @@ class Network:
             lower_element = self.elements.get(element.target)
 
             if not isinstance(upper_element, Battery):
-                msg = f"Upper element '{element.source}' must be a Battery, got {type(upper_element)}"
+                msg = f"Upper element '{element.source}' is not a battery"
                 raise TypeError(msg)
             if not isinstance(lower_element, Battery):
-                msg = f"Lower element '{element.target}' must be a Battery, got {type(lower_element)}"
+                msg = f"Lower element '{element.target}' is not a battery"
                 raise TypeError(msg)
 
             # set_battery_references handles registration internally
             element.set_battery_references(upper_element, lower_element)
 
         # Register connections immediately when adding Connection elements
+        # (BatteryBalanceConnection already handled above via set_battery_references)
         elif isinstance(element, Connection):
             # Get source and target elements
             source_element = self.elements.get(element.source)

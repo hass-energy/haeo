@@ -20,6 +20,7 @@ CONNECTION_PERIODS = 3
 
 # Model element type strings
 ELEMENT_TYPE_BATTERY = "battery"
+ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION = "battery_balance_connection"
 ELEMENT_TYPE_CONNECTION = "connection"
 ELEMENT_TYPE_NODE = "node"
 
@@ -364,3 +365,61 @@ def test_network_optimize_raises_on_infeasible_network(
     # This should raise ValueError with the error message from optimize()
     with pytest.raises(ValueError, match="Optimization failed with status:"):
         network.optimize()
+
+
+def test_add_battery_balance_connection() -> None:
+    """Test adding a battery balance connection via Network.add()."""
+    network = Network(name="test_network", periods=[1.0] * 3)
+
+    # Add two battery sections
+    network.add(ELEMENT_TYPE_BATTERY, "upper_section", capacity=10.0, initial_charge=5.0)
+    network.add(ELEMENT_TYPE_BATTERY, "lower_section", capacity=10.0, initial_charge=5.0)
+
+    # Add battery balance connection
+    balance = network.add(
+        ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+        "balance",
+        upper="upper_section",
+        lower="lower_section",
+        capacity_lower=10.0,
+    )
+
+    assert balance is not None
+    assert balance.name == "balance"
+    assert "balance" in network.elements
+
+
+def test_add_battery_balance_connection_upper_not_battery() -> None:
+    """Test battery balance connection raises TypeError when upper is not a battery."""
+    network = Network(name="test_network", periods=[1.0] * 3)
+
+    # Add a node (not a battery) as upper
+    network.add(ELEMENT_TYPE_NODE, "not_a_battery", is_sink=True, is_source=True)
+    network.add(ELEMENT_TYPE_BATTERY, "lower_section", capacity=10.0, initial_charge=5.0)
+
+    with pytest.raises(TypeError, match="Upper element 'not_a_battery' is not a battery"):
+        network.add(
+            ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+            "balance",
+            upper="not_a_battery",
+            lower="lower_section",
+            capacity_lower=10.0,
+        )
+
+
+def test_add_battery_balance_connection_lower_not_battery() -> None:
+    """Test battery balance connection raises TypeError when lower is not a battery."""
+    network = Network(name="test_network", periods=[1.0] * 3)
+
+    # Add battery as upper, node as lower
+    network.add(ELEMENT_TYPE_BATTERY, "upper_section", capacity=10.0, initial_charge=5.0)
+    network.add(ELEMENT_TYPE_NODE, "not_a_battery", is_sink=True, is_source=True)
+
+    with pytest.raises(TypeError, match="Lower element 'not_a_battery' is not a battery"):
+        network.add(
+            ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+            "balance",
+            upper="upper_section",
+            lower="not_a_battery",
+            capacity_lower=10.0,
+        )
