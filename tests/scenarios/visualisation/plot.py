@@ -173,7 +173,6 @@ def _compute_required_soc(forecast_data: dict[str, ForecastData]) -> Sequence[tu
         return None
 
     # Find total battery capacity by looking at stored_energy and SOC relationship
-    # Capacity = stored_energy / (soc / 100)
     total_capacity = 0.0
     for data in forecast_data.values():
         if "stored_energy" in data and "soc" in data:

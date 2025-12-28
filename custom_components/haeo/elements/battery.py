@@ -213,10 +213,9 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     dynamic_undercharge_capacity: list[float] | None = None
 
     # 1. Undercharge section (dynamic or static)
-    if has_dynamic_undercharge:
+    if has_dynamic_undercharge and required_energy is not None:
         # Dynamic mode: undercharge capacity = required_energy per timestep
         # required_energy has n_periods + 1 values (fence-post for energy boundaries)
-        assert required_energy is not None  # Guaranteed by has_dynamic_undercharge check
         section_name = f"{name}:undercharge"
         section_names.append(section_name)
 

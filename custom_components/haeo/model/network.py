@@ -91,10 +91,10 @@ class Network:
 
             if not isinstance(upper_element, Battery):
                 msg = f"Upper element '{element.source}' must be a Battery, got {type(upper_element)}"
-                raise ValueError(msg)
+                raise TypeError(msg)
             if not isinstance(lower_element, Battery):
                 msg = f"Lower element '{element.target}' must be a Battery, got {type(lower_element)}"
-                raise ValueError(msg)
+                raise TypeError(msg)
 
             # set_battery_references handles registration internally
             element.set_battery_references(upper_element, lower_element)

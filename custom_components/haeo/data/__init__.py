@@ -25,13 +25,7 @@ from custom_components.haeo.const import (
     DEFAULT_BLACKOUT_DURATION_HOURS,
     DEFAULT_BLACKOUT_PROTECTION,
 )
-from custom_components.haeo.elements import (
-    ELEMENT_TYPE_BATTERY,
-    ELEMENT_TYPE_CONNECTION,
-    ELEMENT_TYPES,
-    ElementConfigData,
-    ElementConfigSchema,
-)
+from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPES, ElementConfigData, ElementConfigSchema
 from custom_components.haeo.model import Network
 from custom_components.haeo.schema import available as config_available
 from custom_components.haeo.schema import load as config_load
@@ -127,17 +121,18 @@ async def load_network(
 
     # Collect all model elements from all config elements
     all_model_elements: list[dict[str, Any]] = []
-    for loaded_params in participants.values():
+    for element_params in participants.values():
         # Use registry entry to create model elements from configuration element
-        element_type = loaded_params[CONF_ELEMENT_TYPE]
+        element_type = element_params[CONF_ELEMENT_TYPE]
 
         # For battery elements, inject required_energy when blackout protection is enabled
         # This enables dynamic undercharge sizing based on energy needs
+        params_to_use: ElementConfigData = element_params
         if element_type == ELEMENT_TYPE_BATTERY and blackout_protection:
-            loaded_params = dict(loaded_params)  # Make a mutable copy
-            loaded_params["required_energy"] = energy_result.required_energy
+            params_to_use = dict(element_params)  # type: ignore[assignment]
+            params_to_use["required_energy"] = energy_result.required_energy  # type: ignore[typeddict-unknown-key]
 
-        model_elements = ELEMENT_TYPES[element_type].create_model_elements(loaded_params)
+        model_elements = ELEMENT_TYPES[element_type].create_model_elements(params_to_use)
         all_model_elements.extend(model_elements)
 
     # Sort all model elements so connections are added last
