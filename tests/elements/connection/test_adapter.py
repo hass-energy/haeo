@@ -24,7 +24,7 @@ async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistan
         "target": "node_b",
     }
 
-    result = connection.available(config, hass=hass)
+    result = connection.adapter.available(config, hass=hass)
     assert result is True
 
 
@@ -50,7 +50,7 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
         "price_target_source": ["sensor.price_ts"],
     }
 
-    result = connection.available(config, hass=hass)
+    result = connection.adapter.available(config, hass=hass)
     assert result is True
 
 
@@ -68,7 +68,7 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
         "max_power_target_source": ["sensor.missing"],
     }
 
-    result = connection.available(config, hass=hass)
+    result = connection.adapter.available(config, hass=hass)
     assert result is False
 
 
@@ -94,7 +94,7 @@ async def test_load_with_all_optional_fields(hass: HomeAssistant) -> None:
         "price_target_source": ["sensor.price_ts"],
     }
 
-    result = await connection.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await connection.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result["element_type"] == "connection"
     assert result["name"] == "c1"
@@ -118,7 +118,7 @@ async def test_load_without_optional_fields(hass: HomeAssistant) -> None:
         "target": "node_b",
     }
 
-    result = await connection.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await connection.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result["element_type"] == "connection"
     assert result["name"] == "c1"

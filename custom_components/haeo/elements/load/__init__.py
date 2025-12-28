@@ -7,12 +7,10 @@ from .adapter import (
     LOAD_OUTPUT_NAMES,
     LOAD_POWER,
     LOAD_POWER_POSSIBLE,
+    LoadAdapter,
     LoadDeviceName,
     LoadOutputName,
-    available,
-    create_model_elements,
-    load,
-    outputs,
+    adapter,
 )
 from .flow import LoadSubentryFlowHandler
 from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
@@ -29,14 +27,12 @@ __all__ = [
     "LOAD_OUTPUT_NAMES",
     "LOAD_POWER",
     "LOAD_POWER_POSSIBLE",
+    "LoadAdapter",
     "LoadConfigData",
     "LoadConfigSchema",
     "LoadDeviceName",
     "LoadOutputName",
     # Flow
     "LoadSubentryFlowHandler",
-    "available",
-    "create_model_elements",
-    "load",
-    "outputs",
+    "adapter",
 ]

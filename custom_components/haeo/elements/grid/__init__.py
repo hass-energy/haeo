@@ -13,12 +13,10 @@ from .adapter import (
     GRID_POWER_MAX_IMPORT_PRICE,
     GRID_PRICE_EXPORT,
     GRID_PRICE_IMPORT,
+    GridAdapter,
     GridDeviceName,
     GridOutputName,
-    available,
-    create_model_elements,
-    load,
-    outputs,
+    adapter,
 )
 from .flow import GridSubentryFlowHandler
 from .schema import (
@@ -53,14 +51,12 @@ __all__ = [
     "GRID_POWER_MAX_IMPORT_PRICE",
     "GRID_PRICE_EXPORT",
     "GRID_PRICE_IMPORT",
+    "GridAdapter",
     "GridConfigData",
     "GridConfigSchema",
     "GridDeviceName",
     "GridOutputName",
     # Flow
     "GridSubentryFlowHandler",
-    "available",
-    "create_model_elements",
-    "load",
-    "outputs",
+    "adapter",
 ]

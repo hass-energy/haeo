@@ -18,7 +18,7 @@ async def test_available_returns_true(hass: HomeAssistant) -> None:
         "is_sink": False,
     }
 
-    result = node.available(config, hass=hass)
+    result = node.adapter.available(config, hass=hass)
     assert result is True
 
 
@@ -31,7 +31,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "is_sink": False,
     }
 
-    result = await node.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await node.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result["element_type"] == "node"
     assert result["name"] == "test_node"

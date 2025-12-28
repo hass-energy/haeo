@@ -28,7 +28,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         "export_price": ["sensor.export_price"],
     }
 
-    result = grid.available(config, hass=hass)
+    result = grid.adapter.available(config, hass=hass)
     assert result is True
 
 
@@ -44,7 +44,7 @@ async def test_available_returns_false_when_import_price_missing(hass: HomeAssis
         "export_price": ["sensor.export_price"],
     }
 
-    result = grid.available(config, hass=hass)
+    result = grid.adapter.available(config, hass=hass)
     assert result is False
 
 
@@ -60,7 +60,7 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
         "export_price": ["sensor.missing"],
     }
 
-    result = grid.available(config, hass=hass)
+    result = grid.adapter.available(config, hass=hass)
     assert result is False
 
 
@@ -77,7 +77,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "export_price": ["sensor.export_price"],
     }
 
-    result = await grid.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result["element_type"] == "grid"
     assert result["name"] == "test_grid"
@@ -100,7 +100,7 @@ async def test_load_with_optional_limits(hass: HomeAssistant) -> None:
         "export_limit": 5.0,
     }
 
-    result = await grid.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result.get("import_limit") == 10.0
     assert result.get("export_limit") == 5.0

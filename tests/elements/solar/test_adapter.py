@@ -18,7 +18,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
         "forecast": ["sensor.forecast"],
     }
 
-    result = solar.available(config, hass=hass)
+    result = solar.adapter.available(config, hass=hass)
     assert result is True
 
 
@@ -31,7 +31,7 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
         "forecast": ["sensor.missing"],
     }
 
-    result = solar.available(config, hass=hass)
+    result = solar.adapter.available(config, hass=hass)
     assert result is False
 
 
@@ -46,7 +46,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "forecast": ["sensor.forecast"],
     }
 
-    result = await solar.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await solar.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result["element_type"] == "solar"
     assert result["name"] == "test_solar"
@@ -66,7 +66,7 @@ async def test_load_with_optional_fields(hass: HomeAssistant) -> None:
         "curtailment": False,
     }
 
-    result = await solar.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await solar.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result.get("price_production") == 0.02
     assert result.get("curtailment") is False

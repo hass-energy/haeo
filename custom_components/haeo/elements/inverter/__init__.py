@@ -12,12 +12,10 @@ from .adapter import (
     INVERTER_POWER_AC_TO_DC,
     INVERTER_POWER_ACTIVE,
     INVERTER_POWER_DC_TO_AC,
+    InverterAdapter,
     InverterDeviceName,
     InverterOutputName,
-    available,
-    create_model_elements,
-    load,
-    outputs,
+    adapter,
 )
 from .flow import InverterSubentryFlowHandler
 from .schema import (
@@ -53,14 +51,12 @@ __all__ = [
     "INVERTER_POWER_ACTIVE",
     "INVERTER_POWER_AC_TO_DC",
     "INVERTER_POWER_DC_TO_AC",
+    "InverterAdapter",
     "InverterConfigData",
     "InverterConfigSchema",
     "InverterDeviceName",
     "InverterOutputName",
     # Flow
     "InverterSubentryFlowHandler",
-    "available",
-    "create_model_elements",
-    "load",
-    "outputs",
+    "adapter",
 ]

@@ -40,7 +40,6 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPES,
     ConnectivityLevel,
     ElementOutputName,
-    ElementRegistryEntry,
     ElementType,
     battery,
     connection,
@@ -178,29 +177,32 @@ class FlowTestSubentryFlowHandler(ConfigSubentryFlow):
 def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElementFactory:
     """Register and return a synthetic element factory for flow testing."""
 
-    def mock_available(config: Any, *, hass: Any) -> bool:
-        return True
+    class FlowTestAdapter:
+        """Mock adapter for synthetic test element."""
 
-    async def mock_load(config: Any, *, hass: Any, forecast_times: Any) -> Any:
-        return config
+        element_type: str = TEST_ELEMENT_TYPE
+        flow_class: type = FlowTestSubentryFlowHandler
+        advanced: bool = False
+        connectivity: str = ConnectivityLevel.ALWAYS.value
 
-    def mock_create_model_elements(config: Any) -> list[dict[str, Any]]:
-        return []
+        def available(self, config: Any, *, hass: Any, **_kwargs: Any) -> bool:
+            return True
 
-    def mock_outputs(
-        name: str, outputs: Mapping[str, Mapping[Any, OutputData]]
-    ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
-        return {}
+        async def load(self, config: Any, *, hass: Any, forecast_times: Any) -> Any:
+            return config
 
-    entry = ElementRegistryEntry(
-        flow_class=FlowTestSubentryFlowHandler,
-        available=mock_available,
-        load=mock_load,
-        create_model_elements=mock_create_model_elements,
-        outputs=mock_outputs,  # type: ignore[arg-type]
-        translation_key=cast("ElementType", TEST_ELEMENT_TYPE),
-        connectivity=ConnectivityLevel.ALWAYS,  # Test element is always connectivity for testing
-    )
+        def create_model_elements(self, config: Any) -> list[dict[str, Any]]:
+            return []
+
+        def outputs(
+            self,
+            name: str,
+            outputs: Mapping[str, Mapping[Any, OutputData]],
+            _config: Any,
+        ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
+            return {}
+
+    entry = FlowTestAdapter()
     monkeypatch.setitem(ELEMENT_TYPES, cast("ElementType", TEST_ELEMENT_TYPE), entry)
     return FlowTestElementFactory()
 

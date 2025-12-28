@@ -271,8 +271,8 @@ class BatterySubentryFlowHandler(ConfigSubentryFlow):
                 continue
 
             connectivity = ELEMENT_TYPES[element_type].connectivity
-            if connectivity == ConnectivityLevel.ALWAYS or (
-                connectivity == ConnectivityLevel.ADVANCED and advanced_mode
+            if connectivity == ConnectivityLevel.ALWAYS.value or (
+                connectivity == ConnectivityLevel.ADVANCED.value and advanced_mode
             ):
                 result.append(subentry.title)
 

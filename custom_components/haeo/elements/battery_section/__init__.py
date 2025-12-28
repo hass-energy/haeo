@@ -13,12 +13,10 @@ from .adapter import (
     BATTERY_SECTION_POWER_DISCHARGE,
     BATTERY_SECTION_SOC_MAX,
     BATTERY_SECTION_SOC_MIN,
+    BatterySectionAdapter,
     BatterySectionDeviceName,
     BatterySectionOutputName,
-    available,
-    create_model_elements,
-    load,
-    outputs,
+    adapter,
 )
 from .flow import BatterySectionSubentryFlowHandler
 from .schema import (
@@ -43,6 +41,8 @@ __all__ = [
     "BATTERY_SECTION_POWER_DISCHARGE",
     "BATTERY_SECTION_SOC_MAX",
     "BATTERY_SECTION_SOC_MIN",
+    "BatterySectionAdapter",
+    "adapter",
     # Schema
     "CONF_CAPACITY",
     "CONF_INITIAL_CHARGE",
@@ -53,8 +53,4 @@ __all__ = [
     "BatterySectionOutputName",
     # Flow
     "BatterySectionSubentryFlowHandler",
-    "available",
-    "create_model_elements",
-    "load",
-    "outputs",
 ]

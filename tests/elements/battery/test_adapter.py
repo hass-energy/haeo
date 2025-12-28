@@ -31,7 +31,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         "initial_charge_percentage": ["sensor.initial"],
     }
 
-    result = battery.available(config, hass=hass)
+    result = battery.adapter.available(config, hass=hass)
     assert result is True
 
 
@@ -50,7 +50,7 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
         "max_charge_power": ["sensor.missing"],
     }
 
-    result = battery.available(config, hass=hass)
+    result = battery.adapter.available(config, hass=hass)
     assert result is False
 
 
@@ -67,7 +67,7 @@ async def test_available_returns_false_when_required_sensor_missing(hass: HomeAs
         "initial_charge_percentage": ["sensor.missing"],
     }
 
-    result = battery.available(config, hass=hass)
+    result = battery.adapter.available(config, hass=hass)
     assert result is False
 
 
@@ -84,7 +84,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "initial_charge_percentage": ["sensor.initial"],
     }
 
-    result = await battery.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await battery.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result["element_type"] == "battery"
     assert result["name"] == "test_battery"

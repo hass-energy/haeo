@@ -19,11 +19,9 @@ from .adapter import (
     CONNECTION_DEVICE_CONNECTION,
     CONNECTION_DEVICE_NAMES,
     CONNECTION_OUTPUT_NAMES,
+    ConnectionAdapter,
     ConnectionDeviceName,
-    available,
-    create_model_elements,
-    load,
-    outputs,
+    adapter,
 )
 from .flow import ConnectionSubentryFlowHandler
 from .schema import (
@@ -64,6 +62,7 @@ __all__ = [
     "CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET",
     "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
     "CONNECTION_TIME_SLICE",
+    "ConnectionAdapter",
     "ELEMENT_TYPE",
     "ConnectionConfigData",
     "ConnectionConfigSchema",
@@ -71,8 +70,5 @@ __all__ = [
     # Flow
     "ConnectionSubentryFlowHandler",
     "PowerConnectionOutputName",
-    "available",
-    "create_model_elements",
-    "load",
-    "outputs",
+    "adapter",
 ]

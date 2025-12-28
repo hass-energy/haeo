@@ -8,12 +8,10 @@ from .adapter import (
     SOLAR_POWER,
     SOLAR_POWER_AVAILABLE,
     SOLAR_PRICE,
+    SolarAdapter,
     SolarDeviceName,
     SolarOutputName,
-    available,
-    create_model_elements,
-    load,
-    outputs,
+    adapter,
 )
 from .flow import SolarSubentryFlowHandler
 from .schema import (
@@ -43,14 +41,12 @@ __all__ = [
     "SOLAR_POWER",
     "SOLAR_POWER_AVAILABLE",
     "SOLAR_PRICE",
+    "SolarAdapter",
     "SolarConfigData",
     "SolarConfigSchema",
     "SolarDeviceName",
     "SolarOutputName",
     # Flow
     "SolarSubentryFlowHandler",
-    "available",
-    "create_model_elements",
-    "load",
-    "outputs",
+    "adapter",
 ]

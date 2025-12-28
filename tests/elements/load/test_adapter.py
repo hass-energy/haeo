@@ -18,7 +18,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
         "forecast": ["sensor.power"],
     }
 
-    result = load_element.available(config, hass=hass)
+    result = load_element.adapter.available(config, hass=hass)
     assert result is True
 
 
@@ -31,7 +31,7 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
         "forecast": ["sensor.missing"],
     }
 
-    result = load_element.available(config, hass=hass)
+    result = load_element.adapter.available(config, hass=hass)
     assert result is False
 
 
@@ -46,7 +46,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "forecast": ["sensor.power"],
     }
 
-    result = await load_element.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await load_element.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result["element_type"] == "load"
     assert result["name"] == "test_load"
@@ -65,7 +65,7 @@ async def test_load_with_forecast_attribute(hass: HomeAssistant) -> None:
         "forecast": ["sensor.forecast_power"],
     }
 
-    result = await load_element.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await load_element.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result["element_type"] == "load"
     assert result["name"] == "test_load"

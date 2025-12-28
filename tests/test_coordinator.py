@@ -317,9 +317,9 @@ async def test_async_update_data_returns_outputs(
         patch.dict(
             ELEMENT_TYPES,
             {
-                "battery": ELEMENT_TYPES["battery"]._replace(outputs=mock_battery_adapter.outputs),
-                "grid": ELEMENT_TYPES["grid"]._replace(outputs=mock_empty_outputs),
-                "connection": ELEMENT_TYPES["connection"]._replace(outputs=mock_connection_adapter.outputs),
+                "battery": MagicMock(outputs=mock_battery_adapter.outputs),
+                "grid": MagicMock(outputs=mock_empty_outputs),
+                "connection": MagicMock(outputs=mock_connection_adapter.outputs),
             },
         ),
     ):
@@ -451,8 +451,7 @@ async def test_async_update_data_raises_on_missing_model_element(
         msg = "missing model element"
         raise KeyError(msg)
 
-    battery_entry = ELEMENT_TYPES["battery"]
-    patched_entry = battery_entry._replace(outputs=broken_outputs)  # type: ignore[arg-type]
+    patched_entry = MagicMock(outputs=broken_outputs)
 
     monkeypatch.setattr(
         "custom_components.haeo.coordinator.ELEMENT_TYPES",

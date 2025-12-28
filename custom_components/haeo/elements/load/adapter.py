@@ -16,7 +16,8 @@ from custom_components.haeo.model.power_connection import (
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 
-from .schema import CONF_CONNECTION, CONF_FORECAST, LoadConfigData, LoadConfigSchema
+from .flow import LoadSubentryFlowHandler
+from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
 # Load output names
 type LoadOutputName = Literal[
@@ -41,64 +42,76 @@ LOAD_DEVICE_NAMES: Final[frozenset[LoadDeviceName]] = frozenset(
 )
 
 
-def available(config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
-    """Check if load configuration can be loaded."""
-    ts_loader = TimeSeriesLoader()
-    return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
+class LoadAdapter:
+    """Adapter for Load elements."""
+
+    element_type: str = ELEMENT_TYPE
+    flow_class: type = LoadSubentryFlowHandler
+    advanced: bool = False
+    connectivity: str = "always"
+
+    def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
+        """Check if load configuration can be loaded."""
+        ts_loader = TimeSeriesLoader()
+        return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
+
+    async def load(
+        self,
+        config: LoadConfigSchema,
+        *,
+        hass: HomeAssistant,
+        forecast_times: Sequence[float],
+    ) -> LoadConfigData:
+        """Load load configuration values from sensors."""
+        ts_loader = TimeSeriesLoader()
+
+        forecast = await ts_loader.load(
+            hass=hass,
+            value=config[CONF_FORECAST],
+            forecast_times=forecast_times,
+        )
+
+        return {
+            "element_type": config["element_type"],
+            "name": config["name"],
+            "connection": config[CONF_CONNECTION],
+            "forecast": forecast,
+        }
+
+    def create_model_elements(self, config: LoadConfigData) -> list[dict[str, Any]]:
+        """Create model elements for Load configuration."""
+        return [
+            # Create Node for the load (sink only - consumes power)
+            {"element_type": "node", "name": config["name"], "is_source": False, "is_sink": True},
+            # Create Connection from node to load (power flows TO the load)
+            {
+                "element_type": "connection",
+                "name": f"{config['name']}:connection",
+                "source": config["name"],
+                "target": config["connection"],
+                "max_power_source_target": 0.0,
+                "max_power_target_source": config["forecast"],
+                "fixed_power": True,
+            },
+        ]
+
+    def outputs(
+        self,
+        name: str,
+        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+        _config: LoadConfigData,
+    ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
+        """Map model outputs to load-specific output names."""
+        connection = model_outputs[f"{name}:connection"]
+
+        load_outputs: dict[LoadOutputName, OutputData] = {
+            LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER),
+            LOAD_POWER_POSSIBLE: connection[CONNECTION_POWER_MAX_TARGET_SOURCE],
+            # Only the max limit has meaning, the source sink power balance is always zero
+            LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
+        }
+
+        return {LOAD_DEVICE_LOAD: load_outputs}
 
 
-async def load(
-    config: LoadConfigSchema,
-    *,
-    hass: HomeAssistant,
-    forecast_times: Sequence[float],
-) -> LoadConfigData:
-    """Load load configuration values from sensors."""
-    ts_loader = TimeSeriesLoader()
-
-    forecast = await ts_loader.load(
-        hass=hass,
-        value=config[CONF_FORECAST],
-        forecast_times=forecast_times,
-    )
-
-    return {
-        "element_type": config["element_type"],
-        "name": config["name"],
-        "connection": config[CONF_CONNECTION],
-        "forecast": forecast,
-    }
-
-
-def create_model_elements(config: LoadConfigData) -> list[dict[str, Any]]:
-    """Create model elements for Load configuration."""
-    return [
-        # Create Node for the load (sink only - consumes power)
-        {"element_type": "node", "name": config["name"], "is_source": False, "is_sink": True},
-        # Create Connection from node to load (power flows TO the load)
-        {
-            "element_type": "connection",
-            "name": f"{config['name']}:connection",
-            "source": config["name"],
-            "target": config["connection"],
-            "max_power_source_target": 0.0,
-            "max_power_target_source": config["forecast"],
-            "fixed_power": True,
-        },
-    ]
-
-
-def outputs(
-    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]], _config: LoadConfigData
-) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
-    """Map model outputs to load-specific output names."""
-    connection = model_outputs[f"{name}:connection"]
-
-    load_outputs: dict[LoadOutputName, OutputData] = {
-        LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER),
-        LOAD_POWER_POSSIBLE: connection[CONNECTION_POWER_MAX_TARGET_SOURCE],
-        # Only the max limit has meaning, the source sink power balance is always zero
-        LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
-    }
-
-    return {LOAD_DEVICE_LOAD: load_outputs}
+adapter = LoadAdapter()

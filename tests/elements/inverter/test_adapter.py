@@ -28,7 +28,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         "max_power_ac_to_dc": ["sensor.max_ac_to_dc"],
     }
 
-    result = inverter.available(config, hass=hass)
+    result = inverter.adapter.available(config, hass=hass)
     assert result is True
 
 
@@ -45,7 +45,7 @@ async def test_available_returns_false_when_first_sensor_missing(hass: HomeAssis
         "max_power_ac_to_dc": ["sensor.max_ac_to_dc"],
     }
 
-    result = inverter.available(config, hass=hass)
+    result = inverter.adapter.available(config, hass=hass)
     assert result is False
 
 
@@ -62,7 +62,7 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
         "max_power_ac_to_dc": ["sensor.missing"],
     }
 
-    result = inverter.available(config, hass=hass)
+    result = inverter.adapter.available(config, hass=hass)
     assert result is False
 
 
@@ -79,7 +79,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "max_power_ac_to_dc": ["sensor.max_ac_to_dc"],
     }
 
-    result = await inverter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await inverter.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result["element_type"] == "inverter"
     assert result["name"] == "test_inverter"
@@ -102,7 +102,7 @@ async def test_load_with_optional_efficiency(hass: HomeAssistant) -> None:
         "efficiency_ac_to_dc": 95.0,
     }
 
-    result = await inverter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = await inverter.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result.get("efficiency_dc_to_ac") == 97.0
     assert result.get("efficiency_ac_to_dc") == 95.0

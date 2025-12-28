@@ -26,12 +26,13 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Mapping, Sequence
 import enum
 import logging
-from typing import Any, Final, Literal, NamedTuple, TypeGuard, cast
+from typing import Any, Final, Literal, NamedTuple, Protocol, TypeGuard, runtime_checkable
 
-from homeassistant.config_entries import ConfigEntry, ConfigSubentry, ConfigSubentryFlow
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, NETWORK_OUTPUT_NAMES, NetworkDeviceName, NetworkOutputName
 from custom_components.haeo.model import ModelOutputName
@@ -136,17 +137,6 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | NETWORK_DEVICE_NAMES
 )
 
-type CreateModelElementsFn = Callable[[Any], list[dict[str, Any]]]
-
-type OutputsFn = Callable[
-    [str, Mapping[str, Mapping[ModelOutputName, OutputData]], Any],
-    Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]],
-]
-
-type AvailableFn = Callable[..., bool]
-
-type LoadFn = Callable[..., Awaitable[Any]]
-
 
 class ConnectivityLevel(enum.Enum):
     """Connectivity level for element types in connection selectors.
@@ -161,112 +151,67 @@ class ConnectivityLevel(enum.Enum):
     NEVER = "never"
 
 
-class ElementRegistryEntry(NamedTuple):
-    """Registry entry for an element type.
+@runtime_checkable
+class ElementAdapter(Protocol):
+    """Protocol for element adapters.
 
-    Each element type provides:
-        - flow_class: ConfigSubentryFlow subclass for add/reconfigure UI
-        - available(config, *, hass) -> bool: Check if sensors are available
-        - load(config, *, hass, forecast_times) -> ConfigData: Load sensor values
-        - create_model_elements(config) -> list[dict]: Create model elements
-        - outputs(name, model_outputs, config) -> dict: Map model outputs to devices
+    Each element type provides an adapter that bridges Home Assistant
+    configuration with the LP model layer. Adapters must implement this
+    protocol and be registered in the ELEMENT_TYPES registry.
 
-    The advanced flag indicates whether this element type is only shown when
-    advanced mode is enabled on the hub.
-
-    The connectivity field indicates when this element type appears in connection
-    selectors:
-        - ALWAYS: Always shown in connection selectors
-        - ADVANCED: Only shown when advanced mode is enabled
-        - NEVER: Never shown in connection selectors
+    Note: Attributes are defined as read-only properties in the Protocol,
+    but implementations use class attributes with Final for immutability.
     """
 
-    flow_class: type[ConfigSubentryFlow]
-    available: AvailableFn
-    load: LoadFn
-    create_model_elements: CreateModelElementsFn
-    outputs: OutputsFn
-    translation_key: ElementType
-    advanced: bool = False
-    connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
+    element_type: str
+    """The element type identifier."""
+
+    flow_class: type
+    """The config flow handler class for this element type."""
+
+    advanced: bool
+    """Whether this element type requires advanced mode."""
+
+    connectivity: str
+    """Visibility level in connection selectors ('always', 'advanced', or 'never')."""
+
+    def available(self, config: Any, *, hass: HomeAssistant, **kwargs: Any) -> bool:
+        """Check if element configuration can be loaded."""
+        ...
+
+    async def load(
+        self,
+        config: Any,
+        *,
+        hass: HomeAssistant,
+        forecast_times: Sequence[float],
+    ) -> Any:
+        """Load configuration values from sensors."""
+        ...
+
+    def create_model_elements(self, config: Any) -> list[dict[str, Any]]:
+        """Transform loaded config into model element parameters."""
+        ...
+
+    def outputs(
+        self,
+        name: str,
+        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+        _config: Any,
+    ) -> Mapping[Any, Mapping[Any, OutputData]]:
+        """Map model outputs to device-specific outputs."""
+        ...
 
 
-ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
-    grid.ELEMENT_TYPE: ElementRegistryEntry(
-        flow_class=grid.GridSubentryFlowHandler,
-        available=grid.available,
-        load=grid.load,
-        create_model_elements=grid.create_model_elements,
-        outputs=cast("OutputsFn", grid.outputs),
-        translation_key=grid.ELEMENT_TYPE,
-        connectivity=ConnectivityLevel.ADVANCED,
-    ),
-    load.ELEMENT_TYPE: ElementRegistryEntry(
-        flow_class=load.LoadSubentryFlowHandler,
-        available=load.available,
-        load=load.load,
-        create_model_elements=load.create_model_elements,
-        outputs=cast("OutputsFn", load.outputs),
-        translation_key=load.ELEMENT_TYPE,
-        connectivity=ConnectivityLevel.ADVANCED,
-    ),
-    inverter.ELEMENT_TYPE: ElementRegistryEntry(
-        flow_class=inverter.InverterSubentryFlowHandler,
-        available=inverter.available,
-        load=inverter.load,
-        create_model_elements=inverter.create_model_elements,
-        outputs=cast("OutputsFn", inverter.outputs),
-        translation_key=inverter.ELEMENT_TYPE,
-        connectivity=ConnectivityLevel.ALWAYS,
-    ),
-    solar.ELEMENT_TYPE: ElementRegistryEntry(
-        flow_class=solar.SolarSubentryFlowHandler,
-        available=solar.available,
-        load=solar.load,
-        create_model_elements=solar.create_model_elements,
-        outputs=cast("OutputsFn", solar.outputs),
-        translation_key=solar.ELEMENT_TYPE,
-        connectivity=ConnectivityLevel.ADVANCED,
-    ),
-    battery.ELEMENT_TYPE: ElementRegistryEntry(
-        flow_class=battery.BatterySubentryFlowHandler,
-        available=battery.available,
-        load=battery.load,
-        create_model_elements=battery.create_model_elements,
-        outputs=cast("OutputsFn", battery.outputs),
-        translation_key=battery.ELEMENT_TYPE,
-        connectivity=ConnectivityLevel.ADVANCED,
-    ),
-    connection.ELEMENT_TYPE: ElementRegistryEntry(
-        flow_class=connection.ConnectionSubentryFlowHandler,
-        available=connection.available,
-        load=connection.load,
-        create_model_elements=connection.create_model_elements,
-        outputs=cast("OutputsFn", connection.outputs),
-        translation_key=connection.ELEMENT_TYPE,
-        advanced=True,
-        connectivity=ConnectivityLevel.NEVER,
-    ),
-    node.ELEMENT_TYPE: ElementRegistryEntry(
-        flow_class=node.NodeSubentryFlowHandler,
-        available=node.available,
-        load=node.load,
-        create_model_elements=node.create_model_elements,
-        outputs=cast("OutputsFn", node.outputs),
-        translation_key=node.ELEMENT_TYPE,
-        advanced=True,
-        connectivity=ConnectivityLevel.ALWAYS,
-    ),
-    battery_section.ELEMENT_TYPE: ElementRegistryEntry(
-        flow_class=battery_section.BatterySectionSubentryFlowHandler,
-        available=battery_section.available,
-        load=battery_section.load,
-        create_model_elements=battery_section.create_model_elements,
-        outputs=cast("OutputsFn", battery_section.outputs),
-        translation_key=battery_section.ELEMENT_TYPE,
-        advanced=True,
-        connectivity=ConnectivityLevel.ALWAYS,
-    ),
+ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
+    grid.ELEMENT_TYPE: grid.adapter,
+    load.ELEMENT_TYPE: load.adapter,
+    inverter.ELEMENT_TYPE: inverter.adapter,
+    solar.ELEMENT_TYPE: solar.adapter,
+    battery.ELEMENT_TYPE: battery.adapter,
+    connection.ELEMENT_TYPE: connection.adapter,
+    node.ELEMENT_TYPE: node.adapter,
+    battery_section.ELEMENT_TYPE: battery_section.adapter,
 }
 
 
@@ -323,16 +268,12 @@ __all__ = [
     "ELEMENT_TYPE_LOAD",
     "ELEMENT_TYPE_NODE",
     "ELEMENT_TYPE_SOLAR",
-    "AvailableFn",
     "ConnectivityLevel",
-    "CreateModelElementsFn",
+    "ElementAdapter",
     "ElementConfigData",
     "ElementConfigSchema",
     "ElementDeviceName",
-    "ElementRegistryEntry",
     "ElementType",
-    "LoadFn",
-    "OutputsFn",
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "is_element_config_schema",
