@@ -29,7 +29,7 @@ Sub-element Naming Convention:
 from collections.abc import Mapping, Sequence
 import enum
 import logging
-from typing import Any, Final, Literal, NamedTuple, Protocol, TypeGuard, runtime_checkable
+from typing import Any, Final, Literal, NamedTuple, Protocol, TypeGuard, get_origin, get_type_hints, runtime_checkable
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -224,13 +224,62 @@ class ValidatedElementSubentry(NamedTuple):
     config: ElementConfigSchema
 
 
+# Map element types to their ConfigSchema TypedDict classes for reflection
+ELEMENT_CONFIG_SCHEMAS: Final[dict[str, type]] = {
+    "battery": battery.BatteryConfigSchema,
+    "battery_section": battery_section.BatterySectionConfigSchema,
+    "connection": connection.ConnectionConfigSchema,
+    "grid": grid.GridConfigSchema,
+    "inverter": inverter.InverterConfigSchema,
+    "load": load.LoadConfigSchema,
+    "node": node.NodeConfigSchema,
+    "solar": solar.SolarConfigSchema,
+}
+
+
+def _conforms_to_typed_dict(value: Mapping[str, Any], typed_dict_cls: type) -> bool:
+    """Check if a mapping conforms to a TypedDict's required fields and types.
+
+    Uses reflection to get required keys and type hints from the TypedDict class.
+    Only checks required fields (not NotRequired fields).
+    """
+    # Get required keys from TypedDict
+    required_keys: frozenset[str] = getattr(typed_dict_cls, "__required_keys__", frozenset())
+
+    # Get type hints for the TypedDict
+    hints = get_type_hints(typed_dict_cls)
+
+    for key in required_keys:
+        if key not in value:
+            return False
+
+        expected_type = hints.get(key)
+        if expected_type is None:
+            continue
+
+        # Get the origin type for generic types (e.g., list[str] -> list)
+        origin = get_origin(expected_type)
+        check_type = origin if origin is not None else expected_type
+
+        # Handle Literal types by checking if value is one of the allowed values
+        if check_type is Literal:
+            # For Literal, we don't do isinstance check - just ensure the field exists
+            continue
+
+        if not isinstance(value[key], check_type):
+            return False
+
+    return True
+
+
 def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
     """Return True when value matches any ElementConfigSchema TypedDict.
 
-    Performs basic structural validation - checks that:
+    Performs structural validation using reflection - checks that:
     - value is a mapping
     - has a valid element_type field
-    - has a name field
+    - has all required fields for that element type (from TypedDict __required_keys__)
+    - all required fields have the correct type (from TypedDict type hints)
     """
     if not isinstance(value, Mapping):
         return False
@@ -239,8 +288,12 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
     if element_type not in ELEMENT_TYPES:
         return False
 
-    # Basic structural check: must have a name
-    return "name" in value
+    # Get the TypedDict class for this element type
+    schema_cls = ELEMENT_CONFIG_SCHEMAS.get(element_type)
+    if schema_cls is None:
+        return False
+
+    return _conforms_to_typed_dict(value, schema_cls)
 
 
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
@@ -258,6 +311,7 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
 
 
 __all__ = [
+    "ELEMENT_CONFIG_SCHEMAS",
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",

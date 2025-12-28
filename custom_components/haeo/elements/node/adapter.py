@@ -1,9 +1,7 @@
 """Node element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Any, Final, Literal
-
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.data.loader import ConstantLoader
 from custom_components.haeo.model import ModelOutputName
@@ -33,18 +31,13 @@ class NodeAdapter:
     advanced: bool = True
     connectivity: str = "always"
 
-    def available(self, config: NodeConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
+    def available(self, config: NodeConfigSchema, **_kwargs: Any) -> bool:
         """Check if node configuration can be loaded."""
         # Nodes only have constant fields, always available
+        _ = config  # Unused but required by protocol
         return True
 
-    async def load(
-        self,
-        config: NodeConfigSchema,
-        *,
-        hass: HomeAssistant,  # noqa: ARG002
-        forecast_times: Sequence[float],  # noqa: ARG002
-    ) -> NodeConfigData:
+    async def load(self, config: NodeConfigSchema, **_kwargs: Any) -> NodeConfigData:
         """Load node configuration values."""
         const_loader_bool = ConstantLoader[bool](bool)
 

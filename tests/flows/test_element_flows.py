@@ -185,19 +185,20 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
         advanced: bool = False
         connectivity: str = ConnectivityLevel.ALWAYS.value
 
-        def available(self, config: Any, *, hass: Any, **_kwargs: Any) -> bool:
+        def available(self, config: Any, **_kwargs: Any) -> bool:
+            _ = config  # Unused but required by protocol
             return True
 
-        async def load(self, config: Any, *, hass: Any, forecast_times: Any) -> Any:
+        async def load(self, config: Any, **_kwargs: Any) -> Any:
             return config
 
-        def create_model_elements(self, config: Any) -> list[dict[str, Any]]:
+        def create_model_elements(self, config: Any) -> list[dict[str, Any]]:  # noqa: ARG002
             return []
 
         def outputs(
             self,
-            name: str,
-            outputs: Mapping[str, Mapping[Any, OutputData]],
+            name: str,  # noqa: ARG002
+            outputs: Mapping[str, Mapping[Any, OutputData]],  # noqa: ARG002
             _config: Any,
         ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
             return {}

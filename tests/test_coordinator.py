@@ -128,9 +128,9 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
             {
                 CONF_NAME: "test_battery",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CAPACITY: ["sensor.battery_capacity"],
                 CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
                 CONF_MIN_CHARGE_PERCENTAGE: 20.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 80.0,
                 CONF_EFFICIENCY: 95.0,
