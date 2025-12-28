@@ -82,12 +82,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
         "outputs": {
             solar_element.SOLAR_DEVICE_SOLAR: {
-                solar_element.SOLAR_POWER: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction="+"
-                ),
-                solar_element.SOLAR_POWER_AVAILABLE: OutputData(
-                    type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)
-                ),
+                solar_element.SOLAR_POWER: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(2.0,), direction="+"),
+                solar_element.SOLAR_POWER_AVAILABLE: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
                 solar_element.SOLAR_FORECAST_LIMIT: OutputData(
                     type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)
                 ),

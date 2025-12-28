@@ -93,9 +93,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "inverter_main",
         "model_outputs": {
             "inverter_main": {
-                NODE_POWER_BALANCE: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)
-                ),
+                NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             },
             "inverter_main:connection": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(

@@ -200,21 +200,15 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_POWER_DISCHARGE: OutputData(
                     type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+"
                 ),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(
-                    type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(4.0, 4.0)
-                ),
+                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(4.0, 4.0)),
                 battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(
                     type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)
                 ),
                 battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(
                     type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)
                 ),
-                battery_model.BATTERY_SOC_MAX: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)
-                ),
-                battery_model.BATTERY_SOC_MIN: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)
-                ),
+                battery_model.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                battery_model.BATTERY_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_no_balance:node": {},
             "battery_no_balance:normal:to_node": {

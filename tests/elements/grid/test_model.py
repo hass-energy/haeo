@@ -108,24 +108,16 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 grid_element.GRID_POWER_ACTIVE: OutputData(
                     type=OUTPUT_TYPE_POWER, unit="kW", values=(-2.0,), direction=None
                 ),
-                grid_element.GRID_POWER_MAX_EXPORT: OutputData(
-                    type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(3.0,)
-                ),
-                grid_element.GRID_POWER_MAX_IMPORT: OutputData(
-                    type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(5.0,)
-                ),
+                grid_element.GRID_POWER_MAX_EXPORT: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(3.0,)),
+                grid_element.GRID_POWER_MAX_IMPORT: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(5.0,)),
                 grid_element.GRID_POWER_MAX_EXPORT_PRICE: OutputData(
                     type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)
                 ),
                 grid_element.GRID_POWER_MAX_IMPORT_PRICE: OutputData(
                     type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)
                 ),
-                grid_element.GRID_PRICE_EXPORT: OutputData(
-                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.05,)
-                ),
-                grid_element.GRID_PRICE_IMPORT: OutputData(
-                    type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.1,)
-                ),
+                grid_element.GRID_PRICE_EXPORT: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.05,)),
+                grid_element.GRID_PRICE_IMPORT: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.1,)),
             }
         },
     },

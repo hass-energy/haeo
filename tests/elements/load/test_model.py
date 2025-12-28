@@ -79,12 +79,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
         "outputs": {
             load_element.LOAD_DEVICE_LOAD: {
-                load_element.LOAD_POWER: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"
-                ),
-                load_element.LOAD_POWER_POSSIBLE: OutputData(
-                    type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)
-                ),
+                load_element.LOAD_POWER: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"),
+                load_element.LOAD_POWER_POSSIBLE: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
                 load_element.LOAD_FORECAST_LIMIT_PRICE: OutputData(
                     type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)
                 ),

@@ -64,9 +64,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_POWER_DISCHARGE: OutputData(
                     type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+"
                 ),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(
-                    type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 5.5)
-                ),
+                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 5.5)),
                 battery_model.BATTERY_POWER_BALANCE: OutputData(
                     type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)
                 ),
@@ -76,12 +74,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(
                     type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,)
                 ),
-                battery_model.BATTERY_SOC_MAX: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,)
-                ),
-                battery_model.BATTERY_SOC_MIN: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.006,)
-                ),
+                battery_model.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,)),
+                battery_model.BATTERY_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.006,)),
             },
         },
         "outputs": {
@@ -127,9 +121,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_POWER_DISCHARGE: OutputData(
                     type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"
                 ),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(
-                    type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 4.0)
-                ),
+                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(5.0, 4.0)),
             },
         },
         "outputs": {
