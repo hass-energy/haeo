@@ -321,7 +321,6 @@ __all__ = [
     "ELEMENT_CONFIG_SCHEMAS",
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_TYPES",
-    "is_element_type",
     "ELEMENT_TYPE_BATTERY",
     "ELEMENT_TYPE_BATTERY_SECTION",
     "ELEMENT_TYPE_CONNECTION",
@@ -339,4 +338,5 @@ __all__ = [
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "is_element_config_schema",
+    "is_element_type",
 ]

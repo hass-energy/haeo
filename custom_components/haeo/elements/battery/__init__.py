@@ -51,6 +51,8 @@ from .schema import (
 
 __all__ = [
     # Adapter
+    "BATTERY_BALANCE_POWER_DOWN",
+    "BATTERY_BALANCE_POWER_UP",
     "BATTERY_CHARGE_PRICE",
     "BATTERY_DEVICE_BATTERY",
     "BATTERY_DEVICE_NAMES",
