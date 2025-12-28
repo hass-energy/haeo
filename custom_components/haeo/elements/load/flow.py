@@ -3,10 +3,15 @@
 from typing import Any, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
-from homeassistant.const import UnitOfPower
+from homeassistant.const import CURRENCY_DOLLAR, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.selector import (
+    BooleanSelector,
+    BooleanSelectorConfig,
     EntitySelector,
     EntitySelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -21,7 +26,7 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, U
 from custom_components.haeo.data.loader.extractors import EntityMetadata, extract_entity_metadata
 from custom_components.haeo.schema.util import UnitSpec
 
-from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigSchema
+from .schema import CONF_CONNECTION, CONF_FORECAST, CONF_SHEDDABLE, CONF_VALUE_RUNNING, ELEMENT_TYPE, LoadConfigSchema
 
 # Power units
 POWER_UNITS: UnitSpec = UnitOfPower
@@ -73,6 +78,20 @@ def _build_schema(
                     multiple=True,
                     exclude_entities=incompatible_power,
                 )
+            ),
+            vol.Optional(CONF_SHEDDABLE): vol.All(
+                vol.Coerce(bool),
+                BooleanSelector(BooleanSelectorConfig()),
+            ),
+            vol.Optional(CONF_VALUE_RUNNING): vol.All(
+                vol.Coerce(float),
+                NumberSelector(
+                    NumberSelectorConfig(
+                        mode=NumberSelectorMode.BOX,
+                        step="any",
+                        unit_of_measurement=f"{CURRENCY_DOLLAR}/{UnitOfEnergy.KILO_WATT_HOUR}",
+                    )
+                ),
             ),
         }
     )

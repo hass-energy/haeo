@@ -266,7 +266,7 @@
             "connection": "Connection",
             "forecast": "Forecast Sensors",
             "name": "Load Name",
-            "shedding": "Allow Shedding (Optional)",
+            "sheddable": "Sheddable (Optional)",
             "value_running": "Value When Running (Optional)"
           }
         },
@@ -277,7 +277,7 @@
             "connection": "Connection",
             "forecast": "Forecast Sensors",
             "name": "Load Name",
-            "shedding": "Allow Shedding (Optional)",
+            "sheddable": "Sheddable (Optional)",
             "value_running": "Value When Running (Optional)"
           }
         }
