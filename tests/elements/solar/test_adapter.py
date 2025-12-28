@@ -8,9 +8,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.elements import solar
 
 
-def _set_forecast_sensor(
-    hass: HomeAssistant, entity_id: str, value: str, forecast: list[dict[str, Any]], unit: str = "kW"
-) -> None:
+def _set_forecast_sensor(hass: HomeAssistant, entity_id: str, value: str, forecast: list[dict[str, Any]], unit: str = "kW") -> None:
     """Set a sensor state with forecast attribute in hass."""
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit, "forecast": forecast})
 
@@ -20,13 +18,7 @@ FORECAST_TIMES: Sequence[float] = [0.0, 1800.0]
 
 async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssistant) -> None:
     """Solar available() should return True when forecast sensor exists."""
-    _set_forecast_sensor(
-        hass,
-        "sensor.forecast",
-        "5.0",
-        [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}],
-        "kW",
-    )
+    _set_forecast_sensor(hass, "sensor.forecast", "5.0", [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}], "kW")
 
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
@@ -54,13 +46,7 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
 
 async def test_load_returns_config_data(hass: HomeAssistant) -> None:
     """Solar load() should return ConfigData with loaded values."""
-    _set_forecast_sensor(
-        hass,
-        "sensor.forecast",
-        "5.0",
-        [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}],
-        "kW",
-    )
+    _set_forecast_sensor(hass, "sensor.forecast", "5.0", [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}], "kW")
 
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
@@ -78,13 +64,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
 
 async def test_load_with_optional_fields(hass: HomeAssistant) -> None:
     """Solar load() should include optional constant fields."""
-    _set_forecast_sensor(
-        hass,
-        "sensor.forecast",
-        "5.0",
-        [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}],
-        "kW",
-    )
+    _set_forecast_sensor(hass, "sensor.forecast", "5.0", [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}], "kW")
 
     config: solar.SolarConfigSchema = {
         "element_type": "solar",

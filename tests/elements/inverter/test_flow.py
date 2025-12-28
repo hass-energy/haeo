@@ -38,7 +38,7 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = _create_flow(hass, hub_entry)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form - should not error
@@ -51,7 +51,7 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
 async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_get_participant_names should skip subentries with unknown element types."""
     # Add a valid participant
-    _add_participant(hass, hub_entry, "ValidNode", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "ValidNode", node.ELEMENT_TYPE)
 
     # Add a subentry with unknown element type
     unknown_data = MappingProxyType({CONF_ELEMENT_TYPE: "unknown_type", CONF_NAME: "Unknown"})
@@ -63,7 +63,7 @@ async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssis
     )
     hass.config_entries.async_add_subentry(hub_entry, unknown_subentry)
 
-    flow = _create_flow(hass, hub_entry)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     # Get participant names - should only include ValidNode
     participants = flow._get_participant_names()
@@ -74,7 +74,7 @@ async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssis
 
 async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_get_current_subentry_id should return None during user flow (not reconfigure)."""
-    flow = _create_flow(hass, hub_entry)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     # During user flow, _get_reconfigure_subentry will raise
     subentry_id = flow._get_current_subentry_id()
