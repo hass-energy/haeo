@@ -122,3 +122,57 @@ def test_sum_output_data_sums_multiple_outputs() -> None:
     assert result.values == (5.0, 7.0, 9.0)
     assert result.direction == "+"
     assert result.advanced is False
+
+
+async def test_load_with_optional_time_series_fields(hass: HomeAssistant) -> None:
+    """Battery load() should load optional time series fields when configured."""
+    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
+    _set_sensor(hass, "sensor.initial", "50.0", "%")
+    _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
+    _set_sensor(hass, "sensor.max_discharge", "6.0", "kW")
+    _set_sensor(hass, "sensor.discharge_cost", "0.05", "$/kWh")
+
+    config: battery.BatteryConfigSchema = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
+        "capacity": ["sensor.capacity"],
+        "initial_charge_percentage": ["sensor.initial"],
+        "max_charge_power": ["sensor.max_charge"],
+        "max_discharge_power": ["sensor.max_discharge"],
+        "discharge_cost": ["sensor.discharge_cost"],
+    }
+
+    result = await battery.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    assert result["element_type"] == "battery"
+    assert "max_charge_power" in result
+    assert result["max_charge_power"][0] == 5.0
+    assert "max_discharge_power" in result
+    assert result["max_discharge_power"][0] == 6.0
+    assert "discharge_cost" in result
+    assert result["discharge_cost"][0] == 0.05
+
+
+async def test_load_with_optional_scalar_fields(hass: HomeAssistant) -> None:
+    """Battery load() should load optional scalar fields when configured."""
+    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
+    _set_sensor(hass, "sensor.initial", "50.0", "%")
+
+    config: battery.BatteryConfigSchema = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
+        "capacity": ["sensor.capacity"],
+        "initial_charge_percentage": ["sensor.initial"],
+        "early_charge_incentive": 0.005,
+        "undercharge_percentage": 10.0,
+        "overcharge_percentage": 90.0,
+    }
+
+    result = await battery.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    assert result["element_type"] == "battery"
+    assert result.get("early_charge_incentive") == 0.005
+    assert result.get("undercharge_percentage") == 10.0
+    assert result.get("overcharge_percentage") == 90.0

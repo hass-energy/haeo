@@ -225,7 +225,8 @@ class ValidatedElementSubentry(NamedTuple):
 
 
 # Map element types to their ConfigSchema TypedDict classes for reflection
-ELEMENT_CONFIG_SCHEMAS: Final[dict[str, type]] = {
+# Typed with ElementType keys to enable type-safe indexing after is_element_type check
+ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
     "battery": battery.BatteryConfigSchema,
     "battery_section": battery_section.BatterySectionConfigSchema,
     "connection": connection.ConnectionConfigSchema,
@@ -235,6 +236,15 @@ ELEMENT_CONFIG_SCHEMAS: Final[dict[str, type]] = {
     "node": node.NodeConfigSchema,
     "solar": solar.SolarConfigSchema,
 }
+
+
+def is_element_type(value: Any) -> TypeGuard[ElementType]:
+    """Return True when value is a valid ElementType literal.
+
+    Use this to narrow Any values (e.g., from dict.get()) to ElementType,
+    enabling type-safe access to ELEMENT_TYPES and ELEMENT_CONFIG_SCHEMAS.
+    """
+    return value in ELEMENT_TYPES
 
 
 def _conforms_to_typed_dict(value: Mapping[str, Any], typed_dict_cls: type) -> bool:
@@ -253,9 +263,8 @@ def _conforms_to_typed_dict(value: Mapping[str, Any], typed_dict_cls: type) -> b
         if key not in value:
             return False
 
-        expected_type = hints.get(key)
-        if expected_type is None:
-            continue
+        # Required keys in a TypedDict always have type hints
+        expected_type = hints[key]
 
         # Get the origin type for generic types (e.g., list[str] -> list)
         origin = get_origin(expected_type)
@@ -285,13 +294,11 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
         return False
 
     element_type = value.get(CONF_ELEMENT_TYPE)
-    if element_type not in ELEMENT_TYPES:
+    if not is_element_type(element_type):
         return False
 
-    # Get the TypedDict class for this element type
-    schema_cls = ELEMENT_CONFIG_SCHEMAS.get(element_type)
-    if schema_cls is None:
-        return False
+    # Get the TypedDict class - type-safe because is_element_type narrowed element_type
+    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
 
     return _conforms_to_typed_dict(value, schema_cls)
 
@@ -314,6 +321,7 @@ __all__ = [
     "ELEMENT_CONFIG_SCHEMAS",
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_TYPES",
+    "is_element_type",
     "ELEMENT_TYPE_BATTERY",
     "ELEMENT_TYPE_BATTERY_SECTION",
     "ELEMENT_TYPE_CONNECTION",

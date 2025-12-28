@@ -82,6 +82,26 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             }
         },
     },
+    {
+        "description": "Solar with price output",
+        "name": "pv_with_price",
+        "model_outputs": {
+            "pv_with_price:connection": {
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.5,), direction="+"),
+                power_connection.CONNECTION_POWER_MAX_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
+                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.15,)),
+            }
+        },
+        "outputs": {
+            solar_element.SOLAR_DEVICE_SOLAR: {
+                solar_element.SOLAR_POWER: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.5,), direction="+"),
+                solar_element.SOLAR_POWER_AVAILABLE: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
+                solar_element.SOLAR_FORECAST_LIMIT: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                solar_element.SOLAR_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.15,)),
+            }
+        },
+    },
 ]
 
 

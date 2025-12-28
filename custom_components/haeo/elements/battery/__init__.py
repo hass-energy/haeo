@@ -1,6 +1,8 @@
 """Battery element for HAEO integration."""
 
 from .adapter import (
+    BATTERY_BALANCE_POWER_DOWN,
+    BATTERY_BALANCE_POWER_UP,
     BATTERY_CHARGE_PRICE,
     BATTERY_DEVICE_BATTERY,
     BATTERY_DEVICE_NAMES,
