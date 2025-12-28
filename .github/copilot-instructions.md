@@ -75,6 +75,28 @@ Rely on errors occurring if they do not when they indicate a coding error and no
 This is especially true in tests where you have added entities and then must access them later.
 Having None checks there reduces readability and makes the test more fragile to passing unexpectedly.
 
+### Code review guidelines
+
+When reviewing code, rely on linting tools (Ruff and Pyright) to identify issues that they can detect.
+Do not report on issues that these tools already catch, such as:
+
+- Unused imports
+- Type errors
+- Style violations
+- Formatting issues
+- Other issues detectable by static analysis tools
+
+Focus review comments on:
+
+- Logic errors and bugs
+- Architectural concerns
+- Performance issues
+- Security vulnerabilities
+- Code clarity and maintainability
+- Missing tests or documentation
+
+This avoids false positives and redundant feedback that linting tools already provide.
+
 ## Universal code standards
 
 - **Python**: 3.13+ with modern features (pattern matching, `str | None` syntax, f-strings, dataclasses)
