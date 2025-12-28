@@ -158,37 +158,31 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
 ### Adding Element Types
 
-1. **Create model class** in `model/`:
+1. **Create element subfolder** in `elements/{element_type}/`:
 
-    - Inherit from `Element`
-    - Define power/energy variables
-    - Implement `build()` and `constraints()` methods
+    - `__init__.py`: Public exports
+    - `schema.py`: Define `ConfigSchema` and `ConfigData` TypedDicts
+    - `flow.py`: Implement config flow with voluptuous schemas
+    - `adapter.py`: Implement `available()`, `load()`, `create_model_elements()`, `outputs()`
 
-2. **Add element metadata** in `elements/`:
+2. **Register element type** in `elements/__init__.py`:
 
-    - `*ConfigSchema`: For config flow validation
-    - `*ConfigData`: For runtime with loaded values
-    - Define field metadata using annotations
+    - Add `ElementRegistryEntry` to `ELEMENT_TYPES` mapping
 
-3. **Register element type** in `elements/__init__.py`:
-
-    - Add to `ELEMENT_TYPES` mapping
-
-4. **Create config flow** in `flows/elements/`:
-
-    - Inherit from appropriate base
-    - Implement validation and schema generation
-
-5. **Update translations** in `translations/en.json`:
+3. **Update translations** in `translations/en.json`:
 
     - Add device and selector entries
 
-6. **Write tests**:
+4. **Write tests** in `tests/elements/{element_type}/`:
 
-    - Model element tests in `tests/model/test_elements.py`
-    - Test data in `tests/model/test_data/`
-    - Config flow tests in `tests/flows/`
-    - Integration tests
+    - `test_adapter.py`: Tests for `available()` and `load()` functions
+    - `test_flow.py`: Config flow tests for user and reconfigure steps
+    - Add test data in `tests/flows/test_data/{element_type}.py`
+
+5. **Document** the element:
+
+    - User guide in `docs/user-guide/elements/{element_type}.md`
+    - Modeling docs in `docs/modeling/device-layer/{element_type}.md`
 
 ### Custom Field Types
 

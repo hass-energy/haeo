@@ -48,7 +48,6 @@ from custom_components.haeo.elements import (
     node,
 )
 from custom_components.haeo.model import OutputData
-from custom_components.haeo.schema.fields import NameFieldData, NameFieldSchema
 from tests.conftest import ElementTestData
 
 ALL_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(ELEMENT_TYPES)
@@ -60,14 +59,14 @@ class FlowTestElementConfigSchema(TypedDict):
     """Schema representation for synthetic flow test elements."""
 
     element_type: Literal["flow_test_element"]
-    name: NameFieldSchema
+    name: str
 
 
 class FlowTestElementConfigData(TypedDict):
     """Data representation for synthetic flow test elements."""
 
     element_type: Literal["flow_test_element"]
-    name: NameFieldData
+    name: str
 
 
 def _create_flow(

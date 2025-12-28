@@ -29,15 +29,26 @@ See [architecture guide](../docs/developer-guide/architecture.md) for detailed c
 ```
 custom_components/haeo/     # Home Assistant integration
 ├── model/                  # LP model (constraints, variables, optimization)
-├── elements/               # Element adapters (schema, data, adapter, extractor)
-├── schema/                 # Field metadata and schema generation
-├── flows/                  # Config flow implementations
+├── elements/               # Element adapters (one subfolder per element type)
+│   ├── battery/            # schema.py, flow.py, adapter.py
+│   ├── grid/
+│   ├── solar/
+│   ├── load/
+│   ├── node/
+│   ├── connection/
+│   ├── inverter/
+│   └── battery_section/
+├── schema/                 # Shared utilities (UnitSpec, matches_unit_spec)
+├── flows/                  # Hub and options config flows
 ├── sensors/                # Sensor implementations
 ├── data/                   # Data loading utilities
 └── translations/           # i18n strings (en.json)
 tests/                      # Test suite
-├── model/                  # Model layer tests with test_data
-├── scenarios/              # End-to-end scenario tests
+├── test_data/elements/     # Element test data (parallel to elements/)
+├── model/                  # Model layer tests
+├── flows/                  # Config flow tests
+├── elements/               # Element adapter tests
+└── scenarios/              # End-to-end scenario tests
 docs/                       # Documentation
 ```
 
