@@ -88,9 +88,7 @@ def _add_participant(
     return subentry
 
 
-async def test_reconfigure_with_deleted_connection_target(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Grid reconfigure should include deleted connection target in options."""
     # Create grid that references a deleted connection target
     existing_config = {

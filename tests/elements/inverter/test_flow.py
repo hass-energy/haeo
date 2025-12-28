@@ -93,9 +93,7 @@ def _add_participant(
     return subentry
 
 
-async def test_reconfigure_with_deleted_connection_target(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Inverter reconfigure should include deleted connection target in options."""
     # Create inverter that references a deleted connection target
     existing_config = {

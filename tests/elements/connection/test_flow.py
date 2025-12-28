@@ -107,9 +107,7 @@ async def test_flow_source_equals_target_error(hass: HomeAssistant, hub_entry: M
     assert result.get("errors") == {CONF_TARGET: "cannot_connect_to_self"}
 
 
-async def test_reconfigure_source_equals_target_error(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_source_equals_target_error(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Connection reconfigure should error when source equals target."""
     _add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
     _add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
@@ -144,9 +142,7 @@ async def test_reconfigure_source_equals_target_error(
     assert result.get("errors") == {CONF_TARGET: "cannot_connect_to_self"}
 
 
-async def test_reconfigure_with_deleted_participant(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_with_deleted_participant(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Connection reconfigure should include deleted participant in options."""
     # Add only one participant (the target)
     _add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)

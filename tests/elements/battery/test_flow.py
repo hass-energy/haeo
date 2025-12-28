@@ -93,9 +93,7 @@ def _add_participant(
     return subentry
 
 
-async def test_reconfigure_with_deleted_connection_target(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Battery reconfigure should include deleted connection target in options."""
     # Create battery that references a deleted connection target
     existing_config = {
