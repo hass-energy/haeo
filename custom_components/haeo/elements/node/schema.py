@@ -8,9 +8,11 @@ ELEMENT_TYPE: Final = "node"
 CONF_IS_SOURCE: Final = "is_source"
 CONF_IS_SINK: Final = "is_sink"
 
-# Default values
-DEFAULT_IS_SOURCE: Final = False
-DEFAULT_IS_SINK: Final = False
+# Default values for optional fields
+DEFAULTS: Final[dict[str, bool]] = {
+    CONF_IS_SOURCE: False,
+    CONF_IS_SINK: False,
+}
 
 
 class NodeConfigSchema(TypedDict):

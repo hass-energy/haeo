@@ -8,7 +8,7 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 
-from .schema import CONF_IS_SINK, CONF_IS_SOURCE, DEFAULT_IS_SINK, DEFAULT_IS_SOURCE, ELEMENT_TYPE, NodeConfigSchema
+from .schema import CONF_IS_SINK, CONF_IS_SOURCE, DEFAULTS, ELEMENT_TYPE, NodeConfigSchema
 
 
 def _build_schema() -> vol.Schema:
@@ -21,11 +21,11 @@ def _build_schema() -> vol.Schema:
                 vol.Length(min=1, msg="Name cannot be empty"),
                 TextSelector(TextSelectorConfig()),
             ),
-            vol.Optional(CONF_IS_SOURCE, default=DEFAULT_IS_SOURCE): vol.All(
+            vol.Optional(CONF_IS_SOURCE): vol.All(
                 vol.Coerce(bool),
                 BooleanSelector(BooleanSelectorConfig()),
             ),
-            vol.Optional(CONF_IS_SINK, default=DEFAULT_IS_SINK): vol.All(
+            vol.Optional(CONF_IS_SINK): vol.All(
                 vol.Coerce(bool),
                 BooleanSelector(BooleanSelectorConfig()),
             ),
@@ -52,10 +52,7 @@ class NodeSubentryFlowHandler(ConfigSubentryFlow):
                 return self.async_create_entry(title=name, data=config)
 
         schema = _build_schema()
-        schema = self.add_suggested_values_to_schema(
-            schema,
-            {CONF_IS_SOURCE: DEFAULT_IS_SOURCE, CONF_IS_SINK: DEFAULT_IS_SINK},
-        )
+        schema = self.add_suggested_values_to_schema(schema, DEFAULTS)
 
         return self.async_show_form(
             step_id="user",

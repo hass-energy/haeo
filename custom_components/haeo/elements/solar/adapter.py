@@ -22,7 +22,7 @@ from .schema import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
-    DEFAULT_CURTAILMENT,
+    DEFAULTS,
     SolarConfigData,
     SolarConfigSchema,
 )
@@ -100,7 +100,7 @@ def create_model_elements(config: SolarConfigData) -> list[dict[str, Any]]:
             "target": config["connection"],
             "max_power_source_target": config["forecast"],
             "max_power_target_source": 0.0,
-            "fixed_power": not config.get("curtailment", DEFAULT_CURTAILMENT),
+            "fixed_power": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
             "price_source_target": config.get("price_production"),
         },
     ]

@@ -31,10 +31,7 @@ from .schema import (
     CONF_OVERCHARGE_PERCENTAGE,
     CONF_UNDERCHARGE_COST,
     CONF_UNDERCHARGE_PERCENTAGE,
-    DEFAULT_EARLY_CHARGE_INCENTIVE,
-    DEFAULT_EFFICIENCY,
-    DEFAULT_MAX_CHARGE_PERCENTAGE,
-    DEFAULT_MIN_CHARGE_PERCENTAGE,
+    DEFAULTS,
     BatteryConfigData,
     BatteryConfigSchema,
 )
@@ -139,9 +136,9 @@ async def load(
         "connection": config[CONF_CONNECTION],
         "capacity": capacity,
         "initial_charge_percentage": initial_charge,
-        "min_charge_percentage": config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULT_MIN_CHARGE_PERCENTAGE),
-        "max_charge_percentage": config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULT_MAX_CHARGE_PERCENTAGE),
-        "efficiency": config.get(CONF_EFFICIENCY, DEFAULT_EFFICIENCY),
+        "min_charge_percentage": config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]),
+        "max_charge_percentage": config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE]),
+        "efficiency": config.get(CONF_EFFICIENCY, DEFAULTS[CONF_EFFICIENCY]),
     }
 
     # Load optional time series fields
@@ -204,7 +201,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     initial_soc_ratio = initial_soc / 100.0
 
     # Calculate early charge/discharge incentives
-    early_charge_incentive = config.get("early_charge_incentive", DEFAULT_EARLY_CHARGE_INCENTIVE)
+    early_charge_incentive = config.get("early_charge_incentive", DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE])
 
     # Determine unusable ratio (inaccessible energy)
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio

@@ -67,8 +67,7 @@ async def load_element_configs(
     forecast_times_list = list(forecast_times)
 
     for element_name, element_config in participants.items():
-        element_type = element_config[CONF_ELEMENT_TYPE]
-        entry = ELEMENT_TYPES[element_type]
+        entry = ELEMENT_TYPES[element_config[CONF_ELEMENT_TYPE]]
 
         # Load all fields using the element-specific load function
         loaded_params: ElementConfigData = await entry.load(

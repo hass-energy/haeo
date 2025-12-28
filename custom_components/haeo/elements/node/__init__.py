@@ -16,8 +16,7 @@ from .flow import NodeSubentryFlowHandler
 from .schema import (
     CONF_IS_SINK,
     CONF_IS_SOURCE,
-    DEFAULT_IS_SINK,
-    DEFAULT_IS_SOURCE,
+    DEFAULTS,
     ELEMENT_TYPE,
     NodeConfigData,
     NodeConfigSchema,
@@ -27,8 +26,7 @@ __all__ = [
     # Schema
     "CONF_IS_SINK",
     "CONF_IS_SOURCE",
-    "DEFAULT_IS_SINK",
-    "DEFAULT_IS_SOURCE",
+    "DEFAULTS",
     "ELEMENT_TYPE",
     # Adapter
     "NODE_DEVICE_NAMES",

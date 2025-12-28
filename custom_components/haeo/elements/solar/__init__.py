@@ -21,7 +21,7 @@ from .schema import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
-    DEFAULT_CURTAILMENT,
+    DEFAULTS,
     ELEMENT_TYPE,
     SolarConfigData,
     SolarConfigSchema,
@@ -33,7 +33,7 @@ __all__ = [
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
     "CONF_PRICE_PRODUCTION",
-    "DEFAULT_CURTAILMENT",
+    "DEFAULTS",
     "ELEMENT_TYPE",
     # Adapter
     "SOLAR_DEVICE_NAMES",

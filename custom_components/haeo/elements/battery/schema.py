@@ -20,11 +20,13 @@ CONF_UNDERCHARGE_COST: Final = "undercharge_cost"
 CONF_OVERCHARGE_COST: Final = "overcharge_cost"
 CONF_CONNECTION: Final = "connection"
 
-# Default values
-DEFAULT_MIN_CHARGE_PERCENTAGE: Final = 0.0
-DEFAULT_MAX_CHARGE_PERCENTAGE: Final = 100.0
-DEFAULT_EFFICIENCY: Final = 99.0
-DEFAULT_EARLY_CHARGE_INCENTIVE: Final = 0.001
+# Default values for optional fields
+DEFAULTS: Final[dict[str, float]] = {
+    CONF_MIN_CHARGE_PERCENTAGE: 0.0,
+    CONF_MAX_CHARGE_PERCENTAGE: 100.0,
+    CONF_EFFICIENCY: 99.0,
+    CONF_EARLY_CHARGE_INCENTIVE: 0.001,
+}
 
 
 class BatteryConfigSchema(TypedDict):
@@ -42,16 +44,16 @@ class BatteryConfigSchema(TypedDict):
     initial_charge_percentage: list[str]  # SOC sensor entity IDs
 
     # Optional percentages with defaults
-    min_charge_percentage: NotRequired[float]  # Default 0%
-    max_charge_percentage: NotRequired[float]  # Default 100%
-    efficiency: NotRequired[float]  # Default 99%
+    min_charge_percentage: NotRequired[float]
+    max_charge_percentage: NotRequired[float]
+    efficiency: NotRequired[float]
 
     # Optional sensor fields
     max_charge_power: NotRequired[list[str]]  # Power sensor entity IDs
     max_discharge_power: NotRequired[list[str]]  # Power sensor entity IDs
 
     # Optional price fields
-    early_charge_incentive: NotRequired[float]  # Default 0.001
+    early_charge_incentive: NotRequired[float]
     discharge_cost: NotRequired[list[str]]  # Price sensor entity IDs
 
     # Advanced: undercharge/overcharge regions

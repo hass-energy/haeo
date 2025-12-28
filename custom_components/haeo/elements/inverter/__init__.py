@@ -26,7 +26,7 @@ from .schema import (
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
     CONF_MAX_POWER_DC_TO_AC,
-    DEFAULT_EFFICIENCY,
+    DEFAULTS,
     ELEMENT_TYPE,
     InverterConfigData,
     InverterConfigSchema,
@@ -39,7 +39,7 @@ __all__ = [
     "CONF_EFFICIENCY_DC_TO_AC",
     "CONF_MAX_POWER_AC_TO_DC",
     "CONF_MAX_POWER_DC_TO_AC",
-    "DEFAULT_EFFICIENCY",
+    "DEFAULTS",
     "ELEMENT_TYPE",
     # Adapter
     "INVERTER_DC_BUS_POWER_BALANCE",

@@ -38,10 +38,7 @@ from .schema import (
     CONF_OVERCHARGE_PERCENTAGE,
     CONF_UNDERCHARGE_COST,
     CONF_UNDERCHARGE_PERCENTAGE,
-    DEFAULT_EARLY_CHARGE_INCENTIVE,
-    DEFAULT_EFFICIENCY,
-    DEFAULT_MAX_CHARGE_PERCENTAGE,
-    DEFAULT_MIN_CHARGE_PERCENTAGE,
+    DEFAULTS,
     ELEMENT_TYPE,
     BatteryConfigSchema,
 )
@@ -112,17 +109,17 @@ def _build_schema(
                 )
             ),
             # Optional percentages with defaults
-            vol.Optional(CONF_MIN_CHARGE_PERCENTAGE, default=DEFAULT_MIN_CHARGE_PERCENTAGE): NumberSelector(
+            vol.Optional(CONF_MIN_CHARGE_PERCENTAGE): NumberSelector(
                 NumberSelectorConfig(
                     min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="%"
                 )
             ),
-            vol.Optional(CONF_MAX_CHARGE_PERCENTAGE, default=DEFAULT_MAX_CHARGE_PERCENTAGE): NumberSelector(
+            vol.Optional(CONF_MAX_CHARGE_PERCENTAGE): NumberSelector(
                 NumberSelectorConfig(
                     min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="%"
                 )
             ),
-            vol.Optional(CONF_EFFICIENCY, default=DEFAULT_EFFICIENCY): NumberSelector(
+            vol.Optional(CONF_EFFICIENCY): NumberSelector(
                 NumberSelectorConfig(
                     min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="%"
                 )
@@ -143,7 +140,7 @@ def _build_schema(
                 )
             ),
             # Optional prices
-            vol.Optional(CONF_EARLY_CHARGE_INCENTIVE, default=DEFAULT_EARLY_CHARGE_INCENTIVE): NumberSelector(
+            vol.Optional(CONF_EARLY_CHARGE_INCENTIVE): NumberSelector(
                 NumberSelectorConfig(min=0.0, max=1.0, step=0.001, mode=NumberSelectorMode.BOX)
             ),
             vol.Optional(CONF_DISCHARGE_COST): EntitySelector(
@@ -203,6 +200,7 @@ class BatterySubentryFlowHandler(ConfigSubentryFlow):
         entity_metadata = extract_entity_metadata(self.hass)
         participants = self._get_participant_names()
         schema = _build_schema(entity_metadata, participants)
+        schema = self.add_suggested_values_to_schema(schema, DEFAULTS)
 
         return self.async_show_form(
             step_id="user",

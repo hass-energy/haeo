@@ -10,8 +10,10 @@ CONF_PRICE_PRODUCTION: Final = "price_production"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
 
-# Default values
-DEFAULT_CURTAILMENT: Final = True
+# Default values for optional fields
+DEFAULTS: Final[dict[str, bool]] = {
+    CONF_CURTAILMENT: True,
+}
 
 
 class SolarConfigSchema(TypedDict):

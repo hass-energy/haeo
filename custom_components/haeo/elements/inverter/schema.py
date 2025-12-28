@@ -11,8 +11,11 @@ CONF_EFFICIENCY_AC_TO_DC: Final = "efficiency_ac_to_dc"
 CONF_MAX_POWER_DC_TO_AC: Final = "max_power_dc_to_ac"
 CONF_MAX_POWER_AC_TO_DC: Final = "max_power_ac_to_dc"
 
-# Default values
-DEFAULT_EFFICIENCY: Final = 100.0
+# Default values for optional fields
+DEFAULTS: Final[dict[str, float]] = {
+    CONF_EFFICIENCY_DC_TO_AC: 100.0,
+    CONF_EFFICIENCY_AC_TO_DC: 100.0,
+}
 
 
 class InverterConfigSchema(TypedDict):

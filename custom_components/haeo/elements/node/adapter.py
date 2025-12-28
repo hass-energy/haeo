@@ -10,7 +10,7 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
-from .schema import DEFAULT_IS_SINK, DEFAULT_IS_SOURCE, NodeConfigData, NodeConfigSchema
+from .schema import CONF_IS_SINK, CONF_IS_SOURCE, DEFAULTS, NodeConfigData, NodeConfigSchema
 
 # Node output names
 type NodeOutputName = Literal["node_power_balance"]
@@ -42,8 +42,8 @@ async def load(
     return {
         "element_type": config["element_type"],
         "name": config["name"],
-        "is_source": await const_loader_bool.load(value=config.get("is_source", DEFAULT_IS_SOURCE)),
-        "is_sink": await const_loader_bool.load(value=config.get("is_sink", DEFAULT_IS_SINK)),
+        "is_source": await const_loader_bool.load(value=config.get("is_source", DEFAULTS[CONF_IS_SOURCE])),
+        "is_sink": await const_loader_bool.load(value=config.get("is_sink", DEFAULTS[CONF_IS_SINK])),
     }
 
 

@@ -30,7 +30,7 @@ from .schema import (
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
     CONF_MAX_POWER_DC_TO_AC,
-    DEFAULT_EFFICIENCY,
+    DEFAULTS,
     ELEMENT_TYPE,
     InverterConfigSchema,
 )
@@ -93,7 +93,7 @@ def _build_schema(
                     exclude_entities=incompatible_power,
                 )
             ),
-            vol.Optional(CONF_EFFICIENCY_DC_TO_AC, default=DEFAULT_EFFICIENCY): vol.All(
+            vol.Optional(CONF_EFFICIENCY_DC_TO_AC): vol.All(
                 vol.Coerce(float),
                 vol.Range(min=0, max=100, msg="Value must be between 0 and 100"),
                 NumberSelector(
@@ -106,7 +106,7 @@ def _build_schema(
                     )
                 ),
             ),
-            vol.Optional(CONF_EFFICIENCY_AC_TO_DC, default=DEFAULT_EFFICIENCY): vol.All(
+            vol.Optional(CONF_EFFICIENCY_AC_TO_DC): vol.All(
                 vol.Coerce(float),
                 vol.Range(min=0, max=100, msg="Value must be between 0 and 100"),
                 NumberSelector(
@@ -150,14 +150,7 @@ class InverterSubentryFlowHandler(ConfigSubentryFlow):
         entity_metadata = extract_entity_metadata(self.hass)
         participants = self._get_participant_names()
         schema = _build_schema(entity_metadata, participants)
-        schema = self.add_suggested_values_to_schema(
-            schema,
-            {
-                CONF_NAME: default_name,
-                CONF_EFFICIENCY_DC_TO_AC: DEFAULT_EFFICIENCY,
-                CONF_EFFICIENCY_AC_TO_DC: DEFAULT_EFFICIENCY,
-            },
-        )
+        schema = self.add_suggested_values_to_schema(schema, {CONF_NAME: default_name, **DEFAULTS})
 
         return self.async_show_form(
             step_id="user",

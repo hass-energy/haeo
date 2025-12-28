@@ -31,7 +31,7 @@ from .schema import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
-    DEFAULT_CURTAILMENT,
+    DEFAULTS,
     ELEMENT_TYPE,
     SolarConfigSchema,
 )
@@ -97,7 +97,7 @@ def _build_schema(
                     )
                 ),
             ),
-            vol.Optional(CONF_CURTAILMENT, default=DEFAULT_CURTAILMENT): vol.All(
+            vol.Optional(CONF_CURTAILMENT): vol.All(
                 vol.Coerce(bool),
                 BooleanSelector(BooleanSelectorConfig()),
             ),
@@ -132,9 +132,7 @@ class SolarSubentryFlowHandler(ConfigSubentryFlow):
         entity_metadata = extract_entity_metadata(self.hass)
         participants = self._get_participant_names()
         schema = _build_schema(entity_metadata, participants)
-        schema = self.add_suggested_values_to_schema(
-            schema, {CONF_NAME: default_name, CONF_CURTAILMENT: DEFAULT_CURTAILMENT}
-        )
+        schema = self.add_suggested_values_to_schema(schema, {CONF_NAME: default_name, **DEFAULTS})
 
         return self.async_show_form(
             step_id="user",
