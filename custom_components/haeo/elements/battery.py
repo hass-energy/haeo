@@ -479,22 +479,19 @@ def outputs(
         elif section_key == "overcharge":
             result[BATTERY_DEVICE_OVERCHARGE] = section_device_outputs
 
+    # Map section keys to device keys
+    section_to_device: dict[str, BatteryDeviceName] = {
+        "undercharge": BATTERY_DEVICE_UNDERCHARGE,
+        "normal": BATTERY_DEVICE_NORMAL,
+        "overcharge": BATTERY_DEVICE_OVERCHARGE,
+    }
+
     # Add balance power outputs to each section device
     # power_down = energy flowing into this section from above
     # power_up = energy flowing out of this section to above
     for i, section_key in enumerate(section_names):
-        # Get device for this section
-        if section_key == "undercharge":
-            device_key = BATTERY_DEVICE_UNDERCHARGE
-        elif section_key == "normal":
-            device_key = BATTERY_DEVICE_NORMAL
-        elif section_key == "overcharge":
-            device_key = BATTERY_DEVICE_OVERCHARGE
-        else:
-            continue
-
-        if device_key not in result:
-            continue
+        # Get device for this section - all sections in section_names have corresponding devices
+        device_key = section_to_device[section_key]
 
         # Accumulate power_down and power_up from all adjacent balance connections
         power_down_values: list[float] | None = None
@@ -509,18 +506,12 @@ def outputs(
                 balance_data = outputs[balance_name]
                 # Power down from this section to lower section (energy leaving downward)
                 if model_balance.BALANCE_POWER_DOWN in balance_data:
-                    down_vals = np.array(balance_data[model_balance.BALANCE_POWER_DOWN].values)
-                    if power_down_values is None:
-                        power_down_values = list(down_vals)
-                    else:
-                        power_down_values = list(np.array(power_down_values) + down_vals)
+                    down_vals = balance_data[model_balance.BALANCE_POWER_DOWN].values
+                    power_down_values = list(down_vals)
                 # Power up from lower section to this section (energy entering from below)
                 if model_balance.BALANCE_POWER_UP in balance_data:
-                    up_vals = np.array(balance_data[model_balance.BALANCE_POWER_UP].values)
-                    if power_up_values is None:
-                        power_up_values = list(up_vals)
-                    else:
-                        power_up_values = list(np.array(power_up_values) + up_vals)
+                    up_vals = balance_data[model_balance.BALANCE_POWER_UP].values
+                    power_up_values = list(up_vals)
 
         # Check for balance connection with section above (this section is lower)
         # In this connection: power_down enters this section, power_up leaves this section
@@ -548,14 +539,14 @@ def outputs(
             result[device_key][BATTERY_BALANCE_POWER_DOWN] = OutputData(
                 type=OUTPUT_TYPE_POWER_FLOW,
                 unit="kW",
-                values=tuple(power_down_values),
+                values=tuple(float(v) for v in power_down_values),
                 advanced=True,
             )
         if power_up_values is not None:
             result[device_key][BATTERY_BALANCE_POWER_UP] = OutputData(
                 type=OUTPUT_TYPE_POWER_FLOW,
                 unit="kW",
-                values=tuple(power_up_values),
+                values=tuple(float(v) for v in power_up_values),
                 advanced=True,
             )
 

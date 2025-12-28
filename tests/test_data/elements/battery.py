@@ -204,13 +204,14 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_PRICE, unit="$/kWh", values=(0.04,), direction="-"),
             },
             # Balance connection outputs
+            # Use values that are exact in binary floating-point to avoid precision issues
             "battery_main:balance:undercharge:normal": {
-                balance_connection.BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
-                balance_connection.BALANCE_POWER_UP: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="-"),
+                balance_connection.BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.125,), direction="+"),
+                balance_connection.BALANCE_POWER_UP: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.25,), direction="-"),
             },
             "battery_main:balance:normal:overcharge": {
-                balance_connection.BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
-                balance_connection.BALANCE_POWER_UP: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), direction="-"),
+                balance_connection.BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.375,), direction="+"),
+                balance_connection.BALANCE_POWER_UP: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="-"),
             },
         },
         "outputs": {
@@ -231,9 +232,10 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 battery_element.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,), advanced=True),
                 battery_element.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,), advanced=True),
                 battery_element.BATTERY_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.006,), advanced=True),
-                # Balance: only has connection above (to normal), so down enters from normal, up leaves to normal
-                battery_element.BATTERY_BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), advanced=True),
-                battery_element.BATTERY_BALANCE_POWER_UP: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), advanced=True),
+                # Balance: only has connection above (to normal)
+                # From balance:undercharge:normal: power_down enters (0.125), power_up leaves (0.25)
+                battery_element.BATTERY_BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.125,), advanced=True),
+                battery_element.BATTERY_BALANCE_POWER_UP: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.25,), advanced=True),
             },
             battery_element.BATTERY_DEVICE_NORMAL: {
                 battery_element.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(4.0, 4.0), advanced=True),
@@ -244,8 +246,11 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 battery_element.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,), advanced=True),
                 battery_element.BATTERY_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.006,), advanced=True),
                 # Balance: has connections both above (to overcharge) and below (to undercharge)
-                battery_element.BATTERY_BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), advanced=True),
-                battery_element.BATTERY_BALANCE_POWER_UP: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), advanced=True),
+                # From balance:undercharge:normal (this is upper): power_down leaves (0.125), power_up enters (0.25)
+                # From balance:normal:overcharge (this is lower): power_down enters (0.375), power_up leaves (0.5)
+                # Total: power_down = 0.125 + 0.375 = 0.5, power_up = 0.25 + 0.5 = 0.75
+                battery_element.BATTERY_BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), advanced=True),
+                battery_element.BATTERY_BALANCE_POWER_UP: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.75,), advanced=True),
             },
             battery_element.BATTERY_DEVICE_OVERCHARGE: {
                 battery_element.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(0.0, 0.0), advanced=True),
@@ -256,9 +261,10 @@ VALID: Sequence[ElementValidCase[ElementConfigSchema, ElementConfigData]] = [
                 battery_element.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.004,), advanced=True),
                 battery_element.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.005,), advanced=True),
                 battery_element.BATTERY_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.006,), advanced=True),
-                # Balance: only has connection below (to normal), so down enters from normal, up leaves to normal
-                battery_element.BATTERY_BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), advanced=True),
-                battery_element.BATTERY_BALANCE_POWER_UP: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.0,), advanced=True),
+                # Balance: only has connection below (to normal)
+                # From balance:normal:overcharge: power_down leaves (0.375), power_up enters (0.5)
+                battery_element.BATTERY_BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.375,), advanced=True),
+                battery_element.BATTERY_BALANCE_POWER_UP: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), advanced=True),
             },
         },
     },
