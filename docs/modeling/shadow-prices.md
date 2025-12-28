@@ -71,7 +71,7 @@ The magnitude indicates how valuable additional capacity would be at that point.
 
     Understand how battery constraints generate shadow prices for state-of-charge and energy balance.
 
-    [:material-arrow-right: Battery model](model-layer/battery.md)
+    [:material-arrow-right: Battery model](model-layer/elements/battery.md)
 
 - :material-transmission-tower:{ .lg .middle } **Grid modeling**
 

@@ -13,6 +13,7 @@ from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -58,7 +59,8 @@ from .model import (
     OutputType,
 )
 from .repairs import dismiss_optimization_failure_issue
-from .schema import get_field_meta
+from .schema import compose_field
+from .schema.fields import TimeSeries
 from .util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 _LOGGER = logging.getLogger(__name__)
@@ -92,7 +94,7 @@ def extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     data_config_class = ELEMENT_TYPES[element_type].data
     hints = get_type_hints(data_config_class, include_extras=True)
 
-    for field_name in hints:
+    for field_name, field_type in hints.items():
         # Skip metadata fields
         if field_name in ("element_type", "name"):
             continue
@@ -101,12 +103,9 @@ def extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
         if field_value is None:
             continue
 
-        field_meta = get_field_meta(field_name, data_config_class)
-        if field_meta is None:
-            continue
-
-        # Check if this is a constant field (not a sensor)
-        if field_meta.field_type == "constant":
+        # Only collect entity IDs from TimeSeries fields (sensors)
+        spec = compose_field(field_type)
+        if not isinstance(spec.loader, TimeSeries):
             continue
 
         try:
@@ -362,9 +361,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             ),
         }
 
+        # Load the network subentry name from translations
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
+        )
+        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
+
         result: CoordinatorData = {
-            # Hub outputs use config entry title as subentry, network element type as device
-            self.config_entry.title: {
+            # HAEO outputs use network subentry name as key, network element type as device
+            network_subentry_name: {
                 ELEMENT_TYPE_NETWORK: {
                     name: _build_coordinator_output(
                         name,

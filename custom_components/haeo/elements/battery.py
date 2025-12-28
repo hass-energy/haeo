@@ -2,16 +2,17 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
 
 import numpy as np
 
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
-from custom_components.haeo.model import connection as model_connection
+from custom_components.haeo.model import power_connection as model_connection
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_SOC
+from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.source_sink import SOURCE_SINK_POWER_BALANCE
+from custom_components.haeo.schema import Default, get_default
 from custom_components.haeo.schema.fields import (
     BatterySOCFieldData,
     BatterySOCFieldSchema,
@@ -98,6 +99,16 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
     )
 )
 
+# Field type aliases with defaults
+MinChargePercentageFieldSchema = Annotated[BatterySOCFieldSchema, Default(value=0.0)]
+MinChargePercentageFieldData = Annotated[BatterySOCFieldData, Default(value=0.0)]
+MaxChargePercentageFieldSchema = Annotated[BatterySOCFieldSchema, Default(value=100.0)]
+MaxChargePercentageFieldData = Annotated[BatterySOCFieldData, Default(value=100.0)]
+EfficiencyFieldSchema = Annotated[PercentageFieldSchema, Default(value=99.0)]
+EfficiencyFieldData = Annotated[PercentageFieldData, Default(value=99.0)]
+EarlyChargeIncentiveFieldSchema = Annotated[PriceFieldSchema, Default(value=0.001)]
+EarlyChargeIncentiveFieldData = Annotated[PriceFieldData, Default(value=0.001)]
+
 
 class BatteryConfigSchema(TypedDict):
     """Battery configuration with sensor entity IDs."""
@@ -107,12 +118,12 @@ class BatteryConfigSchema(TypedDict):
     connection: ElementNameFieldSchema  # Connection ID that battery connects to
     capacity: EnergySensorFieldSchema
     initial_charge_percentage: BatterySOCSensorFieldSchema
-    min_charge_percentage: BatterySOCFieldSchema
-    max_charge_percentage: BatterySOCFieldSchema
-    efficiency: PercentageFieldSchema
+    min_charge_percentage: MinChargePercentageFieldSchema
+    max_charge_percentage: MaxChargePercentageFieldSchema
+    efficiency: EfficiencyFieldSchema
     max_charge_power: NotRequired[PowerSensorFieldSchema]
     max_discharge_power: NotRequired[PowerSensorFieldSchema]
-    early_charge_incentive: NotRequired[PriceFieldSchema]
+    early_charge_incentive: NotRequired[EarlyChargeIncentiveFieldSchema]
     discharge_cost: NotRequired[PriceSensorsFieldSchema]
     undercharge_percentage: NotRequired[BatterySOCFieldSchema]
     overcharge_percentage: NotRequired[BatterySOCFieldSchema]
@@ -128,12 +139,12 @@ class BatteryConfigData(TypedDict):
     connection: ElementNameFieldSchema  # Connection ID that battery connects to
     capacity: EnergySensorFieldData
     initial_charge_percentage: BatterySOCSensorFieldData
-    min_charge_percentage: BatterySOCFieldData
-    max_charge_percentage: BatterySOCFieldData
-    efficiency: PercentageFieldData
+    min_charge_percentage: MinChargePercentageFieldData
+    max_charge_percentage: MaxChargePercentageFieldData
+    efficiency: EfficiencyFieldData
     max_charge_power: NotRequired[PowerSensorFieldData]
     max_discharge_power: NotRequired[PowerSensorFieldData]
-    early_charge_incentive: NotRequired[PriceFieldData]
+    early_charge_incentive: NotRequired[EarlyChargeIncentiveFieldData]
     discharge_cost: NotRequired[PriceSensorsFieldData]
     undercharge_percentage: NotRequired[BatterySOCFieldData]
     overcharge_percentage: NotRequired[BatterySOCFieldData]
@@ -141,14 +152,6 @@ class BatteryConfigData(TypedDict):
     overcharge_cost: NotRequired[PriceSensorsFieldData]
     # Dynamic required energy for blackout protection (injected by load_network)
     required_energy: NotRequired[list[float]]
-
-
-CONFIG_DEFAULTS: dict[str, Any] = {
-    CONF_MIN_CHARGE_PERCENTAGE: 0.0,
-    CONF_MAX_CHARGE_PERCENTAGE: 100.0,
-    CONF_EFFICIENCY: 99.0,
-    CONF_EARLY_CHARGE_INCENTIVE: 0.001,
-}
 
 
 def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
@@ -178,7 +181,10 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     initial_soc_ratio = initial_soc / 100.0
 
     # Calculate early charge/discharge incentives
-    early_charge_incentive: float = config.get("early_charge_incentive", CONFIG_DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE])
+    early_charge_incentive = config.get(
+        "early_charge_incentive",
+        get_default("early_charge_incentive", BatteryConfigData, 0.0),
+    )
 
     # Check if dynamic undercharge sizing is enabled (required_energy provided)
     required_energy = config.get("required_energy")
@@ -314,7 +320,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
     node_name = f"{name}:node"
     elements.append(
         {
-            "element_type": "source_sink",
+            "element_type": "node",
             "name": node_name,
             "is_source": False,
             "is_sink": False,
@@ -473,8 +479,8 @@ def outputs(
     )
 
     # Add node power balance as battery power balance
-    if SOURCE_SINK_POWER_BALANCE in node_outputs:
-        aggregate_outputs[BATTERY_POWER_BALANCE] = node_outputs[SOURCE_SINK_POWER_BALANCE]
+    if NODE_POWER_BALANCE in node_outputs:
+        aggregate_outputs[BATTERY_POWER_BALANCE] = node_outputs[NODE_POWER_BALANCE]
 
     result: dict[BatteryDeviceName, dict[BatteryOutputName, OutputData]] = {BATTERY_DEVICE_BATTERY: aggregate_outputs}
 

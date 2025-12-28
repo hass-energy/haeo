@@ -15,16 +15,15 @@ This example uses the test system configuration:
 ```mermaid
 graph LR
     subgraph DC Side
-        Battery[Battery<br/>32kWh] <--> DC[DC Net]
-        Solar[Solar<br/>27kW] --> DC
+        Battery[Battery<br/>32kWh] <--> Inverter
+        Solar[Solar<br/>27kW] --> Inverter
     end
 
     subgraph AC Side
-        Grid[Grid<br/>±10kW/±5kW] <--> AC[AC Net]
-        AC --> Load[Load<br/>1kW]
+        Inverter[Inverter<br/>30kW] <--> Switchboard[Switchboard]
+        Grid[Grid<br/>±55kW/±30kW] <--> Switchboard
+        Switchboard --> Load[Load<br/>1kW]
     end
-
-    DC <-->|Inverter<br/>30kW| AC
 ```
 
 ## Prerequisites
@@ -50,171 +49,129 @@ Before starting this configuration, ensure you have:
 
 Configure the network through Settings → Devices & Services → Add Integration → HAEO:
 
-```yaml
-Name: Sigenergy System
-Tier 1 Count: 5      # 5 × 1 min = 5 minutes high-resolution
-Tier 1 Duration: 1
-Tier 2 Count: 11      # 11 × 5 min = 55 minutes
-Tier 2 Duration: 5
-Tier 3 Count: 46     # 46 × 30 min ≈ 23 hours
-Tier 3 Duration: 30
-Tier 4 Count: 48     # 48 × 60 min = 48 hours
-Tier 4 Duration: 60
-```
+| Field               | Value            |
+| ------------------- | ---------------- |
+| **Name**            | Sigenergy System |
+| **Tier 1 Count**    | 5                |
+| **Tier 1 Duration** | 1                |
+| **Tier 2 Count**    | 11               |
+| **Tier 2 Duration** | 5                |
+| **Tier 3 Count**    | 46               |
+| **Tier 3 Duration** | 30               |
+| **Tier 4 Count**    | 48               |
+| **Tier 4 Duration** | 60               |
 
-### Step 2: Add DC Net
+After submitting, you should see a Switchboard element already exists.
+This is the AC power balance point where grid and loads connect.
 
-Create the DC side network element:
+### Step 2: Add Inverter
 
-```yaml
-Name: DC Net
-```
+The Inverter element models your hybrid inverter with its built-in DC bus.
+Battery and solar will connect to this element.
 
-### Step 3: Add AC Net
+| Field                  | Value                          |
+| ---------------------- | ------------------------------ |
+| **Name**               | Inverter                       |
+| **AC Connection**      | Switchboard                    |
+| **Max DC to AC power** | `Sigen Plant Max Active Power` |
+| **Max AC to DC power** | `Sigen Plant Max Active Power` |
 
-Create the AC side network element:
+!!! tip "Selecting Sensors"
 
-```yaml
-Name: AC Net
-```
+    In the entity picker, search for "max active power" to find the sensor.
+    HAEO entity pickers search by **friendly name**, not entity ID.
 
-### Step 4: Add Battery
+### Step 3: Add Battery
 
-Configure the Sigenergy battery on the DC side:
+Configure the Sigenergy battery, connecting to the Inverter's DC side:
 
-| Field                         | Value                                          |
-| ----------------------------- | ---------------------------------------------- |
-| **Name**                      | Battery                                        |
-| **Capacity**                  | sensor.sigen_plant_rated_energy_capacity       |
-| **Current Charge Percentage** | sensor.sigen_plant_battery_state_of_charge     |
-| **Min Charge Percentage**     | 10                                             |
-| **Max Charge Percentage**     | 100                                            |
-| **Efficiency**                | 99                                             |
-| **Max Charge Power**          | sensor.sigen_plant_ess_rated_charging_power    |
-| **Max Discharge Power**       | sensor.sigen_plant_ess_rated_discharging_power |
-| **Early Charge Incentive**    | 0.001                                          |
-| **Discharge Cost**            | 0.02                                           |
+| Field                         | Value                                     |
+| ----------------------------- | ----------------------------------------- |
+| **Name**                      | Battery                                   |
+| **Connection**                | Inverter                                  |
+| **Capacity**                  | `Sigen Plant Rated Energy Capacity`       |
+| **Current Charge Percentage** | `Sigen Plant Battery State of Charge`     |
+| **Min Charge Percentage**     | 10                                        |
+| **Max Charge Percentage**     | 100                                       |
+| **Efficiency**                | 99                                        |
+| **Max Charge Power**          | `Sigen Plant Ess Rated Charging Power`    |
+| **Max Discharge Power**       | `Sigen Plant Ess Rated Discharging Power` |
+| **Early Charge Incentive**    | 0.001                                     |
+| **Discharge Cost**            | *(optional)*                              |
 
-!!! tip "Using Sigenergy Sensors for Power Ratings"
+!!! tip "Searching for Battery Sensors"
 
-    The Sigenergy integration provides sensors for battery capacity and charge/discharge power limits.
-    This ensures your configuration automatically matches your actual hardware specifications.
+    Use these search terms in entity pickers:
 
-!!! info "Battery Sensor"
+    - "rated energy capacity" for battery capacity
+    - "state of charge" for current SOC
+    - "charging" for max charge power
+    - "discharging" for max discharge power
 
-    Replace `sensor.sigen_plant_battery_state_of_charge` with your actual Sigenergy SOC sensor.
-    Find it in Developer Tools → States.
+### Step 4: Add Solar
 
-### Step 5: Add Solar
+Configure solar arrays with forecast sensors for each orientation, connecting to the Inverter's DC side:
 
-Configure solar arrays with forecast sensors for each orientation:
+| Field           | Value         |
+| --------------- | ------------- |
+| **Name**        | Solar         |
+| **Connection**  | Inverter      |
+| **Forecast**    | *(see below)* |
+| **Curtailment** | Yes           |
 
-| Field                | Value                                                                                                                                                                                                                                                                                                                  |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Name**             | Solar                                                                                                                                                                                                                                                                                                                  |
-| **Forecast**         | sensor.energy_production_today_east, sensor.energy_production_today_north, sensor.energy_production_today_south, sensor.energy_production_today_west, sensor.energy_production_tomorrow_east, sensor.energy_production_tomorrow_north, sensor.energy_production_tomorrow_south, sensor.energy_production_tomorrow_west |
-| **Curtailment**      | Yes                                                                                                                                                                                                                                                                                                                    |
-| **Production Price** | 0                                                                                                                                                                                                                                                                                                                      |
+For the Forecast field, use the "Add entity" button to select multiple sensors.
+With Open-Meteo Solar Forecast for four orientations, search and select:
 
-!!! tip "Solar Forecast Sensors"
+1. Search "East solar" → Select "East solar production forecast...today"
+2. Click "Add entity"
+3. Search "North solar" → Select "North solar production forecast...today"
+4. Click "Add entity"
+5. Search "South solar" → Select "South solar production forecast...today"
+6. Click "Add entity"
+7. Search "West solar" → Select "West solar production forecast...today"
 
-    This example uses Open-Meteo Solar Forecast with separate sensors for each array orientation.
-    Open-Meteo provides free solar forecasts with excellent accuracy.
-    If you have a single combined forecast sensor, use that instead.
+!!! tip "Multi-Select Entity Pickers"
 
-### Step 6: Add Grid Connection
+    For fields that accept multiple sensors, an "Add entity" button appears after selecting the first sensor.
+    Click it to add additional sensors one at a time.
 
-Configure grid with pricing and limits:
+### Step 5: Add Grid Connection
 
-| Field            | Value                                                   |
-| ---------------- | ------------------------------------------------------- |
-| **Name**         | Grid                                                    |
-| **Import Price** | sensor.home_general_price, sensor.home_general_forecast |
-| **Export Price** | sensor.home_feed_in_price, sensor.home_feed_in_forecast |
-| **Import Limit** | 55                                                      |
-| **Export Limit** | 30                                                      |
+Configure grid with pricing and limits, connecting to the Switchboard:
 
-!!! info "Price Sensors"
+| Field            | Value                  |
+| ---------------- | ---------------------- |
+| **Name**         | Grid                   |
+| **Connection**   | Switchboard            |
+| **Import Price** | `Home - General Price` |
+| **Export Price** | `Home - Feed In Price` |
+| **Import Limit** | 55                     |
+| **Export Limit** | 30                     |
 
-    Replace with your actual price forecast sensors.
-    See [Forecasts & Sensors](../forecasts-and-sensors.md) for creating constant-price forecasts if needed.
+!!! tip "Finding Price Sensors"
 
-### Step 7: Add Load
+    Search for "General Price" for import pricing and "Feed In" for export pricing.
+    Your integration may use different naming.
+    Look for sensors with price forecast attributes.
 
-Configure the constant base load using an input_number helper:
+### Step 6: Add Load
 
-| Field        | Value                            |
-| ------------ | -------------------------------- |
-| **Name**     | Constant Load                    |
-| **Forecast** | input_number.constant_load_power |
+Configure the base load consumption, connecting to the Switchboard:
 
-**Creating the input_number**:
+| Field          | Value                        |
+| -------------- | ---------------------------- |
+| **Name**       | Load                         |
+| **Connection** | Switchboard                  |
+| **Forecast**   | `Sigen Plant Consumed Power` |
 
-1. Navigate to Settings → Devices & Services → Helpers
-2. Click **Create Helper** → **Number**
-3. Set:
-    - **Name**: "Constant Load Power"
-    - **Unit**: kW
-    - **Initial value**: 1.0
-    - **Minimum**: 0
-    - **Maximum**: 10
+!!! tip "Load Sensors"
 
-### Step 8: Create Connections
+    Search for "consumed" to find consumption forecast sensors.
+    If you don't have a load forecast, create an `input_number` helper for constant load:
 
-Connect elements to create the hybrid inverter topology.
-For each connection below, click the **`:` menu button** on the hub page and select **Add Entry** → **Connection**.
-
-#### DC Side Connections
-
-**DC Net to Battery** (bidirectional):
-
-| Field                       | Value                         |
-| --------------------------- | ----------------------------- |
-| **Name**                    | DC Net->Battery               |
-| **Source**                  | DC Net                        |
-| **Target**                  | Battery                       |
-| **Max Power Source→Target** | _(leave empty for unlimited)_ |
-| **Max Power Target→Source** | _(leave empty for unlimited)_ |
-
-**Solar to DC Net** (unidirectional):
-
-| Field      | Value         |
-| ---------- | ------------- |
-| **Name**   | Solar->DC Net |
-| **Source** | Solar         |
-| **Target** | DC Net        |
-
-#### AC Side Connections
-
-**Grid to AC Net** (bidirectional):
-
-| Field      | Value        |
-| ---------- | ------------ |
-| **Name**   | Grid->AC Net |
-| **Source** | Grid         |
-| **Target** | AC Net       |
-
-**Constant Load to AC Net** (unidirectional):
-
-| Field      | Value         |
-| ---------- | ------------- |
-| **Name**   | Load->AC Net  |
-| **Source** | Constant Load |
-| **Target** | AC Net        |
-
-#### Inverter Connection
-
-**DC Net to AC Net** (bidirectional, represents 30kW hybrid inverter):
-
-| Field                       | Value    |
-| --------------------------- | -------- |
-| **Name**                    | Inverter |
-| **Source**                  | DC Net   |
-| **Target**                  | AC Net   |
-| **Max Power Source→Target** | 30       |
-| **Max Power Target→Source** | 30       |
-
-The inverter connection models the AC/DC power conversion with its 30 kW capacity limit in both directions.
+    1. Settings → Devices & Services → Helpers
+    2. Create Helper → Number
+    3. Name: "Constant Load Power", Unit: kW, Value: 1.0
 
 ## Verification
 
@@ -222,17 +179,24 @@ After completing configuration:
 
 1. **Navigate to Settings → Devices & Services → HAEO**
 2. **Click on "Sigenergy System" hub** to view the device page
-3. **Verify all elements are listed** in the devices section
+3. **Verify device/entity counts**: Should show 8 devices and 42 entities
 4. **Wait for first optimization** - Allow initial run to complete (may take 5-30 seconds)
 5. **Check optimization status** - Should show `success`
 
-### Inspect Device Hierarchy
+### Expected Device Hierarchy
 
 In the HAEO integration page, you should see:
 
-- **Network device**: "Sigenergy System" with optimization sensors
-- **Element devices**: Battery, Solar, Grid, Constant Load, DC Net, AC Net
-- **Connection devices**: Each connection creates a device with power flow sensors
+| Element               | Type     | Entities |
+| --------------------- | -------- | -------- |
+| Sigenergy System      | Network  | 3        |
+| Switchboard           | Node     | 1        |
+| Inverter              | Inverter | 8        |
+| Battery               | Battery  | 6        |
+| Battery Normal Region | Region   | 9        |
+| Solar                 | Solar    | 3        |
+| Grid                  | Grid     | 9        |
+| Load                  | Load     | 3        |
 
 ### Key Sensors to Monitor
 
@@ -263,12 +227,13 @@ In the HAEO integration page, you should see:
 
 **Load**:
 
-- `sensor.constant_load_power_consumed` - Load consumption (kW)
+- `sensor.load_power_consumed` - Load consumption (kW)
 
-**Connections** (example for one):
+**Inverter**:
 
-- `sensor.inverter_power_flow_source_target` - DC→AC power flow (kW)
-- `sensor.inverter_power_flow_target_source` - AC→DC power flow (kW)
+- `sensor.inverter_power_dc_to_ac` - DC→AC power flow (kW)
+- `sensor.inverter_power_ac_to_dc` - AC→DC power flow (kW)
+- `sensor.inverter_power_active` - Net AC power (kW)
 
 All sensors include a `forecast` attribute with future optimized values.
 
@@ -285,17 +250,16 @@ All sensors include a `forecast` attribute with future optimized values.
 
 ## Architecture Notes
 
-This hybrid inverter configuration uses:
+This hybrid inverter configuration uses the Inverter element which provides:
 
-- **Separate DC and AC nets** modeling physical separation
-- **Inverter connection** with 30 kW limit between nets
-- **Battery and solar on DC side** (DC-coupled)
-- **Grid and load on AC side**
+- **Built-in DC bus** for battery and solar connections
+- **Bidirectional AC/DC conversion** with power limits
+- **AC connection** to the Switchboard where grid and loads connect
 
-The inverter connection power limit ensures:
+The Inverter element simplifies configuration compared to manual DC/AC nets with connection elements, while accurately modeling:
 
-- AC→DC charging cannot exceed 30 kW
-- DC→AC discharge cannot exceed 30 kW
-- Realistic system constraints are modeled
+- DC→AC export cannot exceed inverter rating
+- AC→DC charging cannot exceed inverter rating
+- Battery and solar share the DC bus capacity
 
 See [Node](../elements/node.md) for more on hybrid inverter modeling.

@@ -7,8 +7,9 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.translation import async_get_translations
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 
 from .coordinator import HaeoDataUpdateCoordinator
 
@@ -19,43 +20,77 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 type HaeoConfigEntry = ConfigEntry[HaeoDataUpdateCoordinator | None]
 
 
-async def _ensure_network_subentry(hass: HomeAssistant, hub_entry: ConfigEntry) -> None:
-    """Ensure a Network subentry exists for the hub.
+async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntry) -> None:
+    """Ensure required subentries exist for the hub.
 
-    The Network subentry represents the optimization network and holds
-    the optimization sensors (Cost, Status, Duration).
+    This ensures:
+    1. A Network subentry exists (for optimization sensors)
+    2. In non-advanced mode, a Switchboard node exists
 
     Args:
         hass: Home Assistant instance
         hub_entry: The hub config entry
 
     """
+    from custom_components.haeo.elements import ELEMENT_TYPE_NODE  # noqa: PLC0415
+    from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE  # noqa: PLC0415
+
     # Check if Network subentry already exists
+    has_network = False
+    has_node = False
+
     for subentry in hub_entry.subentries.values():
         if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
-            _LOGGER.debug("Network subentry already exists for hub %s", hub_entry.entry_id)
-            return
+            has_network = True
+        elif subentry.subentry_type == ELEMENT_TYPE_NODE:
+            has_node = True
+        if has_network and has_node:
+            break
 
-    # Create Network subentry by adding it to the hub's subentries collection
-    _LOGGER.info("Creating Network subentry for hub %s", hub_entry.entry_id)
+    # Load translations for subentry names
+    translations = await async_get_translations(hass, hass.config.language, "common", integrations=[DOMAIN])
 
-    # Create a ConfigSubentry object and add it to the hub
-    network_subentry = ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: hub_entry.title, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
-        subentry_type=ELEMENT_TYPE_NETWORK,
-        title=hub_entry.title,
-        unique_id=None,
-    )
+    # Create Network subentry if missing
+    if not has_network:
+        _LOGGER.info("Creating Network subentry for hub %s", hub_entry.entry_id)
+        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
+        network_subentry = ConfigSubentry(
+            data=MappingProxyType({CONF_NAME: network_subentry_name, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
+            subentry_type=ELEMENT_TYPE_NETWORK,
+            title=network_subentry_name,
+            unique_id=None,
+        )
+        hass.config_entries.async_add_subentry(hub_entry, network_subentry)
+        _LOGGER.debug("Network subentry created successfully")
 
-    hass.config_entries.async_add_subentry(hub_entry, network_subentry)
-    _LOGGER.debug("Network subentry created successfully")
+    # In non-advanced mode, ensure switchboard node exists
+    advanced_mode = hub_entry.data.get(CONF_ADVANCED_MODE, False)
+    if not advanced_mode and not has_node:
+        _LOGGER.info("Creating Switchboard node for hub %s (non-advanced mode)", hub_entry.entry_id)
+        switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
+
+        switchboard_subentry = ConfigSubentry(
+            data=MappingProxyType(
+                {
+                    CONF_NAME: switchboard_name,
+                    CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE,
+                    CONF_IS_SOURCE: False,
+                    CONF_IS_SINK: False,
+                }
+            ),
+            subentry_type=ELEMENT_TYPE_NODE,
+            title=switchboard_name,
+            unique_id=None,
+        )
+        hass.config_entries.async_add_subentry(hub_entry, switchboard_subentry)
+        _LOGGER.debug("Switchboard node created successfully")
 
 
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
     """Handle options update or subentry changes."""
     from .network import evaluate_network_connectivity  # noqa: PLC0415
 
-    await _ensure_network_subentry(hass, entry)
+    await _ensure_required_subentries(hass, entry)
     await evaluate_network_connectivity(hass, entry)
     _LOGGER.info("HAEO configuration changed, reloading integration")
     await hass.config_entries.async_reload(entry.entry_id)
@@ -65,8 +100,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     """Set up Home Assistant Energy Optimizer from a config entry."""
     _LOGGER.info("Setting up HAEO integration")
 
-    # Ensure Network subentry exists (auto-create if missing)
-    await _ensure_network_subentry(hass, entry)
+    # Ensure required subentries exist (auto-create if missing)
+    await _ensure_required_subentries(hass, entry)
 
     # Store coordinator in runtime data first (required for platform setup)
     coordinator = HaeoDataUpdateCoordinator(hass, entry)

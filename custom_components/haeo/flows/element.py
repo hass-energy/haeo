@@ -5,16 +5,19 @@ from typing import Any, cast
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.translation import async_get_translations
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
+from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, URL_HAFO
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.elements import (
     ELEMENT_TYPE_CONNECTION,
+    ELEMENT_TYPE_LOAD,
     ELEMENT_TYPE_NODE,
+    ELEMENT_TYPES,
+    ConnectivityLevel,
     ElementConfigSchema,
     is_element_config_schema,
 )
 from custom_components.haeo.network import evaluate_network_connectivity
-from custom_components.haeo.schema import schema_for_type
+from custom_components.haeo.schema import get_schema_defaults, schema_for_type
 from custom_components.haeo.validation import collect_participant_configs
 
 
@@ -24,19 +27,17 @@ class ElementSubentryFlow(ConfigSubentryFlow):
     Type parameter T should be the Schema TypedDict class for the element type.
     """
 
-    def __init__(self, element_type: str, schema_cls: type[ElementConfigSchema], defaults: dict[str, Any]) -> None:
+    def __init__(self, element_type: str, schema_cls: type[ElementConfigSchema]) -> None:
         """Initialize the element subentry flow.
 
         Args:
             element_type: Type of element (battery, grid, etc.)
             schema_cls: Schema class for this element type
-            defaults: Default values for this element type
 
         """
         super().__init__()
         self.element_type: str = element_type
         self.schema_cls: type[ElementConfigSchema] = schema_cls
-        self.defaults: dict[str, Any] = defaults
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Add new element - validates name uniqueness, creates subentry."""
@@ -63,13 +64,14 @@ class ElementSubentryFlow(ConfigSubentryFlow):
                 return self.async_create_entry(title=name, data=new_config)
 
         # Default names for element types which are likely to have a single instance
-        suggested_values = self.defaults
+        defaults = get_schema_defaults(self.schema_cls)
+        suggested_values = defaults
         if self.element_type not in [ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE]:
             translations = await async_get_translations(
                 self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
             )
             default_name = translations.get(f"component.{DOMAIN}.config_subentries.{self.element_type}.flow_title", "")
-            suggested_values = {CONF_NAME: default_name, **self.defaults}
+            suggested_values = {CONF_NAME: default_name, **defaults}
 
         # Show the form to the user
         schema = schema_for_type(
@@ -80,7 +82,12 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         )
         schema = self.add_suggested_values_to_schema(schema, suggested_values)
 
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders=self._get_description_placeholders(),
+        )
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Reconfigure existing element - similar to user but updates existing."""
@@ -124,7 +131,12 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         )
         schema = self.add_suggested_values_to_schema(schema, subentry.data)
 
-        return self.async_show_form(step_id="reconfigure", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders=self._get_description_placeholders(),
+        )
 
     def _get_used_names(self) -> set[str]:
         """Return all configured element names excluding the current subentry when present."""
@@ -135,10 +147,26 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         }
 
     def _get_non_connection_element_names(self) -> list[str]:
-        """Return participant names available for connection endpoints excluding the current subentry."""
-        return [
-            k for k, v in self._get_other_element_entries().items() if v[CONF_ELEMENT_TYPE] != ELEMENT_TYPE_CONNECTION
-        ]
+        """Return participant names available for connection endpoints excluding the current subentry.
+
+        Filters elements based on their connectivity level:
+        - ALWAYS: Always included
+        - ADVANCED: Only included when advanced mode is enabled
+        - NEVER: Never included (e.g., connections)
+        """
+        hub_entry = self._get_entry()
+        advanced_mode = hub_entry.data.get(CONF_ADVANCED_MODE, False)
+
+        result: list[str] = []
+        for name, config in self._get_other_element_entries().items():
+            connectivity = ELEMENT_TYPES[config[CONF_ELEMENT_TYPE]].connectivity
+
+            if connectivity == ConnectivityLevel.ALWAYS or (
+                connectivity == ConnectivityLevel.ADVANCED and advanced_mode
+            ):
+                result.append(name)
+
+        return result
 
     def _get_other_element_entries(self) -> dict[str, ElementConfigSchema]:
         """Return other subentries which are Element participants."""
@@ -158,10 +186,14 @@ class ElementSubentryFlow(ConfigSubentryFlow):
         except Exception:
             return None
 
+    def _get_description_placeholders(self) -> dict[str, str] | None:
+        """Return description placeholders for the current element type."""
+        if self.element_type == ELEMENT_TYPE_LOAD:
+            return {"hafo_url": URL_HAFO}
+        return None
 
-def create_subentry_flow_class(
-    element_type: str, schema_cls: type[ElementConfigSchema], defaults: dict[str, Any]
-) -> type[ElementSubentryFlow]:
+
+def create_subentry_flow_class(element_type: str, schema_cls: type[ElementConfigSchema]) -> type[ElementSubentryFlow]:
     """Create strongly-typed subentry flow class for element type."""
 
     class TypedElementSubentryFlow(ElementSubentryFlow):
@@ -169,7 +201,7 @@ def create_subentry_flow_class(
 
         def __init__(self) -> None:
             """Initialize the typed flow."""
-            super().__init__(element_type, schema_cls, defaults)
+            super().__init__(element_type, schema_cls)
 
     TypedElementSubentryFlow.__name__ = f"{element_type.title().replace('_', '')}SubentryFlow"
     return TypedElementSubentryFlow

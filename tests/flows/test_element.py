@@ -11,6 +11,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import (
+    CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
@@ -40,12 +41,13 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
 
 async def test_subentry_flow_classes_have_correct_attributes(hass: HomeAssistant) -> None:
     """Test that subentry flow classes have the expected attributes."""
-    # Create hub entry
+    # Create hub entry with advanced mode enabled to access connection flows
     hub_entry = MockConfigEntry(
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
+            CONF_ADVANCED_MODE: True,  # Required for connection flows
         },
         entry_id="hub_id",
     )
@@ -131,7 +133,7 @@ async def test_get_subentries(hass: HomeAssistant) -> None:
     hass.config_entries.async_add_subentry(hub_entry, battery2)
 
     # Create flow instance and test _get_other_element_entries
-    flow = ElementSubentryFlow(battery.ELEMENT_TYPE, BatteryConfigSchema, {})
+    flow = ElementSubentryFlow(battery.ELEMENT_TYPE, BatteryConfigSchema)
     flow.hass = hass
     flow.handler = (hub_entry.entry_id, battery.ELEMENT_TYPE)
 
@@ -206,7 +208,7 @@ async def test_get_subentries_with_exclusion(hass: HomeAssistant) -> None:
     hass.config_entries.async_add_subentry(hub_entry, battery2)
 
     # Create flow instance and test with exclusion
-    flow = ElementSubentryFlow(battery.ELEMENT_TYPE, BatteryConfigSchema, {})
+    flow = ElementSubentryFlow(battery.ELEMENT_TYPE, BatteryConfigSchema)
     flow.hass = hass
     flow.handler = (hub_entry.entry_id, battery.ELEMENT_TYPE)
 
@@ -231,11 +233,7 @@ async def test_get_subentries_with_exclusion(hass: HomeAssistant) -> None:
 
 async def test_create_subentry_flow_class() -> None:
     """Test create_subentry_flow_class creates properly configured flow class."""
-    defaults = {
-        battery.CONF_CAPACITY: 10000.0,
-        battery.CONF_MAX_CHARGE_POWER: 5000.0,
-    }
-    flow_class = create_subentry_flow_class(battery.ELEMENT_TYPE, BatteryConfigSchema, defaults)
+    flow_class = create_subentry_flow_class(battery.ELEMENT_TYPE, BatteryConfigSchema)
 
     # Check class attributes - name is formatted from element type
     assert flow_class.__name__ == "BatterySubentryFlow"
@@ -244,4 +242,3 @@ async def test_create_subentry_flow_class() -> None:
     flow_instance = flow_class()  # type: ignore[call-arg]
     assert flow_instance.element_type == battery.ELEMENT_TYPE
     assert flow_instance.schema_cls == BatteryConfigSchema
-    assert flow_instance.defaults == defaults

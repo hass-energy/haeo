@@ -7,10 +7,6 @@ from homeassistant.components import system_health
 from homeassistant.core import HomeAssistant, callback
 
 from .const import (
-    CONF_TIER_1_COUNT,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_4_COUNT,
     DOMAIN,
     OPTIMIZATION_STATUS_PENDING,
     OUTPUT_NAME_OPTIMIZATION_COST,
@@ -84,16 +80,10 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
         health_info[f"{prefix}outputs"] = outputs_count
 
         # Report total number of periods and horizon in minutes
-        total_periods = (
-            entry.data.get(CONF_TIER_1_COUNT, 0)
-            + entry.data.get(CONF_TIER_2_COUNT, 0)
-            + entry.data.get(CONF_TIER_3_COUNT, 0)
-            + entry.data.get(CONF_TIER_4_COUNT, 0)
-        )
+        periods_seconds = tiers_to_periods_seconds(entry.data)
+        total_periods = len(periods_seconds)
         if total_periods > 0:
             health_info[f"{prefix}total_periods"] = total_periods
-            # Calculate total horizon in minutes from periods
-            periods_seconds = tiers_to_periods_seconds(entry.data)
             horizon_minutes = sum(periods_seconds) // 60
             health_info[f"{prefix}horizon_minutes"] = horizon_minutes
 

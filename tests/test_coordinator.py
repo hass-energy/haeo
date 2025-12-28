@@ -302,6 +302,9 @@ async def test_async_update_data_returns_outputs(
         },
     }
 
+    # Mock translations to return the expected network subentry name
+    mock_translations = AsyncMock(return_value={"component.haeo.common.network_subentry_name": "System"})
+
     # Patch the registry entries to use our mocked output functions
     with (
         patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
@@ -313,6 +316,7 @@ async def test_async_update_data_returns_outputs(
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.dt_util.utcnow", return_value=generated_at),
+        patch("custom_components.haeo.coordinator.async_get_translations", mock_translations),
         patch.dict(
             ELEMENT_TYPES,
             {
@@ -341,7 +345,7 @@ async def test_async_update_data_returns_outputs(
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
-    network_outputs = result[mock_hub_entry.title][ELEMENT_TYPE_NETWORK]
+    network_outputs = result["System"][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OUTPUT_TYPE_COST
     assert cost_output.unit == hass.config.currency
@@ -399,6 +403,9 @@ async def test_async_update_data_handles_none_required_energy(
 
     mock_adapter = MagicMock(return_value={})
 
+    # Mock translations to return the expected network subentry name
+    mock_translations = AsyncMock(return_value={"component.haeo.common.network_subentry_name": "System"})
+
     with (
         patch("custom_components.haeo.coordinator.data_module.config_available", return_value=True),
         patch(
@@ -413,6 +420,7 @@ async def test_async_update_data_handles_none_required_energy(
         patch("custom_components.haeo.coordinator.data_module.load_network", new_callable=AsyncMock) as mock_load,
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, return_value=0.0),
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue"),
+        patch("custom_components.haeo.coordinator.async_get_translations", mock_translations),
         patch.dict(
             ELEMENT_TYPES,
             {
@@ -427,10 +435,27 @@ async def test_async_update_data_handles_none_required_energy(
         result = await coordinator._async_update_data()
 
     # When required_energy is None, the output should have a fallback value of (0.0,)
-    network_outputs = result[mock_hub_entry.title][ELEMENT_TYPE_NETWORK]
+    network_outputs = result["System"][ELEMENT_TYPE_NETWORK]
     required_energy_output = network_outputs[OUTPUT_NAME_REQUIRED_ENERGY]
     assert required_energy_output.state == 0.0
     assert required_energy_output.unit == "kWh"
+
+
+async def test_async_update_data_raises_on_missing_sensors(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: ConfigSubentry,
+    mock_grid_subentry: ConfigSubentry,
+) -> None:
+    """Coordinator raises UpdateFailed when sensor data is unavailable."""
+    # config_available returns False to simulate missing sensor data
+    with patch("custom_components.haeo.coordinator.data_module.config_available", return_value=False):
+        coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+        with pytest.raises(UpdateFailed) as exc_info:
+            await coordinator._async_update_data()
+
+        # Verify the error contains the element names with missing sensors
+        assert exc_info.value.translation_key == "missing_sensors"
 
 
 async def test_async_update_data_propagates_update_failed(
@@ -542,33 +567,6 @@ def test_extract_entity_ids_skips_constant_fields() -> None:
     extracted = extract_entity_ids_from_config(config)
 
     assert extracted == {"sensor.capacity", "sensor.soc"}
-
-
-def test_extract_entity_ids_skips_missing_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fields without schema metadata should be ignored when collecting entity identifiers."""
-    config: ElementConfigSchema = {
-        CONF_NAME: "Battery",
-        CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-        CONF_CAPACITY: "sensor.capacity",
-        CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.soc",
-        CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-        CONF_MAX_CHARGE_PERCENTAGE: 80.0,
-        CONF_EFFICIENCY: 95.0,
-        CONF_CONNECTION: "DC Bus",
-    }
-
-    original_get_field_meta = extract_entity_ids_from_config.__globals__["get_field_meta"]
-
-    def fake_get_field_meta(field_name: str, config_class: type) -> Any:
-        if field_name == CONF_CAPACITY:
-            return None
-        return original_get_field_meta(field_name, config_class)
-
-    monkeypatch.setattr("custom_components.haeo.coordinator.get_field_meta", fake_get_field_meta)
-
-    extracted = extract_entity_ids_from_config(config)
-
-    assert extracted == {"sensor.soc"}
 
 
 def test_extract_entity_ids_catches_type_errors(monkeypatch: pytest.MonkeyPatch) -> None:

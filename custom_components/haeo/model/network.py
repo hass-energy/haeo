@@ -12,7 +12,7 @@ from .battery import Battery
 from .connection import Connection
 from .element import Element
 from .node import Node
-from .source_sink import SourceSink
+from .power_connection import PowerConnection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,8 +73,7 @@ class Network:
         """
         factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
-            "connection": Connection,
-            "source_sink": SourceSink,
+            "connection": PowerConnection,
             "node": Node,
         }
 

@@ -39,6 +39,7 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.elements import (
     ELEMENT_TYPES,
+    ConnectivityLevel,
     ElementOutputName,
     ElementRegistryEntry,
     ElementType,
@@ -79,7 +80,7 @@ def _create_flow(
     """Create a configured subentry flow instance for an element type."""
 
     registry_entry = ELEMENT_TYPES[element_type]
-    flow_class = create_subentry_flow_class(element_type, registry_entry.schema, registry_entry.defaults)
+    flow_class = create_subentry_flow_class(element_type, registry_entry.schema)
     flow = flow_class()  # type: ignore[call-arg]
     flow.hass = hass
     flow.handler = (hub_entry.entry_id, element_type)
@@ -173,10 +174,10 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
     entry = ElementRegistryEntry(
         schema=FlowTestElementConfigSchema,
         data=FlowTestElementConfigData,
-        defaults={},
         translation_key=cast("ElementType", TEST_ELEMENT_TYPE),
         create_model_elements=mock_create_model_elements,
         outputs=mock_outputs,  # type: ignore[arg-type]
+        connectivity=ConnectivityLevel.ALWAYS,  # Test element is always connectivity for testing
     )
     monkeypatch.setitem(ELEMENT_TYPES, cast("ElementType", TEST_ELEMENT_TYPE), entry)
     return FlowTestElementFactory()
@@ -495,7 +496,7 @@ async def test_get_other_element_entries_filters_correctly(
     hub_entry: MockConfigEntry,
     flow_test_element_factory: FlowTestElementFactory,
 ) -> None:
-    """Verify participant filtering excludes non-endpoint subentries."""
+    """Verify participant filtering excludes non-endpoint subentries and respects connectivity levels."""
 
     endpoint_one = flow_test_element_factory.create_subentry(name="Endpoint One")
     endpoint_two = flow_test_element_factory.create_subentry(name="Endpoint Two")

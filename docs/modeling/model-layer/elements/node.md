@@ -1,11 +1,11 @@
-# SourceSink Model
+# Node Model
 
-The SourceSink model element represents power sources, sinks, and junction points in the network.
+The Node model element represents power sources, sinks, and junction points in the network.
 It provides a unified formulation for elements that produce power, consume power, or simply route power between connections.
 
 ## Overview
 
-SourceSink is a versatile model element controlled by two flags:
+Node is a versatile model element controlled by two flags:
 
 | `is_source` | `is_sink` | Behavior                           |
 | ----------- | --------- | ---------------------------------- |
@@ -14,7 +14,7 @@ SourceSink is a versatile model element controlled by two flags:
 | `false`     | `true`    | Can only consume power             |
 | `false`     | `false`   | Pure junction (routes power only)  |
 
-Power limits and pricing are configured on the [Connection](connection.md) to/from the SourceSink, not on the SourceSink itself.
+Power limits and pricing are configured on the [Connection](../connections/index.md) to/from the Node, not on the Node itself.
 This design separates the element's role (source, sink, or junction) from its operational constraints (limits, efficiency, cost).
 
 ## Model Formulation
@@ -33,14 +33,14 @@ A pure junction (`is_source=false, is_sink=false`) creates no power variables.
 
 ### Parameters
 
-SourceSink has no direct parameters.
-All operational parameters (power limits, efficiency, pricing) are configured on the connected [Connection](connection.md) elements.
+Node has no direct parameters.
+All operational parameters (power limits, efficiency, pricing) are configured on the connected [Connection](../connections/index.md) elements.
 
 ### Constraints
 
 #### Power Balance
 
-The power balance constraint depends on the SourceSink configuration:
+The power balance constraint depends on the Node configuration:
 
 **Source and Sink** (`is_source=true, is_sink=true`):
 
@@ -74,12 +74,12 @@ $$
 
 Net connection power must be zero (Kirchhoff's law).
 
-Where $P_{\text{connection}}(t)$ is the sum of power flows from all connected [Connection](connection.md) elements, accounting for efficiency losses.
+Where $P_{\text{connection}}(t)$ is the sum of power flows from all connected [Connection](../connections/index.md) elements, accounting for efficiency losses.
 
 ### Cost Contribution
 
-SourceSink contributes no direct cost to the objective function.
-Costs are applied through the connected [Connection](connection.md) elements via their pricing parameters.
+Node contributes no direct cost to the objective function.
+Costs are applied through the connected [Connection](../connections/index.md) elements via their pricing parameters.
 
 ## Physical Interpretation
 
@@ -100,17 +100,17 @@ Used to connect multiple elements at a common point (Kirchhoff's law).
 
     ---
 
-    Energy storage with SOC dynamics (separate model element).
+    Energy storage with SOC dynamics.
 
     [:material-arrow-right: Battery formulation](battery.md)
 
-- :material-connection:{ .lg .middle } **Connection model**
+- :material-connection:{ .lg .middle } **Connections**
 
     ---
 
-    Power flow constraints that work with SourceSink.
+    Power flow paths between elements.
 
-    [:material-arrow-right: Connection formulation](connection.md)
+    [:material-arrow-right: Connection types](../connections/index.md)
 
 - :material-file-document:{ .lg .middle } **Device configuration**
 
@@ -118,6 +118,6 @@ Used to connect multiple elements at a common point (Kirchhoff's law).
 
     Configure Grid, Solar, Load, and Node elements.
 
-    [:material-arrow-right: Elements overview](../../user-guide/elements/index.md)
+    [:material-arrow-right: Elements overview](../../../user-guide/elements/index.md)
 
 </div>
