@@ -6,23 +6,34 @@ from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
     CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_TARGET_SOURCE,
+    CONNECTION_PRICE_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 
 from .flow import LoadSubentryFlowHandler
-from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import (
+    CONF_CONNECTION,
+    CONF_FORECAST,
+    CONF_SHEDDABLE,
+    CONF_VALUE_RUNNING,
+    DEFAULTS,
+    ELEMENT_TYPE,
+    LoadConfigData,
+    LoadConfigSchema,
+)
 
 # Load output names
 type LoadOutputName = Literal[
     "load_power",
     "load_power_possible",
+    "load_value",
     "load_forecast_limit_price",
 ]
 
@@ -30,6 +41,7 @@ LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     (
         LOAD_POWER := "load_power",
         LOAD_POWER_POSSIBLE := "load_power_possible",
+        LOAD_VALUE := "load_value",
         # Shadow prices
         LOAD_FORECAST_LIMIT_PRICE := "load_forecast_limit_price",
     )
@@ -64,6 +76,8 @@ class LoadAdapter:
     ) -> LoadConfigData:
         """Load load configuration values from sensors."""
         ts_loader = TimeSeriesLoader()
+        const_loader_float = ConstantLoader[float](float)
+        const_loader_bool = ConstantLoader[bool](bool)
 
         forecast = await ts_loader.load(
             hass=hass,
@@ -71,28 +85,42 @@ class LoadAdapter:
             forecast_times=forecast_times,
         )
 
-        return {
+        data: LoadConfigData = {
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
             "forecast": forecast,
         }
 
+        # Load optional fields
+        if CONF_SHEDDABLE in config:
+            data["sheddable"] = await const_loader_bool.load(value=config[CONF_SHEDDABLE])
+        if CONF_VALUE_RUNNING in config:
+            data["value_running"] = await const_loader_float.load(value=config[CONF_VALUE_RUNNING])
+
+        return data
+
     def create_model_elements(self, config: LoadConfigData) -> list[dict[str, Any]]:
         """Create model elements for Load configuration."""
+        connection_params: dict[str, Any] = {
+            "element_type": "connection",
+            "name": f"{config['name']}:connection",
+            "source": config["name"],
+            "target": config["connection"],
+            "max_power_source_target": 0.0,
+            "max_power_target_source": config["forecast"],
+            "fixed_power": not config.get("sheddable", DEFAULTS[CONF_SHEDDABLE]),
+        }
+
+        # Only include price_target_source if value_running is specified
+        if (value_running := config.get("value_running")) is not None:
+            connection_params["price_target_source"] = value_running
+
         return [
             # Create Node for the load (sink only - consumes power)
             {"element_type": "node", "name": config["name"], "is_source": False, "is_sink": True},
             # Create Connection from node to load (power flows TO the load)
-            {
-                "element_type": "connection",
-                "name": f"{config['name']}:connection",
-                "source": config["name"],
-                "target": config["connection"],
-                "max_power_source_target": 0.0,
-                "max_power_target_source": config["forecast"],
-                "fixed_power": True,
-            },
+            connection_params,
         ]
 
     def outputs(
@@ -110,6 +138,9 @@ class LoadAdapter:
             # Only the max limit has meaning, the source sink power balance is always zero
             LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
         }
+
+        if CONNECTION_PRICE_TARGET_SOURCE in connection:
+            load_outputs[LOAD_VALUE] = connection[CONNECTION_PRICE_TARGET_SOURCE]
 
         return {LOAD_DEVICE_LOAD: load_outputs}
 

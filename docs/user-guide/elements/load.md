@@ -2,6 +2,7 @@
 
 Loads represent power consumption in your system.
 The Load element uses forecast data to model any type of consumption pattern from fixed baseline loads to variable time-varying consumption.
+Loads can optionally be configured as sheddable with a value when running.
 
 !!! note "Connection endpoints"
 
@@ -9,10 +10,12 @@ The Load element uses forecast data to model any type of consumption pattern fro
 
 ## Configuration
 
-| Field                     | Type                                     | Required | Default | Description                               |
-| ------------------------- | ---------------------------------------- | -------- | ------- | ----------------------------------------- |
-| **[Name](#name)**         | String                                   | Yes      | -       | Unique identifier for this load           |
-| **[Forecast](#forecast)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW) |
+| Field                                    | Type                                     | Required | Default | Description                                       |
+| ---------------------------------------- | ---------------------------------------- | -------- | ------- | ------------------------------------------------- |
+| **[Name](#name)**                        | String                                   | Yes      | -       | Unique identifier for this load                   |
+| **[Forecast](#forecast)**                | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW)         |
+| **[Sheddable](#sheddable)**              | Boolean                                  | No       | `false` | Allow load to be shed when economically favorable |
+| **[Value When Running](#value-running)** | [sensor(s)](../forecasts-and-sensors.md) | No       | -       | Value in \$/kWh when load is running              |
 
 ## Name
 
@@ -40,6 +43,91 @@ The Load element is flexible and works with both constant and time-varying patte
 
 Provide all load forecasts to get accurate total consumption predictions.
 See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.
+
+## Sheddable
+
+Enable or disable load shedding for this load.
+When sheddable is enabled (`true`), the optimizer can reduce or eliminate power to this load when it is economically favorable.
+When sheddable is disabled (`false`, the default), the load must always receive its full forecasted power.
+
+**Default**: `false` (load is fixed, not sheddable)
+
+**When to enable sheddable**:
+
+- Discretionary loads (air conditioning, pool pumps, bitcoin miners)
+- Loads that can be deferred or reduced during peak pricing
+- Loads where comfort or convenience can be traded for cost savings
+
+**When to disable shedding**:
+
+- Critical loads that must always run (refrigeration, medical equipment)
+- Base loads that represent essential consumption
+- Loads where interruption is not acceptable
+
+**Example - Sheddable load**:
+
+| Field        | Value  |
+| ------------ | ------ |
+| **Shedding** | `true` |
+
+The optimizer can reduce or eliminate power to this load when grid prices are high or battery is needed elsewhere.
+
+**Example - Fixed load**:
+
+| Field        | Value   |
+| ------------ | ------- |
+| **Shedding** | `false` |
+
+The load will always receive its full forecasted power regardless of economics.
+
+!!! tip "Combine with Value When Running"
+
+    Set a value when running to express the benefit of keeping the load active.
+    The optimizer will balance this value against energy costs to make optimal decisions.
+
+## Value When Running
+
+Specify the economic value (in \$/kWh) when this load is running.
+This represents the benefit, productivity, or comfort provided by the load.
+
+The optimizer uses this value to decide whether to shed the load:
+
+- If energy costs exceed the value, the load may be shed
+- If the value exceeds energy costs, the load will run
+
+**Use cases**:
+
+- **Comfort loads**: HVAC value based on temperature comfort
+- **Productivity**: Equipment that generates revenue when operating
+- **Convenience**: Pool pumps, water heaters with flexibility
+
+**Single value example**:
+
+| Field                  | Value                   |
+| ---------------------- | ----------------------- |
+| **Value When Running** | input_number.hvac_value |
+
+Set the helper to your comfort value (e.g., 0.50 = \$0.50/kWh benefit from running HVAC).
+
+**Time-varying value example**:
+
+| Field                  | Value                             |
+| ---------------------- | --------------------------------- |
+| **Value When Running** | sensor.production_equipment_value |
+
+For equipment with varying productivity value throughout the day.
+
+**Typical value ranges**:
+
+- **Basic comfort**: $0.10-$0.30/kWh (willing to shed when grid exceeds this)
+- **Important comfort**: $0.30-$0.60/kWh (higher value keeps load running more)
+- **Revenue-generating**: Match or exceed expected revenue per kWh
+
+!!! note "Value vs Cost"
+
+    Value When Running represents **benefit** (positive value), not cost.
+    A positive value means the optimizer will try to keep the load running unless energy costs exceed this value.
+    Without a value, sheddable loads default to zero value and will be shed whenever it saves money.
 
 ## Constant Load Pattern
 
@@ -197,35 +285,98 @@ Combine multiple consumption sources:
 | **Name**     | All Loads                                                                                 |
 | **Forecast** | sensor.base_consumption, sensor.ev_charger, sensor.pool_pump_schedule, sensor.hvac_system |
 
+### Sheddable HVAC Load
+
+Air conditioning that can be shed during peak prices:
+
+| Field                  | Value                      |
+| ---------------------- | -------------------------- |
+| **Name**               | HVAC                       |
+| **Forecast**           | sensor.hvac_power_forecast |
+| **Sheddable**          | `true`                     |
+| **Value When Running** | input_number.comfort_value |
+
+Set the comfort value helper to express your willingness to pay for cooling (e.g., 0.35 = \$0.35/kWh).
+The optimizer will run the HVAC when energy costs are below this value and may shed it when costs exceed the value.
+
+### Sheddable Pool Pump
+
+Pool pump that can be deferred to off-peak times:
+
+| Field                  | Value                        |
+| ---------------------- | ---------------------------- |
+| **Name**               | Pool Pump                    |
+| **Forecast**           | input_number.pool_pump_power |
+| **Sheddable**          | `true`                       |
+| **Value When Running** | `0.15`                       |
+
+With a low value, the pump will run primarily during cheap energy periods (solar excess, off-peak grid prices).
+
+### Critical Fixed Load
+
+Essential equipment that must always run:
+
+| Field         | Value                 |
+| ------------- | --------------------- |
+| **Name**      | Critical Equipment    |
+| **Forecast**  | sensor.critical_power |
+| **Sheddable** | `false`               |
+
+The load will always receive full power regardless of energy costs.
+
 ## Sensors Created
 
 A Load element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                        | Unit  | Description                           |
-| ------------------------------------------------------------- | ----- | ------------------------------------- |
-| [`sensor.{name}_power`](#power)                               | kW    | Power consumed by load                |
-| [`sensor.{name}_power_possible`](#power-possible)             | kW    | Maximum possible load (from forecast) |
-| [`sensor.{name}_forecast_limit_price`](#forecast-limit-price) | \$/kW | Marginal cost of serving this load    |
+| Sensor                                                        | Unit   | Description                           |
+| ------------------------------------------------------------- | ------ | ------------------------------------- |
+| [`sensor.{name}_power`](#power)                               | kW     | Power consumed by load                |
+| [`sensor.{name}_power_possible`](#power-possible)             | kW     | Maximum possible load (from forecast) |
+| [`sensor.{name}_value`](#value)                               | \$/kWh | Value when load is running (optional) |
+| [`sensor.{name}_forecast_limit_price`](#forecast-limit-price) | \$/kW  | Marginal cost of serving this load    |
 
 ### Power
 
 The optimal power consumed by this load at each time period.
 
-Since loads are not controllable in HAEO, this value matches the forecast or constant value provided in the configuration.
+**For fixed loads** (sheddable disabled): This value matches the forecast or constant value provided in the configuration.
 The optimization determines how to supply this power (from grid, battery, or solar), but the load consumption itself is fixed.
 
-**For constant loads**: The sensor shows the same value for all periods (the configured constant power).
+**For sheddable loads** (sheddable enabled): This value may be less than the forecast if the optimizer determines it is more economical to shed the load.
+The actual power consumed reflects the optimization decision based on energy costs and the load's value when running.
 
-**For variable loads**: The sensor reflects the forecast values for each period from the configured sensor(s).
+**For constant loads**: The sensor shows the same value for all periods (the configured constant power or zero if shed).
 
-**Example**: A value of 2.5 kW means this load requires 2.5 kW at this time period, which the optimization must supply from available sources.
+**For variable loads**: The sensor reflects the forecast values for each period from the configured sensor(s), or reduced values if the load is shed.
+
+**Example**: A value of 2.5 kW means this load requires 2.5 kW at this time period.
+For sheddable loads, a value of 0 kW means the load was shed during optimization.
 
 ### Power Possible
 
 The maximum possible load from the forecast configuration.
 
-For loads, this equals the power sensor since load consumption is fixed.
-Shows the value from the configured forecast sensor(s).
+This always shows the forecast value regardless of whether the load is shed.
+For fixed loads, this equals the power sensor.
+For sheddable loads, this shows what the load would consume if not shed.
+
+### Value
+
+The economic value (in \$/kWh) when this load is running.
+This sensor only appears when `value_running` is configured.
+
+This represents the benefit provided by the load and helps the optimizer decide whether to run or shed the load.
+Compare this value with energy prices to understand load decisions.
+
+**Interpretation**:
+
+- When energy cost < value: Load is economically favorable to run
+- When energy cost > value: Load may be shed to save money
+- Higher values: Load is less likely to be shed
+- Lower values: Load is more likely to be shed during peak prices
+
+**Example**: A value of 0.35 means running this load provides $0.35/kWh of benefit.
+If grid import price is $0.50/kWh, the optimizer may shed this load to avoid the net loss of \$0.15/kWh.
 
 ### Forecast Limit Price
 
