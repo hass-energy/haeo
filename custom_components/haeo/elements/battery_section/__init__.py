@@ -41,16 +41,16 @@ __all__ = [
     "BATTERY_SECTION_POWER_DISCHARGE",
     "BATTERY_SECTION_SOC_MAX",
     "BATTERY_SECTION_SOC_MIN",
-    "BatterySectionAdapter",
-    "adapter",
     # Schema
     "CONF_CAPACITY",
     "CONF_INITIAL_CHARGE",
     "ELEMENT_TYPE",
+    "BatterySectionAdapter",
     "BatterySectionConfigData",
     "BatterySectionConfigSchema",
     "BatterySectionDeviceName",
     "BatterySectionOutputName",
     # Flow
     "BatterySectionSubentryFlowHandler",
+    "adapter",
 ]

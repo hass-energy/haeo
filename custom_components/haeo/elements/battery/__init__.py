@@ -67,8 +67,6 @@ __all__ = [
     "BATTERY_SOC_MAX",
     "BATTERY_SOC_MIN",
     "BATTERY_STATE_OF_CHARGE",
-    "BatteryAdapter",
-    "adapter",
     # Schema
     "CONF_CAPACITY",
     "CONF_CONNECTION",
@@ -86,11 +84,13 @@ __all__ = [
     "CONF_UNDERCHARGE_PERCENTAGE",
     "DEFAULTS",
     "ELEMENT_TYPE",
+    "BatteryAdapter",
     "BatteryConfigData",
     "BatteryConfigSchema",
     "BatteryDeviceName",
     "BatteryOutputName",
     # Flow
     "BatterySubentryFlowHandler",
+    "adapter",
     "sum_output_data",
 ]
