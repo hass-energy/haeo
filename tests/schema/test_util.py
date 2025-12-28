@@ -5,7 +5,6 @@ from enum import Enum
 from homeassistant.const import UnitOfPower
 import pytest
 
-from custom_components.haeo.schema.fields import EntitySelect
 from custom_components.haeo.schema.util import UnitSpec, matches_unit_spec
 
 
@@ -93,14 +92,6 @@ def test_matches_unit_spec(unit: str, pattern: UnitSpec, *, expected: bool) -> N
     """Unit patterns should match units according to specification."""
     result = matches_unit_spec(unit, pattern)
     assert result == expected, f"Expected {unit!r} to {'match' if expected else 'not match'} {pattern!r}"
-
-
-def test_entity_select_stores_accepted_units() -> None:
-    """EntitySelect should store accepted_units for filtering."""
-    validator = EntitySelect(UnitOfPower, multiple=True)
-
-    assert validator.accepted_units == UnitOfPower
-    assert validator.multiple is True
 
 
 PRICE_UNITS: list[UnitSpec] = [("*", "/", "kWh"), ("*", "/", "MWh"), ("*", "/", "Wh")]

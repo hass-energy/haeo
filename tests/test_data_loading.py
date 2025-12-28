@@ -76,8 +76,8 @@ async def test_load_network_with_missing_sensors(hass: HomeAssistant) -> None:
             "battery": {
                 CONF_ELEMENT_TYPE: "battery",
                 CONF_NAME: "battery",
-                CONF_CAPACITY: "sensor.missing_battery_capacity",  # This sensor doesn't exist
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.missing_battery_soc",  # This sensor doesn't exist
+                CONF_CAPACITY: ["sensor.missing_battery_capacity"],  # This sensor doesn't exist
+                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.missing_battery_soc"],  # This sensor doesn't exist
                 CONF_MIN_CHARGE_PERCENTAGE: 20.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 80.0,
                 CONF_EFFICIENCY: 95.0,
@@ -108,8 +108,8 @@ async def test_load_network_with_unavailable_sensor_state(hass: HomeAssistant) -
             "battery": {
                 CONF_ELEMENT_TYPE: "battery",
                 CONF_NAME: "battery",
-                CONF_CAPACITY: "sensor.unavailable_capacity",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.unavailable_soc",
+                CONF_CAPACITY: ["sensor.unavailable_capacity"],
+                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.unavailable_soc"],
                 CONF_MIN_CHARGE_PERCENTAGE: 20.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 80.0,
                 CONF_EFFICIENCY: 95.0,

@@ -29,15 +29,17 @@ See [architecture guide](../docs/developer-guide/architecture.md) for detailed c
 ```
 custom_components/haeo/     # Home Assistant integration
 ├── model/                  # LP model (constraints, variables, optimization)
-├── elements/               # Element adapters (schema, data, adapter, extractor)
-├── schema/                 # Field metadata and schema generation
-├── flows/                  # Config flow implementations
+├── elements/               # Element adapters (one subfolder per element type)
+├── schema/                 # Shared utilities (UnitSpec, matches_unit_spec)
+├── flows/                  # Hub and options config flows
 ├── sensors/                # Sensor implementations
 ├── data/                   # Data loading utilities
 └── translations/           # i18n strings (en.json)
 tests/                      # Test suite
-├── model/                  # Model layer tests with test_data
-├── scenarios/              # End-to-end scenario tests
+├── flows/                  # Config flow tests with shared test_data/
+├── elements/               # Element-specific tests (adapter, flow, model)
+├── model/                  # Model layer tests
+└── scenarios/              # End-to-end scenario tests
 docs/                       # Documentation
 ```
 
@@ -74,6 +76,28 @@ Always assume that accessed properties/fields which should exist do exist direct
 Rely on errors occurring if they do not when they indicate a coding error and not a possibly None value.
 This is especially true in tests where you have added entities and then must access them later.
 Having None checks there reduces readability and makes the test more fragile to passing unexpectedly.
+
+### Code review guidelines
+
+When reviewing code, rely on linting tools (Ruff and Pyright) to identify issues that they can detect.
+Do not report on issues that these tools already catch, such as:
+
+- Unused imports
+- Type errors
+- Style violations
+- Formatting issues
+- Other issues detectable by static analysis tools
+
+Focus review comments on:
+
+- Logic errors and bugs
+- Architectural concerns
+- Performance issues
+- Security vulnerabilities
+- Code clarity and maintainability
+- Missing tests or documentation
+
+This avoids false positives and redundant feedback that linting tools already provide.
 
 ## Universal code standards
 

@@ -1,4 +1,4 @@
-"""HAEO element registry with field-based metadata.
+"""HAEO element registry with explicit per-element adapters.
 
 This module provides a centralized registry for all element types and their adapters.
 The adapter layer transforms configuration elements into model elements and maps
@@ -6,6 +6,8 @@ model outputs to user-friendly device outputs.
 
 Adapter Pattern:
     Configuration Element (with entity IDs) →
+    Adapter.load() →
+    Configuration Data (with loaded values) →
     Adapter.create_model_elements() →
     Model Elements (pure optimization) →
     Model.optimize() →
@@ -24,18 +26,17 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping, Sequence
 import enum
 import logging
-from typing import Any, Final, Literal, NamedTuple, TypeGuard, cast
+from typing import Any, Final, Literal, NamedTuple, Protocol, TypeGuard, get_origin, get_type_hints, runtime_checkable
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-import voluptuous as vol
+from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, NETWORK_OUTPUT_NAMES, NetworkDeviceName, NetworkOutputName
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.schema import schema_for_type
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
 
@@ -136,13 +137,6 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | NETWORK_DEVICE_NAMES
 )
 
-type CreateModelElementsFn = Callable[[Any], list[dict[str, Any]]]
-
-type OutputsFn = Callable[
-    [str, Mapping[str, Mapping[ModelOutputName, OutputData]], Any],
-    Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]],
-]
-
 
 class ConnectivityLevel(enum.Enum):
     """Connectivity level for element types in connection selectors.
@@ -157,102 +151,67 @@ class ConnectivityLevel(enum.Enum):
     NEVER = "never"
 
 
-class ElementRegistryEntry(NamedTuple):
-    """Registry entry for an element type.
+@runtime_checkable
+class ElementAdapter(Protocol):
+    """Protocol for element adapters.
 
-    The create_model_elements and outputs fields are callables that:
-        - create_model_elements(config) -> list[dict[str, Any]]
-            Transforms config element to model elements
-        - outputs(name, model_outputs, config) -> dict[str, dict[str, Any]]
-            Transforms model outputs to device outputs with access to original config
+    Each element type provides an adapter that bridges Home Assistant
+    configuration with the LP model layer. Adapters must implement this
+    protocol and be registered in the ELEMENT_TYPES registry.
 
-    The advanced flag indicates whether this element type is only shown when
-    advanced mode is enabled on the hub.
-
-    The connectivity field indicates when this element type appears in connection
-    selectors:
-        - ALWAYS: Always shown in connection selectors
-        - ADVANCED: Only shown when advanced mode is enabled
-        - NEVER: Never shown in connection selectors
+    Note: Attributes are defined as read-only properties in the Protocol,
+    but implementations use class attributes with Final for immutability.
     """
 
-    schema: type[Any]
-    data: type[Any]
-    translation_key: ElementType
-    create_model_elements: CreateModelElementsFn
-    outputs: OutputsFn
-    advanced: bool = False
-    connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
+    element_type: str
+    """The element type identifier."""
+
+    flow_class: type
+    """The config flow handler class for this element type."""
+
+    advanced: bool
+    """Whether this element type requires advanced mode."""
+
+    connectivity: str
+    """Visibility level in connection selectors ('always', 'advanced', or 'never')."""
+
+    def available(self, config: Any, *, hass: HomeAssistant, **kwargs: Any) -> bool:
+        """Check if element configuration can be loaded."""
+        ...
+
+    async def load(
+        self,
+        config: Any,
+        *,
+        hass: HomeAssistant,
+        forecast_times: Sequence[float],
+    ) -> Any:
+        """Load configuration values from sensors."""
+        ...
+
+    def create_model_elements(self, config: Any) -> list[dict[str, Any]]:
+        """Transform loaded config into model element parameters."""
+        ...
+
+    def outputs(
+        self,
+        name: str,
+        model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
+        _config: Any,
+    ) -> Mapping[Any, Mapping[Any, OutputData]]:
+        """Map model outputs to device-specific outputs."""
+        ...
 
 
-ELEMENT_TYPES: dict[ElementType, ElementRegistryEntry] = {
-    grid.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=grid.GridConfigSchema,
-        data=grid.GridConfigData,
-        translation_key=grid.ELEMENT_TYPE,
-        create_model_elements=grid.create_model_elements,
-        outputs=cast("OutputsFn", grid.outputs),
-        connectivity=ConnectivityLevel.ADVANCED,
-    ),
-    load.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=load.LoadConfigSchema,
-        data=load.LoadConfigData,
-        translation_key=load.ELEMENT_TYPE,
-        create_model_elements=load.create_model_elements,
-        outputs=cast("OutputsFn", load.outputs),
-        connectivity=ConnectivityLevel.ADVANCED,
-    ),
-    inverter.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=inverter.InverterConfigSchema,
-        data=inverter.InverterConfigData,
-        translation_key=inverter.ELEMENT_TYPE,
-        create_model_elements=inverter.create_model_elements,
-        outputs=cast("OutputsFn", inverter.outputs),
-        connectivity=ConnectivityLevel.ALWAYS,
-    ),
-    solar.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=solar.SolarConfigSchema,
-        data=solar.SolarConfigData,
-        translation_key=solar.ELEMENT_TYPE,
-        create_model_elements=solar.create_model_elements,
-        outputs=cast("OutputsFn", solar.outputs),
-        connectivity=ConnectivityLevel.ADVANCED,
-    ),
-    battery.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=battery.BatteryConfigSchema,
-        data=battery.BatteryConfigData,
-        translation_key=battery.ELEMENT_TYPE,
-        create_model_elements=battery.create_model_elements,
-        outputs=cast("OutputsFn", battery.outputs),
-        connectivity=ConnectivityLevel.ADVANCED,
-    ),
-    connection.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=connection.ConnectionConfigSchema,
-        data=connection.ConnectionConfigData,
-        translation_key=connection.ELEMENT_TYPE,
-        create_model_elements=connection.create_model_elements,
-        outputs=cast("OutputsFn", connection.outputs),
-        advanced=True,
-        connectivity=ConnectivityLevel.NEVER,
-    ),
-    node.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=node.NodeConfigSchema,
-        data=node.NodeConfigData,
-        translation_key=node.ELEMENT_TYPE,
-        create_model_elements=node.create_model_elements,
-        outputs=cast("OutputsFn", node.outputs),
-        advanced=True,
-        connectivity=ConnectivityLevel.ALWAYS,
-    ),
-    battery_section.ELEMENT_TYPE: ElementRegistryEntry(
-        schema=battery_section.BatterySectionConfigSchema,
-        data=battery_section.BatterySectionConfigData,
-        translation_key=battery_section.ELEMENT_TYPE,
-        create_model_elements=battery_section.create_model_elements,
-        outputs=cast("OutputsFn", battery_section.outputs),
-        advanced=True,
-        connectivity=ConnectivityLevel.ALWAYS,
-    ),
+ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
+    grid.ELEMENT_TYPE: grid.adapter,
+    load.ELEMENT_TYPE: load.adapter,
+    inverter.ELEMENT_TYPE: inverter.adapter,
+    solar.ELEMENT_TYPE: solar.adapter,
+    battery.ELEMENT_TYPE: battery.adapter,
+    connection.ELEMENT_TYPE: connection.adapter,
+    node.ELEMENT_TYPE: node.adapter,
+    battery_section.ELEMENT_TYPE: battery_section.adapter,
 }
 
 
@@ -265,25 +224,83 @@ class ValidatedElementSubentry(NamedTuple):
     config: ElementConfigSchema
 
 
-def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
-    """Return True when value matches any ElementConfigSchema TypedDict."""
+# Map element types to their ConfigSchema TypedDict classes for reflection
+# Typed with ElementType keys to enable type-safe indexing after is_element_type check
+ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
+    "battery": battery.BatteryConfigSchema,
+    "battery_section": battery_section.BatterySectionConfigSchema,
+    "connection": connection.ConnectionConfigSchema,
+    "grid": grid.GridConfigSchema,
+    "inverter": inverter.InverterConfigSchema,
+    "load": load.LoadConfigSchema,
+    "node": node.NodeConfigSchema,
+    "solar": solar.SolarConfigSchema,
+}
 
+
+def is_element_type(value: Any) -> TypeGuard[ElementType]:
+    """Return True when value is a valid ElementType literal.
+
+    Use this to narrow Any values (e.g., from dict.get()) to ElementType,
+    enabling type-safe access to ELEMENT_TYPES and ELEMENT_CONFIG_SCHEMAS.
+    """
+    return value in ELEMENT_TYPES
+
+
+def _conforms_to_typed_dict(value: Mapping[str, Any], typed_dict_cls: type) -> bool:
+    """Check if a mapping conforms to a TypedDict's required fields and types.
+
+    Uses reflection to get required keys and type hints from the TypedDict class.
+    Only checks required fields (not NotRequired fields).
+    """
+    # Get required keys from TypedDict
+    required_keys: frozenset[str] = getattr(typed_dict_cls, "__required_keys__", frozenset())
+
+    # Get type hints for the TypedDict
+    hints = get_type_hints(typed_dict_cls)
+
+    for key in required_keys:
+        if key not in value:
+            return False
+
+        # Required keys in a TypedDict always have type hints
+        expected_type = hints[key]
+
+        # Get the origin type for generic types (e.g., list[str] -> list)
+        origin = get_origin(expected_type)
+        check_type = origin if origin is not None else expected_type
+
+        # Handle Literal types by checking if value is one of the allowed values
+        if check_type is Literal:
+            # For Literal, we don't do isinstance check - just ensure the field exists
+            continue
+
+        if not isinstance(value[key], check_type):
+            return False
+
+    return True
+
+
+def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
+    """Return True when value matches any ElementConfigSchema TypedDict.
+
+    Performs structural validation using reflection - checks that:
+    - value is a mapping
+    - has a valid element_type field
+    - has all required fields for that element type (from TypedDict __required_keys__)
+    - all required fields have the correct type (from TypedDict type hints)
+    """
     if not isinstance(value, Mapping):
         return False
 
     element_type = value.get(CONF_ELEMENT_TYPE)
-    if element_type not in ELEMENT_TYPES:
+    if not is_element_type(element_type):
         return False
 
-    entry = ELEMENT_TYPES[element_type]
-    schema = schema_for_type(entry.schema)
+    # Get the TypedDict class - type-safe because is_element_type narrowed element_type
+    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
 
-    try:
-        schema({k: v for k, v in value.items() if k != CONF_ELEMENT_TYPE})  # validate without the element_type field
-    except (vol.Invalid, vol.MultipleInvalid):
-        return False
-
-    return True
+    return _conforms_to_typed_dict(value, schema_cls)
 
 
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
@@ -301,6 +318,7 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
 
 
 __all__ = [
+    "ELEMENT_CONFIG_SCHEMAS",
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
@@ -312,14 +330,13 @@ __all__ = [
     "ELEMENT_TYPE_NODE",
     "ELEMENT_TYPE_SOLAR",
     "ConnectivityLevel",
-    "CreateModelElementsFn",
+    "ElementAdapter",
     "ElementConfigData",
     "ElementConfigSchema",
     "ElementDeviceName",
-    "ElementRegistryEntry",
     "ElementType",
-    "OutputsFn",
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "is_element_config_schema",
+    "is_element_type",
 ]

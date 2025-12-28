@@ -1,0 +1,249 @@
+"""Connection element configuration flows."""
+
+from typing import Any, cast
+
+from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
+from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+)
+import voluptuous as vol
+
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.data.loader.extractors import EntityMetadata, extract_entity_metadata
+from custom_components.haeo.schema.util import UnitSpec
+
+from .schema import (
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    CONF_SOURCE,
+    CONF_TARGET,
+    ELEMENT_TYPE,
+    ConnectionConfigSchema,
+)
+
+# Unit specifications
+POWER_UNITS: UnitSpec = UnitOfPower
+PERCENTAGE_UNITS: list[UnitSpec] = [PERCENTAGE]
+PRICE_UNITS: list[UnitSpec] = [("*", "/", unit.value) for unit in UnitOfEnergy]
+
+
+def _filter_incompatible_entities(
+    entity_metadata: list[EntityMetadata],
+    accepted_units: UnitSpec | list[UnitSpec],
+) -> list[str]:
+    """Return entity IDs that are NOT compatible with the accepted units."""
+    return [v.entity_id for v in entity_metadata if not v.is_compatible_with(accepted_units)]
+
+
+def _build_participant_selector(participants: list[str], current_value: str | None = None) -> vol.All:
+    """Build a selector for choosing element names from participants."""
+    options_list = list(participants)
+    if current_value and current_value not in options_list:
+        options_list.append(current_value)
+
+    options: list[SelectOptionDict] = [SelectOptionDict(value=p, label=p) for p in options_list]
+    return vol.All(
+        vol.Coerce(str),
+        vol.Strip,
+        vol.Length(min=1, msg="Element name cannot be empty"),
+        SelectSelector(SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)),
+    )
+
+
+def _build_schema(
+    entity_metadata: list[EntityMetadata],
+    participants: list[str],
+    current_source: str | None = None,
+    current_target: str | None = None,
+) -> vol.Schema:
+    """Build the voluptuous schema for connection configuration."""
+    incompatible_power = _filter_incompatible_entities(entity_metadata, POWER_UNITS)
+    incompatible_percentage = _filter_incompatible_entities(entity_metadata, PERCENTAGE_UNITS)
+    incompatible_price = _filter_incompatible_entities(entity_metadata, PRICE_UNITS)
+
+    return vol.Schema(
+        {
+            vol.Required(CONF_NAME): vol.All(
+                vol.Coerce(str),
+                vol.Strip,
+                vol.Length(min=1, msg="Name cannot be empty"),
+                TextSelector(TextSelectorConfig()),
+            ),
+            vol.Required(CONF_SOURCE): _build_participant_selector(participants, current_source),
+            vol.Required(CONF_TARGET): _build_participant_selector(participants, current_target),
+            vol.Optional(CONF_MAX_POWER_SOURCE_TARGET): EntitySelector(
+                EntitySelectorConfig(
+                    domain=["sensor", "input_number"],
+                    multiple=True,
+                    exclude_entities=incompatible_power,
+                )
+            ),
+            vol.Optional(CONF_MAX_POWER_TARGET_SOURCE): EntitySelector(
+                EntitySelectorConfig(
+                    domain=["sensor", "input_number"],
+                    multiple=True,
+                    exclude_entities=incompatible_power,
+                )
+            ),
+            vol.Optional(CONF_EFFICIENCY_SOURCE_TARGET): EntitySelector(
+                EntitySelectorConfig(
+                    domain=["sensor", "input_number"],
+                    multiple=True,
+                    exclude_entities=incompatible_percentage,
+                )
+            ),
+            vol.Optional(CONF_EFFICIENCY_TARGET_SOURCE): EntitySelector(
+                EntitySelectorConfig(
+                    domain=["sensor", "input_number"],
+                    multiple=True,
+                    exclude_entities=incompatible_percentage,
+                )
+            ),
+            vol.Optional(CONF_PRICE_SOURCE_TARGET): EntitySelector(
+                EntitySelectorConfig(
+                    domain=["sensor", "input_number"],
+                    multiple=True,
+                    exclude_entities=incompatible_price,
+                )
+            ),
+            vol.Optional(CONF_PRICE_TARGET_SOURCE): EntitySelector(
+                EntitySelectorConfig(
+                    domain=["sensor", "input_number"],
+                    multiple=True,
+                    exclude_entities=incompatible_price,
+                )
+            ),
+        }
+    )
+
+
+class ConnectionSubentryFlowHandler(ConfigSubentryFlow):
+    """Handle connection element configuration flows."""
+
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Handle adding a new connection element."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            name = user_input.get(CONF_NAME)
+            if not name:
+                errors[CONF_NAME] = "missing_name"
+            elif name in self._get_used_names():
+                errors[CONF_NAME] = "name_exists"
+
+            # Validate source != target
+            source = user_input.get(CONF_SOURCE)
+            target = user_input.get(CONF_TARGET)
+            if source and target and source == target:
+                errors[CONF_TARGET] = "cannot_connect_to_self"
+
+            if not errors:
+                config = cast("ConnectionConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
+                return self.async_create_entry(title=name, data=config)
+
+        entity_metadata = extract_entity_metadata(self.hass)
+        participants = self._get_participant_names()
+        schema = _build_schema(entity_metadata, participants)
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+            errors=errors,
+        )
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Handle reconfiguring an existing connection element."""
+        errors: dict[str, str] = {}
+        subentry = self._get_reconfigure_subentry()
+
+        if user_input is not None:
+            name = user_input.get(CONF_NAME)
+            if not name:
+                errors[CONF_NAME] = "missing_name"
+            elif name in self._get_used_names():
+                errors[CONF_NAME] = "name_exists"
+
+            # Validate source != target
+            source = user_input.get(CONF_SOURCE)
+            target = user_input.get(CONF_TARGET)
+            if source and target and source == target:
+                errors[CONF_TARGET] = "cannot_connect_to_self"
+
+            if not errors:
+                config = cast("ConnectionConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
+                return self.async_update_and_abort(
+                    self._get_entry(),
+                    subentry,
+                    title=str(name),
+                    data=config,
+                )
+
+        entity_metadata = extract_entity_metadata(self.hass)
+        current_source = subentry.data.get(CONF_SOURCE)
+        current_target = subentry.data.get(CONF_TARGET)
+        participants = self._get_participant_names()
+        schema = _build_schema(
+            entity_metadata,
+            participants,
+            current_source=current_source if isinstance(current_source, str) else None,
+            current_target=current_target if isinstance(current_target, str) else None,
+        )
+        schema = self.add_suggested_values_to_schema(schema, subentry.data)
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=schema,
+            errors=errors,
+        )
+
+    def _get_used_names(self) -> set[str]:
+        """Return all configured element names excluding the current subentry."""
+        current_id = self._get_current_subentry_id()
+        return {
+            subentry.title for subentry in self._get_entry().subentries.values() if subentry.subentry_id != current_id
+        }
+
+    def _get_participant_names(self) -> list[str]:
+        """Return element names available as connection endpoints."""
+        from custom_components.haeo.const import CONF_ADVANCED_MODE  # noqa: PLC0415
+        from custom_components.haeo.elements import ELEMENT_TYPES, ConnectivityLevel  # noqa: PLC0415
+
+        hub_entry = self._get_entry()
+        advanced_mode = hub_entry.data.get(CONF_ADVANCED_MODE, False)
+        current_id = self._get_current_subentry_id()
+
+        result: list[str] = []
+        for subentry in hub_entry.subentries.values():
+            if subentry.subentry_id == current_id:
+                continue
+
+            element_type = subentry.data.get(CONF_ELEMENT_TYPE)
+            if element_type not in ELEMENT_TYPES:
+                continue
+
+            connectivity = ELEMENT_TYPES[element_type].connectivity
+            if connectivity == ConnectivityLevel.ALWAYS.value or (
+                connectivity == ConnectivityLevel.ADVANCED.value and advanced_mode
+            ):
+                result.append(subentry.title)
+
+        return result
+
+    def _get_current_subentry_id(self) -> str | None:
+        """Return the active subentry ID when reconfiguring, otherwise None."""
+        try:
+            return self._get_reconfigure_subentry().subentry_id
+        except Exception:
+            return None
