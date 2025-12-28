@@ -262,12 +262,24 @@
         "user": {
           "title": "Add Load",
           "description": "Set up a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
-          "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
+          "data": {
+            "connection": "Connection",
+            "forecast": "Forecast Sensors",
+            "name": "Load Name",
+            "shedding": "Allow Shedding (Optional)",
+            "value_running": "Value When Running (Optional)"
+          }
         },
         "reconfigure": {
           "title": "Edit Load",
           "description": "Update load configuration.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
-          "data": { "connection": "Connection", "forecast": "Forecast Sensors", "name": "Load Name" }
+          "data": {
+            "connection": "Connection",
+            "forecast": "Forecast Sensors",
+            "name": "Load Name",
+            "shedding": "Allow Shedding (Optional)",
+            "value_running": "Value When Running (Optional)"
+          }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -407,6 +419,7 @@
       "load_forecast_limit_price": { "name": "Forecast limit shadow price" },
       "load_power": { "name": "Power" },
       "load_power_possible": { "name": "Power possible" },
+      "load_value": { "name": "Value" },
       "network_optimization_cost": { "name": "Cost" },
       "network_optimization_duration": { "name": "Duration" },
       "network_optimization_status": { "name": "Status" },
