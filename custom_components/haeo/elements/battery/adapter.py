@@ -521,8 +521,8 @@ def outputs(
         if i > 0:
             lower_key = section_names[i - 1]
             balance_name = f"{name}:balance:{lower_key}:{section_key}"
-            if balance_name in outputs:
-                balance_data = outputs[balance_name]
+            if balance_name in model_outputs:
+                balance_data = model_outputs[balance_name]
                 # Power down from this section to lower section (energy leaving downward)
                 if model_balance.BALANCE_POWER_DOWN in balance_data:
                     down_vals = balance_data[model_balance.BALANCE_POWER_DOWN].values
@@ -537,8 +537,8 @@ def outputs(
         if i < len(section_names) - 1:
             upper_key = section_names[i + 1]
             balance_name = f"{name}:balance:{section_key}:{upper_key}"
-            if balance_name in outputs:
-                balance_data = outputs[balance_name]
+            if balance_name in model_outputs:
+                balance_data = model_outputs[balance_name]
                 # Power down from upper section to this section (energy entering from above)
                 if model_balance.BALANCE_POWER_DOWN in balance_data:
                     down_vals = np.array(balance_data[model_balance.BALANCE_POWER_DOWN].values)
