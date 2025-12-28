@@ -84,6 +84,7 @@ Each element defines these types in its own `schema.py` file:
 ```python
 # elements/battery/schema.py
 
+
 class BatteryConfigSchema(TypedDict):
     """Schema mode: entity IDs for UI configuration."""
 
@@ -142,10 +143,12 @@ class SolarConfigSchema(TypedDict):
 
 # elements/solar/flow.py
 def async_get_schema(hass: HomeAssistant) -> vol.Schema:
-    return vol.Schema({
-        vol.Required(CONF_NAME): TextSelector(...),
-        vol.Required(CONF_FORECAST): EntitySelector(...),
-    })
+    return vol.Schema(
+        {
+            vol.Required(CONF_NAME): TextSelector(...),
+            vol.Required(CONF_FORECAST): EntitySelector(...),
+        }
+    )
 ```
 
 ## Pyright configuration

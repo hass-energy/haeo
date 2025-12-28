@@ -35,12 +35,15 @@ Defines explicit TypedDicts without annotation-based metadata:
 ```python
 class BatteryConfigSchema(TypedDict):
     """Schema mode: entity IDs for UI configuration."""
+
     element_type: Literal["battery"]
     name: str
     capacity: str  # Entity ID
 
+
 class BatteryConfigData(TypedDict):
     """Data mode: loaded values for optimization."""
+
     element_type: Literal["battery"]
     name: str
     capacity: list[float]  # Loaded kWh values
@@ -52,10 +55,12 @@ Implements config flow with explicit voluptuous schemas:
 
 ```python
 async def async_get_schema(hass: HomeAssistant, nodes: Sequence[str]) -> vol.Schema:
-    return vol.Schema({
-        vol.Required(CONF_NAME): TextSelector(...),
-        vol.Required(CONF_CAPACITY): EntitySelector(...),
-    })
+    return vol.Schema(
+        {
+            vol.Required(CONF_NAME): TextSelector(...),
+            vol.Required(CONF_CAPACITY): EntitySelector(...),
+        }
+    )
 ```
 
 ## Adapter module (`adapter.py`)
