@@ -222,17 +222,8 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
 
         # Use required_energy directly as per-timestep capacity
         # Cap each value at the total battery capacity to ensure feasibility
-        undercharge_capacity_raw = [min(re, capacity) for re in required_energy]
-
-        # Make capacity NON-DECREASING forward in time
-        # This prevents the SOC_MAX constraint from forcing discharge when required_energy shrinks.
-        # Energy stays in undercharge and can only exit through the priced connection,
-        # which makes the undercharge_cost effective at protecting the reserve.
-        undercharge_capacity: list[float] = []
-        running_max = 0.0
-        for cap in undercharge_capacity_raw:
-            running_max = max(running_max, cap)
-            undercharge_capacity.append(running_max)
+        # The BatteryBalanceConnection handles excess energy when capacity shrinks
+        undercharge_capacity: list[float] = [min(re, capacity) for re in required_energy]
 
         # Store for normal section calculation
         dynamic_undercharge_capacity = undercharge_capacity
@@ -316,7 +307,23 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
             }
         )
 
-    # 4. Create internal node
+    # 4. Create balance connection for dynamic undercharge mode
+    # This allows free energy transfer between undercharge and normal sections
+    # when undercharge capacity shrinks (required_energy decreases as solar arrives)
+    if has_dynamic_undercharge and dynamic_undercharge_capacity is not None:
+        undercharge_section_name = f"{name}:undercharge"
+        normal_section_name = f"{name}:normal"
+        elements.append(
+            {
+                "element_type": "battery_balance_connection",
+                "name": f"{name}:balance",
+                "upper": normal_section_name,
+                "lower": undercharge_section_name,
+                "capacity_lower": dynamic_undercharge_capacity,
+            }
+        )
+
+    # 5. Create internal node
     node_name = f"{name}:node"
     elements.append(
         {
@@ -327,7 +334,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
         }
     )
 
-    # 5. Create connections from sections to internal node
+    # 6. Create connections from sections to internal node
     n_periods = len(config["capacity"])
 
     # Create time-varying early charge/discharge incentive arrays using linspace
@@ -376,7 +383,7 @@ def create_model_elements(config: BatteryConfigData) -> list[dict[str, Any]]:
             }
         )
 
-    # 6. Create connection from internal node to target
+    # 7. Create connection from internal node to target
     elements.append(
         {
             "element_type": "connection",

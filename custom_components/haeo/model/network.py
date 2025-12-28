@@ -9,6 +9,7 @@ from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons
 
 from .battery import Battery
+from .battery_balance_connection import BatteryBalanceConnection
 from .connection import Connection
 from .element import Element
 from .node import Node
@@ -73,6 +74,7 @@ class Network:
         """
         factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
+            "battery_balance_connection": BatteryBalanceConnection,
             "connection": PowerConnection,
             "node": Node,
         }
@@ -81,8 +83,24 @@ class Network:
         element = factory(name=name, periods=self.periods, solver=self._solver, **kwargs)
         self.elements[name] = element
 
+        # Handle BatteryBalanceConnection specially - uses set_battery_references
+        if isinstance(element, BatteryBalanceConnection):
+            # BatteryBalanceConnection uses upper/lower instead of source/target
+            upper_element = self.elements.get(element.source)
+            lower_element = self.elements.get(element.target)
+
+            if not isinstance(upper_element, Battery):
+                msg = f"Upper element '{element.source}' must be a Battery, got {type(upper_element)}"
+                raise ValueError(msg)
+            if not isinstance(lower_element, Battery):
+                msg = f"Lower element '{element.target}' must be a Battery, got {type(lower_element)}"
+                raise ValueError(msg)
+
+            # set_battery_references handles registration internally
+            element.set_battery_references(upper_element, lower_element)
+
         # Register connections immediately when adding Connection elements
-        if isinstance(element, Connection):
+        elif isinstance(element, Connection):
             # Get source and target elements
             source_element = self.elements.get(element.source)
             target_element = self.elements.get(element.target)

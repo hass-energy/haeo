@@ -142,9 +142,10 @@ async def load_network(
 
     # Sort all model elements so connections are added last
     # This ensures connection source/target elements exist when connections are registered
+    # Both "connection" and "battery_balance_connection" need to be added after batteries
     sorted_model_elements = sorted(
         all_model_elements,
-        key=lambda e: e.get("element_type") == ELEMENT_TYPE_CONNECTION,
+        key=lambda e: e.get("element_type", "").endswith("connection"),
     )
 
     # Add all model elements to network in correct order
