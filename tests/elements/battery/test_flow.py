@@ -1,39 +1,15 @@
 """Tests for battery element config flow."""
 
 from types import MappingProxyType
-from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_INTEGRATION_TYPE,
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-    DEFAULT_TIER_1_COUNT,
-    DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_2_COUNT,
-    DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_COUNT,
-    DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
-    DEFAULT_TIER_4_DURATION,
-    DOMAIN,
-    INTEGRATION_TYPE_HUB,
-)
-from custom_components.haeo.elements import ELEMENT_TYPES, node
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.elements import node
 from custom_components.haeo.elements.battery import (
     CONF_CAPACITY,
     CONF_CONNECTION,
@@ -41,56 +17,7 @@ from custom_components.haeo.elements.battery import (
     ELEMENT_TYPE,
 )
 
-
-@pytest.fixture
-def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
-    """Create a configured hub entry for flow testing."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            CONF_NAME: "Test Hub",
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
-        entry_id="test_hub_id",
-    )
-    entry.add_to_hass(hass)
-    return entry
-
-
-def _create_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> Any:
-    """Create a configured subentry flow instance for battery."""
-    registry_entry = ELEMENT_TYPES[ELEMENT_TYPE]
-    flow_class = registry_entry.flow_class
-    flow = flow_class()
-    flow.hass = hass
-    flow.handler = (hub_entry.entry_id, ELEMENT_TYPE)
-    return flow
-
-
-def _add_participant(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-    name: str,
-    element_type: str = "node",
-) -> ConfigSubentry:
-    """Add a participant subentry for connection endpoints."""
-    data = MappingProxyType({CONF_ELEMENT_TYPE: element_type, CONF_NAME: name})
-    subentry = ConfigSubentry(
-        data=data,
-        subentry_type=element_type,
-        title=name,
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(hub_entry, subentry)
-    return subentry
+from ..conftest import add_participant, create_flow
 
 
 async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -111,7 +38,7 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
     )
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
-    flow = _create_flow(hass, hub_entry)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form - should not error
@@ -121,12 +48,10 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
     assert result.get("step_id") == "reconfigure"
 
 
-async def test_get_participant_names_skips_unknown_element_types(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_get_participant_names should skip subentries with unknown element types."""
     # Add a valid participant
-    _add_participant(hass, hub_entry, "ValidNode", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "ValidNode", node.ELEMENT_TYPE)
 
     # Add a subentry with unknown element type
     unknown_data = MappingProxyType({CONF_ELEMENT_TYPE: "unknown_type", CONF_NAME: "Unknown"})
@@ -138,7 +63,7 @@ async def test_get_participant_names_skips_unknown_element_types(
     )
     hass.config_entries.async_add_subentry(hub_entry, unknown_subentry)
 
-    flow = _create_flow(hass, hub_entry)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     # Get participant names - should only include ValidNode
     participants = flow._get_participant_names()
@@ -147,11 +72,9 @@ async def test_get_participant_names_skips_unknown_element_types(
     assert "Unknown" not in participants
 
 
-async def test_get_current_subentry_id_returns_none_for_user_flow(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_get_current_subentry_id should return None during user flow (not reconfigure)."""
-    flow = _create_flow(hass, hub_entry)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     # During user flow, _get_reconfigure_subentry will raise
     subentry_id = flow._get_current_subentry_id()

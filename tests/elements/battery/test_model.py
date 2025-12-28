@@ -214,72 +214,36 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         ),
         "model_outputs": {
             "battery_no_balance:normal": {
-                battery_model.BATTERY_POWER_CHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-"
-                ),
-                battery_model.BATTERY_POWER_DISCHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+"
-                ),
+                battery_model.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-"),
+                battery_model.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+"),
                 battery_model.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(4.0, 4.0)),
-                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)
-                ),
-                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)
-                ),
+                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
                 battery_model.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_no_balance:node": {},
             "battery_no_balance:normal:to_node": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
-                    type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"
-                ),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(
-                    type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"
-                ),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.5,), direction="+"),
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="-"),
             },
         },
         "outputs": {
             battery_element.BATTERY_DEVICE_BATTERY: {
-                battery_element.BATTERY_POWER_CHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-"
-                ),
-                battery_element.BATTERY_POWER_DISCHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+"
-                ),
-                battery_element.BATTERY_POWER_ACTIVE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(-0.5,), direction=None
-                ),
-                battery_element.BATTERY_ENERGY_STORED: OutputData(
-                    type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(4.0, 4.0)
-                ),
-                battery_element.BATTERY_STATE_OF_CHARGE: OutputData(
-                    type=OUTPUT_TYPE_SOC, unit="%", values=(40.0, 40.0)
-                ),
+                battery_element.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-"),
+                battery_element.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+"),
+                battery_element.BATTERY_POWER_ACTIVE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(-0.5,), direction=None),
+                battery_element.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(4.0, 4.0)),
+                battery_element.BATTERY_STATE_OF_CHARGE: OutputData(type=OUTPUT_TYPE_SOC, unit="%", values=(40.0, 40.0)),
             },
             battery_element.BATTERY_DEVICE_NORMAL: {
-                battery_element.BATTERY_ENERGY_STORED: OutputData(
-                    type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(4.0, 4.0), advanced=True
-                ),
-                battery_element.BATTERY_POWER_CHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-", advanced=True
-                ),
-                battery_element.BATTERY_POWER_DISCHARGE: OutputData(
-                    type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+", advanced=True
-                ),
-                battery_element.BATTERY_ENERGY_IN_FLOW: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True
-                ),
-                battery_element.BATTERY_ENERGY_OUT_FLOW: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True
-                ),
-                battery_element.BATTERY_SOC_MAX: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True
-                ),
-                battery_element.BATTERY_SOC_MIN: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True
-                ),
+                battery_element.BATTERY_ENERGY_STORED: OutputData(type=OUTPUT_TYPE_ENERGY, unit="kWh", values=(4.0, 4.0), advanced=True),
+                battery_element.BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="-", advanced=True),
+                battery_element.BATTERY_POWER_DISCHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,), direction="+", advanced=True),
+                battery_element.BATTERY_ENERGY_IN_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
+                battery_element.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
+                battery_element.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
+                battery_element.BATTERY_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
             },
         },
     },
