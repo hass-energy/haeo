@@ -1,9 +1,4 @@
-"""Tests for connection element model mapping.
-
-These tests verify that connection adapters correctly:
-1. Transform ConfigData into model element definitions
-2. Map model outputs back to device outputs
-"""
+"""Tests for connection element model mapping."""
 
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
@@ -23,17 +18,24 @@ from custom_components.haeo.model.const import (
 from custom_components.haeo.model.output_data import OutputData
 
 
-class ValidCase(TypedDict):
-    """Test case structure for valid connection configurations."""
+class CreateCase(TypedDict):
+    """Test case for create_model_elements."""
 
     description: str
     data: ConnectionConfigData
     model: list[dict[str, Any]]
+
+
+class OutputsCase(TypedDict):
+    """Test case for outputs mapping."""
+
+    description: str
+    name: str
     model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
-VALID_CASES: Sequence[ValidCase] = [
+CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Connection with all optional fields",
         "data": ConnectionConfigData(
@@ -62,6 +64,37 @@ VALID_CASES: Sequence[ValidCase] = [
                 "price_target_source": [0.05],
             }
         ],
+    },
+    {
+        "description": "Connection without optional fields",
+        "data": ConnectionConfigData(
+            element_type="connection",
+            name="c_min",
+            source="s",
+            target="t",
+        ),
+        "model": [
+            {
+                "element_type": "connection",
+                "name": "c_min",
+                "source": "s",
+                "target": "t",
+                "max_power_source_target": None,
+                "max_power_target_source": None,
+                "efficiency_source_target": None,
+                "efficiency_target_source": None,
+                "price_source_target": None,
+                "price_target_source": None,
+            }
+        ],
+    },
+]
+
+
+OUTPUTS_CASES: Sequence[OutputsCase] = [
+    {
+        "description": "Connection with all optional fields",
+        "name": "c1",
         "model_outputs": {
             "c1": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
@@ -129,27 +162,8 @@ VALID_CASES: Sequence[ValidCase] = [
         },
     },
     {
-        "description": "Connection without optional limits or prices",
-        "data": ConnectionConfigData(
-            element_type="connection",
-            name="c_min",
-            source="s",
-            target="t",
-        ),
-        "model": [
-            {
-                "element_type": "connection",
-                "name": "c_min",
-                "source": "s",
-                "target": "t",
-                "max_power_source_target": None,
-                "max_power_target_source": None,
-                "efficiency_source_target": None,
-                "efficiency_target_source": None,
-                "price_source_target": None,
-                "price_target_source": None,
-            }
-        ],
+        "description": "Connection without optional fields",
+        "name": "c_min",
         "model_outputs": {
             "c_min": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
@@ -177,21 +191,17 @@ VALID_CASES: Sequence[ValidCase] = [
 ]
 
 
-def _case_id(case: ValidCase) -> str:
-    return case["description"]
-
-
-@pytest.mark.parametrize("case", VALID_CASES, ids=_case_id)
-def test_create_model_elements(case: ValidCase) -> None:
+@pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
+def test_create_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["connection"]
     result = entry.create_model_elements(case["data"])
     assert result == case["model"]
 
 
-@pytest.mark.parametrize("case", VALID_CASES, ids=_case_id)
-def test_outputs_mapping(case: ValidCase) -> None:
+@pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
+def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES["connection"]
-    result = entry.outputs(case["data"]["name"], case["model_outputs"], case["data"])
+    result = entry.outputs(case["name"], case["model_outputs"], {})
     assert result == case["outputs"]

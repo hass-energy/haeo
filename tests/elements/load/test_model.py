@@ -1,9 +1,4 @@
-"""Tests for load element model mapping.
-
-These tests verify that load adapters correctly:
-1. Transform ConfigData into model element definitions
-2. Map model outputs back to device outputs
-"""
+"""Tests for load element model mapping."""
 
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
@@ -23,17 +18,24 @@ from custom_components.haeo.model.const import (
 from custom_components.haeo.model.output_data import OutputData
 
 
-class ValidCase(TypedDict):
-    """Test case structure for valid load configurations."""
+class CreateCase(TypedDict):
+    """Test case for create_model_elements."""
 
     description: str
     data: LoadConfigData
     model: list[dict[str, Any]]
+
+
+class OutputsCase(TypedDict):
+    """Test case for outputs mapping."""
+
+    description: str
+    name: str
     model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
-VALID_CASES: Sequence[ValidCase] = [
+CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Load with forecast",
         "data": LoadConfigData(
@@ -54,6 +56,14 @@ VALID_CASES: Sequence[ValidCase] = [
                 "fixed_power": True,
             },
         ],
+    },
+]
+
+
+OUTPUTS_CASES: Sequence[OutputsCase] = [
+    {
+        "description": "Load with forecast",
+        "name": "load_main",
         "model_outputs": {
             "load_main:connection": {
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(
@@ -69,8 +79,12 @@ VALID_CASES: Sequence[ValidCase] = [
         },
         "outputs": {
             load_element.LOAD_DEVICE_LOAD: {
-                load_element.LOAD_POWER: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"),
-                load_element.LOAD_POWER_POSSIBLE: OutputData(type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)),
+                load_element.LOAD_POWER: OutputData(
+                    type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"
+                ),
+                load_element.LOAD_POWER_POSSIBLE: OutputData(
+                    type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(2.0,)
+                ),
                 load_element.LOAD_FORECAST_LIMIT_PRICE: OutputData(
                     type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)
                 ),
@@ -80,21 +94,17 @@ VALID_CASES: Sequence[ValidCase] = [
 ]
 
 
-def _case_id(case: ValidCase) -> str:
-    return case["description"]
-
-
-@pytest.mark.parametrize("case", VALID_CASES, ids=_case_id)
-def test_create_model_elements(case: ValidCase) -> None:
+@pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
+def test_create_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["load"]
     result = entry.create_model_elements(case["data"])
     assert result == case["model"]
 
 
-@pytest.mark.parametrize("case", VALID_CASES, ids=_case_id)
-def test_outputs_mapping(case: ValidCase) -> None:
+@pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
+def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES["load"]
-    result = entry.outputs(case["data"]["name"], case["model_outputs"], case["data"])
+    result = entry.outputs(case["name"], case["model_outputs"], {})
     assert result == case["outputs"]

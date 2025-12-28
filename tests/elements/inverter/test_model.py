@@ -1,9 +1,4 @@
-"""Tests for inverter element model mapping.
-
-These tests verify that inverter adapters correctly:
-1. Transform ConfigData into model element definitions
-2. Map model outputs back to device outputs
-"""
+"""Tests for inverter element model mapping."""
 
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
@@ -14,22 +9,33 @@ from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import inverter as inverter_element
 from custom_components.haeo.elements.inverter import InverterConfigData
 from custom_components.haeo.model import ModelOutputName, power_connection
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_POWER_LIMIT, OUTPUT_TYPE_SHADOW_PRICE
+from custom_components.haeo.model.const import (
+    OUTPUT_TYPE_POWER_FLOW,
+    OUTPUT_TYPE_POWER_LIMIT,
+    OUTPUT_TYPE_SHADOW_PRICE,
+)
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
 
-class ValidCase(TypedDict):
-    """Test case structure for valid inverter configurations."""
+class CreateCase(TypedDict):
+    """Test case for create_model_elements."""
 
     description: str
     data: InverterConfigData
     model: list[dict[str, Any]]
+
+
+class OutputsCase(TypedDict):
+    """Test case for outputs mapping."""
+
+    description: str
+    name: str
     model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
-VALID_CASES: Sequence[ValidCase] = [
+CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Inverter with efficiency",
         "data": InverterConfigData(
@@ -54,59 +60,6 @@ VALID_CASES: Sequence[ValidCase] = [
                 "efficiency_target_source": 100.0,
             },
         ],
-        "model_outputs": {
-            "inverter_main": {
-                NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
-            },
-            "inverter_main:connection": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
-                    type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(5.0,), direction="+"
-                ),
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(
-                    type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(3.0,), direction="-"
-                ),
-                power_connection.CONNECTION_POWER_MAX_SOURCE_TARGET: OutputData(
-                    type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(10.0,)
-                ),
-                power_connection.CONNECTION_POWER_MAX_TARGET_SOURCE: OutputData(
-                    type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(10.0,)
-                ),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)
-                ),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)
-                ),
-            },
-        },
-        "outputs": {
-            inverter_element.INVERTER_DEVICE_INVERTER: {
-                inverter_element.INVERTER_DC_BUS_POWER_BALANCE: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)
-                ),
-                inverter_element.INVERTER_POWER_DC_TO_AC: OutputData(
-                    type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(5.0,), direction="+"
-                ),
-                inverter_element.INVERTER_POWER_AC_TO_DC: OutputData(
-                    type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(3.0,), direction="-"
-                ),
-                inverter_element.INVERTER_POWER_ACTIVE: OutputData(
-                    type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(2.0,), direction=None
-                ),
-                inverter_element.INVERTER_MAX_POWER_DC_TO_AC: OutputData(
-                    type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(10.0,)
-                ),
-                inverter_element.INVERTER_MAX_POWER_AC_TO_DC: OutputData(
-                    type=OUTPUT_TYPE_POWER_LIMIT, unit="kW", values=(10.0,)
-                ),
-                inverter_element.INVERTER_MAX_POWER_DC_TO_AC_PRICE: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)
-                ),
-                inverter_element.INVERTER_MAX_POWER_AC_TO_DC_PRICE: OutputData(
-                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.02,)
-                ),
-            }
-        },
     },
     {
         "description": "Inverter without efficiency",
@@ -130,11 +83,21 @@ VALID_CASES: Sequence[ValidCase] = [
                 "efficiency_target_source": None,
             },
         ],
+    },
+]
+
+
+OUTPUTS_CASES: Sequence[OutputsCase] = [
+    {
+        "description": "Inverter with all outputs",
+        "name": "inverter_main",
         "model_outputs": {
-            "inverter_simple": {
-                NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+            "inverter_main": {
+                NODE_POWER_BALANCE: OutputData(
+                    type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)
+                ),
             },
-            "inverter_simple:connection": {
+            "inverter_main:connection": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
                     type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
@@ -187,21 +150,17 @@ VALID_CASES: Sequence[ValidCase] = [
 ]
 
 
-def _case_id(case: ValidCase) -> str:
-    return case["description"]
-
-
-@pytest.mark.parametrize("case", VALID_CASES, ids=_case_id)
-def test_create_model_elements(case: ValidCase) -> None:
+@pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
+def test_create_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["inverter"]
     result = entry.create_model_elements(case["data"])
     assert result == case["model"]
 
 
-@pytest.mark.parametrize("case", VALID_CASES, ids=_case_id)
-def test_outputs_mapping(case: ValidCase) -> None:
+@pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
+def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES["inverter"]
-    result = entry.outputs(case["data"]["name"], case["model_outputs"], case["data"])
+    result = entry.outputs(case["name"], case["model_outputs"], {})
     assert result == case["outputs"]
