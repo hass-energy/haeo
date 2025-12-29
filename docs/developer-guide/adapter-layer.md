@@ -98,11 +98,13 @@ This prevents naming collisions and groups related components visually.
 
 To add a new Device Layer element:
 
-1. Define configuration schema in `elements/{element}.py`
-2. Implement `create_model_elements()` returning model element specifications
-3. Implement `outputs()` mapping model results to device outputs
-4. Register in `elements/__init__.py` `ELEMENT_TYPES` dictionary
-5. Add translations in `translations/en.json`
+1. Create element subfolder `elements/{element_type}/` with:
+    - `schema.py`: Define `ConfigSchema` and `ConfigData` TypedDicts
+    - `flow.py`: Implement config flow with voluptuous schemas
+    - `adapter.py`: Implement `available()`, `load()`, `create_model_elements()`, `outputs()`
+2. Register `ElementRegistryEntry` in `elements/__init__.py` `ELEMENT_TYPES` dictionary
+3. Add translations in `translations/en.json`
+4. Write tests in `tests/elements/{element_type}/`
 
 See existing element modules in [`custom_components/haeo/elements/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/elements) for implementation patterns.
 

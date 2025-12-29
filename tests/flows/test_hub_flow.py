@@ -1,5 +1,7 @@
 """Test hub configuration flow - 100% coverage."""
 
+from typing import Any
+
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -40,7 +42,6 @@ from custom_components.haeo.flows import (
     HORIZON_PRESET_CUSTOM,
     HORIZON_PRESETS,
 )
-from custom_components.haeo.flows.element import ElementSubentryFlow
 from custom_components.haeo.flows.hub import HubConfigFlow
 
 
@@ -343,9 +344,7 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
         for suffix in common_suffixes:
             assert f"{base_key}.{suffix}" in translations, f"Missing translation key {base_key}.{suffix}"
 
-        flow = flow_class()
-        assert isinstance(flow, ElementSubentryFlow)
-
+        flow: Any = flow_class()
         flow.hass = hass
         flow.handler = (hub_entry.entry_id, element_type)
 

@@ -129,9 +129,9 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
             {
                 CONF_NAME: "test_battery",
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CAPACITY: ["sensor.battery_capacity"],
                 CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
                 CONF_MIN_CHARGE_PERCENTAGE: 20.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 80.0,
                 CONF_EFFICIENCY: 95.0,
@@ -320,9 +320,9 @@ async def test_async_update_data_returns_outputs(
         patch.dict(
             ELEMENT_TYPES,
             {
-                "battery": ELEMENT_TYPES["battery"]._replace(outputs=mock_battery_adapter.outputs),
-                "grid": ELEMENT_TYPES["grid"]._replace(outputs=mock_empty_outputs),
-                "connection": ELEMENT_TYPES["connection"]._replace(outputs=mock_connection_adapter.outputs),
+                "battery": MagicMock(outputs=mock_battery_adapter.outputs),
+                "grid": MagicMock(outputs=mock_empty_outputs),
+                "connection": MagicMock(outputs=mock_connection_adapter.outputs),
             },
         ),
     ):
@@ -517,8 +517,7 @@ async def test_async_update_data_raises_on_missing_model_element(
         msg = "missing model element"
         raise KeyError(msg)
 
-    battery_entry = ELEMENT_TYPES["battery"]
-    patched_entry = battery_entry._replace(outputs=broken_outputs)  # type: ignore[arg-type]
+    patched_entry = MagicMock(outputs=broken_outputs)
 
     monkeypatch.setattr(
         "custom_components.haeo.coordinator.ELEMENT_TYPES",
@@ -556,8 +555,8 @@ def test_extract_entity_ids_skips_constant_fields() -> None:
     config: BatteryConfigSchema = {
         CONF_NAME: "Battery",
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-        CONF_CAPACITY: "sensor.capacity",
-        CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.soc",
+        CONF_CAPACITY: ["sensor.capacity"],
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.soc"],
         CONF_MIN_CHARGE_PERCENTAGE: 20.0,
         CONF_MAX_CHARGE_PERCENTAGE: 80.0,
         CONF_EFFICIENCY: 95.0,
@@ -574,8 +573,8 @@ def test_extract_entity_ids_catches_type_errors(monkeypatch: pytest.MonkeyPatch)
     config: ElementConfigSchema = {
         CONF_NAME: "Battery",
         CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
-        CONF_CAPACITY: "sensor.capacity",
-        CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.soc",
+        CONF_CAPACITY: ["sensor.capacity"],
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.soc"],
         CONF_MIN_CHARGE_PERCENTAGE: 20.0,
         CONF_MAX_CHARGE_PERCENTAGE: 80.0,
         CONF_EFFICIENCY: 95.0,

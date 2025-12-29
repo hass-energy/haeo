@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
 import time
-from typing import Any, Literal, TypedDict, get_type_hints
+from typing import Any, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -59,17 +59,21 @@ from .model import (
     OutputType,
 )
 from .repairs import dismiss_optimization_failure_issue
-from .schema import compose_field
-from .schema.fields import TimeSeries
 from .util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def collect_entity_ids(value: Any) -> set[str]:
-    """Recursively collect entity IDs from nested configuration values."""
+    """Recursively collect entity IDs from nested configuration values.
+
+    Entity IDs are identified by containing a '.' (e.g., 'sensor.temperature').
+    Plain strings without dots (like element names 'AC Bus') are not entity IDs.
+    """
     if isinstance(value, str):
-        return {value}
+        # Entity IDs contain a domain separator (e.g., sensor.temperature)
+        # Element names don't have dots (e.g., "AC Bus", "network")
+        return {value} if "." in value else set()
 
     if isinstance(value, Mapping):
         mapping_ids: set[str] = set()
@@ -87,25 +91,16 @@ def collect_entity_ids(value: Any) -> set[str]:
 
 
 def extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
-    """Extract entity IDs from a configuration using schema loaders."""
+    """Extract entity IDs from a configuration.
+
+    Collects entity IDs from list[str] fields in the config, which represent
+    sensor entity ID lists in the new explicit schema format.
+    """
     entity_ids: set[str] = set()
 
-    element_type = config["element_type"]
-    data_config_class = ELEMENT_TYPES[element_type].data
-    hints = get_type_hints(data_config_class, include_extras=True)
-
-    for field_name, field_type in hints.items():
-        # Skip metadata fields
-        if field_name in ("element_type", "name"):
-            continue
-
-        field_value = config.get(field_name)
-        if field_value is None:
-            continue
-
-        # Only collect entity IDs from TimeSeries fields (sensors)
-        spec = compose_field(field_type)
-        if not isinstance(spec.loader, TimeSeries):
+    for field_name, field_value in config.items():
+        # Skip metadata fields and None values
+        if field_name in ("element_type", "name") or field_value is None:
             continue
 
         try:

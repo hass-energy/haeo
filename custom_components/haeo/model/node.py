@@ -13,9 +13,9 @@ type NodeConstraintName = Literal["node_power_balance"]
 
 type NodeOutputName = NodeConstraintName
 
-NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset(
-    (NODE_POWER_BALANCE := "node_power_balance",),
-)
+NODE_POWER_BALANCE: Final[NodeOutputName] = "node_power_balance"
+
+NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
 
 
 class Node(Element[NodeOutputName, NodeConstraintName]):

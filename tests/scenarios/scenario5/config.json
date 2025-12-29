@@ -11,15 +11,15 @@
     "Battery": {
       "name": "Battery",
       "element_type": "battery",
-      "capacity": "sensor.sigen_plant_rated_energy_capacity",
+      "capacity": ["sensor.sigen_plant_rated_energy_capacity"],
       "connection": "Inverter",
       "discharge_cost": ["input_number.battery_discharge_cost"],
       "early_charge_incentive": 0.001,
       "efficiency": 99.0,
-      "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
+      "initial_charge_percentage": ["sensor.sigen_plant_battery_state_of_charge"],
       "max_charge_percentage": 100.0,
-      "max_charge_power": "sensor.sigen_plant_ess_rated_charging_power",
-      "max_discharge_power": "sensor.sigen_plant_ess_rated_discharging_power",
+      "max_charge_power": ["sensor.sigen_plant_ess_rated_charging_power"],
+      "max_discharge_power": ["sensor.sigen_plant_ess_rated_discharging_power"],
       "min_charge_percentage": 10.0
     },
     "Constant Load": {
@@ -41,8 +41,8 @@
       "name": "Inverter",
       "element_type": "inverter",
       "connection": "Switchboard",
-      "max_power_ac_to_dc": "sensor.sigen_plant_max_active_power",
-      "max_power_dc_to_ac": "sensor.sigen_plant_max_active_power"
+      "max_power_ac_to_dc": ["sensor.sigen_plant_max_active_power"],
+      "max_power_dc_to_ac": ["sensor.sigen_plant_max_active_power"]
     },
     "Solar": {
       "name": "Solar",

@@ -9,8 +9,8 @@ VALID_DATA = [
         "description": "Basic battery section configuration",
         "config": {
             CONF_NAME: "Test Section",
-            CONF_CAPACITY: "sensor.battery_capacity",
-            CONF_INITIAL_CHARGE: "sensor.battery_charge",
+            CONF_CAPACITY: ["sensor.battery_capacity"],
+            CONF_INITIAL_CHARGE: ["sensor.battery_charge"],
         },
     },
 ]
@@ -20,8 +20,8 @@ INVALID_DATA = [
         "description": "Empty name should fail validation",
         "config": {
             CONF_NAME: "",
-            CONF_CAPACITY: "sensor.battery_capacity",
-            CONF_INITIAL_CHARGE: "sensor.battery_charge",
+            CONF_CAPACITY: ["sensor.battery_capacity"],
+            CONF_INITIAL_CHARGE: ["sensor.battery_charge"],
         },
         "error": "cannot be empty",
     },
