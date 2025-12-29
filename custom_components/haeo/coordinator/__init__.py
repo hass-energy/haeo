@@ -1,11 +1,9 @@
 """Coordinator modules for HAEO integration.
 
 This package contains:
-- ElementInputCoordinator: Per-subentry coordinator for input entity values
 - HaeoDataUpdateCoordinator: Network-level coordinator for optimization
 """
 
-from custom_components.haeo.coordinator.element_coordinator import ElementInputCoordinator, ElementInputData
 from custom_components.haeo.coordinator.network_coordinator import (
     CoordinatorData,
     CoordinatorOutput,
@@ -18,8 +16,6 @@ from custom_components.haeo.coordinator.network_coordinator import (
 __all__ = [
     "CoordinatorData",
     "CoordinatorOutput",
-    "ElementInputCoordinator",
-    "ElementInputData",
     "ForecastPoint",
     "HaeoDataUpdateCoordinator",
     "collect_entity_ids",

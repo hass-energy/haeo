@@ -2,7 +2,6 @@
 
 from contextlib import suppress
 from types import MappingProxyType
-from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -143,7 +142,6 @@ async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     mock_network_coordinator.cleanup = Mock()
     mock_hub_entry.runtime_data = HaeoRuntimeData(
         network_coordinator=mock_network_coordinator,
-        element_coordinators={},
     )
 
     # Test that unload works
@@ -168,56 +166,24 @@ async def test_async_setup_entry_initializes_coordinator(
             self,
             hass_param: HomeAssistant,
             entry_param: ConfigEntry,
-            element_coordinators: dict[str, Any] | None = None,
         ) -> None:
             super().__init__()
             self.hass = hass_param
             self.config_entry = entry_param
-            self._element_coordinators = element_coordinators
             self.async_config_entry_first_refresh = AsyncMock()
             self.cleanup = Mock()
 
-    class DummyElementCoordinator:
-        def __init__(
-            self,
-            hass_param: HomeAssistant,
-            entry_param: ConfigEntry,
-            subentry: ConfigSubentry,
-            on_change: Any = None,
-        ) -> None:
-            super().__init__()
-            self.hass = hass_param
-            self.config_entry = entry_param
-            self.subentry = subentry
-            self.on_input_change = on_change
-            self.async_setup = AsyncMock()
-            self.async_config_entry_first_refresh = AsyncMock()
-            self.async_shutdown = AsyncMock()
-
     created: list[DummyCoordinator] = []
-    element_coordinators_created: list[DummyElementCoordinator] = []
 
     def create_coordinator(
         hass_param: HomeAssistant,
         entry_param: ConfigEntry,
-        element_coordinators: dict[str, Any] | None = None,
     ) -> DummyCoordinator:
-        coordinator = DummyCoordinator(hass_param, entry_param, element_coordinators)
+        coordinator = DummyCoordinator(hass_param, entry_param)
         created.append(coordinator)
         return coordinator
 
-    def create_element_coordinator(
-        hass_param: HomeAssistant,
-        entry_param: ConfigEntry,
-        subentry: ConfigSubentry,
-        on_input_change: Any = None,
-    ) -> DummyElementCoordinator:
-        coordinator = DummyElementCoordinator(hass_param, entry_param, subentry, on_input_change)
-        element_coordinators_created.append(coordinator)
-        return coordinator
-
     monkeypatch.setattr("custom_components.haeo.HaeoDataUpdateCoordinator", create_coordinator)
-    monkeypatch.setattr("custom_components.haeo.ElementInputCoordinator", create_element_coordinator)
 
     forward_mock = AsyncMock()
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", forward_mock)

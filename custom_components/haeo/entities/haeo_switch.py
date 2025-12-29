@@ -1,17 +1,19 @@
 """Switch entity for HAEO boolean input configuration."""
 
-from functools import cached_property
+from collections.abc import Callable
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceEntry, DeviceInfo
+from homeassistant.const import STATE_ON, EntityCategory
+from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.schema.input_fields import InputFieldInfo
+from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 
 def _is_entity_id(value: Any) -> bool:
@@ -33,6 +35,8 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
       a static boolean value rather than an entity ID.
     - DRIVEN: Value is driven by an external sensor. Used when config
       contains an entity ID. In this mode, user toggles are ignored.
+
+    Both modes provide forecast timestamps for consistency with other entities.
     """
 
     _attr_should_poll = False
@@ -61,7 +65,9 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         self._config_entry = config_entry
         self._subentry = subentry
         self._field_info = field_info
-        self._device_entry = device_entry
+
+        # Set device_id directly to link entity to device without device_info
+        self._attr_device_id = device_entry.id
 
         # Determine mode from config value
         config_value = subentry.data.get(field_info.field_name)
@@ -69,7 +75,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         if _is_entity_id(config_value):
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_id: str | None = config_value
-            self._attr_is_on = None  # Will be set by coordinator update
+            self._attr_is_on = None  # Will be set when data loads
         else:
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_id = None
@@ -88,8 +94,8 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         # Pass subentry data as translation placeholders
         self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
 
-        # Build extra state attributes
-        extra_attrs: dict[str, Any] = {
+        # Build base extra state attributes (static values)
+        self._base_extra_attrs: dict[str, Any] = {
             "config_mode": self._entity_mode.value,
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
@@ -97,16 +103,18 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
             "output_type": field_info.output_type,
         }
         if self._source_entity_id:
-            extra_attrs["source_entity"] = self._source_entity_id
-        self._attr_extra_state_attributes = extra_attrs
+            self._base_extra_attrs["source_entity"] = self._source_entity_id
+        self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(identifiers=self._device_entry.identifiers)
+        self._state_unsub: Callable[[], None] | None = None
+
+    def _get_forecast_timestamps(self) -> tuple[float, ...]:
+        """Get forecast timestamps from hub config for consistent time horizon."""
+        periods_seconds = tiers_to_periods_seconds(self._config_entry.data)
+        return generate_forecast_timestamps(periods_seconds)
 
     async def async_added_to_hass(self) -> None:
-        """Restore state on startup."""
+        """Set up state tracking and restore previous value."""
         await super().async_added_to_hass()
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
@@ -114,40 +122,81 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
             last_state = await self.async_get_last_state()
             if last_state and last_state.state in ("on", "off"):
                 self._attr_is_on = last_state.state == "on"
+            # Update forecast for restored/initial value
+            self._update_forecast()
+        else:
+            # Subscribe to source entity changes for DRIVEN mode
+            if self._source_entity_id is not None:
+                self._state_unsub = async_track_state_change_event(
+                    self._hass,
+                    [self._source_entity_id],
+                    self._handle_source_state_change,
+                )
+            # Load initial state from source
+            self._load_source_state()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Clean up state tracking."""
+        if self._state_unsub is not None:
+            self._state_unsub()
+            self._state_unsub = None
+        await super().async_will_remove_from_hass()
+
+    @callback
+    def _handle_source_state_change(self, event: Event[EventStateChangedData]) -> None:
+        """Handle source entity state change."""
+        new_state = event.data["new_state"]
+        if new_state is not None:
+            self._attr_is_on = new_state.state == STATE_ON
+            self._update_forecast()
+            self.async_write_ha_state()
+
+    def _load_source_state(self) -> None:
+        """Load current state from source entity."""
+        if self._source_entity_id is None:
+            return
+
+        state = self._hass.states.get(self._source_entity_id)
+        if state is not None:
+            self._attr_is_on = state.state == STATE_ON
+            self._update_forecast()
+
+    def _update_forecast(self) -> None:
+        """Update forecast timestamps attribute."""
+        forecast_timestamps = self._get_forecast_timestamps()
+
+        extra_attrs = dict(self._base_extra_attrs)
+        extra_attrs["forecast_timestamps"] = list(forecast_timestamps)
+
+        self._attr_extra_state_attributes = extra_attrs
 
     async def async_turn_on(self, **_kwargs: Any) -> None:
         """Handle user turning switch on.
 
         In DRIVEN mode, user changes are effectively ignored because the
-        coordinator will overwrite with the external sensor value.
+        source entity will overwrite with its value.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
             self.async_write_ha_state()
             return
 
         self._attr_is_on = True
+        self._update_forecast()
         self.async_write_ha_state()
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
         """Handle user turning switch off.
 
         In DRIVEN mode, user changes are effectively ignored because the
-        coordinator will overwrite with the external sensor value.
+        source entity will overwrite with its value.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
             self.async_write_ha_state()
             return
 
         self._attr_is_on = False
+        self._update_forecast()
         self.async_write_ha_state()
-
-    def get_current_value(self) -> bool | None:
-        """Return current value for optimization.
-
-        This is called by the ElementInputCoordinator (Phase 2) to get
-        the current input value for this field.
-        """
-        return self._attr_is_on
 
 
 __all__ = ["HaeoInputSwitch"]

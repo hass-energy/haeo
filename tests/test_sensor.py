@@ -163,7 +163,6 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
     }
     config_entry.runtime_data = HaeoRuntimeData(
         network_coordinator=coordinator,
-        element_coordinators={},
     )
 
     async_add_entities = Mock()
@@ -214,7 +213,6 @@ async def test_async_setup_entry_skips_when_no_outputs(
     coordinator.data = {}
     config_entry.runtime_data = HaeoRuntimeData(
         network_coordinator=coordinator,
-        element_coordinators={},
     )
 
     async_add_entities = Mock()
@@ -420,7 +418,6 @@ async def test_async_setup_entry_creates_sub_device_sensors(
     }
     config_entry.runtime_data = HaeoRuntimeData(
         network_coordinator=coordinator,
-        element_coordinators={},
     )
 
     async_add_entities = Mock()

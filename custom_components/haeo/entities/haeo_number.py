@@ -1,16 +1,19 @@
 """Number entity for HAEO input configuration."""
 
+from collections.abc import Callable
 from enum import Enum
-from functools import cached_property
 from typing import Any
 
 from homeassistant.components.number import RestoreNumber
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceEntry, DeviceInfo
+from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 
+from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.schema.input_fields import InputFieldInfo
+from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 
 class ConfigEntityMode(Enum):
@@ -51,6 +54,8 @@ class HaeoInputNumber(RestoreNumber):
       a static value rather than an entity ID.
     - DRIVEN: Value is driven by an external sensor. Used when config
       contains an entity ID. In this mode, user edits are ignored.
+
+    Both modes provide a forecast attribute with values across the time horizon.
     """
 
     _attr_should_poll = False
@@ -79,7 +84,9 @@ class HaeoInputNumber(RestoreNumber):
         self._config_entry = config_entry
         self._subentry = subentry
         self._field_info = field_info
-        self._device_entry = device_entry
+
+        # Set device_id directly to link entity to device without device_info
+        self._attr_device_id = device_entry.id
 
         # Determine mode from config value
         config_value = subentry.data.get(field_info.field_name)
@@ -88,7 +95,7 @@ class HaeoInputNumber(RestoreNumber):
         if source_entity_ids:
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_ids = source_entity_ids
-            self._attr_native_value = None  # Will be set by coordinator update
+            self._attr_native_value = None  # Will be set when data loads
         else:
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_ids = []
@@ -115,8 +122,8 @@ class HaeoInputNumber(RestoreNumber):
         # Pass subentry data as translation placeholders
         self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
 
-        # Build extra state attributes
-        extra_attrs: dict[str, Any] = {
+        # Build base extra state attributes (static values)
+        self._base_extra_attrs: dict[str, Any] = {
             "config_mode": self._entity_mode.value,
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
@@ -125,18 +132,22 @@ class HaeoInputNumber(RestoreNumber):
             "time_series": field_info.time_series,
         }
         if self._source_entity_ids:
-            extra_attrs["source_entities"] = self._source_entity_ids
+            self._base_extra_attrs["source_entities"] = self._source_entity_ids
         if field_info.direction:
-            extra_attrs["direction"] = field_info.direction
-        self._attr_extra_state_attributes = extra_attrs
+            self._base_extra_attrs["direction"] = field_info.direction
+        self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(identifiers=self._device_entry.identifiers)
+        # Loader for time series data
+        self._loader = TimeSeriesLoader()
+        self._state_unsub: Callable[[], None] | None = None
+
+    def _get_forecast_timestamps(self) -> tuple[float, ...]:
+        """Get forecast timestamps from hub config for consistent time horizon."""
+        periods_seconds = tiers_to_periods_seconds(self._config_entry.data)
+        return generate_forecast_timestamps(periods_seconds)
 
     async def async_added_to_hass(self) -> None:
-        """Restore state on startup."""
+        """Set up state tracking and restore previous value."""
         await super().async_added_to_hass()
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
@@ -144,12 +155,75 @@ class HaeoInputNumber(RestoreNumber):
             last_data = await self.async_get_last_number_data()
             if last_data and last_data.native_value is not None:
                 self._attr_native_value = last_data.native_value
+            # Update forecast for restored/initial value
+            self._update_editable_forecast()
+        else:
+            # Subscribe to source entity changes for DRIVEN mode
+            self._state_unsub = async_track_state_change_event(
+                self._hass,
+                self._source_entity_ids,
+                self._handle_source_state_change,
+            )
+            # Load initial data
+            self._hass.async_create_task(self._async_load_data())
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Clean up state tracking."""
+        if self._state_unsub is not None:
+            self._state_unsub()
+            self._state_unsub = None
+        await super().async_will_remove_from_hass()
+
+    @callback
+    def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
+        """Handle source entity state change."""
+        self._hass.async_create_task(self._async_load_data())
+
+    async def _async_load_data(self) -> None:
+        """Load data from source entities and update state."""
+        forecast_timestamps = self._get_forecast_timestamps()
+
+        try:
+            values = await self._loader.load(
+                hass=self._hass,
+                value=self._source_entity_ids,
+                forecast_times=list(forecast_timestamps),
+            )
+        except Exception:
+            # If loading fails, don't update state
+            return
+
+        if not values:
+            return
+
+        # Build updated extra state attributes
+        extra_attrs = dict(self._base_extra_attrs)
+        extra_attrs["forecast"] = values
+        extra_attrs["forecast_timestamps"] = list(forecast_timestamps)
+
+        # Update native value to current (first) value
+        self._attr_native_value = values[0]
+        self._attr_extra_state_attributes = extra_attrs
+        self.async_write_ha_state()
+
+    def _update_editable_forecast(self) -> None:
+        """Update forecast attribute for editable mode with constant value."""
+        forecast_timestamps = self._get_forecast_timestamps()
+
+        extra_attrs = dict(self._base_extra_attrs)
+        extra_attrs["forecast_timestamps"] = list(forecast_timestamps)
+
+        if self._attr_native_value is not None:
+            # Constant value across entire horizon
+            extra_attrs["forecast"] = [self._attr_native_value] * len(forecast_timestamps)
+
+        self._attr_extra_state_attributes = extra_attrs
 
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.
 
         In DRIVEN mode, user changes are effectively ignored because the
-        coordinator will overwrite with the external sensor value.
+        source entity will overwrite with its value.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
             # Read-only in driven mode, but we still update to avoid confusion
@@ -157,15 +231,8 @@ class HaeoInputNumber(RestoreNumber):
             return
 
         self._attr_native_value = value
+        self._update_editable_forecast()
         self.async_write_ha_state()
-
-    def get_current_value(self) -> float | None:
-        """Return current value for optimization.
-
-        This is called by the ElementInputCoordinator (Phase 2) to get
-        the current input value for this field.
-        """
-        return self._attr_native_value
 
 
 __all__ = ["ConfigEntityMode", "HaeoInputNumber"]

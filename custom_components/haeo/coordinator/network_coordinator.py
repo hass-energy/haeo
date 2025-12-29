@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
 import time
-from typing import Any, Literal, TypedDict, cast
+from typing import Any, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -36,7 +36,6 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.elements import (
     ELEMENT_TYPES,
-    ElementConfigData,
     ElementConfigSchema,
     ElementDeviceName,
     ElementOutputName,
@@ -245,30 +244,24 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self,
         hass: HomeAssistant,
         config_entry: ConfigEntry,
-        element_coordinators: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the coordinator.
 
         Args:
             hass: Home Assistant instance
             config_entry: The hub config entry
-            element_coordinators: Optional mapping of subentry_id to ElementInputCoordinator.
-                If provided, values are read from coordinators instead of loading directly.
 
         """
         # Runtime attributes exposed to other integration modules
         self.network: Network | None = None
 
-        # Build participant configs and track subentry IDs for element coordinators
+        # Build participant configs and track subentry IDs
         self._participant_configs: dict[str, ElementConfigSchema] = {}
         self._participant_subentry_ids: dict[str, str] = {}  # element_name -> subentry_id
 
         for participant in collect_element_subentries(config_entry):
             self._participant_configs[participant.name] = participant.config
             self._participant_subentry_ids[participant.name] = participant.subentry.subentry_id
-
-        # Store element coordinators reference (for reading input values)
-        self._element_coordinators = element_coordinators
 
         debounce_seconds = float(config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
         update_interval_minutes = config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES)
@@ -283,20 +276,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             always_update=False,
         )
 
-        # Only set up direct state tracking if no element coordinators provided
-        # (element coordinators handle state tracking and notify us via callback)
+        # Set up state tracking for all source entities
         self._state_change_unsub: Callable[[], None] | None = None
-        if element_coordinators is None:
-            all_entity_ids: set[str] = set()
-            for config in self._participant_configs.values():
-                all_entity_ids.update(extract_entity_ids_from_config(config))
+        all_entity_ids: set[str] = set()
+        for config in self._participant_configs.values():
+            all_entity_ids.update(extract_entity_ids_from_config(config))
 
-            if all_entity_ids:
-                self._state_change_unsub = async_track_state_change_event(
-                    self.hass,
-                    list(all_entity_ids),
-                    self._state_change_handler,
-                )
+        if all_entity_ids:
+            self._state_change_unsub = async_track_state_change_event(
+                self.hass,
+                list(all_entity_ids),
+                self._state_change_handler,
+            )
 
     async def _state_change_handler(self, _event: Any) -> None:
         """Handle state change events for monitored entities."""
@@ -309,59 +300,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._state_change_unsub()
             self._state_change_unsub = None
 
-    async def _load_from_element_coordinators(
-        self,
-        n_periods: int,
-    ) -> dict[str, ElementConfigData]:
-        """Load element configurations from element coordinators.
-
-        Reads the already-loaded field values from ElementInputCoordinators
-        and assembles them into ElementConfigData structures.
-        """
-        loaded_configs: dict[str, ElementConfigData] = {}
-
-        # Fields that are metadata and passed through directly (not loaded from sensors)
-        metadata_fields = {"connection", "source", "target"}
-
-        for element_name, subentry_id in self._participant_subentry_ids.items():
-            if self._element_coordinators is None:
-                msg = "Element coordinators not set but _load_from_element_coordinators called"
-                raise RuntimeError(msg)
-
-            element_coordinator = self._element_coordinators.get(subentry_id)
-            if element_coordinator is None:
-                msg = f"No element coordinator found for {element_name} (subentry_id={subentry_id})"
-                raise UpdateFailed(translation_key="missing_element_coordinator")
-
-            # Get the schema config for this element
-            schema_config = self._participant_configs.get(element_name)
-            if schema_config is None:
-                msg = f"No schema config found for element {element_name}"
-                raise RuntimeError(msg)
-
-            # Build ElementConfigData from coordinator field values
-            element_type = schema_config["element_type"]
-            field_values = element_coordinator.data.field_values
-
-            # Start with base fields
-            config_data: dict[str, Any] = {
-                "element_type": element_type,
-                "name": element_name,
-                "n_periods": n_periods,
-            }
-
-            # Copy metadata fields (connection references) from schema config
-            for field_name in metadata_fields:
-                if field_name in schema_config:
-                    config_data[field_name] = schema_config[field_name]
-
-            # Add loaded field values from element coordinator
-            config_data.update(field_values)
-
-            loaded_configs[element_name] = cast("ElementConfigData", config_data)
-
-        return loaded_configs
-
     async def _async_update_data(self) -> CoordinatorData:
         """Update data from Home Assistant entities and run optimization."""
         start_time = time.time()
@@ -370,32 +308,28 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
         forecast_timestamps = generate_forecast_timestamps(periods_seconds)
 
-        # Load element configurations based on whether element coordinators are available
-        if self._element_coordinators:
-            # Read from element coordinators (Phase 3 path)
-            loaded_configs = await self._load_from_element_coordinators(len(forecast_timestamps))
-        else:
-            # Direct loading from sensors (legacy path for testing)
-            missing_sensors: list[str] = []
-            for name, element_config in self._participant_configs.items():
-                if not data_module.config_available(
-                    element_config,
-                    hass=self.hass,
-                    forecast_times=list(forecast_timestamps),
-                ):
-                    missing_sensors.append(name)
+        # Check sensor availability before loading
+        missing_sensors: list[str] = []
+        for name, element_config in self._participant_configs.items():
+            if not data_module.config_available(
+                element_config,
+                hass=self.hass,
+                forecast_times=list(forecast_timestamps),
+            ):
+                missing_sensors.append(name)
 
-            if missing_sensors:
-                raise UpdateFailed(
-                    translation_key="missing_sensors",
-                    translation_placeholders={"unavailable_sensors": ", ".join(missing_sensors)},
-                )
-
-            loaded_configs = await data_module.load_element_configs(
-                self.hass,
-                self._participant_configs,
-                forecast_timestamps,
+        if missing_sensors:
+            raise UpdateFailed(
+                translation_key="missing_sensors",
+                translation_placeholders={"unavailable_sensors": ", ".join(missing_sensors)},
             )
+
+        # Load element configurations from source sensors
+        loaded_configs = await data_module.load_element_configs(
+            self.hass,
+            self._participant_configs,
+            forecast_timestamps,
+        )
 
         # Build network with loaded configurations
         network = await data_module.load_network(
