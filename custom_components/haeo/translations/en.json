@@ -7,6 +7,8 @@
         "description": "Create a new HAEO energy system.",
         "data": {
           "advanced_mode": "Advanced Mode",
+          "blackout_duration_hours": "Blackout Duration (hours, 0 = unlimited)",
+          "blackout_protection": "Enable Blackout Protection",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
           "name": "System Name",
@@ -52,6 +54,8 @@
         "description": "Configure optimization settings. Choose a planning horizon that matches your forecast data availability.",
         "data": {
           "advanced_mode": "Advanced Mode",
+          "blackout_duration_hours": "Blackout Duration (hours, 0 = unlimited)",
+          "blackout_protection": "Enable Blackout Protection",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
           "update_interval_minutes": "Update Interval (minutes)"
@@ -409,9 +413,10 @@
       "load_forecast_limit_price": { "name": "Forecast limit shadow price" },
       "load_power": { "name": "Power" },
       "load_power_possible": { "name": "Power possible" },
-      "network_optimization_cost": { "name": "Cost" },
-      "network_optimization_duration": { "name": "Duration" },
-      "network_optimization_status": { "name": "Status" },
+      "network_optimization_cost": { "name": "Optimization cost" },
+      "network_optimization_duration": { "name": "Optimization duration" },
+      "network_optimization_status": { "name": "Optimization status" },
+      "network_required_energy": { "name": "Required energy" },
       "node_power_balance": { "name": "Power balance shadow price" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
       "solar_power": { "name": "Power" },

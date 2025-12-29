@@ -8,6 +8,8 @@ from homeassistant.config_entries import ConfigFlowResult
 
 from custom_components.haeo.const import (
     CONF_ADVANCED_MODE,
+    CONF_BLACKOUT_DURATION_HOURS,
+    CONF_BLACKOUT_PROTECTION,
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_PRESET,
     CONF_UPDATE_INTERVAL_MINUTES,
@@ -65,6 +67,8 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             **tier_config,
             CONF_UPDATE_INTERVAL_MINUTES: self._user_input[CONF_UPDATE_INTERVAL_MINUTES],
             CONF_DEBOUNCE_SECONDS: self._user_input[CONF_DEBOUNCE_SECONDS],
+            CONF_BLACKOUT_PROTECTION: self._user_input[CONF_BLACKOUT_PROTECTION],
+            CONF_BLACKOUT_DURATION_HOURS: self._user_input[CONF_BLACKOUT_DURATION_HOURS],
             CONF_ADVANCED_MODE: self._user_input[CONF_ADVANCED_MODE],
         }
 

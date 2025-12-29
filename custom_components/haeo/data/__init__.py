@@ -20,14 +20,17 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.elements import (
-    ELEMENT_TYPE_CONNECTION,
-    ELEMENT_TYPES,
-    ElementConfigData,
-    ElementConfigSchema,
+from custom_components.haeo.const import (
+    CONF_BLACKOUT_DURATION_HOURS,
+    CONF_BLACKOUT_PROTECTION,
+    CONF_ELEMENT_TYPE,
+    DEFAULT_BLACKOUT_DURATION_HOURS,
+    DEFAULT_BLACKOUT_PROTECTION,
 )
+from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPES, ElementConfigData, ElementConfigSchema
 from custom_components.haeo.model import Network
+
+from .util.required_energy import calculate_required_energy
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,22 +114,45 @@ async def load_network(
     # ==================================================================================
     periods_hours = [s / 3600 for s in periods_seconds]
 
-    # Build network with periods in hours
-    net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
+    # Read blackout protection settings from config entry
+    blackout_protection = entry.data.get(CONF_BLACKOUT_PROTECTION, DEFAULT_BLACKOUT_PROTECTION)
+    blackout_duration_hours = entry.data.get(CONF_BLACKOUT_DURATION_HOURS, DEFAULT_BLACKOUT_DURATION_HOURS)
+
+    # Calculate required energy with optional horizon limit for blackout protection
+    # A duration of 0 means unlimited (look at entire remaining horizon)
+    max_horizon_hours = blackout_duration_hours if blackout_protection and blackout_duration_hours > 0 else None
+    energy_result = calculate_required_energy(participants, periods_hours, max_horizon_hours)
+
+    net = Network(
+        name=f"haeo_network_{entry.entry_id}",
+        periods=periods_hours,
+        required_energy=energy_result.required_energy,
+        blackout_protection=blackout_protection,
+        net_power=energy_result.net_power,
+    )
 
     # Collect all model elements from all config elements
     all_model_elements: list[dict[str, Any]] = []
-    for loaded_params in participants.values():
+    for element_params in participants.values():
         # Use registry entry to create model elements from configuration element
-        element_type = loaded_params[CONF_ELEMENT_TYPE]
-        model_elements = ELEMENT_TYPES[element_type].create_model_elements(loaded_params)
+        element_type = element_params[CONF_ELEMENT_TYPE]
+
+        # For battery elements, inject required_energy when blackout protection is enabled
+        # This enables dynamic undercharge sizing based on energy needs
+        params_to_use: ElementConfigData = element_params
+        if element_type == ELEMENT_TYPE_BATTERY and blackout_protection:
+            params_to_use = dict(element_params)  # type: ignore[assignment]
+            params_to_use["required_energy"] = energy_result.required_energy  # type: ignore[typeddict-unknown-key]
+
+        model_elements = ELEMENT_TYPES[element_type].create_model_elements(params_to_use)
         all_model_elements.extend(model_elements)
 
     # Sort all model elements so connections are added last
     # This ensures connection source/target elements exist when connections are registered
+    # Both "connection" and "battery_balance_connection" need to be added after batteries
     sorted_model_elements = sorted(
         all_model_elements,
-        key=lambda e: e.get("element_type") == ELEMENT_TYPE_CONNECTION,
+        key=lambda e: e.get("element_type", "").endswith("connection"),
     )
 
     # Add all model elements to network in correct order
@@ -145,6 +171,7 @@ async def load_network(
 
 
 __all__ = [
+    "calculate_required_energy",
     "config_available",
     "load_element_configs",
     "load_network",

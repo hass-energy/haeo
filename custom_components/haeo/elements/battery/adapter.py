@@ -190,6 +190,11 @@ class BatteryAdapter:
 
         Creates 1-3 battery sections, an internal node, connections from sections to node,
         and a connection from node to target.
+
+        When required_energy is provided (blackout protection), the undercharge section
+        capacity is set dynamically per-timestep to match the required energy for
+        blackout survival. The undercharge_cost mechanism makes discharging from this
+        section expensive, naturally keeping it charged.
         """
         name = config["name"]
         elements: list[dict[str, Any]] = []
@@ -201,9 +206,6 @@ class BatteryAdapter:
         # Convert percentages to ratios
         min_ratio = config["min_charge_percentage"] / 100.0
         max_ratio = config["max_charge_percentage"] / 100.0
-        undercharge_ratio = (
-            config.get("undercharge_percentage", min_ratio) / 100.0 if config.get("undercharge_percentage") else None
-        )
         overcharge_ratio = (
             config.get("overcharge_percentage", max_ratio) / 100.0 if config.get("overcharge_percentage") else None
         )
@@ -212,8 +214,22 @@ class BatteryAdapter:
         # Calculate early charge/discharge incentives
         early_charge_incentive = config.get("early_charge_incentive", DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE])
 
+        # Check if dynamic undercharge sizing is enabled (required_energy provided)
+        required_energy = config.get("required_energy")
+        has_dynamic_undercharge = required_energy is not None and config.get("undercharge_cost") is not None
+
+        # Determine undercharge ratio for static mode (when no required_energy)
+        undercharge_ratio = (
+            config.get("undercharge_percentage", min_ratio) / 100.0 if config.get("undercharge_percentage") else None
+        )
+
         # Determine unusable ratio (inaccessible energy)
-        unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
+        # For dynamic mode, use min_ratio as the base (required_energy extends below it)
+        # For static mode, use undercharge_ratio if set
+        if has_dynamic_undercharge:
+            unusable_ratio = min_ratio
+        else:
+            unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
 
         # Calculate initial charge in kWh (remove unusable percentage)
         initial_charge = max((initial_soc_ratio - unusable_ratio) * capacity, 0.0)
@@ -221,12 +237,26 @@ class BatteryAdapter:
         # Create battery sections
         section_names: list[str] = []
 
-        # 1. Undercharge section (if configured)
-        if undercharge_ratio is not None and config.get("undercharge_cost") is not None:
+        # Track dynamic undercharge capacity for normal section sizing
+        dynamic_undercharge_capacity: list[float] | None = None
+
+        # 1. Undercharge section (dynamic or static)
+        if has_dynamic_undercharge and required_energy is not None:
+            # Dynamic mode: undercharge capacity = required_energy per timestep
+            # required_energy has n_periods + 1 values (fence-post for energy boundaries)
             section_name = f"{name}:undercharge"
             section_names.append(section_name)
-            undercharge_capacity = (min_ratio - undercharge_ratio) * capacity
-            section_initial_charge = min(initial_charge, undercharge_capacity)
+
+            # Use required_energy directly as per-timestep capacity
+            # Cap each value at the total battery capacity to ensure feasibility
+            # The BatteryBalanceConnection handles excess energy when capacity shrinks
+            undercharge_capacity: list[float] = [min(re, capacity) for re in required_energy]
+
+            # Store for normal section calculation
+            dynamic_undercharge_capacity = undercharge_capacity
+
+            # Initial charge for undercharge section: how much of current charge fits in undercharge
+            section_initial_charge = min(initial_charge, undercharge_capacity[0])
 
             elements.append(
                 {
@@ -239,11 +269,43 @@ class BatteryAdapter:
 
             initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
+        elif undercharge_ratio is not None and config.get("undercharge_cost") is not None:
+            # Static mode: undercharge capacity based on percentage
+            section_name = f"{name}:undercharge"
+            section_names.append(section_name)
+            static_undercharge_capacity = (min_ratio - undercharge_ratio) * capacity
+            section_initial_charge = min(initial_charge, static_undercharge_capacity)
+
+            elements.append(
+                {
+                    "element_type": "battery",
+                    "name": section_name,
+                    "capacity": static_undercharge_capacity,
+                    "initial_charge": section_initial_charge,
+                }
+            )
+
+            initial_charge = max(initial_charge - section_initial_charge, 0.0)
+
         # 2. Normal section (always present)
+        # For dynamic undercharge mode, normal section gets remaining capacity after undercharge
+        # For static mode, normal section gets (max_ratio - min_ratio) * capacity
         section_name = f"{name}:normal"
         section_names.append(section_name)
-        normal_capacity = (max_ratio - min_ratio) * capacity
-        section_initial_charge = min(initial_charge, normal_capacity)
+
+        # Calculate base normal capacity
+        base_normal_capacity = (max_ratio - min_ratio) * capacity
+
+        if has_dynamic_undercharge and dynamic_undercharge_capacity is not None:
+            # Dynamic mode: normal capacity = total accessible capacity - undercharge capacity
+            # dynamic_undercharge_capacity is a list; normal gets remaining capacity at each timestep
+            normal_capacity_values = [max(base_normal_capacity - uc, 0.0) for uc in dynamic_undercharge_capacity]
+            normal_capacity: float | list[float] = normal_capacity_values
+            section_initial_charge = min(initial_charge, normal_capacity_values[0])
+        else:
+            # Static mode: normal section gets full (max_ratio - min_ratio) * capacity
+            normal_capacity = base_normal_capacity
+            section_initial_charge = min(initial_charge, normal_capacity)
 
         elements.append(
             {
@@ -272,7 +334,23 @@ class BatteryAdapter:
                 }
             )
 
-        # 4. Create internal node
+        # 4. Create balance connection for dynamic undercharge mode
+        # This allows free energy transfer between undercharge and normal sections
+        # when undercharge capacity shrinks (required_energy decreases as solar arrives)
+        if has_dynamic_undercharge and dynamic_undercharge_capacity is not None:
+            undercharge_section_name = f"{name}:undercharge"
+            normal_section_name = f"{name}:normal"
+            elements.append(
+                {
+                    "element_type": "battery_balance_connection",
+                    "name": f"{name}:balance:undercharge:normal",
+                    "upper": normal_section_name,
+                    "lower": undercharge_section_name,
+                    "capacity_lower": dynamic_undercharge_capacity,
+                }
+            )
+
+        # 5. Create internal node
         node_name = f"{name}:node"
         elements.append(
             {
@@ -283,7 +361,7 @@ class BatteryAdapter:
             }
         )
 
-        # 5. Create connections from sections to internal node
+        # 6. Create connections from sections to internal node
         n_periods = len(config["capacity"])
 
         # Get undercharge/overcharge cost arrays (or broadcast scalars to arrays)
@@ -324,22 +402,35 @@ class BatteryAdapter:
                 }
             )
 
-        # 6. Create balance connections between adjacent sections (enforces fill ordering)
+        # 6b. Create balance connections between adjacent sections (enforces fill ordering)
         # Balance connections ensure lower sections fill before upper sections
+        # Skip if dynamic undercharge balance connection already created in step 4
         section_capacities: dict[str, float] = {}
         for section_name in section_names:
             if "undercharge" in section_name:
-                section_capacities[section_name] = (min_ratio - undercharge_ratio) * capacity  # type: ignore[operator]
+                # Static undercharge capacity from undercharge_percentage, or skip if dynamic
+                if undercharge_ratio is not None:
+                    section_capacities[section_name] = (min_ratio - undercharge_ratio) * capacity  # type: ignore[operator]
+                # Dynamic undercharge handled in step 4 - no need to set capacity here
             elif "overcharge" in section_name:
-                section_capacities[section_name] = (overcharge_ratio - max_ratio) * capacity  # type: ignore[operator]
+                if overcharge_ratio is not None:
+                    section_capacities[section_name] = (overcharge_ratio - max_ratio) * capacity  # type: ignore[operator]
             else:
                 section_capacities[section_name] = normal_capacity
 
         for i in range(len(section_names) - 1):
             lower_section = section_names[i]
             upper_section = section_names[i + 1]
-            lower_capacity = section_capacities[lower_section]
 
+            # Skip if already created dynamic balance connection in step 4
+            if has_dynamic_undercharge and "undercharge" in lower_section and "normal" in upper_section:
+                continue
+
+            # Skip if capacity not computed (e.g., dynamic undercharge without static ratio)
+            if lower_section not in section_capacities:
+                continue
+
+            lower_capacity = section_capacities[lower_section]
             elements.append(
                 {
                     "element_type": "battery_balance_connection",

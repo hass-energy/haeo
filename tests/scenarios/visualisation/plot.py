@@ -17,6 +17,7 @@ import numpy as np
 
 from custom_components.haeo.elements import ELEMENT_TYPE_SOLAR, ElementType
 from custom_components.haeo.model.const import (
+    OUTPUT_TYPE_ENERGY,
     OUTPUT_TYPE_POWER,
     OUTPUT_TYPE_POWER_LIMIT,
     OUTPUT_TYPE_PRICE,
@@ -48,6 +49,8 @@ class ForecastData(TypedDict, total=False):
     production_price: Sequence[tuple[float, float]]
     consumption_price: Sequence[tuple[float, float]]
     soc: Sequence[tuple[float, float]]
+    stored_energy: Sequence[tuple[float, float]]  # kWh for battery capacity inference
+    required_energy: Sequence[tuple[float, float]]  # kWh for network required_energy
     shadow_prices: dict[str, Sequence[tuple[float, float]]]
 
 
@@ -114,6 +117,10 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
             entry["available"] = forecast
         elif output_type == OUTPUT_TYPE_SOC:
             entry["soc"] = forecast
+        elif output_type == OUTPUT_TYPE_ENERGY and output_name == "battery_energy_stored":
+            entry["stored_energy"] = forecast
+        elif output_type == OUTPUT_TYPE_ENERGY and output_name == "network_required_energy":
+            entry["required_energy"] = forecast
         elif output_type == OUTPUT_TYPE_PRICE and direction == "+":
             entry["production_price"] = forecast
         elif output_type == OUTPUT_TYPE_PRICE and direction == "-":
@@ -143,6 +150,65 @@ def _parse_forecast_items(forecast_attr: list[Mapping[str, Any]]) -> list[tuple[
         timestamp = isoparse(time_val).timestamp() if isinstance(time_val, str) else time_val.timestamp()
         result.append((timestamp, float(item["value"])))
     return result
+
+
+def _compute_required_soc(forecast_data: dict[str, ForecastData]) -> Sequence[tuple[float, float]] | None:
+    """Compute required SOC percentage from required_energy and battery capacity.
+
+    Finds the network's required_energy forecast and converts it to SOC percentage
+    by dividing by the total battery capacity (inferred from stored_energy/SOC relationship).
+
+    Returns:
+        List of (timestamp, required_soc_percent) tuples, or None if data unavailable.
+
+    """
+    # Find required_energy from network element
+    required_energy: Sequence[tuple[float, float]] | None = None
+    for data in forecast_data.values():
+        if "required_energy" in data:
+            required_energy = data["required_energy"]
+            break
+
+    if not required_energy:
+        return None
+
+    # Find total battery capacity by looking at stored_energy and SOC relationship
+    total_capacity = 0.0
+    for data in forecast_data.values():
+        if "stored_energy" in data and "soc" in data:
+            stored = np.asarray(data["stored_energy"], dtype=float)
+            soc = np.asarray(data["soc"], dtype=float)
+
+            # Find a point where SOC > 0 to compute capacity
+            for i in range(len(soc)):
+                soc_percent = soc[i, 1]
+                if soc_percent > 1.0:  # At least 1% SOC to avoid division issues
+                    stored_kwh = stored[i, 1]
+                    capacity = stored_kwh / (soc_percent / 100.0)
+                    total_capacity += capacity
+                    break
+
+    if total_capacity <= 0:
+        # Fallback: estimate from max stored_energy values
+        for data in forecast_data.values():
+            if "stored_energy" in data:
+                stored = np.asarray(data["stored_energy"], dtype=float)
+                max_stored = float(np.max(stored[:, 1]))
+                total_capacity += max_stored
+
+    if total_capacity <= 0:
+        _LOGGER.warning("Could not determine battery capacity for required SOC calculation")
+        return None
+
+    # Convert required_energy to required_soc percentage
+    required_soc: list[tuple[float, float]] = []
+    for timestamp, energy_kwh in required_energy:
+        soc_percent = (energy_kwh / total_capacity) * 100.0
+        # Clamp to 0-100%
+        soc_percent = max(0.0, min(100.0, soc_percent))
+        required_soc.append((timestamp, soc_percent))
+
+    return required_soc
 
 
 def _compute_activity_metrics(forecast_data: dict[str, ForecastData]) -> dict[str, tuple[float, int, int]]:
@@ -267,14 +333,23 @@ def plot_price_series(ax: Any, forecast_data: Sequence[tuple[str, str, Sequence[
         ax.plot(times_dt, values[:, 1], color=color, drawstyle="steps-post", label=label)
 
 
-def plot_soc(ax: Any, forecast_data: Sequence[tuple[str, Sequence[tuple[float, float]]]]) -> None:
+def plot_soc(
+    ax: Any,
+    forecast_data: Sequence[tuple[str, Sequence[tuple[float, float]]]],
+    required_soc_data: Sequence[tuple[float, float]] | None = None,
+) -> None:
     """Plot state of charge (SOC) data on a secondary y-axis.
 
     SOC represents instantaneous battery state at time boundaries (fence posts),
     not average values over intervals. Uses linear interpolation between points
     to show continuous state transitions.
-    """
 
+    Args:
+        ax: The matplotlib axis to plot on
+        forecast_data: List of (color, soc_data) tuples for battery SOC lines
+        required_soc_data: Optional required SOC data to plot as red dashed line
+
+    """
     ax_soc = ax.twinx()
     ax_soc.set_ylabel("State of Charge (%)", fontsize=11)
     ax_soc.set_ylim(0, 100)
@@ -285,6 +360,19 @@ def plot_soc(ax: Any, forecast_data: Sequence[tuple[str, Sequence[tuple[float, f
         times_dt = [datetime.fromtimestamp(t, tz=UTC) for t in d[:, 0]]
         # Use linear interpolation (default) since SOC is instantaneous state, not step function
         ax_soc.plot(times_dt, d[:, 1], color=color, linestyle="--", linewidth=1.5)
+
+    # Plot required SOC as red dashed line if provided
+    if required_soc_data:
+        d = np.asarray(required_soc_data, dtype=float)
+        times_dt = [datetime.fromtimestamp(t, tz=UTC) for t in d[:, 0]]
+        ax_soc.plot(
+            times_dt,
+            d[:, 1],
+            color="red",
+            linestyle="--",
+            linewidth=1.5,
+            label="Required SOC",
+        )
 
     ax_soc.tick_params(axis="y", labelsize=9)
 
@@ -368,8 +456,11 @@ def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]]
 
     ax_power.set_ylim(bottom=0)
 
+    # Calculate required SOC from required_energy and battery capacity
+    required_soc_data = _compute_required_soc(forecast_data)
+
     # Plot the SOC information on a secondary axis
-    plot_soc(ax_power, get_from_sorted_data(sorted_data, "soc"))
+    plot_soc(ax_power, get_from_sorted_data(sorted_data, "soc"), required_soc_data)
 
     ax_power.tick_params(axis="x", labelbottom=False)
     ax_price.set_xlabel("Time", fontsize=11)

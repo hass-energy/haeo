@@ -32,6 +32,7 @@ from .const import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
+    OUTPUT_NAME_REQUIRED_ENERGY,
     NetworkOutputName,
 )
 from .elements import (
@@ -348,6 +349,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
                 OUTPUT_TYPE_DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
             ),
+            OUTPUT_NAME_REQUIRED_ENERGY: OutputData(
+                OUTPUT_TYPE_ENERGY,
+                unit="kWh",
+                values=tuple(network.required_energy) if network.required_energy else (0.0,),
+            ),
         }
 
         # Load the network subentry name from translations
@@ -360,7 +366,12 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # HAEO outputs use network subentry name as key, network element type as device
             network_subentry_name: {
                 ELEMENT_TYPE_NETWORK: {
-                    name: _build_coordinator_output(name, output, forecast_times=None)
+                    name: _build_coordinator_output(
+                        name,
+                        output,
+                        # Pass forecast_times for required_energy (has forecast), None for scalar outputs
+                        forecast_times=forecast_timestamps if name == OUTPUT_NAME_REQUIRED_ENERGY else None,
+                    )
                     for name, output in network_output_data.items()
                 }
             }

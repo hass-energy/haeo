@@ -34,6 +34,9 @@ class Network:
     name: str
     periods: Sequence[float]  # Period durations in hours (one per optimization interval)
     elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
+    required_energy: Sequence[float] | None = None  # kWh at each timestep boundary, available to model elements
+    blackout_protection: bool = False  # Enable blackout protection constraints
+    net_power: Sequence[float] | None = None  # kW per period, positive = surplus, negative = deficit
     _solver: Highs = field(default_factory=Highs, repr=False)
 
     def __post_init__(self) -> None:
@@ -80,9 +83,25 @@ class Network:
         element = factory(name=name, periods=self.periods, solver=self._solver, **kwargs)
         self.elements[name] = element
 
+        # Handle BatteryBalanceConnection specially - uses set_battery_references
+        if isinstance(element, BatteryBalanceConnection):
+            # BatteryBalanceConnection uses upper/lower instead of source/target
+            upper_element = self.elements.get(element.source)
+            lower_element = self.elements.get(element.target)
+
+            if not isinstance(upper_element, Battery):
+                msg = f"Upper element '{element.source}' is not a battery"
+                raise TypeError(msg)
+            if not isinstance(lower_element, Battery):
+                msg = f"Lower element '{element.target}' is not a battery"
+                raise TypeError(msg)
+
+            # set_battery_references handles registration internally
+            element.set_battery_references(upper_element, lower_element)
+
         # Register connections immediately when adding Connection elements
-        # (but not BatteryBalanceConnection - those register themselves via set_battery_references)
-        if isinstance(element, Connection) and not isinstance(element, BatteryBalanceConnection):
+        # (BatteryBalanceConnection already handled above via set_battery_references)
+        elif isinstance(element, Connection):
             # Get source and target elements
             source_element = self.elements.get(element.source)
             target_element = self.elements.get(element.target)
@@ -98,22 +117,6 @@ class Network:
             else:
                 msg = f"Failed to register connection {name} with target {element.target}: Not found or invalid"
                 raise ValueError(msg)
-
-        # Register battery balance connections with their battery sections
-        if isinstance(element, BatteryBalanceConnection):
-            # BatteryBalanceConnection uses source=upper, target=lower
-            upper_element = self.elements.get(element.source)
-            lower_element = self.elements.get(element.target)
-
-            if not isinstance(upper_element, Battery):
-                msg = f"Upper element '{element.source}' is not a battery"
-                raise TypeError(msg)
-
-            if not isinstance(lower_element, Battery):
-                msg = f"Lower element '{element.target}' is not a battery"
-                raise TypeError(msg)
-
-            element.set_battery_references(upper_element, lower_element)
 
         return element
 
@@ -141,6 +144,7 @@ class Network:
 
         # Collect all cost expressions from elements and set objective
         costs = [c for element in self.elements.values() for c in element.cost()]
+
         if costs:
             h.minimize(Highs.qsum(costs))
         else:
