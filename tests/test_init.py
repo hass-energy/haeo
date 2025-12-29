@@ -164,10 +164,16 @@ async def test_async_setup_entry_initializes_coordinator(
     """Setup should create a coordinator, perform initial refresh, and forward platforms."""
 
     class DummyCoordinator:
-        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
+        def __init__(
+            self,
+            hass_param: HomeAssistant,
+            entry_param: ConfigEntry,
+            element_coordinators: dict[str, Any] | None = None,
+        ) -> None:
             super().__init__()
             self.hass = hass_param
             self.config_entry = entry_param
+            self._element_coordinators = element_coordinators
             self.async_config_entry_first_refresh = AsyncMock()
             self.cleanup = Mock()
 
@@ -191,8 +197,12 @@ async def test_async_setup_entry_initializes_coordinator(
     created: list[DummyCoordinator] = []
     element_coordinators_created: list[DummyElementCoordinator] = []
 
-    def create_coordinator(hass_param: HomeAssistant, entry_param: ConfigEntry) -> DummyCoordinator:
-        coordinator = DummyCoordinator(hass_param, entry_param)
+    def create_coordinator(
+        hass_param: HomeAssistant,
+        entry_param: ConfigEntry,
+        element_coordinators: dict[str, Any] | None = None,
+    ) -> DummyCoordinator:
+        coordinator = DummyCoordinator(hass_param, entry_param, element_coordinators)
         created.append(coordinator)
         return coordinator
 
@@ -200,9 +210,9 @@ async def test_async_setup_entry_initializes_coordinator(
         hass_param: HomeAssistant,
         entry_param: ConfigEntry,
         subentry: ConfigSubentry,
-        on_change: Any = None,
+        on_input_change: Any = None,
     ) -> DummyElementCoordinator:
-        coordinator = DummyElementCoordinator(hass_param, entry_param, subentry, on_change)
+        coordinator = DummyElementCoordinator(hass_param, entry_param, subentry, on_input_change)
         element_coordinators_created.append(coordinator)
         return coordinator
 

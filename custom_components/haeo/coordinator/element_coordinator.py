@@ -117,6 +117,16 @@ class ElementInputCoordinator(DataUpdateCoordinator[ElementInputData]):
         """Return the config subentry."""
         return self._subentry
 
+    @property
+    def on_input_change(self) -> Callable[[], None] | None:
+        """Return the input change callback."""
+        return self._on_input_change
+
+    @on_input_change.setter
+    def on_input_change(self, callback: Callable[[], None] | None) -> None:
+        """Set the input change callback."""
+        self._on_input_change = callback
+
     async def async_setup(self) -> None:
         """Set up state change tracking."""
         if self._source_entity_ids:

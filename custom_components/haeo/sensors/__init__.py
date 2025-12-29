@@ -9,7 +9,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.coordinator_network import HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.sensors.sensor import HaeoSensor
 
 _LOGGER = logging.getLogger(__name__)

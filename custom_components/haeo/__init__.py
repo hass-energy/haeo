@@ -12,10 +12,8 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
-from custom_components.haeo.coordinator import ElementInputCoordinator
+from custom_components.haeo.coordinator import ElementInputCoordinator, HaeoDataUpdateCoordinator
 from custom_components.haeo.elements import ELEMENT_TYPES
-
-from .coordinator_network import HaeoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -122,24 +120,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 
-    # Create network coordinator
-    network_coordinator = HaeoDataUpdateCoordinator(hass, entry)
-
-    # Callback for element coordinators to notify network coordinator
-    def on_input_change() -> None:
-        hass.async_create_task(network_coordinator.async_request_refresh())
-
-    # Create element coordinators for each element subentry
+    # Create element coordinators for each element subentry (without callback first)
     element_coordinators: dict[str, ElementInputCoordinator] = {}
     for subentry in entry.subentries.values():
         if subentry.subentry_type in ELEMENT_TYPES:
-            coord = ElementInputCoordinator(hass, entry, subentry, on_input_change)
+            # Create coordinator without callback initially - will set up callback after network coordinator
+            coord = ElementInputCoordinator(hass, entry, subentry, on_input_change=lambda: None)
             await coord.async_setup()
             element_coordinators[subentry.subentry_id] = coord
 
     # Initialize element coordinators in parallel
     if element_coordinators:
         await asyncio.gather(*(coord.async_config_entry_first_refresh() for coord in element_coordinators.values()))
+
+    # Create network coordinator with element coordinators
+    network_coordinator = HaeoDataUpdateCoordinator(hass, entry, element_coordinators)
+
+    # Now set up callback for element coordinators to notify network coordinator
+    def on_input_change() -> None:
+        hass.async_create_task(network_coordinator.async_request_refresh())
+
+    for coord in element_coordinators.values():
+        coord.on_input_change = on_input_change
 
     # Store runtime data (required for platform setup)
     entry.runtime_data = HaeoRuntimeData(

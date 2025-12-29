@@ -19,7 +19,7 @@ from .const import (
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
 )
-from .coordinator_network import extract_entity_ids_from_config
+from .coordinator import extract_entity_ids_from_config
 from .elements import is_element_config_schema
 from .sensor_utils import get_output_sensors
 

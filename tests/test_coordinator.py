@@ -40,7 +40,7 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
-from custom_components.haeo.coordinator_network import (
+from custom_components.haeo.coordinator.network_coordinator import (
     STATUS_OPTIONS,
     ForecastPoint,
     HaeoDataUpdateCoordinator,
@@ -191,7 +191,8 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
 def patch_state_change_listener() -> Generator[MagicMock]:
     """Patch state change listener registration for tests."""
     with patch(
-        "custom_components.haeo.coordinator_network.async_track_state_change_event", return_value=lambda: None
+        "custom_components.haeo.coordinator.network_coordinator.async_track_state_change_event",
+        return_value=lambda: None,
     ) as mock_track:
         yield mock_track
 
@@ -304,18 +305,26 @@ async def test_async_update_data_returns_outputs(
 
     # Patch the registry entries to use our mocked output functions
     with (
-        patch("custom_components.haeo.coordinator_network.data_module.config_available", return_value=True),
+        patch("custom_components.haeo.coordinator.network_coordinator.data_module.config_available", return_value=True),
         patch(
-            "custom_components.haeo.coordinator_network.data_module.load_element_configs",
+            "custom_components.haeo.coordinator.network_coordinator.data_module.load_element_configs",
             new_callable=AsyncMock,
         ) as mock_load_configs,
         patch(
-            "custom_components.haeo.coordinator_network.data_module.load_network", new_callable=AsyncMock
+            "custom_components.haeo.coordinator.network_coordinator.data_module.load_network", new_callable=AsyncMock
         ) as mock_load,
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
-        patch("custom_components.haeo.coordinator_network.dismiss_optimization_failure_issue") as mock_dismiss,
-        patch("custom_components.haeo.coordinator_network.dt_util.utcnow", return_value=generated_at),
-        patch("custom_components.haeo.coordinator_network.async_get_translations", mock_translations),
+        patch(
+            "custom_components.haeo.coordinator.network_coordinator.dismiss_optimization_failure_issue",
+        ) as mock_dismiss,
+        patch(
+            "custom_components.haeo.coordinator.network_coordinator.dt_util.utcnow",
+            return_value=generated_at,
+        ),
+        patch(
+            "custom_components.haeo.coordinator.network_coordinator.async_get_translations",
+            mock_translations,
+        ),
         patch.dict(
             ELEMENT_TYPES,
             {
@@ -385,7 +394,10 @@ async def test_async_update_data_raises_on_missing_sensors(
 ) -> None:
     """Coordinator raises UpdateFailed when sensor data is unavailable."""
     # config_available returns False to simulate missing sensor data
-    with patch("custom_components.haeo.coordinator_network.data_module.config_available", return_value=False):
+    with patch(
+        "custom_components.haeo.coordinator.network_coordinator.data_module.config_available",
+        return_value=False,
+    ):
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         with pytest.raises(UpdateFailed) as exc_info:
             await coordinator._async_update_data()
@@ -402,14 +414,14 @@ async def test_async_update_data_propagates_update_failed(
 ) -> None:
     """Coordinator surfaces loader failures as UpdateFailed."""
     with (
-        patch("custom_components.haeo.coordinator_network.data_module.config_available", return_value=True),
+        patch("custom_components.haeo.coordinator.network_coordinator.data_module.config_available", return_value=True),
         patch(
-            "custom_components.haeo.coordinator_network.data_module.load_element_configs",
+            "custom_components.haeo.coordinator.network_coordinator.data_module.load_element_configs",
             new_callable=AsyncMock,
             return_value={},
         ),
         patch(
-            "custom_components.haeo.coordinator_network.data_module.load_network",
+            "custom_components.haeo.coordinator.network_coordinator.data_module.load_network",
             side_effect=UpdateFailed("missing data"),
         ),
     ):
@@ -426,14 +438,14 @@ async def test_async_update_data_propagates_value_error(
 ) -> None:
     """Coordinator allows unexpected errors to bubble up."""
     with (
-        patch("custom_components.haeo.coordinator_network.data_module.config_available", return_value=True),
+        patch("custom_components.haeo.coordinator.network_coordinator.data_module.config_available", return_value=True),
         patch(
-            "custom_components.haeo.coordinator_network.data_module.load_element_configs",
+            "custom_components.haeo.coordinator.network_coordinator.data_module.load_element_configs",
             new_callable=AsyncMock,
             return_value={},
         ),
         patch(
-            "custom_components.haeo.coordinator_network.data_module.load_network",
+            "custom_components.haeo.coordinator.network_coordinator.data_module.load_network",
             side_effect=ValueError("invalid config"),
         ),
     ):
@@ -462,11 +474,11 @@ async def test_async_update_data_raises_on_missing_model_element(
     patched_entry = MagicMock(outputs=broken_outputs)
 
     monkeypatch.setattr(
-        "custom_components.haeo.coordinator_network.ELEMENT_TYPES",
+        "custom_components.haeo.coordinator.network_coordinator.ELEMENT_TYPES",
         {**ELEMENT_TYPES, "battery": patched_entry},
     )
     monkeypatch.setattr(
-        "custom_components.haeo.coordinator_network.data_module.load_network",
+        "custom_components.haeo.coordinator.network_coordinator.data_module.load_network",
         AsyncMock(return_value=fake_network),
     )
 
@@ -527,7 +539,7 @@ def test_extract_entity_ids_catches_type_errors(monkeypatch: pytest.MonkeyPatch)
         msg = "boom"
         raise TypeError(msg)
 
-    monkeypatch.setattr("custom_components.haeo.coordinator_network.collect_entity_ids", broken_collect)
+    monkeypatch.setattr("custom_components.haeo.coordinator.network_coordinator.collect_entity_ids", broken_collect)
 
     extracted = extract_entity_ids_from_config(config)
 
@@ -557,7 +569,7 @@ def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.M
         def fromtimestamp(*_args: Any, **_kwargs: Any) -> None:
             raise ValueError
 
-    monkeypatch.setattr("custom_components.haeo.coordinator_network.datetime", _ErrorDatetime)
+    monkeypatch.setattr("custom_components.haeo.coordinator.network_coordinator.datetime", _ErrorDatetime)
 
     output = _build_coordinator_output(
         SOLAR_POWER, OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0)), forecast_times=(1, 2)
