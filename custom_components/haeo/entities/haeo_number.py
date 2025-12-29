@@ -1,6 +1,7 @@
 """Number entity for HAEO input configuration."""
 
 from collections.abc import Callable
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -10,6 +11,7 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
+from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.schema.input_fields import InputFieldInfo
@@ -196,10 +198,16 @@ class HaeoInputNumber(RestoreNumber):
         if not values:
             return
 
+        # Build forecast as list of ForecastPoint-style dicts
+        local_tz = dt_util.get_default_time_zone()
+        forecast = [
+            {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
+            for ts, val in zip(forecast_timestamps, values, strict=False)
+        ]
+
         # Build updated extra state attributes
         extra_attrs = dict(self._base_extra_attrs)
-        extra_attrs["forecast"] = values
-        extra_attrs["forecast_timestamps"] = list(forecast_timestamps)
+        extra_attrs["forecast"] = forecast
 
         # Update native value to current (first) value
         self._attr_native_value = values[0]
@@ -211,11 +219,15 @@ class HaeoInputNumber(RestoreNumber):
         forecast_timestamps = self._get_forecast_timestamps()
 
         extra_attrs = dict(self._base_extra_attrs)
-        extra_attrs["forecast_timestamps"] = list(forecast_timestamps)
 
         if self._attr_native_value is not None:
-            # Constant value across entire horizon
-            extra_attrs["forecast"] = [self._attr_native_value] * len(forecast_timestamps)
+            # Build forecast as list of ForecastPoint-style dicts with constant value
+            local_tz = dt_util.get_default_time_zone()
+            forecast = [
+                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_native_value}
+                for ts in forecast_timestamps
+            ]
+            extra_attrs["forecast"] = forecast
 
         self._attr_extra_state_attributes = extra_attrs
 

@@ -1,6 +1,7 @@
 """Switch entity for HAEO boolean input configuration."""
 
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
@@ -10,6 +11,7 @@ from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.schema.input_fields import InputFieldInfo
@@ -162,11 +164,19 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
             self._update_forecast()
 
     def _update_forecast(self) -> None:
-        """Update forecast timestamps attribute."""
+        """Update forecast attribute with constant value across horizon."""
         forecast_timestamps = self._get_forecast_timestamps()
 
         extra_attrs = dict(self._base_extra_attrs)
-        extra_attrs["forecast_timestamps"] = list(forecast_timestamps)
+
+        if self._attr_is_on is not None:
+            # Build forecast as list of ForecastPoint-style dicts
+            local_tz = dt_util.get_default_time_zone()
+            forecast = [
+                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_is_on}
+                for ts in forecast_timestamps
+            ]
+            extra_attrs["forecast"] = forecast
 
         self._attr_extra_state_attributes = extra_attrs
 
