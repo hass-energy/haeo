@@ -1,5 +1,7 @@
 """The Home Assistant Energy Optimizer integration."""
 
+import asyncio
+from dataclasses import dataclass
 import logging
 from types import MappingProxyType
 
@@ -10,14 +12,31 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.coordinator import ElementInputCoordinator
+from custom_components.haeo.elements import ELEMENT_TYPES
 
-from .coordinator import HaeoDataUpdateCoordinator
+from .coordinator_network import HaeoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SENSOR, Platform.SWITCH]
 
-type HaeoConfigEntry = ConfigEntry[HaeoDataUpdateCoordinator | None]
+
+@dataclass(slots=True)
+class HaeoRuntimeData:
+    """Runtime data for HAEO integration.
+
+    Attributes:
+        network_coordinator: Coordinator for network-level optimization.
+        element_coordinators: Per-subentry coordinators for input entities.
+
+    """
+
+    network_coordinator: HaeoDataUpdateCoordinator
+    element_coordinators: dict[str, ElementInputCoordinator]
+
+
+type HaeoConfigEntry = ConfigEntry[HaeoRuntimeData | None]
 
 
 async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntry) -> None:
@@ -103,15 +122,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 
-    # Store coordinator in runtime data first (required for platform setup)
-    coordinator = HaeoDataUpdateCoordinator(hass, entry)
-    entry.runtime_data = coordinator
+    # Create network coordinator
+    network_coordinator = HaeoDataUpdateCoordinator(hass, entry)
+
+    # Callback for element coordinators to notify network coordinator
+    def on_input_change() -> None:
+        hass.async_create_task(network_coordinator.async_request_refresh())
+
+    # Create element coordinators for each element subentry
+    element_coordinators: dict[str, ElementInputCoordinator] = {}
+    for subentry in entry.subentries.values():
+        if subentry.subentry_type in ELEMENT_TYPES:
+            coord = ElementInputCoordinator(hass, entry, subentry, on_input_change)
+            await coord.async_setup()
+            element_coordinators[subentry.subentry_id] = coord
+
+    # Initialize element coordinators in parallel
+    if element_coordinators:
+        await asyncio.gather(*(coord.async_config_entry_first_refresh() for coord in element_coordinators.values()))
+
+    # Store runtime data (required for platform setup)
+    entry.runtime_data = HaeoRuntimeData(
+        network_coordinator=network_coordinator,
+        element_coordinators=element_coordinators,
+    )
 
     # Register update listener for config changes and subentry additions/removals
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     # Trigger initial optimization on startup
-    await coordinator.async_config_entry_first_refresh()
+    await network_coordinator.async_config_entry_first_refresh()
 
     # Set up platforms - Home Assistant will handle waiting for them
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -129,9 +169,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> boo
 
     if unload_ok:
         # Clean up coordinator resources
-        coordinator = entry.runtime_data
-        if coordinator is not None:
-            coordinator.cleanup()
+        runtime_data = entry.runtime_data
+        if runtime_data is not None:
+            # Shutdown element coordinators
+            for coord in runtime_data.element_coordinators.values():
+                await coord.async_shutdown()
+            # Cleanup network coordinator
+            runtime_data.network_coordinator.cleanup()
         entry.runtime_data = None
 
     return unload_ok

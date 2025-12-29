@@ -32,7 +32,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator_network import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
 from custom_components.haeo.elements.battery import (

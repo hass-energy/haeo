@@ -14,6 +14,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_NAME,
@@ -22,7 +23,7 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
-from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator_network import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.model import OUTPUT_TYPE_DURATION, OUTPUT_TYPE_POWER, OUTPUT_TYPE_STATUS, OutputType
@@ -160,7 +161,10 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
             },
         },
     }
-    config_entry.runtime_data = coordinator
+    config_entry.runtime_data = HaeoRuntimeData(
+        network_coordinator=coordinator,
+        element_coordinators={},
+    )
 
     async_add_entities = Mock()
 
@@ -208,7 +212,10 @@ async def test_async_setup_entry_skips_when_no_outputs(
 
     coordinator = _DummyCoordinator()
     coordinator.data = {}
-    config_entry.runtime_data = coordinator
+    config_entry.runtime_data = HaeoRuntimeData(
+        network_coordinator=coordinator,
+        element_coordinators={},
+    )
 
     async_add_entities = Mock()
 
@@ -411,7 +418,10 @@ async def test_async_setup_entry_creates_sub_device_sensors(
             },
         },
     }
-    config_entry.runtime_data = coordinator
+    config_entry.runtime_data = HaeoRuntimeData(
+        network_coordinator=coordinator,
+        element_coordinators={},
+    )
 
     async_add_entities = Mock()
 

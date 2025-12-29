@@ -7,8 +7,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator_network import HaeoDataUpdateCoordinator
 from custom_components.haeo.sensors.sensor import HaeoSensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,10 +22,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up HAEO sensor entities."""
 
-    coordinator: HaeoDataUpdateCoordinator | None = getattr(config_entry, "runtime_data", None)
-    if coordinator is None:
-        _LOGGER.debug("No coordinator available, skipping sensor setup")
+    runtime_data: HaeoRuntimeData | None = getattr(config_entry, "runtime_data", None)
+    if runtime_data is None:
+        _LOGGER.debug("No runtime data available, skipping sensor setup")
         return
+
+    coordinator: HaeoDataUpdateCoordinator = runtime_data.network_coordinator
 
     # Create a sensor for each output in the coordinator data grouped by element
     entities: list[HaeoSensor] = []
