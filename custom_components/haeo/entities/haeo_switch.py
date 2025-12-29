@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_ON, EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -13,6 +13,7 @@ from homeassistant.helpers.event import EventStateChangedData, async_track_state
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
+from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.schema.input_fields import InputFieldInfo
 from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
@@ -48,7 +49,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        config_entry: ConfigEntry,
+        config_entry: HaeoConfigEntry,
         subentry: ConfigSubentry,
         field_info: InputFieldInfo,
         device_entry: DeviceEntry,
@@ -64,7 +65,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
 
         """
         self._hass = hass
-        self._config_entry = config_entry
+        self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
         self._field_info = field_info
 
@@ -114,7 +115,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get forecast timestamps from horizon entity or hub config."""
         # Try to get from horizon entity first
-        runtime_data = getattr(self._config_entry, "runtime_data", None)
+        runtime_data = self._config_entry.runtime_data
         if runtime_data is not None and runtime_data.horizon_entity is not None:
             return runtime_data.horizon_entity.get_forecast_timestamps()
         # Fallback to computing from config
@@ -126,7 +127,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         await super().async_added_to_hass()
 
         # Subscribe to horizon updates for consistent time windows
-        runtime_data = getattr(self._config_entry, "runtime_data", None)
+        runtime_data = self._config_entry.runtime_data
         if runtime_data is not None and runtime_data.horizon_entity is not None:
             self._horizon_unsub = runtime_data.horizon_entity.async_subscribe(
                 self._handle_horizon_update

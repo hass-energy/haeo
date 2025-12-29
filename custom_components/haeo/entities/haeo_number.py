@@ -6,13 +6,14 @@ from enum import Enum
 from typing import Any
 
 from homeassistant.components.number import RestoreNumber
-from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
+from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.schema.input_fields import InputFieldInfo
 from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
@@ -67,7 +68,7 @@ class HaeoInputNumber(RestoreNumber):
     def __init__(
         self,
         hass: HomeAssistant,
-        config_entry: ConfigEntry,
+        config_entry: HaeoConfigEntry,
         subentry: ConfigSubentry,
         field_info: InputFieldInfo,
         device_entry: DeviceEntry,
@@ -83,7 +84,7 @@ class HaeoInputNumber(RestoreNumber):
 
         """
         self._hass = hass
-        self._config_entry = config_entry
+        self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
         self._field_info = field_info
 
@@ -147,7 +148,7 @@ class HaeoInputNumber(RestoreNumber):
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get forecast timestamps from horizon entity or hub config."""
         # Try to get from horizon entity first
-        runtime_data = getattr(self._config_entry, "runtime_data", None)
+        runtime_data = self._config_entry.runtime_data
         if runtime_data is not None and runtime_data.horizon_entity is not None:
             return runtime_data.horizon_entity.get_forecast_timestamps()
         # Fallback to computing from config
@@ -159,7 +160,7 @@ class HaeoInputNumber(RestoreNumber):
         await super().async_added_to_hass()
 
         # Subscribe to horizon updates for consistent time windows
-        runtime_data = getattr(self._config_entry, "runtime_data", None)
+        runtime_data = self._config_entry.runtime_data
         if runtime_data is not None and runtime_data.horizon_entity is not None:
             self._horizon_unsub = runtime_data.horizon_entity.async_subscribe(self._handle_horizon_update)
 

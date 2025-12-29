@@ -11,8 +11,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
-from custom_components.haeo.sensors.sensor import HaeoSensor
+from custom_components.haeo.entities import HaeoHorizonEntity, HaeoSensor
 
 _LOGGER = logging.getLogger(__name__)
 
