@@ -240,18 +240,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     # Refine config entry type to not be optional
     config_entry: ConfigEntry
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        config_entry: ConfigEntry,
-    ) -> None:
-        """Initialize the coordinator.
+    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+        """Initialize the coordinator."""
 
-        Args:
-            hass: Home Assistant instance
-            config_entry: The hub config entry
-
-        """
         # Runtime attributes exposed to other integration modules
         self.network: Network | None = None
 

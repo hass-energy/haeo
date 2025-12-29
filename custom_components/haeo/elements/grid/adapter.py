@@ -34,7 +34,7 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
         GRID_POWER_IMPORT := "grid_power_import",
         GRID_POWER_EXPORT := "grid_power_export",
         GRID_POWER_ACTIVE := "grid_power_active",
-        # Shadow prices (computed by optimization)
+        # Shadow prices
         GRID_POWER_MAX_IMPORT_PRICE := "grid_power_max_import_price",
         GRID_POWER_MAX_EXPORT_PRICE := "grid_power_max_export_price",
     )
@@ -151,7 +151,7 @@ class GridAdapter:
             type=OUTPUT_TYPE_POWER,
         )
 
-        # Shadow prices (computed by optimization) - only if constraints exist
+        # Output the given inputs if they exist
         if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
             grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
         if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:

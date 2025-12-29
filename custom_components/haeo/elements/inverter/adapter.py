@@ -46,7 +46,7 @@ INVERTER_OUTPUT_NAMES: Final[frozenset[InverterOutputName]] = frozenset(
         INVERTER_POWER_AC_TO_DC := "inverter_power_ac_to_dc",
         INVERTER_POWER_ACTIVE := "inverter_power_active",
         INVERTER_DC_BUS_POWER_BALANCE := "inverter_dc_bus_power_balance",
-        # Shadow prices (computed by optimization)
+        # Shadow prices
         INVERTER_MAX_POWER_DC_TO_AC_PRICE := "inverter_max_power_dc_to_ac_price",
         INVERTER_MAX_POWER_AC_TO_DC_PRICE := "inverter_max_power_ac_to_dc_price",
     )
@@ -144,11 +144,7 @@ class InverterAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         _config: InverterConfigData,
     ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
-        """Map model outputs to inverter-specific output names.
-
-        Only returns computed values from optimization.
-        Input parameters (max power, efficiency) are exposed via input entities.
-        """
+        """Map model outputs to inverter-specific output names."""
         connection = model_outputs[f"{name}:connection"]
         dc_bus = model_outputs[name]
 
@@ -177,7 +173,7 @@ class InverterAdapter:
         # DC bus power balance shadow price
         inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[NODE_POWER_BALANCE]
 
-        # Shadow prices (computed by optimization)
+        # Shadow prices
         inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
         inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 

@@ -27,7 +27,7 @@ type LoadOutputName = Literal[
 LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     (
         LOAD_POWER := "load_power",
-        # Shadow price (computed by optimization)
+        # Shadow price
         LOAD_FORECAST_LIMIT_PRICE := "load_forecast_limit_price",
     )
 )
@@ -98,11 +98,7 @@ class LoadAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         _config: LoadConfigData,
     ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
-        """Map model outputs to load-specific output names.
-
-        Only returns computed values from optimization.
-        Input parameters (forecast) are exposed via input entities.
-        """
+        """Map model outputs to load-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
         load_outputs: dict[LoadOutputName, OutputData] = {

@@ -140,9 +140,7 @@ async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     # Set up a mock runtime data with proper structure
     mock_network_coordinator = Mock()
     mock_network_coordinator.cleanup = Mock()
-    mock_hub_entry.runtime_data = HaeoRuntimeData(
-        network_coordinator=mock_network_coordinator,
-    )
+    mock_hub_entry.runtime_data = HaeoRuntimeData(network_coordinator=mock_network_coordinator)
 
     # Test that unload works
     result = await async_unload_entry(hass, mock_hub_entry)
@@ -162,11 +160,7 @@ async def test_async_setup_entry_initializes_coordinator(
     """Setup should create a coordinator, perform initial refresh, and forward platforms."""
 
     class DummyCoordinator:
-        def __init__(
-            self,
-            hass_param: HomeAssistant,
-            entry_param: ConfigEntry,
-        ) -> None:
+        def __init__(self, hass_param: HomeAssistant, entry_param: ConfigEntry) -> None:
             super().__init__()
             self.hass = hass_param
             self.config_entry = entry_param
@@ -175,10 +169,7 @@ async def test_async_setup_entry_initializes_coordinator(
 
     created: list[DummyCoordinator] = []
 
-    def create_coordinator(
-        hass_param: HomeAssistant,
-        entry_param: ConfigEntry,
-    ) -> DummyCoordinator:
+    def create_coordinator(hass_param: HomeAssistant, entry_param: ConfigEntry) -> DummyCoordinator:
         coordinator = DummyCoordinator(hass_param, entry_param)
         created.append(coordinator)
         return coordinator

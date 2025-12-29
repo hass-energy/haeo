@@ -198,11 +198,7 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
         return costs
 
     def outputs(self) -> Mapping[PowerConnectionOutputName, OutputData]:
-        """Return output specifications for the connection.
-
-        Only returns computed values from optimization.
-        Input parameters (prices, limits) are exposed via input entities.
-        """
+        """Return output specifications for the connection."""
         outputs: dict[PowerConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: OutputData(
                 type=OUTPUT_TYPE_POWER_FLOW,
@@ -218,7 +214,7 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
             ),
         }
 
-        # Output constraint shadow prices (computed from optimization)
+        # Output constraint shadow prices
         for constraint_name in self._constraints:
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,

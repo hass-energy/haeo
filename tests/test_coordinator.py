@@ -191,8 +191,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
 def patch_state_change_listener() -> Generator[MagicMock]:
     """Patch state change listener registration for tests."""
     with patch(
-        "custom_components.haeo.coordinator.async_track_state_change_event",
-        return_value=lambda: None,
+        "custom_components.haeo.coordinator.async_track_state_change_event", return_value=lambda: None
     ) as mock_track:
         yield mock_track
 
@@ -310,21 +309,11 @@ async def test_async_update_data_returns_outputs(
             "custom_components.haeo.coordinator.data_module.load_element_configs",
             new_callable=AsyncMock,
         ) as mock_load_configs,
-        patch(
-            "custom_components.haeo.coordinator.data_module.load_network", new_callable=AsyncMock
-        ) as mock_load,
+        patch("custom_components.haeo.coordinator.data_module.load_network", new_callable=AsyncMock) as mock_load,
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
-        patch(
-            "custom_components.haeo.coordinator.dismiss_optimization_failure_issue",
-        ) as mock_dismiss,
-        patch(
-            "custom_components.haeo.coordinator.dt_util.utcnow",
-            return_value=generated_at,
-        ),
-        patch(
-            "custom_components.haeo.coordinator.async_get_translations",
-            mock_translations,
-        ),
+        patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
+        patch("custom_components.haeo.coordinator.dt_util.utcnow", return_value=generated_at),
+        patch("custom_components.haeo.coordinator.async_get_translations", mock_translations),
         patch.dict(
             ELEMENT_TYPES,
             {
@@ -394,10 +383,7 @@ async def test_async_update_data_raises_on_missing_sensors(
 ) -> None:
     """Coordinator raises UpdateFailed when sensor data is unavailable."""
     # config_available returns False to simulate missing sensor data
-    with patch(
-        "custom_components.haeo.coordinator.data_module.config_available",
-        return_value=False,
-    ):
+    with patch("custom_components.haeo.coordinator.data_module.config_available", return_value=False):
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         with pytest.raises(UpdateFailed) as exc_info:
             await coordinator._async_update_data()
@@ -420,10 +406,7 @@ async def test_async_update_data_propagates_update_failed(
             new_callable=AsyncMock,
             return_value={},
         ),
-        patch(
-            "custom_components.haeo.coordinator.data_module.load_network",
-            side_effect=UpdateFailed("missing data"),
-        ),
+        patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=UpdateFailed("missing data")),
     ):
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         with pytest.raises(UpdateFailed, match="missing data"):
@@ -444,10 +427,7 @@ async def test_async_update_data_propagates_value_error(
             new_callable=AsyncMock,
             return_value={},
         ),
-        patch(
-            "custom_components.haeo.coordinator.data_module.load_network",
-            side_effect=ValueError("invalid config"),
-        ),
+        patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=ValueError("invalid config")),
     ):
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
         with pytest.raises(ValueError, match="invalid config"):

@@ -36,7 +36,7 @@ type SolarOutputName = Literal[
 SOLAR_OUTPUT_NAMES: Final[frozenset[SolarOutputName]] = frozenset(
     (
         SOLAR_POWER := "solar_power",
-        # Shadow price (computed by optimization)
+        # Shadow price
         SOLAR_FORECAST_LIMIT := "solar_forecast_limit",
     )
 )
@@ -114,11 +114,7 @@ class SolarAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         _config: SolarConfigData,
     ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
-        """Map model outputs to solar-specific output names.
-
-        Only returns computed values from optimization.
-        Input parameters (forecast, price) are exposed via input entities.
-        """
+        """Map model outputs to solar-specific output names."""
         connection = model_outputs[f"{name}:connection"]
 
         solar_outputs: dict[SolarOutputName, OutputData] = {

@@ -141,11 +141,7 @@ class ConnectionAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         _config: ConnectionConfigData,
     ) -> Mapping[ConnectionDeviceName, Mapping[PowerConnectionOutputName, OutputData]]:
-        """Map model outputs to connection-specific output names.
-
-        Only returns computed values from optimization.
-        Input parameters (max power, price, efficiency) are exposed via input entities.
-        """
+        """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]
 
         connection_outputs: dict[PowerConnectionOutputName, OutputData] = {
