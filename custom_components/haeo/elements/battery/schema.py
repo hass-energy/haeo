@@ -95,3 +95,6 @@ class BatteryConfigData(TypedDict):
     overcharge_percentage: NotRequired[float]  # %
     undercharge_cost: NotRequired[list[float]]  # $/kWh per period
     overcharge_cost: NotRequired[list[float]]  # $/kWh per period
+
+    # Dynamic required energy for blackout protection (injected by load_network)
+    required_energy: NotRequired[list[float]]

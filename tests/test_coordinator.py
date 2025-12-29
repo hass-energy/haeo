@@ -401,7 +401,7 @@ async def test_async_update_data_handles_none_required_energy(
     # Explicitly set required_energy to None to test the fallback branch
     fake_network.required_energy = None
 
-    mock_adapter = MagicMock(return_value={})
+    mock_outputs = MagicMock(return_value={})
 
     # Mock translations to return the expected network subentry name
     mock_translations = AsyncMock(return_value={"component.haeo.common.network_subentry_name": "System"})
@@ -421,14 +421,9 @@ async def test_async_update_data_handles_none_required_energy(
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, return_value=0.0),
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue"),
         patch("custom_components.haeo.coordinator.async_get_translations", mock_translations),
-        patch.dict(
-            ELEMENT_TYPES,
-            {
-                "battery": ELEMENT_TYPES["battery"]._replace(outputs=mock_adapter),
-                "grid": ELEMENT_TYPES["grid"]._replace(outputs=mock_adapter),
-                "connection": ELEMENT_TYPES["connection"]._replace(outputs=mock_adapter),
-            },
-        ),
+        patch.object(ELEMENT_TYPES["battery"], "outputs", mock_outputs),
+        patch.object(ELEMENT_TYPES["grid"], "outputs", mock_outputs),
+        patch.object(ELEMENT_TYPES["connection"], "outputs", mock_outputs),
     ):
         mock_load.return_value = fake_network
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
