@@ -11,7 +11,6 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
-from custom_components.haeo.model import power_connection as model_connection
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_SOC
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
@@ -45,8 +44,6 @@ type BatteryOutputName = Literal[
     "battery_energy_stored",
     "battery_state_of_charge",
     "battery_power_balance",
-    "battery_charge_price",
-    "battery_discharge_price",
     "battery_energy_in_flow",
     "battery_energy_out_flow",
     "battery_soc_max",
@@ -63,8 +60,6 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
         BATTERY_ENERGY_STORED := "battery_energy_stored",
         BATTERY_STATE_OF_CHARGE := "battery_state_of_charge",
         BATTERY_POWER_BALANCE := "battery_power_balance",
-        BATTERY_CHARGE_PRICE := "battery_charge_price",
-        BATTERY_DISCHARGE_PRICE := "battery_discharge_price",
         BATTERY_ENERGY_IN_FLOW := "battery_energy_in_flow",
         BATTERY_ENERGY_OUT_FLOW := "battery_energy_out_flow",
         BATTERY_SOC_MAX := "battery_soc_max",
@@ -417,14 +412,6 @@ class BatteryAdapter:
         node_name = f"{name}:node"
         node_outputs = model_outputs.get(node_name, {})
 
-        # Get connection outputs for prices
-        connection_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {}
-        for section_key in section_names:
-            section_full_name = f"{name}:{section_key}"
-            conn_name = f"{section_full_name}:to_node"
-            if conn_name in model_outputs:
-                connection_outputs[section_key] = model_outputs[conn_name]
-
         # Calculate aggregate outputs
         # Sum power charge/discharge across all sections
         all_power_charge = [section[model_battery.BATTERY_POWER_CHARGE] for section in section_outputs.values()]
@@ -478,7 +465,6 @@ class BatteryAdapter:
         # Add section-specific device outputs
         for section_key in section_names:
             section_data = section_outputs[section_key]
-            conn_data = connection_outputs.get(section_key, {})
 
             section_device_outputs: dict[BatteryOutputName, OutputData] = {
                 BATTERY_ENERGY_STORED: replace(section_data[model_battery.BATTERY_ENERGY_STORED], advanced=True),
@@ -489,16 +475,6 @@ class BatteryAdapter:
                 BATTERY_SOC_MAX: replace(section_data[model_battery.BATTERY_SOC_MAX], advanced=True),
                 BATTERY_SOC_MIN: replace(section_data[model_battery.BATTERY_SOC_MIN], advanced=True),
             }
-
-            # Add connection prices
-            if model_connection.CONNECTION_PRICE_TARGET_SOURCE in conn_data:
-                section_device_outputs[BATTERY_CHARGE_PRICE] = replace(
-                    conn_data[model_connection.CONNECTION_PRICE_TARGET_SOURCE], advanced=True
-                )
-            if model_connection.CONNECTION_PRICE_SOURCE_TARGET in conn_data:
-                section_device_outputs[BATTERY_DISCHARGE_PRICE] = replace(
-                    conn_data[model_connection.CONNECTION_PRICE_SOURCE_TARGET], advanced=True
-                )
 
             # Map to device name
             if section_key == "undercharge":

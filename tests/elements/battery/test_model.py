@@ -284,7 +284,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             "battery_all_sections:undercharge:to_node": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.1,), direction="+"),
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.2,), direction="-"),
-                power_connection.CONNECTION_PRICE_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.03,)),
             },
             # Normal section
             "battery_all_sections:normal": {
@@ -313,7 +312,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             "battery_all_sections:overcharge:to_node": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.1,), direction="+"),
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.3,), direction="-"),
-                power_connection.CONNECTION_PRICE_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.04,)),
             },
             # Node with power balance
             "battery_all_sections:node": {
@@ -352,7 +350,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_element.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
                 battery_element.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
                 battery_element.BATTERY_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
-                battery_element.BATTERY_DISCHARGE_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.03,), advanced=True),
                 # Undercharge (i=0) only has section above (normal), balance:undercharge:normal
                 # Undercharge is lower, so power_down enters (0.05), power_up leaves (0.02)
                 battery_element.BATTERY_BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.05,), advanced=True),
@@ -381,7 +378,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_element.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
                 battery_element.BATTERY_SOC_MAX: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
                 battery_element.BATTERY_SOC_MIN: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
-                battery_element.BATTERY_CHARGE_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kWh", values=(0.04,), advanced=True),
                 # Overcharge (i=2) only has section below (normal), balance:normal:overcharge
                 # Overcharge is upper, so power_down leaves (0.03), power_up enters (0.01)
                 battery_element.BATTERY_BALANCE_POWER_DOWN: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(0.03,), advanced=True),

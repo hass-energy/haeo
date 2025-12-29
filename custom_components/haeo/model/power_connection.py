@@ -16,7 +16,7 @@ from .connection import (
     Connection,
     ConnectionConstraintName,
 )
-from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_POWER_LIMIT, OUTPUT_TYPE_PRICE, OUTPUT_TYPE_SHADOW_PRICE
+from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_SHADOW_PRICE
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
@@ -33,10 +33,6 @@ type PowerConnectionOutputName = (
         "connection_power_source_target",
         "connection_power_target_source",
         "connection_power_active",
-        "connection_power_max_source_target",
-        "connection_power_max_target_source",
-        "connection_price_source_target",
-        "connection_price_target_source",
     ]
     | PowerConnectionConstraintName
 )
@@ -44,11 +40,7 @@ type PowerConnectionOutputName = (
 POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = frozenset(
     (
         CONNECTION_POWER_ACTIVE := "connection_power_active",
-        CONNECTION_POWER_MAX_SOURCE_TARGET := "connection_power_max_source_target",
-        CONNECTION_POWER_MAX_TARGET_SOURCE := "connection_power_max_target_source",
-        CONNECTION_PRICE_SOURCE_TARGET := "connection_price_source_target",
-        CONNECTION_PRICE_TARGET_SOURCE := "connection_price_target_source",
-        # Constraints
+        # Constraints (shadow prices - computed by optimization)
         CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET := "connection_shadow_power_max_source_target",
         CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE := "connection_shadow_power_max_target_source",
         CONNECTION_TIME_SLICE,
@@ -206,7 +198,11 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
         return costs
 
     def outputs(self) -> Mapping[PowerConnectionOutputName, OutputData]:
-        """Return output specifications for the connection."""
+        """Return output specifications for the connection.
+
+        Only returns computed values from optimization.
+        Input parameters (prices, limits) are exposed via input entities.
+        """
         outputs: dict[PowerConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: OutputData(
                 type=OUTPUT_TYPE_POWER_FLOW,
@@ -222,41 +218,7 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
             ),
         }
 
-        # Output max power limits if provided
-        if self.max_power_source_target is not None:
-            outputs[CONNECTION_POWER_MAX_SOURCE_TARGET] = OutputData(
-                type=OUTPUT_TYPE_POWER_LIMIT,
-                unit="kW",
-                values=self.max_power_source_target,
-                direction="+",
-            )
-
-        if self.max_power_target_source is not None:
-            outputs[CONNECTION_POWER_MAX_TARGET_SOURCE] = OutputData(
-                type=OUTPUT_TYPE_POWER_LIMIT,
-                unit="kW",
-                values=self.max_power_target_source,
-                direction="-",
-            )
-
-        # Output price data if provided
-        if self.price_source_target is not None:
-            outputs[CONNECTION_PRICE_SOURCE_TARGET] = OutputData(
-                type=OUTPUT_TYPE_PRICE,
-                unit="$/kWh",
-                values=self.price_source_target,
-                direction="+",
-            )
-
-        if self.price_target_source is not None:
-            outputs[CONNECTION_PRICE_TARGET_SOURCE] = OutputData(
-                type=OUTPUT_TYPE_PRICE,
-                unit="$/kWh",
-                values=self.price_target_source,
-                direction="-",
-            )
-
-        # Output constraint shadow prices
+        # Output constraint shadow prices (computed from optimization)
         for constraint_name in self._constraints:
             outputs[constraint_name] = OutputData(
                 type=OUTPUT_TYPE_SHADOW_PRICE,

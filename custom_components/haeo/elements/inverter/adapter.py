@@ -12,8 +12,6 @@ from custom_components.haeo.model.const import OUTPUT_TYPE_POWER_FLOW
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_MAX_SOURCE_TARGET,
-    CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
@@ -38,8 +36,6 @@ type InverterOutputName = Literal[
     "inverter_power_ac_to_dc",
     "inverter_power_active",
     "inverter_dc_bus_power_balance",
-    "inverter_max_power_dc_to_ac",
-    "inverter_max_power_ac_to_dc",
     "inverter_max_power_dc_to_ac_price",
     "inverter_max_power_ac_to_dc_price",
 ]
@@ -50,9 +46,7 @@ INVERTER_OUTPUT_NAMES: Final[frozenset[InverterOutputName]] = frozenset(
         INVERTER_POWER_AC_TO_DC := "inverter_power_ac_to_dc",
         INVERTER_POWER_ACTIVE := "inverter_power_active",
         INVERTER_DC_BUS_POWER_BALANCE := "inverter_dc_bus_power_balance",
-        INVERTER_MAX_POWER_DC_TO_AC := "inverter_max_power_dc_to_ac",
-        INVERTER_MAX_POWER_AC_TO_DC := "inverter_max_power_ac_to_dc",
-        # Shadow prices
+        # Shadow prices (computed by optimization)
         INVERTER_MAX_POWER_DC_TO_AC_PRICE := "inverter_max_power_dc_to_ac_price",
         INVERTER_MAX_POWER_AC_TO_DC_PRICE := "inverter_max_power_ac_to_dc_price",
     )
@@ -150,7 +144,11 @@ class InverterAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         _config: InverterConfigData,
     ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
-        """Map model outputs to inverter-specific output names."""
+        """Map model outputs to inverter-specific output names.
+
+        Only returns computed values from optimization.
+        Input parameters (max power, efficiency) are exposed via input entities.
+        """
         connection = model_outputs[f"{name}:connection"]
         dc_bus = model_outputs[name]
 
@@ -179,10 +177,8 @@ class InverterAdapter:
         # DC bus power balance shadow price
         inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[NODE_POWER_BALANCE]
 
-        # Power limits
-        inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+        # Shadow prices (computed by optimization)
         inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
-        inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
         inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}

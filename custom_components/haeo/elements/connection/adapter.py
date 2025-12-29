@@ -11,12 +11,8 @@ from custom_components.haeo.model import OUTPUT_TYPE_POWER_FLOW, ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
     CONNECTION_POWER_ACTIVE,
-    CONNECTION_POWER_MAX_SOURCE_TARGET,
-    CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
-    CONNECTION_PRICE_SOURCE_TARGET,
-    CONNECTION_PRICE_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
     CONNECTION_TIME_SLICE,
@@ -145,7 +141,11 @@ class ConnectionAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         _config: ConnectionConfigData,
     ) -> Mapping[ConnectionDeviceName, Mapping[PowerConnectionOutputName, OutputData]]:
-        """Map model outputs to connection-specific output names."""
+        """Map model outputs to connection-specific output names.
+
+        Only returns computed values from optimization.
+        Input parameters (max power, price, efficiency) are exposed via input entities.
+        """
         connection = model_outputs[name]
 
         connection_outputs: dict[PowerConnectionOutputName, OutputData] = {
@@ -168,24 +168,16 @@ class ConnectionAdapter:
             type=OUTPUT_TYPE_POWER_FLOW,
         )
 
-        # Optional outputs (only present if configured)
-        if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
-            connection_outputs[CONNECTION_POWER_MAX_SOURCE_TARGET] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+        # Shadow prices (computed by optimization) - only if constraints exist
+        if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
             connection_outputs[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = connection[
                 CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET
             ]
 
-        if CONNECTION_POWER_MAX_TARGET_SOURCE in connection:
-            connection_outputs[CONNECTION_POWER_MAX_TARGET_SOURCE] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
+        if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
             connection_outputs[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = connection[
                 CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE
             ]
-
-        if CONNECTION_PRICE_SOURCE_TARGET in connection:
-            connection_outputs[CONNECTION_PRICE_SOURCE_TARGET] = connection[CONNECTION_PRICE_SOURCE_TARGET]
-
-        if CONNECTION_PRICE_TARGET_SOURCE in connection:
-            connection_outputs[CONNECTION_PRICE_TARGET_SOURCE] = connection[CONNECTION_PRICE_TARGET_SOURCE]
 
         if CONNECTION_TIME_SLICE in connection:
             connection_outputs[CONNECTION_TIME_SLICE] = connection[CONNECTION_TIME_SLICE]

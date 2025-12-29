@@ -11,7 +11,6 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
@@ -22,15 +21,13 @@ from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData
 # Load output names
 type LoadOutputName = Literal[
     "load_power",
-    "load_power_possible",
     "load_forecast_limit_price",
 ]
 
 LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     (
         LOAD_POWER := "load_power",
-        LOAD_POWER_POSSIBLE := "load_power_possible",
-        # Shadow prices
+        # Shadow price (computed by optimization)
         LOAD_FORECAST_LIMIT_PRICE := "load_forecast_limit_price",
     )
 )
@@ -101,13 +98,15 @@ class LoadAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         _config: LoadConfigData,
     ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
-        """Map model outputs to load-specific output names."""
+        """Map model outputs to load-specific output names.
+
+        Only returns computed values from optimization.
+        Input parameters (forecast) are exposed via input entities.
+        """
         connection = model_outputs[f"{name}:connection"]
 
         load_outputs: dict[LoadOutputName, OutputData] = {
             LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER),
-            LOAD_POWER_POSSIBLE: connection[CONNECTION_POWER_MAX_TARGET_SOURCE],
-            # Only the max limit has meaning, the source sink power balance is always zero
             LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
         }
 

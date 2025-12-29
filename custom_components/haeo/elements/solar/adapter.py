@@ -11,9 +11,7 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_MAX_SOURCE_TARGET,
     CONNECTION_POWER_SOURCE_TARGET,
-    CONNECTION_PRICE_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
 
@@ -32,17 +30,13 @@ from .schema import (
 # Solar output names
 type SolarOutputName = Literal[
     "solar_power",
-    "solar_power_available",
-    "solar_price",
     "solar_forecast_limit",
 ]
 
 SOLAR_OUTPUT_NAMES: Final[frozenset[SolarOutputName]] = frozenset(
     (
         SOLAR_POWER := "solar_power",
-        SOLAR_POWER_AVAILABLE := "solar_power_available",
-        SOLAR_PRICE := "solar_price",
-        # Shadow prices
+        # Shadow price (computed by optimization)
         SOLAR_FORECAST_LIMIT := "solar_forecast_limit",
     )
 )
@@ -120,17 +114,17 @@ class SolarAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         _config: SolarConfigData,
     ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
-        """Map model outputs to solar-specific output names."""
+        """Map model outputs to solar-specific output names.
+
+        Only returns computed values from optimization.
+        Input parameters (forecast, price) are exposed via input entities.
+        """
         connection = model_outputs[f"{name}:connection"]
 
         solar_outputs: dict[SolarOutputName, OutputData] = {
             SOLAR_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER),
-            SOLAR_POWER_AVAILABLE: connection[CONNECTION_POWER_MAX_SOURCE_TARGET],
             SOLAR_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
         }
-
-        if CONNECTION_PRICE_SOURCE_TARGET in connection:
-            solar_outputs[SOLAR_PRICE] = connection[CONNECTION_PRICE_SOURCE_TARGET]
 
         return {SOLAR_DEVICE_SOLAR: solar_outputs}
 
