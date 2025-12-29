@@ -1,8 +1,11 @@
 """The Home Assistant Energy Optimizer integration."""
 
-from dataclasses import dataclass
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
+from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
@@ -13,9 +16,12 @@ from homeassistant.helpers.translation import async_get_translations
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 
+if TYPE_CHECKING:
+    from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SENSOR, Platform.SWITCH]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH]
 
 
 @dataclass(slots=True)
@@ -24,10 +30,12 @@ class HaeoRuntimeData:
 
     Attributes:
         network_coordinator: Coordinator for network-level optimization.
+        horizon_entity: Entity providing forecast time windows (set during sensor setup).
 
     """
 
     network_coordinator: HaeoDataUpdateCoordinator
+    horizon_entity: HaeoHorizonEntity | None = field(default=None)
 
 
 type HaeoConfigEntry = ConfigEntry[HaeoRuntimeData | None]

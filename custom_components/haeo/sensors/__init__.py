@@ -2,14 +2,16 @@
 
 import logging
 
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.sensors.sensor import HaeoSensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,10 +32,13 @@ async def async_setup_entry(
     coordinator: HaeoDataUpdateCoordinator = runtime_data.network_coordinator
 
     # Create a sensor for each output in the coordinator data grouped by element
-    entities: list[HaeoSensor] = []
+    entities: list[SensorEntity] = []
 
     # Get the device registry
     dr = device_registry.async_get(hass)
+
+    # Track network device for horizon entity
+    network_device_entry = None
 
     if coordinator.data:
         for subentry in config_entry.subentries.values():
@@ -58,6 +63,10 @@ async def async_setup_entry(
                     translation_placeholders={"name": subentry.title},
                 )
 
+                # Track network device for horizon entity
+                if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
+                    network_device_entry = device_entry
+
                 for output_name, output_data in device_outputs.items():
                     entities.append(
                         HaeoSensor(
@@ -73,6 +82,17 @@ async def async_setup_entry(
                             translation_placeholders=translation_placeholders,
                         )
                     )
+
+    # Create horizon entity on network device
+    if network_device_entry is not None:
+        horizon_entity = HaeoHorizonEntity(
+            hass=hass,
+            config_entry=config_entry,
+            device_entry=network_device_entry,
+        )
+        entities.append(horizon_entity)
+        # Store in runtime data for other entities to subscribe
+        runtime_data.horizon_entity = horizon_entity
 
     if entities:
         async_add_entities(entities)

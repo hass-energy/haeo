@@ -37,8 +37,15 @@ def test_no_unused_translations() -> None:
 
     sensor_translations = translations.get("entity", {}).get("sensor", {})
 
+    # Known non-element sensor translation keys (e.g., horizon entity)
+    known_non_element_keys = {"horizon"}
+
     # Check for unused translations using list comprehension
-    unused_translations = [k for k in sorted(sensor_translations.keys()) if k not in ELEMENT_OUTPUT_NAMES]
+    unused_translations = [
+        k
+        for k in sorted(sensor_translations.keys())
+        if k not in ELEMENT_OUTPUT_NAMES and k not in known_non_element_keys
+    ]
 
     if unused_translations:
         pytest.fail(

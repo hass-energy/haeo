@@ -79,7 +79,17 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Mock Network",
-        data={"name": "Mock Network", "horizon_hours": 1, "period_minutes": 5},
+        data={
+            "name": "Mock Network",
+            "tier_1_count": 5,
+            "tier_1_duration": 1,
+            "tier_2_count": 11,
+            "tier_2_duration": 5,
+            "tier_3_count": 0,
+            "tier_3_duration": 30,
+            "tier_4_count": 0,
+            "tier_4_duration": 60,
+        },
         entry_id="mock_entry",
     )
     entry.add_to_hass(hass)
@@ -171,7 +181,8 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
 
     async_add_entities.assert_called_once()
     sensors = list(async_add_entities.call_args.args[0])
-    assert len(sensors) == 3
+    # 3 output sensors + 1 horizon entity = 4 total
+    assert len(sensors) == 4
 
     status_sensor = next(sensor for sensor in sensors if sensor.translation_key == OUTPUT_NAME_OPTIMIZATION_STATUS)
     assert status_sensor.device_class is SensorDeviceClass.ENUM

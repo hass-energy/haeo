@@ -87,8 +87,8 @@ class HaeoInputNumber(RestoreNumber):
         self._subentry = subentry
         self._field_info = field_info
 
-        # Set device_id directly to link entity to device without device_info
-        self._attr_device_id = device_entry.id
+        # Set device_entry to link entity to device
+        self.device_entry = device_entry
 
         # Determine mode from config value
         config_value = subentry.data.get(field_info.field_name)
@@ -142,15 +142,26 @@ class HaeoInputNumber(RestoreNumber):
         # Loader for time series data
         self._loader = TimeSeriesLoader()
         self._state_unsub: Callable[[], None] | None = None
+        self._horizon_unsub: Callable[[], None] | None = None
 
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
-        """Get forecast timestamps from hub config for consistent time horizon."""
+        """Get forecast timestamps from horizon entity or hub config."""
+        # Try to get from horizon entity first
+        runtime_data = getattr(self._config_entry, "runtime_data", None)
+        if runtime_data is not None and runtime_data.horizon_entity is not None:
+            return runtime_data.horizon_entity.get_forecast_timestamps()
+        # Fallback to computing from config
         periods_seconds = tiers_to_periods_seconds(self._config_entry.data)
         return generate_forecast_timestamps(periods_seconds)
 
     async def async_added_to_hass(self) -> None:
         """Set up state tracking and restore previous value."""
         await super().async_added_to_hass()
+
+        # Subscribe to horizon updates for consistent time windows
+        runtime_data = getattr(self._config_entry, "runtime_data", None)
+        if runtime_data is not None and runtime_data.horizon_entity is not None:
+            self._horizon_unsub = runtime_data.horizon_entity.async_subscribe(self._handle_horizon_update)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             # Restore previous value if available
@@ -174,7 +185,20 @@ class HaeoInputNumber(RestoreNumber):
         if self._state_unsub is not None:
             self._state_unsub()
             self._state_unsub = None
+        if self._horizon_unsub is not None:
+            self._horizon_unsub()
+            self._horizon_unsub = None
         await super().async_will_remove_from_hass()
+
+    @callback
+    def _handle_horizon_update(self) -> None:
+        """Handle horizon update - refresh forecast with new time windows."""
+        if self._entity_mode == ConfigEntityMode.EDITABLE:
+            self._update_editable_forecast()
+            self.async_write_ha_state()
+        else:
+            # Re-load data for driven mode
+            self._hass.async_create_task(self._async_load_data())
 
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
