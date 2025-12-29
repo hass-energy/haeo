@@ -355,6 +355,38 @@
     "solar": { "name": "{name}" }
   },
   "entity": {
+    "number": {
+      "capacity": { "name": "Capacity" },
+      "curtailment": { "name": "Curtailment" },
+      "discharge_cost": { "name": "Discharge cost" },
+      "early_charge_incentive": { "name": "Early charge incentive" },
+      "efficiency": { "name": "Efficiency" },
+      "efficiency_ac_to_dc": { "name": "AC to DC efficiency" },
+      "efficiency_dc_to_ac": { "name": "DC to AC efficiency" },
+      "efficiency_source_target": { "name": "Source to target efficiency" },
+      "efficiency_target_source": { "name": "Target to source efficiency" },
+      "export_limit": { "name": "Export limit" },
+      "export_price": { "name": "Export price" },
+      "forecast": { "name": "Forecast" },
+      "import_limit": { "name": "Import limit" },
+      "import_price": { "name": "Import price" },
+      "initial_charge_percentage": { "name": "Initial charge" },
+      "max_charge_percentage": { "name": "Max charge" },
+      "max_charge_power": { "name": "Max charge power" },
+      "max_discharge_power": { "name": "Max discharge power" },
+      "max_power_ac_to_dc": { "name": "Max AC to DC power" },
+      "max_power_dc_to_ac": { "name": "Max DC to AC power" },
+      "max_power_source_target": { "name": "Max source to target power" },
+      "max_power_target_source": { "name": "Max target to source power" },
+      "min_charge_percentage": { "name": "Min charge" },
+      "overcharge_cost": { "name": "Overcharge cost" },
+      "overcharge_percentage": { "name": "Overcharge percentage" },
+      "price_production": { "name": "Production price" },
+      "price_source_target": { "name": "Source to target price" },
+      "price_target_source": { "name": "Target to source price" },
+      "undercharge_cost": { "name": "Undercharge cost" },
+      "undercharge_percentage": { "name": "Undercharge percentage" }
+    },
     "sensor": {
       "battery_balance_power_down": { "name": "Balance power down" },
       "battery_balance_power_up": { "name": "Balance power up" },
@@ -417,6 +449,11 @@
       "solar_power": { "name": "Power" },
       "solar_power_available": { "name": "Power available" },
       "solar_price": { "name": "Price" }
+    },
+    "switch": {
+      "curtailment": { "name": "Curtailment" },
+      "is_sink": { "name": "Is sink" },
+      "is_source": { "name": "Is source" }
     }
   },
   "exceptions": {

@@ -15,7 +15,7 @@ from .coordinator import HaeoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SENSOR, Platform.SWITCH]
 
 type HaeoConfigEntry = ConfigEntry[HaeoDataUpdateCoordinator | None]
 

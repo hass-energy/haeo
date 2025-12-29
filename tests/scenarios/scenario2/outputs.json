@@ -1,4 +1,231 @@
 {
+  "number.battery_capacity": {
+    "entity_id": "number.battery_capacity",
+    "state": "unknown",
+    "attributes": { "config_mode": "driven", "device_class": "energy_storage", "element_name": "Battery", "element_type": "battery", "field_name": "capacity", "friendly_name": "Battery Capacity", "max": 1000.0, "min": 0.1, "mode": "auto", "output_type": "energy", "source_entities": ["sensor.sigen_plant_rated_energy_capacity"], "step": 0.1, "time_series": true, "unit_of_measurement": "kWh" }
+  },
+  "number.battery_discharge_cost": {
+    "entity_id": "number.battery_discharge_cost",
+    "state": "unknown",
+    "attributes": { "config_mode": "driven", "element_name": "Battery", "element_type": "battery", "field_name": "discharge_cost", "friendly_name": "Battery Discharge cost", "max": 1.0, "min": 0.0, "mode": "auto", "output_type": "price", "source_entities": ["input_number.battery_discharge_cost"], "step": 0.001, "time_series": true }
+  },
+  "number.battery_early_charge_incentive": {
+    "entity_id": "number.battery_early_charge_incentive",
+    "state": "0.001",
+    "attributes": { "config_mode": "editable", "element_name": "Battery", "element_type": "battery", "field_name": "early_charge_incentive", "friendly_name": "Battery Early charge incentive", "max": 1.0, "min": 0.0, "mode": "auto", "output_type": "price", "step": 0.001, "time_series": false }
+  },
+  "number.battery_efficiency": {
+    "entity_id": "number.battery_efficiency",
+    "state": "99.0",
+    "attributes": { "config_mode": "editable", "device_class": "power_factor", "element_name": "Battery", "element_type": "battery", "field_name": "efficiency", "friendly_name": "Battery Efficiency", "max": 100.0, "min": 50.0, "mode": "auto", "output_type": "soc", "step": 0.1, "time_series": false, "unit_of_measurement": "%" }
+  },
+  "number.battery_initial_charge": {
+    "entity_id": "number.battery_initial_charge",
+    "state": "unknown",
+    "attributes": {
+      "config_mode": "driven",
+      "device_class": "battery",
+      "element_name": "Battery",
+      "element_type": "battery",
+      "field_name": "initial_charge_percentage",
+      "friendly_name": "Battery Initial charge",
+      "max": 100.0,
+      "min": 0.0,
+      "mode": "auto",
+      "output_type": "soc",
+      "source_entities": ["sensor.sigen_plant_battery_state_of_charge"],
+      "step": 0.1,
+      "time_series": true,
+      "unit_of_measurement": "%"
+    }
+  },
+  "number.battery_max_charge": {
+    "entity_id": "number.battery_max_charge",
+    "state": "100.0",
+    "attributes": { "config_mode": "editable", "device_class": "battery", "element_name": "Battery", "element_type": "battery", "field_name": "max_charge_percentage", "friendly_name": "Battery Max charge", "max": 100.0, "min": 0.0, "mode": "auto", "output_type": "soc", "step": 1.0, "time_series": false, "unit_of_measurement": "%" }
+  },
+  "number.battery_max_charge_power": {
+    "entity_id": "number.battery_max_charge_power",
+    "state": "unknown",
+    "attributes": {
+      "config_mode": "driven",
+      "device_class": "power",
+      "direction": "+",
+      "element_name": "Battery",
+      "element_type": "battery",
+      "field_name": "max_charge_power",
+      "friendly_name": "Battery Max charge power",
+      "max": 1000.0,
+      "min": 0.0,
+      "mode": "auto",
+      "output_type": "power",
+      "source_entities": ["sensor.sigen_plant_ess_rated_charging_power"],
+      "step": 0.1,
+      "time_series": true,
+      "unit_of_measurement": "kW"
+    }
+  },
+  "number.battery_max_discharge_power": {
+    "entity_id": "number.battery_max_discharge_power",
+    "state": "unknown",
+    "attributes": {
+      "config_mode": "driven",
+      "device_class": "power",
+      "direction": "-",
+      "element_name": "Battery",
+      "element_type": "battery",
+      "field_name": "max_discharge_power",
+      "friendly_name": "Battery Max discharge power",
+      "max": 1000.0,
+      "min": 0.0,
+      "mode": "auto",
+      "output_type": "power",
+      "source_entities": ["sensor.sigen_plant_ess_rated_discharging_power"],
+      "step": 0.1,
+      "time_series": true,
+      "unit_of_measurement": "kW"
+    }
+  },
+  "number.battery_min_charge": {
+    "entity_id": "number.battery_min_charge",
+    "state": "10.0",
+    "attributes": { "config_mode": "editable", "device_class": "battery", "element_name": "Battery", "element_type": "battery", "field_name": "min_charge_percentage", "friendly_name": "Battery Min charge", "max": 100.0, "min": 0.0, "mode": "auto", "output_type": "soc", "step": 1.0, "time_series": false, "unit_of_measurement": "%" }
+  },
+  "number.constant_load_forecast": {
+    "entity_id": "number.constant_load_forecast",
+    "state": "unknown",
+    "attributes": {
+      "config_mode": "driven",
+      "device_class": "power",
+      "direction": "+",
+      "element_name": "Constant Load",
+      "element_type": "load",
+      "field_name": "forecast",
+      "friendly_name": "Constant Load Forecast",
+      "max": 1000.0,
+      "min": 0.0,
+      "mode": "auto",
+      "output_type": "power",
+      "source_entities": ["input_number.constant_load_power"],
+      "step": 0.01,
+      "time_series": true,
+      "unit_of_measurement": "kW"
+    }
+  },
+  "number.grid_export_limit": {
+    "entity_id": "number.grid_export_limit",
+    "state": "30.0",
+    "attributes": { "config_mode": "editable", "device_class": "power", "direction": "-", "element_name": "Grid", "element_type": "grid", "field_name": "export_limit", "friendly_name": "Grid Export limit", "max": 1000.0, "min": 0.0, "mode": "auto", "output_type": "power_limit", "step": 0.1, "time_series": false, "unit_of_measurement": "kW" }
+  },
+  "number.grid_export_price": {
+    "entity_id": "number.grid_export_price",
+    "state": "unknown",
+    "attributes": { "config_mode": "driven", "element_name": "Grid", "element_type": "grid", "field_name": "export_price", "friendly_name": "Grid Export price", "max": 10.0, "min": -1.0, "mode": "auto", "output_type": "price", "source_entities": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"], "step": 0.001, "time_series": true }
+  },
+  "number.grid_import_limit": {
+    "entity_id": "number.grid_import_limit",
+    "state": "55.0",
+    "attributes": { "config_mode": "editable", "device_class": "power", "direction": "+", "element_name": "Grid", "element_type": "grid", "field_name": "import_limit", "friendly_name": "Grid Import limit", "max": 1000.0, "min": 0.0, "mode": "auto", "output_type": "power_limit", "step": 0.1, "time_series": false, "unit_of_measurement": "kW" }
+  },
+  "number.grid_import_price": {
+    "entity_id": "number.grid_import_price",
+    "state": "unknown",
+    "attributes": { "config_mode": "driven", "element_name": "Grid", "element_type": "grid", "field_name": "import_price", "friendly_name": "Grid Import price", "max": 10.0, "min": -1.0, "mode": "auto", "output_type": "price", "source_entities": ["sensor.home_general_price", "sensor.home_general_forecast"], "step": 0.001, "time_series": true }
+  },
+  "number.inverter_max_ac_to_dc_power": {
+    "entity_id": "number.inverter_max_ac_to_dc_power",
+    "state": "unknown",
+    "attributes": {
+      "config_mode": "driven",
+      "device_class": "power",
+      "element_name": "Inverter",
+      "element_type": "inverter",
+      "field_name": "max_power_ac_to_dc",
+      "friendly_name": "Inverter Max AC to DC power",
+      "max": 1000.0,
+      "min": 0.0,
+      "mode": "auto",
+      "output_type": "power_limit",
+      "source_entities": ["sensor.sigen_plant_max_active_power"],
+      "step": 0.1,
+      "time_series": true,
+      "unit_of_measurement": "kW"
+    }
+  },
+  "number.inverter_max_dc_to_ac_power": {
+    "entity_id": "number.inverter_max_dc_to_ac_power",
+    "state": "unknown",
+    "attributes": {
+      "config_mode": "driven",
+      "device_class": "power",
+      "element_name": "Inverter",
+      "element_type": "inverter",
+      "field_name": "max_power_dc_to_ac",
+      "friendly_name": "Inverter Max DC to AC power",
+      "max": 1000.0,
+      "min": 0.0,
+      "mode": "auto",
+      "output_type": "power_limit",
+      "source_entities": ["sensor.sigen_plant_max_active_power"],
+      "step": 0.1,
+      "time_series": true,
+      "unit_of_measurement": "kW"
+    }
+  },
+  "number.solar_forecast": {
+    "entity_id": "number.solar_forecast",
+    "state": "unknown",
+    "attributes": {
+      "config_mode": "driven",
+      "device_class": "power",
+      "direction": "-",
+      "element_name": "Solar",
+      "element_type": "solar",
+      "field_name": "forecast",
+      "friendly_name": "Solar Forecast",
+      "max": 1000.0,
+      "min": 0.0,
+      "mode": "auto",
+      "output_type": "power",
+      "source_entities": [
+        "sensor.energy_production_today_east",
+        "sensor.energy_production_today_north",
+        "sensor.energy_production_today_south",
+        "sensor.energy_production_today_west",
+        "sensor.energy_production_tomorrow_east",
+        "sensor.energy_production_tomorrow_north",
+        "sensor.energy_production_tomorrow_south",
+        "sensor.energy_production_tomorrow_west",
+        "sensor.energy_production_d2_east",
+        "sensor.energy_production_d2_north",
+        "sensor.energy_production_d2_south",
+        "sensor.energy_production_d2_west",
+        "sensor.energy_production_d3_east",
+        "sensor.energy_production_d3_north",
+        "sensor.energy_production_d3_south",
+        "sensor.energy_production_d3_west",
+        "sensor.energy_production_d4_east",
+        "sensor.energy_production_d4_north",
+        "sensor.energy_production_d4_south",
+        "sensor.energy_production_d4_west",
+        "sensor.energy_production_d5_east",
+        "sensor.energy_production_d5_north",
+        "sensor.energy_production_d5_south",
+        "sensor.energy_production_d5_west",
+        "sensor.energy_production_d6_east",
+        "sensor.energy_production_d6_north",
+        "sensor.energy_production_d6_south",
+        "sensor.energy_production_d6_west",
+        "sensor.energy_production_d7_east",
+        "sensor.energy_production_d7_north",
+        "sensor.energy_production_d7_south",
+        "sensor.energy_production_d7_west"
+      ],
+      "step": 0.01,
+      "time_series": true,
+      "unit_of_measurement": "kW"
+    }
+  },
   "sensor.battery_active_power": {
     "entity_id": "sensor.battery_active_power",
     "state": "-16.63",
@@ -4704,5 +4931,8 @@
       "output_type": "shadow_price",
       "unit_of_measurement": "$/kW"
     }
-  }
+  },
+  "switch.solar_curtailment": { "entity_id": "switch.solar_curtailment", "state": "on", "attributes": { "config_mode": "editable", "element_name": "Solar", "element_type": "solar", "field_name": "curtailment", "friendly_name": "Solar Curtailment", "output_type": "status" } },
+  "switch.switchboard_is_sink": { "entity_id": "switch.switchboard_is_sink", "state": "off", "attributes": { "config_mode": "editable", "element_name": "Switchboard", "element_type": "node", "field_name": "is_sink", "friendly_name": "Switchboard Is sink", "output_type": "status" } },
+  "switch.switchboard_is_source": { "entity_id": "switch.switchboard_is_source", "state": "off", "attributes": { "config_mode": "editable", "element_name": "Switchboard", "element_type": "node", "field_name": "is_source", "friendly_name": "Switchboard Is source", "output_type": "status" } }
 }

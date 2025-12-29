@@ -1,0 +1,153 @@
+"""Switch entity for HAEO boolean input configuration."""
+
+from functools import cached_property
+from typing import Any
+
+from homeassistant.components.switch import SwitchEntity
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.const import EntityCategory
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceEntry, DeviceInfo
+from homeassistant.helpers.restore_state import RestoreEntity
+
+from custom_components.haeo.entities.haeo_number import ConfigEntityMode
+from custom_components.haeo.schema.input_fields import InputFieldInfo
+
+
+def _is_entity_id(value: Any) -> bool:
+    """Check if a value looks like an entity ID.
+
+    Entity IDs contain a domain separator (e.g., input_boolean.curtailment).
+    Element names and other strings don't have dots.
+    """
+    return isinstance(value, str) and "." in value
+
+
+class HaeoInputSwitch(RestoreEntity, SwitchEntity):
+    """Switch entity representing a configurable boolean parameter.
+
+    This entity serves as an intermediate layer between external sensors
+    and the optimization model. It can operate in two modes:
+
+    - EDITABLE: User can toggle the switch. Used when config contains
+      a static boolean value rather than an entity ID.
+    - DRIVEN: Value is driven by an external sensor. Used when config
+      contains an entity ID. In this mode, user toggles are ignored.
+    """
+
+    _attr_should_poll = False
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config_entry: ConfigEntry,
+        subentry: ConfigSubentry,
+        field_info: InputFieldInfo,
+        device_entry: DeviceEntry,
+    ) -> None:
+        """Initialize the input switch entity.
+
+        Args:
+            hass: Home Assistant instance
+            config_entry: Parent config entry (the hub)
+            subentry: Config subentry for this element
+            field_info: Metadata about this input field
+            device_entry: Device entry to associate this entity with
+
+        """
+        self._hass = hass
+        self._config_entry = config_entry
+        self._subentry = subentry
+        self._field_info = field_info
+        self._device_entry = device_entry
+
+        # Determine mode from config value
+        config_value = subentry.data.get(field_info.field_name)
+
+        if _is_entity_id(config_value):
+            self._entity_mode = ConfigEntityMode.DRIVEN
+            self._source_entity_id: str | None = config_value
+            self._attr_is_on = None  # Will be set by coordinator update
+        else:
+            self._entity_mode = ConfigEntityMode.EDITABLE
+            self._source_entity_id = None
+            # Set initial value from config (may be None for optional fields)
+            if config_value is not None:
+                self._attr_is_on = bool(config_value)
+            else:
+                self._attr_is_on = None
+
+        # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
+        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
+
+        # Entity attributes from field info
+        self._attr_translation_key = field_info.translation_key or field_info.field_name
+
+        # Pass subentry data as translation placeholders
+        self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+
+        # Build extra state attributes
+        extra_attrs: dict[str, Any] = {
+            "config_mode": self._entity_mode.value,
+            "element_name": subentry.title,
+            "element_type": subentry.subentry_type,
+            "field_name": field_info.field_name,
+            "output_type": field_info.output_type,
+        }
+        if self._source_entity_id:
+            extra_attrs["source_entity"] = self._source_entity_id
+        self._attr_extra_state_attributes = extra_attrs
+
+    @cached_property
+    def device_info(self) -> DeviceInfo:
+        """Return device info."""
+        return DeviceInfo(identifiers=self._device_entry.identifiers)
+
+    async def async_added_to_hass(self) -> None:
+        """Restore state on startup."""
+        await super().async_added_to_hass()
+
+        if self._entity_mode == ConfigEntityMode.EDITABLE:
+            # Restore previous value if available
+            last_state = await self.async_get_last_state()
+            if last_state and last_state.state in ("on", "off"):
+                self._attr_is_on = last_state.state == "on"
+
+    async def async_turn_on(self, **_kwargs: Any) -> None:
+        """Handle user turning switch on.
+
+        In DRIVEN mode, user changes are effectively ignored because the
+        coordinator will overwrite with the external sensor value.
+        """
+        if self._entity_mode == ConfigEntityMode.DRIVEN:
+            self.async_write_ha_state()
+            return
+
+        self._attr_is_on = True
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **_kwargs: Any) -> None:
+        """Handle user turning switch off.
+
+        In DRIVEN mode, user changes are effectively ignored because the
+        coordinator will overwrite with the external sensor value.
+        """
+        if self._entity_mode == ConfigEntityMode.DRIVEN:
+            self.async_write_ha_state()
+            return
+
+        self._attr_is_on = False
+        self.async_write_ha_state()
+
+    def get_current_value(self) -> bool | None:
+        """Return current value for optimization.
+
+        This is called by the ElementInputCoordinator (Phase 2) to get
+        the current input value for this field.
+        """
+        return self._attr_is_on
+
+
+__all__ = ["HaeoInputSwitch"]
