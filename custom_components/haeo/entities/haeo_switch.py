@@ -14,8 +14,8 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo.elements import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
-from custom_components.haeo.schema.input_fields import InputFieldInfo
 from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 
@@ -129,9 +129,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         # Subscribe to horizon updates for consistent time windows
         runtime_data = self._config_entry.runtime_data
         if runtime_data is not None and runtime_data.horizon_entity is not None:
-            self._horizon_unsub = runtime_data.horizon_entity.async_subscribe(
-                self._handle_horizon_update
-            )
+            self._horizon_unsub = runtime_data.horizon_entity.async_subscribe(self._handle_horizon_update)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             # Restore previous value if available

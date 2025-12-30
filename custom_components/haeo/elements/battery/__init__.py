@@ -43,6 +43,7 @@ from .schema import (
     CONF_UNDERCHARGE_PERCENTAGE,
     DEFAULTS,
     ELEMENT_TYPE,
+    INPUT_FIELDS,
     BatteryConfigData,
     BatteryConfigSchema,
 )
@@ -84,6 +85,7 @@ __all__ = [
     "CONF_UNDERCHARGE_PERCENTAGE",
     "DEFAULTS",
     "ELEMENT_TYPE",
+    "INPUT_FIELDS",
     "BatteryAdapter",
     "BatteryConfigData",
     "BatteryConfigSchema",

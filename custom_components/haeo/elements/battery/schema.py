@@ -2,6 +2,11 @@
 
 from typing import Final, Literal, NotRequired, TypedDict
 
+from homeassistant.components.number import NumberDeviceClass
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
+
+from custom_components.haeo.elements.input_fields import InputEntityType, InputFieldInfo
+
 ELEMENT_TYPE: Final = "battery"
 
 # Configuration field names
@@ -27,6 +32,145 @@ DEFAULTS: Final[dict[str, float]] = {
     CONF_EFFICIENCY: 99.0,
     CONF_EARLY_CHARGE_INCENTIVE: 0.001,
 }
+
+# Input field definitions for creating input entities
+INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
+    InputFieldInfo(
+        field_name=CONF_CAPACITY,
+        entity_type=InputEntityType.NUMBER,
+        output_type="energy",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+        min_value=0.1,
+        max_value=1000.0,
+        step=0.1,
+        device_class=NumberDeviceClass.ENERGY_STORAGE,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_INITIAL_CHARGE_PERCENTAGE,
+        entity_type=InputEntityType.NUMBER,
+        output_type="soc",
+        unit=PERCENTAGE,
+        min_value=0.0,
+        max_value=100.0,
+        step=0.1,
+        device_class=NumberDeviceClass.BATTERY,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_MIN_CHARGE_PERCENTAGE,
+        entity_type=InputEntityType.NUMBER,
+        output_type="soc",
+        unit=PERCENTAGE,
+        min_value=0.0,
+        max_value=100.0,
+        step=1.0,
+        device_class=NumberDeviceClass.BATTERY,
+    ),
+    InputFieldInfo(
+        field_name=CONF_MAX_CHARGE_PERCENTAGE,
+        entity_type=InputEntityType.NUMBER,
+        output_type="soc",
+        unit=PERCENTAGE,
+        min_value=0.0,
+        max_value=100.0,
+        step=1.0,
+        device_class=NumberDeviceClass.BATTERY,
+    ),
+    InputFieldInfo(
+        field_name=CONF_EFFICIENCY,
+        entity_type=InputEntityType.NUMBER,
+        output_type="soc",
+        unit=PERCENTAGE,
+        min_value=50.0,
+        max_value=100.0,
+        step=0.1,
+        device_class=NumberDeviceClass.POWER_FACTOR,
+    ),
+    InputFieldInfo(
+        field_name=CONF_MAX_CHARGE_POWER,
+        entity_type=InputEntityType.NUMBER,
+        output_type="power",
+        unit=UnitOfPower.KILO_WATT,
+        min_value=0.0,
+        max_value=1000.0,
+        step=0.1,
+        device_class=NumberDeviceClass.POWER,
+        direction="+",
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_MAX_DISCHARGE_POWER,
+        entity_type=InputEntityType.NUMBER,
+        output_type="power",
+        unit=UnitOfPower.KILO_WATT,
+        min_value=0.0,
+        max_value=1000.0,
+        step=0.1,
+        device_class=NumberDeviceClass.POWER,
+        direction="-",
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_EARLY_CHARGE_INCENTIVE,
+        entity_type=InputEntityType.NUMBER,
+        output_type="price",
+        unit=None,
+        min_value=0.0,
+        max_value=1.0,
+        step=0.001,
+    ),
+    InputFieldInfo(
+        field_name=CONF_DISCHARGE_COST,
+        entity_type=InputEntityType.NUMBER,
+        output_type="price",
+        unit=None,
+        min_value=0.0,
+        max_value=1.0,
+        step=0.001,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_UNDERCHARGE_PERCENTAGE,
+        entity_type=InputEntityType.NUMBER,
+        output_type="soc",
+        unit=PERCENTAGE,
+        min_value=0.0,
+        max_value=100.0,
+        step=1.0,
+        device_class=NumberDeviceClass.BATTERY,
+    ),
+    InputFieldInfo(
+        field_name=CONF_OVERCHARGE_PERCENTAGE,
+        entity_type=InputEntityType.NUMBER,
+        output_type="soc",
+        unit=PERCENTAGE,
+        min_value=0.0,
+        max_value=100.0,
+        step=1.0,
+        device_class=NumberDeviceClass.BATTERY,
+    ),
+    InputFieldInfo(
+        field_name=CONF_UNDERCHARGE_COST,
+        entity_type=InputEntityType.NUMBER,
+        output_type="price",
+        unit=None,
+        min_value=0.0,
+        max_value=10.0,
+        step=0.001,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_OVERCHARGE_COST,
+        entity_type=InputEntityType.NUMBER,
+        output_type="price",
+        unit=None,
+        min_value=0.0,
+        max_value=10.0,
+        step=0.001,
+        time_series=True,
+    ),
+)
 
 
 class BatteryConfigSchema(TypedDict):

@@ -39,6 +39,7 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
+from .input_fields import InputEntityType, InputFieldInfo
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -317,6 +318,32 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     ]
 
 
+# Registry mapping element types to their input field definitions
+_INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo, ...]]] = {
+    battery.ELEMENT_TYPE: battery.INPUT_FIELDS,
+    grid.ELEMENT_TYPE: grid.INPUT_FIELDS,
+    solar.ELEMENT_TYPE: solar.INPUT_FIELDS,
+    load.ELEMENT_TYPE: load.INPUT_FIELDS,
+    inverter.ELEMENT_TYPE: inverter.INPUT_FIELDS,
+    connection.ELEMENT_TYPE: connection.INPUT_FIELDS,
+    node.ELEMENT_TYPE: node.INPUT_FIELDS,
+}
+
+
+def get_input_fields(element_type: str) -> tuple[InputFieldInfo, ...]:
+    """Return input field definitions for an element type.
+
+    Args:
+        element_type: The element type (e.g., "battery", "grid")
+
+    Returns:
+        Tuple of InputFieldInfo for fields that should become input entities.
+        Returns empty tuple for unknown element types.
+
+    """
+    return _INPUT_FIELDS_REGISTRY.get(element_type, ())
+
+
 __all__ = [
     "ELEMENT_CONFIG_SCHEMAS",
     "ELEMENT_DEVICE_NAMES",
@@ -335,8 +362,11 @@ __all__ = [
     "ElementConfigSchema",
     "ElementDeviceName",
     "ElementType",
+    "InputEntityType",
+    "InputFieldInfo",
     "ValidatedElementSubentry",
     "collect_element_subentries",
+    "get_input_fields",
     "is_element_config_schema",
     "is_element_type",
 ]

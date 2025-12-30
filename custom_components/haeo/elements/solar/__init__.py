@@ -19,6 +19,7 @@ from .schema import (
     CONF_PRICE_PRODUCTION,
     DEFAULTS,
     ELEMENT_TYPE,
+    INPUT_FIELDS,
     SolarConfigData,
     SolarConfigSchema,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "CONF_PRICE_PRODUCTION",
     "DEFAULTS",
     "ELEMENT_TYPE",
+    "INPUT_FIELDS",
     # Adapter
     "SOLAR_DEVICE_NAMES",
     "SOLAR_DEVICE_SOLAR",

@@ -28,7 +28,7 @@ from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.model import OUTPUT_TYPE_DURATION, OUTPUT_TYPE_POWER, OUTPUT_TYPE_STATUS, OutputType
-from custom_components.haeo.sensors import async_setup_entry
+from custom_components.haeo.sensor import async_setup_entry
 
 
 class _DummyCoordinator:

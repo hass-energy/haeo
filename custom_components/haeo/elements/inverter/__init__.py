@@ -24,6 +24,7 @@ from .schema import (
     CONF_MAX_POWER_DC_TO_AC,
     DEFAULTS,
     ELEMENT_TYPE,
+    INPUT_FIELDS,
     InverterConfigData,
     InverterConfigSchema,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "CONF_MAX_POWER_DC_TO_AC",
     "DEFAULTS",
     "ELEMENT_TYPE",
+    "INPUT_FIELDS",
     # Adapter
     "INVERTER_DC_BUS_POWER_BALANCE",
     "INVERTER_DEVICE_INVERTER",

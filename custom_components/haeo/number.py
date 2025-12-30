@@ -8,9 +8,8 @@ from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.elements import ELEMENT_TYPES, InputEntityType, get_input_fields
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
-from custom_components.haeo.schema.input_fields import InputEntityType, get_input_fields
 
 _LOGGER = logging.getLogger(__name__)
 

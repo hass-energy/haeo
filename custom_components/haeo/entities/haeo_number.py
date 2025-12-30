@@ -15,7 +15,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.schema.input_fields import InputFieldInfo
+from custom_components.haeo.elements import InputFieldInfo
 from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 
 

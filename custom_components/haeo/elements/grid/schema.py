@@ -2,6 +2,11 @@
 
 from typing import Final, Literal, NotRequired, TypedDict
 
+from homeassistant.components.number import NumberDeviceClass
+from homeassistant.const import UnitOfPower
+
+from custom_components.haeo.elements.input_fields import InputEntityType, InputFieldInfo
+
 ELEMENT_TYPE: Final = "grid"
 
 # Configuration field names
@@ -10,6 +15,52 @@ CONF_EXPORT_PRICE: Final = "export_price"
 CONF_IMPORT_LIMIT: Final = "import_limit"
 CONF_EXPORT_LIMIT: Final = "export_limit"
 CONF_CONNECTION: Final = "connection"
+
+# Input field definitions for creating input entities
+INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
+    InputFieldInfo(
+        field_name=CONF_IMPORT_PRICE,
+        entity_type=InputEntityType.NUMBER,
+        output_type="price",
+        unit=None,  # Currency per kWh
+        min_value=-1.0,
+        max_value=10.0,
+        step=0.001,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_EXPORT_PRICE,
+        entity_type=InputEntityType.NUMBER,
+        output_type="price",
+        unit=None,  # Currency per kWh
+        min_value=-1.0,
+        max_value=10.0,
+        step=0.001,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_IMPORT_LIMIT,
+        entity_type=InputEntityType.NUMBER,
+        output_type="power_limit",
+        unit=UnitOfPower.KILO_WATT,
+        min_value=0.0,
+        max_value=1000.0,
+        step=0.1,
+        device_class=NumberDeviceClass.POWER,
+        direction="+",
+    ),
+    InputFieldInfo(
+        field_name=CONF_EXPORT_LIMIT,
+        entity_type=InputEntityType.NUMBER,
+        output_type="power_limit",
+        unit=UnitOfPower.KILO_WATT,
+        min_value=0.0,
+        max_value=1000.0,
+        step=0.1,
+        device_class=NumberDeviceClass.POWER,
+        direction="-",
+    ),
+)
 
 
 class GridConfigSchema(TypedDict):

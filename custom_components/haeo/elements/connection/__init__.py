@@ -30,6 +30,7 @@ from .schema import (
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
+    INPUT_FIELDS,
     ConnectionConfigData,
     ConnectionConfigSchema,
 )
@@ -55,6 +56,7 @@ __all__ = [
     "CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE",
     "CONNECTION_TIME_SLICE",
     "ELEMENT_TYPE",
+    "INPUT_FIELDS",
     "ConnectionAdapter",
     "ConnectionConfigData",
     "ConnectionConfigSchema",

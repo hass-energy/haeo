@@ -2,6 +2,11 @@
 
 from typing import Final, Literal, NotRequired, TypedDict
 
+from homeassistant.components.number import NumberDeviceClass
+from homeassistant.const import PERCENTAGE, UnitOfPower
+
+from custom_components.haeo.elements.input_fields import InputEntityType, InputFieldInfo
+
 ELEMENT_TYPE: Final = "inverter"
 
 # Configuration field names
@@ -16,6 +21,52 @@ DEFAULTS: Final[dict[str, float]] = {
     CONF_EFFICIENCY_DC_TO_AC: 100.0,
     CONF_EFFICIENCY_AC_TO_DC: 100.0,
 }
+
+# Input field definitions for creating input entities
+INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
+    InputFieldInfo(
+        field_name=CONF_MAX_POWER_DC_TO_AC,
+        entity_type=InputEntityType.NUMBER,
+        output_type="power_limit",
+        unit=UnitOfPower.KILO_WATT,
+        min_value=0.0,
+        max_value=1000.0,
+        step=0.1,
+        device_class=NumberDeviceClass.POWER,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_MAX_POWER_AC_TO_DC,
+        entity_type=InputEntityType.NUMBER,
+        output_type="power_limit",
+        unit=UnitOfPower.KILO_WATT,
+        min_value=0.0,
+        max_value=1000.0,
+        step=0.1,
+        device_class=NumberDeviceClass.POWER,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_EFFICIENCY_DC_TO_AC,
+        entity_type=InputEntityType.NUMBER,
+        output_type="soc",  # Using soc type for efficiency percentages
+        unit=PERCENTAGE,
+        min_value=50.0,
+        max_value=100.0,
+        step=0.1,
+        device_class=NumberDeviceClass.POWER_FACTOR,
+    ),
+    InputFieldInfo(
+        field_name=CONF_EFFICIENCY_AC_TO_DC,
+        entity_type=InputEntityType.NUMBER,
+        output_type="soc",
+        unit=PERCENTAGE,
+        min_value=50.0,
+        max_value=100.0,
+        step=0.1,
+        device_class=NumberDeviceClass.POWER_FACTOR,
+    ),
+)
 
 
 class InverterConfigSchema(TypedDict):

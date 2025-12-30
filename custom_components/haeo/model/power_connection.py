@@ -40,7 +40,7 @@ type PowerConnectionOutputName = (
 POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = frozenset(
     (
         CONNECTION_POWER_ACTIVE := "connection_power_active",
-        # Constraints (shadow prices - computed by optimization)
+        # Constraints
         CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET := "connection_shadow_power_max_source_target",
         CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE := "connection_shadow_power_max_target_source",
         CONNECTION_TIME_SLICE,

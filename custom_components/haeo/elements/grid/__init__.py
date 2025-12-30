@@ -22,6 +22,7 @@ from .schema import (
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
     ELEMENT_TYPE,
+    INPUT_FIELDS,
     GridConfigData,
     GridConfigSchema,
 )
@@ -43,6 +44,7 @@ __all__ = [
     "GRID_POWER_IMPORT",
     "GRID_POWER_MAX_EXPORT_PRICE",
     "GRID_POWER_MAX_IMPORT_PRICE",
+    "INPUT_FIELDS",
     "GridAdapter",
     "GridConfigData",
     "GridConfigSchema",

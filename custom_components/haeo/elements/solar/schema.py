@@ -2,6 +2,11 @@
 
 from typing import Final, Literal, NotRequired, TypedDict
 
+from homeassistant.components.number import NumberDeviceClass
+from homeassistant.const import UnitOfPower
+
+from custom_components.haeo.elements.input_fields import InputEntityType, InputFieldInfo
+
 ELEMENT_TYPE: Final = "solar"
 
 # Configuration field names
@@ -14,6 +19,36 @@ CONF_CONNECTION: Final = "connection"
 DEFAULTS: Final[dict[str, bool]] = {
     CONF_CURTAILMENT: True,
 }
+
+# Input field definitions for creating input entities
+INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
+    InputFieldInfo(
+        field_name=CONF_FORECAST,
+        entity_type=InputEntityType.NUMBER,
+        output_type="power",
+        unit=UnitOfPower.KILO_WATT,
+        min_value=0.0,
+        max_value=1000.0,
+        step=0.01,
+        device_class=NumberDeviceClass.POWER,
+        direction="-",
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_PRICE_PRODUCTION,
+        entity_type=InputEntityType.NUMBER,
+        output_type="price",
+        unit=None,  # Currency per kWh
+        min_value=-1.0,
+        max_value=10.0,
+        step=0.001,
+    ),
+    InputFieldInfo(
+        field_name=CONF_CURTAILMENT,
+        entity_type=InputEntityType.SWITCH,
+        output_type="status",
+    ),
+)
 
 
 class SolarConfigSchema(TypedDict):

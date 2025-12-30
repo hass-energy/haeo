@@ -2,6 +2,8 @@
 
 from typing import Final, Literal, TypedDict
 
+from custom_components.haeo.elements.input_fields import InputEntityType, InputFieldInfo
+
 ELEMENT_TYPE: Final = "node"
 
 # Configuration field names
@@ -13,6 +15,20 @@ DEFAULTS: Final[dict[str, bool]] = {
     CONF_IS_SOURCE: False,
     CONF_IS_SINK: False,
 }
+
+# Input field definitions for creating input entities
+INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
+    InputFieldInfo(
+        field_name=CONF_IS_SOURCE,
+        entity_type=InputEntityType.SWITCH,
+        output_type="status",
+    ),
+    InputFieldInfo(
+        field_name=CONF_IS_SINK,
+        entity_type=InputEntityType.SWITCH,
+        output_type="status",
+    ),
+)
 
 
 class NodeConfigSchema(TypedDict):
