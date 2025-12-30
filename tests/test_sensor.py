@@ -1,6 +1,5 @@
 """Tests for the HAEO sensor platform."""
 
-from collections.abc import Callable
 from datetime import UTC, datetime
 from types import MappingProxyType
 from typing import Literal, cast
@@ -23,7 +22,7 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
-from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
+from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.entities import HaeoSensor
@@ -31,20 +30,18 @@ from custom_components.haeo.model import OUTPUT_TYPE_DURATION, OUTPUT_TYPE_POWER
 from custom_components.haeo.sensor import async_setup_entry
 
 
-class _DummyCoordinator:
-    """Minimal coordinator stub for sensor tests."""
+def _create_mock_coordinator() -> Mock:
+    """Create a mock coordinator for sensor tests.
 
-    def __init__(self) -> None:
-        self.data: dict[str, dict[str, dict[str, CoordinatorOutput]]] = {}
-        self.last_update_success = True
-        self._listeners: list[Callable[[], None]] = []
-
-    def async_add_listener(
-        self, update_callback: Callable[[], None], _context: object | None = None
-    ) -> Callable[[], None]:
-        """Register a listener and return an unsubscribe callback."""
-        self._listeners.append(update_callback)
-        return lambda: None
+    Returns a Mock configured with the minimal interface needed for sensor tests.
+    Callers can use this where HaeoDataUpdateCoordinator is expected since Mock
+    attribute access returns Any, making it compatible at runtime.
+    """
+    coordinator = Mock()
+    coordinator.data = {}
+    coordinator.last_update_success = True
+    coordinator.async_add_listener = Mock(return_value=lambda: None)
+    return coordinator
 
 
 def _make_output(
@@ -127,7 +124,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
 ) -> None:
     """Sensors inherit metadata supplied by coordinator outputs."""
 
-    coordinator = _DummyCoordinator()
+    coordinator = _create_mock_coordinator()
     network_key = config_entry.title
     battery_key = "Battery"
 
@@ -218,7 +215,7 @@ async def test_async_setup_entry_skips_when_no_outputs(
 ) -> None:
     """No entities are created when coordinator data is empty."""
 
-    coordinator = _DummyCoordinator()
+    coordinator = _create_mock_coordinator()
     coordinator.data = {}
     config_entry.runtime_data = HaeoRuntimeData(network_coordinator=coordinator)
 
@@ -232,7 +229,7 @@ async def test_async_setup_entry_skips_when_no_outputs(
 def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry) -> None:
     """Coordinator updates refresh metadata, forecasts, and native value."""
 
-    coordinator = _DummyCoordinator()
+    coordinator = _create_mock_coordinator()
     initial_output = _make_output(
         type_=OUTPUT_TYPE_POWER,
         unit="kW",
@@ -245,7 +242,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
     )
 
     sensor = HaeoSensor(
-        cast("HaeoDataUpdateCoordinator", coordinator),
+        coordinator,
         device_entry=device_entry,
         subentry_key="battery",
         device_key="battery",
@@ -289,7 +286,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
 def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry: DeviceEntry) -> None:
     """Missing coordinator data clears the sensor value while keeping base attributes."""
 
-    coordinator = _DummyCoordinator()
+    coordinator = _create_mock_coordinator()
     initial_output = _make_output(
         type_=OUTPUT_TYPE_POWER,
         unit="kW",
@@ -302,7 +299,7 @@ def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry
     )
 
     sensor = HaeoSensor(
-        cast("HaeoDataUpdateCoordinator", coordinator),
+        coordinator,
         device_entry=device_entry,
         subentry_key="battery",
         device_key="battery",
@@ -331,7 +328,7 @@ def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry
 def test_sensor_availability_follows_coordinator(device_entry: DeviceEntry) -> None:
     """Sensor availability mirrors the coordinator's update status."""
 
-    coordinator = _DummyCoordinator()
+    coordinator = _create_mock_coordinator()
     output = _make_output(
         type_=OUTPUT_TYPE_POWER,
         unit="kW",
@@ -344,7 +341,7 @@ def test_sensor_availability_follows_coordinator(device_entry: DeviceEntry) -> N
     )
 
     sensor = HaeoSensor(
-        cast("HaeoDataUpdateCoordinator", coordinator),
+        coordinator,
         device_entry=device_entry,
         subentry_key="battery",
         device_key="battery",
@@ -365,7 +362,7 @@ def test_sensor_availability_follows_coordinator(device_entry: DeviceEntry) -> N
 async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: DeviceEntry) -> None:
     """async_added_to_hass should trigger an initial update when data exists."""
 
-    coordinator = _DummyCoordinator()
+    coordinator = _create_mock_coordinator()
     output = _make_output(
         type_=OUTPUT_TYPE_POWER,
         unit="kW",
@@ -379,7 +376,7 @@ async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: Devi
     coordinator.data = {"battery": {"battery": {LOAD_POWER: output}}}
 
     sensor = HaeoSensor(
-        cast("HaeoDataUpdateCoordinator", coordinator),
+        coordinator,
         device_entry=device_entry,
         subentry_key="battery",
         device_key="battery",
@@ -403,7 +400,7 @@ async def test_async_setup_entry_creates_sub_device_sensors(
 ) -> None:
     """Sensors are created for sub-devices (e.g. nested components)."""
 
-    coordinator = _DummyCoordinator()
+    coordinator = _create_mock_coordinator()
     battery_key = "Battery"
     sub_device_key = "Battery Sub"
 
@@ -442,7 +439,7 @@ async def test_async_setup_entry_creates_sub_device_sensors(
 
 def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> None:
     """Coordinator updates apply the direction attribute."""
-    coordinator = _DummyCoordinator()
+    coordinator = _create_mock_coordinator()
     initial_output = _make_output(
         type_=OUTPUT_TYPE_POWER,
         unit="kW",
@@ -455,7 +452,7 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
     )
 
     sensor = HaeoSensor(
-        cast("HaeoDataUpdateCoordinator", coordinator),
+        coordinator,
         device_entry=device_entry,
         subentry_key="battery",
         device_key="battery",
@@ -489,7 +486,7 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
 
 def test_handle_coordinator_update_missing_output_clears_value(device_entry: DeviceEntry) -> None:
     """If the specific output is missing from data, sensor value is cleared."""
-    coordinator = _DummyCoordinator()
+    coordinator = _create_mock_coordinator()
     initial_output = _make_output(
         type_=OUTPUT_TYPE_POWER,
         unit="kW",
@@ -502,7 +499,7 @@ def test_handle_coordinator_update_missing_output_clears_value(device_entry: Dev
     )
 
     sensor = HaeoSensor(
-        cast("HaeoDataUpdateCoordinator", coordinator),
+        coordinator,
         device_entry=device_entry,
         subentry_key="battery",
         device_key="battery",

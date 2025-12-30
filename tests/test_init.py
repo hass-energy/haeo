@@ -194,8 +194,10 @@ async def test_async_setup_entry_initializes_coordinator(
 async def test_reload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test reloading a hub entry."""
 
-    # Set up initial mock coordinator
-    mock_hub_entry.runtime_data = AsyncMock()
+    # Set up initial mock coordinator with sync cleanup method
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()  # cleanup is a sync method
+    mock_hub_entry.runtime_data = HaeoRuntimeData(network_coordinator=mock_coordinator)
 
     # Test that reload works
     with suppress(Exception):
@@ -317,8 +319,10 @@ async def test_ensure_required_subentries_skips_switchboard_if_exists(
 
 async def test_reload_entry_failure_handling(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test reload handles setup failures gracefully."""
-    # Mock runtime data
-    mock_hub_entry.runtime_data = AsyncMock()
+    # Mock runtime data with sync cleanup method
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()  # cleanup is a sync method
+    mock_hub_entry.runtime_data = HaeoRuntimeData(network_coordinator=mock_coordinator)
 
     # Attempt reload - should work but may have warnings about state
     try:
