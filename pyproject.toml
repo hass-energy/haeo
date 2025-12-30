@@ -78,6 +78,7 @@ split-on-trailing-comma = false
     'S110',    # Try-except-pass detected - test exception handling patterns differ from production code
     'SIM105',  # Use contextlib.suppress instead of try-except-pass - test exception handling patterns differ
     'BLE001',  # Do not catch blind exception - test code needs to handle various exception types
+    'FBT001',  # Boolean positional argument - common in parametrized tests
 ]
 
 "stubs/**/*.pyi" = [
