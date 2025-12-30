@@ -5,7 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfPower
 
-from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 ELEMENT_TYPE: Final = "inverter"
 
@@ -23,8 +23,8 @@ DEFAULTS: Final[dict[str, float]] = {
 }
 
 # Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
-    NumberInputFieldInfo(
+INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
+    InputFieldInfo(
         field_name=CONF_MAX_POWER_DC_TO_AC,
         entity_description=NumberEntityDescription(
             key=CONF_MAX_POWER_DC_TO_AC,
@@ -38,7 +38,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         output_type="power_limit",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_MAX_POWER_AC_TO_DC,
         entity_description=NumberEntityDescription(
             key=CONF_MAX_POWER_AC_TO_DC,
@@ -52,7 +52,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         output_type="power_limit",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_EFFICIENCY_DC_TO_AC,
         entity_description=NumberEntityDescription(
             key=CONF_EFFICIENCY_DC_TO_AC,
@@ -65,7 +65,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         ),
         output_type="soc",
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_EFFICIENCY_AC_TO_DC,
         entity_description=NumberEntityDescription(
             key=CONF_EFFICIENCY_AC_TO_DC,

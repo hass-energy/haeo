@@ -9,7 +9,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements import ELEMENT_TYPES, get_input_fields
-from custom_components.haeo.elements.input_fields import SwitchInputFieldInfo
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,8 +46,9 @@ async def async_setup_entry(
         # Get input field definitions for this element type
         input_fields = get_input_fields(subentry.subentry_type)
 
-        # Filter to only switch fields
-        switch_fields = [f for f in input_fields if isinstance(f, SwitchInputFieldInfo)]
+        # Filter to only switch fields (by entity description class name)
+        # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
+        switch_fields = [f for f in input_fields if type(f.entity_description).__name__ == "SwitchEntityDescription"]
 
         if not switch_fields:
             continue

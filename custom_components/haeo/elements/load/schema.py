@@ -5,7 +5,7 @@ from typing import Final, Literal, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
 
-from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 ELEMENT_TYPE: Final = "load"
 
@@ -14,8 +14,8 @@ CONF_FORECAST: Final = "forecast"
 CONF_CONNECTION: Final = "connection"
 
 # Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
-    NumberInputFieldInfo(
+INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
+    InputFieldInfo(
         field_name=CONF_FORECAST,
         entity_description=NumberEntityDescription(
             key=CONF_FORECAST,

@@ -9,7 +9,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements import ELEMENT_TYPES, get_input_fields
-from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,8 +46,9 @@ async def async_setup_entry(
         # Get input field definitions for this element type
         input_fields = get_input_fields(subentry.subentry_type)
 
-        # Filter to only number fields
-        number_fields = [f for f in input_fields if isinstance(f, NumberInputFieldInfo)]
+        # Filter to only number fields (by entity description class name)
+        # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
+        number_fields = [f for f in input_fields if type(f.entity_description).__name__ == "NumberEntityDescription"]
 
         if not number_fields:
             continue

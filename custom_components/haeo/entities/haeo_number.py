@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.number import RestoreNumber
+from homeassistant.components.number import NumberEntityDescription, RestoreNumber
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
@@ -15,7 +15,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 if TYPE_CHECKING:
     from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
@@ -72,7 +72,7 @@ class HaeoInputNumber(RestoreNumber):
         hass: HomeAssistant,
         config_entry: HaeoConfigEntry,
         subentry: ConfigSubentry,
-        field_info: NumberInputFieldInfo,
+        field_info: InputFieldInfo[NumberEntityDescription],
         device_entry: DeviceEntry,
         horizon_entity: "HaeoHorizonEntity",
     ) -> None:

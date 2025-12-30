@@ -5,7 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfPower
 
-from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 ELEMENT_TYPE: Final = "connection"
 
@@ -20,8 +20,8 @@ CONF_PRICE_SOURCE_TARGET: Final = "price_source_target"
 CONF_PRICE_TARGET_SOURCE: Final = "price_target_source"
 
 # Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
-    NumberInputFieldInfo(
+INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
+    InputFieldInfo(
         field_name=CONF_MAX_POWER_SOURCE_TARGET,
         entity_description=NumberEntityDescription(
             key=CONF_MAX_POWER_SOURCE_TARGET,
@@ -35,7 +35,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         output_type="power_limit",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_MAX_POWER_TARGET_SOURCE,
         entity_description=NumberEntityDescription(
             key=CONF_MAX_POWER_TARGET_SOURCE,
@@ -49,7 +49,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         output_type="power_limit",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_EFFICIENCY_SOURCE_TARGET,
         entity_description=NumberEntityDescription(
             key=CONF_EFFICIENCY_SOURCE_TARGET,
@@ -63,7 +63,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         output_type="soc",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_EFFICIENCY_TARGET_SOURCE,
         entity_description=NumberEntityDescription(
             key=CONF_EFFICIENCY_TARGET_SOURCE,
@@ -77,7 +77,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         output_type="soc",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_PRICE_SOURCE_TARGET,
         entity_description=NumberEntityDescription(
             key=CONF_PRICE_SOURCE_TARGET,
@@ -90,7 +90,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         direction="-",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_PRICE_TARGET_SOURCE,
         entity_description=NumberEntityDescription(
             key=CONF_PRICE_TARGET_SOURCE,

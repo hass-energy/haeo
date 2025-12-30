@@ -13,7 +13,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_NAME, DOMAIN
-from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.entities.haeo_number import (
     ConfigEntityMode,
@@ -115,9 +115,9 @@ def horizon_entity() -> Mock:
 
 
 @pytest.fixture
-def power_field_info() -> NumberInputFieldInfo:
+def power_field_info() -> InputFieldInfo[NumberEntityDescription]:
     """Return a sample InputFieldInfo for a power field."""
-    return NumberInputFieldInfo(
+    return InputFieldInfo(
         field_name="power_limit",
         entity_description=NumberEntityDescription(
             key="power_limit",
@@ -134,9 +134,9 @@ def power_field_info() -> NumberInputFieldInfo:
 
 
 @pytest.fixture
-def scalar_field_info() -> NumberInputFieldInfo:
+def scalar_field_info() -> InputFieldInfo[NumberEntityDescription]:
     """Return a sample InputFieldInfo for a scalar field."""
-    return NumberInputFieldInfo(
+    return InputFieldInfo(
         field_name="capacity",
         entity_description=NumberEntityDescription(
             key="capacity",
@@ -168,7 +168,7 @@ async def test_editable_mode_with_static_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    power_field_info: NumberInputFieldInfo,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_entity: Mock,
 ) -> None:
     """Number entity in EDITABLE mode initializes with static config value."""
@@ -207,7 +207,7 @@ async def test_editable_mode_with_none_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    scalar_field_info: NumberInputFieldInfo,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_entity: Mock,
 ) -> None:
     """Number entity in EDITABLE mode handles None for optional fields."""
@@ -231,7 +231,7 @@ async def test_editable_mode_set_native_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    power_field_info: NumberInputFieldInfo,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_entity: Mock,
 ) -> None:
     """Number entity in EDITABLE mode updates value on user set."""
@@ -263,7 +263,7 @@ async def test_driven_mode_with_single_entity(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    power_field_info: NumberInputFieldInfo,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_entity: Mock,
 ) -> None:
     """Number entity in DRIVEN mode tracks single source entity."""
@@ -293,7 +293,7 @@ async def test_driven_mode_with_multiple_entities(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    power_field_info: NumberInputFieldInfo,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_entity: Mock,
 ) -> None:
     """Number entity in DRIVEN mode tracks multiple source entities."""
@@ -320,7 +320,7 @@ async def test_driven_mode_ignores_user_set_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    power_field_info: NumberInputFieldInfo,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_entity: Mock,
 ) -> None:
     """Number entity in DRIVEN mode ignores user value changes."""
@@ -352,7 +352,7 @@ async def test_unique_id_includes_all_components(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    power_field_info: NumberInputFieldInfo,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_entity: Mock,
 ) -> None:
     """Unique ID includes entry_id, subentry_id, and field_name."""
@@ -379,7 +379,7 @@ async def test_translation_placeholders_from_subentry_data(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    power_field_info: NumberInputFieldInfo,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_entity: Mock,
 ) -> None:
     """Translation placeholders are derived from subentry data."""
@@ -409,7 +409,7 @@ async def test_entity_has_correct_category(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    power_field_info: NumberInputFieldInfo,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_entity: Mock,
 ) -> None:
     """Entity should be CONFIG category."""
@@ -432,7 +432,7 @@ async def test_entity_does_not_poll(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    power_field_info: NumberInputFieldInfo,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_entity: Mock,
 ) -> None:
     """Entity should not poll."""

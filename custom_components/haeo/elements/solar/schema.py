@@ -1,12 +1,12 @@
 """Solar element schema definitions."""
 
-from typing import Final, Literal, NotRequired, TypedDict
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputFieldInfo, NumberInputFieldInfo, SwitchInputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 ELEMENT_TYPE: Final = "solar"
 
@@ -21,9 +21,9 @@ DEFAULTS: Final[dict[str, bool]] = {
     CONF_CURTAILMENT: True,
 }
 
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
-    NumberInputFieldInfo(
+# Input field definitions for creating input entities (mix of Number and Switch)
+INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
+    InputFieldInfo(
         field_name=CONF_FORECAST,
         entity_description=NumberEntityDescription(
             key=CONF_FORECAST,
@@ -38,7 +38,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
         direction="-",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_PRICE_PRODUCTION,
         entity_description=NumberEntityDescription(
             key=CONF_PRICE_PRODUCTION,
@@ -50,7 +50,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
         output_type="price",
         direction="+",
     ),
-    SwitchInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_CURTAILMENT,
         entity_description=SwitchEntityDescription(
             key=CONF_CURTAILMENT,

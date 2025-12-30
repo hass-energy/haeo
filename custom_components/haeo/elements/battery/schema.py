@@ -5,7 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 
-from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 ELEMENT_TYPE: Final = "battery"
 
@@ -34,8 +34,8 @@ DEFAULTS: Final[dict[str, float]] = {
 }
 
 # Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
-    NumberInputFieldInfo(
+INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
+    InputFieldInfo(
         field_name=CONF_CAPACITY,
         entity_description=NumberEntityDescription(
             key=CONF_CAPACITY,
@@ -49,7 +49,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         output_type="energy",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_INITIAL_CHARGE_PERCENTAGE,
         entity_description=NumberEntityDescription(
             key=CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -63,7 +63,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         output_type="soc",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_MIN_CHARGE_PERCENTAGE,
         entity_description=NumberEntityDescription(
             key=CONF_MIN_CHARGE_PERCENTAGE,
@@ -76,7 +76,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         ),
         output_type="soc",
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_MAX_CHARGE_PERCENTAGE,
         entity_description=NumberEntityDescription(
             key=CONF_MAX_CHARGE_PERCENTAGE,
@@ -89,7 +89,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         ),
         output_type="soc",
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_EFFICIENCY,
         entity_description=NumberEntityDescription(
             key=CONF_EFFICIENCY,
@@ -102,7 +102,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         ),
         output_type="soc",
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_MAX_CHARGE_POWER,
         entity_description=NumberEntityDescription(
             key=CONF_MAX_CHARGE_POWER,
@@ -117,7 +117,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         direction="+",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_MAX_DISCHARGE_POWER,
         entity_description=NumberEntityDescription(
             key=CONF_MAX_DISCHARGE_POWER,
@@ -132,7 +132,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         direction="-",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_EARLY_CHARGE_INCENTIVE,
         entity_description=NumberEntityDescription(
             key=CONF_EARLY_CHARGE_INCENTIVE,
@@ -144,7 +144,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         output_type="price",
         direction="-",
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_DISCHARGE_COST,
         entity_description=NumberEntityDescription(
             key=CONF_DISCHARGE_COST,
@@ -157,7 +157,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         direction="-",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_UNDERCHARGE_PERCENTAGE,
         entity_description=NumberEntityDescription(
             key=CONF_UNDERCHARGE_PERCENTAGE,
@@ -170,7 +170,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         ),
         output_type="soc",
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_OVERCHARGE_PERCENTAGE,
         entity_description=NumberEntityDescription(
             key=CONF_OVERCHARGE_PERCENTAGE,
@@ -183,7 +183,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         ),
         output_type="soc",
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_UNDERCHARGE_COST,
         entity_description=NumberEntityDescription(
             key=CONF_UNDERCHARGE_COST,
@@ -196,7 +196,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         direction="-",
         time_series=True,
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_OVERCHARGE_COST,
         entity_description=NumberEntityDescription(
             key=CONF_OVERCHARGE_COST,

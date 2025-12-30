@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_ON, EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
@@ -14,7 +14,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
-from custom_components.haeo.elements.input_fields import SwitchInputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         hass: HomeAssistant,
         config_entry: HaeoConfigEntry,
         subentry: ConfigSubentry,
-        field_info: SwitchInputFieldInfo,
+        field_info: InputFieldInfo[SwitchEntityDescription],
         device_entry: DeviceEntry,
         horizon_entity: "HaeoHorizonEntity",
     ) -> None:

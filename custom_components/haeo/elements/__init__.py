@@ -39,7 +39,7 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
-from .input_fields import InputFieldInfo, NumberInputFieldInfo, SwitchInputFieldInfo
+from .input_fields import InputFieldInfo
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -319,7 +319,7 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
 
 
 # Registry mapping element types to their input field definitions
-_INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo, ...]]] = {
+_INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo[Any], ...]]] = {
     battery.ELEMENT_TYPE: battery.INPUT_FIELDS,
     grid.ELEMENT_TYPE: grid.INPUT_FIELDS,
     solar.ELEMENT_TYPE: solar.INPUT_FIELDS,
@@ -330,7 +330,7 @@ _INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo, ...]]] = {
 }
 
 
-def get_input_fields(element_type: str) -> tuple[InputFieldInfo, ...]:
+def get_input_fields(element_type: str) -> tuple[InputFieldInfo[Any], ...]:
     """Return input field definitions for an element type.
 
     Args:
@@ -363,8 +363,6 @@ __all__ = [
     "ElementDeviceName",
     "ElementType",
     "InputFieldInfo",
-    "NumberInputFieldInfo",
-    "SwitchInputFieldInfo",
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "get_input_fields",

@@ -5,7 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
 
-from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 ELEMENT_TYPE: Final = "grid"
 
@@ -17,8 +17,8 @@ CONF_EXPORT_LIMIT: Final = "export_limit"
 CONF_CONNECTION: Final = "connection"
 
 # Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
-    NumberInputFieldInfo(
+INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
+    InputFieldInfo(
         field_name=CONF_IMPORT_PRICE,
         entity_description=NumberEntityDescription(
             key=CONF_IMPORT_PRICE,
@@ -31,7 +31,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         time_series=True,
         direction="-",  # Import = consuming from grid = cost
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_EXPORT_PRICE,
         entity_description=NumberEntityDescription(
             key=CONF_EXPORT_PRICE,
@@ -44,7 +44,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         time_series=True,
         direction="+",  # Export = producing to grid = revenue
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_IMPORT_LIMIT,
         entity_description=NumberEntityDescription(
             key=CONF_IMPORT_LIMIT,
@@ -58,7 +58,7 @@ INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
         output_type="power_limit",
         direction="+",
     ),
-    NumberInputFieldInfo(
+    InputFieldInfo(
         field_name=CONF_EXPORT_LIMIT,
         entity_description=NumberEntityDescription(
             key=CONF_EXPORT_LIMIT,
