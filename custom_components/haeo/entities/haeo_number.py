@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.number import NumberEntityDescription, RestoreNumber
+from homeassistant.components.number import RestoreNumber
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
@@ -15,7 +15,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.elements import InputFieldInfo
+from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
 
 if TYPE_CHECKING:
     from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
@@ -72,7 +72,7 @@ class HaeoInputNumber(RestoreNumber):
         hass: HomeAssistant,
         config_entry: HaeoConfigEntry,
         subentry: ConfigSubentry,
-        field_info: InputFieldInfo,
+        field_info: NumberInputFieldInfo,
         device_entry: DeviceEntry,
         horizon_entity: "HaeoHorizonEntity",
     ) -> None:
@@ -113,16 +113,8 @@ class HaeoInputNumber(RestoreNumber):
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
 
-        # Use entity description for all field-derived attributes
-        self.entity_description = NumberEntityDescription(
-            key=field_info.field_name,
-            translation_key=field_info.translation_key or field_info.field_name,
-            native_unit_of_measurement=field_info.unit,
-            device_class=field_info.device_class,
-            native_min_value=field_info.min_value,
-            native_max_value=field_info.max_value,
-            native_step=field_info.step,
-        )
+        # Use entity description directly from field info
+        self.entity_description = field_info.entity_description
 
         # Pass subentry data as translation placeholders
         self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}

@@ -2,10 +2,10 @@
 
 from typing import Final, Literal, NotRequired, TypedDict
 
-from homeassistant.components.number import NumberDeviceClass
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputEntityType, InputFieldInfo
+from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
 
 ELEMENT_TYPE: Final = "inverter"
 
@@ -23,48 +23,60 @@ DEFAULTS: Final[dict[str, float]] = {
 }
 
 # Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
-    InputFieldInfo(
+INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
+    NumberInputFieldInfo(
         field_name=CONF_MAX_POWER_DC_TO_AC,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_MAX_POWER_DC_TO_AC,
+            translation_key=CONF_MAX_POWER_DC_TO_AC,
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
         output_type="power_limit",
-        unit=UnitOfPower.KILO_WATT,
-        min_value=0.0,
-        max_value=1000.0,
-        step=0.1,
-        device_class=NumberDeviceClass.POWER,
         time_series=True,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_MAX_POWER_AC_TO_DC,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_MAX_POWER_AC_TO_DC,
+            translation_key=CONF_MAX_POWER_AC_TO_DC,
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
         output_type="power_limit",
-        unit=UnitOfPower.KILO_WATT,
-        min_value=0.0,
-        max_value=1000.0,
-        step=0.1,
-        device_class=NumberDeviceClass.POWER,
         time_series=True,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_EFFICIENCY_DC_TO_AC,
-        entity_type=InputEntityType.NUMBER,
-        output_type="soc",  # Using soc type for efficiency percentages
-        unit=PERCENTAGE,
-        min_value=50.0,
-        max_value=100.0,
-        step=0.1,
-        device_class=NumberDeviceClass.POWER_FACTOR,
-    ),
-    InputFieldInfo(
-        field_name=CONF_EFFICIENCY_AC_TO_DC,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_EFFICIENCY_DC_TO_AC,
+            translation_key=CONF_EFFICIENCY_DC_TO_AC,
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.POWER_FACTOR,
+            native_min_value=50.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
         output_type="soc",
-        unit=PERCENTAGE,
-        min_value=50.0,
-        max_value=100.0,
-        step=0.1,
-        device_class=NumberDeviceClass.POWER_FACTOR,
+    ),
+    NumberInputFieldInfo(
+        field_name=CONF_EFFICIENCY_AC_TO_DC,
+        entity_description=NumberEntityDescription(
+            key=CONF_EFFICIENCY_AC_TO_DC,
+            translation_key=CONF_EFFICIENCY_AC_TO_DC,
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.POWER_FACTOR,
+            native_min_value=50.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
+        output_type="soc",
     ),
 )
 

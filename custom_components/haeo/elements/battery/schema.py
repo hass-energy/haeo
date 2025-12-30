@@ -2,10 +2,10 @@
 
 from typing import Final, Literal, NotRequired, TypedDict
 
-from homeassistant.components.number import NumberDeviceClass
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputEntityType, InputFieldInfo
+from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
 
 ELEMENT_TYPE: Final = "battery"
 
@@ -34,143 +34,178 @@ DEFAULTS: Final[dict[str, float]] = {
 }
 
 # Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
-    InputFieldInfo(
+INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
+    NumberInputFieldInfo(
         field_name=CONF_CAPACITY,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_CAPACITY,
+            translation_key=CONF_CAPACITY,
+            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+            device_class=NumberDeviceClass.ENERGY_STORAGE,
+            native_min_value=0.1,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
         output_type="energy",
-        unit=UnitOfEnergy.KILO_WATT_HOUR,
-        min_value=0.1,
-        max_value=1000.0,
-        step=0.1,
-        device_class=NumberDeviceClass.ENERGY_STORAGE,
         time_series=True,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_INITIAL_CHARGE_PERCENTAGE,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_INITIAL_CHARGE_PERCENTAGE,
+            translation_key=CONF_INITIAL_CHARGE_PERCENTAGE,
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.BATTERY,
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
         output_type="soc",
-        unit=PERCENTAGE,
-        min_value=0.0,
-        max_value=100.0,
-        step=0.1,
-        device_class=NumberDeviceClass.BATTERY,
         time_series=True,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_MIN_CHARGE_PERCENTAGE,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_MIN_CHARGE_PERCENTAGE,
+            translation_key=CONF_MIN_CHARGE_PERCENTAGE,
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.BATTERY,
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=1.0,
+        ),
         output_type="soc",
-        unit=PERCENTAGE,
-        min_value=0.0,
-        max_value=100.0,
-        step=1.0,
-        device_class=NumberDeviceClass.BATTERY,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_MAX_CHARGE_PERCENTAGE,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_MAX_CHARGE_PERCENTAGE,
+            translation_key=CONF_MAX_CHARGE_PERCENTAGE,
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.BATTERY,
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=1.0,
+        ),
         output_type="soc",
-        unit=PERCENTAGE,
-        min_value=0.0,
-        max_value=100.0,
-        step=1.0,
-        device_class=NumberDeviceClass.BATTERY,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_EFFICIENCY,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_EFFICIENCY,
+            translation_key=CONF_EFFICIENCY,
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.POWER_FACTOR,
+            native_min_value=50.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
         output_type="soc",
-        unit=PERCENTAGE,
-        min_value=50.0,
-        max_value=100.0,
-        step=0.1,
-        device_class=NumberDeviceClass.POWER_FACTOR,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_MAX_CHARGE_POWER,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_MAX_CHARGE_POWER,
+            translation_key=CONF_MAX_CHARGE_POWER,
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
         output_type="power",
-        unit=UnitOfPower.KILO_WATT,
-        min_value=0.0,
-        max_value=1000.0,
-        step=0.1,
-        device_class=NumberDeviceClass.POWER,
         direction="+",
         time_series=True,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_MAX_DISCHARGE_POWER,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_MAX_DISCHARGE_POWER,
+            translation_key=CONF_MAX_DISCHARGE_POWER,
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
         output_type="power",
-        unit=UnitOfPower.KILO_WATT,
-        min_value=0.0,
-        max_value=1000.0,
-        step=0.1,
-        device_class=NumberDeviceClass.POWER,
         direction="-",
         time_series=True,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_EARLY_CHARGE_INCENTIVE,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_EARLY_CHARGE_INCENTIVE,
+            translation_key=CONF_EARLY_CHARGE_INCENTIVE,
+            native_min_value=0.0,
+            native_max_value=1.0,
+            native_step=0.001,
+        ),
         output_type="price",
-        unit=None,
-        min_value=0.0,
-        max_value=1.0,
-        step=0.001,
         direction="-",
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_DISCHARGE_COST,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_DISCHARGE_COST,
+            translation_key=CONF_DISCHARGE_COST,
+            native_min_value=0.0,
+            native_max_value=1.0,
+            native_step=0.001,
+        ),
         output_type="price",
-        unit=None,
-        min_value=0.0,
-        max_value=1.0,
-        step=0.001,
         direction="-",
         time_series=True,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_UNDERCHARGE_PERCENTAGE,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_UNDERCHARGE_PERCENTAGE,
+            translation_key=CONF_UNDERCHARGE_PERCENTAGE,
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.BATTERY,
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=1.0,
+        ),
         output_type="soc",
-        unit=PERCENTAGE,
-        min_value=0.0,
-        max_value=100.0,
-        step=1.0,
-        device_class=NumberDeviceClass.BATTERY,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_OVERCHARGE_PERCENTAGE,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_OVERCHARGE_PERCENTAGE,
+            translation_key=CONF_OVERCHARGE_PERCENTAGE,
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.BATTERY,
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=1.0,
+        ),
         output_type="soc",
-        unit=PERCENTAGE,
-        min_value=0.0,
-        max_value=100.0,
-        step=1.0,
-        device_class=NumberDeviceClass.BATTERY,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_UNDERCHARGE_COST,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_UNDERCHARGE_COST,
+            translation_key=CONF_UNDERCHARGE_COST,
+            native_min_value=0.0,
+            native_max_value=10.0,
+            native_step=0.001,
+        ),
         output_type="price",
-        unit=None,
-        min_value=0.0,
-        max_value=10.0,
-        step=0.001,
         direction="-",
         time_series=True,
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_OVERCHARGE_COST,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_OVERCHARGE_COST,
+            translation_key=CONF_OVERCHARGE_COST,
+            native_min_value=0.0,
+            native_max_value=10.0,
+            native_step=0.001,
+        ),
         output_type="price",
-        unit=None,
-        min_value=0.0,
-        max_value=10.0,
-        step=0.001,
         direction="-",
         time_series=True,
     ),

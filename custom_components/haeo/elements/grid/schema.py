@@ -2,10 +2,10 @@
 
 from typing import Final, Literal, NotRequired, TypedDict
 
-from homeassistant.components.number import NumberDeviceClass
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputEntityType, InputFieldInfo
+from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
 
 ELEMENT_TYPE: Final = "grid"
 
@@ -17,49 +17,59 @@ CONF_EXPORT_LIMIT: Final = "export_limit"
 CONF_CONNECTION: Final = "connection"
 
 # Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
-    InputFieldInfo(
+INPUT_FIELDS: Final[tuple[NumberInputFieldInfo, ...]] = (
+    NumberInputFieldInfo(
         field_name=CONF_IMPORT_PRICE,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_IMPORT_PRICE,
+            translation_key=CONF_IMPORT_PRICE,
+            native_min_value=-1.0,
+            native_max_value=10.0,
+            native_step=0.001,
+        ),
         output_type="price",
-        unit=None,  # Currency per kWh
-        min_value=-1.0,
-        max_value=10.0,
-        step=0.001,
         time_series=True,
         direction="-",  # Import = consuming from grid = cost
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_EXPORT_PRICE,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_EXPORT_PRICE,
+            translation_key=CONF_EXPORT_PRICE,
+            native_min_value=-1.0,
+            native_max_value=10.0,
+            native_step=0.001,
+        ),
         output_type="price",
-        unit=None,  # Currency per kWh
-        min_value=-1.0,
-        max_value=10.0,
-        step=0.001,
         time_series=True,
         direction="+",  # Export = producing to grid = revenue
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_IMPORT_LIMIT,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_IMPORT_LIMIT,
+            translation_key=CONF_IMPORT_LIMIT,
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
         output_type="power_limit",
-        unit=UnitOfPower.KILO_WATT,
-        min_value=0.0,
-        max_value=1000.0,
-        step=0.1,
-        device_class=NumberDeviceClass.POWER,
         direction="+",
     ),
-    InputFieldInfo(
+    NumberInputFieldInfo(
         field_name=CONF_EXPORT_LIMIT,
-        entity_type=InputEntityType.NUMBER,
+        entity_description=NumberEntityDescription(
+            key=CONF_EXPORT_LIMIT,
+            translation_key=CONF_EXPORT_LIMIT,
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
         output_type="power_limit",
-        unit=UnitOfPower.KILO_WATT,
-        min_value=0.0,
-        max_value=1000.0,
-        step=0.1,
-        device_class=NumberDeviceClass.POWER,
         direction="-",
     ),
 )

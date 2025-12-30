@@ -4,6 +4,7 @@ from types import MappingProxyType
 from typing import Any
 from unittest.mock import Mock
 
+from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory
 from homeassistant.core import HomeAssistant
@@ -12,7 +13,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_NAME, DOMAIN
-from custom_components.haeo.elements.input_fields import InputEntityType, InputFieldInfo
+from custom_components.haeo.elements.input_fields import SwitchInputFieldInfo
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch, _is_entity_id
@@ -85,11 +86,14 @@ def horizon_entity() -> Mock:
 
 
 @pytest.fixture
-def curtailment_field_info() -> InputFieldInfo:
+def curtailment_field_info() -> SwitchInputFieldInfo:
     """Return a sample InputFieldInfo for a boolean curtailment field."""
-    return InputFieldInfo(
+    return SwitchInputFieldInfo(
         field_name="allow_curtailment",
-        entity_type=InputEntityType.SWITCH,
+        entity_description=SwitchEntityDescription(
+            key="allow_curtailment",
+            translation_key="allow_curtailment",
+        ),
         output_type="flag",
     )
 
@@ -111,7 +115,7 @@ async def test_editable_mode_with_true_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Switch entity in EDITABLE mode initializes with True config value."""
@@ -143,7 +147,7 @@ async def test_editable_mode_with_false_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Switch entity in EDITABLE mode initializes with False config value."""
@@ -167,7 +171,7 @@ async def test_editable_mode_with_none_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Switch entity in EDITABLE mode handles None for optional fields."""
@@ -191,7 +195,7 @@ async def test_editable_mode_turn_on(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Switch entity in EDITABLE mode turns on when user requests."""
@@ -218,7 +222,7 @@ async def test_editable_mode_turn_off(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Switch entity in EDITABLE mode turns off when user requests."""
@@ -248,7 +252,7 @@ async def test_driven_mode_with_entity_id(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Switch entity in DRIVEN mode tracks source entity."""
@@ -278,7 +282,7 @@ async def test_driven_mode_ignores_turn_on(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Switch entity in DRIVEN mode ignores turn on requests."""
@@ -307,7 +311,7 @@ async def test_driven_mode_ignores_turn_off(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Switch entity in DRIVEN mode ignores turn off requests."""
@@ -336,7 +340,7 @@ async def test_driven_mode_loads_source_state(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Switch entity in DRIVEN mode loads initial state from source entity."""
@@ -365,7 +369,7 @@ async def test_driven_mode_loads_off_state(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Switch entity in DRIVEN mode loads OFF state from source entity."""
@@ -396,7 +400,7 @@ async def test_unique_id_includes_all_components(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Unique ID includes entry_id, subentry_id, and field_name."""
@@ -423,7 +427,7 @@ async def test_entity_has_correct_category(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Entity should be CONFIG category."""
@@ -446,7 +450,7 @@ async def test_entity_does_not_poll(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Entity should not poll."""
@@ -472,11 +476,13 @@ async def test_translation_key_from_field_info(
     horizon_entity: Mock,
 ) -> None:
     """Translation key is derived from field info."""
-    field_info = InputFieldInfo(
+    field_info = SwitchInputFieldInfo(
         field_name="enable_export",
-        entity_type=InputEntityType.SWITCH,
+        entity_description=SwitchEntityDescription(
+            key="enable_export",
+            translation_key="custom_translation",
+        ),
         output_type="flag",
-        translation_key="custom_translation",
     )
     subentry = _create_subentry("Test", {"enable_export": True})
     config_entry.runtime_data = None
@@ -497,7 +503,7 @@ async def test_translation_key_defaults_to_field_name(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
-    curtailment_field_info: InputFieldInfo,
+    curtailment_field_info: SwitchInputFieldInfo,
     horizon_entity: Mock,
 ) -> None:
     """Translation key defaults to field_name when not specified."""

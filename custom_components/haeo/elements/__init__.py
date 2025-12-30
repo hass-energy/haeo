@@ -39,7 +39,7 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
-from .input_fields import InputEntityType, InputFieldInfo
+from .input_fields import InputFieldInfo, NumberInputFieldInfo, SwitchInputFieldInfo
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -362,8 +362,9 @@ __all__ = [
     "ElementConfigSchema",
     "ElementDeviceName",
     "ElementType",
-    "InputEntityType",
     "InputFieldInfo",
+    "NumberInputFieldInfo",
+    "SwitchInputFieldInfo",
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "get_input_fields",

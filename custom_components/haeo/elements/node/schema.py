@@ -2,7 +2,9 @@
 
 from typing import Final, Literal, TypedDict
 
-from custom_components.haeo.elements.input_fields import InputEntityType, InputFieldInfo
+from homeassistant.components.switch import SwitchEntityDescription
+
+from custom_components.haeo.elements.input_fields import SwitchInputFieldInfo
 
 ELEMENT_TYPE: Final = "node"
 
@@ -17,15 +19,21 @@ DEFAULTS: Final[dict[str, bool]] = {
 }
 
 # Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
-    InputFieldInfo(
+INPUT_FIELDS: Final[tuple[SwitchInputFieldInfo, ...]] = (
+    SwitchInputFieldInfo(
         field_name=CONF_IS_SOURCE,
-        entity_type=InputEntityType.SWITCH,
+        entity_description=SwitchEntityDescription(
+            key=CONF_IS_SOURCE,
+            translation_key=CONF_IS_SOURCE,
+        ),
         output_type="status",
     ),
-    InputFieldInfo(
+    SwitchInputFieldInfo(
         field_name=CONF_IS_SINK,
-        entity_type=InputEntityType.SWITCH,
+        entity_description=SwitchEntityDescription(
+            key=CONF_IS_SINK,
+            translation_key=CONF_IS_SINK,
+        ),
         output_type="status",
     ),
 )
