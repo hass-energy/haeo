@@ -25,11 +25,11 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up HAEO sensor entities."""
-
+    # Runtime data must be set by __init__.py before platforms are set up
     runtime_data: HaeoRuntimeData | None = getattr(config_entry, "runtime_data", None)
     if runtime_data is None:
-        _LOGGER.debug("No runtime data available, skipping sensor setup")
-        return
+        msg = "Runtime data not set - integration setup incomplete"
+        raise RuntimeError(msg)
 
     coordinator: HaeoDataUpdateCoordinator = runtime_data.network_coordinator
 

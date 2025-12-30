@@ -9,7 +9,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements import ELEMENT_TYPES, get_input_fields
-from custom_components.haeo.elements.input_fields import is_number_field
+from custom_components.haeo.elements.input_fields import NumberInputFieldInfo
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
 
 _LOGGER = logging.getLogger(__name__)
@@ -25,10 +25,11 @@ async def async_setup_entry(
     Creates number entities for each numeric input field in element subentries.
     These entities serve as configurable inputs for the optimization model.
     """
-    # Get horizon entity from runtime_data (created by sensor platform before us)
+    # Runtime data must be set by __init__.py before platforms are set up
     if config_entry.runtime_data is None:
-        _LOGGER.debug("No runtime data available, skipping number entity setup")
-        return
+        msg = "Runtime data not set - integration setup incomplete"
+        raise RuntimeError(msg)
+
     horizon_entity = config_entry.runtime_data.horizon_entity
     if horizon_entity is None:
         # No horizon entity means no network subentry was configured
@@ -47,7 +48,7 @@ async def async_setup_entry(
         input_fields = get_input_fields(subentry.subentry_type)
 
         # Filter to only number fields
-        number_fields = [f for f in input_fields if is_number_field(f)]
+        number_fields = [f for f in input_fields if isinstance(f, NumberInputFieldInfo)]
 
         if not number_fields:
             continue

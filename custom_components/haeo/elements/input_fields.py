@@ -5,7 +5,6 @@ and their associated metadata like output type, direction, and time series behav
 """
 
 from dataclasses import dataclass
-from typing import TypeGuard
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
@@ -55,20 +54,8 @@ class SwitchInputFieldInfo:
 type InputFieldInfo = NumberInputFieldInfo | SwitchInputFieldInfo
 
 
-def is_number_field(field: InputFieldInfo) -> TypeGuard[NumberInputFieldInfo]:
-    """Check if an input field is a number field."""
-    return isinstance(field, NumberInputFieldInfo)
-
-
-def is_switch_field(field: InputFieldInfo) -> TypeGuard[SwitchInputFieldInfo]:
-    """Check if an input field is a switch field."""
-    return isinstance(field, SwitchInputFieldInfo)
-
-
 __all__ = [
     "InputFieldInfo",
     "NumberInputFieldInfo",
     "SwitchInputFieldInfo",
-    "is_number_field",
-    "is_switch_field",
 ]

@@ -195,16 +195,20 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
     assert power_sensor.state_class is SensorStateClass.MEASUREMENT
 
 
-async def test_async_setup_entry_ignores_missing_coordinator(
+async def test_async_setup_entry_raises_when_runtime_data_missing(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
-    """Setup should no-op when the config entry lacks runtime data."""
+    """Setup should raise RuntimeError when runtime data is not set.
 
+    This indicates a programming error - __init__.py must set runtime_data
+    before platforms are set up.
+    """
     config_entry.runtime_data = None
     async_add_entities = Mock()
 
-    await async_setup_entry(hass, config_entry, async_add_entities)
+    with pytest.raises(RuntimeError, match="Runtime data not set"):
+        await async_setup_entry(hass, config_entry, async_add_entities)
 
     async_add_entities.assert_not_called()
 
