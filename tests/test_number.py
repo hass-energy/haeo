@@ -8,13 +8,25 @@ from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.elements.grid import ELEMENT_TYPE as GRID_TYPE
+from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.number import async_setup_entry
 
 
 @pytest.fixture
-def config_entry(hass: HomeAssistant) -> MockConfigEntry:
+def horizon_entity() -> Mock:
+    """Return a mock horizon entity."""
+    entity = Mock(spec=HaeoHorizonEntity)
+    entity.get_forecast_timestamps.return_value = (0.0, 300.0, 600.0)
+    entity.async_subscribe.return_value = Mock()
+    return entity
+
+
+@pytest.fixture
+def config_entry(hass: HomeAssistant, horizon_entity: Mock) -> MockConfigEntry:
     """Return a config entry for number platform tests."""
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -33,6 +45,12 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         entry_id="test_number_platform_entry",
     )
     entry.add_to_hass(hass)
+    # Set up runtime_data with mock horizon entity
+    mock_coordinator = Mock(spec=HaeoDataUpdateCoordinator)
+    entry.runtime_data = HaeoRuntimeData(
+        network_coordinator=mock_coordinator,
+        horizon_entity=horizon_entity,
+    )
     return entry
 
 

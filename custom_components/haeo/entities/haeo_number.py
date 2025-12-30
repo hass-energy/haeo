@@ -3,9 +3,9 @@
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.number import RestoreNumber
+from homeassistant.components.number import NumberEntityDescription, RestoreNumber
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
@@ -16,7 +16,9 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements import InputFieldInfo
-from custom_components.haeo.util.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
+
+if TYPE_CHECKING:
+    from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 
 
 class ConfigEntityMode(Enum):
@@ -72,6 +74,7 @@ class HaeoInputNumber(RestoreNumber):
         subentry: ConfigSubentry,
         field_info: InputFieldInfo,
         device_entry: DeviceEntry,
+        horizon_entity: "HaeoHorizonEntity",
     ) -> None:
         """Initialize the input number entity.
 
@@ -81,12 +84,14 @@ class HaeoInputNumber(RestoreNumber):
             subentry: Config subentry for this element
             field_info: Metadata about this input field
             device_entry: Device entry to associate this entity with
+            horizon_entity: Horizon entity providing forecast timestamps
 
         """
         self._hass = hass
         self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
         self._field_info = field_info
+        self._horizon_entity = horizon_entity
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
@@ -103,24 +108,21 @@ class HaeoInputNumber(RestoreNumber):
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_ids = []
             # Set initial value from config (may be None for optional fields)
-            if config_value is not None:
-                self._attr_native_value = float(config_value)
-            else:
-                self._attr_native_value = None
+            self._attr_native_value = float(config_value) if config_value is not None else None
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
 
-        # Entity attributes from field info
-        self._attr_translation_key = field_info.translation_key or field_info.field_name
-        self._attr_native_unit_of_measurement = field_info.unit
-        self._attr_device_class = field_info.device_class
-        if field_info.min_value is not None:
-            self._attr_native_min_value = field_info.min_value
-        if field_info.max_value is not None:
-            self._attr_native_max_value = field_info.max_value
-        if field_info.step is not None:
-            self._attr_native_step = field_info.step
+        # Use entity description for all field-derived attributes
+        self.entity_description = NumberEntityDescription(
+            key=field_info.field_name,
+            translation_key=field_info.translation_key or field_info.field_name,
+            native_unit_of_measurement=field_info.unit,
+            device_class=field_info.device_class,
+            native_min_value=field_info.min_value,
+            native_max_value=field_info.max_value,
+            native_step=field_info.step,
+        )
 
         # Pass subentry data as translation placeholders
         self._attr_translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
@@ -146,23 +148,15 @@ class HaeoInputNumber(RestoreNumber):
         self._horizon_unsub: Callable[[], None] | None = None
 
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
-        """Get forecast timestamps from horizon entity or hub config."""
-        # Try to get from horizon entity first
-        runtime_data = self._config_entry.runtime_data
-        if runtime_data is not None and runtime_data.horizon_entity is not None:
-            return runtime_data.horizon_entity.get_forecast_timestamps()
-        # Fallback to computing from config
-        periods_seconds = tiers_to_periods_seconds(self._config_entry.data)
-        return generate_forecast_timestamps(periods_seconds)
+        """Get forecast timestamps from horizon entity."""
+        return self._horizon_entity.get_forecast_timestamps()
 
     async def async_added_to_hass(self) -> None:
         """Set up state tracking and restore previous value."""
         await super().async_added_to_hass()
 
         # Subscribe to horizon updates for consistent time windows
-        runtime_data = self._config_entry.runtime_data
-        if runtime_data is not None and runtime_data.horizon_entity is not None:
-            self._horizon_unsub = runtime_data.horizon_entity.async_subscribe(self._handle_horizon_update)
+        self._horizon_unsub = self._horizon_entity.async_subscribe(self._handle_horizon_update)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             # Restore previous value if available

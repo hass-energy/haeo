@@ -13,6 +13,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_NAME, DOMAIN
 from custom_components.haeo.elements.input_fields import InputEntityType, InputFieldInfo
+from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch, _is_entity_id
 
@@ -73,6 +74,17 @@ def device_entry() -> Mock:
 
 
 @pytest.fixture
+def horizon_entity() -> Mock:
+    """Return a mock horizon entity."""
+    entity = Mock(spec=HaeoHorizonEntity)
+    # Return timestamps for 2 periods starting now
+    entity.get_forecast_timestamps.return_value = (0.0, 300.0, 600.0)
+    # async_subscribe returns an unsubscribe function
+    entity.async_subscribe.return_value = Mock()
+    return entity
+
+
+@pytest.fixture
 def curtailment_field_info() -> InputFieldInfo:
     """Return a sample InputFieldInfo for a boolean curtailment field."""
     return InputFieldInfo(
@@ -100,6 +112,7 @@ async def test_editable_mode_with_true_value(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Switch entity in EDITABLE mode initializes with True config value."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
@@ -111,6 +124,7 @@ async def test_editable_mode_with_true_value(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
 
     assert entity._entity_mode == ConfigEntityMode.EDITABLE
@@ -130,6 +144,7 @@ async def test_editable_mode_with_false_value(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Switch entity in EDITABLE mode initializes with False config value."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": False})
@@ -141,6 +156,7 @@ async def test_editable_mode_with_false_value(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
 
     assert entity._entity_mode == ConfigEntityMode.EDITABLE
@@ -152,6 +168,7 @@ async def test_editable_mode_with_none_value(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Switch entity in EDITABLE mode handles None for optional fields."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": None})
@@ -163,6 +180,7 @@ async def test_editable_mode_with_none_value(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
 
     assert entity._entity_mode == ConfigEntityMode.EDITABLE
@@ -174,6 +192,7 @@ async def test_editable_mode_turn_on(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Switch entity in EDITABLE mode turns on when user requests."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": False})
@@ -185,6 +204,7 @@ async def test_editable_mode_turn_on(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
     entity.async_write_ha_state = Mock()
 
@@ -199,6 +219,7 @@ async def test_editable_mode_turn_off(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Switch entity in EDITABLE mode turns off when user requests."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
@@ -210,6 +231,7 @@ async def test_editable_mode_turn_off(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
     entity.async_write_ha_state = Mock()
 
@@ -227,6 +249,7 @@ async def test_driven_mode_with_entity_id(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Switch entity in DRIVEN mode tracks source entity."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.allow_curtailment"})
@@ -238,6 +261,7 @@ async def test_driven_mode_with_entity_id(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
 
     assert entity._entity_mode == ConfigEntityMode.DRIVEN
@@ -255,6 +279,7 @@ async def test_driven_mode_ignores_turn_on(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Switch entity in DRIVEN mode ignores turn on requests."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
@@ -266,6 +291,7 @@ async def test_driven_mode_ignores_turn_on(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
     entity._attr_is_on = False  # Simulate loaded state
     entity.async_write_ha_state = Mock()
@@ -282,6 +308,7 @@ async def test_driven_mode_ignores_turn_off(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Switch entity in DRIVEN mode ignores turn off requests."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
@@ -293,6 +320,7 @@ async def test_driven_mode_ignores_turn_off(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
     entity._attr_is_on = True  # Simulate loaded state
     entity.async_write_ha_state = Mock()
@@ -309,6 +337,7 @@ async def test_driven_mode_loads_source_state(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Switch entity in DRIVEN mode loads initial state from source entity."""
     # Set up source entity state
@@ -323,6 +352,7 @@ async def test_driven_mode_loads_source_state(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
 
     # Call the internal load method
@@ -336,6 +366,7 @@ async def test_driven_mode_loads_off_state(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Switch entity in DRIVEN mode loads OFF state from source entity."""
     # Set up source entity state
@@ -350,6 +381,7 @@ async def test_driven_mode_loads_off_state(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
 
     entity._load_source_state()
@@ -365,6 +397,7 @@ async def test_unique_id_includes_all_components(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Unique ID includes entry_id, subentry_id, and field_name."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
@@ -376,6 +409,7 @@ async def test_unique_id_includes_all_components(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
 
     expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{curtailment_field_info.field_name}"
@@ -390,6 +424,7 @@ async def test_entity_has_correct_category(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Entity should be CONFIG category."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
@@ -401,6 +436,7 @@ async def test_entity_has_correct_category(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
 
     assert entity.entity_category == EntityCategory.CONFIG
@@ -411,6 +447,7 @@ async def test_entity_does_not_poll(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Entity should not poll."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
@@ -422,6 +459,7 @@ async def test_entity_does_not_poll(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
 
     assert entity.should_poll is False
@@ -431,6 +469,7 @@ async def test_translation_key_from_field_info(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
+    horizon_entity: Mock,
 ) -> None:
     """Translation key is derived from field info."""
     field_info = InputFieldInfo(
@@ -448,9 +487,10 @@ async def test_translation_key_from_field_info(
         subentry=subentry,
         field_info=field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
 
-    assert entity._attr_translation_key == "custom_translation"
+    assert entity.entity_description.translation_key == "custom_translation"
 
 
 async def test_translation_key_defaults_to_field_name(
@@ -458,6 +498,7 @@ async def test_translation_key_defaults_to_field_name(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo,
+    horizon_entity: Mock,
 ) -> None:
     """Translation key defaults to field_name when not specified."""
     subentry = _create_subentry("Test", {"allow_curtailment": True})
@@ -469,7 +510,8 @@ async def test_translation_key_defaults_to_field_name(
         subentry=subentry,
         field_info=curtailment_field_info,
         device_entry=device_entry,
+        horizon_entity=horizon_entity,
     )
 
     # Field has no translation_key, so it uses field_name
-    assert entity._attr_translation_key == "allow_curtailment"
+    assert entity.entity_description.translation_key == "allow_curtailment"

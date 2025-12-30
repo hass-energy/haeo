@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
@@ -45,7 +45,12 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self._output_name: ElementOutputName = output_name
         self._output_type: OutputType = output_data.type
 
-        self._attr_translation_key = output_name
+        # Use entity description for static field-derived attributes
+        self.entity_description = SensorEntityDescription(
+            key=output_name,
+            translation_key=output_name,
+        )
+
         self._attr_unique_id = unique_id
         if translation_placeholders is not None:
             self._attr_translation_placeholders = translation_placeholders

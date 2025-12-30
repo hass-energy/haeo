@@ -2,11 +2,11 @@
 
 import logging
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements import ELEMENT_TYPES, InputEntityType, get_input_fields
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
@@ -16,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: HaeoConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up HAEO number entities from a config entry.
@@ -24,6 +24,16 @@ async def async_setup_entry(
     Creates number entities for each numeric input field in element subentries.
     These entities serve as configurable inputs for the optimization model.
     """
+    # Get horizon entity from runtime_data (created by sensor platform before us)
+    if config_entry.runtime_data is None:
+        _LOGGER.debug("No runtime data available, skipping number entity setup")
+        return
+    horizon_entity = config_entry.runtime_data.horizon_entity
+    if horizon_entity is None:
+        # No horizon entity means no network subentry was configured
+        _LOGGER.debug("No horizon entity available, skipping number entity setup")
+        return
+
     entities: list[HaeoInputNumber] = []
     dr = device_registry.async_get(hass)
 
@@ -63,6 +73,7 @@ async def async_setup_entry(
                     subentry=subentry,
                     field_info=field_info,
                     device_entry=device_entry,
+                    horizon_entity=horizon_entity,
                 )
             )
 
