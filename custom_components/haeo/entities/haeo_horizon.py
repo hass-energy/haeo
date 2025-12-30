@@ -1,11 +1,10 @@
 """Horizon entity for HAEO forecast time windows.
 
 This entity provides the common forecast time horizon used by all input entities.
-It updates on a schedule based on the smallest tier duration, triggering all
-subscribers to refresh their forecasts.
+It updates on a schedule based on the smallest tier duration, and its state changes
+trigger dependent entities to refresh their forecasts via standard HA state tracking.
 """
 
-from collections.abc import Callable
 from datetime import datetime
 
 from homeassistant.components.sensor import SensorEntity
@@ -25,7 +24,7 @@ class HaeoHorizonEntity(SensorEntity):
     This entity:
     - Provides forecast timestamps for all input entities to use
     - Updates on a schedule aligned to the smallest period boundary
-    - Triggers subscribed entities to refresh when the horizon advances
+    - State changes trigger dependent entities via HA state tracking
 
     The entity state shows the current period start time, and the forecast
     attribute contains all fence-post timestamps for the horizon.
@@ -42,14 +41,7 @@ class HaeoHorizonEntity(SensorEntity):
         config_entry: ConfigEntry,
         device_entry: DeviceEntry,
     ) -> None:
-        """Initialize the horizon entity.
-
-        Args:
-            hass: Home Assistant instance
-            config_entry: Parent config entry (the hub)
-            device_entry: Device entry for the network device
-
-        """
+        """Initialize the horizon entity."""
         self._hass = hass
         self._config_entry = config_entry
 
@@ -61,10 +53,7 @@ class HaeoHorizonEntity(SensorEntity):
 
         # Calculate period durations from config
         self._periods_seconds = tiers_to_periods_seconds(config_entry.data)
-        self._smallest_period = min(self._periods_seconds) if self._periods_seconds else 60
-
-        # Subscribers to notify when horizon updates
-        self._subscribers: list[Callable[[], None]] = []
+        self._smallest_period = min(self._periods_seconds)
 
         # Timer for next update
         self._unsub_timer: CALLBACK_TYPE | None = None
@@ -116,10 +105,6 @@ class HaeoHorizonEntity(SensorEntity):
         self._update_horizon()
         self.async_write_ha_state()
 
-        # Notify all subscribers
-        for subscriber in self._subscribers:
-            subscriber()
-
         # Schedule next update
         self._schedule_next_update()
 
@@ -135,31 +120,8 @@ class HaeoHorizonEntity(SensorEntity):
             self._unsub_timer = None
         await super().async_will_remove_from_hass()
 
-    @callback
-    def async_subscribe(self, callback_fn: Callable[[], None]) -> Callable[[], None]:
-        """Subscribe to horizon updates.
-
-        Args:
-            callback_fn: Function to call when horizon updates.
-
-        Returns:
-            Unsubscribe function.
-
-        """
-        self._subscribers.append(callback_fn)
-
-        def unsubscribe() -> None:
-            self._subscribers.remove(callback_fn)
-
-        return unsubscribe
-
     def get_forecast_timestamps(self) -> tuple[float, ...]:
-        """Get the current forecast timestamps.
-
-        Returns:
-            Tuple of epoch timestamps for each fence post.
-
-        """
+        """Get the current forecast timestamps as epoch values."""
         return generate_forecast_timestamps(self._periods_seconds)
 
 

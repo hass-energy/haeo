@@ -28,27 +28,6 @@ class ConfigEntityMode(Enum):
     DRIVEN = "driven"  # Value driven by external entity
 
 
-def _is_entity_id(value: Any) -> bool:
-    """Check if a value looks like an entity ID.
-
-    Entity IDs contain a domain separator (e.g., sensor.temperature).
-    Element names and other strings don't have dots.
-    """
-    return isinstance(value, str) and "." in value
-
-
-def _extract_source_entity_ids(config_value: Any) -> list[str]:
-    """Extract entity IDs from a config value.
-
-    Handles both single entity IDs and lists of entity IDs.
-    """
-    if isinstance(config_value, list):
-        return [v for v in config_value if _is_entity_id(v)]
-    if _is_entity_id(config_value):
-        return [config_value]
-    return []
-
-
 class HaeoInputNumber(RestoreNumber):
     """Number entity representing a configurable input parameter.
 
@@ -76,17 +55,7 @@ class HaeoInputNumber(RestoreNumber):
         device_entry: DeviceEntry,
         horizon_entity: "HaeoHorizonEntity",
     ) -> None:
-        """Initialize the input number entity.
-
-        Args:
-            hass: Home Assistant instance
-            config_entry: Parent config entry (the hub)
-            subentry: Config subentry for this element
-            field_info: Metadata about this input field
-            device_entry: Device entry to associate this entity with
-            horizon_entity: Horizon entity providing forecast timestamps
-
-        """
+        """Initialize the input number entity."""
         self._hass = hass
         self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
@@ -96,18 +65,20 @@ class HaeoInputNumber(RestoreNumber):
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
-        # Determine mode from config value
+        # Determine mode from config value type
+        # Entity IDs are stored as list[str] from EntitySelector
+        # Constants are stored as float from NumberSelector
         config_value = subentry.data.get(field_info.field_name)
-        source_entity_ids = _extract_source_entity_ids(config_value)
 
-        if source_entity_ids:
+        if isinstance(config_value, list):
+            # DRIVEN mode: value comes from external sensors
             self._entity_mode = ConfigEntityMode.DRIVEN
-            self._source_entity_ids = source_entity_ids
+            self._source_entity_ids: list[str] = config_value
             self._attr_native_value = None  # Will be set when data loads
         else:
+            # EDITABLE mode: value is a constant or None (optional field)
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_ids = []
-            # Set initial value from config (may be None for optional fields)
             self._attr_native_value = float(config_value) if config_value is not None else None
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
@@ -147,8 +118,12 @@ class HaeoInputNumber(RestoreNumber):
         """Set up state tracking and restore previous value."""
         await super().async_added_to_hass()
 
-        # Subscribe to horizon updates for consistent time windows
-        self._horizon_unsub = self._horizon_entity.async_subscribe(self._handle_horizon_update)
+        # Subscribe to horizon entity state changes for consistent time windows
+        self._horizon_unsub = async_track_state_change_event(
+            self._hass,
+            [self._horizon_entity.entity_id],
+            self._handle_horizon_state_change,
+        )
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             # Restore previous value if available
@@ -178,8 +153,8 @@ class HaeoInputNumber(RestoreNumber):
         await super().async_will_remove_from_hass()
 
     @callback
-    def _handle_horizon_update(self) -> None:
-        """Handle horizon update - refresh forecast with new time windows."""
+    def _handle_horizon_state_change(self, _event: Event[EventStateChangedData]) -> None:
+        """Handle horizon state change - refresh forecast with new time windows."""
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             self._update_editable_forecast()
             self.async_write_ha_state()

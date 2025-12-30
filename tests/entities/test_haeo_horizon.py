@@ -76,7 +76,7 @@ def test_horizon_entity_with_empty_tiers(
     hass: HomeAssistant,
     device_entry: Mock,
 ) -> None:
-    """Horizon entity handles config with all zero counts."""
+    """Horizon entity raises error with config with all zero counts."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Empty Network",
@@ -94,14 +94,13 @@ def test_horizon_entity_with_empty_tiers(
         entry_id="empty_entry",
     )
 
-    entity = HaeoHorizonEntity(
-        hass=hass,
-        config_entry=entry,
-        device_entry=device_entry,
-    )
-
-    assert entity._periods_seconds == []
-    assert entity._smallest_period == 60  # Default fallback
+    # Empty tiers is an invalid configuration - should raise ValueError
+    with pytest.raises(ValueError, match="min\\(\\) iterable argument is empty"):
+        HaeoHorizonEntity(
+            hass=hass,
+            config_entry=entry,
+            device_entry=device_entry,
+        )
 
 
 # --- Tests for forecast timestamps ---
@@ -147,100 +146,23 @@ def test_get_forecast_timestamps_has_correct_intervals(
     assert timestamps[3] - timestamps[2] == 900.0
 
 
-# --- Tests for subscriber pattern ---
-
-
-def test_subscribe_returns_unsubscribe_function(
+def test_scheduled_update_writes_state(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
 ) -> None:
-    """async_subscribe returns an unsubscribe function."""
+    """Scheduled update triggers state write for HA state tracking."""
     entity = HaeoHorizonEntity(
         hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
     )
-
-    callback = Mock()
-    unsubscribe = entity.async_subscribe(callback)
-
-    assert callable(unsubscribe)
-    assert callback in entity._subscribers
-
-
-def test_unsubscribe_removes_callback(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-) -> None:
-    """Unsubscribe function removes the callback from subscribers."""
-    entity = HaeoHorizonEntity(
-        hass=hass,
-        config_entry=config_entry,
-        device_entry=device_entry,
-    )
-
-    callback = Mock()
-    unsubscribe = entity.async_subscribe(callback)
-    assert callback in entity._subscribers
-
-    unsubscribe()
-    assert callback not in entity._subscribers
-
-
-def test_multiple_subscribers(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-) -> None:
-    """Multiple callbacks can be subscribed simultaneously."""
-    entity = HaeoHorizonEntity(
-        hass=hass,
-        config_entry=config_entry,
-        device_entry=device_entry,
-    )
-
-    callback1 = Mock()
-    callback2 = Mock()
-    callback3 = Mock()
-
-    _ = entity.async_subscribe(callback1)
-    unsub2 = entity.async_subscribe(callback2)
-    _ = entity.async_subscribe(callback3)
-
-    assert len(entity._subscribers) == 3
-
-    # Unsubscribe middle one
-    unsub2()
-    assert callback1 in entity._subscribers
-    assert callback2 not in entity._subscribers
-    assert callback3 in entity._subscribers
-
-
-def test_scheduled_update_notifies_subscribers(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-) -> None:
-    """Scheduled update calls all subscriber callbacks."""
-    entity = HaeoHorizonEntity(
-        hass=hass,
-        config_entry=config_entry,
-        device_entry=device_entry,
-    )
-    entity.async_write_ha_state = Mock()  # Mock state writing
-
-    callback1 = Mock()
-    callback2 = Mock()
-    entity.async_subscribe(callback1)
-    entity.async_subscribe(callback2)
+    entity.async_write_ha_state = Mock()
 
     # Trigger the scheduled update callback
     entity._async_scheduled_update(dt_util.utcnow())
 
-    callback1.assert_called_once()
-    callback2.assert_called_once()
+    entity.async_write_ha_state.assert_called_once()
 
 
 # --- Tests for state attributes ---

@@ -107,7 +107,7 @@ async def test_scenarios(
         # Get the coordinator from the config entry
         runtime_data = mock_config_entry.runtime_data
         assert runtime_data is not None, "Runtime data should be available after setup"
-        coordinator = runtime_data.network_coordinator
+        coordinator = runtime_data.coordinator
 
         # Manually trigger the first data refresh (needed because time is frozen)
         await coordinator.async_refresh()

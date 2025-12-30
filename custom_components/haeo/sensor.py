@@ -31,7 +31,7 @@ async def async_setup_entry(
         msg = "Runtime data not set - integration setup incomplete"
         raise RuntimeError(msg)
 
-    coordinator: HaeoDataUpdateCoordinator = runtime_data.network_coordinator
+    coordinator: HaeoDataUpdateCoordinator = runtime_data.coordinator
 
     # Create a sensor for each output in the coordinator data grouped by element
     entities: list[SensorEntity] = []
@@ -39,9 +39,33 @@ async def async_setup_entry(
     # Get the device registry
     dr = device_registry.async_get(hass)
 
-    # Track network device for horizon entity
-    network_device_entry = None
+    # First, find and create the network device for the horizon entity
+    # This must happen before coordinator data is available since input entities depend on it
+    network_subentry = next(
+        (s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
+        None,
+    )
 
+    if network_subentry is not None:
+        network_device_entry = dr.async_get_or_create(
+            identifiers={(DOMAIN, f"{config_entry.entry_id}_{network_subentry.subentry_id}")},
+            config_entry_id=config_entry.entry_id,
+            config_subentry_id=network_subentry.subentry_id,
+            translation_key=ELEMENT_TYPE_NETWORK,
+            translation_placeholders={"name": network_subentry.title},
+        )
+
+        # Create horizon entity on network device
+        horizon_entity = HaeoHorizonEntity(
+            hass=hass,
+            config_entry=config_entry,
+            device_entry=network_device_entry,
+        )
+        entities.append(horizon_entity)
+        # Store in runtime data for other entities to subscribe
+        runtime_data.horizon_entity = horizon_entity
+
+    # Create sensors for each output in the coordinator data grouped by element
     if coordinator.data:
         for subentry in config_entry.subentries.values():
             # Get all devices under this subentry (may be multiple, e.g., battery regions)
@@ -65,10 +89,6 @@ async def async_setup_entry(
                     translation_placeholders={"name": subentry.title},
                 )
 
-                # Track network device for horizon entity
-                if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
-                    network_device_entry = device_entry
-
                 for output_name, output_data in device_outputs.items():
                     entities.append(
                         HaeoSensor(
@@ -84,17 +104,6 @@ async def async_setup_entry(
                             translation_placeholders=translation_placeholders,
                         )
                     )
-
-    # Create horizon entity on network device
-    if network_device_entry is not None:
-        horizon_entity = HaeoHorizonEntity(
-            hass=hass,
-            config_entry=config_entry,
-            device_entry=network_device_entry,
-        )
-        entities.append(horizon_entity)
-        # Store in runtime data for other entities to subscribe
-        runtime_data.horizon_entity = horizon_entity
 
     if entities:
         async_add_entities(entities)

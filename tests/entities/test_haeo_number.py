@@ -18,55 +18,8 @@ from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.entities.haeo_number import (
     ConfigEntityMode,
     HaeoInputNumber,
-    _extract_source_entity_ids,
-    _is_entity_id,
 )
 from custom_components.haeo.model import OUTPUT_TYPE_POWER
-
-# --- Tests for helper functions ---
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        ("sensor.temperature", True),
-        ("input_number.capacity", True),
-        ("number.test", True),
-        ("battery_name", False),
-        ("element", False),
-        ("", False),
-        (123, False),
-        (None, False),
-        (["sensor.temp"], False),  # List is not an entity_id itself
-    ],
-)
-def test_is_entity_id(value: Any, expected: bool) -> None:
-    """Test _is_entity_id correctly identifies entity IDs."""
-    assert _is_entity_id(value) == expected
-
-
-@pytest.mark.parametrize(
-    ("config_value", "expected"),
-    [
-        # Single entity ID
-        ("sensor.price", ["sensor.price"]),
-        # List of entity IDs
-        (["sensor.price1", "sensor.price2"], ["sensor.price1", "sensor.price2"]),
-        # Mixed list - filters non-entity IDs
-        (["sensor.price", "static_value", "sensor.other"], ["sensor.price", "sensor.other"]),
-        # Static value (not an entity ID)
-        ("element_name", []),
-        # Numeric value
-        (42.0, []),
-        # None
-        (None, []),
-        # Empty list
-        ([], []),
-    ],
-)
-def test_extract_source_entity_ids(config_value: Any, expected: list[str]) -> None:
-    """Test _extract_source_entity_ids handles various config value types."""
-    assert _extract_source_entity_ids(config_value) == expected
 
 
 # --- Fixtures ---
@@ -109,8 +62,7 @@ def horizon_entity() -> Mock:
     entity = Mock(spec=HaeoHorizonEntity)
     # Return timestamps for 2 periods starting now
     entity.get_forecast_timestamps.return_value = (0.0, 300.0, 600.0)
-    # async_subscribe returns an unsubscribe function
-    entity.async_subscribe.return_value = Mock()
+    entity.entity_id = "sensor.haeo_test_horizon"
     return entity
 
 
@@ -267,7 +219,7 @@ async def test_driven_mode_with_single_entity(
     horizon_entity: Mock,
 ) -> None:
     """Number entity in DRIVEN mode tracks single source entity."""
-    subentry = _create_subentry("Test Battery", {"power_limit": "sensor.power_limit"})
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power_limit"]})
     config_entry.runtime_data = None
 
     entity = HaeoInputNumber(
@@ -324,7 +276,7 @@ async def test_driven_mode_ignores_user_set_value(
     horizon_entity: Mock,
 ) -> None:
     """Number entity in DRIVEN mode ignores user value changes."""
-    subentry = _create_subentry("Test Battery", {"power_limit": "sensor.power"})
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
     config_entry.runtime_data = None
 
     entity = HaeoInputNumber(

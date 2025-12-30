@@ -29,12 +29,12 @@ class HaeoRuntimeData:
     """Runtime data for HAEO integration.
 
     Attributes:
-        network_coordinator: Coordinator for network-level optimization.
+        coordinator: Coordinator for network-level optimization.
         horizon_entity: Entity providing forecast time windows (set during sensor setup).
 
     """
 
-    network_coordinator: HaeoDataUpdateCoordinator
+    coordinator: HaeoDataUpdateCoordinator
     horizon_entity: HaeoHorizonEntity | None = field(default=None)
 
 
@@ -44,14 +44,8 @@ type HaeoConfigEntry = ConfigEntry[HaeoRuntimeData | None]
 async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntry) -> None:
     """Ensure required subentries exist for the hub.
 
-    This ensures:
-    1. A Network subentry exists (for optimization sensors)
-    2. In non-advanced mode, a Switchboard node exists
-
-    Args:
-        hass: Home Assistant instance
-        hub_entry: The hub config entry
-
+    Creates a Network subentry (for optimization sensors) if missing.
+    In non-advanced mode, also creates a Switchboard node if missing.
     """
     from custom_components.haeo.elements import ELEMENT_TYPE_NODE  # noqa: PLC0415
     from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE  # noqa: PLC0415
@@ -124,19 +118,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 
-    # Create network coordinator for optimization
-    network_coordinator = HaeoDataUpdateCoordinator(hass, entry)
+    # Create coordinator for optimization
+    coordinator = HaeoDataUpdateCoordinator(hass, entry)
 
     # Store runtime data (required for platform setup)
-    entry.runtime_data = HaeoRuntimeData(network_coordinator=network_coordinator)
+    entry.runtime_data = HaeoRuntimeData(coordinator=coordinator)
 
     # Register update listener for config changes and subentry additions/removals
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
-    # Trigger initial optimization on startup
-    await network_coordinator.async_config_entry_first_refresh()
+    # Trigger initial optimization before platform setup
+    # This populates coordinator.data so sensor platform can create output entities
+    await coordinator.async_config_entry_first_refresh()
 
-    # Set up platforms - Home Assistant will handle waiting for them
+    # Set up platforms after coordinator has data
+    # Sensor platform creates output sensors based on coordinator.data and horizon entity
+    # Number/Switch platforms create input entities using horizon entity from sensor setup
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     _LOGGER.info("HAEO integration setup complete")
@@ -154,7 +151,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> boo
         # Clean up coordinator resources
         runtime_data = entry.runtime_data
         if runtime_data is not None:
-            runtime_data.network_coordinator.cleanup()
+            runtime_data.coordinator.cleanup()
         entry.runtime_data = None
 
     return unload_ok
@@ -171,19 +168,9 @@ async def async_remove_config_entry_device(
     config_entry: HaeoConfigEntry,
     device_entry: dr.DeviceEntry,
 ) -> bool:
-    """Remove a device when its corresponding config entry is removed.
+    """Handle cleanup of stale devices when elements are removed from the HAEO network.
 
-    This handles cleanup of stale devices when elements (batteries, grids, etc.)
-    are removed from the HAEO network.
-
-    Args:
-        hass: Home Assistant instance
-        config_entry: The hub config entry
-        device_entry: The device to potentially remove
-
-    Returns:
-        True if device can be removed, False if it should be kept
-
+    Returns True if device can be removed, False if it should be kept.
     """
     device_registry = dr.async_get(hass)
     if device_registry.async_get(device_entry.id) is None:

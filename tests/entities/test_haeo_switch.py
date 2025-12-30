@@ -16,28 +16,7 @@ from custom_components.haeo.const import CONF_NAME, DOMAIN
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
-from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch, _is_entity_id
-
-# --- Tests for helper function ---
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        ("input_boolean.curtailment", True),
-        ("switch.solar_enabled", True),
-        ("sensor.flag", True),
-        ("element_name", False),
-        ("static_string", False),
-        ("", False),
-        (True, False),
-        (False, False),
-        (None, False),
-    ],
-)
-def test_is_entity_id(value: Any, expected: bool) -> None:
-    """Test _is_entity_id correctly identifies entity IDs."""
-    assert _is_entity_id(value) == expected
+from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 
 
 # --- Fixtures ---
@@ -80,8 +59,7 @@ def horizon_entity() -> Mock:
     entity = Mock(spec=HaeoHorizonEntity)
     # Return timestamps for 2 periods starting now
     entity.get_forecast_timestamps.return_value = (0.0, 300.0, 600.0)
-    # async_subscribe returns an unsubscribe function
-    entity.async_subscribe.return_value = Mock()
+    entity.entity_id = "sensor.haeo_test_horizon"
     return entity
 
 

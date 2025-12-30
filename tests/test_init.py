@@ -138,16 +138,16 @@ async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     """Test unloading a hub entry."""
 
     # Set up a mock runtime data with proper structure
-    mock_network_coordinator = Mock()
-    mock_network_coordinator.cleanup = Mock()
-    mock_hub_entry.runtime_data = HaeoRuntimeData(network_coordinator=mock_network_coordinator)
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()
+    mock_hub_entry.runtime_data = HaeoRuntimeData(coordinator=mock_coordinator)
 
     # Test that unload works
     result = await async_unload_entry(hass, mock_hub_entry)
 
     assert result is True
     # Coordinator cleanup should be called
-    mock_network_coordinator.cleanup.assert_called_once()
+    mock_coordinator.cleanup.assert_called_once()
     # runtime_data should be cleared
     assert mock_hub_entry.runtime_data is None
 
@@ -186,7 +186,7 @@ async def test_async_setup_entry_initializes_coordinator(
     coordinator = created[0]
     runtime_data = mock_hub_entry.runtime_data
     assert runtime_data is not None
-    assert runtime_data.network_coordinator is coordinator
+    assert runtime_data.coordinator is coordinator
     coordinator.async_config_entry_first_refresh.assert_awaited_once()
     forward_mock.assert_awaited_once()
 
@@ -197,7 +197,7 @@ async def test_reload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     # Set up initial mock coordinator with sync cleanup method
     mock_coordinator = Mock()
     mock_coordinator.cleanup = Mock()  # cleanup is a sync method
-    mock_hub_entry.runtime_data = HaeoRuntimeData(network_coordinator=mock_coordinator)
+    mock_hub_entry.runtime_data = HaeoRuntimeData(coordinator=mock_coordinator)
 
     # Test that reload works
     with suppress(Exception):
@@ -322,7 +322,7 @@ async def test_reload_entry_failure_handling(hass: HomeAssistant, mock_hub_entry
     # Mock runtime data with sync cleanup method
     mock_coordinator = Mock()
     mock_coordinator.cleanup = Mock()  # cleanup is a sync method
-    mock_hub_entry.runtime_data = HaeoRuntimeData(network_coordinator=mock_coordinator)
+    mock_hub_entry.runtime_data = HaeoRuntimeData(coordinator=mock_coordinator)
 
     # Attempt reload - should work but may have warnings about state
     try:

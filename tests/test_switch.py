@@ -22,7 +22,7 @@ def horizon_entity() -> Mock:
     """Return a mock horizon entity."""
     entity = Mock(spec=HaeoHorizonEntity)
     entity.get_forecast_timestamps.return_value = (0.0, 300.0, 600.0)
-    entity.async_subscribe.return_value = Mock()
+    entity.entity_id = "sensor.haeo_test_horizon"
     return entity
 
 
@@ -49,7 +49,7 @@ def config_entry(hass: HomeAssistant, horizon_entity: Mock) -> MockConfigEntry:
     # Set up runtime_data with mock horizon entity
     mock_coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     entry.runtime_data = HaeoRuntimeData(
-        network_coordinator=mock_coordinator,
+        coordinator=mock_coordinator,
         horizon_entity=horizon_entity,
     )
     return entry

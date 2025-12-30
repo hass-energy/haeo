@@ -21,15 +21,6 @@ if TYPE_CHECKING:
     from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 
 
-def _is_entity_id(value: Any) -> bool:
-    """Check if a value looks like an entity ID.
-
-    Entity IDs contain a domain separator (e.g., input_boolean.curtailment).
-    Element names and other strings don't have dots.
-    """
-    return isinstance(value, str) and "." in value
-
-
 class HaeoInputSwitch(RestoreEntity, SwitchEntity):
     """Switch entity representing a configurable boolean parameter.
 
@@ -57,17 +48,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         device_entry: DeviceEntry,
         horizon_entity: "HaeoHorizonEntity",
     ) -> None:
-        """Initialize the input switch entity.
-
-        Args:
-            hass: Home Assistant instance
-            config_entry: Parent config entry (the hub)
-            subentry: Config subentry for this element
-            field_info: Metadata about this input field
-            device_entry: Device entry to associate this entity with
-            horizon_entity: Horizon entity providing forecast timestamps
-
-        """
+        """Initialize the input switch entity."""
         self._hass = hass
         self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
@@ -77,17 +58,20 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
-        # Determine mode from config value
+        # Determine mode from config value type
+        # Entity IDs are stored as str from EntitySelector
+        # Boolean constants are stored as bool from BooleanSelector
         config_value = subentry.data.get(field_info.field_name)
 
-        if _is_entity_id(config_value):
+        if isinstance(config_value, str):
+            # DRIVEN mode: value comes from external sensor
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_id: str | None = config_value
             self._attr_is_on = None  # Will be set when data loads
         else:
+            # EDITABLE mode: value is a boolean or None (optional field)
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_id = None
-            # Set initial value from config (may be None for optional fields)
             self._attr_is_on = bool(config_value) if config_value is not None else None
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
@@ -122,8 +106,12 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         """Set up state tracking and restore previous value."""
         await super().async_added_to_hass()
 
-        # Subscribe to horizon updates for consistent time windows
-        self._horizon_unsub = self._horizon_entity.async_subscribe(self._handle_horizon_update)
+        # Subscribe to horizon entity state changes for consistent time windows
+        self._horizon_unsub = async_track_state_change_event(
+            self._hass,
+            [self._horizon_entity.entity_id],
+            self._handle_horizon_state_change,
+        )
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             # Restore previous value if available
@@ -154,8 +142,8 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         await super().async_will_remove_from_hass()
 
     @callback
-    def _handle_horizon_update(self) -> None:
-        """Handle horizon update - refresh forecast with new time windows."""
+    def _handle_horizon_state_change(self, _event: Event[EventStateChangedData]) -> None:
+        """Handle horizon state change - refresh forecast with new time windows."""
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             self._update_forecast()
             self.async_write_ha_state()

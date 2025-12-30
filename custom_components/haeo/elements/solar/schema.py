@@ -27,7 +27,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
         field_name=CONF_FORECAST,
         entity_description=NumberEntityDescription(
             key=CONF_FORECAST,
-            translation_key=CONF_FORECAST,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
             native_unit_of_measurement=UnitOfPower.KILO_WATT,
             device_class=NumberDeviceClass.POWER,
             native_min_value=0.0,
@@ -42,7 +42,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
         field_name=CONF_PRICE_PRODUCTION,
         entity_description=NumberEntityDescription(
             key=CONF_PRICE_PRODUCTION,
-            translation_key=CONF_PRICE_PRODUCTION,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_PRODUCTION}",
             native_min_value=-1.0,
             native_max_value=10.0,
             native_step=0.001,
@@ -54,7 +54,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
         field_name=CONF_CURTAILMENT,
         entity_description=SwitchEntityDescription(
             key=CONF_CURTAILMENT,
-            translation_key=CONF_CURTAILMENT,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
         ),
         output_type="status",
     ),

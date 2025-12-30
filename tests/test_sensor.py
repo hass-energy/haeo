@@ -25,7 +25,7 @@ from custom_components.haeo.const import (
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.elements.load import LOAD_POWER
-from custom_components.haeo.entities import HaeoSensor
+from custom_components.haeo.entities import HaeoHorizonEntity, HaeoSensor
 from custom_components.haeo.model import OUTPUT_TYPE_DURATION, OUTPUT_TYPE_POWER, OUTPUT_TYPE_STATUS, OutputType
 from custom_components.haeo.sensor import async_setup_entry
 
@@ -168,7 +168,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
             },
         },
     }
-    config_entry.runtime_data = HaeoRuntimeData(network_coordinator=coordinator)
+    config_entry.runtime_data = HaeoRuntimeData(coordinator=coordinator)
 
     async_add_entities = Mock()
 
@@ -213,21 +213,28 @@ async def test_async_setup_entry_raises_when_runtime_data_missing(
     async_add_entities.assert_not_called()
 
 
-async def test_async_setup_entry_skips_when_no_outputs(
+async def test_async_setup_entry_creates_horizon_when_no_outputs(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
-    """No entities are created when coordinator data is empty."""
+    """Horizon entity is created even when coordinator data is empty.
 
+    The horizon entity is essential for input entities to function,
+    so it must be created regardless of optimization output availability.
+    """
     coordinator = _create_mock_coordinator()
     coordinator.data = {}
-    config_entry.runtime_data = HaeoRuntimeData(network_coordinator=coordinator)
+    config_entry.runtime_data = HaeoRuntimeData(coordinator=coordinator)
 
     async_add_entities = Mock()
 
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    async_add_entities.assert_not_called()
+    # Horizon entity is always created for network subentry
+    async_add_entities.assert_called_once()
+    entities = async_add_entities.call_args[0][0]
+    assert len(entities) == 1
+    assert isinstance(entities[0], HaeoHorizonEntity)
 
 
 def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry) -> None:
@@ -424,7 +431,7 @@ async def test_async_setup_entry_creates_sub_device_sensors(
             },
         },
     }
-    config_entry.runtime_data = HaeoRuntimeData(network_coordinator=coordinator)
+    config_entry.runtime_data = HaeoRuntimeData(coordinator=coordinator)
 
     async_add_entities = Mock()
 
@@ -432,9 +439,14 @@ async def test_async_setup_entry_creates_sub_device_sensors(
 
     async_add_entities.assert_called_once()
     sensors = list(async_add_entities.call_args.args[0])
-    assert len(sensors) == 1
+    # 2 entities: horizon entity + 1 output sensor
+    assert len(sensors) == 2
 
-    sensor = sensors[0]
+    # Find the output sensor (not the horizon entity)
+    output_sensors = [s for s in sensors if isinstance(s, HaeoSensor)]
+    assert len(output_sensors) == 1
+
+    sensor = output_sensors[0]
     # Check that the sensor uses the output name as translation key (consistent with all sensors)
     assert sensor.translation_key == LOAD_POWER
     # Check that it's associated with the correct sub-device
