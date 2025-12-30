@@ -42,6 +42,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
         min_value=-1.0,
         max_value=10.0,
         step=0.001,
+        direction="+",
     ),
     InputFieldInfo(
         field_name=CONF_CURTAILMENT,

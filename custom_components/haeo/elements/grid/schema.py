@@ -27,6 +27,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
         max_value=10.0,
         step=0.001,
         time_series=True,
+        direction="-",  # Import = consuming from grid = cost
     ),
     InputFieldInfo(
         field_name=CONF_EXPORT_PRICE,
@@ -37,6 +38,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
         max_value=10.0,
         step=0.001,
         time_series=True,
+        direction="+",  # Export = producing to grid = revenue
     ),
     InputFieldInfo(
         field_name=CONF_IMPORT_LIMIT,

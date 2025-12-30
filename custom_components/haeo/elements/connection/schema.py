@@ -73,6 +73,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
         min_value=-1.0,
         max_value=10.0,
         step=0.001,
+        direction="-",
         time_series=True,
     ),
     InputFieldInfo(
@@ -83,6 +84,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
         min_value=-1.0,
         max_value=10.0,
         step=0.001,
+        direction="-",
         time_series=True,
     ),
 )

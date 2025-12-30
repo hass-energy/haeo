@@ -136,6 +136,7 @@
     "state": "0.02",
     "attributes": {
       "config_mode": "driven",
+      "direction": "-",
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "discharge_cost",
@@ -266,6 +267,7 @@
     "state": "0.001",
     "attributes": {
       "config_mode": "editable",
+      "direction": "-",
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "early_charge_incentive",
@@ -1456,6 +1458,7 @@
     "state": "0.11",
     "attributes": {
       "config_mode": "driven",
+      "direction": "+",
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "export_price",
@@ -1719,6 +1722,7 @@
     "state": "0.21",
     "attributes": {
       "config_mode": "driven",
+      "direction": "-",
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "import_price",

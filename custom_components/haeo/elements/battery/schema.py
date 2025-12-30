@@ -119,6 +119,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
         min_value=0.0,
         max_value=1.0,
         step=0.001,
+        direction="-",
     ),
     InputFieldInfo(
         field_name=CONF_DISCHARGE_COST,
@@ -128,6 +129,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
         min_value=0.0,
         max_value=1.0,
         step=0.001,
+        direction="-",
         time_series=True,
     ),
     InputFieldInfo(
@@ -158,6 +160,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
         min_value=0.0,
         max_value=10.0,
         step=0.001,
+        direction="-",
         time_series=True,
     ),
     InputFieldInfo(
@@ -168,6 +171,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo, ...]] = (
         min_value=0.0,
         max_value=10.0,
         step=0.001,
+        direction="-",
         time_series=True,
     ),
 )
