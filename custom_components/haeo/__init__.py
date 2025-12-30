@@ -1,5 +1,7 @@
 """The Home Assistant Energy Optimizer integration."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType

@@ -115,8 +115,11 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
 
             # Input entities now have direction from schema field metadata
             if output_type == OUTPUT_TYPE_POWER:
-                if direction == "+":
-                    # Power production inputs (solar forecast) → available power
+                # Solar power inputs are forecasts of available power (limits)
+                if element_type == ELEMENT_TYPE_SOLAR:
+                    entry["available"] = forecast
+                elif direction == "+":
+                    # Power production inputs → available power
                     entry["available"] = forecast
                 elif direction == "-":
                     # Power consumption inputs (load forecast) → consumption
