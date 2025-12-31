@@ -173,7 +173,26 @@ Then configure the connection:
 
 The optimizer will only schedule charging when the sensor value is non-zero.
 
+### Input Entities
+
+Each configuration field creates a corresponding input entity in Home Assistant.
+Input entities appear as Number entities with the `config` entity category.
+
+| Input                                    | Unit   | Description                            |
+| ---------------------------------------- | ------ | -------------------------------------- |
+| `number.{name}_max_power_source_target`  | kW     | Maximum forward power (if configured)  |
+| `number.{name}_max_power_target_source`  | kW     | Maximum reverse power (if configured)  |
+| `number.{name}_efficiency_source_target` | %      | Forward efficiency (if configured)     |
+| `number.{name}_efficiency_target_source` | %      | Reverse efficiency (if configured)     |
+| `number.{name}_price_source_target`      | \$/kWh | Forward transfer price (if configured) |
+| `number.{name}_price_target_source`      | \$/kWh | Reverse transfer price (if configured) |
+
+Input entities include a `forecast` attribute showing values for each optimization period.
+See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+
 ## Sensors Created
+
+### Sensor Summary
 
 A Connection element creates 1 device in Home Assistant with the following sensors.
 Not all sensors are created for every connection - only those relevant to the configuration.
@@ -181,17 +200,15 @@ Not all sensors are created for every connection - only those relevant to the co
 The sensor display names use the actual source and target element names configured for the connection.
 For example, a connection between two elements would show their actual names in the sensor name instead of generic "Source to Target".
 
-| Sensor                                                                                     | Unit   | Description                             |
-| ------------------------------------------------------------------------------------------ | ------ | --------------------------------------- |
-| [`sensor.{name}_power_source_target`](#source-to-target-power)                             | kW     | Power flowing from source to target     |
-| [`sensor.{name}_power_target_source`](#target-to-source-power)                             | kW     | Power flowing from target to source     |
-| [`sensor.{name}_power_max_source_target`](#max-source-to-target-power)                     | kW     | Maximum forward power (when limited)    |
-| [`sensor.{name}_power_max_target_source`](#max-target-to-source-power)                     | kW     | Maximum reverse power (when limited)    |
-| [`sensor.{name}_price_source_target`](#source-to-target-price)                             | \$/kWh | Forward transfer price                  |
-| [`sensor.{name}_price_target_source`](#target-to-source-price)                             | \$/kWh | Reverse transfer price                  |
-| [`sensor.{name}_shadow_power_max_source_target`](#max-source-to-target-power-shadow-price) | \$/kW  | Value of additional forward capacity    |
-| [`sensor.{name}_shadow_power_max_target_source`](#max-target-to-source-power-shadow-price) | \$/kW  | Value of additional reverse capacity    |
-| [`sensor.{name}_time_slice`](#time-slice-shadow-price)                                     | \$/kW  | Value of relaxing time-slice constraint |
+| Sensor                                                                                     | Unit  | Description                             |
+| ------------------------------------------------------------------------------------------ | ----- | --------------------------------------- |
+| [`sensor.{name}_power_source_target`](#source-to-target-power)                             | kW    | Power flowing from source to target     |
+| [`sensor.{name}_power_target_source`](#target-to-source-power)                             | kW    | Power flowing from target to source     |
+| [`sensor.{name}_power_max_source_target`](#max-source-to-target-power)                     | kW    | Maximum forward power (when limited)    |
+| [`sensor.{name}_power_max_target_source`](#max-target-to-source-power)                     | kW    | Maximum reverse power (when limited)    |
+| [`sensor.{name}_shadow_power_max_source_target`](#max-source-to-target-power-shadow-price) | \$/kW | Value of additional forward capacity    |
+| [`sensor.{name}_shadow_power_max_target_source`](#max-target-to-source-power-shadow-price) | \$/kW | Value of additional reverse capacity    |
+| [`sensor.{name}_time_slice`](#time-slice-shadow-price)                                     | \$/kW | Value of relaxing time-slice constraint |
 
 ### Source to Target Power
 
@@ -222,16 +239,6 @@ Only created when a forward power limit is configured.
 
 The configured maximum reverse power limit from the sensor configuration.
 Only created when a reverse power limit is configured.
-
-### Source to Target Price
-
-The configured price for power transfer in the forward direction.
-Only created when a forward price is configured.
-
-### Target to Source Price
-
-The configured price for power transfer in the reverse direction.
-Only created when a reverse price is configured.
 
 ### Max Source to Target Power Shadow Price
 

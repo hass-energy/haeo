@@ -53,7 +53,7 @@ The adapter transforms user configuration into model parameters:
 | `power_possible`       | kW    | Real-time | Maximum possible load (forecast)   |
 | `forecast_limit_price` | \$/kW | Real-time | Marginal cost of serving this load |
 
-See [Load Configuration](../../user-guide/elements/load.md#sensors-created) for detailed sensor documentation.
+See [Load Configuration](../../user-guide/elements/load.md) for detailed sensor and configuration documentation.
 
 ## Configuration Examples
 

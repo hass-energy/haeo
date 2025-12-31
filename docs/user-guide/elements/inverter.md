@@ -95,7 +95,24 @@ Some inverters have different power ratings for inverting vs. rectifying.
 | **Max Power DC→AC**  | input_number.inverter_max_5kw |
 | **Max Power AC→DC**  | input_number.inverter_max_3kw |
 
+### Input Entities
+
+Each configuration field creates a corresponding input entity in Home Assistant.
+Input entities appear as Number entities with the `config` entity category.
+
+| Input                            | Unit | Description                              |
+| -------------------------------- | ---- | ---------------------------------------- |
+| `number.{name}_max_import_power` | kW   | Maximum AC→DC power (if configured)      |
+| `number.{name}_max_export_power` | kW   | Maximum DC→AC power (if configured)      |
+| `number.{name}_charge_soc_min`   | %    | Minimum SOC for charging (if configured) |
+| `number.{name}_charge_soc_max`   | %    | Maximum SOC for charging (if configured) |
+
+Input entities include a `forecast` attribute showing values for each optimization period.
+See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+
 ## Sensors Created
+
+### Sensor Summary
 
 An Inverter element creates 1 device in Home Assistant with the following sensors.
 Not all sensors are created for every inverter - only those relevant to the configuration.

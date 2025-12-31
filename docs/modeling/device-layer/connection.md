@@ -57,11 +57,9 @@ The adapter passes user configuration directly to the PowerConnection model:
 | `power_target_source`     | kW    | Real-time | Power flow from target to source |
 | `power_max_source_target` | kW    | Real-time | Configured max power (if set)    |
 | `power_max_target_source` | kW    | Real-time | Configured max power (if set)    |
-| `price_source_target`     | \$/kW | Real-time | Configured price (if set)        |
-| `price_target_source`     | \$/kW | Real-time | Configured price (if set)        |
 | `shadow_power_max_*`      | \$/kW | Real-time | Shadow prices for power limits   |
 
-See [Connection Configuration](../../user-guide/elements/connections.md#sensors-created) for complete sensor documentation.
+See [Connection Configuration](../../user-guide/elements/connections.md) for detailed sensor and configuration documentation.
 
 ## Configuration Examples
 

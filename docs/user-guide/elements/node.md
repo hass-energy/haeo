@@ -150,7 +150,23 @@ Then connect elements to "Main Node" via connections.
 
     **In non-advanced mode**: If you delete the switchboard node, HAEO will automatically recreate it the next time the integration reloads (on restart or configuration change) to ensure network connectivity is maintained.
 
+### Input Entities
+
+Each configuration option creates a corresponding input entity in Home Assistant.
+Input entities appear as Switch entities with the `config` entity category.
+
+| Input                     | Description                    |
+| ------------------------- | ------------------------------ |
+| `switch.{name}_is_source` | Whether node can produce power |
+| `switch.{name}_is_sink`   | Whether node can consume power |
+
+These switch inputs are only created when Advanced Mode is enabled.
+Input entities include a `forecast` attribute showing values for each optimization period.
+See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+
 ## Sensors Created
+
+### Sensor Summary
 
 A Node element creates 1 device in Home Assistant with the following sensors.
 

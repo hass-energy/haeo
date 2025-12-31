@@ -124,20 +124,35 @@ Use single sensor or input_number for constant pricing:
 
 For more examples and sensor creation, see the [Forecasts and Sensors guide](../forecasts-and-sensors.md).
 
+### Input Entities
+
+Each configuration field creates a corresponding input entity in Home Assistant.
+Input entities appear as Number entities with the `config` entity category.
+
+| Input                            | Unit   | Description                            |
+| -------------------------------- | ------ | -------------------------------------- |
+| `number.{name}_import_price`     | \$/kWh | Import price from configured sensor(s) |
+| `number.{name}_export_price`     | \$/kWh | Export price from configured sensor(s) |
+| `number.{name}_max_import_power` | kW     | Maximum import power (if configured)   |
+| `number.{name}_max_export_power` | kW     | Maximum export power (if configured)   |
+
+Input entities include a `forecast` attribute showing values for each optimization period.
+See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+
 ## Sensors Created
+
+### Sensor Summary
 
 A Grid element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                                   | Unit   | Description                         |
-| ------------------------------------------------------------------------ | ------ | ----------------------------------- |
-| [`sensor.{name}_power_import`](#import-power)                            | kW     | Power imported from grid            |
-| [`sensor.{name}_power_export`](#export-power)                            | kW     | Power exported to grid              |
-| [`sensor.{name}_price_import`](#import-price)                            | \$/kWh | Current import price                |
-| [`sensor.{name}_price_export`](#export-price)                            | \$/kWh | Current export price                |
-| [`sensor.{name}_power_max_import`](#max-import-power)                    | kW     | Maximum import power (when limited) |
-| [`sensor.{name}_power_max_export`](#max-export-power)                    | kW     | Maximum export power (when limited) |
-| [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kW  | Value of additional import capacity |
-| [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kW  | Value of additional export capacity |
+| Sensor                                                                   | Unit  | Description                         |
+| ------------------------------------------------------------------------ | ----- | ----------------------------------- |
+| [`sensor.{name}_power_import`](#import-power)                            | kW    | Power imported from grid            |
+| [`sensor.{name}_power_export`](#export-power)                            | kW    | Power exported to grid              |
+| [`sensor.{name}_power_max_import`](#max-import-power)                    | kW    | Maximum import power (when limited) |
+| [`sensor.{name}_power_max_export`](#max-export-power)                    | kW    | Maximum export power (when limited) |
+| [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kW | Value of additional import capacity |
+| [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kW | Value of additional export capacity |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
 
@@ -160,24 +175,6 @@ When exporting, this represents electricity you're selling back to the utility.
 A value of 0 means no export is occurring (either self-consuming all generation or importing).
 
 **Example**: A value of 2.1 kW means the optimization determined that exporting 2.1 kW to the grid at this time maximizes total system value (typically during high export prices or excess generation).
-
-### Import Price
-
-The current electricity import price from the configured import price sensor(s).
-
-This is the cost you pay per kWh to buy electricity from the grid.
-Higher prices incentivize reducing imports by using battery storage or shifting loads.
-
-**Example**: A value of 0.25 means you're currently paying \$0.25 per kWh for imported electricity.
-
-### Export Price
-
-The current electricity export price from the configured export price sensor(s).
-
-This is the revenue you receive per kWh for selling electricity to the grid.
-Higher prices incentivize increasing exports by discharging batteries or curtailing self-consumption.
-
-**Example**: A value of 0.10 means you're currently receiving \$0.10 per kWh for exported electricity.
 
 ### Max Import Power
 

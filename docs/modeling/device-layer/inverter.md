@@ -56,12 +56,12 @@ The adapter transforms user configuration into model parameters:
 | `power_ac_to_dc`           | kW    | Real-time | Power flowing from AC to DC (rectifying) |
 | `power_active`             | kW    | Real-time | Net power (DC to AC - AC to DC)          |
 | `dc_bus_power_balance`     | \$/kW | Real-time | DC bus power balance shadow price        |
-| `max_power_dc_to_ac`       | kW    | Real-time | Max DC to AC power (when limited)        |
-| `max_power_ac_to_dc`       | kW    | Real-time | Max AC to DC power (when limited)        |
 | `max_power_dc_to_ac_price` | \$/kW | Real-time | Max DC to AC power shadow price          |
 | `max_power_ac_to_dc_price` | \$/kW | Real-time | Max AC to DC power shadow price          |
 
-The `max_power_*` sensors are only created when the corresponding limit is configured.
+The `max_power_*_price` sensors are only created when the corresponding limit is configured.
+
+See [Inverter Configuration](../../user-guide/elements/inverter.md) for detailed sensor and configuration documentation.
 
 ## Configuration Examples
 

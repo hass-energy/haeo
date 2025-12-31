@@ -1,24 +1,34 @@
 # How data updates work
 
 This guide explains how HAEO keeps its recommendations current.
-Use it to understand where the data comes from, what prompts an optimisation, and how to give the system a gentle nudge when needed.
+Use it to understand where the data comes from, what prompts an optimization, and how to give the system a gentle nudge when needed.
 
 ## How HAEO receives data
 
-HAEO reads the entities you select when you build the energy network in Home Assistant.
-Those entities supply the latest measurements, forecasts, and prices that shape the optimisation.
-Whenever Home Assistant updates one of those sources, HAEO sees the new information almost immediately.
+HAEO uses an intermediate input entity layer to receive data from external sensors.
+Each configuration field that accepts sensor data creates a corresponding input entity (Number or Switch) in Home Assistant.
+These input entities load values from external sensors you select, transform them as needed, and make them available with a `forecast` attribute containing time-series data.
 
-## What triggers an optimisation
+Input entities operate in one of two modes:
 
-HAEO runs a new optimisation when any of the following happens:
+- **Editable**: Constant value you configure directly (e.g., battery capacity)
+- **Driven**: Value loaded from an external sensor or forecast (e.g., electricity prices)
 
-- Fresh data arrives from a tracked entity.
-- The regular schedule reaches the next planned check-in.
-- You request a manual refresh from the Home Assistant interface or an automation.
+You can find input entities in Home Assistant's entity list with the `config` entity category.
+They appear with names like `number.{element}_{field}` (for example, `number.battery_capacity`).
 
-To avoid starting several runs in quick succession, HAEO briefly waits for related updates to settle before it recomputes.
-If another change appears while a run is already in progress, HAEO queues a follow-up pass so the final result still reflects every update.
+## What triggers an optimization
+
+HAEO runs a new optimization when either of the following happens:
+
+- An input entity's state changes (new data arrives from a tracked sensor).
+- The optimization horizon advances past a period boundary.
+
+The system is event-driven with guaranteed updates at horizon boundaries (for example, every 5 minutes for the finest tier).
+When sensor data changes between boundaries, the corresponding input entity updates, which triggers a new optimization.
+
+To avoid running multiple optimizations in quick succession, HAEO uses internal debouncing.
+Related updates that arrive close together are grouped, and optimization runs after activity settles.
 
 ## Manual refresh options
 
@@ -28,12 +38,22 @@ Manual refreshes skip the waiting period and start a new optimisation as soon as
 
 ## Troubleshooting stale data
 
-If the values stop moving, check whether the upstream entities are still reporting and confirm that HAEO is loaded without issues in the Integrations screen.
-A quick manual refresh is a good way to test whether the optimiser can run with the data currently available.
+If the values stop moving, first check your input entities:
+
+1. Navigate to Developer Tools → States
+2. Search for `number.` or `switch.` prefixed with your element names to find input entities
+3. Verify each input entity shows a valid state and has a `forecast` attribute with time-series data
+
+If input entities show valid data but sensors still seem stale:
+
+- Confirm the upstream source sensors are still reporting
+- Check that HAEO is loaded without issues in the Integrations screen
+- A quick manual refresh tests whether the optimizer can run with available data
+
 Persistent problems usually point to missing inputs or external services that need attention.
 
 Monitor your system occasionally to ensure updates finish comfortably within the time windows that matter for your automations.
-Long optimisation runs usually mean the problem has become quite large, so start by simplifying inputs before you tweak the look-ahead horizon.
+Long optimization runs usually mean the problem has become quite large, so start by simplifying inputs before you tweak the look-ahead horizon.
 Review the [interval tier guidance](configuration.md#interval-tiers) before changing that value.
 
 ## Debugging updates
@@ -60,15 +80,12 @@ logger:
 
 ### Check coordinator status
 
-Use developer tools to inspect coordinator state:
+Use developer tools to inspect the system state:
 
 1. Navigate to Developer Tools → States
-2. Find coordinator sensors (e.g., `sensor.haeo_optimization_status`)
-3. Check attributes for:
-    - Last update time
-    - Update success status
-    - Error messages
-    - Data source states
+2. Find input entities (Number and Switch entities for your configured elements) and check their states and `forecast` attributes
+3. Find output sensors and check their states and attributes
+4. Check the optimization status sensor for error messages
 
 ### Monitor with automations
 
@@ -124,17 +141,30 @@ Sensors become unavailable when:
 - Configuration errors prevent optimization
 - Integration is initializing
 
-Check the `sensor.haeo_optimization_status` entity for details.
+Check the system logs for optimization error messages.
 
 ### How can I speed up updates?
 
-Combine these strategies for quicker responses:
+HAEO is event-driven, so optimizations run immediately when input data changes.
+To improve responsiveness:
 
-- Shorten the **Update interval** to run the optimizer more often when no sensor changes occur.
-- Reduce the **Debounce window** so sensor changes trigger reruns sooner.
-- Adjust interval tiers for faster solving (reduce tier counts or increase durations) after consulting the [interval tier guidance](configuration.md#interval-tiers).
-- Simplify network topology when possible.
-- Trigger manual updates via service calls when you need immediate feedback.
+- Ensure your source sensors update frequently (check their polling intervals)
+- Adjust interval tiers for faster solving (reduce tier counts or increase durations) after consulting the [interval tier guidance](configuration.md#interval-tiers)
+- Simplify network topology when possible
+- Trigger manual updates via service calls when you need immediate feedback
+
+### How do I inspect input entity data?
+
+Input entities are visible in Home Assistant's entity list with the `config` entity category.
+Each input entity has a `forecast` attribute containing the time-series data used for optimization.
+
+To inspect input data:
+
+1. Navigate to Developer Tools → States
+2. Search for your element names (e.g., `number.battery_` or `switch.solar_`)
+3. Expand the `forecast` attribute to see the time-series data
+
+See the [Input Entities guide](../developer-guide/inputs.md) for more details on how input entities work.
 
 ### Do I need to restart Home Assistant after configuration changes?
 
