@@ -6,6 +6,7 @@ from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 
+from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
@@ -45,7 +46,7 @@ class LoadAdapter:
     element_type: str = ELEMENT_TYPE
     flow_class: type = LoadSubentryFlowHandler
     advanced: bool = False
-    connectivity: str = "advanced"
+    connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
     def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if load configuration can be loaded."""

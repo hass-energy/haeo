@@ -6,6 +6,7 @@ from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 
+from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import OUTPUT_TYPE_POWER_FLOW, ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
@@ -51,7 +52,7 @@ class ConnectionAdapter:
     element_type: str = ELEMENT_TYPE
     flow_class: type = ConnectionSubentryFlowHandler
     advanced: bool = True
-    connectivity: str = "never"
+    connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
 
     def available(self, config: ConnectionConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if connection configuration can be loaded."""

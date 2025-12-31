@@ -6,6 +6,7 @@ from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 
+from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER_FLOW
@@ -65,7 +66,7 @@ class InverterAdapter:
     element_type: str = ELEMENT_TYPE
     flow_class: type = InverterSubentryFlowHandler
     advanced: bool = False
-    connectivity: str = "always"
+    connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
     def available(self, config: InverterConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if inverter configuration can be loaded."""

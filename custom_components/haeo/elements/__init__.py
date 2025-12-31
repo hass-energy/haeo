@@ -27,14 +27,19 @@ Sub-element Naming Convention:
 """
 
 from collections.abc import Mapping, Sequence
-import enum
 import logging
 from typing import Any, Final, Literal, NamedTuple, Protocol, TypeGuard, get_origin, get_type_hints, runtime_checkable
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, NETWORK_OUTPUT_NAMES, NetworkDeviceName, NetworkOutputName
+from custom_components.haeo.const import (
+    CONF_ELEMENT_TYPE,
+    NETWORK_OUTPUT_NAMES,
+    ConnectivityLevel,
+    NetworkDeviceName,
+    NetworkOutputName,
+)
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 
@@ -139,19 +144,6 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
 )
 
 
-class ConnectivityLevel(enum.Enum):
-    """Connectivity level for element types in connection selectors.
-
-    - ALWAYS: Always shown in connection selectors
-    - ADVANCED: Only shown when advanced mode is enabled
-    - NEVER: Never shown in connection selectors
-    """
-
-    ALWAYS = "always"
-    ADVANCED = "advanced"
-    NEVER = "never"
-
-
 @runtime_checkable
 class ElementAdapter(Protocol):
     """Protocol for element adapters.
@@ -173,8 +165,8 @@ class ElementAdapter(Protocol):
     advanced: bool
     """Whether this element type requires advanced mode."""
 
-    connectivity: str
-    """Visibility level in connection selectors ('always', 'advanced', or 'never')."""
+    connectivity: ConnectivityLevel
+    """Visibility level in connection selectors."""
 
     def available(self, config: Any, *, hass: HomeAssistant, **kwargs: Any) -> bool:
         """Check if element configuration can be loaded."""
