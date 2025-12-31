@@ -49,6 +49,9 @@ class LoadAdapter:
 
     def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if load configuration can be loaded."""
+        # Empty forecast list is valid - defaults to 0 power
+        if not config[CONF_FORECAST]:
+            return True
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
@@ -60,13 +63,16 @@ class LoadAdapter:
         forecast_times: Sequence[float],
     ) -> LoadConfigData:
         """Load load configuration values from sensors."""
-        ts_loader = TimeSeriesLoader()
-
-        forecast = await ts_loader.load(
-            hass=hass,
-            value=config[CONF_FORECAST],
-            forecast_times=forecast_times,
-        )
+        # If no entities configured, default to 0 power for all periods
+        if not config[CONF_FORECAST]:
+            forecast = tuple(0.0 for _ in forecast_times)
+        else:
+            ts_loader = TimeSeriesLoader()
+            forecast = await ts_loader.load(
+                hass=hass,
+                value=config[CONF_FORECAST],
+                forecast_times=forecast_times,
+            )
 
         return {
             "element_type": config["element_type"],

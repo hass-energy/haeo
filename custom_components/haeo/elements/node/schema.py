@@ -27,6 +27,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[SwitchEntityDescription], ...]] = (
             translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
         ),
         output_type="status",
+        default=False,
     ),
     InputFieldInfo(
         field_name=CONF_IS_SINK,
@@ -35,6 +36,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[SwitchEntityDescription], ...]] = (
             translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
         ),
         output_type="status",
+        default=False,
     ),
 )
 

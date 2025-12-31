@@ -2,12 +2,12 @@
 
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
+from . import HaeoConfigEntry, HaeoRuntimeData
 from .const import (
     CONF_ELEMENT_TYPE,
     CONF_TIER_1_COUNT,
@@ -20,6 +20,8 @@ from .const import (
     CONF_TIER_4_DURATION,
 )
 from .elements import ElementConfigSchema, is_element_config_schema
+from .entities.haeo_number import ConfigEntityMode, HaeoInputNumber
+from .entities.haeo_switch import HaeoInputSwitch
 from .sensor_utils import get_output_sensors
 
 
@@ -37,7 +39,7 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     return entity_ids
 
 
-async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, Any]:
+async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: HaeoConfigEntry) -> dict[str, Any]:
     """Return diagnostics for a HAEO config entry.
 
     Returns a dict with four main keys:
@@ -45,6 +47,10 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
     - inputs: Input sensor states used in optimization
     - outputs: Output sensor states from optimization results
     - environment: Environment information (HA version, HAEO version, timestamp)
+
+    For editable input entities (constants rather than sensor-driven), the current
+    entity value is captured in the participant config. This allows diagnostics
+    exports to be used as configuration defaults.
     """
     # Build config section with participants
     config: dict[str, Any] = {
@@ -66,6 +72,24 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
             raw_data.setdefault("name", subentry.title)
             raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
             config["participants"][subentry.title] = raw_data
+
+    # Capture current values from editable input entities
+    # This allows diagnostics to be used as configuration defaults
+    runtime_data = config_entry.runtime_data
+    if isinstance(runtime_data, HaeoRuntimeData):
+        for (element_name, field_name), entity in runtime_data.input_entities.items():
+            if element_name not in config["participants"]:
+                continue
+            participant = config["participants"][element_name]
+
+            # Only capture editable entities (constants, not sensor-driven)
+            if entity.entity_mode != ConfigEntityMode.EDITABLE:
+                continue
+
+            if isinstance(entity, HaeoInputNumber) and entity.native_value is not None:
+                participant[field_name] = entity.native_value
+            elif isinstance(entity, HaeoInputSwitch) and entity.is_on is not None:
+                participant[field_name] = entity.is_on
 
     # Collect input sensor states for all entities used in the configuration
     all_entity_ids: set[str] = set()

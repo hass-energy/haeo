@@ -75,6 +75,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=1.0,
         ),
         output_type="soc",
+        default=0.0,
     ),
     InputFieldInfo(
         field_name=CONF_MAX_CHARGE_PERCENTAGE,
@@ -88,6 +89,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=1.0,
         ),
         output_type="soc",
+        default=100.0,
     ),
     InputFieldInfo(
         field_name=CONF_EFFICIENCY,
@@ -101,6 +103,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=0.1,
         ),
         output_type="soc",
+        default=99.0,
     ),
     InputFieldInfo(
         field_name=CONF_MAX_CHARGE_POWER,
@@ -143,6 +146,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type="price",
         direction="-",
+        default=0.001,
     ),
     InputFieldInfo(
         field_name=CONF_DISCHARGE_COST,

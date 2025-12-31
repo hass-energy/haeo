@@ -70,3 +70,32 @@ async def test_load_with_forecast_attribute(hass: HomeAssistant) -> None:
     assert result["element_type"] == "load"
     assert result["name"] == "test_load"
     assert len(result["forecast"]) == 1
+
+
+async def test_available_returns_true_for_empty_forecast_list(hass: HomeAssistant) -> None:
+    """Load available() should return True when forecast list is empty (defaults to 0)."""
+    config: load_element.LoadConfigSchema = {
+        "element_type": "load",
+        "name": "test_load",
+        "connection": "main_bus",
+        "forecast": [],
+    }
+
+    result = load_element.adapter.available(config, hass=hass)
+    assert result is True
+
+
+async def test_load_with_empty_forecast_defaults_to_zero(hass: HomeAssistant) -> None:
+    """Load load() should return 0 power values when forecast list is empty."""
+    config: load_element.LoadConfigSchema = {
+        "element_type": "load",
+        "name": "test_load",
+        "connection": "main_bus",
+        "forecast": [],
+    }
+
+    result = await load_element.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    assert result["element_type"] == "load"
+    assert result["name"] == "test_load"
+    assert result["forecast"] == (0.0, 0.0)

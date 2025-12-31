@@ -120,10 +120,13 @@ class HaeoInputNumber(RestoreNumber):
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Restore previous value if available
+            # Restore previous value if available, otherwise use field default
             last_data = await self.async_get_last_number_data()
             if last_data and last_data.native_value is not None:
                 self._attr_native_value = last_data.native_value
+            elif self._attr_native_value is None and self._field_info.default is not None:
+                # No config value and no restored value - use field default
+                self._attr_native_value = float(self._field_info.default)
             # Update forecast for restored/initial value
             self._update_editable_forecast()
         else:
@@ -210,6 +213,11 @@ class HaeoInputNumber(RestoreNumber):
             extra_attrs["forecast"] = forecast
 
         self._attr_extra_state_attributes = extra_attrs
+
+    @property
+    def entity_mode(self) -> ConfigEntityMode:
+        """Return the entity's operating mode (EDITABLE or DRIVEN)."""
+        return self._entity_mode
 
     @property
     def horizon_start(self) -> float | None:

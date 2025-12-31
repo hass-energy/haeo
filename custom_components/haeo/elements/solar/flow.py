@@ -80,12 +80,15 @@ def _build_schema(
                 TextSelector(TextSelectorConfig()),
             ),
             vol.Required(CONF_CONNECTION): _build_participant_selector(participants, current_connection),
-            vol.Required(CONF_FORECAST): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=True,
-                    exclude_entities=incompatible_power,
-                )
+            vol.Required(CONF_FORECAST): vol.All(
+                EntitySelector(
+                    EntitySelectorConfig(
+                        domain=["sensor", "input_number"],
+                        multiple=True,
+                        exclude_entities=incompatible_power,
+                    )
+                ),
+                vol.Length(min=1, msg="At least one entity is required"),
             ),
             vol.Optional(CONF_PRICE_PRODUCTION): vol.All(
                 vol.Coerce(float),

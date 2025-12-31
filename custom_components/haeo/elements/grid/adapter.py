@@ -59,10 +59,12 @@ class GridAdapter:
         """Check if grid configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        # Check required time series fields
-        if not ts_loader.available(hass=hass, value=config["import_price"]):
+        # Empty price lists are valid - defaults to 0.1 import / 0.01 export
+        if config["import_price"] and not ts_loader.available(hass=hass, value=config["import_price"]):
             return False
-        return ts_loader.available(hass=hass, value=config["export_price"])
+        if config["export_price"] and not ts_loader.available(hass=hass, value=config["export_price"]):
+            return False
+        return True
 
     async def load(
         self,
@@ -75,16 +77,24 @@ class GridAdapter:
         ts_loader = TimeSeriesLoader()
         const_loader = ConstantLoader[float](float)
 
-        import_price = await ts_loader.load(
-            hass=hass,
-            value=config["import_price"],
-            forecast_times=forecast_times,
-        )
-        export_price = await ts_loader.load(
-            hass=hass,
-            value=config["export_price"],
-            forecast_times=forecast_times,
-        )
+        # Default import price: $0.10/kWh, default export price: $0.01/kWh
+        if not config["import_price"]:
+            import_price = tuple(0.1 for _ in forecast_times)
+        else:
+            import_price = await ts_loader.load(
+                hass=hass,
+                value=config["import_price"],
+                forecast_times=forecast_times,
+            )
+
+        if not config["export_price"]:
+            export_price = tuple(0.01 for _ in forecast_times)
+        else:
+            export_price = await ts_loader.load(
+                hass=hass,
+                value=config["export_price"],
+                forecast_times=forecast_times,
+            )
 
         data: GridConfigData = {
             "element_type": config["element_type"],

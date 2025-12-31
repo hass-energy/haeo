@@ -57,6 +57,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
             translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
         ),
         output_type="status",
+        default=True,
     ),
 )
 

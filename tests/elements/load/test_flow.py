@@ -74,3 +74,18 @@ async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssi
     subentry_id = flow._get_current_subentry_id()
 
     assert subentry_id is None
+
+
+async def test_schema_accepts_empty_forecast_list(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Schema validation should accept empty forecast entity list (defaults to 0 power)."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Get form to obtain the schema
+    result = await flow.async_step_user(user_input=None)
+    schema = result.get("data_schema")
+
+    # Empty forecast list should be valid
+    validated = schema({CONF_NAME: "Test Load", CONF_CONNECTION: "TestNode", CONF_FORECAST: []})
+    assert validated[CONF_FORECAST] == []

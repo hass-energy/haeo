@@ -104,3 +104,69 @@ async def test_load_with_optional_limits(hass: HomeAssistant) -> None:
 
     assert result.get("import_limit") == 10.0
     assert result.get("export_limit") == 5.0
+
+
+async def test_available_returns_true_for_empty_price_lists(hass: HomeAssistant) -> None:
+    """Grid available() should return True when price lists are empty (defaults to constant values)."""
+    config: grid.GridConfigSchema = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
+        "import_price": [],
+        "export_price": [],
+    }
+
+    result = grid.adapter.available(config, hass=hass)
+    assert result is True
+
+
+async def test_load_with_empty_import_price_defaults_to_0_1(hass: HomeAssistant) -> None:
+    """Grid load() should return 0.1 import price when import_price list is empty."""
+    _set_sensor(hass, "sensor.export_price", "0.05", "$/kWh")
+
+    config: grid.GridConfigSchema = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
+        "import_price": [],
+        "export_price": ["sensor.export_price"],
+    }
+
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    assert result["import_price"] == (0.1, 0.1)
+    assert result["export_price"][0] == 0.05
+
+
+async def test_load_with_empty_export_price_defaults_to_0_01(hass: HomeAssistant) -> None:
+    """Grid load() should return 0.01 export price when export_price list is empty."""
+    _set_sensor(hass, "sensor.import_price", "0.30", "$/kWh")
+
+    config: grid.GridConfigSchema = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
+        "import_price": ["sensor.import_price"],
+        "export_price": [],
+    }
+
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    assert result["import_price"][0] == 0.30
+    assert result["export_price"] == (0.01, 0.01)
+
+
+async def test_load_with_both_empty_price_lists_uses_defaults(hass: HomeAssistant) -> None:
+    """Grid load() should use default prices when both lists are empty."""
+    config: grid.GridConfigSchema = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
+        "import_price": [],
+        "export_price": [],
+    }
+
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    assert result["import_price"] == (0.1, 0.1)
+    assert result["export_price"] == (0.01, 0.01)

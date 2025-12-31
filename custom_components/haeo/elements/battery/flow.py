@@ -94,19 +94,25 @@ def _build_schema(
                 TextSelector(TextSelectorConfig()),
             ),
             vol.Required(CONF_CONNECTION): _build_connection_selector(participants, current_connection),
-            vol.Required(CONF_CAPACITY): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=True,
-                    exclude_entities=incompatible_energy,
-                )
+            vol.Required(CONF_CAPACITY): vol.All(
+                EntitySelector(
+                    EntitySelectorConfig(
+                        domain=["sensor", "input_number"],
+                        multiple=True,
+                        exclude_entities=incompatible_energy,
+                    )
+                ),
+                vol.Length(min=1, msg="At least one entity is required"),
             ),
-            vol.Required(CONF_INITIAL_CHARGE_PERCENTAGE): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=True,
-                    exclude_entities=incompatible_percentage,
-                )
+            vol.Required(CONF_INITIAL_CHARGE_PERCENTAGE): vol.All(
+                EntitySelector(
+                    EntitySelectorConfig(
+                        domain=["sensor", "input_number"],
+                        multiple=True,
+                        exclude_entities=incompatible_percentage,
+                    )
+                ),
+                vol.Length(min=1, msg="At least one entity is required"),
             ),
             # Optional percentages with defaults
             vol.Optional(CONF_MIN_CHARGE_PERCENTAGE): NumberSelector(

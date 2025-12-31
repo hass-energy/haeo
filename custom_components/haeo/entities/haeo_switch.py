@@ -108,10 +108,13 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Restore previous value if available
+            # Restore previous value if available, otherwise use field default
             last_state = await self.async_get_last_state()
             if last_state and last_state.state in ("on", "off"):
                 self._attr_is_on = last_state.state == "on"
+            elif self._attr_is_on is None and self._field_info.default is not None:
+                # No config value and no restored value - use field default
+                self._attr_is_on = bool(self._field_info.default)
             # Update forecast for restored/initial value
             self._update_forecast()
         else:
@@ -181,6 +184,11 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
             extra_attrs["forecast"] = forecast
 
         self._attr_extra_state_attributes = extra_attrs
+
+    @property
+    def entity_mode(self) -> ConfigEntityMode:
+        """Return the entity's operating mode (EDITABLE or DRIVEN)."""
+        return self._entity_mode
 
     @property
     def horizon_start(self) -> float | None:

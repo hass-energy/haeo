@@ -20,6 +20,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         output_type: From model.const OUTPUT_TYPE_* for categorization
         direction: "+" or "-" for power direction attributes
         time_series: Whether this field is time series (list) or scalar
+        default: Default value for editable entities when no restored state exists
 
     """
 
@@ -28,6 +29,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     output_type: str
     direction: str | None = None
     time_series: bool = False
+    default: float | bool | None = None
 
 
 __all__ = [
