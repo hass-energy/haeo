@@ -116,19 +116,13 @@ def _build_schema(
             ),
             # Optional percentages with defaults
             vol.Optional(CONF_MIN_CHARGE_PERCENTAGE): NumberSelector(
-                NumberSelectorConfig(
-                    min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="%"
-                )
+                NumberSelectorConfig(min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.BOX, unit_of_measurement="%")
             ),
             vol.Optional(CONF_MAX_CHARGE_PERCENTAGE): NumberSelector(
-                NumberSelectorConfig(
-                    min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="%"
-                )
+                NumberSelectorConfig(min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.BOX, unit_of_measurement="%")
             ),
             vol.Optional(CONF_EFFICIENCY): NumberSelector(
-                NumberSelectorConfig(
-                    min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="%"
-                )
+                NumberSelectorConfig(min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.BOX, unit_of_measurement="%")
             ),
             # Optional power limits
             vol.Optional(CONF_MAX_CHARGE_POWER): EntitySelector(
@@ -158,14 +152,10 @@ def _build_schema(
             ),
             # Advanced: undercharge/overcharge regions
             vol.Optional(CONF_UNDERCHARGE_PERCENTAGE): NumberSelector(
-                NumberSelectorConfig(
-                    min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="%"
-                )
+                NumberSelectorConfig(min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.BOX, unit_of_measurement="%")
             ),
             vol.Optional(CONF_OVERCHARGE_PERCENTAGE): NumberSelector(
-                NumberSelectorConfig(
-                    min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="%"
-                )
+                NumberSelectorConfig(min=0.0, max=100.0, step=0.1, mode=NumberSelectorMode.BOX, unit_of_measurement="%")
             ),
             vol.Optional(CONF_UNDERCHARGE_COST): EntitySelector(
                 EntitySelectorConfig(
