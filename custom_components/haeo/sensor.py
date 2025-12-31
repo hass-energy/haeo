@@ -9,7 +9,7 @@ from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 
@@ -41,19 +41,29 @@ async def async_setup_entry(
     # Get the device registry
     dr = device_registry.async_get(hass)
 
-    # Get or create a hub device for the horizon entity
-    hub_device_entry = dr.async_get_or_create(
-        identifiers={(DOMAIN, config_entry.entry_id)},
+    # Find network subentry for horizon entity's device
+    network_subentry = next(
+        (s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
+        None,
+    )
+    if network_subentry is None:
+        msg = "No network subentry found - integration setup incomplete"
+        raise RuntimeError(msg)
+
+    # Get the network device (created in __init__.py)
+    network_device_entry = dr.async_get_or_create(
+        identifiers={(DOMAIN, f"{config_entry.entry_id}_{network_subentry.subentry_id}")},
         config_entry_id=config_entry.entry_id,
-        translation_key="hub",
-        translation_placeholders={"name": config_entry.title},
+        config_subentry_id=network_subentry.subentry_id,
+        translation_key=ELEMENT_TYPE_NETWORK,
+        translation_placeholders={"name": network_subentry.title},
     )
 
     # Create horizon entity that displays horizon manager state
     horizon_entity = HaeoHorizonEntity(
         hass=hass,
         config_entry=config_entry,
-        device_entry=hub_device_entry,
+        device_entry=network_device_entry,
         horizon_manager=horizon_manager,
     )
     entities: list[SensorEntity] = [horizon_entity]
@@ -69,7 +79,9 @@ async def async_setup_entry(
 
             for device_name, device_outputs in subentry_devices.items():
                 # Create a unique device identifier that includes device name for sub-devices
-                is_sub_device = device_name != subentry.title
+                # Sub-devices are battery partitions, etc. that have a different device_name
+                # than the element type (e.g., "battery_device_normal" vs "battery")
+                is_sub_device = device_name != subentry.subentry_type
                 device_id_suffix = f"{subentry.subentry_id}_{device_name}" if is_sub_device else subentry.subentry_id
 
                 # Get or create the device for this element
