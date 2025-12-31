@@ -52,7 +52,7 @@ class SolarAdapter:
     element_type: str = ELEMENT_TYPE
     flow_class: type = SolarSubentryFlowHandler
     advanced: bool = False
-    connectivity: str = "always"
+    connectivity: str = "advanced"
 
     def available(self, config: SolarConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if solar configuration can be loaded."""

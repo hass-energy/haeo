@@ -60,7 +60,7 @@ class BatterySectionAdapter:
     element_type: str = ELEMENT_TYPE
     flow_class: type = BatterySectionSubentryFlowHandler
     advanced: bool = True
-    connectivity: str = "always"
+    connectivity: str = "advanced"
 
     def available(self, config: BatterySectionConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if battery section configuration can be loaded."""

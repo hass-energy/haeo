@@ -45,7 +45,7 @@ class LoadAdapter:
     element_type: str = ELEMENT_TYPE
     flow_class: type = LoadSubentryFlowHandler
     advanced: bool = False
-    connectivity: str = "always"
+    connectivity: str = "advanced"
 
     def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if load configuration can be loaded."""
