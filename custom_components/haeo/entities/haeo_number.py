@@ -68,16 +68,18 @@ class HaeoInputNumber(RestoreNumber):
         # Constants are stored as float from NumberSelector
         config_value = subentry.data.get(field_info.field_name)
 
-        if isinstance(config_value, list):
-            # DRIVEN mode: value comes from external sensors
+        if isinstance(config_value, list) and config_value:
+            # DRIVEN mode: value comes from external sensors (non-empty list)
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_ids: list[str] = config_value
             self._attr_native_value = None  # Will be set when data loads
         else:
-            # EDITABLE mode: value is a constant or None (optional field)
+            # EDITABLE mode: value is a constant, None, or empty list (no sensors configured)
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_ids = []
-            self._attr_native_value = float(config_value) if config_value is not None else None
+            # Empty list means no sensors - treat as None (optional field with no value)
+            native_value = config_value if not isinstance(config_value, list) else None
+            self._attr_native_value = float(native_value) if native_value is not None else None
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
@@ -107,6 +109,11 @@ class HaeoInputNumber(RestoreNumber):
         self._loader = TimeSeriesLoader()
         self._state_unsub: Callable[[], None] | None = None
         self._horizon_unsub: Callable[[], None] | None = None
+
+        # Initialize forecast immediately for EDITABLE mode entities
+        # This ensures get_values() returns data before async_added_to_hass() is called
+        if self._entity_mode == ConfigEntityMode.EDITABLE and self._attr_native_value is not None:
+            self._update_editable_forecast()
 
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get forecast timestamps from horizon manager."""

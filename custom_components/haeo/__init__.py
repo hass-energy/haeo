@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 import logging
 from types import MappingProxyType
@@ -22,6 +23,11 @@ if TYPE_CHECKING:
     from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 
 _LOGGER = logging.getLogger(__name__)
+
+# Maximum time to wait for input entities to be ready (seconds)
+_ENTITY_READY_TIMEOUT = 5.0
+# Polling interval when waiting for entities (seconds)
+_ENTITY_READY_POLL_INTERVAL = 0.1
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH]
 
@@ -49,6 +55,43 @@ class HaeoRuntimeData:
 
 
 type HaeoConfigEntry = ConfigEntry[HaeoRuntimeData | None]
+
+
+async def _wait_for_input_entities_ready(runtime_data: HaeoRuntimeData) -> None:
+    """Wait for all input entities to have their data loaded.
+
+    Input entities load data asynchronously in async_added_to_hass().
+    This function polls until all entities return values from get_values(),
+    or times out after _ENTITY_READY_TIMEOUT seconds.
+    """
+    if not runtime_data.input_entities:
+        _LOGGER.debug("No input entities to wait for")
+        return
+
+    start_time = asyncio.get_event_loop().time()
+    while True:
+        not_ready = [
+            (elem, field_name)
+            for (elem, field_name), entity in runtime_data.input_entities.items()
+            if entity.get_values() is None
+        ]
+
+        if not not_ready:
+            elapsed = asyncio.get_event_loop().time() - start_time
+            _LOGGER.debug("All %d input entities ready after %.2fs", len(runtime_data.input_entities), elapsed)
+            return
+
+        elapsed = asyncio.get_event_loop().time() - start_time
+        if elapsed >= _ENTITY_READY_TIMEOUT:
+            _LOGGER.warning(
+                "Timeout waiting for input entities after %.1fs. Not ready: %s",
+                elapsed,
+                not_ready,
+            )
+            # Continue anyway - coordinator will raise ConfigEntryNotReady if needed
+            return
+
+        await asyncio.sleep(_ENTITY_READY_POLL_INTERVAL)
 
 
 async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntry) -> None:
@@ -123,8 +166,6 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry."""
-    _LOGGER.info("Setting up HAEO integration")
-
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 
@@ -151,8 +192,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # This is a pure Python object, not an entity
     horizon_manager = HorizonManager(hass=hass, config_entry=entry)
 
-    # Store runtime data with horizon manager (coordinator added later)
-    entry.runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager)
+    # Create runtime data for this setup
+    runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager)
+    entry.runtime_data = runtime_data
 
     # Start horizon manager's scheduled updates
     horizon_manager.start()
@@ -160,16 +202,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Register cleanup on unload
     entry.async_on_unload(horizon_manager.stop)
 
-    # Register update listener for config changes and subentry additions/removals
-    entry.async_on_unload(entry.add_update_listener(async_update_listener))
-
     # Set up input platforms first - they populate runtime_data.input_entities
     # Input entities register themselves synchronously, though their data loads asynchronously
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
 
+    # Wait for input entities to be ready before creating coordinator
+    # This gives async_added_to_hass() time to run and load DRIVEN mode entity data
+    await _wait_for_input_entities_ready(runtime_data)
+
     # Create coordinator after input entities exist - it reads from them
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
-    entry.runtime_data.coordinator = coordinator
+    runtime_data.coordinator = coordinator
 
     # Trigger initial optimization before output platform setup
     # This populates coordinator.data so sensor platform can create output entities
@@ -177,6 +220,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
 
     # Set up output platforms after coordinator has data
     await hass.config_entries.async_forward_entry_setups(entry, OUTPUT_PLATFORMS)
+
+    # Register update listener LAST - after all setup is complete
+    # This prevents reload loops from subentry additions during initial setup
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     _LOGGER.info("HAEO integration setup complete")
     return True

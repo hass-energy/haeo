@@ -372,6 +372,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             msg = "Runtime data not available"
             raise UpdateFailed(msg)
 
+        _LOGGER.debug(
+            "Loading from input entities. runtime_data.input_entities: %s", list(runtime_data.input_entities.keys())
+        )
+
         loaded_configs: dict[str, ElementConfigData] = {}
 
         for element_name, element_config in self._participant_configs.items():

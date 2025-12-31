@@ -79,6 +79,7 @@ async def async_setup_entry(
             element_name = subentry.title
             field_name = field_info.field_name
             runtime_data.input_entities[(element_name, field_name)] = entity
+            _LOGGER.debug("Registered input entity: %s.%s", element_name, field_name)
 
     if entities:
         _LOGGER.debug("Creating %d switch entities for HAEO inputs", len(entities))
