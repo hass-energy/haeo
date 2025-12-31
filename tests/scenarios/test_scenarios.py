@@ -107,7 +107,6 @@ async def test_scenarios(
         # Get the coordinator from the config entry
         runtime_data = mock_config_entry.runtime_data
         assert runtime_data is not None, "Runtime data should be available after setup"
-        coordinator = runtime_data.coordinator
 
         # The first refresh already ran during async_config_entry_first_refresh() in setup
         # Wait for any pending background tasks to complete

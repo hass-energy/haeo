@@ -499,3 +499,372 @@ async def test_translation_key_defaults_to_field_name(
 
     # Field has no translation_key, so it uses field_name
     assert entity.entity_description.translation_key == "allow_curtailment"
+
+
+# --- Tests for horizon_start and get_values properties ---
+
+
+async def test_horizon_start_returns_first_timestamp(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """horizon_start returns the first forecast timestamp."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Update forecast manually to simulate loaded state
+    entity._update_forecast()
+
+    # horizon_start should return the first timestamp
+    assert entity.horizon_start == 0.0
+
+
+async def test_horizon_start_returns_none_without_forecast(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """horizon_start returns None when forecast is not set."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Clear forecast
+    entity._attr_extra_state_attributes = {}
+
+    assert entity.horizon_start is None
+
+
+async def test_get_values_returns_forecast_values(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """get_values returns tuple of forecast values."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Update forecast
+    entity._update_forecast()
+
+    values = entity.get_values()
+    assert values is not None
+    # All values should be True (the switch is on)
+    assert all(v is True for v in values)
+    # Should have 3 values (one per timestamp)
+    assert len(values) == 3
+
+
+async def test_get_values_returns_none_without_forecast(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """get_values returns None when forecast is not set."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Clear forecast
+    entity._attr_extra_state_attributes = {}
+
+    assert entity.get_values() is None
+
+
+# --- Tests for lifecycle methods ---
+
+
+async def test_async_added_to_hass_editable_restores_state(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """async_added_to_hass restores previous state in EDITABLE mode."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": False})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock the async_get_last_state to return a saved "on" state
+    async def mock_get_last_state() -> Mock:
+        mock_state = Mock()
+        mock_state.state = STATE_ON
+        return mock_state
+
+    entity.async_get_last_state = mock_get_last_state  # type: ignore[method-assign]
+
+    await entity.async_added_to_hass()
+
+    # Should restore to ON state
+    assert entity.is_on is True
+
+
+async def test_async_added_to_hass_driven_subscribes_to_source(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """async_added_to_hass subscribes to source entity in DRIVEN mode."""
+    hass.states.async_set("input_boolean.curtail", STATE_ON)
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    await entity.async_added_to_hass()
+
+    # Subscription should be set up
+    assert entity._state_unsub is not None
+    assert entity._horizon_unsub is not None
+
+
+async def test_async_will_remove_from_hass_cleans_up(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """async_will_remove_from_hass cleans up subscriptions."""
+    hass.states.async_set("input_boolean.curtail", STATE_ON)
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    await entity.async_added_to_hass()
+    assert entity._state_unsub is not None
+
+    await entity.async_will_remove_from_hass()
+
+    assert entity._state_unsub is None
+    assert entity._horizon_unsub is None
+
+
+# --- Tests for horizon and source state change handlers ---
+
+
+async def test_handle_horizon_change_editable_updates_forecast(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_handle_horizon_change updates forecast in EDITABLE mode."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    entity.async_write_ha_state = Mock()
+
+    # Call horizon change handler
+    entity._handle_horizon_change()
+
+    entity.async_write_ha_state.assert_called_once()
+
+
+async def test_handle_horizon_change_driven_reloads_source(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_handle_horizon_change reloads source state in DRIVEN mode."""
+    hass.states.async_set("input_boolean.curtail", STATE_ON)
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    entity.async_write_ha_state = Mock()
+
+    # Call horizon change handler
+    entity._handle_horizon_change()
+
+    # Should have loaded source state
+    assert entity.is_on is True
+    entity.async_write_ha_state.assert_called_once()
+
+
+async def test_handle_source_state_change_updates_switch(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_handle_source_state_change updates switch state from event."""
+    hass.states.async_set("input_boolean.curtail", STATE_OFF)
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    entity.async_write_ha_state = Mock()
+
+    # Create a mock event with new state ON
+    mock_event = Mock()
+    mock_new_state = Mock()
+    mock_new_state.state = STATE_ON
+    mock_event.data = {"new_state": mock_new_state}
+
+    # Call source state change handler
+    entity._handle_source_state_change(mock_event)
+
+    # Should have updated to ON
+    assert entity.is_on is True
+    entity.async_write_ha_state.assert_called_once()
+
+
+async def test_handle_source_state_change_ignores_none_state(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_handle_source_state_change ignores None new_state."""
+    hass.states.async_set("input_boolean.curtail", STATE_ON)
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    entity._load_source_state()  # Load initial ON state
+    entity.async_write_ha_state = Mock()
+
+    # Create a mock event with None new_state (entity deleted)
+    mock_event = Mock()
+    mock_event.data = {"new_state": None}
+
+    # Call source state change handler
+    entity._handle_source_state_change(mock_event)
+
+    # State should not have changed (still ON from initial load)
+    assert entity.is_on is True
+    entity.async_write_ha_state.assert_not_called()
+
+
+async def test_load_source_state_with_none_source_entity(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_load_source_state returns early when source_entity_id is None."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})  # EDITABLE mode
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # source_entity_id should be None in EDITABLE mode
+    assert entity._source_entity_id is None
+
+    # This should return early without error
+    entity._load_source_state()
+
+    # State should still be True from config
+    assert entity.is_on is True

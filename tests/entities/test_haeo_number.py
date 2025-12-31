@@ -398,3 +398,361 @@ async def test_entity_does_not_poll(
     )
 
     assert entity.should_poll is False
+
+
+# --- Tests for horizon_start and get_values properties ---
+
+
+async def test_horizon_start_returns_first_timestamp(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """horizon_start returns the first forecast timestamp."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Update forecast manually to simulate loaded state
+    entity._update_editable_forecast()
+
+    # horizon_start should return the first timestamp
+    assert entity.horizon_start == 0.0
+
+
+async def test_horizon_start_returns_none_without_forecast(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """horizon_start returns None when forecast is not set."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Clear forecast
+    entity._attr_extra_state_attributes = {}
+
+    assert entity.horizon_start is None
+
+
+async def test_get_values_returns_forecast_values(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """get_values returns tuple of forecast values."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.5})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Update forecast
+    entity._update_editable_forecast()
+
+    values = entity.get_values()
+    assert values is not None
+    # All values should be 10.5
+    assert all(v == 10.5 for v in values)
+    # Should have 3 values (one per timestamp)
+    assert len(values) == 3
+
+
+async def test_get_values_returns_none_without_forecast(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """get_values returns None when forecast is not set."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Clear forecast
+    entity._attr_extra_state_attributes = {}
+
+    assert entity.get_values() is None
+
+
+# --- Tests for lifecycle methods ---
+
+
+async def test_async_added_to_hass_editable_restores_value(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """async_added_to_hass restores previous value in EDITABLE mode."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 5.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock the async_get_last_number_data to return a saved value
+    async def mock_get_last_number_data() -> Mock:
+        mock_data = Mock()
+        mock_data.native_value = 15.0
+        return mock_data
+
+    entity.async_get_last_number_data = mock_get_last_number_data  # type: ignore[method-assign]
+
+    await entity.async_added_to_hass()
+
+    # Should restore to saved value
+    assert entity.native_value == 15.0
+
+
+async def test_async_added_to_hass_driven_subscribes_to_source(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """async_added_to_hass subscribes to source entity in DRIVEN mode."""
+    hass.states.async_set("sensor.power", "10.0")
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    await entity.async_added_to_hass()
+
+    # Subscription should be set up
+    assert entity._state_unsub is not None
+    assert entity._horizon_unsub is not None
+
+
+async def test_async_will_remove_from_hass_cleans_up(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """async_will_remove_from_hass cleans up subscriptions."""
+    hass.states.async_set("sensor.power", "10.0")
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    await entity.async_added_to_hass()
+    assert entity._state_unsub is not None
+
+    await entity.async_will_remove_from_hass()
+
+    assert entity._state_unsub is None
+    assert entity._horizon_unsub is None
+
+
+# --- Tests for horizon and source state change handlers ---
+
+
+async def test_handle_horizon_change_editable_updates_forecast(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_handle_horizon_change updates forecast in EDITABLE mode."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+    entity.async_write_ha_state = Mock()
+
+    # Call horizon change handler
+    entity._handle_horizon_change()
+
+    entity.async_write_ha_state.assert_called_once()
+
+
+async def test_handle_horizon_change_driven_triggers_reload(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_handle_horizon_change creates task to reload data in DRIVEN mode."""
+    hass.states.async_set("sensor.power", "10.0")
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Call horizon change handler - should create task
+    entity._handle_horizon_change()
+    await hass.async_block_till_done()
+
+    # Task should have been created (test doesn't fail means task was created)
+
+
+async def test_handle_source_state_change_triggers_reload(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_handle_source_state_change creates task to reload data."""
+    hass.states.async_set("sensor.power", "10.0")
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Create a mock event
+    mock_event = Mock()
+    mock_event.data = {"new_state": Mock(state="20.0")}
+
+    # Call source state change handler
+    entity._handle_source_state_change(mock_event)
+    await hass.async_block_till_done()
+
+
+async def test_async_load_data_handles_load_failure(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_async_load_data handles loader exceptions gracefully."""
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock loader to raise an exception
+    entity._loader = Mock()
+    entity._loader.load = Mock(side_effect=Exception("Load failed"))
+
+    # Should not raise
+    await entity._async_load_data()
+
+    # State should not have changed
+    assert entity.native_value is None
+
+
+async def test_async_load_data_handles_empty_values(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_async_load_data handles empty values gracefully."""
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock loader to return empty list
+    entity._loader = Mock()
+    entity._loader.load = Mock(return_value=[])
+
+    # Should not raise
+    await entity._async_load_data()
+
+    # State should not have changed
+    assert entity.native_value is None

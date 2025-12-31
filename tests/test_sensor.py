@@ -251,7 +251,8 @@ async def test_async_setup_entry_creates_horizon_when_no_outputs(
     entities = async_add_entities.call_args[0][0]
     assert len(entities) == 1
     # The first entity is the HaeoHorizonEntity created in sensor platform
-    from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+    # Import is at function scope to avoid circular import issues in test module
+    from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity  # noqa: PLC0415
 
     assert isinstance(entities[0], HaeoHorizonEntity)
 
