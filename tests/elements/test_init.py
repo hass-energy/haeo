@@ -27,7 +27,6 @@ def test_is_not_element_config_schema(input_data: Any) -> None:
         {"name": "test"},  # Missing element_type
         {"element_type": "battery"},  # Missing all required fields
         {"element_type": "battery", "name": "test"},  # Missing required battery fields
-        {"element_type": "node", "name": "test"},  # Missing is_source and is_sink
         {"element_type": "grid", "name": "test", "connection": "node"},  # Missing price fields
         {"element_type": "connection", "name": "test", "source": "a"},  # Missing target
     ],
@@ -62,13 +61,6 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
             "connection": "bus",
             "forecast": "not_a_list",
         },
-        # Wrong type for is_source (should be bool)
-        {
-            "element_type": "node",
-            "name": "test",
-            "is_source": "true",
-            "is_sink": False,
-        },
         # Wrong type for capacity (should be list)
         {
             "element_type": "battery",
@@ -80,7 +72,7 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
     ],
 )
 def test_is_element_config_schema_wrong_field_types(input_data: dict[str, Any]) -> None:
-    """Test is_element_config_schema rejects fields with wrong types."""
+    """Test is_element_config_schema rejects fields with wrong types for required fields."""
     assert is_element_config_schema(input_data) is False
 
 
@@ -91,6 +83,15 @@ def test_is_element_config_schema_valid_node() -> None:
         "name": "test_node",
         "is_source": False,
         "is_sink": False,
+    }
+    assert is_element_config_schema(valid_config) is True
+
+
+def test_is_element_config_schema_valid_node_minimal() -> None:
+    """Test is_element_config_schema with minimal node config (optional fields omitted)."""
+    valid_config = {
+        "element_type": "node",
+        "name": "test_node",
     }
     assert is_element_config_schema(valid_config) is True
 

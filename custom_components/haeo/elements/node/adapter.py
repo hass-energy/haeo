@@ -54,8 +54,8 @@ class NodeAdapter:
             {
                 "element_type": "node",
                 "name": config["name"],
-                "is_source": config["is_source"],
-                "is_sink": config["is_sink"],
+                "is_source": config.get("is_source", DEFAULTS[CONF_IS_SOURCE]),
+                "is_sink": config.get("is_sink", DEFAULTS[CONF_IS_SINK]),
             }
         ]
 

@@ -164,10 +164,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     # Set up input platforms first - they populate runtime_data.input_entities
+    # Input entities register themselves synchronously, though their data loads asynchronously
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
-
-    # Wait for all background tasks to complete (input entities load their data async)
-    await hass.async_block_till_done(wait_background_tasks=True)
 
     # Create coordinator after input entities exist - it reads from them
     coordinator = HaeoDataUpdateCoordinator(hass, entry)

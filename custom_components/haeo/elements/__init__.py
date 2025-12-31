@@ -306,16 +306,33 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
 
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
     """Return validated element subentries excluding the network element."""
-    return [
-        ValidatedElementSubentry(
-            name=subentry.title,
-            element_type=subentry.data[CONF_ELEMENT_TYPE],
-            subentry=subentry,
-            config=subentry.data,
+    result: list[ValidatedElementSubentry] = []
+
+    for subentry in entry.subentries.values():
+        if subentry.subentry_type not in ELEMENT_TYPES:
+            # Not an element type (e.g., network) - skip silently
+            continue
+
+        if not is_element_config_schema(subentry.data):
+            # Element type but failed validation - log warning
+            _LOGGER.warning(
+                "Subentry '%s' (type=%s) failed config validation and will be excluded. Data: %s",
+                subentry.title,
+                subentry.subentry_type,
+                dict(subentry.data),
+            )
+            continue
+
+        result.append(
+            ValidatedElementSubentry(
+                name=subentry.title,
+                element_type=subentry.data[CONF_ELEMENT_TYPE],
+                subentry=subentry,
+                config=subentry.data,
+            )
         )
-        for subentry in entry.subentries.values()
-        if subentry.subentry_type in ELEMENT_TYPES and is_element_config_schema(subentry.data)
-    ]
+
+    return result
 
 
 # Registry mapping element types to their input field definitions
