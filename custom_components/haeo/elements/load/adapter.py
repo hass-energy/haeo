@@ -16,7 +16,7 @@ from custom_components.haeo.model.power_connection import (
 )
 
 from .flow import LoadSubentryFlowHandler
-from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import CONF_CONNECTION, CONF_FORECAST, DEFAULT_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
 # Load output names
 type LoadOutputName = Literal[
@@ -49,7 +49,7 @@ class LoadAdapter:
 
     def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if load configuration can be loaded."""
-        # Empty forecast list is valid - defaults to 0 power
+        # Empty forecast list is valid - uses default from schema
         if not config[CONF_FORECAST]:
             return True
         ts_loader = TimeSeriesLoader()
@@ -63,9 +63,9 @@ class LoadAdapter:
         forecast_times: Sequence[float],
     ) -> LoadConfigData:
         """Load load configuration values from sensors."""
-        # If no entities configured, default to 0 power for all periods
+        # If no entities configured, use default from schema for all periods
         if not config[CONF_FORECAST]:
-            forecast = tuple(0.0 for _ in forecast_times)
+            forecast = [DEFAULT_FORECAST for _ in forecast_times]
         else:
             ts_loader = TimeSeriesLoader()
             forecast = await ts_loader.load(

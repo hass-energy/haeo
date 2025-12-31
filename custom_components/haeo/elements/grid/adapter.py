@@ -18,7 +18,14 @@ from custom_components.haeo.model.power_connection import (
 )
 
 from .flow import GridSubentryFlowHandler
-from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigData, GridConfigSchema
+from .schema import (
+    CONF_CONNECTION,
+    DEFAULT_EXPORT_PRICE,
+    DEFAULT_IMPORT_PRICE,
+    ELEMENT_TYPE,
+    GridConfigData,
+    GridConfigSchema,
+)
 
 # Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[
@@ -59,12 +66,10 @@ class GridAdapter:
         """Check if grid configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        # Empty price lists are valid - defaults to 0.1 import / 0.01 export
-        if config["import_price"] and not ts_loader.available(hass=hass, value=config["import_price"]):
-            return False
-        if config["export_price"] and not ts_loader.available(hass=hass, value=config["export_price"]):
-            return False
-        return True
+        # Empty price lists are valid - uses default prices from schema
+        import_available = not config["import_price"] or ts_loader.available(hass=hass, value=config["import_price"])
+        export_available = not config["export_price"] or ts_loader.available(hass=hass, value=config["export_price"])
+        return import_available and export_available
 
     async def load(
         self,
@@ -77,9 +82,9 @@ class GridAdapter:
         ts_loader = TimeSeriesLoader()
         const_loader = ConstantLoader[float](float)
 
-        # Default import price: $0.10/kWh, default export price: $0.01/kWh
+        # Use default prices from schema when no sensors are configured
         if not config["import_price"]:
-            import_price = tuple(0.1 for _ in forecast_times)
+            import_price = [DEFAULT_IMPORT_PRICE for _ in forecast_times]
         else:
             import_price = await ts_loader.load(
                 hass=hass,
@@ -88,7 +93,7 @@ class GridAdapter:
             )
 
         if not config["export_price"]:
-            export_price = tuple(0.01 for _ in forecast_times)
+            export_price = [DEFAULT_EXPORT_PRICE for _ in forecast_times]
         else:
             export_price = await ts_loader.load(
                 hass=hass,

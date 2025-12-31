@@ -16,6 +16,10 @@ CONF_IMPORT_LIMIT: Final = "import_limit"
 CONF_EXPORT_LIMIT: Final = "export_limit"
 CONF_CONNECTION: Final = "connection"
 
+# Default values for optional fields ($/kWh)
+DEFAULT_IMPORT_PRICE: Final[float] = 0.1
+DEFAULT_EXPORT_PRICE: Final[float] = 0.01
+
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
     InputFieldInfo(
@@ -30,6 +34,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type="price",
         time_series=True,
         direction="-",  # Import = consuming from grid = cost
+        default=DEFAULT_IMPORT_PRICE,
     ),
     InputFieldInfo(
         field_name=CONF_EXPORT_PRICE,
@@ -43,6 +48,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type="price",
         time_series=True,
         direction="+",  # Export = producing to grid = revenue
+        default=DEFAULT_EXPORT_PRICE,
     ),
     InputFieldInfo(
         field_name=CONF_IMPORT_LIMIT,

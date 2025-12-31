@@ -3,6 +3,7 @@
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import load as load_element
+from custom_components.haeo.elements.load.schema import DEFAULT_FORECAST
 
 from ..conftest import FORECAST_TIMES, set_forecast_sensor, set_sensor
 
@@ -73,7 +74,7 @@ async def test_load_with_forecast_attribute(hass: HomeAssistant) -> None:
 
 
 async def test_available_returns_true_for_empty_forecast_list(hass: HomeAssistant) -> None:
-    """Load available() should return True when forecast list is empty (defaults to 0)."""
+    """Load available() should return True when forecast list is empty (uses default)."""
     config: load_element.LoadConfigSchema = {
         "element_type": "load",
         "name": "test_load",
@@ -85,8 +86,8 @@ async def test_available_returns_true_for_empty_forecast_list(hass: HomeAssistan
     assert result is True
 
 
-async def test_load_with_empty_forecast_defaults_to_zero(hass: HomeAssistant) -> None:
-    """Load load() should return 0 power values when forecast list is empty."""
+async def test_load_with_empty_forecast_uses_default(hass: HomeAssistant) -> None:
+    """Load load() should use default forecast values when forecast list is empty."""
     config: load_element.LoadConfigSchema = {
         "element_type": "load",
         "name": "test_load",
@@ -98,4 +99,4 @@ async def test_load_with_empty_forecast_defaults_to_zero(hass: HomeAssistant) ->
 
     assert result["element_type"] == "load"
     assert result["name"] == "test_load"
-    assert result["forecast"] == (0.0, 0.0)
+    assert result["forecast"] == [DEFAULT_FORECAST, DEFAULT_FORECAST]
