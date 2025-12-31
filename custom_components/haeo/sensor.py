@@ -9,9 +9,9 @@ from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
-from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.entities import HaeoHorizonEntity, HaeoSensor
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.entities import HaeoSensor
+from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,39 +31,32 @@ async def async_setup_entry(
         msg = "Runtime data not set - integration setup incomplete"
         raise RuntimeError(msg)
 
-    coordinator: HaeoDataUpdateCoordinator = runtime_data.coordinator
+    coordinator = runtime_data.coordinator
+    if coordinator is None:
+        msg = "Coordinator not set - integration setup incomplete"
+        raise RuntimeError(msg)
 
-    # Create a sensor for each output in the coordinator data grouped by element
-    entities: list[SensorEntity] = []
+    horizon_manager = runtime_data.horizon_manager
 
     # Get the device registry
     dr = device_registry.async_get(hass)
 
-    # First, find and create the network device for the horizon entity
-    # This must happen before coordinator data is available since input entities depend on it
-    network_subentry = next(
-        (s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
-        None,
+    # Get or create a hub device for the horizon entity
+    hub_device_entry = dr.async_get_or_create(
+        identifiers={(DOMAIN, config_entry.entry_id)},
+        config_entry_id=config_entry.entry_id,
+        translation_key="hub",
+        translation_placeholders={"name": config_entry.title},
     )
 
-    if network_subentry is not None:
-        network_device_entry = dr.async_get_or_create(
-            identifiers={(DOMAIN, f"{config_entry.entry_id}_{network_subentry.subentry_id}")},
-            config_entry_id=config_entry.entry_id,
-            config_subentry_id=network_subentry.subentry_id,
-            translation_key=ELEMENT_TYPE_NETWORK,
-            translation_placeholders={"name": network_subentry.title},
-        )
-
-        # Create horizon entity on network device
-        horizon_entity = HaeoHorizonEntity(
-            hass=hass,
-            config_entry=config_entry,
-            device_entry=network_device_entry,
-        )
-        entities.append(horizon_entity)
-        # Store in runtime data for other entities to subscribe
-        runtime_data.horizon_entity = horizon_entity
+    # Create horizon entity that displays horizon manager state
+    horizon_entity = HaeoHorizonEntity(
+        hass=hass,
+        config_entry=config_entry,
+        device_entry=hub_device_entry,
+        horizon_manager=horizon_manager,
+    )
+    entities: list[SensorEntity] = [horizon_entity]
 
     # Create sensors for each output in the coordinator data grouped by element
     if coordinator.data:

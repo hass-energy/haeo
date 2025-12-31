@@ -109,8 +109,8 @@ async def test_scenarios(
         assert runtime_data is not None, "Runtime data should be available after setup"
         coordinator = runtime_data.coordinator
 
-        # Manually trigger the first data refresh (needed because time is frozen)
-        await coordinator.async_refresh()
+        # The first refresh already ran during async_config_entry_first_refresh() in setup
+        # Wait for any pending background tasks to complete
         await hass.async_block_till_done(wait_background_tasks=True)
 
         # Wait for the coordinator to complete its first update cycle

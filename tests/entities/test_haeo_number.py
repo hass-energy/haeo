@@ -14,13 +14,9 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_NAME, DOMAIN
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
-from custom_components.haeo.entities.haeo_number import (
-    ConfigEntityMode,
-    HaeoInputNumber,
-)
+from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
+from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model import OUTPUT_TYPE_POWER
-
 
 # --- Fixtures ---
 
@@ -57,13 +53,14 @@ def device_entry() -> Mock:
 
 
 @pytest.fixture
-def horizon_entity() -> Mock:
-    """Return a mock horizon entity."""
-    entity = Mock(spec=HaeoHorizonEntity)
+def horizon_manager() -> Mock:
+    """Return a mock horizon manager."""
+    manager = Mock(spec=HorizonManager)
     # Return timestamps for 2 periods starting now
-    entity.get_forecast_timestamps.return_value = (0.0, 300.0, 600.0)
-    entity.entity_id = "sensor.haeo_test_horizon"
-    return entity
+    manager.get_forecast_timestamps.return_value = (0.0, 300.0, 600.0)
+    # Subscribe returns an unsubscribe function
+    manager.subscribe.return_value = Mock()
+    return manager
 
 
 @pytest.fixture
@@ -121,7 +118,7 @@ async def test_editable_mode_with_static_value(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_entity: Mock,
+    horizon_manager: Mock,
 ) -> None:
     """Number entity in EDITABLE mode initializes with static config value."""
     subentry = _create_subentry("Test Battery", {"power_limit": 10.5})
@@ -133,7 +130,7 @@ async def test_editable_mode_with_static_value(
         subentry=subentry,
         field_info=power_field_info,
         device_entry=device_entry,
-        horizon_entity=horizon_entity,
+        horizon_manager=horizon_manager,
     )
 
     assert entity._entity_mode == ConfigEntityMode.EDITABLE
@@ -160,7 +157,7 @@ async def test_editable_mode_with_none_value(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     scalar_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_entity: Mock,
+    horizon_manager: Mock,
 ) -> None:
     """Number entity in EDITABLE mode handles None for optional fields."""
     subentry = _create_subentry("Test Battery", {"capacity": None})
@@ -172,7 +169,7 @@ async def test_editable_mode_with_none_value(
         subentry=subentry,
         field_info=scalar_field_info,
         device_entry=device_entry,
-        horizon_entity=horizon_entity,
+        horizon_manager=horizon_manager,
     )
 
     assert entity._entity_mode == ConfigEntityMode.EDITABLE
@@ -184,7 +181,7 @@ async def test_editable_mode_set_native_value(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_entity: Mock,
+    horizon_manager: Mock,
 ) -> None:
     """Number entity in EDITABLE mode updates value on user set."""
     subentry = _create_subentry("Test Battery", {"power_limit": 5.0})
@@ -196,7 +193,7 @@ async def test_editable_mode_set_native_value(
         subentry=subentry,
         field_info=power_field_info,
         device_entry=device_entry,
-        horizon_entity=horizon_entity,
+        horizon_manager=horizon_manager,
     )
 
     # Mock async_write_ha_state
@@ -216,7 +213,7 @@ async def test_driven_mode_with_single_entity(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_entity: Mock,
+    horizon_manager: Mock,
 ) -> None:
     """Number entity in DRIVEN mode tracks single source entity."""
     subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power_limit"]})
@@ -228,7 +225,7 @@ async def test_driven_mode_with_single_entity(
         subentry=subentry,
         field_info=power_field_info,
         device_entry=device_entry,
-        horizon_entity=horizon_entity,
+        horizon_manager=horizon_manager,
     )
 
     assert entity._entity_mode == ConfigEntityMode.DRIVEN
@@ -246,7 +243,7 @@ async def test_driven_mode_with_multiple_entities(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_entity: Mock,
+    horizon_manager: Mock,
 ) -> None:
     """Number entity in DRIVEN mode tracks multiple source entities."""
     subentry = _create_subentry(
@@ -261,7 +258,7 @@ async def test_driven_mode_with_multiple_entities(
         subentry=subentry,
         field_info=power_field_info,
         device_entry=device_entry,
-        horizon_entity=horizon_entity,
+        horizon_manager=horizon_manager,
     )
 
     assert entity._entity_mode == ConfigEntityMode.DRIVEN
@@ -273,7 +270,7 @@ async def test_driven_mode_ignores_user_set_value(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_entity: Mock,
+    horizon_manager: Mock,
 ) -> None:
     """Number entity in DRIVEN mode ignores user value changes."""
     subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
@@ -285,7 +282,7 @@ async def test_driven_mode_ignores_user_set_value(
         subentry=subentry,
         field_info=power_field_info,
         device_entry=device_entry,
-        horizon_entity=horizon_entity,
+        horizon_manager=horizon_manager,
     )
     entity._attr_native_value = 10.0  # Simulate loaded value
     entity.async_write_ha_state = Mock()
@@ -305,7 +302,7 @@ async def test_unique_id_includes_all_components(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_entity: Mock,
+    horizon_manager: Mock,
 ) -> None:
     """Unique ID includes entry_id, subentry_id, and field_name."""
     subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
@@ -317,7 +314,7 @@ async def test_unique_id_includes_all_components(
         subentry=subentry,
         field_info=power_field_info,
         device_entry=device_entry,
-        horizon_entity=horizon_entity,
+        horizon_manager=horizon_manager,
     )
 
     expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{power_field_info.field_name}"
@@ -332,7 +329,7 @@ async def test_translation_placeholders_from_subentry_data(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_entity: Mock,
+    horizon_manager: Mock,
 ) -> None:
     """Translation placeholders are derived from subentry data."""
     subentry = _create_subentry("My Battery", {"power_limit": 10.0, "extra_key": "extra_value"})
@@ -344,7 +341,7 @@ async def test_translation_placeholders_from_subentry_data(
         subentry=subentry,
         field_info=power_field_info,
         device_entry=device_entry,
-        horizon_entity=horizon_entity,
+        horizon_manager=horizon_manager,
     )
 
     placeholders = entity._attr_translation_placeholders
@@ -362,7 +359,7 @@ async def test_entity_has_correct_category(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_entity: Mock,
+    horizon_manager: Mock,
 ) -> None:
     """Entity should be CONFIG category."""
     subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
@@ -374,7 +371,7 @@ async def test_entity_has_correct_category(
         subentry=subentry,
         field_info=power_field_info,
         device_entry=device_entry,
-        horizon_entity=horizon_entity,
+        horizon_manager=horizon_manager,
     )
 
     assert entity.entity_category == EntityCategory.CONFIG
@@ -385,7 +382,7 @@ async def test_entity_does_not_poll(
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_entity: Mock,
+    horizon_manager: Mock,
 ) -> None:
     """Entity should not poll."""
     subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
@@ -397,7 +394,7 @@ async def test_entity_does_not_poll(
         subentry=subentry,
         field_info=power_field_info,
         device_entry=device_entry,
-        horizon_entity=horizon_entity,
+        horizon_manager=horizon_manager,
     )
 
     assert entity.should_poll is False

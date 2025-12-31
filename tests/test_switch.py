@@ -12,22 +12,22 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
-from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
+from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.switch import async_setup_entry
 
 
 @pytest.fixture
-def horizon_entity() -> Mock:
-    """Return a mock horizon entity."""
-    entity = Mock(spec=HaeoHorizonEntity)
-    entity.get_forecast_timestamps.return_value = (0.0, 300.0, 600.0)
-    entity.entity_id = "sensor.haeo_test_horizon"
-    return entity
+def horizon_manager() -> Mock:
+    """Return a mock horizon manager."""
+    manager = Mock(spec=HorizonManager)
+    manager.get_forecast_timestamps.return_value = (0.0, 300.0, 600.0)
+    manager.subscribe.return_value = Mock()  # Unsubscribe callback
+    return manager
 
 
 @pytest.fixture
-def config_entry(hass: HomeAssistant, horizon_entity: Mock) -> MockConfigEntry:
+def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
     """Return a config entry for switch platform tests."""
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -46,11 +46,11 @@ def config_entry(hass: HomeAssistant, horizon_entity: Mock) -> MockConfigEntry:
         entry_id="test_switch_platform_entry",
     )
     entry.add_to_hass(hass)
-    # Set up runtime_data with mock horizon entity
+    # Set up runtime_data with mock horizon manager
     mock_coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     entry.runtime_data = HaeoRuntimeData(
         coordinator=mock_coordinator,
-        horizon_entity=horizon_entity,
+        horizon_manager=horizon_manager,
     )
     return entry
 

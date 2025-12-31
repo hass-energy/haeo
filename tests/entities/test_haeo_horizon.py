@@ -12,6 +12,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+from custom_components.haeo.horizon import HorizonManager
 
 # --- Fixtures ---
 
@@ -40,6 +41,12 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
 
 
 @pytest.fixture
+def horizon_manager(hass: HomeAssistant, config_entry: MockConfigEntry) -> HorizonManager:
+    """Return a HorizonManager for tests."""
+    return HorizonManager(hass, config_entry)
+
+
+@pytest.fixture
 def device_entry() -> Mock:
     """Return a mock device entry."""
     device = Mock(spec=DeviceEntry)
@@ -53,6 +60,7 @@ def device_entry() -> Mock:
 def test_horizon_entity_initialization(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
+    horizon_manager: HorizonManager,
     device_entry: Mock,
 ) -> None:
     """Horizon entity initializes with correct attributes."""
@@ -60,6 +68,7 @@ def test_horizon_entity_initialization(
         hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
+        horizon_manager=horizon_manager,
     )
 
     # Check basic attributes
@@ -67,102 +76,39 @@ def test_horizon_entity_initialization(
     assert entity._attr_translation_key == "horizon"
     assert entity.should_poll is False
 
-    # Check computed period durations (5min, 5min, 15min)
-    assert entity._periods_seconds == [300, 300, 900]
-    assert entity._smallest_period == 300  # 5 minutes
-
-
-def test_horizon_entity_with_empty_tiers(
-    hass: HomeAssistant,
-    device_entry: Mock,
-) -> None:
-    """Horizon entity raises error with config with all zero counts."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="Empty Network",
-        data={
-            "name": "Empty Network",
-            "tier_1_count": 0,
-            "tier_1_duration": 5,
-            "tier_2_count": 0,
-            "tier_2_duration": 15,
-            "tier_3_count": 0,
-            "tier_3_duration": 30,
-            "tier_4_count": 0,
-            "tier_4_duration": 60,
-        },
-        entry_id="empty_entry",
-    )
-
-    # Empty tiers is an invalid configuration - should raise ValueError
-    with pytest.raises(ValueError, match="min\\(\\) iterable argument is empty"):
-        HaeoHorizonEntity(
-            hass=hass,
-            config_entry=entry,
-            device_entry=device_entry,
-        )
-
 
 # --- Tests for forecast timestamps ---
 
 
-def test_get_forecast_timestamps_returns_tuple(
+def test_entity_reflects_horizon_manager_timestamps(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
+    horizon_manager: HorizonManager,
     device_entry: Mock,
 ) -> None:
-    """get_forecast_timestamps returns a tuple of floats."""
+    """Entity reflects timestamps from horizon manager."""
     entity = HaeoHorizonEntity(
         hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
+        horizon_manager=horizon_manager,
     )
 
-    timestamps = entity.get_forecast_timestamps()
+    # Get timestamps from manager
+    manager_timestamps = horizon_manager.get_forecast_timestamps()
 
-    assert isinstance(timestamps, tuple)
-    assert len(timestamps) == 4  # 3 periods + 1 end = 4 fence posts
-    assert all(isinstance(ts, float) for ts in timestamps)
+    # Get forecast from entity attributes
+    attrs = entity.extra_state_attributes
+    assert attrs is not None
+    forecast = attrs["forecast"]
 
+    # Should have same number of fence posts
+    assert len(forecast) == len(manager_timestamps)
 
-def test_get_forecast_timestamps_has_correct_intervals(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-) -> None:
-    """get_forecast_timestamps returns timestamps with correct intervals."""
-    entity = HaeoHorizonEntity(
-        hass=hass,
-        config_entry=config_entry,
-        device_entry=device_entry,
-    )
-
-    timestamps = entity.get_forecast_timestamps()
-
-    # Check intervals between fence posts
-    # periods are: 5min (300s), 5min (300s), 15min (900s)
-    assert timestamps[1] - timestamps[0] == 300.0
-    assert timestamps[2] - timestamps[1] == 300.0
-    assert timestamps[3] - timestamps[2] == 900.0
-
-
-def test_scheduled_update_writes_state(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-) -> None:
-    """Scheduled update triggers state write for HA state tracking."""
-    entity = HaeoHorizonEntity(
-        hass=hass,
-        config_entry=config_entry,
-        device_entry=device_entry,
-    )
-    entity.async_write_ha_state = Mock()
-
-    # Trigger the scheduled update callback
-    entity._async_scheduled_update(dt_util.utcnow())
-
-    entity.async_write_ha_state.assert_called_once()
+    # Timestamps should match
+    for i, entry in enumerate(forecast):
+        expected_time = datetime.fromtimestamp(manager_timestamps[i], tz=dt_util.get_default_time_zone())
+        assert entry["time"] == expected_time
 
 
 # --- Tests for state attributes ---
@@ -171,6 +117,7 @@ def test_scheduled_update_writes_state(
 def test_extra_state_attributes(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
+    horizon_manager: HorizonManager,
     device_entry: Mock,
 ) -> None:
     """Entity has expected extra state attributes."""
@@ -178,6 +125,7 @@ def test_extra_state_attributes(
         hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
+        horizon_manager=horizon_manager,
     )
 
     attrs = entity.extra_state_attributes
@@ -193,6 +141,7 @@ def test_extra_state_attributes(
 def test_forecast_attribute_contains_timestamps(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
+    horizon_manager: HorizonManager,
     device_entry: Mock,
 ) -> None:
     """Forecast attribute contains list of timestamp dicts."""
@@ -200,6 +149,7 @@ def test_forecast_attribute_contains_timestamps(
         hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
+        horizon_manager=horizon_manager,
     )
 
     attrs = entity.extra_state_attributes
@@ -220,6 +170,7 @@ def test_forecast_attribute_contains_timestamps(
 def test_native_value_is_start_time_iso(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
+    horizon_manager: HorizonManager,
     device_entry: Mock,
 ) -> None:
     """Native value is the start timestamp in ISO format."""
@@ -227,6 +178,7 @@ def test_native_value_is_start_time_iso(
         hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
+        horizon_manager=horizon_manager,
     )
 
     # Native value should be a string (ISO format)
@@ -240,6 +192,7 @@ def test_native_value_is_start_time_iso(
 def test_entity_category_is_diagnostic(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
+    horizon_manager: HorizonManager,
     device_entry: Mock,
 ) -> None:
     """Entity should be DIAGNOSTIC category."""
@@ -247,6 +200,7 @@ def test_entity_category_is_diagnostic(
         hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
+        horizon_manager=horizon_manager,
     )
 
     assert entity.entity_category == EntityCategory.DIAGNOSTIC
@@ -255,40 +209,44 @@ def test_entity_category_is_diagnostic(
 # --- Tests for lifecycle ---
 
 
-async def test_async_added_to_hass_schedules_timer(
+async def test_async_added_to_hass_subscribes_to_manager(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
+    horizon_manager: HorizonManager,
     device_entry: Mock,
 ) -> None:
-    """Adding entity to hass schedules the update timer."""
+    """Adding entity to hass subscribes to horizon manager."""
     entity = HaeoHorizonEntity(
         hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
+        horizon_manager=horizon_manager,
     )
 
-    # Timer should be scheduled after init
-    assert entity._unsub_timer is None
+    # Subscription should be None before added to hass
+    assert entity._unsub_horizon is None
 
-    # After adding to hass, timer should be set
+    # After adding to hass, subscription should be set
     await entity.async_added_to_hass()
-    assert entity._unsub_timer is not None
+    assert entity._unsub_horizon is not None
 
 
-async def test_async_will_remove_from_hass_cancels_timer(
+async def test_async_will_remove_from_hass_unsubscribes(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
+    horizon_manager: HorizonManager,
     device_entry: Mock,
 ) -> None:
-    """Removing entity from hass cancels the timer."""
+    """Removing entity from hass unsubscribes from manager."""
     entity = HaeoHorizonEntity(
         hass=hass,
         config_entry=config_entry,
         device_entry=device_entry,
+        horizon_manager=horizon_manager,
     )
 
     await entity.async_added_to_hass()
-    assert entity._unsub_timer is not None
+    assert entity._unsub_horizon is not None
 
     await entity.async_will_remove_from_hass()
-    assert entity._unsub_timer is None
+    assert entity._unsub_horizon is None

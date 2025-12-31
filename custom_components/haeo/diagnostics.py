@@ -19,9 +19,22 @@ from .const import (
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
 )
-from .coordinator import extract_entity_ids_from_config
-from .elements import is_element_config_schema
+from .elements import ElementConfigSchema, is_element_config_schema
 from .sensor_utils import get_output_sensors
+
+
+def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
+    """Extract entity IDs from element configuration.
+
+    Entity IDs are stored as list[str] values for fields that reference sensors.
+    This function iterates over all config values and collects entity IDs.
+    """
+    entity_ids: set[str] = set()
+    for value in config.values():
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            # Check if items look like entity IDs (contain a dot)
+            entity_ids.update(item for item in value if "." in item)
+    return entity_ids
 
 
 async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, Any]:
@@ -64,7 +77,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, config_entry: 
         participant_config[CONF_ELEMENT_TYPE] = subentry.subentry_type
         # Extract entity IDs from valid element configs only
         if is_element_config_schema(participant_config):
-            extracted_ids = extract_entity_ids_from_config(participant_config)
+            extracted_ids = _extract_entity_ids_from_config(participant_config)
             all_entity_ids.update(extracted_ids)
 
     # Extract input states as dicts

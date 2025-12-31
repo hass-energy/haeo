@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from homeassistant.components.number import NumberEntityDescription, RestoreNumber
 from homeassistant.config_entries import ConfigSubentry
@@ -16,9 +16,7 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-
-if TYPE_CHECKING:
-    from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+from custom_components.haeo.horizon import HorizonManager
 
 
 class ConfigEntityMode(Enum):
@@ -53,14 +51,14 @@ class HaeoInputNumber(RestoreNumber):
         subentry: ConfigSubentry,
         field_info: InputFieldInfo[NumberEntityDescription],
         device_entry: DeviceEntry,
-        horizon_entity: "HaeoHorizonEntity",
+        horizon_manager: HorizonManager,
     ) -> None:
         """Initialize the input number entity."""
         self._hass = hass
         self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
         self._field_info = field_info
-        self._horizon_entity = horizon_entity
+        self._horizon_manager = horizon_manager
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
@@ -111,19 +109,15 @@ class HaeoInputNumber(RestoreNumber):
         self._horizon_unsub: Callable[[], None] | None = None
 
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
-        """Get forecast timestamps from horizon entity."""
-        return self._horizon_entity.get_forecast_timestamps()
+        """Get forecast timestamps from horizon manager."""
+        return self._horizon_manager.get_forecast_timestamps()
 
     async def async_added_to_hass(self) -> None:
         """Set up state tracking and restore previous value."""
         await super().async_added_to_hass()
 
-        # Subscribe to horizon entity state changes for consistent time windows
-        self._horizon_unsub = async_track_state_change_event(
-            self._hass,
-            [self._horizon_entity.entity_id],
-            self._handle_horizon_state_change,
-        )
+        # Subscribe to horizon manager for consistent time windows
+        self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             # Restore previous value if available
@@ -153,8 +147,8 @@ class HaeoInputNumber(RestoreNumber):
         await super().async_will_remove_from_hass()
 
     @callback
-    def _handle_horizon_state_change(self, _event: Event[EventStateChangedData]) -> None:
-        """Handle horizon state change - refresh forecast with new time windows."""
+    def _handle_horizon_change(self) -> None:
+        """Handle horizon change - refresh forecast with new time windows."""
         if self._entity_mode == ConfigEntityMode.EDITABLE:
             self._update_editable_forecast()
             self.async_write_ha_state()
@@ -216,6 +210,25 @@ class HaeoInputNumber(RestoreNumber):
             extra_attrs["forecast"] = forecast
 
         self._attr_extra_state_attributes = extra_attrs
+
+    @property
+    def horizon_start(self) -> float | None:
+        """Return the first forecast timestamp, or None if not loaded."""
+        forecast = self._attr_extra_state_attributes.get("forecast")
+        if forecast and len(forecast) > 0:
+            first_point = forecast[0]
+            if isinstance(first_point, dict) and "time" in first_point:
+                time_val = first_point["time"]
+                if isinstance(time_val, datetime):
+                    return time_val.timestamp()
+        return None
+
+    def get_values(self) -> tuple[float, ...] | None:
+        """Return the forecast values as a tuple, or None if not loaded."""
+        forecast = self._attr_extra_state_attributes.get("forecast")
+        if forecast:
+            return tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
+        return None
 
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.

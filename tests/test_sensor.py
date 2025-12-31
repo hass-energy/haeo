@@ -44,6 +44,22 @@ def _create_mock_coordinator() -> Mock:
     return coordinator
 
 
+def _create_mock_horizon_manager() -> Mock:
+    """Create a mock horizon manager for tests."""
+    horizon = Mock()
+    horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
+    horizon.period_count = 3
+    horizon.smallest_period = 300
+    horizon.subscribe.return_value = Mock()  # Unsubscribe callback
+    return horizon
+
+
+def _create_mock_runtime_data(coordinator: Mock) -> HaeoRuntimeData:
+    """Create mock runtime data with horizon manager and coordinator."""
+    horizon = _create_mock_horizon_manager()
+    return HaeoRuntimeData(horizon_manager=horizon, coordinator=coordinator)
+
+
 def _make_output(
     *,
     type_: OutputType,
@@ -168,7 +184,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
             },
         },
     }
-    config_entry.runtime_data = HaeoRuntimeData(coordinator=coordinator)
+    config_entry.runtime_data = _create_mock_runtime_data(coordinator)
 
     async_add_entities = Mock()
 
@@ -217,23 +233,26 @@ async def test_async_setup_entry_creates_horizon_when_no_outputs(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
-    """Horizon entity is created even when coordinator data is empty.
+    """Horizon entity is added even when coordinator data is empty.
 
     The horizon entity is essential for input entities to function,
-    so it must be created regardless of optimization output availability.
+    so it must be included regardless of optimization output availability.
     """
     coordinator = _create_mock_coordinator()
     coordinator.data = {}
-    config_entry.runtime_data = HaeoRuntimeData(coordinator=coordinator)
+    config_entry.runtime_data = _create_mock_runtime_data(coordinator)
 
     async_add_entities = Mock()
 
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    # Horizon entity is always created for network subentry
+    # Horizon entity is always added (created in sensor platform from horizon_manager)
     async_add_entities.assert_called_once()
     entities = async_add_entities.call_args[0][0]
     assert len(entities) == 1
+    # The first entity is the HaeoHorizonEntity created in sensor platform
+    from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+
     assert isinstance(entities[0], HaeoHorizonEntity)
 
 
@@ -431,7 +450,7 @@ async def test_async_setup_entry_creates_sub_device_sensors(
             },
         },
     }
-    config_entry.runtime_data = HaeoRuntimeData(coordinator=coordinator)
+    config_entry.runtime_data = _create_mock_runtime_data(coordinator)
 
     async_add_entities = Mock()
 

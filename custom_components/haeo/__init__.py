@@ -15,13 +15,21 @@ from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.horizon import HorizonManager
 
 if TYPE_CHECKING:
-    from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+    from custom_components.haeo.entities.haeo_number import HaeoInputNumber
+    from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH]
+
+# Platforms that provide input entities (must be set up before coordinator)
+INPUT_PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SWITCH]
+
+# Platforms that consume coordinator data (set up after coordinator)
+OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
 @dataclass(slots=True)
@@ -29,13 +37,15 @@ class HaeoRuntimeData:
     """Runtime data for HAEO integration.
 
     Attributes:
-        coordinator: Coordinator for network-level optimization.
-        horizon_entity: Entity providing forecast time windows (set during sensor setup).
+        horizon_manager: Manager providing forecast time windows.
+        input_entities: Dict of input entities keyed by (element_name, field_name).
+        coordinator: Coordinator for network-level optimization (set after input platforms).
 
     """
 
-    coordinator: HaeoDataUpdateCoordinator
-    horizon_entity: HaeoHorizonEntity | None = field(default=None)
+    horizon_manager: HorizonManager
+    input_entities: dict[tuple[str, str], HaeoInputNumber | HaeoInputSwitch] = field(default_factory=dict)
+    coordinator: HaeoDataUpdateCoordinator | None = field(default=None)
 
 
 type HaeoConfigEntry = ConfigEntry[HaeoRuntimeData | None]
@@ -118,23 +128,57 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 
-    # Create coordinator for optimization
-    coordinator = HaeoDataUpdateCoordinator(hass, entry)
+    # Find network subentry for network device
+    network_subentry = next(
+        (s for s in entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
+        None,
+    )
+    if network_subentry is None:
+        _LOGGER.error("No network subentry found - cannot create network device")
+        return False
 
-    # Store runtime data (required for platform setup)
-    entry.runtime_data = HaeoRuntimeData(coordinator=coordinator)
+    # Create network device
+    device_registry = dr.async_get(hass)
+    device_registry.async_get_or_create(
+        identifiers={(DOMAIN, f"{entry.entry_id}_{network_subentry.subentry_id}")},
+        config_entry_id=entry.entry_id,
+        config_subentry_id=network_subentry.subentry_id,
+        translation_key=ELEMENT_TYPE_NETWORK,
+        translation_placeholders={"name": network_subentry.title},
+    )
+
+    # Create horizon manager first - input entities and coordinator depend on it
+    # This is a pure Python object, not an entity
+    horizon_manager = HorizonManager(hass=hass, config_entry=entry)
+
+    # Store runtime data with horizon manager (coordinator added later)
+    entry.runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager)
+
+    # Start horizon manager's scheduled updates
+    horizon_manager.start()
+
+    # Register cleanup on unload
+    entry.async_on_unload(horizon_manager.stop)
 
     # Register update listener for config changes and subentry additions/removals
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
-    # Trigger initial optimization before platform setup
+    # Set up input platforms first - they populate runtime_data.input_entities
+    await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
+
+    # Wait for all background tasks to complete (input entities load their data async)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    # Create coordinator after input entities exist - it reads from them
+    coordinator = HaeoDataUpdateCoordinator(hass, entry)
+    entry.runtime_data.coordinator = coordinator
+
+    # Trigger initial optimization before output platform setup
     # This populates coordinator.data so sensor platform can create output entities
     await coordinator.async_config_entry_first_refresh()
 
-    # Set up platforms after coordinator has data
-    # Sensor platform creates output sensors based on coordinator.data and horizon entity
-    # Number/Switch platforms create input entities using horizon entity from sensor setup
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Set up output platforms after coordinator has data
+    await hass.config_entries.async_forward_entry_setups(entry, OUTPUT_PLATFORMS)
 
     _LOGGER.info("HAEO integration setup complete")
     return True
@@ -150,7 +194,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> boo
     if unload_ok:
         # Clean up coordinator resources
         runtime_data = entry.runtime_data
-        if runtime_data is not None:
+        if runtime_data is not None and runtime_data.coordinator is not None:
             runtime_data.coordinator.cleanup()
         entry.runtime_data = None
 

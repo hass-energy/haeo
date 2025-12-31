@@ -29,11 +29,8 @@ async def async_setup_entry(
         msg = "Runtime data not set - integration setup incomplete"
         raise RuntimeError(msg)
 
-    horizon_entity = config_entry.runtime_data.horizon_entity
-    if horizon_entity is None:
-        # No horizon entity means no network subentry was configured
-        _LOGGER.debug("No horizon entity available, skipping number entity setup")
-        return
+    runtime_data = config_entry.runtime_data
+    horizon_manager = runtime_data.horizon_manager
 
     entities: list[HaeoInputNumber] = []
     dr = device_registry.async_get(hass)
@@ -68,16 +65,20 @@ async def async_setup_entry(
             if field_info.field_name not in subentry.data:
                 continue
 
-            entities.append(
-                HaeoInputNumber(
-                    hass=hass,
-                    config_entry=config_entry,
-                    subentry=subentry,
-                    field_info=field_info,
-                    device_entry=device_entry,
-                    horizon_entity=horizon_entity,
-                )
+            entity = HaeoInputNumber(
+                hass=hass,
+                config_entry=config_entry,
+                subentry=subentry,
+                field_info=field_info,
+                device_entry=device_entry,
+                horizon_manager=horizon_manager,
             )
+            entities.append(entity)
+
+            # Register in runtime_data for coordinator access
+            element_name = subentry.title
+            field_name = field_info.field_name
+            runtime_data.input_entities[(element_name, field_name)] = entity
 
     if entities:
         _LOGGER.debug("Creating %d number entities for HAEO inputs", len(entities))

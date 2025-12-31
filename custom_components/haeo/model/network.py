@@ -141,6 +141,7 @@ class Network:
 
         # Collect all cost expressions from elements and set objective
         costs = [c for element in self.elements.values() for c in element.cost()]
+
         if costs:
             h.minimize(Highs.qsum(costs))
         else:
