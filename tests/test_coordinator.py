@@ -4,7 +4,7 @@ from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 import time
 from types import MappingProxyType
-from typing import Any, cast
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -15,6 +15,7 @@ from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
@@ -193,17 +194,25 @@ def patch_state_change_listener() -> Generator[MagicMock]:
         yield mock_track
 
 
+def _get_mock_horizon(runtime_data: HaeoRuntimeData) -> MagicMock:
+    """Get the mock horizon manager from runtime data.
+
+    The horizon_manager in test fixtures is a MagicMock, but typed as HorizonManager.
+    This helper provides proper typing for accessing mock methods.
+    """
+    return runtime_data.horizon_manager  # type: ignore[return-value]
+
+
 @pytest.fixture
-def mock_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> Any:
+def mock_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> HaeoRuntimeData:
     """Create mock runtime data with horizon manager and input entities.
 
-    Returns HaeoRuntimeData but typed as Any so tests can mock horizon_manager methods.
+    The horizon_manager is a MagicMock - use _get_mock_horizon() to access mock methods.
     """
-    from custom_components.haeo import HaeoRuntimeData  # noqa: PLC0415
     from custom_components.haeo.horizon import HorizonManager  # noqa: PLC0415
 
-    # Create mock horizon manager
-    mock_horizon = MagicMock(spec=HorizonManager)
+    # Create mock horizon manager (typed as HorizonManager but is MagicMock at runtime)
+    mock_horizon: Any = MagicMock(spec=HorizonManager)
     mock_horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
     mock_horizon.subscribe.return_value = MagicMock()  # Unsubscribe function
 
@@ -221,7 +230,7 @@ def test_coordinator_initialization_collects_participants(
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
     patch_state_change_listener: MagicMock,
 ) -> None:
     """Coordinator builds participant map from subentries."""
@@ -237,7 +246,7 @@ def test_update_interval_is_none_for_event_driven(
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Update interval is None since coordinator is event-driven."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -251,7 +260,7 @@ async def test_async_update_data_returns_outputs(
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Coordinator returns optimization results merged with element outputs."""
     fake_element = MagicMock()
@@ -288,7 +297,7 @@ async def test_async_update_data_returns_outputs(
     expected_forecast_times = (base_timestamp, base_timestamp + 30 * 60, base_timestamp + 2 * 30 * 60)
 
     # Configure mock horizon manager with forecast timestamps
-    mock_runtime_data.horizon_manager.get_forecast_timestamps.return_value = expected_forecast_times
+    _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = expected_forecast_times
 
     # Mock connection adapter to return proper outputs
     mock_connection_adapter = MagicMock()
@@ -387,7 +396,7 @@ async def test_async_update_data_raises_on_missing_sensors(
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Coordinator raises UpdateFailed when input entity data is unavailable."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -411,7 +420,7 @@ async def test_async_update_data_propagates_update_failed(
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Coordinator surfaces loader failures as UpdateFailed."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -429,7 +438,7 @@ async def test_async_update_data_propagates_value_error(
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Coordinator allows unexpected errors to bubble up."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -446,7 +455,7 @@ async def test_async_update_data_raises_on_missing_model_element(
     hass: HomeAssistant,
     mock_hub_entry: ConfigEntry,
     mock_battery_subentry: ConfigSubentry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Coordinator should surface KeyError when adapter cannot find model element outputs."""
@@ -541,7 +550,7 @@ def test_coordinator_cleanup_invokes_listener(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
     patch_state_change_listener: MagicMock,
 ) -> None:
     """cleanup() should call the unsubscribe callback and clear the reference."""
@@ -570,7 +579,7 @@ def test_coordinator_cleanup_invokes_listener(
 def test_input_state_change_triggers_optimization(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Input entity state change events trigger optimization via debounce logic."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -586,7 +595,7 @@ def test_input_state_change_triggers_optimization(
 def test_horizon_change_triggers_optimization(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Horizon manager changes trigger optimization via debounce logic."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -601,7 +610,7 @@ def test_horizon_change_triggers_optimization(
 def test_trigger_optimization_marks_pending_when_in_progress(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Trigger marks pending and exits if optimization already in progress."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -617,7 +626,7 @@ def test_trigger_optimization_marks_pending_when_in_progress(
 def test_trigger_optimization_schedules_timer_in_cooldown(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Trigger schedules timer when within cooldown period."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -640,7 +649,7 @@ def test_trigger_optimization_schedules_timer_in_cooldown(
 def test_trigger_optimization_reuses_existing_timer(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Trigger reuses existing timer rather than scheduling new one."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -661,7 +670,7 @@ def test_trigger_optimization_reuses_existing_timer(
 def test_debounce_timer_callback_clears_timer(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Debounce timer callback clears timer reference."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -677,7 +686,7 @@ def test_debounce_timer_callback_clears_timer(
 def test_debounce_timer_callback_triggers_refresh_if_pending(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Debounce timer callback triggers refresh when pending."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -695,7 +704,7 @@ def test_debounce_timer_callback_triggers_refresh_if_pending(
 def test_maybe_trigger_refresh_skips_when_not_aligned(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Coordinator skips refresh when inputs are not aligned."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -713,7 +722,7 @@ def test_maybe_trigger_refresh_skips_when_not_aligned(
 def test_maybe_trigger_refresh_creates_task_when_aligned(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Coordinator creates refresh task when inputs are aligned."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -754,10 +763,10 @@ def test_are_inputs_aligned_returns_false_without_runtime_data(
 def test_are_inputs_aligned_returns_false_without_horizon(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Input alignment check returns False when no forecast timestamps."""
-    mock_runtime_data.horizon_manager.get_forecast_timestamps.return_value = ()
+    _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = ()
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     result = coordinator._are_inputs_aligned()
@@ -769,10 +778,10 @@ def test_are_inputs_aligned_returns_false_without_horizon(
 def test_are_inputs_aligned_returns_false_with_none_horizon_start(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Input alignment check returns False when entity has None horizon_start."""
-    mock_runtime_data.horizon_manager.get_forecast_timestamps.return_value = (1000.0, 2000.0)
+    _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (1000.0, 2000.0)
 
     # Add mock input entity with None horizon_start
     mock_entity = MagicMock()
@@ -790,11 +799,11 @@ def test_are_inputs_aligned_returns_false_with_none_horizon_start(
 def test_are_inputs_aligned_returns_false_with_misaligned_horizon(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Input alignment check returns False when horizons differ by more than tolerance."""
     expected_start = 1000.0
-    mock_runtime_data.horizon_manager.get_forecast_timestamps.return_value = (expected_start, 2000.0)
+    _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (expected_start, 2000.0)
 
     # Add mock input entity with misaligned horizon (more than 1.0 seconds off)
     mock_entity = MagicMock()
@@ -812,11 +821,11 @@ def test_are_inputs_aligned_returns_false_with_misaligned_horizon(
 def test_are_inputs_aligned_returns_true_when_aligned(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Input alignment check returns True when all horizons match."""
     expected_start = 1000.0
-    mock_runtime_data.horizon_manager.get_forecast_timestamps.return_value = (expected_start, 2000.0)
+    _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (expected_start, 2000.0)
 
     # Add mock input entity with aligned horizon (within tolerance)
     mock_entity = MagicMock()
@@ -834,7 +843,7 @@ def test_are_inputs_aligned_returns_true_when_aligned(
 async def test_async_update_data_returns_existing_when_concurrent(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Coordinator returns existing data when optimization is in progress."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -853,7 +862,7 @@ async def test_async_update_data_returns_existing_when_concurrent(
 async def test_async_update_data_raises_on_concurrent_first_refresh(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Coordinator raises UpdateFailed for concurrent calls during first refresh."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -870,7 +879,7 @@ async def test_async_update_data_raises_on_concurrent_first_refresh(
 async def test_async_update_data_clears_flags_in_finally(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Coordinator clears optimization flags even on exception."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -919,7 +928,7 @@ def test_cleanup_clears_debounce_timer(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """cleanup() cancels debounce timer if set."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -937,7 +946,7 @@ def test_cleanup_clears_debounce_timer(
 def test_trigger_optimization_optimizes_immediately_outside_cooldown(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Trigger optimizes immediately when outside cooldown period."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -955,7 +964,7 @@ def test_trigger_optimization_optimizes_immediately_outside_cooldown(
 def test_load_from_input_entities_raises_on_missing_input_entity(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Loading from input entities raises RuntimeError when input entity is missing."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -971,7 +980,7 @@ def test_load_from_input_entities_raises_on_missing_input_entity(
 def test_load_from_input_entities_loads_time_series_fields(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Time series fields are loaded as lists from input entities."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -987,8 +996,9 @@ def test_load_from_input_entities_loads_time_series_fields(
     result = coordinator._load_from_input_entities()
 
     assert "Test Battery" in result
-    # Capacity should be a list (time series field)
-    battery_config = cast("dict[str, Any]", result["Test Battery"])
+    # Narrow the discriminated union type using element_type
+    battery_config = result["Test Battery"]
+    assert battery_config["element_type"] == "battery"
     assert battery_config["capacity"] == [1.0, 2.0, 3.0]
 
 
@@ -996,7 +1006,7 @@ def test_load_from_input_entities_loads_time_series_fields(
 def test_load_from_input_entities_raises_update_failed_when_values_none(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Loading raises UpdateFailed when input entity has no values."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
@@ -1016,7 +1026,7 @@ def test_load_from_input_entities_raises_update_failed_when_values_none(
 async def test_async_update_data_raises_when_runtime_data_none_in_body(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: Any,
+    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
     """Optimization raises when runtime data becomes None during execution."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
