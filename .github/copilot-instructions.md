@@ -77,6 +77,20 @@ Rely on errors occurring if they do not when they indicate a coding error and no
 This is especially true in tests where you have added entities and then must access them later.
 Having None checks there reduces readability and makes the test more fragile to passing unexpectedly.
 
+### Documentation style
+
+When documenting functions, don't include Args or Returns sections when the documentation is self-evident.
+Prefer simple docstrings with informative argument names rather than repeating argument names in docstrings.
+Only include Args/Returns sections when they add value beyond what's already clear from the function signature.
+For example, if a function takes `battery_capacity_kwh: float`, the docstring doesn't need to say "battery_capacity_kwh: The battery capacity in kilowatt-hours" - the name and type already convey this.
+
+### No fallback values
+
+Never implement fallback values in code.
+Either the main codepath works properly or there is an error.
+Fallback values create confusion and make debugging difficult when something is broken but isn't surfaced due to fallback values hiding the issue.
+If a value cannot be obtained or computed correctly, raise an error rather than silently falling back to a default value.
+
 ### Code review guidelines
 
 When reviewing code, rely on linting tools (Ruff and Pyright) to identify issues that they can detect.
