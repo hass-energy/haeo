@@ -25,7 +25,7 @@ from custom_components.haeo.const import (
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.elements.load import LOAD_POWER
-from custom_components.haeo.entities import HaeoHorizonEntity, HaeoSensor
+from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.model import OUTPUT_TYPE_DURATION, OUTPUT_TYPE_POWER, OUTPUT_TYPE_STATUS, OutputType
 from custom_components.haeo.sensor import async_setup_entry
 

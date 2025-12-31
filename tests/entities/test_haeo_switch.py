@@ -18,7 +18,6 @@ from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.horizon import HorizonManager
 
-
 # --- Fixtures ---
 
 

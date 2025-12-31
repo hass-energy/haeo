@@ -51,7 +51,6 @@ from custom_components.haeo.elements import (
     ELEMENT_TYPE_CONNECTION,
     ELEMENT_TYPE_GRID,
     ELEMENT_TYPES,
-    ElementConfigSchema,
 )
 from custom_components.haeo.elements.battery import (
     BATTERY_DEVICE_BATTERY,
@@ -62,7 +61,6 @@ from custom_components.haeo.elements.battery import (
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
-    BatteryConfigSchema,
 )
 from custom_components.haeo.elements.connection import (
     CONF_SOURCE,
