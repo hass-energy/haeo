@@ -8,7 +8,7 @@ import pytest
 from custom_components.haeo.schema.util import UnitSpec, matches_unit_spec
 
 
-class TestCurrency(Enum):
+class MockCurrency(Enum):
     """Mock currency enum for testing."""
 
     USD = "$"

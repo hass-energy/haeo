@@ -6,33 +6,33 @@ from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 
+from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_MAX_SOURCE_TARGET,
-    CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
-    CONNECTION_PRICE_SOURCE_TARGET,
-    CONNECTION_PRICE_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 
 from .flow import GridSubentryFlowHandler
-from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigData, GridConfigSchema
+from .schema import (
+    CONF_CONNECTION,
+    DEFAULT_EXPORT_PRICE,
+    DEFAULT_IMPORT_PRICE,
+    ELEMENT_TYPE,
+    GridConfigData,
+    GridConfigSchema,
+)
 
 # Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[
     "grid_power_import",
     "grid_power_export",
     "grid_power_active",
-    "grid_power_max_import",
-    "grid_power_max_export",
-    "grid_price_import",
-    "grid_price_export",
     "grid_power_max_import_price",
     "grid_power_max_export_price",
 ]
@@ -42,10 +42,6 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
         GRID_POWER_IMPORT := "grid_power_import",
         GRID_POWER_EXPORT := "grid_power_export",
         GRID_POWER_ACTIVE := "grid_power_active",
-        GRID_POWER_MAX_IMPORT := "grid_power_max_import",
-        GRID_POWER_MAX_EXPORT := "grid_power_max_export",
-        GRID_PRICE_IMPORT := "grid_price_import",
-        GRID_PRICE_EXPORT := "grid_price_export",
         # Shadow prices
         GRID_POWER_MAX_IMPORT_PRICE := "grid_power_max_import_price",
         GRID_POWER_MAX_EXPORT_PRICE := "grid_power_max_export_price",
@@ -65,16 +61,16 @@ class GridAdapter:
     element_type: str = ELEMENT_TYPE
     flow_class: type = GridSubentryFlowHandler
     advanced: bool = False
-    connectivity: str = "advanced"
+    connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
     def available(self, config: GridConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if grid configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        # Check required time series fields
-        if not ts_loader.available(hass=hass, value=config["import_price"]):
-            return False
-        return ts_loader.available(hass=hass, value=config["export_price"])
+        # Empty price lists are valid - uses default prices from schema
+        import_available = not config["import_price"] or ts_loader.available(hass=hass, value=config["import_price"])
+        export_available = not config["export_price"] or ts_loader.available(hass=hass, value=config["export_price"])
+        return import_available and export_available
 
     async def load(
         self,
@@ -87,16 +83,24 @@ class GridAdapter:
         ts_loader = TimeSeriesLoader()
         const_loader = ConstantLoader[float](float)
 
-        import_price = await ts_loader.load(
-            hass=hass,
-            value=config["import_price"],
-            forecast_times=forecast_times,
-        )
-        export_price = await ts_loader.load(
-            hass=hass,
-            value=config["export_price"],
-            forecast_times=forecast_times,
-        )
+        # Use default prices from schema when no sensors are configured
+        if not config["import_price"]:
+            import_price = [DEFAULT_IMPORT_PRICE for _ in forecast_times]
+        else:
+            import_price = await ts_loader.load(
+                hass=hass,
+                value=config["import_price"],
+                forecast_times=forecast_times,
+            )
+
+        if not config["export_price"]:
+            export_price = [DEFAULT_EXPORT_PRICE for _ in forecast_times]
+        else:
+            export_price = await ts_loader.load(
+                hass=hass,
+                value=config["export_price"],
+                forecast_times=forecast_times,
+            )
 
         data: GridConfigData = {
             "element_type": config["element_type"],
@@ -164,17 +168,10 @@ class GridAdapter:
         )
 
         # Output the given inputs if they exist
-        if CONNECTION_POWER_MAX_TARGET_SOURCE in connection:
-            grid_outputs[GRID_POWER_MAX_EXPORT] = connection[CONNECTION_POWER_MAX_TARGET_SOURCE]
+        if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
             grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
-        if CONNECTION_POWER_MAX_SOURCE_TARGET in connection:
-            grid_outputs[GRID_POWER_MAX_IMPORT] = connection[CONNECTION_POWER_MAX_SOURCE_TARGET]
+        if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
             grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
-
-        # Negate export price values for display (so they appear positive)
-        export_price_data = connection[CONNECTION_PRICE_TARGET_SOURCE]
-        grid_outputs[GRID_PRICE_EXPORT] = replace(export_price_data, values=[-v for v in export_price_data.values])
-        grid_outputs[GRID_PRICE_IMPORT] = replace(connection[CONNECTION_PRICE_SOURCE_TARGET])
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

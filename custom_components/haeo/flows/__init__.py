@@ -278,7 +278,7 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
                 default=config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES),
             ): vol.All(
                 NumberSelector(
-                    NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.SLIDER),
+                    NumberSelectorConfig(min=1, max=120, step=1, mode=NumberSelectorMode.BOX),
                 ),
                 vol.Coerce(int),
             ),
@@ -287,7 +287,7 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
                 default=config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS),
             ): vol.All(
                 NumberSelector(
-                    NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.SLIDER),
+                    NumberSelectorConfig(min=0, max=30, step=1, mode=NumberSelectorMode.BOX),
                 ),
                 vol.Coerce(int),
             ),

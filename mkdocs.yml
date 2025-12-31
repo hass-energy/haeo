@@ -189,6 +189,8 @@ nav:
           - Device Layer Template: developer-guide/templates/device-layer-template.md
       - Architecture: developer-guide/architecture.md
       - Adapter Layer: developer-guide/adapter-layer.md
+      - Horizon Manager: developer-guide/horizon-manager.md
+      - Input Entities: developer-guide/inputs.md
       - Setup: developer-guide/setup.md
       - Typing Philosophy: developer-guide/typing.md
       - Units & Stability: developer-guide/units.md

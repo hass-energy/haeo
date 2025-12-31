@@ -259,7 +259,32 @@ In this example:
 - Higher undercharge cost reflects greater degradation risk at low SOC
 - Optimizer will use extended sections only when grid conditions justify the penalties
 
+### Input Entities
+
+Each configuration field creates a corresponding input entity in Home Assistant.
+Input entities appear as Number entities with the `config` entity category.
+
+| Input                                                | Unit   | Description                                    |
+| ---------------------------------------------------- | ------ | ---------------------------------------------- |
+| `number.{name}_capacity`                             | kWh    | Battery storage capacity                       |
+| `number.{name}_soc`                                  | %      | Current state of charge from sensor            |
+| `number.{name}_soc_min`                              | %      | Preferred minimum SOC (normal section floor)   |
+| `number.{name}_soc_max`                              | %      | Preferred maximum SOC (normal section ceiling) |
+| `number.{name}_soc_target`                           | %      | Target SOC at end of horizon                   |
+| `number.{name}_max_charge_power`                     | kW     | Maximum charging power                         |
+| `number.{name}_max_discharge_power`                  | kW     | Maximum discharging power                      |
+| `number.{name}_charge_cost_per_cycle`                | -      | Base cycle degradation cost                    |
+| `number.{name}_charge_cost_per_kwh`                  | \$/kWh | Per-kWh charging cost                          |
+| `number.{name}_undercharge_soc`                      | %      | Hard minimum SOC limit (if configured)         |
+| `number.{name}_overcharge_soc`                       | %      | Hard maximum SOC limit (if configured)         |
+| `number.{name}_undercharge_cost` / `overcharge_cost` | \$/kWh | Penalty costs for extended regions             |
+
+Input entities include a `forecast` attribute showing values for each optimization period.
+See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+
 ## Sensors Created
+
+### Sensor Summary
 
 A Battery element creates 1-4 devices in Home Assistant depending on configuration:
 
@@ -284,19 +309,17 @@ These sensors appear on the main battery device:
 
 These sensors appear on region-specific devices (undercharge, normal, overcharge) when configured:
 
-| Sensor                                                                       | Unit   | Description                          |
-| ---------------------------------------------------------------------------- | ------ | ------------------------------------ |
-| [`sensor.{name}_{region}_energy_stored`](#energy-stored-by-region)           | kWh    | Energy in this region                |
-| [`sensor.{name}_{region}_power_charge`](#chargedischarge-power-by-region)    | kW     | Charging power in this region        |
-| [`sensor.{name}_{region}_power_discharge`](#chargedischarge-power-by-region) | kW     | Discharging power in this region     |
-| [`sensor.{name}_{region}_charge_price`](#chargedischarge-price-by-region)    | \$/kWh | Charging price in this region        |
-| [`sensor.{name}_{region}_discharge_price`](#chargedischarge-price-by-region) | \$/kWh | Discharging price in this region     |
-| [`sensor.{name}_{region}_energy_in_flow`](#energy-flow-by-region)            | kWh    | Energy flowing into this region      |
-| [`sensor.{name}_{region}_energy_out_flow`](#energy-flow-by-region)           | kWh    | Energy flowing out of this region    |
-| [`sensor.{name}_{region}_soc_max`](#soc-bounds-by-region)                    | %      | Maximum SOC for this region          |
-| [`sensor.{name}_{region}_soc_min`](#soc-bounds-by-region)                    | %      | Minimum SOC for this region          |
-| [`sensor.{name}_{region}_balance_power_down`](#balance-power-by-region)      | kW     | Power flowing down into this section |
-| [`sensor.{name}_{region}_balance_power_up`](#balance-power-by-region)        | kW     | Power flowing up out of this section |
+| Sensor                                                                       | Unit | Description                          |
+| ---------------------------------------------------------------------------- | ---- | ------------------------------------ |
+| [`sensor.{name}_{region}_energy_stored`](#energy-stored-by-region)           | kWh  | Energy in this region                |
+| [`sensor.{name}_{region}_power_charge`](#chargedischarge-power-by-region)    | kW   | Charging power in this region        |
+| [`sensor.{name}_{region}_power_discharge`](#chargedischarge-power-by-region) | kW   | Discharging power in this region     |
+| [`sensor.{name}_{region}_energy_in_flow`](#energy-flow-by-region)            | kWh  | Energy flowing into this region      |
+| [`sensor.{name}_{region}_energy_out_flow`](#energy-flow-by-region)           | kWh  | Energy flowing out of this region    |
+| [`sensor.{name}_{region}_soc_max`](#soc-bounds-by-region)                    | %    | Maximum SOC for this region          |
+| [`sensor.{name}_{region}_soc_min`](#soc-bounds-by-region)                    | %    | Minimum SOC for this region          |
+| [`sensor.{name}_{region}_balance_power_down`](#balance-power-by-region)      | kW   | Power flowing down into this section |
+| [`sensor.{name}_{region}_balance_power_up`](#balance-power-by-region)        | kW   | Power flowing up out of this section |
 
 ### Balance Power (by region)
 
@@ -362,13 +385,6 @@ A nonzero value in undercharge or overcharge regions indicates the battery is op
 Shows power flowing into or out of each region.
 Undercharge discharge incurs penalties; overcharge charge incurs penalties.
 Moving toward normal operation (charging undercharge, discharging overcharge) has no penalty.
-
-### Charge/Discharge Price (by region)
-
-Shows effective costs/revenue for each region.
-Undercharge discharge price includes the undercharge penalty (may be negative, meaning discharge costs money).
-Overcharge charge price includes the overcharge penalty.
-Normal region prices reflect base costs only.
 
 ### Energy Flow (by region)
 

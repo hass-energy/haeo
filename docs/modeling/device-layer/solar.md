@@ -53,7 +53,7 @@ The adapter transforms user configuration into model parameters:
 | `power_available` | kW    | Real-time | Maximum available solar power           |
 | `forecast_limit`  | \$/kW | Real-time | Value of additional generation capacity |
 
-See [Solar Configuration](../../user-guide/elements/solar.md#sensors-created) for detailed sensor documentation.
+See [Solar Configuration](../../user-guide/elements/solar.md) for detailed sensor and configuration documentation.
 
 ## Configuration Examples
 

@@ -156,19 +156,17 @@ The adapter aggregates model outputs to user-friendly sensor names:
 
 **Section device outputs** (undercharge, normal, overcharge):
 
-| Model Output(s)                             | Sensor Name          | Description                          |
-| ------------------------------------------- | -------------------- | ------------------------------------ |
-| Section `BATTERY_ENERGY_STORED`             | `energy_stored`      | Energy stored in this section        |
-| Section `BATTERY_POWER_CHARGE`              | `power_charge`       | Charge power in this section         |
-| Section `BATTERY_POWER_DISCHARGE`           | `power_discharge`    | Discharge power in this section      |
-| Connection `CONNECTION_PRICE_TARGET_SOURCE` | `charge_price`       | Charge price for this section        |
-| Connection `CONNECTION_PRICE_SOURCE_TARGET` | `discharge_price`    | Discharge price for this section     |
-| Section `BATTERY_ENERGY_IN_FLOW`            | `energy_in_flow`     | Energy in flow shadow price          |
-| Section `BATTERY_ENERGY_OUT_FLOW`           | `energy_out_flow`    | Energy out flow shadow price         |
-| Section `BATTERY_SOC_MAX`                   | `soc_max`            | SOC max shadow price                 |
-| Section `BATTERY_SOC_MIN`                   | `soc_min`            | SOC min shadow price                 |
-| Balance connection `BALANCE_POWER_DOWN`     | `balance_power_down` | Power flowing down into this section |
-| Balance connection `BALANCE_POWER_UP`       | `balance_power_up`   | Power flowing up out of this section |
+| Model Output(s)                         | Sensor Name          | Description                          |
+| --------------------------------------- | -------------------- | ------------------------------------ |
+| Section `BATTERY_ENERGY_STORED`         | `energy_stored`      | Energy stored in this section        |
+| Section `BATTERY_POWER_CHARGE`          | `power_charge`       | Charge power in this section         |
+| Section `BATTERY_POWER_DISCHARGE`       | `power_discharge`    | Discharge power in this section      |
+| Section `BATTERY_ENERGY_IN_FLOW`        | `energy_in_flow`     | Energy in flow shadow price          |
+| Section `BATTERY_ENERGY_OUT_FLOW`       | `energy_out_flow`    | Energy out flow shadow price         |
+| Section `BATTERY_SOC_MAX`               | `soc_max`            | SOC max shadow price                 |
+| Section `BATTERY_SOC_MIN`               | `soc_min`            | SOC min shadow price                 |
+| Balance connection `BALANCE_POWER_DOWN` | `balance_power_down` | Power flowing down into this section |
+| Balance connection `BALANCE_POWER_UP`   | `balance_power_up`   | Power flowing up out of this section |
 
 The `balance_power_down` and `balance_power_up` sensors show power flowing through balance connections with adjacent sections.
 Each section accumulates power from all adjacent balance connections (sections can have connections both above and below).

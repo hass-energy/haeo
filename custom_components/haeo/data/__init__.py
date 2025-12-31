@@ -93,15 +93,13 @@ async def load_network(
         periods_seconds: Sequence of optimization period durations in seconds
         participants: Mapping of element names to loaded configurations (with values)
 
+    Returns:
+        Network instance ready for optimization (may be empty if no participants)
+
     Raises:
         ValueError: when required sensor/forecast data is missing.
 
     """
-    if not participants:
-        _LOGGER.warning("No participants configured for hub")
-        msg = "No participants configured"
-        raise ValueError(msg)
-
     # ==================================================================================
     # Unit boundary: seconds → hours
     # ==================================================================================
@@ -113,6 +111,10 @@ async def load_network(
 
     # Build network with periods in hours
     net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
+
+    if not participants:
+        _LOGGER.info("No participants configured for hub - returning empty network")
+        return net
 
     # Collect all model elements from all config elements
     all_model_elements: list[dict[str, Any]] = []

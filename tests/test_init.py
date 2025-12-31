@@ -11,6 +11,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import (
+    HaeoRuntimeData,
     _ensure_required_subentries,
     async_reload_entry,
     async_remove_config_entry_device,
@@ -23,6 +24,22 @@ from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
+    DEFAULT_TIER_1_COUNT,
+    DEFAULT_TIER_1_DURATION,
+    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
@@ -50,6 +67,14 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Network",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         entry_id="hub_entry_id",
         title="Test HAEO Integration",
@@ -123,6 +148,20 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
     return subentry
 
 
+def _create_mock_horizon_manager() -> Mock:
+    """Create a mock horizon manager for tests."""
+    horizon = Mock()
+    horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
+    horizon.subscribe.return_value = Mock()  # Unsubscribe callback
+    return horizon
+
+
+def _create_mock_runtime_data(coordinator: Mock) -> HaeoRuntimeData:
+    """Create mock runtime data with horizon manager and coordinator."""
+    horizon = _create_mock_horizon_manager()
+    return HaeoRuntimeData(horizon_manager=horizon, coordinator=coordinator)
+
+
 async def test_setup_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test setting up a hub entry."""
     # Test basic hub setup functionality
@@ -136,14 +175,18 @@ async def test_setup_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEn
 async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test unloading a hub entry."""
 
-    # Set up a mock coordinator
-    mock_hub_entry.runtime_data = AsyncMock()
+    # Set up a mock runtime data with proper structure
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
 
     # Test that unload works
     result = await async_unload_entry(hass, mock_hub_entry)
 
     assert result is True
-    # Coordinator should be cleaned up
+    # Coordinator cleanup should be called
+    mock_coordinator.cleanup.assert_called_once()
+    # runtime_data should be cleared
     assert mock_hub_entry.runtime_data is None
 
 
@@ -159,7 +202,7 @@ async def test_async_setup_entry_initializes_coordinator(
             super().__init__()
             self.hass = hass_param
             self.config_entry = entry_param
-            self.async_config_entry_first_refresh = AsyncMock()
+            self.async_refresh = AsyncMock()
             self.cleanup = Mock()
 
     created: list[DummyCoordinator] = []
@@ -179,16 +222,21 @@ async def test_async_setup_entry_initializes_coordinator(
     assert result is True
     assert created, "Coordinator should be instantiated"
     coordinator = created[0]
-    assert mock_hub_entry.runtime_data is coordinator
-    coordinator.async_config_entry_first_refresh.assert_awaited_once()
-    forward_mock.assert_awaited_once()
+    runtime_data = mock_hub_entry.runtime_data
+    assert runtime_data is not None
+    assert runtime_data.coordinator is coordinator
+    coordinator.async_refresh.assert_awaited_once()
+    # forward_mock is called twice: once for INPUT_PLATFORMS, once for OUTPUT_PLATFORMS
+    assert forward_mock.await_count == 2
 
 
 async def test_reload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test reloading a hub entry."""
 
-    # Set up initial mock coordinator
-    mock_hub_entry.runtime_data = AsyncMock()
+    # Set up initial mock coordinator with sync cleanup method
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()  # cleanup is a sync method
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
 
     # Test that reload works
     with suppress(Exception):
@@ -310,8 +358,10 @@ async def test_ensure_required_subentries_skips_switchboard_if_exists(
 
 async def test_reload_entry_failure_handling(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test reload handles setup failures gracefully."""
-    # Mock runtime data
-    mock_hub_entry.runtime_data = AsyncMock()
+    # Mock runtime data with sync cleanup method
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()  # cleanup is a sync method
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
 
     # Attempt reload - should work but may have warnings about state
     try:

@@ -6,6 +6,7 @@ from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 
+from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
@@ -60,7 +61,7 @@ class BatterySectionAdapter:
     element_type: str = ELEMENT_TYPE
     flow_class: type = BatterySectionSubentryFlowHandler
     advanced: bool = True
-    connectivity: str = "always"
+    connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
     def available(self, config: BatterySectionConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if battery section configuration can be loaded."""

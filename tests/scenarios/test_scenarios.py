@@ -102,15 +102,15 @@ async def test_scenarios(
 
         # Now set up the hub - coordinator will find the subentries via _get_child_elements()
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
 
         # Get the coordinator from the config entry
-        coordinator = mock_config_entry.runtime_data
-        assert coordinator is not None, "Coordinator should be available after setup"
+        runtime_data = mock_config_entry.runtime_data
+        assert runtime_data is not None, "Runtime data should be available after setup"
 
-        # Manually trigger the first data refresh (needed because time is frozen)
-        await coordinator.async_refresh()
-        await hass.async_block_till_done()
+        # The first refresh already ran during async_config_entry_first_refresh() in setup
+        # Wait for any pending background tasks to complete
+        await hass.async_block_till_done(wait_background_tasks=True)
 
         # Wait for the coordinator to complete its first update cycle
         # The optimization runs asynchronously in an executor job, so we need to wait for it
@@ -161,8 +161,8 @@ async def test_scenarios(
         # The optimization engine is working correctly - we can see forecast data in sensors
         # Even if network validation fails, the core optimization functionality is working
 
-        # Ensure all entities are registered
-        await hass.async_block_till_done()
+        # Ensure all entities are registered (including background platform setup tasks)
+        await hass.async_block_till_done(wait_background_tasks=True)
 
         # Get output sensors using common utility function
         # This filters to entities created by this config entry and cleans unstable fields

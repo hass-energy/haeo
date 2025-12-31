@@ -6,27 +6,26 @@ from .adapter import (
     LOAD_FORECAST_LIMIT_PRICE,
     LOAD_OUTPUT_NAMES,
     LOAD_POWER,
-    LOAD_POWER_POSSIBLE,
     LoadAdapter,
     LoadDeviceName,
     LoadOutputName,
     adapter,
 )
 from .flow import LoadSubentryFlowHandler
-from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, INPUT_FIELDS, LoadConfigData, LoadConfigSchema
 
 __all__ = [
     # Schema
     "CONF_CONNECTION",
     "CONF_FORECAST",
     "ELEMENT_TYPE",
+    "INPUT_FIELDS",
     # Adapter
     "LOAD_DEVICE_LOAD",
     "LOAD_DEVICE_NAMES",
     "LOAD_FORECAST_LIMIT_PRICE",
     "LOAD_OUTPUT_NAMES",
     "LOAD_POWER",
-    "LOAD_POWER_POSSIBLE",
     "LoadAdapter",
     "LoadConfigData",
     "LoadConfigSchema",

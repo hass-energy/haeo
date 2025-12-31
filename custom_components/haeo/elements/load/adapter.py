@@ -6,31 +6,29 @@ from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 
+from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_MAX_TARGET_SOURCE,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 
 from .flow import LoadSubentryFlowHandler
-from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import CONF_CONNECTION, CONF_FORECAST, DEFAULT_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
 # Load output names
 type LoadOutputName = Literal[
     "load_power",
-    "load_power_possible",
     "load_forecast_limit_price",
 ]
 
 LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     (
         LOAD_POWER := "load_power",
-        LOAD_POWER_POSSIBLE := "load_power_possible",
-        # Shadow prices
+        # Shadow price
         LOAD_FORECAST_LIMIT_PRICE := "load_forecast_limit_price",
     )
 )
@@ -48,10 +46,13 @@ class LoadAdapter:
     element_type: str = ELEMENT_TYPE
     flow_class: type = LoadSubentryFlowHandler
     advanced: bool = False
-    connectivity: str = "always"
+    connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
     def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if load configuration can be loaded."""
+        # Empty forecast list is valid - uses default from schema
+        if not config[CONF_FORECAST]:
+            return True
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
@@ -63,13 +64,16 @@ class LoadAdapter:
         forecast_times: Sequence[float],
     ) -> LoadConfigData:
         """Load load configuration values from sensors."""
-        ts_loader = TimeSeriesLoader()
-
-        forecast = await ts_loader.load(
-            hass=hass,
-            value=config[CONF_FORECAST],
-            forecast_times=forecast_times,
-        )
+        # If no entities configured, use default from schema for all periods
+        if not config[CONF_FORECAST]:
+            forecast = [DEFAULT_FORECAST for _ in forecast_times]
+        else:
+            ts_loader = TimeSeriesLoader()
+            forecast = await ts_loader.load(
+                hass=hass,
+                value=config[CONF_FORECAST],
+                forecast_times=forecast_times,
+            )
 
         return {
             "element_type": config["element_type"],
@@ -106,8 +110,6 @@ class LoadAdapter:
 
         load_outputs: dict[LoadOutputName, OutputData] = {
             LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER),
-            LOAD_POWER_POSSIBLE: connection[CONNECTION_POWER_MAX_TARGET_SOURCE],
-            # Only the max limit has meaning, the source sink power balance is always zero
             LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
         }
 

@@ -6,7 +6,9 @@ from unittest.mock import Mock
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
@@ -74,3 +76,20 @@ async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssi
     subentry_id = flow._get_current_subentry_id()
 
     assert subentry_id is None
+
+
+async def test_schema_rejects_empty_forecast_list(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Schema validation should reject empty forecast entity list."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Get form to obtain the schema
+    result = await flow.async_step_user(user_input=None)
+    schema = result.get("data_schema")
+
+    # Attempt to validate input with empty forecast list
+    with pytest.raises(vol.MultipleInvalid) as exc_info:
+        schema({CONF_NAME: "Test Solar", CONF_CONNECTION: "TestNode", CONF_FORECAST: []})
+
+    assert CONF_FORECAST in str(exc_info.value)

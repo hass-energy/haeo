@@ -43,17 +43,17 @@ See [Modeling Documentation](../modeling/index.md) for detailed layer descriptio
 ## System Overview
 
 ```mermaid
-graph TD
-    CF[Config Flow] --> CE[Config Entry]
-    CE --> Coord[Coordinator]
-    Coord --> Loaders[Data Loaders]
-    Coord --> Adapt[Adapter Layer]
-    Adapt --> Model[Network Model]
-    Model --> Optimizer[HiGHS Optimizer]
-    Optimizer --> Results[Results]
-    Results --> Adapt
-    Adapt --> Sensors[Sensors]
+graph LR
+    Sensors[External Sensors] --> IE[Input Entities]
+    IE --> Coord[Coordinator]
+    Coord --> Model[Network Model]
+    Model --> Sensors2[Output Sensors]
 ```
+
+The system uses a two-phase platform setup:
+
+1. **Input phase**: HorizonManager created, then Input Platforms (Number, Switch) load and expose configuration data
+2. **Output phase**: Coordinator reads from input entities, runs optimization, and Output Platforms (Sensor) display results
 
 ## Core Components
 
@@ -68,20 +68,41 @@ See the Home Assistant documentation for the underlying patterns:
 - [Config Flow Handler](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/)
 - [Data Entry Flow](https://developers.home-assistant.io/docs/data_entry_flow_index/)
 
+### HorizonManager (`inputs/horizon_manager.py`)
+
+Manages synchronized forecast time windows for all input entities.
+Created early in setup before any entity platforms load.
+Computes period boundaries from tier configuration and notifies subscribers when the horizon advances.
+
+See the [Horizon Manager guide](horizon-manager.md) for details.
+
+### Input Entities (`inputs/`)
+
+Intermediate layer between external sensors and the optimization model.
+Number and Switch entities load, transform, and expose configuration values with forecast attributes.
+Operate in two modes: EDITABLE (user-configurable constants) or DRIVEN (values from external sensors).
+
+See the [Input Entities guide](inputs.md) for details.
+
 ### Coordinator (`coordinator.py`)
 
-Central manager scheduling optimization cycles (default 5 min), loading data, building network, running optimization, distributing results.
+Event-driven manager that reads pre-loaded data from input entities, builds the network, runs optimization, and distributes results.
 Each hub entry creates one coordinator instance.
 
 See the [DataUpdateCoordinator documentation](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities) for the base pattern.
-HAEO's coordinator gathers sensor values, assembles the optimization network, runs the optimizer in an executor, and pushes the results back to the entities.
-It listens for element additions or removals and triggers a refresh whenever the underlying data changes.
+HAEO's coordinator reads from `runtime_data.inputs`, assembles the optimization network, runs the optimizer in an executor, and pushes the results back to sensor entities.
+It triggers optimization on input entity state changes or horizon boundary crossings.
+
+See the [Coordinator guide](coordinator.md) for event-driven update patterns.
 
 ### Data loaders (`data/`)
 
-Data loaders translate configuration into time series the model can consume.
-They validate values during the config flow and fetch real sensor data at runtime, including support for common forecast formats.
+Data loaders translate Home Assistant sensor data into time series aligned with the optimization horizon.
+Input entities call loaders to extract, combine, and fuse forecast data from external sensors.
+Loaders also validate sensor availability during the config flow.
 Keep new loaders focused on a single responsibility and reuse the shared parser utilities where possible.
+
+See the [Data Loading guide](data-loading.md) for the extraction pipeline.
 
 ### Network Builder
 
@@ -146,12 +167,13 @@ Separate subsystem implementing the optimization model:
 The integration lives under `custom_components/haeo/` and follows Home Assistant layout conventions.
 Rather than documenting every file, focus on how the major areas collaborate:
 
-- **Entry points**: `__init__.py`, `config_flow.py`, and `coordinator.py` bootstrap the integration, collect user input, and run optimizations on schedule.
+- **Entry points**: `__init__.py`, `config_flow.py`, and `coordinator.py` bootstrap the integration, collect user input, and run optimizations.
 - **Flows (`flows/`)**: Houses hub, element, and options flows; each submodule owns the UI schema for a related group of entries.
-- **Data layer (`data/`)**: Loader modules turn Home Assistant sensors and forecasts into normalized time series for the optimizer.
+- **Input layer (`inputs/`)**: HorizonManager, Number platform, Switch platform, and InputFieldInfo for intermediate input entities.
+- **Data layer (`data/`)**: Loader modules turn Home Assistant sensors and forecasts into normalized time series. Called by input entities.
 - **Model (`model/`)**: Pure Python optimization layer composed of elements, connections, and network orchestration.
-- **Metadata (`elements/` and `schema/`)**: Describe configuration defaults, validation, and runtime metadata for every element type.
-- **Presentation (`sensors/`)**: Builds coordinator entities and sensor platforms that publish optimization results back to Home Assistant.
+- **Metadata (`elements/` and `schema/`)**: Describe configuration defaults, validation, INPUT_FIELDS registry, and runtime metadata for every element type.
+- **Presentation (`sensors/`)**: Builds sensor platforms that publish optimization results back to Home Assistant.
 - **Translations (`translations/`)**: Provides user-facing strings for config flows and entity names.
 
 ## Extension Points
@@ -163,7 +185,7 @@ Rather than documenting every file, focus on how the major areas collaborate:
     - `__init__.py`: Public exports
     - `schema.py`: Define `ConfigSchema` and `ConfigData` TypedDicts
     - `flow.py`: Implement config flow with voluptuous schemas
-    - `adapter.py`: Implement `available()`, `load()`, `create_model_elements()`, `outputs()`
+    - `adapter.py`: Implement `available()`, `load()`, `create_model_elements()`, `outputs()`, and `INPUT_FIELDS` registry
 
 2. **Register element type** in `elements/__init__.py`:
 
@@ -196,11 +218,27 @@ Extend `schema/fields.py`:
 
 <div class="grid cards" markdown>
 
+- :material-timer-outline:{ .lg .middle } **Horizon Manager**
+
+    ---
+
+    Synchronized forecast time windows.
+
+    [:material-arrow-right: Horizon manager guide](horizon-manager.md)
+
+- :material-import:{ .lg .middle } **Input Entities**
+
+    ---
+
+    Intermediate input entity layer.
+
+    [:material-arrow-right: Input entities guide](inputs.md)
+
 - :material-sync:{ .lg .middle } **Coordinator Guide**
 
     ---
 
-    Data update coordination patterns.
+    Event-driven update patterns.
 
     [:material-arrow-right: Coordinator guide](coordinator.md)
 

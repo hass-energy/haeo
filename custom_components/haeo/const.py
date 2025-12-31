@@ -1,5 +1,6 @@
 """Constants for the Home Assistant Energy Optimizer integration."""
 
+import enum
 from typing import Final, Literal
 
 # Integration domain
@@ -76,3 +77,16 @@ type NetworkDeviceName = Literal["network"]
 NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(
     (NETWORK_DEVICE_NETWORK := "network",),
 )
+
+
+class ConnectivityLevel(enum.StrEnum):
+    """Connectivity level for element types in connection selectors.
+
+    - ALWAYS: Always shown in connection selectors
+    - ADVANCED: Only shown when advanced mode is enabled
+    - NEVER: Never shown in connection selectors
+    """
+
+    ALWAYS = enum.auto()
+    ADVANCED = enum.auto()
+    NEVER = enum.auto()

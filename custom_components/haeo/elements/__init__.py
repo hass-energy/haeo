@@ -27,18 +27,24 @@ Sub-element Naming Convention:
 """
 
 from collections.abc import Mapping, Sequence
-import enum
 import logging
 from typing import Any, Final, Literal, NamedTuple, Protocol, TypeGuard, get_origin, get_type_hints, runtime_checkable
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, NETWORK_OUTPUT_NAMES, NetworkDeviceName, NetworkOutputName
+from custom_components.haeo.const import (
+    CONF_ELEMENT_TYPE,
+    NETWORK_OUTPUT_NAMES,
+    ConnectivityLevel,
+    NetworkDeviceName,
+    NetworkOutputName,
+)
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
+from .input_fields import InputFieldInfo
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -138,19 +144,6 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
 )
 
 
-class ConnectivityLevel(enum.Enum):
-    """Connectivity level for element types in connection selectors.
-
-    - ALWAYS: Always shown in connection selectors
-    - ADVANCED: Only shown when advanced mode is enabled
-    - NEVER: Never shown in connection selectors
-    """
-
-    ALWAYS = "always"
-    ADVANCED = "advanced"
-    NEVER = "never"
-
-
 @runtime_checkable
 class ElementAdapter(Protocol):
     """Protocol for element adapters.
@@ -172,8 +165,8 @@ class ElementAdapter(Protocol):
     advanced: bool
     """Whether this element type requires advanced mode."""
 
-    connectivity: str
-    """Visibility level in connection selectors ('always', 'advanced', or 'never')."""
+    connectivity: ConnectivityLevel
+    """Visibility level in connection selectors."""
 
     def available(self, config: Any, *, hass: HomeAssistant, **kwargs: Any) -> bool:
         """Check if element configuration can be loaded."""
@@ -305,16 +298,59 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
 
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
     """Return validated element subentries excluding the network element."""
-    return [
-        ValidatedElementSubentry(
-            name=subentry.title,
-            element_type=subentry.data[CONF_ELEMENT_TYPE],
-            subentry=subentry,
-            config=subentry.data,
+    result: list[ValidatedElementSubentry] = []
+
+    for subentry in entry.subentries.values():
+        if subentry.subentry_type not in ELEMENT_TYPES:
+            # Not an element type (e.g., network) - skip silently
+            continue
+
+        if not is_element_config_schema(subentry.data):
+            # Element type but failed validation - log warning
+            _LOGGER.warning(
+                "Subentry '%s' (type=%s) failed config validation and will be excluded. Data: %s",
+                subentry.title,
+                subentry.subentry_type,
+                dict(subentry.data),
+            )
+            continue
+
+        result.append(
+            ValidatedElementSubentry(
+                name=subentry.title,
+                element_type=subentry.data[CONF_ELEMENT_TYPE],
+                subentry=subentry,
+                config=subentry.data,
+            )
         )
-        for subentry in entry.subentries.values()
-        if subentry.subentry_type in ELEMENT_TYPES and is_element_config_schema(subentry.data)
-    ]
+
+    return result
+
+
+# Registry mapping element types to their input field definitions
+_INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo[Any], ...]]] = {
+    battery.ELEMENT_TYPE: battery.INPUT_FIELDS,
+    grid.ELEMENT_TYPE: grid.INPUT_FIELDS,
+    solar.ELEMENT_TYPE: solar.INPUT_FIELDS,
+    load.ELEMENT_TYPE: load.INPUT_FIELDS,
+    inverter.ELEMENT_TYPE: inverter.INPUT_FIELDS,
+    connection.ELEMENT_TYPE: connection.INPUT_FIELDS,
+    node.ELEMENT_TYPE: node.INPUT_FIELDS,
+}
+
+
+def get_input_fields(element_type: str) -> tuple[InputFieldInfo[Any], ...]:
+    """Return input field definitions for an element type.
+
+    Args:
+        element_type: The element type (e.g., "battery", "grid")
+
+    Returns:
+        Tuple of InputFieldInfo for fields that should become input entities.
+        Returns empty tuple for unknown element types.
+
+    """
+    return _INPUT_FIELDS_REGISTRY.get(element_type, ())
 
 
 __all__ = [
@@ -335,8 +371,10 @@ __all__ = [
     "ElementConfigSchema",
     "ElementDeviceName",
     "ElementType",
+    "InputFieldInfo",
     "ValidatedElementSubentry",
     "collect_element_subentries",
+    "get_input_fields",
     "is_element_config_schema",
     "is_element_type",
 ]

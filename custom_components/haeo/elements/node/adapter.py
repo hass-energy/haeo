@@ -3,6 +3,7 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal
 
+from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
@@ -29,7 +30,7 @@ class NodeAdapter:
     element_type: str = ELEMENT_TYPE
     flow_class: type = NodeSubentryFlowHandler
     advanced: bool = True
-    connectivity: str = "always"
+    connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 
     def available(self, config: NodeConfigSchema, **_kwargs: Any) -> bool:
         """Check if node configuration can be loaded."""
@@ -54,8 +55,8 @@ class NodeAdapter:
             {
                 "element_type": "node",
                 "name": config["name"],
-                "is_source": config["is_source"],
-                "is_sink": config["is_sink"],
+                "is_source": config.get("is_source", DEFAULTS[CONF_IS_SOURCE]),
+                "is_sink": config.get("is_sink", DEFAULTS[CONF_IS_SINK]),
             }
         ]
 

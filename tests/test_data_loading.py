@@ -128,18 +128,21 @@ async def test_load_network_with_unavailable_sensor_state(hass: HomeAssistant) -
         )
 
 
-async def test_load_network_without_participants_raises(hass: HomeAssistant) -> None:
-    """load_network should raise when no participants are provided."""
+async def test_load_network_without_participants_returns_empty_network(hass: HomeAssistant) -> None:
+    """load_network should return an empty network when no participants are provided."""
 
     entry = MockConfigEntry(domain=DOMAIN, entry_id="no_participants")
     entry.add_to_hass(hass)
 
-    with pytest.raises(ValueError, match="No participants configured"):
-        await load_network(
-            entry,
-            periods_seconds=[1800],
-            participants={},
-        )
+    network = await load_network(
+        entry,
+        periods_seconds=[1800],
+        participants={},
+    )
+
+    # Empty network should be returned, not raise an error
+    assert network.name == f"haeo_network_{entry.entry_id}"
+    assert len(network.elements) == 0
 
 
 async def test_load_network_sorts_connections_after_elements(hass: HomeAssistant) -> None:

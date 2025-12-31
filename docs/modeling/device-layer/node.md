@@ -51,7 +51,7 @@ When Advanced Mode is enabled, `is_source` and `is_sink` can be configured to cr
 | --------------- | ----- | --------- | ---------------------------------- |
 | `power_balance` | \$/kW | Real-time | Shadow price of power at this node |
 
-See [Node Configuration](../../user-guide/elements/node.md#sensors-created) for detailed sensor documentation.
+See [Node Configuration](../../user-guide/elements/node.md) for detailed sensor and configuration documentation.
 
 ## Configuration Examples
 

@@ -59,13 +59,7 @@ If you want to remove historical sensor data from the database:
 
 1. Navigate to **Settings** → **System** → **Repairs**
 2. Look for any HAEO-related issues and resolve them
-3. To completely purge historical data, use the **Developer Tools** → **Services**:
-    ```yaml
-    service: recorder.purge_entities
-    data:
-      entity_id:
-        - sensor.haeo_*  # This will purge all HAEO sensors
-    ```
+3. To completely purge historical data for HAEO entities, use the **Developer Tools** → **Services** with `recorder.purge_entities`, specifying your element names (e.g., `sensor.main_battery_*`, `sensor.grid_*`)
 
 **Warning**: Purging historical data is permanent and cannot be undone.
 
@@ -76,8 +70,8 @@ If the integration was removed while in a bad state or the directory deletion fa
 ### Check for orphaned devices and entities
 
 1. Navigate to **Settings** → **Devices & Services** → **Devices**.
-2. Search for device names that contained HAEO elements; delete any remaining entries.
-3. Switch to the **Entities** tab, enable **Show unavailable entities**, and remove any lingering `sensor.haeo_*` entries.
+2. Search for device names that match your HAEO element names; delete any remaining entries.
+3. Switch to the **Entities** tab, enable **Show unavailable entities**, and remove any lingering HAEO entries.
 
 ## Reinstalling HAEO
 
