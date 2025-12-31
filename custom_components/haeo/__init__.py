@@ -57,16 +57,20 @@ class HaeoRuntimeData:
 type HaeoConfigEntry = ConfigEntry[HaeoRuntimeData | None]
 
 
-async def _wait_for_input_entities_ready(runtime_data: HaeoRuntimeData) -> None:
+async def _wait_for_input_entities_ready(runtime_data: HaeoRuntimeData) -> bool:
     """Wait for all input entities to have their data loaded.
 
     Input entities load data asynchronously in async_added_to_hass().
     This function polls until all entities return values from get_values(),
     or times out after _ENTITY_READY_TIMEOUT seconds.
+
+    Returns:
+        True if all entities are ready, False if timeout occurred.
+
     """
     if not runtime_data.input_entities:
         _LOGGER.debug("No input entities to wait for")
-        return
+        return True
 
     start_time = asyncio.get_event_loop().time()
     while True:
@@ -79,7 +83,7 @@ async def _wait_for_input_entities_ready(runtime_data: HaeoRuntimeData) -> None:
         if not not_ready:
             elapsed = asyncio.get_event_loop().time() - start_time
             _LOGGER.debug("All %d input entities ready after %.2fs", len(runtime_data.input_entities), elapsed)
-            return
+            return True
 
         elapsed = asyncio.get_event_loop().time() - start_time
         if elapsed >= _ENTITY_READY_TIMEOUT:
@@ -88,8 +92,7 @@ async def _wait_for_input_entities_ready(runtime_data: HaeoRuntimeData) -> None:
                 elapsed,
                 not_ready,
             )
-            # Continue anyway - coordinator will raise ConfigEntryNotReady if needed
-            return
+            return False
 
         await asyncio.sleep(_ENTITY_READY_POLL_INTERVAL)
 
@@ -208,7 +211,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
 
     # Wait for input entities to be ready before creating coordinator
     # This gives async_added_to_hass() time to run and load DRIVEN mode entity data
-    await _wait_for_input_entities_ready(runtime_data)
+    # If timeout occurs, some entities couldn't load (e.g., referencing nonexistent sensors)
+    # We proceed anyway and let the coordinator handle the missing data gracefully
+    if not await _wait_for_input_entities_ready(runtime_data):
+        _LOGGER.error(
+            "Some input entities could not load data. Check that all configured sensors exist and are available."
+        )
+        # Proceed anyway - coordinator will skip elements with missing data
 
     # Create coordinator after input entities exist - it reads from them
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
@@ -216,7 +225,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
 
     # Trigger initial optimization before output platform setup
     # This populates coordinator.data so sensor platform can create output entities
-    await coordinator.async_config_entry_first_refresh()
+    # Use async_refresh() instead of async_config_entry_first_refresh() to avoid
+    # retrying setup if optimization fails (e.g., missing sensor data)
+    await coordinator.async_refresh()
 
     # Set up output platforms after coordinator has data
     await hass.config_entries.async_forward_entry_setups(entry, OUTPUT_PLATFORMS)
