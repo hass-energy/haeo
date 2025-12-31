@@ -448,7 +448,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Check if optimization is already in progress
         # If so, skip this call - we'll use existing data or signal retry
         if self._optimization_in_progress:
-            _LOGGER.debug("Skipping - optimization already in progress")
             # Return existing data if available (may be None before first refresh)
             # The base class sets self.data to None initially (via type: ignore)
             # so we need to get it as Any first to check for None
@@ -485,10 +484,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             loaded_configs = self._load_from_input_entities()
 
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
-            _LOGGER.debug(
-                "Loaded configs: %s",
-                {k: {k2: type(v2).__name__ for k2, v2 in v.items()} for k, v in loaded_configs.items()},
-            )
 
             # Build network with loaded configurations
             network = await data_module.load_network(
@@ -496,8 +491,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 periods_seconds=periods_seconds,
                 participants=loaded_configs,
             )
-
-            _LOGGER.debug("Network has %d elements, %d periods", len(network.elements), network.n_periods)
 
             # Perform the optimization
             cost = await self.hass.async_add_executor_job(network.optimize)
