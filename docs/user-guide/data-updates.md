@@ -24,7 +24,7 @@ HAEO runs a new optimization when either of the following happens:
 - An input entity's state changes (new data arrives from a tracked sensor).
 - The optimization horizon advances past a period boundary.
 
-The system is event-driven with guaranteed updates at horizon boundaries (for example, every 5 minutes for the finest tier).
+The system is event-driven with guaranteed updates at horizon boundaries (for example, every 1 minute for the finest tier).
 When sensor data changes between boundaries, the corresponding input entity updates, which triggers a new optimization.
 
 To avoid running multiple optimizations in quick succession, HAEO uses internal debouncing.

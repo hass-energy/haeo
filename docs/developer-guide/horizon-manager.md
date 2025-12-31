@@ -8,7 +8,7 @@ HAEO's optimization operates over a forecast horizon divided into time intervals
 The HorizonManager ensures all input entities work with consistent timestamps by:
 
 - Computing forecast period boundaries from tier configuration
-- Scheduling updates at period boundaries (for example, every 5 minutes for the finest tier)
+- Scheduling updates at period boundaries (for example, every 1 minute for the finest tier)
 - Notifying subscribers when the horizon advances
 
 This coordination prevents race conditions where different inputs might use different time windows.
@@ -48,7 +48,7 @@ Each tier specifies a period duration and count:
 | 2    | 30 min | 6     | 3 hours  |
 | 3    | 1 hour | 20    | 20 hours |
 
-The HorizonManager computes period start times aligned to natural boundaries (for example, 12:00, 12:05, 12:10 for 5-minute periods).
+The HorizonManager computes period start times aligned to natural boundaries (for example, 12:00, 12:01, 12:02 for 1-minute periods).
 
 The `horizon` property returns the current forecast timestamps as a tuple of datetime objects.
 Components access this to align their data loading with the optimization time grid.
