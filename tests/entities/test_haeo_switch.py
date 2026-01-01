@@ -189,11 +189,14 @@ async def test_editable_mode_turn_on(
         horizon_manager=horizon_manager,
     )
     entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_turn_on()
 
     assert entity.is_on is True
     entity.async_write_ha_state.assert_called_once()
+    # Value should be persisted to config entry
+    hass.config_entries.async_update_subentry.assert_called_once()
 
 
 async def test_editable_mode_turn_off(
@@ -216,11 +219,14 @@ async def test_editable_mode_turn_off(
         horizon_manager=horizon_manager,
     )
     entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_turn_off()
 
     assert entity.is_on is False
     entity.async_write_ha_state.assert_called_once()
+    # Value should be persisted to config entry
+    hass.config_entries.async_update_subentry.assert_called_once()
 
 
 # --- Tests for DRIVEN mode ---
@@ -652,15 +658,15 @@ async def test_get_values_returns_none_when_disabled(
 # --- Tests for lifecycle methods ---
 
 
-async def test_async_added_to_hass_editable_restores_state(
+async def test_async_added_to_hass_editable_uses_config_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """async_added_to_hass restores previous state in EDITABLE mode."""
-    subentry = _create_subentry("Test Solar", {"allow_curtailment": False})
+    """async_added_to_hass uses config value in EDITABLE mode (no restore needed)."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
@@ -672,17 +678,9 @@ async def test_async_added_to_hass_editable_restores_state(
         horizon_manager=horizon_manager,
     )
 
-    # Mock the async_get_last_state to return a saved "on" state
-    async def mock_get_last_state() -> Mock:
-        mock_state = Mock()
-        mock_state.state = STATE_ON
-        return mock_state
-
-    entity.async_get_last_state = mock_get_last_state  # type: ignore[method-assign]
-
     await entity.async_added_to_hass()
 
-    # Should restore to ON state
+    # Should use config value directly
     assert entity.is_on is True
 
 

@@ -196,13 +196,16 @@ async def test_editable_mode_set_native_value(
         horizon_manager=horizon_manager,
     )
 
-    # Mock async_write_ha_state
+    # Mock async_write_ha_state and config entry update
     entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_set_native_value(15.0)
 
     assert entity.native_value == 15.0
     entity.async_write_ha_state.assert_called_once()
+    # Value should be persisted to config entry
+    hass.config_entries.async_update_subentry.assert_called_once()
 
 
 # --- Tests for DRIVEN mode ---
@@ -551,15 +554,15 @@ async def test_get_values_returns_none_when_disabled(
 # --- Tests for lifecycle methods ---
 
 
-async def test_async_added_to_hass_editable_restores_value(
+async def test_async_added_to_hass_editable_uses_config_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """async_added_to_hass restores previous value in EDITABLE mode."""
-    subentry = _create_subentry("Test Battery", {"power_limit": 5.0})
+    """async_added_to_hass uses config value in EDITABLE mode (no restore needed)."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 15.0})
     config_entry.runtime_data = None
 
     entity = HaeoInputNumber(
@@ -571,17 +574,9 @@ async def test_async_added_to_hass_editable_restores_value(
         horizon_manager=horizon_manager,
     )
 
-    # Mock the async_get_last_number_data to return a saved value
-    async def mock_get_last_number_data() -> Mock:
-        mock_data = Mock()
-        mock_data.native_value = 15.0
-        return mock_data
-
-    entity.async_get_last_number_data = mock_get_last_number_data  # type: ignore[method-assign]
-
     await entity.async_added_to_hass()
 
-    # Should restore to saved value
+    # Should use config value directly
     assert entity.native_value == 15.0
 
 

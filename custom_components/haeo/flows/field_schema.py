@@ -188,7 +188,9 @@ def build_mode_schema_entry(
         field_info: Input field metadata.
 
     Returns:
-        Tuple of (vol.Required/Optional marker, SelectSelector).
+        Tuple of (vol.Required marker, SelectSelector).
+        For optional fields, defaults to NONE.
+        For required fields, no default (user must choose CONSTANT or ENTITY_LINK).
 
     """
     has_default = field_info.default is not None
@@ -196,10 +198,9 @@ def build_mode_schema_entry(
 
     selector = build_mode_selector(has_default=has_default)
 
-    # If field has a default, mode selector is optional (defaults to NONE)
-    # If field is required, mode selector is required
+    # Always required, but optional fields get a default of NONE
     if has_default:
-        return vol.Optional(mode_key), selector
+        return vol.Required(mode_key, default=InputMode.NONE), selector
     return vol.Required(mode_key), selector
 
 

@@ -10,16 +10,16 @@ from homeassistant.const import STATE_ON, EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
-from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.util import async_update_subentry_value
 
 
-class HaeoInputSwitch(RestoreEntity, SwitchEntity):
+class HaeoInputSwitch(SwitchEntity):
     """Switch entity representing a configurable boolean parameter.
 
     This entity serves as an intermediate layer between external sensors
@@ -27,6 +27,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
 
     - EDITABLE: User can toggle the switch. Used when config contains
       a static boolean value rather than an entity ID.
+      Value is persisted to config entry and survives restarts.
     - DRIVEN: Value is driven by an external sensor. Used when config
       contains an entity ID. In this mode, user toggles are ignored.
 
@@ -117,7 +118,7 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         return self._horizon_manager.get_forecast_timestamps()
 
     async def async_added_to_hass(self) -> None:
-        """Set up state tracking and restore previous value."""
+        """Set up state tracking."""
         await super().async_added_to_hass()
 
         # Mark entity as added (enabled)
@@ -127,14 +128,10 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Restore previous value if available, otherwise use field default
-            last_state = await self.async_get_last_state()
-            if last_state and last_state.state in ("on", "off"):
-                self._attr_is_on = last_state.state == "on"
-            elif self._attr_is_on is None and self._field_info.default is not None:
-                # No config value and no restored value - use field default
+            # Use field default if no config value
+            if self._attr_is_on is None and self._field_info.default is not None:
                 self._attr_is_on = bool(self._field_info.default)
-            # Update forecast for restored/initial value
+            # Update forecast for initial value
             self._update_forecast()
         else:
             # Subscribe to source entity changes for DRIVEN mode
@@ -257,6 +254,9 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
 
         In DRIVEN mode, user changes are effectively ignored because the
         source entity will overwrite with its value.
+
+        In EDITABLE mode, the value is persisted to the config entry so it
+        survives restarts and is visible in reconfigure flows.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
             self.async_write_ha_state()
@@ -266,11 +266,23 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         self._update_forecast()
         self.async_write_ha_state()
 
+        # Persist to config entry so value survives restarts and shows in reconfigure
+        await async_update_subentry_value(
+            self._hass,
+            self._config_entry,
+            self._subentry,
+            self._field_info.field_name,
+            value=True,
+        )
+
     async def async_turn_off(self, **_kwargs: Any) -> None:
         """Handle user turning switch off.
 
         In DRIVEN mode, user changes are effectively ignored because the
         source entity will overwrite with its value.
+
+        In EDITABLE mode, the value is persisted to the config entry so it
+        survives restarts and is visible in reconfigure flows.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
             self.async_write_ha_state()
@@ -279,6 +291,15 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         self._attr_is_on = False
         self._update_forecast()
         self.async_write_ha_state()
+
+        # Persist to config entry so value survives restarts and shows in reconfigure
+        await async_update_subentry_value(
+            self._hass,
+            self._config_entry,
+            self._subentry,
+            self._field_info.field_name,
+            value=False,
+        )
 
 
 __all__ = ["HaeoInputSwitch"]
