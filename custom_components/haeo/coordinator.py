@@ -42,7 +42,6 @@ from .elements import (
     collect_element_subentries,
     get_input_fields,
     is_element_type,
-    is_field_optional,
 )
 from .model import (
     OUTPUT_TYPE_COST,
@@ -408,42 +407,21 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 # This handles participant references (e.g., connection: "Switchboard")
                 loaded_data[field_name] = element_config[field_name]
 
-            # Load values from input entities for all input fields
-            # This includes optional fields that may not be in config but have entities
+            # Load values from input entities
             for field_info in input_field_infos:
                 field_name = field_info.field_name
                 key = (element_name, field_name)
 
-                # Check if input entity exists for this field
                 if key not in runtime_data.input_entities:
-                    # No entity for this field - it's a required field not in config,
-                    # or something went wrong during entity setup
-                    if field_name in element_config:
-                        # Field is in config but entity wasn't created - programming error
-                        msg = (
-                            f"No input entity for {element_name}.{field_name} - "
-                            "input entity was not created during platform setup"
-                        )
-                        raise RuntimeError(msg)
-                    # Field not in config and no entity - skip (not an optional field)
+                    # No entity - field not in INPUT_FIELDS registry
                     continue
 
                 entity = runtime_data.input_entities[key]
                 values = entity.get_values()
 
                 if values is None:
-                    # Entity exists but has no values - either disabled or not ready
-                    if is_field_optional(element_type, field_name):
-                        # Optional field with disabled entity - don't include in loaded data
-                        continue
-                    # Required field not ready yet
-                    raise UpdateFailed(
-                        translation_key="input_not_ready",
-                        translation_placeholders={
-                            "element": element_name,
-                            "field": field_name,
-                        },
-                    )
+                    # Entity disabled or not ready - skip this field
+                    continue
 
                 # Check if field is time_series or scalar
                 if field_info.time_series:

@@ -8,11 +8,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.elements import (
-    get_input_fields,
-    is_element_type,
-    is_field_optional,
-)
+from custom_components.haeo.elements import get_input_fields, is_element_type
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,18 +62,9 @@ async def async_setup_entry(
         )
 
         for field_info in switch_fields:
-            # Determine if entity should be created and whether it should be disabled
-            is_configured = field_info.field_name in subentry.data
-            is_optional = is_field_optional(element_type, field_info.field_name)
-
-            # Create entity if:
-            # 1. Field is configured in subentry data, OR
-            # 2. Field is optional (optional fields always get entities, disabled by default)
-            if not is_configured and not is_optional:
-                continue
-
-            # Optional fields that aren't configured start disabled
-            enabled_by_default = is_configured
+            # Entities are enabled by default if the field is configured
+            # Unconfigured optional fields get disabled entities that users can enable
+            enabled_by_default = field_info.field_name in subentry.data
 
             entity = HaeoInputSwitch(
                 hass=hass,
