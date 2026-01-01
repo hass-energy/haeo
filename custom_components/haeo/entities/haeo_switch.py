@@ -90,7 +90,6 @@ class HaeoInputSwitch(SwitchEntity):
         # Build base extra state attributes (static values)
         self._base_extra_attrs: dict[str, Any] = {
             "config_mode": self._entity_mode.value,
-            "editable": self._entity_mode == ConfigEntityMode.EDITABLE,
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
             "field_name": field_info.field_name,
