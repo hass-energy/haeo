@@ -6,6 +6,7 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.const import UnitOfPower
 
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "grid"
 
@@ -31,7 +32,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=10.0,
             native_step=0.001,
         ),
-        output_type="price",
+        output_type=OutputType.PRICE,
         time_series=True,
         direction="-",  # Import = consuming from grid = cost
         default=DEFAULT_IMPORT_PRICE,
@@ -45,7 +46,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=10.0,
             native_step=0.001,
         ),
-        output_type="price",
+        output_type=OutputType.PRICE,
         time_series=True,
         direction="+",  # Export = producing to grid = revenue
         default=DEFAULT_EXPORT_PRICE,
@@ -61,7 +62,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=1000.0,
             native_step=0.1,
         ),
-        output_type="power_limit",
+        output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="+",
     ),
@@ -76,7 +77,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=1000.0,
             native_step=0.1,
         ),
-        output_type="power_limit",
+        output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="-",
     ),

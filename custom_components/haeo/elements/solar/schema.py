@@ -7,6 +7,7 @@ from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import UnitOfPower
 
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "solar"
 
@@ -34,7 +35,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
             native_max_value=1000.0,
             native_step=0.01,
         ),
-        output_type="power",
+        output_type=OutputType.POWER,
         direction="-",
         time_series=True,
     ),
@@ -47,7 +48,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
             native_max_value=10.0,
             native_step=0.001,
         ),
-        output_type="price",
+        output_type=OutputType.PRICE,
         direction="+",
     ),
     InputFieldInfo(
@@ -56,7 +57,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
             key=CONF_CURTAILMENT,
             translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
         ),
-        output_type="status",
+        output_type=OutputType.STATUS,
         default=True,
     ),
 )

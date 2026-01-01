@@ -6,6 +6,7 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.const import PERCENTAGE, UnitOfPower
 
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "connection"
 
@@ -32,7 +33,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=1000.0,
             native_step=0.1,
         ),
-        output_type="power_limit",
+        output_type=OutputType.POWER_LIMIT,
         time_series=True,
     ),
     InputFieldInfo(
@@ -46,7 +47,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=1000.0,
             native_step=0.1,
         ),
-        output_type="power_limit",
+        output_type=OutputType.POWER_LIMIT,
         time_series=True,
     ),
     InputFieldInfo(
@@ -60,7 +61,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=100.0,
             native_step=0.1,
         ),
-        output_type="soc",
+        output_type=OutputType.EFFICIENCY,
         time_series=True,
     ),
     InputFieldInfo(
@@ -74,7 +75,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=100.0,
             native_step=0.1,
         ),
-        output_type="soc",
+        output_type=OutputType.EFFICIENCY,
         time_series=True,
     ),
     InputFieldInfo(
@@ -86,7 +87,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=10.0,
             native_step=0.001,
         ),
-        output_type="price",
+        output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
     ),
@@ -99,7 +100,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=10.0,
             native_step=0.001,
         ),
-        output_type="price",
+        output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
     ),

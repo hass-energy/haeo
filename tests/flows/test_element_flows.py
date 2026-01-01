@@ -51,8 +51,12 @@ from tests.conftest import ElementTestData
 
 ALL_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(ELEMENT_TYPES)
 
-# Element types that use two-step flows (mode selection + values)
-TWO_STEP_FLOW_ELEMENTS: frozenset[ElementType] = frozenset({battery.ELEMENT_TYPE, grid.ELEMENT_TYPE})
+# Element types that use two-step flows (have has_value_source_step = True on flow handler)
+TWO_STEP_FLOW_ELEMENTS: frozenset[ElementType] = frozenset(
+    element_type
+    for element_type, entry in ELEMENT_TYPES.items()
+    if getattr(entry.flow_class, "has_value_source_step", False)
+)
 
 TEST_ELEMENT_TYPE = "flow_test_element"
 
@@ -343,6 +347,7 @@ async def test_element_flow_reconfigure_success(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
@@ -388,6 +393,7 @@ async def test_element_flow_reconfigure_rename(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
@@ -432,6 +438,7 @@ async def test_element_flow_reconfigure_missing_name(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     invalid_input = deepcopy(existing_config)
@@ -470,6 +477,7 @@ async def test_element_flow_reconfigure_duplicate_name(
     hass.config_entries.async_add_subentry(hub_entry, secondary_subentry)
 
     flow = _create_flow(hass, hub_entry, element_type)
+    flow.context = {"subentry_id": secondary_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=secondary_subentry)
 
     duplicate_input = deepcopy(secondary_config)

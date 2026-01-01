@@ -1,21 +1,14 @@
 """Grid element configuration flows."""
 
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
-from homeassistant.const import UnitOfEnergy, UnitOfPower
-from homeassistant.helpers.selector import (
-    SelectOptionDict,
-    SelectSelector,
-    SelectSelectorConfig,
-    SelectSelectorMode,
-    TextSelector,
-    TextSelectorConfig,
-)
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.data.loader.extractors import EntityMetadata, extract_entity_metadata
+from custom_components.haeo.data.loader.extractors import extract_entity_metadata
+from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     MODE_SUFFIX,
     InputMode,
@@ -24,45 +17,8 @@ from custom_components.haeo.flows.field_schema import (
     get_mode_defaults,
     get_value_defaults,
 )
-from custom_components.haeo.schema.util import UnitSpec
 
-from .schema import (
-    CONF_CONNECTION,
-    CONF_EXPORT_LIMIT,
-    CONF_EXPORT_PRICE,
-    CONF_IMPORT_LIMIT,
-    CONF_IMPORT_PRICE,
-    ELEMENT_TYPE,
-    INPUT_FIELDS,
-    GridConfigSchema,
-)
-
-# Unit specifications for entity filtering
-POWER_UNITS: UnitSpec = UnitOfPower
-PRICE_UNITS: list[UnitSpec] = [("*", "/", unit.value) for unit in UnitOfEnergy]
-
-
-def _filter_incompatible_entities(
-    entity_metadata: list[EntityMetadata],
-    accepted_units: UnitSpec | list[UnitSpec],
-) -> list[str]:
-    """Return entity IDs that are NOT compatible with the accepted units."""
-    return [v.entity_id for v in entity_metadata if not v.is_compatible_with(accepted_units)]
-
-
-def _build_connection_selector(participants: list[str], current_value: str | None = None) -> vol.All:
-    """Build a selector for choosing connection target from participants."""
-    options_list = list(participants)
-    if current_value and current_value not in options_list:
-        options_list.append(current_value)
-
-    options: list[SelectOptionDict] = [SelectOptionDict(value=p, label=p) for p in options_list]
-    return vol.All(
-        vol.Coerce(str),
-        vol.Strip,
-        vol.Length(min=1, msg="Element name cannot be empty"),
-        SelectSelector(SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)),
-    )
+from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, GridConfigSchema
 
 
 def _build_step1_schema(
@@ -79,7 +35,7 @@ def _build_step1_schema(
             TextSelector(TextSelectorConfig()),
         ),
         # Connection field
-        vol.Required(CONF_CONNECTION): _build_connection_selector(participants, current_connection),
+        vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
     }
 
     # Add mode selectors for all input fields
@@ -92,21 +48,18 @@ def _build_step1_schema(
 
 def _build_step2_schema(
     mode_selections: dict[str, str],
-    entity_metadata: list[EntityMetadata],
+    exclusion_map: dict[str, list[str]],
 ) -> vol.Schema:
-    """Build the schema for step 2: value entry based on mode selections."""
-    # Build exclusion lists for entity selectors
-    incompatible_power = _filter_incompatible_entities(entity_metadata, POWER_UNITS)
-    incompatible_price = _filter_incompatible_entities(entity_metadata, PRICE_UNITS)
+    """Build the schema for step 2: value entry based on mode selections.
 
-    # Map field names to their exclusion lists
-    exclusion_map: dict[str, list[str]] = {
-        CONF_IMPORT_PRICE: incompatible_price,
-        CONF_EXPORT_PRICE: incompatible_price,
-        CONF_IMPORT_LIMIT: incompatible_power,
-        CONF_EXPORT_LIMIT: incompatible_power,
-    }
+    Args:
+        mode_selections: Mode selections from step 1 (field_name_mode -> mode value).
+        exclusion_map: Field name -> list of incompatible entity IDs.
 
+    Returns:
+        Schema with value input fields based on selected modes.
+
+    """
     schema_dict: dict[vol.Marker, Any] = {}
 
     for field_info in INPUT_FIELDS:
@@ -124,8 +77,10 @@ def _build_step2_schema(
     return vol.Schema(schema_dict)
 
 
-class GridSubentryFlowHandler(ConfigSubentryFlow):
+class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle grid element configuration flows."""
+
+    has_value_source_step: ClassVar[bool] = True
 
     def __init__(self) -> None:
         """Initialize the flow handler."""
@@ -143,12 +98,7 @@ class GridSubentryFlowHandler(ConfigSubentryFlow):
 
         if user_input is not None:
             name = user_input.get(CONF_NAME)
-            if not name:
-                errors[CONF_NAME] = "missing_name"
-            elif name in self._get_used_names():
-                errors[CONF_NAME] = "name_exists"
-
-            if not errors:
+            if self._validate_name(name, errors):
                 # Store step 1 data and proceed to step 2
                 self._step1_data = user_input
                 return await self.async_step_values()
@@ -186,7 +136,8 @@ class GridSubentryFlowHandler(ConfigSubentryFlow):
             return self.async_create_entry(title=str(name), data=cast("GridConfigSchema", config))
 
         entity_metadata = extract_entity_metadata(self.hass)
-        schema = _build_step2_schema(self._step1_data, entity_metadata)
+        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
+        schema = _build_step2_schema(self._step1_data, exclusion_map)
 
         # Apply default values based on modes
         defaults = get_value_defaults(INPUT_FIELDS, self._step1_data)
@@ -209,12 +160,7 @@ class GridSubentryFlowHandler(ConfigSubentryFlow):
 
         if user_input is not None:
             name = user_input.get(CONF_NAME)
-            if not name:
-                errors[CONF_NAME] = "missing_name"
-            elif name in self._get_used_names():
-                errors[CONF_NAME] = "name_exists"
-
-            if not errors:
+            if self._validate_name(name, errors):
                 # Store step 1 data and proceed to step 2
                 self._step1_data = user_input
                 return await self.async_step_reconfigure_values()
@@ -266,7 +212,8 @@ class GridSubentryFlowHandler(ConfigSubentryFlow):
             )
 
         entity_metadata = extract_entity_metadata(self.hass)
-        schema = _build_step2_schema(self._step1_data, entity_metadata)
+        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
+        schema = _build_step2_schema(self._step1_data, exclusion_map)
 
         # Get current values for pre-population
         defaults = get_value_defaults(INPUT_FIELDS, self._step1_data, dict(subentry.data))
@@ -277,44 +224,3 @@ class GridSubentryFlowHandler(ConfigSubentryFlow):
             data_schema=schema,
             errors=errors,
         )
-
-    def _get_used_names(self) -> set[str]:
-        """Return all configured element names excluding the current subentry."""
-        current_id = self._get_current_subentry_id()
-        return {
-            subentry.title for subentry in self._get_entry().subentries.values() if subentry.subentry_id != current_id
-        }
-
-    def _get_participant_names(self) -> list[str]:
-        """Return element names available as connection endpoints."""
-        # Import here to avoid circular dependency
-        from custom_components.haeo.const import CONF_ADVANCED_MODE  # noqa: PLC0415
-        from custom_components.haeo.elements import ELEMENT_TYPES, ConnectivityLevel  # noqa: PLC0415
-
-        hub_entry = self._get_entry()
-        advanced_mode = hub_entry.data.get(CONF_ADVANCED_MODE, False)
-        current_id = self._get_current_subentry_id()
-
-        result: list[str] = []
-        for subentry in hub_entry.subentries.values():
-            if subentry.subentry_id == current_id:
-                continue
-
-            element_type = subentry.data.get(CONF_ELEMENT_TYPE)
-            if element_type not in ELEMENT_TYPES:
-                continue
-
-            connectivity = ELEMENT_TYPES[element_type].connectivity
-            if connectivity == ConnectivityLevel.ALWAYS.value or (
-                connectivity == ConnectivityLevel.ADVANCED.value and advanced_mode
-            ):
-                result.append(subentry.title)
-
-        return result
-
-    def _get_current_subentry_id(self) -> str | None:
-        """Return the active subentry ID when reconfiguring, otherwise None."""
-        try:
-            return self._get_reconfigure_subentry().subentry_id
-        except Exception:
-            return None

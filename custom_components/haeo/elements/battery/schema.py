@@ -6,6 +6,7 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "battery"
 
@@ -46,7 +47,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=1000.0,
             native_step=0.1,
         ),
-        output_type="energy",
+        output_type=OutputType.ENERGY,
         time_series=True,
     ),
     InputFieldInfo(
@@ -60,7 +61,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=100.0,
             native_step=0.1,
         ),
-        output_type="soc",
+        output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
     ),
     InputFieldInfo(
@@ -74,7 +75,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=100.0,
             native_step=1.0,
         ),
-        output_type="soc",
+        output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
         default=0.0,
     ),
@@ -89,7 +90,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=100.0,
             native_step=1.0,
         ),
-        output_type="soc",
+        output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
         default=100.0,
     ),
@@ -104,7 +105,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=100.0,
             native_step=0.1,
         ),
-        output_type="soc",
+        output_type=OutputType.EFFICIENCY,
         time_series=True,
         default=99.0,
     ),
@@ -119,7 +120,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=1000.0,
             native_step=0.1,
         ),
-        output_type="power",
+        output_type=OutputType.POWER,
         direction="+",
         time_series=True,
     ),
@@ -134,7 +135,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=1000.0,
             native_step=0.1,
         ),
-        output_type="power",
+        output_type=OutputType.POWER,
         direction="-",
         time_series=True,
     ),
@@ -147,7 +148,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=1.0,
             native_step=0.001,
         ),
-        output_type="price",
+        output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
         default=0.001,
@@ -161,7 +162,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=1.0,
             native_step=0.001,
         ),
-        output_type="price",
+        output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
     ),
@@ -176,7 +177,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=100.0,
             native_step=1.0,
         ),
-        output_type="soc",
+        output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
     ),
     InputFieldInfo(
@@ -190,7 +191,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=100.0,
             native_step=1.0,
         ),
-        output_type="soc",
+        output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
     ),
     InputFieldInfo(
@@ -202,7 +203,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=10.0,
             native_step=0.001,
         ),
-        output_type="price",
+        output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
     ),
@@ -215,7 +216,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=10.0,
             native_step=0.001,
         ),
-        output_type="price",
+        output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
     ),
