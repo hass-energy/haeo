@@ -62,9 +62,9 @@ async def async_setup_entry(
         )
 
         for field_info in number_fields:
-            # Entities are enabled by default if the field is configured
-            # Unconfigured optional fields get disabled entities that users can enable
-            enabled_by_default = field_info.field_name in subentry.data
+            # Only create entities for configured fields
+            if field_info.field_name not in subentry.data:
+                continue
 
             entity = HaeoInputNumber(
                 hass=hass,
@@ -73,7 +73,6 @@ async def async_setup_entry(
                 field_info=field_info,
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,
-                enabled_by_default=enabled_by_default,
             )
             entities.append(entity)
 

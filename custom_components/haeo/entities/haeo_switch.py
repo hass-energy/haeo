@@ -46,8 +46,6 @@ class HaeoInputSwitch(SwitchEntity):
         field_info: InputFieldInfo[SwitchEntityDescription],
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
-        *,
-        enabled_by_default: bool = True,
     ) -> None:
         """Initialize the input switch entity."""
         self._hass = hass
@@ -58,9 +56,6 @@ class HaeoInputSwitch(SwitchEntity):
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
-
-        # Set entity registry enabled default (optional unconfigured fields start disabled)
-        self._attr_entity_registry_enabled_default = enabled_by_default
 
         # Determine mode from config value type
         # Entity IDs are stored as str from EntitySelector
@@ -102,8 +97,7 @@ class HaeoInputSwitch(SwitchEntity):
         self._state_unsub: Callable[[], None] | None = None
         self._horizon_unsub: Callable[[], None] | None = None
 
-        # Track whether entity has been added to HA (enabled entities only)
-        # Disabled entities never have async_added_to_hass() called
+        # Track whether entity has been added to HA
         self._added_to_hass = False
 
         # Initialize forecast immediately for EDITABLE mode entities
@@ -121,7 +115,7 @@ class HaeoInputSwitch(SwitchEntity):
         """Set up state tracking."""
         await super().async_added_to_hass()
 
-        # Mark entity as added (enabled)
+        # Mark entity as added
         self._added_to_hass = True
 
         # Subscribe to horizon manager for time window changes
@@ -221,29 +215,13 @@ class HaeoInputSwitch(SwitchEntity):
     def is_ready(self) -> bool:
         """Check if entity is ready for coordinator to read values.
 
-        Returns True if:
-        - Entity is disabled (no values will ever be available)
-        - Entity is enabled and has loaded values
-
-        Returns False if:
-        - Entity is enabled but still loading data
+        Returns True when entity has been added and has loaded values.
+        Returns False while still loading data.
         """
-        # Disabled entities are "ready" in that we don't need to wait for them
-        if not self._attr_entity_registry_enabled_default:
-            return True
-        # Enabled entities are ready once they've been added and have values
         return self._added_to_hass and self.get_values() is not None
 
     def get_values(self) -> tuple[bool, ...] | None:
-        """Return the forecast values as a tuple, or None if not loaded.
-
-        Returns None if:
-        - Entity is disabled (not added to HA)
-        - Forecast hasn't been loaded yet
-        """
-        # Disabled entities return None - user hasn't enabled this optional field
-        if not self._added_to_hass:
-            return None
+        """Return the forecast values as a tuple, or None if not loaded."""
         forecast = self._attr_extra_state_attributes.get("forecast")
         if forecast:
             return tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)

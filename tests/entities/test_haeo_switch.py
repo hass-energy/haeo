@@ -626,35 +626,6 @@ async def test_get_values_returns_none_without_forecast(
     assert entity.get_values() is None
 
 
-async def test_get_values_returns_none_when_disabled(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """get_values returns None when entity is disabled (not added to HA)."""
-    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
-    config_entry.runtime_data = None
-
-    entity = HaeoInputSwitch(
-        hass=hass,
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=curtailment_field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-        enabled_by_default=False,  # Disabled entity
-    )
-
-    # Entity NOT added to HA (disabled) - even with forecast data, should return None
-    entity._update_forecast()
-    assert entity.get_values() is None
-
-    # Verify entity_registry_enabled_default is False
-    assert entity._attr_entity_registry_enabled_default is False
-
-
 # --- Tests for lifecycle methods ---
 
 

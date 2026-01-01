@@ -140,7 +140,7 @@ async def test_setup_skips_missing_fields_in_config(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
-    """Setup creates entities for optional fields that are not configured, but disabled."""
+    """Setup does not create entities for fields that are not configured."""
     _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
 
     # Add grid with only required fields (no optional limits)
@@ -162,15 +162,13 @@ async def test_setup_skips_missing_fields_in_config(
 
     if async_add_entities.called:
         entities = list(async_add_entities.call_args.args[0])
-        # Should have entities for optional fields (disabled by default)
+        # Should only have entities for configured fields
         field_names = {e._field_info.field_name for e in entities}
-        assert "import_limit" in field_names
-        assert "export_limit" in field_names
-
-        # Optional fields not in config should have entity_registry_enabled_default=False
-        for entity in entities:
-            if entity._field_info.field_name in ("import_limit", "export_limit"):
-                assert entity._attr_entity_registry_enabled_default is False
+        assert "import_price" in field_names
+        assert "export_price" in field_names
+        # Optional unconfigured fields should NOT have entities created
+        assert "import_limit" not in field_names
+        assert "export_limit" not in field_names
 
 
 async def test_setup_creates_correct_device_identifiers(
