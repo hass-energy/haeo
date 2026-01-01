@@ -45,6 +45,8 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         field_info: InputFieldInfo[SwitchEntityDescription],
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
+        *,
+        enabled_by_default: bool = True,
     ) -> None:
         """Initialize the input switch entity."""
         self._hass = hass
@@ -55,6 +57,9 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
+
+        # Set entity registry enabled default (optional unconfigured fields start disabled)
+        self._attr_entity_registry_enabled_default = enabled_by_default
 
         # Determine mode from config value type
         # Entity IDs are stored as str from EntitySelector
@@ -96,6 +101,10 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         self._state_unsub: Callable[[], None] | None = None
         self._horizon_unsub: Callable[[], None] | None = None
 
+        # Track whether entity has been added to HA (enabled entities only)
+        # Disabled entities never have async_added_to_hass() called
+        self._added_to_hass = False
+
         # Initialize forecast immediately for EDITABLE mode entities
         # This ensures get_values() returns data before async_added_to_hass() is called
         # DRIVEN mode entities load data in async_added_to_hass() - the coordinator
@@ -110,6 +119,9 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
     async def async_added_to_hass(self) -> None:
         """Set up state tracking and restore previous value."""
         await super().async_added_to_hass()
+
+        # Mark entity as added (enabled)
+        self._added_to_hass = True
 
         # Subscribe to horizon manager for time window changes
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
@@ -210,7 +222,15 @@ class HaeoInputSwitch(RestoreEntity, SwitchEntity):
         return None
 
     def get_values(self) -> tuple[bool, ...] | None:
-        """Return the forecast values as a tuple, or None if not loaded."""
+        """Return the forecast values as a tuple, or None if not loaded.
+
+        Returns None if:
+        - Entity is disabled (not added to HA)
+        - Forecast hasn't been loaded yet
+        """
+        # Disabled entities return None - user hasn't enabled this optional field
+        if not self._added_to_hass:
+            return None
         forecast = self._attr_extra_state_attributes.get("forecast")
         if forecast:
             return tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)

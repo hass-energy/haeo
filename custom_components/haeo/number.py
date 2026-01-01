@@ -8,7 +8,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.elements import ELEMENT_TYPES, get_input_fields
+from custom_components.haeo.elements import get_input_fields, is_element_type
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,11 +37,12 @@ async def async_setup_entry(
 
     for subentry in config_entry.subentries.values():
         # Skip non-element subentries (e.g., network)
-        if subentry.subentry_type not in ELEMENT_TYPES:
+        element_type = subentry.subentry_type
+        if not is_element_type(element_type):
             continue
 
         # Get input field definitions for this element type
-        input_fields = get_input_fields(subentry.subentry_type)
+        input_fields = get_input_fields(element_type)
 
         # Filter to only number fields (by entity description class name)
         # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
@@ -61,9 +62,9 @@ async def async_setup_entry(
         )
 
         for field_info in number_fields:
-            # Only create entity if field is present in config
-            if field_info.field_name not in subentry.data:
-                continue
+            # Entities are enabled by default if the field is configured
+            # Unconfigured optional fields get disabled entities that users can enable
+            enabled_by_default = field_info.field_name in subentry.data
 
             entity = HaeoInputNumber(
                 hass=hass,
@@ -72,6 +73,7 @@ async def async_setup_entry(
                 field_info=field_info,
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,
+                enabled_by_default=enabled_by_default,
             )
             entities.append(entity)
 

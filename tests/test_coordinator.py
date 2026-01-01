@@ -391,28 +391,29 @@ async def test_async_update_data_returns_outputs(
     mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
 
 
-async def test_async_update_data_raises_on_missing_sensors(
+async def test_async_update_data_with_empty_input_entities(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Coordinator raises UpdateFailed when input entity data is unavailable."""
+    """Coordinator handles empty input entity data by passing it to loader."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # Mock _load_from_input_entities to raise UpdateFailed
+    # Mock _load_from_input_entities to return minimal data
     with (
         patch.object(
             coordinator,
             "_load_from_input_entities",
-            side_effect=UpdateFailed(translation_key="input_not_ready"),
+            return_value={},
         ),
-        pytest.raises(UpdateFailed) as exc_info,
+        patch("custom_components.haeo.coordinator.data_module.load_network") as mock_load,
     ):
-        await coordinator._async_update_data()
-
-    assert exc_info.value.translation_key == "input_not_ready"
+        mock_load.side_effect = UpdateFailed("Missing required data")
+        with pytest.raises(UpdateFailed, match="Missing required data"):
+            await coordinator._async_update_data()
+        mock_load.assert_called_once()
 
 
 async def test_async_update_data_propagates_update_failed(
@@ -961,19 +962,25 @@ def test_trigger_optimization_optimizes_immediately_outside_cooldown(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_from_input_entities_raises_on_missing_input_entity(
+def test_load_from_input_entities_skips_missing_input_entity(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading from input entities raises RuntimeError when input entity is missing."""
+    """Loading skips fields when input entity is missing."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # runtime_data exists but input_entities is empty
     mock_runtime_data.input_entities = {}
 
-    with pytest.raises(RuntimeError, match=r"No input entity for.*capacity"):
-        coordinator._load_from_input_entities()
+    # Should not raise - just returns config without input field values
+    result = coordinator._load_from_input_entities()
+    assert "Test Battery" in result
+    # Base fields are still present
+    assert result["Test Battery"]["element_type"] == "battery"
+    assert result["Test Battery"]["name"] == "Test Battery"
+    # But input fields are missing
+    assert "capacity" not in result["Test Battery"]
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
@@ -1003,23 +1010,24 @@ def test_load_from_input_entities_loads_time_series_fields(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_from_input_entities_raises_update_failed_when_values_none(
+def test_load_from_input_entities_skips_fields_when_values_none(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading raises UpdateFailed when input entity has no values."""
+    """Loading skips fields when input entity returns None values."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # Create mock input entity that returns None for values
+    # Create mock input entity that returns None for values (disabled entity)
     mock_entity = MagicMock()
     mock_entity.get_values.return_value = None
     mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
 
-    with pytest.raises(UpdateFailed) as exc_info:
-        coordinator._load_from_input_entities()
-
-    assert exc_info.value.translation_key == "input_not_ready"
+    # Should not raise - just skips the field
+    result = coordinator._load_from_input_entities()
+    assert "Test Battery" in result
+    # Capacity should not be in result since entity returned None
+    assert "capacity" not in result["Test Battery"]
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
@@ -1047,3 +1055,25 @@ async def test_async_update_data_raises_when_runtime_data_none_in_body(
         pytest.raises(UpdateFailed, match="Runtime data not available"),
     ):
         await coordinator._async_update_data()
+
+
+def test_load_from_input_entities_raises_on_invalid_element_type(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Loading raises RuntimeError when element type is invalid."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Inject an invalid element type into participant configs
+    # This tests the runtime guard against corrupted/invalid config data
+    invalid_config: Any = {
+        "Invalid Element": {
+            CONF_ELEMENT_TYPE: "invalid_type",
+            CONF_NAME: "Invalid Element",
+        }
+    }
+    coordinator._participant_configs = invalid_config
+
+    with pytest.raises(RuntimeError, match=r"Invalid element type invalid_type for Invalid Element"):
+        coordinator._load_from_input_entities()

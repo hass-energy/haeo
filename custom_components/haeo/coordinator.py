@@ -41,6 +41,7 @@ from .elements import (
     ElementOutputName,
     collect_element_subentries,
     get_input_fields,
+    is_element_type,
 )
 from .model import (
     OUTPUT_TYPE_COST,
@@ -380,6 +381,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         for element_name, element_config in self._participant_configs.items():
             element_type = element_config[CONF_ELEMENT_TYPE]
+            if not is_element_type(element_type):
+                msg = f"Invalid element type {element_type} for {element_name}"
+                raise RuntimeError(msg)
 
             # Start with the base config (element_type, name)
             loaded_data: dict[str, Any] = {
@@ -392,46 +396,40 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             input_field_map = {f.field_name: f for f in input_field_infos}
             input_field_names = set(input_field_map.keys())
 
-            # Load values from input entities for fields that have them
+            # Process non-input fields from config first
             for field_name in element_config:
                 if field_name in (CONF_ELEMENT_TYPE, CONF_NAME):
                     continue
-
                 if field_name in input_field_names:
-                    # This field should have an input entity - read from it
-                    key = (element_name, field_name)
-                    if key not in runtime_data.input_entities:
-                        # Programming error: input entity should exist for this field
-                        msg = (
-                            f"No input entity for {element_name}.{field_name} - "
-                            "input entity was not created during platform setup"
-                        )
-                        raise RuntimeError(msg)
+                    # Input fields are handled separately below
+                    continue
+                # Not an input field - copy directly from config
+                # This handles participant references (e.g., connection: "Switchboard")
+                loaded_data[field_name] = element_config[field_name]
 
-                    entity = runtime_data.input_entities[key]
-                    values = entity.get_values()
-                    if values is None:
-                        # Input entity exists but has no values yet - not ready
-                        raise UpdateFailed(
-                            translation_key="input_not_ready",
-                            translation_placeholders={
-                                "element": element_name,
-                                "field": field_name,
-                            },
-                        )
+            # Load values from input entities
+            for field_info in input_field_infos:
+                field_name = field_info.field_name
+                key = (element_name, field_name)
 
-                    # Check if field is time_series or scalar
-                    field_info = input_field_map[field_name]
-                    if field_info.time_series:
-                        # Return as list for time series fields
-                        loaded_data[field_name] = list(values)
-                    else:
-                        # Return first value for scalar fields
-                        loaded_data[field_name] = values[0] if values else None
+                if key not in runtime_data.input_entities:
+                    # No entity - field not in INPUT_FIELDS registry
+                    continue
+
+                entity = runtime_data.input_entities[key]
+                values = entity.get_values()
+
+                if values is None:
+                    # Entity disabled or not ready - skip this field
+                    continue
+
+                # Check if field is time_series or scalar
+                if field_info.time_series:
+                    # Return as list for time series fields
+                    loaded_data[field_name] = list(values)
                 else:
-                    # Not an input field - copy directly from config
-                    # This handles participant references (e.g., connection: "Switchboard")
-                    loaded_data[field_name] = element_config[field_name]
+                    # Return first value for scalar fields
+                    loaded_data[field_name] = values[0] if values else None
 
             loaded_configs[element_name] = loaded_data  # type: ignore[assignment]
 
