@@ -61,7 +61,8 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
             "connection": "bus",
             "forecast": "not_a_list",
         },
-        # Wrong type for capacity (should be list[str] or float, not bool)
+        # Wrong type for capacity (bool is rejected - bools are explicitly excluded from
+        # constant value handling even though bool is a subclass of int in Python)
         {
             "element_type": "battery",
             "name": "test",

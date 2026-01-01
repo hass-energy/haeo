@@ -280,6 +280,9 @@ def _conforms_to_typed_dict(value: Mapping[str, Any], typed_dict_cls: type) -> b
         if check_type is not Literal:
             if check_type is types.UnionType:
                 # Handle union types (e.g., list[str] | float)
+                # Use the origin for generic args (e.g., list[str] -> list); for primitive
+                # types (e.g., float, int) get_origin() returns None so we fall back to arg
+                # itself, producing a tuple like (list, float) suitable for isinstance().
                 union_args = get_args(expected_type)
                 allowed_types = tuple(get_origin(arg) or arg for arg in union_args)
                 if not isinstance(value[key], allowed_types):
