@@ -19,13 +19,9 @@ def _is_constant_value(value: Any) -> bool:
 def _collect_sensor_ids(value: Any) -> list[str]:
     """Return all sensor entity IDs referenced by *value*.
 
-    Returns empty list for constant values (int/float).
+    Callers must check for constant values (int/float) before calling this function.
     Raises TypeError for invalid input types.
     """
-    # Constant values don't have entity IDs
-    if _is_constant_value(value):
-        return []
-
     if isinstance(value, Mapping):
         entity_ids: list[str] = []
         for sensors in value.values():
