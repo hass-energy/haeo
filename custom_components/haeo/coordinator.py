@@ -43,22 +43,7 @@ from .elements import (
     get_input_fields,
     is_element_type,
 )
-from .model import (
-    OUTPUT_TYPE_COST,
-    OUTPUT_TYPE_DURATION,
-    OUTPUT_TYPE_ENERGY,
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_POWER_FLOW,
-    OUTPUT_TYPE_POWER_LIMIT,
-    OUTPUT_TYPE_PRICE,
-    OUTPUT_TYPE_SHADOW_PRICE,
-    OUTPUT_TYPE_SOC,
-    OUTPUT_TYPE_STATUS,
-    ModelOutputName,
-    Network,
-    OutputData,
-    OutputType,
-)
+from .model import ModelOutputName, Network, OutputData, OutputType
 from .repairs import dismiss_optimization_failure_issue
 from .util.forecast_times import tiers_to_periods_seconds
 
@@ -98,24 +83,24 @@ class CoordinatorOutput:
 
 
 DEVICE_CLASS_MAP: dict[OutputType, SensorDeviceClass] = {
-    OUTPUT_TYPE_POWER: SensorDeviceClass.POWER,
-    OUTPUT_TYPE_POWER_FLOW: SensorDeviceClass.POWER,
-    OUTPUT_TYPE_POWER_LIMIT: SensorDeviceClass.POWER,
-    OUTPUT_TYPE_ENERGY: SensorDeviceClass.ENERGY,
-    OUTPUT_TYPE_SOC: SensorDeviceClass.BATTERY,
-    OUTPUT_TYPE_COST: SensorDeviceClass.MONETARY,
-    OUTPUT_TYPE_PRICE: SensorDeviceClass.MONETARY,
-    OUTPUT_TYPE_SHADOW_PRICE: SensorDeviceClass.MONETARY,
-    OUTPUT_TYPE_DURATION: SensorDeviceClass.DURATION,
-    OUTPUT_TYPE_STATUS: SensorDeviceClass.ENUM,
+    OutputType.POWER: SensorDeviceClass.POWER,
+    OutputType.POWER_FLOW: SensorDeviceClass.POWER,
+    OutputType.POWER_LIMIT: SensorDeviceClass.POWER,
+    OutputType.ENERGY: SensorDeviceClass.ENERGY,
+    OutputType.STATE_OF_CHARGE: SensorDeviceClass.BATTERY,
+    OutputType.COST: SensorDeviceClass.MONETARY,
+    OutputType.PRICE: SensorDeviceClass.MONETARY,
+    OutputType.SHADOW_PRICE: SensorDeviceClass.MONETARY,
+    OutputType.DURATION: SensorDeviceClass.DURATION,
+    OutputType.STATUS: SensorDeviceClass.ENUM,
 }
 
 STATE_CLASS_MAP: dict[OutputType, SensorStateClass | None] = {
-    OUTPUT_TYPE_POWER: SensorStateClass.MEASUREMENT,
-    OUTPUT_TYPE_POWER_FLOW: SensorStateClass.MEASUREMENT,
-    OUTPUT_TYPE_POWER_LIMIT: SensorStateClass.MEASUREMENT,
-    OUTPUT_TYPE_SOC: SensorStateClass.MEASUREMENT,
-    OUTPUT_TYPE_DURATION: SensorStateClass.MEASUREMENT,
+    OutputType.POWER: SensorStateClass.MEASUREMENT,
+    OutputType.POWER_FLOW: SensorStateClass.MEASUREMENT,
+    OutputType.POWER_LIMIT: SensorStateClass.MEASUREMENT,
+    OutputType.STATE_OF_CHARGE: SensorStateClass.MEASUREMENT,
+    OutputType.DURATION: SensorStateClass.MEASUREMENT,
 }
 
 STATUS_OPTIONS: tuple[str, ...] = tuple(
@@ -183,7 +168,7 @@ def _build_coordinator_output(
         entity_category=(EntityCategory.DIAGNOSTIC if output_name == OUTPUT_NAME_OPTIMIZATION_DURATION else None),
         device_class=DEVICE_CLASS_MAP.get(output_data.type),
         state_class=STATE_CLASS_MAP.get(output_data.type),
-        options=(STATUS_OPTIONS if output_data.type == OUTPUT_TYPE_STATUS else None),
+        options=(STATUS_OPTIONS if output_data.type == OutputType.STATUS else None),
         advanced=output_data.advanced,
     )
 
@@ -511,13 +496,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             network_output_data: dict[NetworkOutputName, OutputData] = {
                 OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
-                    OUTPUT_TYPE_COST, unit=self.hass.config.currency, values=(cost,)
+                    OutputType.COST, unit=self.hass.config.currency, values=(cost,)
                 ),
                 OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
-                    OUTPUT_TYPE_STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
+                    OutputType.STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
                 ),
                 OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
-                    OUTPUT_TYPE_DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
+                    OutputType.DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
                 ),
             }
 

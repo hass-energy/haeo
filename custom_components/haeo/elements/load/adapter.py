@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
     CONNECTION_POWER_TARGET_SOURCE,
@@ -109,7 +109,7 @@ class LoadAdapter:
         connection = model_outputs[f"{name}:connection"]
 
         load_outputs: dict[LoadOutputName, OutputData] = {
-            LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER),
+            LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OutputType.POWER),
             LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
         }
 

@@ -6,6 +6,7 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.const import UnitOfPower
 
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "load"
 
@@ -29,7 +30,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_max_value=1000.0,
             native_step=0.01,
         ),
-        output_type="power",
+        output_type=OutputType.POWER,
         direction="+",
         time_series=True,
         default=DEFAULT_FORECAST,

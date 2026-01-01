@@ -5,6 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.switch import SwitchEntityDescription
 
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "node"
 
@@ -26,7 +27,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[SwitchEntityDescription], ...]] = (
             key=CONF_IS_SOURCE,
             translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
         ),
-        output_type="status",
+        output_type=OutputType.STATUS,
         default=False,
     ),
     InputFieldInfo(
@@ -35,7 +36,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[SwitchEntityDescription], ...]] = (
             key=CONF_IS_SINK,
             translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
         ),
-        output_type="status",
+        output_type=OutputType.STATUS,
         default=False,
     ),
 )

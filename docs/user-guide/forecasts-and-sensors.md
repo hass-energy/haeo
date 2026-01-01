@@ -318,9 +318,24 @@ template:
 
 HAEO will detect this as a simple forecast format and extract the data.
 
-## Using Input Numbers for Constants
+## Using Constants vs Sensors
 
-For constant values that don't change over time (fixed prices, baseline loads, power limits), use [input_number helpers](https://www.home-assistant.io/integrations/input_number/) instead of creating custom sensors.
+For values that don't change over time (fixed prices, baseline loads, power limits), you have two options:
+
+### Direct constant entry
+
+During element configuration, select **Constant** mode for the field and enter your value directly.
+This is the simplest approach for truly static values.
+
+| Step 1 Selection | Step 2 Entry | Use Case             |
+| ---------------- | ------------ | -------------------- |
+| Constant         | 0.25         | Fixed import price   |
+| Constant         | 15           | Static power limit   |
+| Constant         | 90           | Fixed SOC percentage |
+
+### Input number helpers
+
+For values you want to adjust through the Home Assistant UI without reconfiguring HAEO, use [input_number helpers](https://www.home-assistant.io/integrations/input_number/).
 
 **Creating an input_number**:
 
@@ -336,22 +351,26 @@ For constant values that don't change over time (fixed prices, baseline loads, p
 
 **Using in HAEO configuration**:
 
-Reference the input_number entity ID anywhere HAEO accepts a sensor:
+During element configuration, select **Entity Link** mode and reference the input_number:
 
-| Field                       | Value                           |
-| --------------------------- | ------------------------------- |
-| **Forecast**                | input_number.base_load_power    |
-| **Import Price**            | input_number.fixed_import_price |
-| **Max Power Source→Target** | input_number.inverter_rating    |
+| Field            | Mode        | Value                           |
+| ---------------- | ----------- | ------------------------------- |
+| **Import Price** | Entity Link | input_number.fixed_import_price |
+| **Import Limit** | Entity Link | input_number.inverter_rating    |
 
 HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
 
-**Benefits**:
+**Benefits of input_number helpers**:
 
-- Easy to adjust through Home Assistant UI
-- No template sensor configuration required
-- Clear, simple configuration
+- Adjustable through Home Assistant UI without reconfiguring HAEO
 - Can be controlled via automations or scripts
+- Value changes take effect on next optimization cycle
+
+**When to use each approach**:
+
+- **Direct constant**: Values that rarely change (capacity, efficiency)
+- **Input_number helper**: Values you adjust regularly (target SOC, temporary overrides)
+- **Forecast sensor**: Values that vary over time (prices, solar generation)
 
 ## Troubleshooting
 

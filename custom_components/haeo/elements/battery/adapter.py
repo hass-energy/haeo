@@ -12,18 +12,16 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_SOC
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import BatterySubentryFlowHandler
 from .schema import (
-    CONF_CAPACITY,
     CONF_CONNECTION,
     CONF_DISCHARGE_COST,
     CONF_EARLY_CHARGE_INCENTIVE,
     CONF_EFFICIENCY,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
@@ -99,25 +97,33 @@ class BatteryAdapter:
         """Check if battery configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        # Check required time series fields
-        required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE]
-        for field in required_fields:
-            if not ts_loader.available(hass=hass, value=config[field]):
-                return False
+        # Helper to check entity list availability
+        def entities_available(value: list[str] | float | None) -> bool:
+            if not isinstance(value, list) or not value:
+                return True  # Constants and missing values are always available
+            return ts_loader.available(hass=hass, value=value)
+
+        # Check required fields
+        if not entities_available(config.get("capacity")):
+            return False
+        if not entities_available(config.get("initial_charge_percentage")):
+            return False
 
         # Check optional time series fields if present
-        optional_ts_fields = [
+        optional_fields = [
             CONF_MAX_CHARGE_POWER,
             CONF_MAX_DISCHARGE_POWER,
             CONF_DISCHARGE_COST,
             CONF_UNDERCHARGE_COST,
             CONF_OVERCHARGE_COST,
+            CONF_MIN_CHARGE_PERCENTAGE,
+            CONF_MAX_CHARGE_PERCENTAGE,
+            CONF_EFFICIENCY,
+            CONF_EARLY_CHARGE_INCENTIVE,
+            CONF_UNDERCHARGE_PERCENTAGE,
+            CONF_OVERCHARGE_PERCENTAGE,
         ]
-        for field in optional_ts_fields:
-            if field in config and not ts_loader.available(hass=hass, value=config[field]):
-                return False
-
-        return True
+        return all(entities_available(config.get(field)) for field in optional_fields)  # type: ignore[arg-type]
 
     async def load(
         self,
@@ -128,12 +134,31 @@ class BatteryAdapter:
     ) -> BatteryConfigData:
         """Load battery configuration values from sensors."""
         ts_loader = TimeSeriesLoader()
+        # forecast_times are fence posts, periods = n-1
+        n_periods = max(0, len(forecast_times) - 1)
+
+        async def load_value(
+            value: list[str] | float | None,
+            default: float | None = None,
+        ) -> list[float]:
+            """Load a union value into a time series."""
+            if isinstance(value, list) and value:
+                return await ts_loader.load(hass=hass, value=value, forecast_times=forecast_times)
+            if isinstance(value, (int, float)):
+                return [float(value)] * n_periods
+            if default is not None:
+                return [default] * n_periods
+            msg = "Value must be provided - no default available"
+            raise ValueError(msg)
 
         # Load required time series
-        capacity = await ts_loader.load(hass=hass, value=config[CONF_CAPACITY], forecast_times=forecast_times)
-        initial_charge = await ts_loader.load(
-            hass=hass, value=config[CONF_INITIAL_CHARGE_PERCENTAGE], forecast_times=forecast_times
-        )
+        capacity = await load_value(config.get("capacity"))
+        initial_charge = await load_value(config.get("initial_charge_percentage"))
+
+        # Load optional fields with defaults
+        min_charge = await load_value(config.get(CONF_MIN_CHARGE_PERCENTAGE), DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
+        max_charge = await load_value(config.get(CONF_MAX_CHARGE_PERCENTAGE), DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
+        efficiency = await load_value(config.get(CONF_EFFICIENCY), DEFAULTS[CONF_EFFICIENCY])
 
         # Build data with defaults applied
         data: BatteryConfigData = {
@@ -142,42 +167,45 @@ class BatteryAdapter:
             "connection": config[CONF_CONNECTION],
             "capacity": capacity,
             "initial_charge_percentage": initial_charge,
-            "min_charge_percentage": config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]),
-            "max_charge_percentage": config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE]),
-            "efficiency": config.get(CONF_EFFICIENCY, DEFAULTS[CONF_EFFICIENCY]),
+            "min_charge_percentage": min_charge,
+            "max_charge_percentage": max_charge,
+            "efficiency": efficiency,
         }
 
-        # Load optional time series fields
-        if CONF_MAX_CHARGE_POWER in config:
-            data["max_charge_power"] = await ts_loader.load(
-                hass=hass, value=config[CONF_MAX_CHARGE_POWER], forecast_times=forecast_times
-            )
-        if CONF_MAX_DISCHARGE_POWER in config:
-            data["max_discharge_power"] = await ts_loader.load(
-                hass=hass, value=config[CONF_MAX_DISCHARGE_POWER], forecast_times=forecast_times
-            )
-        if CONF_DISCHARGE_COST in config:
-            data["discharge_cost"] = await ts_loader.load(
-                hass=hass, value=config[CONF_DISCHARGE_COST], forecast_times=forecast_times
+        # Load optional time series fields (no defaults)
+        max_charge_power = config.get(CONF_MAX_CHARGE_POWER)
+        if max_charge_power is not None:
+            data["max_charge_power"] = await load_value(max_charge_power)
+
+        max_discharge_power = config.get(CONF_MAX_DISCHARGE_POWER)
+        if max_discharge_power is not None:
+            data["max_discharge_power"] = await load_value(max_discharge_power)
+
+        discharge_cost = config.get(CONF_DISCHARGE_COST)
+        if discharge_cost is not None:
+            data["discharge_cost"] = await load_value(discharge_cost)
+
+        early_charge_incentive = config.get(CONF_EARLY_CHARGE_INCENTIVE)
+        if early_charge_incentive is not None:
+            data["early_charge_incentive"] = await load_value(
+                early_charge_incentive, DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
             )
 
-        # Load optional scalars
-        if CONF_EARLY_CHARGE_INCENTIVE in config:
-            data["early_charge_incentive"] = config[CONF_EARLY_CHARGE_INCENTIVE]
-        if CONF_UNDERCHARGE_PERCENTAGE in config:
-            data["undercharge_percentage"] = config[CONF_UNDERCHARGE_PERCENTAGE]
-        if CONF_OVERCHARGE_PERCENTAGE in config:
-            data["overcharge_percentage"] = config[CONF_OVERCHARGE_PERCENTAGE]
+        undercharge_percentage = config.get(CONF_UNDERCHARGE_PERCENTAGE)
+        if undercharge_percentage is not None:
+            data["undercharge_percentage"] = await load_value(undercharge_percentage)
 
-        # Load optional undercharge/overcharge costs
-        if CONF_UNDERCHARGE_COST in config:
-            data["undercharge_cost"] = await ts_loader.load(
-                hass=hass, value=config[CONF_UNDERCHARGE_COST], forecast_times=forecast_times
-            )
-        if CONF_OVERCHARGE_COST in config:
-            data["overcharge_cost"] = await ts_loader.load(
-                hass=hass, value=config[CONF_OVERCHARGE_COST], forecast_times=forecast_times
-            )
+        overcharge_percentage = config.get(CONF_OVERCHARGE_PERCENTAGE)
+        if overcharge_percentage is not None:
+            data["overcharge_percentage"] = await load_value(overcharge_percentage)
+
+        undercharge_cost = config.get(CONF_UNDERCHARGE_COST)
+        if undercharge_cost is not None:
+            data["undercharge_cost"] = await load_value(undercharge_cost)
+
+        overcharge_cost = config.get(CONF_OVERCHARGE_COST)
+        if overcharge_cost is not None:
+            data["overcharge_cost"] = await load_value(overcharge_cost)
 
         return data
 
@@ -189,46 +217,58 @@ class BatteryAdapter:
         """
         name = config["name"]
         elements: list[dict[str, Any]] = []
+        n_periods = len(config["capacity"])
 
-        # Get capacity and initial SOC from first period
-        capacity = config["capacity"][0]
+        # Get capacity array and initial SOC from first period
+        capacity_array = np.array(config["capacity"])
+        capacity_first = capacity_array[0]
         initial_soc = config["initial_charge_percentage"][0]
 
-        # Convert percentages to ratios
-        min_ratio = config["min_charge_percentage"] / 100.0
-        max_ratio = config["max_charge_percentage"] / 100.0
-        undercharge_ratio = (
-            config.get("undercharge_percentage", min_ratio) / 100.0 if config.get("undercharge_percentage") else None
-        )
-        overcharge_ratio = (
-            config.get("overcharge_percentage", max_ratio) / 100.0 if config.get("overcharge_percentage") else None
-        )
+        # Convert percentages to ratio arrays for time-varying limits
+        min_ratio_array = np.array(config["min_charge_percentage"]) / 100.0
+        max_ratio_array = np.array(config["max_charge_percentage"]) / 100.0
+        min_ratio_first = min_ratio_array[0]
+
+        # Get optional percentage arrays (if present)
+        undercharge_pct = config.get("undercharge_percentage")
+        undercharge_ratio_array = np.array(undercharge_pct) / 100.0 if undercharge_pct else None
+        undercharge_ratio_first = undercharge_ratio_array[0] if undercharge_ratio_array is not None else None
+
+        overcharge_pct = config.get("overcharge_percentage")
+        overcharge_ratio_array = np.array(overcharge_pct) / 100.0 if overcharge_pct else None
+
         initial_soc_ratio = initial_soc / 100.0
 
-        # Calculate early charge/discharge incentives
-        early_charge_incentive = config.get("early_charge_incentive", DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE])
+        # Calculate early charge/discharge incentives (use first period if present)
+        early_charge_list = config.get("early_charge_incentive")
+        early_charge_incentive = early_charge_list[0] if early_charge_list else DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
 
-        # Determine unusable ratio (inaccessible energy)
-        unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
+        # Determine unusable ratio for initial charge calculation
+        unusable_ratio_first = undercharge_ratio_first if undercharge_ratio_first is not None else min_ratio_first
 
         # Calculate initial charge in kWh (remove unusable percentage)
-        initial_charge = max((initial_soc_ratio - unusable_ratio) * capacity, 0.0)
+        initial_charge = max((initial_soc_ratio - unusable_ratio_first) * capacity_first, 0.0)
 
-        # Create battery sections
+        # Create battery sections and track their capacities
         section_names: list[str] = []
+        section_capacities: dict[str, list[float]] = {}
 
         # 1. Undercharge section (if configured)
-        if undercharge_ratio is not None and config.get("undercharge_cost") is not None:
+        if undercharge_ratio_array is not None and config.get("undercharge_cost") is not None:
             section_name = f"{name}:undercharge"
             section_names.append(section_name)
-            undercharge_capacity = (min_ratio - undercharge_ratio) * capacity
-            section_initial_charge = min(initial_charge, undercharge_capacity)
+            # Time-varying capacity: (min_ratio - undercharge_ratio) * capacity per period
+            undercharge_capacity = (min_ratio_array - undercharge_ratio_array) * capacity_array
+            section_capacities[section_name] = undercharge_capacity.tolist()
+            # For initial charge distribution, use first period capacity
+            undercharge_capacity_first = float(undercharge_capacity[0])
+            section_initial_charge = min(initial_charge, undercharge_capacity_first)
 
             elements.append(
                 {
                     "element_type": "battery",
                     "name": section_name,
-                    "capacity": undercharge_capacity,
+                    "capacity": undercharge_capacity.tolist(),
                     "initial_charge": section_initial_charge,
                 }
             )
@@ -238,14 +278,17 @@ class BatteryAdapter:
         # 2. Normal section (always present)
         section_name = f"{name}:normal"
         section_names.append(section_name)
-        normal_capacity = (max_ratio - min_ratio) * capacity
-        section_initial_charge = min(initial_charge, normal_capacity)
+        # Time-varying capacity: (max_ratio - min_ratio) * capacity per period
+        normal_capacity = (max_ratio_array - min_ratio_array) * capacity_array
+        section_capacities[section_name] = normal_capacity.tolist()
+        normal_capacity_first = float(normal_capacity[0])
+        section_initial_charge = min(initial_charge, normal_capacity_first)
 
         elements.append(
             {
                 "element_type": "battery",
                 "name": section_name,
-                "capacity": normal_capacity,
+                "capacity": normal_capacity.tolist(),
                 "initial_charge": section_initial_charge,
             }
         )
@@ -253,17 +296,20 @@ class BatteryAdapter:
         initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
         # 3. Overcharge section (if configured)
-        if overcharge_ratio is not None and config.get("overcharge_cost") is not None:
+        if overcharge_ratio_array is not None and config.get("overcharge_cost") is not None:
             section_name = f"{name}:overcharge"
             section_names.append(section_name)
-            overcharge_capacity = (overcharge_ratio - max_ratio) * capacity
-            section_initial_charge = min(initial_charge, overcharge_capacity)
+            # Time-varying capacity: (overcharge_ratio - max_ratio) * capacity per period
+            overcharge_capacity = (overcharge_ratio_array - max_ratio_array) * capacity_array
+            section_capacities[section_name] = overcharge_capacity.tolist()
+            overcharge_capacity_first = float(overcharge_capacity[0])
+            section_initial_charge = min(initial_charge, overcharge_capacity_first)
 
             elements.append(
                 {
                     "element_type": "battery",
                     "name": section_name,
-                    "capacity": overcharge_capacity,
+                    "capacity": overcharge_capacity.tolist(),
                     "initial_charge": section_initial_charge,
                 }
             )
@@ -280,7 +326,6 @@ class BatteryAdapter:
         )
 
         # 5. Create connections from sections to internal node
-        n_periods = len(config["capacity"])
 
         # Get undercharge/overcharge cost arrays (or broadcast scalars to arrays)
         undercharge_cost_array: list[float] = (
@@ -322,15 +367,7 @@ class BatteryAdapter:
 
         # 6. Create balance connections between adjacent sections (enforces fill ordering)
         # Balance connections ensure lower sections fill before upper sections
-        section_capacities: dict[str, float] = {}
-        for section_name in section_names:
-            if "undercharge" in section_name:
-                section_capacities[section_name] = (min_ratio - undercharge_ratio) * capacity  # type: ignore[operator]
-            elif "overcharge" in section_name:
-                section_capacities[section_name] = (overcharge_ratio - max_ratio) * capacity  # type: ignore[operator]
-            else:
-                section_capacities[section_name] = normal_capacity
-
+        # section_capacities was populated during section creation above
         for i in range(len(section_names) - 1):
             lower_section = section_names[i]
             upper_section = section_names[i + 1]
@@ -452,7 +489,7 @@ class BatteryAdapter:
                 )
             ],
             direction=None,
-            type=OUTPUT_TYPE_POWER,
+            type=OutputType.POWER,
         )
 
         # Add node power balance as battery power balance
@@ -543,14 +580,14 @@ class BatteryAdapter:
 
             if power_down_values is not None:
                 result[device_key][BATTERY_BALANCE_POWER_DOWN] = OutputData(
-                    type=OUTPUT_TYPE_POWER_FLOW,
+                    type=OutputType.POWER_FLOW,
                     unit="kW",
                     values=tuple(float(v) for v in power_down_values),
                     advanced=True,
                 )
             if power_up_values is not None:
                 result[device_key][BATTERY_BALANCE_POWER_UP] = OutputData(
-                    type=OUTPUT_TYPE_POWER_FLOW,
+                    type=OutputType.POWER_FLOW,
                     unit="kW",
                     values=tuple(float(v) for v in power_up_values),
                     advanced=True,
@@ -584,16 +621,18 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
     """Calculate total energy stored including inaccessible energy below min SOC."""
     capacity = np.array(config["capacity"])
 
-    min_ratio = config["min_charge_percentage"] / 100.0
-    undercharge_ratio = (
-        config.get("undercharge_percentage", min_ratio) / 100.0 if config.get("undercharge_percentage") else None
-    )
+    # Get time-varying min ratio
+    min_ratio = np.array(config["min_charge_percentage"]) / 100.0
+
+    undercharge_pct = config.get("undercharge_percentage")
+    undercharge_ratio = np.array(undercharge_pct) / 100.0 if undercharge_pct else None
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
 
-    # Fence-post: energy has n+1 values, capacity has n periods
-    # Use preceding capacity for each energy point (first uses first capacity)
+    # Fence-post: energy has n+1 values, capacity/ratios have n periods
+    # Use preceding values for each energy point (first uses first values)
     fence_post_capacity = np.concatenate([[capacity[0]], capacity])
-    inaccessible_energy = unusable_ratio * fence_post_capacity
+    fence_post_unusable_ratio = np.concatenate([[unusable_ratio[0]], unusable_ratio])
+    inaccessible_energy = fence_post_unusable_ratio * fence_post_capacity
     total_values = np.array(aggregate_energy.values) + inaccessible_energy
 
     return OutputData(
@@ -613,7 +652,7 @@ def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> Outpu
     soc_values = np.array(total_energy.values) / fence_post_capacity * 100.0
 
     return OutputData(
-        type=OUTPUT_TYPE_SOC,
+        type=OutputType.STATE_OF_CHARGE,
         unit="%",
         values=tuple(soc_values.tolist()),
     )

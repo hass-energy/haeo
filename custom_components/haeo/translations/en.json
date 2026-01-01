@@ -81,42 +81,80 @@
           "title": "Add Battery",
           "description": "Set up battery parameters for energy optimization",
           "data": {
-            "capacity": "Capacity",
+            "capacity_mode": "Capacity Source",
             "connection": "Connection",
-            "discharge_cost": "Discharge Cost (Optional)",
-            "early_charge_incentive": "Early Charge Incentive",
-            "efficiency": "Round-trip Efficiency",
-            "initial_charge_percentage": "State of Charge Charge Sensor",
-            "max_charge_percentage": "Max Charge Level",
-            "max_charge_power": "Max Charging Power",
-            "max_discharge_power": "Max Discharging Power",
-            "min_charge_percentage": "Min Charge Level",
+            "discharge_cost_mode": "Discharge Cost Source",
+            "early_charge_incentive_mode": "Early Charge Incentive Source",
+            "efficiency_mode": "Efficiency Source",
+            "initial_charge_percentage_mode": "State of Charge Source",
+            "max_charge_percentage_mode": "Max Charge Level Source",
+            "max_charge_power_mode": "Max Charging Power Source",
+            "max_discharge_power_mode": "Max Discharging Power Source",
+            "min_charge_percentage_mode": "Min Charge Level Source",
             "name": "Battery Name",
-            "overcharge_cost": "Overcharge Cost (Optional)",
-            "overcharge_percentage": "Overcharge Percentage (Optional)",
-            "undercharge_cost": "Undercharge Cost (Optional)",
-            "undercharge_percentage": "Undercharge Percentage (Optional)"
+            "overcharge_cost_mode": "Overcharge Cost Source",
+            "overcharge_percentage_mode": "Overcharge Percentage Source",
+            "undercharge_cost_mode": "Undercharge Cost Source",
+            "undercharge_percentage_mode": "Undercharge Percentage Source"
           }
         },
         "reconfigure": {
           "title": "Edit Battery",
           "description": "Update battery configuration",
           "data": {
-            "capacity": "Capacity",
+            "capacity_mode": "Capacity Source",
             "connection": "Connection",
-            "discharge_cost": "Discharge Cost (Optional)",
+            "discharge_cost_mode": "Discharge Cost Source",
+            "early_charge_incentive_mode": "Early Charge Incentive Source",
+            "efficiency_mode": "Efficiency Source",
+            "initial_charge_percentage_mode": "State of Charge Source",
+            "max_charge_percentage_mode": "Max Charge Level Source",
+            "max_charge_power_mode": "Max Charging Power Source",
+            "max_discharge_power_mode": "Max Discharging Power Source",
+            "min_charge_percentage_mode": "Min Charge Level Source",
+            "name": "Battery Name",
+            "overcharge_cost_mode": "Overcharge Cost Source",
+            "overcharge_percentage_mode": "Overcharge Percentage Source",
+            "undercharge_cost_mode": "Undercharge Cost Source",
+            "undercharge_percentage_mode": "Undercharge Percentage Source"
+          }
+        },
+        "reconfigure_values": {
+          "title": "Edit Battery Values",
+          "description": "Update values for the selected input sources",
+          "data": {
+            "capacity": "Capacity",
+            "discharge_cost": "Discharge Cost",
             "early_charge_incentive": "Early Charge Incentive",
-            "efficiency": "One-way Efficiency",
-            "initial_charge_percentage": "State of Charge Charge Sensor",
+            "efficiency": "Round-trip Efficiency",
+            "initial_charge_percentage": "State of Charge",
             "max_charge_percentage": "Max Charge Level",
             "max_charge_power": "Max Charging Power",
             "max_discharge_power": "Max Discharging Power",
             "min_charge_percentage": "Min Charge Level",
-            "name": "Battery Name",
-            "overcharge_cost": "Overcharge Cost (Optional)",
-            "overcharge_percentage": "Overcharge Percentage (Optional)",
-            "undercharge_cost": "Undercharge Cost (Optional)",
-            "undercharge_percentage": "Undercharge Percentage (Optional)"
+            "overcharge_cost": "Overcharge Cost",
+            "overcharge_percentage": "Overcharge Percentage",
+            "undercharge_cost": "Undercharge Cost",
+            "undercharge_percentage": "Undercharge Percentage"
+          }
+        },
+        "values": {
+          "title": "Battery Values",
+          "description": "Enter values for the selected input sources",
+          "data": {
+            "capacity": "Capacity",
+            "discharge_cost": "Discharge Cost",
+            "early_charge_incentive": "Early Charge Incentive",
+            "efficiency": "Round-trip Efficiency",
+            "initial_charge_percentage": "State of Charge",
+            "max_charge_percentage": "Max Charge Level",
+            "max_charge_power": "Max Charging Power",
+            "max_discharge_power": "Max Discharging Power",
+            "min_charge_percentage": "Min Charge Level",
+            "overcharge_cost": "Overcharge Cost",
+            "overcharge_percentage": "Overcharge Percentage",
+            "undercharge_cost": "Undercharge Cost",
+            "undercharge_percentage": "Undercharge Percentage"
           }
         }
       },
@@ -198,10 +236,10 @@
           "description": "Set up grid import/export parameters and pricing",
           "data": {
             "connection": "Connection",
-            "export_limit": "Export Limit (Optional)",
-            "export_price": "Export Price Sensors",
-            "import_limit": "Import Limit (Optional)",
-            "import_price": "Import Price Sensors",
+            "export_limit_mode": "Export Limit Source",
+            "export_price_mode": "Export Price Source",
+            "import_limit_mode": "Import Limit Source",
+            "import_price_mode": "Import Price Source",
             "name": "Grid Name"
           }
         },
@@ -210,11 +248,31 @@
           "description": "Update grid configuration",
           "data": {
             "connection": "Connection",
-            "export_limit": "Export Limit (Optional)",
-            "export_price": "Export Price Sensors",
-            "import_limit": "Import Limit (Optional)",
-            "import_price": "Import Price Sensors",
+            "export_limit_mode": "Export Limit Source",
+            "export_price_mode": "Export Price Source",
+            "import_limit_mode": "Import Limit Source",
+            "import_price_mode": "Import Price Source",
             "name": "Grid Name"
+          }
+        },
+        "reconfigure_values": {
+          "title": "Edit Grid Values",
+          "description": "Update values for the selected input sources",
+          "data": {
+            "export_limit": "Export Limit",
+            "export_price": "Export Price",
+            "import_limit": "Import Limit",
+            "import_price": "Import Price"
+          }
+        },
+        "values": {
+          "title": "Grid Values",
+          "description": "Enter values for the selected input sources",
+          "data": {
+            "export_limit": "Export Limit",
+            "export_price": "Export Price",
+            "import_limit": "Import Limit",
+            "import_price": "Import Price"
           }
         }
       },
@@ -468,6 +526,7 @@
   "selector": {
     "horizon_preset": {
       "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
-    }
+    },
+    "input_mode": { "options": { "constant": "Constant", "entity_link": "Sensor", "none": "Not configured" } }
   }
 }

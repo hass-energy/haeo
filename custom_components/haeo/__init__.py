@@ -46,12 +46,14 @@ class HaeoRuntimeData:
         horizon_manager: Manager providing forecast time windows.
         input_entities: Dict of input entities keyed by (element_name, field_name).
         coordinator: Coordinator for network-level optimization (set after input platforms).
+        value_update_in_progress: Flag to skip reload when updating entity values.
 
     """
 
     horizon_manager: HorizonManager
     input_entities: dict[tuple[str, str], HaeoInputNumber | HaeoInputSwitch] = field(default_factory=dict)
     coordinator: HaeoDataUpdateCoordinator | None = field(default=None)
+    value_update_in_progress: bool = field(default=False)
 
 
 type HaeoConfigEntry = ConfigEntry[HaeoRuntimeData | None]
@@ -61,8 +63,8 @@ async def _wait_for_input_entities_ready(runtime_data: HaeoRuntimeData) -> bool:
     """Wait for all input entities to have their data loaded.
 
     Input entities load data asynchronously in async_added_to_hass().
-    This function polls until all entities return values from get_values(),
-    or times out after _ENTITY_READY_TIMEOUT seconds.
+    This function polls until all entities are ready (either loaded data
+    or disabled), or times out after _ENTITY_READY_TIMEOUT seconds.
 
     Returns:
         True if all entities are ready, False if timeout occurred.
@@ -77,7 +79,7 @@ async def _wait_for_input_entities_ready(runtime_data: HaeoRuntimeData) -> bool:
         not_ready = [
             (elem, field_name)
             for (elem, field_name), entity in runtime_data.input_entities.items()
-            if entity.get_values() is None
+            if not entity.is_ready()
         ]
 
         if not not_ready:
@@ -160,6 +162,16 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
     """Handle options update or subentry changes."""
     from .network import evaluate_network_connectivity  # noqa: PLC0415
+
+    # Check if this is a value-only update from an input entity
+    runtime_data = entry.runtime_data
+    if runtime_data is not None and runtime_data.value_update_in_progress:
+        # Clear the flag and skip reload - just refresh coordinator
+        runtime_data.value_update_in_progress = False
+        _LOGGER.debug("Value update detected, refreshing coordinator without reload")
+        if runtime_data.coordinator is not None:
+            await runtime_data.coordinator.async_refresh()
+        return
 
     await _ensure_required_subentries(hass, entry)
     await evaluate_network_connectivity(hass, entry)

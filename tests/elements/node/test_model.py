@@ -9,7 +9,7 @@ from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import node as node_element
 from custom_components.haeo.elements.node import NodeConfigData
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model.const import OUTPUT_TYPE_SHADOW_PRICE
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
@@ -53,12 +53,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "node_main",
         "model_outputs": {
             "node_main": {
-                NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
         "outputs": {
             node_element.NODE_DEVICE_NODE: {
-                node_element.NODE_POWER_BALANCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                node_element.NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
     },

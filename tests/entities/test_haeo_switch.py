@@ -17,6 +17,7 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.model.const import OutputType
 
 # --- Fixtures ---
 
@@ -72,7 +73,7 @@ def curtailment_field_info() -> InputFieldInfo[SwitchEntityDescription]:
             key="allow_curtailment",
             translation_key="allow_curtailment",
         ),
-        output_type="flag",
+        output_type=OutputType.STATUS,
     )
 
 
@@ -189,11 +190,14 @@ async def test_editable_mode_turn_on(
         horizon_manager=horizon_manager,
     )
     entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_turn_on()
 
     assert entity.is_on is True
     entity.async_write_ha_state.assert_called_once()
+    # Value should be persisted to config entry
+    hass.config_entries.async_update_subentry.assert_called_once()
 
 
 async def test_editable_mode_turn_off(
@@ -216,11 +220,14 @@ async def test_editable_mode_turn_off(
         horizon_manager=horizon_manager,
     )
     entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_turn_off()
 
     assert entity.is_on is False
     entity.async_write_ha_state.assert_called_once()
+    # Value should be persisted to config entry
+    hass.config_entries.async_update_subentry.assert_called_once()
 
 
 # --- Tests for DRIVEN mode ---
@@ -460,7 +467,7 @@ async def test_translation_key_from_field_info(
             key="enable_export",
             translation_key="custom_translation",
         ),
-        output_type="flag",
+        output_type=OutputType.STATUS,
     )
     subentry = _create_subentry("Test", {"enable_export": True})
     config_entry.runtime_data = None
@@ -620,14 +627,17 @@ async def test_get_values_returns_none_without_forecast(
     assert entity.get_values() is None
 
 
-async def test_get_values_returns_none_when_disabled(
+# --- Tests for lifecycle methods ---
+
+
+async def test_async_added_to_hass_editable_uses_config_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """get_values returns None when entity is disabled (not added to HA)."""
+    """async_added_to_hass uses config value in EDITABLE mode (no restore needed)."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
     config_entry.runtime_data = None
 
@@ -638,51 +648,11 @@ async def test_get_values_returns_none_when_disabled(
         field_info=curtailment_field_info,
         device_entry=device_entry,
         horizon_manager=horizon_manager,
-        enabled_by_default=False,  # Disabled entity
     )
-
-    # Entity NOT added to HA (disabled) - even with forecast data, should return None
-    entity._update_forecast()
-    assert entity.get_values() is None
-
-    # Verify entity_registry_enabled_default is False
-    assert entity._attr_entity_registry_enabled_default is False
-
-
-# --- Tests for lifecycle methods ---
-
-
-async def test_async_added_to_hass_editable_restores_state(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """async_added_to_hass restores previous state in EDITABLE mode."""
-    subentry = _create_subentry("Test Solar", {"allow_curtailment": False})
-    config_entry.runtime_data = None
-
-    entity = HaeoInputSwitch(
-        hass=hass,
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=curtailment_field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-    )
-
-    # Mock the async_get_last_state to return a saved "on" state
-    async def mock_get_last_state() -> Mock:
-        mock_state = Mock()
-        mock_state.state = STATE_ON
-        return mock_state
-
-    entity.async_get_last_state = mock_get_last_state  # type: ignore[method-assign]
 
     await entity.async_added_to_hass()
 
-    # Should restore to ON state
+    # Should use config value directly
     assert entity.is_on is True
 
 

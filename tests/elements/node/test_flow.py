@@ -108,6 +108,7 @@ async def test_reconfigure_step_updates_entry(hass: HomeAssistant, hub_entry: Mo
     hass.config_entries.async_add_subentry(hub_entry, existing)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing)
 
     result = await flow.async_step_reconfigure(user_input=case["config"])
@@ -127,6 +128,7 @@ async def test_reconfigure_step_shows_form_initially(hass: HomeAssistant, hub_en
     hass.config_entries.async_add_subentry(hub_entry, existing)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing)
 
     result = await flow.async_step_reconfigure(user_input=None)

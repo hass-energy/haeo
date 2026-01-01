@@ -18,6 +18,7 @@ from custom_components.haeo.elements.battery import (
     CONF_INITIAL_CHARGE_PERCENTAGE,
     ELEMENT_TYPE,
 )
+from custom_components.haeo.flows.field_schema import MODE_SUFFIX, InputMode
 
 from ..conftest import add_participant, create_flow
 
@@ -41,6 +42,7 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form - should not error
@@ -85,23 +87,30 @@ async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssi
 
 
 async def test_schema_rejects_empty_capacity_list(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Schema validation should reject empty capacity entity list."""
+    """Step 2 schema validation should reject empty capacity entity list."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    # Get form to obtain the schema
-    result = await flow.async_step_user(user_input=None)
+    # Complete step 1 with ENTITY_LINK mode for capacity
+    step1_input = {
+        CONF_NAME: "Test Battery",
+        CONF_CONNECTION: "TestNode",
+        f"{CONF_CAPACITY}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
+        f"{CONF_INITIAL_CHARGE_PERCENTAGE}{MODE_SUFFIX}": InputMode.CONSTANT,
+    }
+    result = await flow.async_step_user(user_input=step1_input)
+
+    # Should proceed to values step
+    assert result.get("step_id") == "values"
     schema = result.get("data_schema")
 
-    # Attempt to validate input with empty capacity list
+    # Attempt to validate input with empty capacity list in step 2
     with pytest.raises(vol.MultipleInvalid) as exc_info:
         schema(
             {
-                CONF_NAME: "Test Battery",
-                CONF_CONNECTION: "TestNode",
                 CONF_CAPACITY: [],
-                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.initial"],
+                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
             }
         )
 
@@ -109,22 +118,29 @@ async def test_schema_rejects_empty_capacity_list(hass: HomeAssistant, hub_entry
 
 
 async def test_schema_rejects_empty_initial_charge_list(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Schema validation should reject empty initial charge percentage entity list."""
+    """Step 2 schema validation should reject empty initial charge percentage entity list."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    # Get form to obtain the schema
-    result = await flow.async_step_user(user_input=None)
+    # Complete step 1 with ENTITY_LINK mode for initial_charge_percentage
+    step1_input = {
+        CONF_NAME: "Test Battery",
+        CONF_CONNECTION: "TestNode",
+        f"{CONF_CAPACITY}{MODE_SUFFIX}": InputMode.CONSTANT,
+        f"{CONF_INITIAL_CHARGE_PERCENTAGE}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
+    }
+    result = await flow.async_step_user(user_input=step1_input)
+
+    # Should proceed to values step
+    assert result.get("step_id") == "values"
     schema = result.get("data_schema")
 
-    # Attempt to validate input with empty initial charge list
+    # Attempt to validate input with empty initial charge list in step 2
     with pytest.raises(vol.MultipleInvalid) as exc_info:
         schema(
             {
-                CONF_NAME: "Test Battery",
-                CONF_CONNECTION: "TestNode",
-                CONF_CAPACITY: ["sensor.capacity"],
+                CONF_CAPACITY: 10.0,
                 CONF_INITIAL_CHARGE_PERCENTAGE: [],
             }
         )

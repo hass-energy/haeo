@@ -11,6 +11,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
 from custom_components.haeo.elements.grid import CONF_CONNECTION, CONF_EXPORT_PRICE, CONF_IMPORT_PRICE, ELEMENT_TYPE
+from custom_components.haeo.flows.field_schema import MODE_SUFFIX, InputMode
 
 from ..conftest import add_participant, create_flow
 
@@ -34,6 +35,7 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form - should not error
@@ -77,45 +79,59 @@ async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssi
     assert subentry_id is None
 
 
-async def test_schema_accepts_empty_import_price_list(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Schema validation should accept empty import price entity list (defaults to 0.1)."""
+async def test_schema_uses_default_when_mode_is_none_for_import_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """When import price mode is NONE, the field should not appear in step 2 schema."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    # Get form to obtain the schema
-    result = await flow.async_step_user(user_input=None)
+    # Complete step 1 with NONE mode for import price (will use default)
+    step1_input = {
+        CONF_NAME: "Test Grid",
+        CONF_CONNECTION: "TestNode",
+        f"{CONF_IMPORT_PRICE}{MODE_SUFFIX}": InputMode.NONE,
+        f"{CONF_EXPORT_PRICE}{MODE_SUFFIX}": InputMode.CONSTANT,
+    }
+    result = await flow.async_step_user(user_input=step1_input)
+
+    # Should proceed to values step
+    assert result.get("step_id") == "values"
     schema = result.get("data_schema")
 
-    # Empty import price list should be valid
+    # NONE mode means import_price is not in the schema
+    # Only export_price should be present
     validated = schema(
         {
-            CONF_NAME: "Test Grid",
-            CONF_CONNECTION: "TestNode",
-            CONF_IMPORT_PRICE: [],
-            CONF_EXPORT_PRICE: ["sensor.export"],
+            CONF_EXPORT_PRICE: 0.05,
         }
     )
-    assert validated[CONF_IMPORT_PRICE] == []
+    assert CONF_IMPORT_PRICE not in validated
 
 
-async def test_schema_accepts_empty_export_price_list(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Schema validation should accept empty export price entity list (defaults to 0.01)."""
+async def test_schema_uses_default_when_mode_is_none_for_export_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """When export price mode is NONE, the field should not appear in step 2 schema."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    # Get form to obtain the schema
-    result = await flow.async_step_user(user_input=None)
+    # Complete step 1 with NONE mode for export price (will use default)
+    step1_input = {
+        CONF_NAME: "Test Grid",
+        CONF_CONNECTION: "TestNode",
+        f"{CONF_IMPORT_PRICE}{MODE_SUFFIX}": InputMode.CONSTANT,
+        f"{CONF_EXPORT_PRICE}{MODE_SUFFIX}": InputMode.NONE,
+    }
+    result = await flow.async_step_user(user_input=step1_input)
+
+    # Should proceed to values step
+    assert result.get("step_id") == "values"
     schema = result.get("data_schema")
 
-    # Empty export price list should be valid
+    # NONE mode means export_price is not in the schema
+    # Only import_price should be present
     validated = schema(
         {
-            CONF_NAME: "Test Grid",
-            CONF_CONNECTION: "TestNode",
-            CONF_IMPORT_PRICE: ["sensor.import"],
-            CONF_EXPORT_PRICE: [],
+            CONF_IMPORT_PRICE: 0.30,
         }
     )
-    assert validated[CONF_EXPORT_PRICE] == []
+    assert CONF_EXPORT_PRICE not in validated

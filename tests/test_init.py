@@ -381,6 +381,10 @@ async def test_async_update_listener(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test async_update_listener triggers reload."""
+    # Set up runtime_data (required by async_update_listener)
+    mock_coordinator = Mock()
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
+
     # Mock the reload function
     reload_called = False
     connectivity_called = False
@@ -419,6 +423,39 @@ async def test_async_update_listener(
     assert reload_called
     assert connectivity_called
     assert ensure_called
+
+
+async def test_async_update_listener_value_update_in_progress(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test async_update_listener skips reload when value update is in progress."""
+    # Set up runtime_data with value_update_in_progress=True
+    mock_coordinator = AsyncMock()
+    mock_hub_entry.runtime_data = HaeoRuntimeData(
+        horizon_manager=_create_mock_horizon_manager(),
+        coordinator=mock_coordinator,
+        value_update_in_progress=True,
+    )
+
+    # Mock the reload function to track if it's called
+    reload_called = False
+
+    async def mock_reload(entry_id: str) -> bool:
+        nonlocal reload_called
+        reload_called = True
+        return True
+
+    hass.config_entries.async_reload = mock_reload
+
+    # Call update listener
+    await async_update_listener(hass, mock_hub_entry)
+
+    # Verify: flag should be cleared, coordinator refreshed, NO reload
+    assert mock_hub_entry.runtime_data.value_update_in_progress is False
+    mock_coordinator.async_refresh.assert_called_once()
+    assert not reload_called
 
 
 async def test_async_remove_config_entry_device(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:

@@ -23,24 +23,34 @@ A battery in HAEO represents:
 - **Efficiency** losses during charge/discharge cycles
 - **Operating range preferences** guided by economic costs (min/max SOC)
 
+### Configuration process
+
+Battery configuration uses a two-step flow (see [Configuration](../configuration.md#two-step-element-configuration) for details):
+
+1. **Step 1**: Enter name, connection, and select input mode for each field (Constant, Entity Link, or Not Configured)
+2. **Step 2**: Enter values or select sensors based on your mode selections
+
+For each field, you choose whether to use a constant value or link to Home Assistant sensors.
+Optional fields can be set to "Not Configured" to disable that functionality.
+
 ## Configuration Fields
 
-| Field                                                          | Type                                  | Required | Default | Description                                                |
-| -------------------------------------------------------------- | ------------------------------------- | -------- | ------- | ---------------------------------------------------------- |
-| **[Name](#name)**                                              | String                                | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
-| **[Capacity](#capacity)**                                      | Number (kWh)                          | Yes      | -       | Total energy storage capacity                              |
-| **[Current Charge Percentage](#current-charge-percentage)**    | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
-| **[Min Charge Percentage](#min-and-max-charge-percentage)**    | Number (%)                            | No       | 10      | Preferred minimum SOC (%)                                  |
-| **[Max Charge Percentage](#min-and-max-charge-percentage)**    | Number (%)                            | No       | 90      | Preferred maximum SOC (%)                                  |
-| **[Undercharge Percentage](#undercharge-configuration)**       | Number (%)                            | No       | -       | Hard minimum SOC limit (%)                                 |
-| **[Overcharge Percentage](#overcharge-configuration)**         | Number (%)                            | No       | -       | Hard maximum SOC limit (%)                                 |
-| **[Undercharge Cost](#undercharge-configuration)**             | Number (\$/kWh)                       | No       | -       | Economic penalty for discharging below min SOC             |
-| **[Overcharge Cost](#overcharge-configuration)**               | Number (\$/kWh)                       | No       | -       | Economic penalty for charging above max SOC                |
-| **[Efficiency](#efficiency)**                                  | Number (%)                            | No       | 99      | Round-trip efficiency                                      |
-| **[Max Charge Power](#max-charge-and-discharge-power)**        | Number (kW)                           | No       | -       | Maximum charging power                                     |
-| **[Max Discharge Power](#max-charge-and-discharge-power)**     | Number (kW)                           | No       | -       | Maximum discharging power                                  |
-| **[Early Charge Incentive](#early-charge-incentive-advanced)** | Number (\$/kWh)                       | No       | 0.001   | Small cost to prefer early charging (advanced)             |
-| **[Discharge Cost](#discharge-cost)**                          | Number (\$/kWh)                       | No       | 0       | Base discharge cost for degradation modeling               |
+| Field                                                          | Type       | Required | Default | Description                                                |
+| -------------------------------------------------------------- | ---------- | -------- | ------- | ---------------------------------------------------------- |
+| **[Name](#name)**                                              | String     | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
+| **[Capacity](#capacity)**                                      | Energy     | Yes      | -       | Total energy storage capacity                              |
+| **[Current Charge Percentage](#current-charge-percentage)**    | Percentage | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
+| **[Min Charge Percentage](#min-and-max-charge-percentage)**    | Percentage | No       | 10      | Preferred minimum SOC (%)                                  |
+| **[Max Charge Percentage](#min-and-max-charge-percentage)**    | Percentage | No       | 90      | Preferred maximum SOC (%)                                  |
+| **[Undercharge Percentage](#undercharge-configuration)**       | Percentage | No       | -       | Hard minimum SOC limit (%)                                 |
+| **[Overcharge Percentage](#overcharge-configuration)**         | Percentage | No       | -       | Hard maximum SOC limit (%)                                 |
+| **[Undercharge Cost](#undercharge-configuration)**             | Price      | No       | -       | Economic penalty for discharging below min SOC             |
+| **[Overcharge Cost](#overcharge-configuration)**               | Price      | No       | -       | Economic penalty for charging above max SOC                |
+| **[Efficiency](#efficiency)**                                  | Percentage | No       | 99      | Round-trip efficiency                                      |
+| **[Max Charge Power](#max-charge-and-discharge-power)**        | Power      | No       | -       | Maximum charging power                                     |
+| **[Max Discharge Power](#max-charge-and-discharge-power)**     | Power      | No       | -       | Maximum discharging power                                  |
+| **[Early Charge Incentive](#early-charge-incentive-advanced)** | Price      | No       | 0.001   | Small cost to prefer early charging (advanced)             |
+| **[Discharge Cost](#discharge-cost)**                          | Price      | No       | 0       | Base discharge cost for degradation modeling               |
 
 If not specified, power is unconstrained (limited only by other system constraints).
 

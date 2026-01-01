@@ -8,7 +8,8 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
-from custom_components.haeo.model import OUTPUT_TYPE_POWER_FLOW, ModelOutputName
+from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
     CONNECTION_POWER_ACTIVE,
@@ -162,7 +163,7 @@ class ConnectionAdapter:
                 )
             ],
             direction=None,
-            type=OUTPUT_TYPE_POWER_FLOW,
+            type=OutputType.POWER_FLOW,
         )
 
         # Shadow prices (computed by optimization) - only if constraints exist

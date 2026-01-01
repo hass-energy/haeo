@@ -7,9 +7,9 @@ from typing import Any, Final, Literal
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
+from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
@@ -67,10 +67,13 @@ class GridAdapter:
         """Check if grid configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        # Empty price lists are valid - uses default prices from schema
-        import_available = not config["import_price"] or ts_loader.available(hass=hass, value=config["import_price"])
-        export_available = not config["export_price"] or ts_loader.available(hass=hass, value=config["export_price"])
-        return import_available and export_available
+        # Helper to check entity list availability
+        def entities_available(value: list[str] | float | None) -> bool:
+            if not isinstance(value, list) or not value:
+                return True  # Constants and missing values are always available
+            return ts_loader.available(hass=hass, value=value)
+
+        return entities_available(config.get("import_price")) and entities_available(config.get("export_price"))
 
     async def load(
         self,
@@ -81,26 +84,34 @@ class GridAdapter:
     ) -> GridConfigData:
         """Load grid configuration values from sensors."""
         ts_loader = TimeSeriesLoader()
-        const_loader = ConstantLoader[float](float)
+        # forecast_times are fence posts, so n_periods = len(forecast_times) - 1
+        n_periods = max(0, len(forecast_times) - 1)
 
-        # Use default prices from schema when no sensors are configured
-        if not config["import_price"]:
-            import_price = [DEFAULT_IMPORT_PRICE for _ in forecast_times]
-        else:
+        # Load import_price: entity list, constant, or use default
+        import_value = config.get("import_price")
+        if isinstance(import_value, list) and import_value:
             import_price = await ts_loader.load(
                 hass=hass,
-                value=config["import_price"],
+                value=import_value,
                 forecast_times=forecast_times,
             )
-
-        if not config["export_price"]:
-            export_price = [DEFAULT_EXPORT_PRICE for _ in forecast_times]
+        elif isinstance(import_value, (int, float)):
+            import_price = [float(import_value)] * n_periods
         else:
+            import_price = [DEFAULT_IMPORT_PRICE] * n_periods
+
+        # Load export_price: entity list, constant, or use default
+        export_value = config.get("export_price")
+        if isinstance(export_value, list) and export_value:
             export_price = await ts_loader.load(
                 hass=hass,
-                value=config["export_price"],
+                value=export_value,
                 forecast_times=forecast_times,
             )
+        elif isinstance(export_value, (int, float)):
+            export_price = [float(export_value)] * n_periods
+        else:
+            export_price = [DEFAULT_EXPORT_PRICE] * n_periods
 
         data: GridConfigData = {
             "element_type": config["element_type"],
@@ -110,11 +121,28 @@ class GridAdapter:
             "export_price": export_price,
         }
 
-        # Load optional fields
-        if "import_limit" in config:
-            data["import_limit"] = await const_loader.load(value=config["import_limit"])
-        if "export_limit" in config:
-            data["export_limit"] = await const_loader.load(value=config["export_limit"])
+        # Load optional power limit fields
+        import_limit = config.get("import_limit")
+        if import_limit is not None:
+            if isinstance(import_limit, list) and import_limit:
+                data["import_limit"] = await ts_loader.load(
+                    hass=hass,
+                    value=import_limit,
+                    forecast_times=forecast_times,
+                )
+            elif isinstance(import_limit, (int, float)):
+                data["import_limit"] = [float(import_limit)] * n_periods
+
+        export_limit = config.get("export_limit")
+        if export_limit is not None:
+            if isinstance(export_limit, list) and export_limit:
+                data["export_limit"] = await ts_loader.load(
+                    hass=hass,
+                    value=export_limit,
+                    forecast_times=forecast_times,
+                )
+            elif isinstance(export_limit, (int, float)):
+                data["export_limit"] = [float(export_limit)] * n_periods
 
         return data
 
@@ -149,8 +177,8 @@ class GridAdapter:
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        grid_outputs[GRID_POWER_EXPORT] = replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OUTPUT_TYPE_POWER)
-        grid_outputs[GRID_POWER_IMPORT] = replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OUTPUT_TYPE_POWER)
+        grid_outputs[GRID_POWER_EXPORT] = replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OutputType.POWER)
+        grid_outputs[GRID_POWER_IMPORT] = replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OutputType.POWER)
 
         # Active grid power (export - import)
         grid_outputs[GRID_POWER_ACTIVE] = replace(
@@ -164,7 +192,7 @@ class GridAdapter:
                 )
             ],
             direction=None,
-            type=OUTPUT_TYPE_POWER,
+            type=OutputType.POWER,
         )
 
         # Output the given inputs if they exist

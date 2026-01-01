@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 
+from custom_components.haeo.model.const import OutputType
+
 
 @dataclass(frozen=True, slots=True)
 class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
@@ -17,25 +19,21 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     Attributes:
         field_name: The key in the element's ConfigSchema
         entity_description: Home Assistant entity description (Number or Switch)
-        output_type: From model.const OUTPUT_TYPE_* for categorization
+        output_type: OutputType enum value for categorization and unit spec lookup
         direction: "+" or "-" for power direction attributes
         time_series: Whether this field is time series (list) or scalar
         default: Default value for editable entities when no restored state exists
 
     Note:
-        Optional versus required is defined by the element's ConfigSchema
-        TypedDict and enforced by the config flow (vol.Required/vol.Optional).
-        At runtime, input entities are created for all fields and enabled by
-        default when present in the stored config data. Required fields are
-        always present due to config flow validation, so their entities are
-        always enabled. Optional unconfigured fields get disabled entities
-        that users can enable if desired.
+        Whether a field is optional (can be disabled in config flow) is determined
+        by the element's ConfigSchema TypedDict using NotRequired. Use the TypedDict's
+        __optional_keys__ attribute to check if a field_name is optional.
 
     """
 
     field_name: str
     entity_description: T
-    output_type: str
+    output_type: OutputType
     direction: str | None = None
     time_series: bool = False
     default: float | bool | None = None

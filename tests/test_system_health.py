@@ -29,7 +29,7 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
-from custom_components.haeo.model.const import OUTPUT_TYPE_COST, OUTPUT_TYPE_DURATION, OUTPUT_TYPE_STATUS
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.system_health import async_register, async_system_health_info
 
 
@@ -69,16 +69,16 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     coordinator.data = {
         "HAEO Hub": {
             OUTPUT_NAME_OPTIMIZATION_STATUS: CoordinatorOutput(
-                type=OUTPUT_TYPE_STATUS, unit=None, state="success", forecast=None
+                type=OutputType.STATUS, unit=None, state="success", forecast=None
             ),
             OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
-                type=OUTPUT_TYPE_COST, unit="$", state=42.75, forecast=None
+                type=OutputType.COST, unit="$", state=42.75, forecast=None
             ),
             OUTPUT_NAME_OPTIMIZATION_DURATION: CoordinatorOutput(
-                type=OUTPUT_TYPE_DURATION, unit="s", state=1.234, forecast=None
+                type=OutputType.DURATION, unit="s", state=1.234, forecast=None
             ),
         },
-        "Battery": {"soc": CoordinatorOutput(type=OUTPUT_TYPE_STATUS, unit=None, state=50, forecast=None)},
+        "Battery": {"soc": CoordinatorOutput(type=OutputType.STATUS, unit=None, state=50, forecast=None)},
     }
 
     entry = MagicMock()

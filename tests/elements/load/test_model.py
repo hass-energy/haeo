@@ -9,11 +9,7 @@ from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import load as load_element
 from custom_components.haeo.elements.load import LoadConfigData
 from custom_components.haeo.model import ModelOutputName, power_connection
-from custom_components.haeo.model.const import (
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_POWER_FLOW,
-    OUTPUT_TYPE_SHADOW_PRICE,
-)
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
 
 
@@ -65,14 +61,14 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "load_main",
         "model_outputs": {
             "load_main:connection": {
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER_FLOW, unit="kW", values=(1.0,), direction="+"),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"),
+                power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             }
         },
         "outputs": {
             load_element.LOAD_DEVICE_LOAD: {
-                load_element.LOAD_POWER: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0,), direction="+"),
-                load_element.LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OUTPUT_TYPE_SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                load_element.LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="+"),
+                load_element.LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             }
         },
     },

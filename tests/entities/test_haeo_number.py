@@ -16,7 +16,7 @@ from custom_components.haeo.const import CONF_NAME, DOMAIN
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.model import OUTPUT_TYPE_POWER
+from custom_components.haeo.model import OutputType
 
 # --- Fixtures ---
 
@@ -76,7 +76,7 @@ def power_field_info() -> InputFieldInfo[NumberEntityDescription]:
             native_max_value=100.0,
             native_step=0.1,
         ),
-        output_type=OUTPUT_TYPE_POWER,
+        output_type=OutputType.POWER,
         direction="+",
         time_series=True,
     )
@@ -95,7 +95,7 @@ def scalar_field_info() -> InputFieldInfo[NumberEntityDescription]:
             native_max_value=1000.0,
             native_step=1.0,
         ),
-        output_type="energy",
+        output_type=OutputType.ENERGY,
         time_series=False,
     )
 
@@ -196,13 +196,53 @@ async def test_editable_mode_set_native_value(
         horizon_manager=horizon_manager,
     )
 
-    # Mock async_write_ha_state
+    # Mock async_write_ha_state and config entry update
     entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_set_native_value(15.0)
 
     assert entity.native_value == 15.0
     entity.async_write_ha_state.assert_called_once()
+    # Value should be persisted to config entry
+    hass.config_entries.async_update_subentry.assert_called_once()
+
+
+async def test_editable_mode_set_native_value_with_runtime_data(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Number entity in EDITABLE mode sets value_update_in_progress flag when runtime_data exists."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 5.0})
+
+    # Create mock runtime_data with value_update_in_progress attribute
+    mock_runtime_data = Mock()
+    mock_runtime_data.value_update_in_progress = False
+    config_entry.runtime_data = mock_runtime_data
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock async_write_ha_state and config entry update
+    entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
+
+    await entity.async_set_native_value(15.0)
+
+    assert entity.native_value == 15.0
+    entity.async_write_ha_state.assert_called_once()
+    hass.config_entries.async_update_subentry.assert_called_once()
+    # Flag should be cleared after update
+    assert mock_runtime_data.value_update_in_progress is False
 
 
 # --- Tests for DRIVEN mode ---
@@ -519,47 +559,18 @@ async def test_get_values_returns_none_without_forecast(
     assert entity.get_values() is None
 
 
-async def test_get_values_returns_none_when_disabled(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """get_values returns None when entity is disabled (not added to HA)."""
-    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
-    config_entry.runtime_data = None
-
-    entity = HaeoInputNumber(
-        hass=hass,
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=power_field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-        enabled_by_default=False,  # Disabled entity
-    )
-
-    # Entity NOT added to HA (disabled) - even with forecast data, should return None
-    entity._update_editable_forecast()
-    assert entity.get_values() is None
-
-    # Verify entity_registry_enabled_default is False
-    assert entity._attr_entity_registry_enabled_default is False
-
-
 # --- Tests for lifecycle methods ---
 
 
-async def test_async_added_to_hass_editable_restores_value(
+async def test_async_added_to_hass_editable_uses_config_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """async_added_to_hass restores previous value in EDITABLE mode."""
-    subentry = _create_subentry("Test Battery", {"power_limit": 5.0})
+    """async_added_to_hass uses config value in EDITABLE mode (no restore needed)."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 15.0})
     config_entry.runtime_data = None
 
     entity = HaeoInputNumber(
@@ -571,17 +582,9 @@ async def test_async_added_to_hass_editable_restores_value(
         horizon_manager=horizon_manager,
     )
 
-    # Mock the async_get_last_number_data to return a saved value
-    async def mock_get_last_number_data() -> Mock:
-        mock_data = Mock()
-        mock_data.native_value = 15.0
-        return mock_data
-
-    entity.async_get_last_number_data = mock_get_last_number_data  # type: ignore[method-assign]
-
     await entity.async_added_to_hass()
 
-    # Should restore to saved value
+    # Should use config value directly
     assert entity.native_value == 15.0
 
 

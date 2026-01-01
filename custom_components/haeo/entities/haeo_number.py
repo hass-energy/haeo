@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from homeassistant.components.number import NumberEntityDescription, RestoreNumber
+from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
@@ -17,6 +17,7 @@ from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.util import async_update_subentry_value
 
 
 class ConfigEntityMode(Enum):
@@ -26,7 +27,7 @@ class ConfigEntityMode(Enum):
     DRIVEN = "driven"  # Value driven by external entity
 
 
-class HaeoInputNumber(RestoreNumber):
+class HaeoInputNumber(NumberEntity):
     """Number entity representing a configurable input parameter.
 
     This entity serves as an intermediate layer between external sensors
@@ -34,6 +35,7 @@ class HaeoInputNumber(RestoreNumber):
 
     - EDITABLE: User can directly set the value. Used when config contains
       a static value rather than an entity ID.
+      Value is persisted to config entry and survives restarts.
     - DRIVEN: Value is driven by an external sensor. Used when config
       contains an entity ID. In this mode, user edits are ignored.
 
@@ -52,8 +54,6 @@ class HaeoInputNumber(RestoreNumber):
         field_info: InputFieldInfo[NumberEntityDescription],
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
-        *,
-        enabled_by_default: bool = True,
     ) -> None:
         """Initialize the input number entity."""
         self._hass = hass
@@ -65,9 +65,6 @@ class HaeoInputNumber(RestoreNumber):
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
-        # Set entity registry enabled default (optional unconfigured fields start disabled)
-        self._attr_entity_registry_enabled_default = enabled_by_default
-
         # Determine mode from config value type
         # Entity IDs are stored as list[str] from EntitySelector
         # Constants are stored as float from NumberSelector
@@ -78,13 +75,16 @@ class HaeoInputNumber(RestoreNumber):
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_ids: list[str] = config_value
             self._attr_native_value = None  # Will be set when data loads
-        else:
-            # EDITABLE mode: value is a constant, None, or empty list (no sensors configured)
+        elif isinstance(config_value, int | float):
+            # EDITABLE mode: value is a constant
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_ids = []
-            # Empty list means no sensors - treat as None (optional field with no value)
-            native_value = config_value if not isinstance(config_value, list) else None
-            self._attr_native_value = float(native_value) if native_value is not None else None
+            self._attr_native_value = float(config_value)
+        else:
+            # EDITABLE mode: no value configured, use default
+            self._entity_mode = ConfigEntityMode.EDITABLE
+            self._source_entity_ids = []
+            self._attr_native_value = None
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
@@ -115,8 +115,7 @@ class HaeoInputNumber(RestoreNumber):
         self._state_unsub: Callable[[], None] | None = None
         self._horizon_unsub: Callable[[], None] | None = None
 
-        # Track whether entity has been added to HA (enabled entities only)
-        # Disabled entities never have async_added_to_hass() called
+        # Track whether entity has been added to HA
         self._added_to_hass = False
 
         # Initialize forecast immediately for EDITABLE mode entities
@@ -129,24 +128,20 @@ class HaeoInputNumber(RestoreNumber):
         return self._horizon_manager.get_forecast_timestamps()
 
     async def async_added_to_hass(self) -> None:
-        """Set up state tracking and restore previous value."""
+        """Set up state tracking."""
         await super().async_added_to_hass()
 
-        # Mark entity as added (enabled)
+        # Mark entity as added
         self._added_to_hass = True
 
         # Subscribe to horizon manager for consistent time windows
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Restore previous value if available, otherwise use field default
-            last_data = await self.async_get_last_number_data()
-            if last_data and last_data.native_value is not None:
-                self._attr_native_value = last_data.native_value
-            elif self._attr_native_value is None and self._field_info.default is not None:
-                # No config value and no restored value - use field default
+            # Use field default if no config value
+            if self._attr_native_value is None and self._field_info.default is not None:
                 self._attr_native_value = float(self._field_info.default)
-            # Update forecast for restored/initial value
+            # Update forecast for initial value
             self._update_editable_forecast()
         else:
             # Subscribe to source entity changes for DRIVEN mode
@@ -254,16 +249,16 @@ class HaeoInputNumber(RestoreNumber):
                     return time_val.timestamp()
         return None
 
-    def get_values(self) -> tuple[float, ...] | None:
-        """Return the forecast values as a tuple, or None if not loaded.
+    def is_ready(self) -> bool:
+        """Check if entity is ready for coordinator to read values.
 
-        Returns None if:
-        - Entity is disabled (not added to HA)
-        - Forecast hasn't been loaded yet
+        Returns True when entity has been added and has loaded values.
+        Returns False while still loading data.
         """
-        # Disabled entities return None - user hasn't enabled this optional field
-        if not self._added_to_hass:
-            return None
+        return self._added_to_hass and self.get_values() is not None
+
+    def get_values(self) -> tuple[float, ...] | None:
+        """Return the forecast values as a tuple, or None if not loaded."""
         forecast = self._attr_extra_state_attributes.get("forecast")
         if forecast:
             return tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
@@ -274,6 +269,9 @@ class HaeoInputNumber(RestoreNumber):
 
         In DRIVEN mode, user changes are effectively ignored because the
         source entity will overwrite with its value.
+
+        In EDITABLE mode, the value is persisted to the config entry so it
+        survives restarts and is visible in reconfigure flows.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
             # Read-only in driven mode, but we still update to avoid confusion
@@ -283,6 +281,15 @@ class HaeoInputNumber(RestoreNumber):
         self._attr_native_value = value
         self._update_editable_forecast()
         self.async_write_ha_state()
+
+        # Persist to config entry so value survives restarts and shows in reconfigure
+        await async_update_subentry_value(
+            self._hass,
+            self._config_entry,
+            self._subentry,
+            self._field_info.field_name,
+            value,
+        )
 
 
 __all__ = ["ConfigEntityMode", "HaeoInputNumber"]

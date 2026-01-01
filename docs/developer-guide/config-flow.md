@@ -143,6 +143,48 @@ Each element type has its own flow class in `custom_components/haeo/flows/`:
 
 Each flow defines element-specific schema fields, defaults, and validation logic.
 
+## Two-Step Config Flow Pattern
+
+Some element types use a two-step configuration flow that separates mode selection from value entry.
+This pattern provides a cleaner user experience when fields can be configured in different ways.
+
+### Flow Steps
+
+**Step 1 (user)**: User enters the element name, connection target, and selects an **input mode** for each configurable field.
+
+**Step 2 (values)**: Based on the mode selections, the UI shows appropriate inputs for each field.
+
+### Input Modes
+
+The `InputMode` enum defines how each field receives its value:
+
+| Mode          | Description                                            | UI Widget              |
+| ------------- | ------------------------------------------------------ | ---------------------- |
+| `CONSTANT`    | User enters a fixed numeric value                      | NumberSelector         |
+| `ENTITY_LINK` | Value comes from one or more Home Assistant sensors    | EntitySelector (multi) |
+| `NONE`        | Field is disabled (only available for optional fields) | No input shown         |
+
+The `NONE` option only appears for optional fields (those marked with `NotRequired` in the TypedDict schema).
+Required fields only show `CONSTANT` and `ENTITY_LINK` options.
+
+### Implementation Pattern
+
+The two-step flow utilities are in `custom_components/haeo/flows/field_schema.py`:
+
+- `build_mode_schema_entry()`: Creates the mode selector for step 1
+- `build_value_schema_entry()`: Creates the value input for step 2 based on selected mode
+- `get_mode_defaults()`: Provides default mode selections based on field types
+- `get_value_defaults()`: Extracts current values for reconfigure flows
+
+Flow handlers store step 1 data and use it to build the step 2 schema dynamically.
+When mode is `NONE`, no value entry is shown and no input entity is created for that field.
+
+### Entity Creation
+
+Input entities are only created for fields that are actually configured.
+If a user selects `NONE` for an optional field, no entity is created for that field.
+This keeps the entity list clean and focused on configured functionality.
+
 ## Field Schema System
 
 HAEO uses a typed schema system to define element configuration fields.

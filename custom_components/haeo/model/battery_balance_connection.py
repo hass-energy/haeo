@@ -8,7 +8,7 @@ from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 
 from .connection import Connection
-from .const import OUTPUT_TYPE_POWER_FLOW
+from .const import OutputType
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
@@ -221,24 +221,24 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName, Ba
         """Return output specifications for the balance connection."""
         outputs: dict[BatteryBalanceConnectionOutputName, OutputData] = {
             BALANCE_POWER_DOWN: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW,
+                type=OutputType.POWER_FLOW,
                 unit="kW",
                 values=self.extract_values(self._power_down),
                 direction="+",
             ),
             BALANCE_POWER_UP: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW,
+                type=OutputType.POWER_FLOW,
                 unit="kW",
                 values=self.extract_values(self._power_up),
                 direction="-",
             ),
             BALANCE_UNMET_DEMAND: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW,
+                type=OutputType.POWER_FLOW,
                 unit="kW",
                 values=self.extract_values(self.unmet_demand),
             ),
             BALANCE_ABSORBED_EXCESS: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW,
+                type=OutputType.POWER_FLOW,
                 unit="kW",
                 values=self.extract_values(self.absorbed_excess),
             ),
@@ -246,7 +246,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName, Ba
 
         for constraint_name in self._constraints:
             outputs[constraint_name] = OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW,
+                type=OutputType.POWER_FLOW,
                 unit="$/kW",
                 values=self.extract_values(self._constraints[constraint_name]),
             )

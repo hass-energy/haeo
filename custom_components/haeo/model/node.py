@@ -5,7 +5,7 @@ from typing import Final, Literal
 
 from highspy import Highs
 
-from .const import OUTPUT_TYPE_SHADOW_PRICE
+from .const import OutputType
 from .element import Element
 from .output_data import OutputData
 
@@ -88,7 +88,7 @@ class Node(Element[NodeOutputName, NodeConstraintName]):
         # All constraints are power balance for Node
         if NODE_POWER_BALANCE in self._constraints:
             outputs[NODE_POWER_BALANCE] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE,
+                type=OutputType.SHADOW_PRICE,
                 unit="$/kW",
                 values=self.extract_values(self._constraints[NODE_POWER_BALANCE]),
             )

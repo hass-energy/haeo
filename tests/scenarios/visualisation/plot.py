@@ -16,13 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from custom_components.haeo.elements import ELEMENT_TYPE_SOLAR, ElementType
-from custom_components.haeo.model.const import (
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_POWER_LIMIT,
-    OUTPUT_TYPE_PRICE,
-    OUTPUT_TYPE_SHADOW_PRICE,
-    OUTPUT_TYPE_SOC,
-)
+from custom_components.haeo.model.const import OutputType
 
 from .colors import ColorMapper
 
@@ -114,7 +108,7 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
                 continue
 
             # Input entities now have direction from schema field metadata
-            if output_type == OUTPUT_TYPE_POWER:
+            if output_type == OutputType.POWER:
                 # Solar power inputs are forecasts of available power (limits)
                 if element_type == ELEMENT_TYPE_SOLAR:
                     entry["available"] = forecast
@@ -127,7 +121,7 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
                 else:
                     # No direction specified, default to available for power inputs
                     entry["available"] = forecast
-            elif output_type == OUTPUT_TYPE_PRICE:
+            elif output_type == OutputType.PRICE:
                 if direction == "+":
                     entry["production_price"] = forecast
                 elif direction == "-":
@@ -140,7 +134,7 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
         # Handle output sensors (have output_type but no config_mode)
         if output_type is not None:
             # SOC doesn't need direction
-            if output_type == OUTPUT_TYPE_SOC:
+            if output_type == OutputType.STATE_OF_CHARGE:
                 entry["soc"] = forecast
                 continue
 
@@ -149,17 +143,17 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
                 # Use type+direction to categorize outputs
                 # "+" = adding power to graph (production/supply)
                 # "-" = taking power away (consumption)
-                if output_type == OUTPUT_TYPE_POWER and direction == "+":
+                if output_type == OutputType.POWER and direction == "+":
                     entry["production"] = forecast
-                elif output_type == OUTPUT_TYPE_POWER and direction == "-":
+                elif output_type == OutputType.POWER and direction == "-":
                     entry["consumption"] = forecast
-                elif output_type == OUTPUT_TYPE_POWER_LIMIT and direction == "+" and element_type == ELEMENT_TYPE_SOLAR:
+                elif output_type == OutputType.POWER_LIMIT and direction == "+" and element_type == ELEMENT_TYPE_SOLAR:
                     entry["available"] = forecast
-                elif output_type == OUTPUT_TYPE_PRICE and direction == "+":
+                elif output_type == OutputType.PRICE and direction == "+":
                     entry["production_price"] = forecast
-                elif output_type == OUTPUT_TYPE_PRICE and direction == "-":
+                elif output_type == OutputType.PRICE and direction == "-":
                     entry["consumption_price"] = forecast
-                elif output_type == OUTPUT_TYPE_SHADOW_PRICE:
+                elif output_type == OutputType.SHADOW_PRICE:
                     shadow_prices = entry.setdefault("shadow_prices", {})
                     # Use output_name as the key (matches translation_key)
                     shadow_prices[output_name] = forecast
