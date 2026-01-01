@@ -1055,3 +1055,25 @@ async def test_async_update_data_raises_when_runtime_data_none_in_body(
         pytest.raises(UpdateFailed, match="Runtime data not available"),
     ):
         await coordinator._async_update_data()
+
+
+def test_load_from_input_entities_raises_on_invalid_element_type(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Loading raises RuntimeError when element type is invalid."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Inject an invalid element type into participant configs
+    # This tests the runtime guard against corrupted/invalid config data
+    invalid_config: Any = {
+        "Invalid Element": {
+            CONF_ELEMENT_TYPE: "invalid_type",
+            CONF_NAME: "Invalid Element",
+        }
+    }
+    coordinator._participant_configs = invalid_config
+
+    with pytest.raises(RuntimeError, match=r"Invalid element type invalid_type for Invalid Element"):
+        coordinator._load_from_input_entities()

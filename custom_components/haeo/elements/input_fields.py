@@ -23,9 +23,13 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         default: Default value for editable entities when no restored state exists
 
     Note:
-        Whether a field is optional is derived from the ConfigSchema TypedDict.
-        Fields marked as NotRequired in the schema are optional and create
-        disabled-by-default input entities when not configured.
+        Optional versus required is defined by the element's ConfigSchema
+        TypedDict and enforced by the config flow (vol.Required/vol.Optional).
+        At runtime, input entities are created for all fields and enabled by
+        default when present in the stored config data. Required fields are
+        always present due to config flow validation, so their entities are
+        always enabled. Optional unconfigured fields get disabled entities
+        that users can enable if desired.
 
     """
 

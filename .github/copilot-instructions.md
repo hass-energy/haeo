@@ -63,15 +63,17 @@ Often, a single convention that handles all cases uniformly is simpler and more 
 - Derive behavior from existing structure rather than adding metadata flags
 - Make all instances of a pattern work the same way - no special cases
 - Let upstream validation (e.g., config flows) enforce constraints so downstream code can assume valid data
-- If values are missing or None, skip them uniformly rather than checking if skipping is allowed
+- Config flows use `vol.Required()` and `vol.Optional()` to enforce required fields at entry time
+- Downstream code (coordinator, adapters) can assume required fields are present because config flow guarantees it
+- For optional values, if they are missing or None, skip them uniformly throughout processing
 
 **Composition over complexity**: Build features by composing simple, focused components rather than adding conditional logic to existing code.
 Each component should do one thing well without needing to know about the internals of other components.
 
-- Separate concerns: validation happens at boundaries, processing assumes valid input
+- Separate concerns: validation happens at config flow boundaries, processing assumes valid input
 - Avoid "check if X then do Y else do Z" patterns - instead, make X and Y go through the same code path
 - When adding a feature, prefer creating new simple components over adding branches to existing ones
-- Runtime code shouldn't need to know what the schema says - the schema's job is done at configuration time
+- Runtime code uses the result of schema validation, not the schema itself - the schema's job is done at configuration time
 
 ### Clean changes
 
