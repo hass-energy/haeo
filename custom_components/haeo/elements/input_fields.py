@@ -22,6 +22,11 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         time_series: Whether this field is time series (list) or scalar
         default: Default value for editable entities when no restored state exists
 
+    Note:
+        Whether a field is optional is derived from the ConfigSchema TypedDict.
+        Fields marked as NotRequired in the schema are optional and create
+        disabled-by-default input entities when not configured.
+
     """
 
     field_name: str

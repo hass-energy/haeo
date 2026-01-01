@@ -353,6 +353,26 @@ def get_input_fields(element_type: str) -> tuple[InputFieldInfo[Any], ...]:
     return _INPUT_FIELDS_REGISTRY.get(element_type, ())
 
 
+def is_field_optional(element_type: ElementType, field_name: str) -> bool:
+    """Check if a field is optional in the element's ConfigSchema.
+
+    Uses TypedDict's __optional_keys__ to determine if a field was marked
+    with NotRequired in the schema definition.
+
+    Args:
+        element_type: The element type (e.g., "battery", "grid")
+        field_name: The field name to check
+
+    Returns:
+        True if the field is optional (NotRequired), False otherwise.
+
+    """
+    schema_class = ELEMENT_CONFIG_SCHEMAS.get(element_type)
+    if schema_class is None:
+        return False
+    return field_name in schema_class.__optional_keys__
+
+
 __all__ = [
     "ELEMENT_CONFIG_SCHEMAS",
     "ELEMENT_DEVICE_NAMES",
@@ -377,4 +397,5 @@ __all__ = [
     "get_input_fields",
     "is_element_config_schema",
     "is_element_type",
+    "is_field_optional",
 ]
