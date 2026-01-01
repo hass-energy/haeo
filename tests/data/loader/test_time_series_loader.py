@@ -51,6 +51,14 @@ async def test_time_series_loader_accepts_constant_values(hass: HomeAssistant) -
     result = await loader.load(hass=hass, value=1.5, forecast_times=[0, 1, 2, 3])
     assert result == [1.5, 1.5, 1.5]  # 4 fence posts = 3 periods
 
+    # Single fence post means 0 periods
+    result = await loader.load(hass=hass, value=5.0, forecast_times=[0])
+    assert result == []  # 1 fence post = 0 periods
+
+    # Empty fence posts means 0 periods
+    result = await loader.load(hass=hass, value=5.0, forecast_times=[])
+    assert result == []
+
     # Constants are always available
     assert loader.available(hass=hass, value=123) is True
     assert loader.available(hass=hass, value=1.5) is True
