@@ -12,7 +12,7 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER, OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_SOC
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
@@ -489,7 +489,7 @@ class BatteryAdapter:
                 )
             ],
             direction=None,
-            type=OUTPUT_TYPE_POWER,
+            type=OutputType.POWER,
         )
 
         # Add node power balance as battery power balance
@@ -580,14 +580,14 @@ class BatteryAdapter:
 
             if power_down_values is not None:
                 result[device_key][BATTERY_BALANCE_POWER_DOWN] = OutputData(
-                    type=OUTPUT_TYPE_POWER_FLOW,
+                    type=OutputType.POWER_FLOW,
                     unit="kW",
                     values=tuple(float(v) for v in power_down_values),
                     advanced=True,
                 )
             if power_up_values is not None:
                 result[device_key][BATTERY_BALANCE_POWER_UP] = OutputData(
-                    type=OUTPUT_TYPE_POWER_FLOW,
+                    type=OutputType.POWER_FLOW,
                     unit="kW",
                     values=tuple(float(v) for v in power_up_values),
                     advanced=True,
@@ -652,7 +652,7 @@ def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> Outpu
     soc_values = np.array(total_energy.values) / fence_post_capacity * 100.0
 
     return OutputData(
-        type=OUTPUT_TYPE_SOC,
+        type=OutputType.STATE_OF_CHARGE,
         unit="%",
         values=tuple(soc_values.tolist()),
     )

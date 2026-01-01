@@ -16,7 +16,7 @@ from .connection import (
     Connection,
     ConnectionConstraintName,
 )
-from .const import OUTPUT_TYPE_POWER_FLOW, OUTPUT_TYPE_SHADOW_PRICE
+from .const import OutputType
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
@@ -201,13 +201,13 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
         """Return output specifications for the connection."""
         outputs: dict[PowerConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW,
+                type=OutputType.POWER_FLOW,
                 unit="kW",
                 values=self.extract_values(self.power_source_target),
                 direction="+",
             ),
             CONNECTION_POWER_TARGET_SOURCE: OutputData(
-                type=OUTPUT_TYPE_POWER_FLOW,
+                type=OutputType.POWER_FLOW,
                 unit="kW",
                 values=self.extract_values(self.power_target_source),
                 direction="-",
@@ -217,7 +217,7 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
         # Output constraint shadow prices
         for constraint_name in self._constraints:
             outputs[constraint_name] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE,
+                type=OutputType.SHADOW_PRICE,
                 unit="$/kW",
                 values=self.extract_values(self._constraints[constraint_name]),
             )

@@ -1,7 +1,6 @@
 """Constants for HAEO energy modeling."""
 
 from enum import StrEnum, auto
-from typing import Final
 
 
 class OutputType(StrEnum):
@@ -44,17 +43,3 @@ class OutputType(StrEnum):
     STATUS = auto()
     DURATION = auto()
     SHADOW_PRICE = auto()
-
-
-# Legacy constants for backwards compatibility - prefer using OutputType enum
-OUTPUT_TYPE_POWER: Final = OutputType.POWER
-OUTPUT_TYPE_POWER_FLOW: Final = OutputType.POWER_FLOW
-OUTPUT_TYPE_POWER_LIMIT: Final = OutputType.POWER_LIMIT
-OUTPUT_TYPE_ENERGY: Final = OutputType.ENERGY
-OUTPUT_TYPE_PRICE: Final = OutputType.PRICE
-OUTPUT_TYPE_STATE_OF_CHARGE: Final = OutputType.STATE_OF_CHARGE
-OUTPUT_TYPE_EFFICIENCY: Final = OutputType.EFFICIENCY
-OUTPUT_TYPE_COST: Final = OutputType.COST
-OUTPUT_TYPE_STATUS: Final = OutputType.STATUS
-OUTPUT_TYPE_DURATION: Final = OutputType.DURATION
-OUTPUT_TYPE_SHADOW_PRICE: Final = OutputType.SHADOW_PRICE

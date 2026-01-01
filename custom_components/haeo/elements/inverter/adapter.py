@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER_FLOW
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
@@ -168,7 +168,7 @@ class InverterAdapter:
                 )
             ],
             direction=None,
-            type=OUTPUT_TYPE_POWER_FLOW,
+            type=OutputType.POWER_FLOW,
         )
 
         # DC bus power balance shadow price

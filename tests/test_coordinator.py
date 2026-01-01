@@ -79,14 +79,7 @@ from custom_components.haeo.elements.grid import (
     CONF_IMPORT_PRICE,
 )
 from custom_components.haeo.elements.solar import SOLAR_POWER
-from custom_components.haeo.model import (
-    OUTPUT_TYPE_COST,
-    OUTPUT_TYPE_DURATION,
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_STATUS,
-    Network,
-    OutputData,
-)
+from custom_components.haeo.model import Network, OutputData, OutputType
 
 
 @pytest.fixture
@@ -265,7 +258,7 @@ async def test_async_update_data_returns_outputs(
     """Coordinator returns optimization results merged with element outputs."""
     fake_element = MagicMock()
     fake_element.outputs.return_value = {
-        BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0))
+        BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0))
     }
 
     fake_network = MagicMock()
@@ -275,8 +268,8 @@ async def test_async_update_data_returns_outputs(
     # Add connection element (config name is slugified to "battery_to_grid")
     fake_connection = MagicMock()
     fake_connection.outputs.return_value = {
-        CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)),
-        CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,)),
+        CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,)),
+        CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER, unit="kW", values=(0.3,)),
     }
 
     fake_network.elements = {
@@ -288,7 +281,7 @@ async def test_async_update_data_returns_outputs(
     # Mock battery adapter
     mock_battery_adapter = MagicMock()
     mock_battery_adapter.outputs.return_value = {
-        BATTERY_DEVICE_BATTERY: {BATTERY_POWER_CHARGE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0))}
+        BATTERY_DEVICE_BATTERY: {BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0))}
     }
 
     generated_at = datetime(2024, 1, 1, 0, 15, tzinfo=UTC)
@@ -303,8 +296,8 @@ async def test_async_update_data_returns_outputs(
     mock_connection_adapter = MagicMock()
     mock_connection_adapter.outputs.return_value = {
         CONNECTION_DEVICE_CONNECTION: {
-            CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.5,)),
-            CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(0.3,)),
+            CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,)),
+            CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER, unit="kW", values=(0.3,)),
         }
     }
 
@@ -360,25 +353,25 @@ async def test_async_update_data_returns_outputs(
 
     network_outputs = result["System"][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
-    assert cost_output.type == OUTPUT_TYPE_COST
+    assert cost_output.type == OutputType.COST
     assert cost_output.unit == hass.config.currency
     assert cost_output.state == 123.45
     assert cost_output.forecast is None
 
     status_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_STATUS]
-    assert status_output.type == OUTPUT_TYPE_STATUS
+    assert status_output.type == OutputType.STATUS
     assert status_output.unit is None
     assert status_output.state == "success"
     assert status_output.forecast is None
 
     duration_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_DURATION]
-    assert duration_output.type == OUTPUT_TYPE_DURATION
+    assert duration_output.type == OutputType.DURATION
     assert duration_output.state is not None
     assert duration_output.forecast is None
 
     battery_outputs = result["Test Battery"][BATTERY_DEVICE_BATTERY]
     battery_output = battery_outputs[BATTERY_POWER_CHARGE]
-    assert battery_output.type == OUTPUT_TYPE_POWER
+    assert battery_output.type == OutputType.POWER
     assert battery_output.unit == "kW"
     assert battery_output.state == 1.0
     # Forecast should be list of ForecastPoint with datetime objects in local timezone
@@ -495,7 +488,7 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
     forecast_times = (int(base_time.timestamp()), int((base_time + timedelta(minutes=30)).timestamp()))
     output = _build_coordinator_output(
         SOLAR_POWER,
-        OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.2, 3.4)),
+        OutputData(type=OutputType.POWER, unit="kW", values=(1.2, 3.4)),
         forecast_times=forecast_times,
     )
 
@@ -514,7 +507,7 @@ def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.M
     monkeypatch.setattr("custom_components.haeo.coordinator.datetime", _ErrorDatetime)
 
     output = _build_coordinator_output(
-        SOLAR_POWER, OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(1.0, 2.0)), forecast_times=(1, 2)
+        SOLAR_POWER, OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0)), forecast_times=(1, 2)
     )
 
     assert output.forecast is None
@@ -525,7 +518,7 @@ def test_build_coordinator_output_sets_status_options() -> None:
 
     output = _build_coordinator_output(
         OUTPUT_NAME_OPTIMIZATION_STATUS,
-        OutputData(type=OUTPUT_TYPE_STATUS, unit=None, values=("success",)),
+        OutputData(type=OutputType.STATUS, unit=None, values=("success",)),
         forecast_times=None,
     )
 
@@ -539,7 +532,7 @@ def test_build_coordinator_output_skips_forecast_for_single_value() -> None:
 
     output = _build_coordinator_output(
         SOLAR_POWER,
-        OutputData(type=OUTPUT_TYPE_POWER, unit="kW", values=(5.0,)),
+        OutputData(type=OutputType.POWER, unit="kW", values=(5.0,)),
         forecast_times=(1, 2),
     )
 

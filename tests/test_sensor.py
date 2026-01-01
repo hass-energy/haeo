@@ -26,7 +26,7 @@ from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.entities import HaeoSensor
-from custom_components.haeo.model import OUTPUT_TYPE_DURATION, OUTPUT_TYPE_POWER, OUTPUT_TYPE_STATUS, OutputType
+from custom_components.haeo.model import OutputType
 from custom_components.haeo.sensor import async_setup_entry
 
 
@@ -148,7 +148,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
         network_key: {
             network_key: {
                 OUTPUT_NAME_OPTIMIZATION_STATUS: _make_output(
-                    type_=OUTPUT_TYPE_STATUS,
+                    type_=OutputType.STATUS,
                     unit=None,
                     state="pending",
                     forecast=None,
@@ -158,7 +158,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
                     options=("failed", "pending", "success"),
                 ),
                 OUTPUT_NAME_OPTIMIZATION_DURATION: _make_output(
-                    type_=OUTPUT_TYPE_DURATION,
+                    type_=OutputType.DURATION,
                     unit=UnitOfTime.SECONDS,
                     state=12.3,
                     forecast=None,
@@ -172,7 +172,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
         battery_key: {
             battery_key: {
                 LOAD_POWER: _make_output(
-                    type_=OUTPUT_TYPE_POWER,
+                    type_=OutputType.POWER,
                     unit="kW",
                     state=1.5,
                     forecast=[ForecastPoint(time=datetime.now(tz=UTC), value=1.5)],
@@ -262,7 +262,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
 
     coordinator = _create_mock_coordinator()
     initial_output = _make_output(
-        type_=OUTPUT_TYPE_POWER,
+        type_=OutputType.POWER,
         unit="kW",
         state=1.0,
         forecast=None,
@@ -287,7 +287,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
 
     forecast_time = datetime(2024, 1, 1, tzinfo=UTC)
     updated_output = _make_output(
-        type_=OUTPUT_TYPE_POWER,
+        type_=OutputType.POWER,
         unit="W",
         state=750.0,
         forecast=[ForecastPoint(time=forecast_time, value=750.0)],
@@ -309,7 +309,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
 
     attributes = sensor.extra_state_attributes
     assert attributes is not None
-    assert attributes["output_type"] == OUTPUT_TYPE_POWER
+    assert attributes["output_type"] == OutputType.POWER
     assert attributes["forecast"] == updated_output.forecast
     assert attributes["forecast"] is not updated_output.forecast
 
@@ -319,7 +319,7 @@ def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry
 
     coordinator = _create_mock_coordinator()
     initial_output = _make_output(
-        type_=OUTPUT_TYPE_POWER,
+        type_=OutputType.POWER,
         unit="kW",
         state=5.0,
         forecast=None,
@@ -351,7 +351,7 @@ def test_handle_coordinator_update_without_data_leaves_sensor_empty(device_entry
         "element_name": "Battery",
         "element_type": BATTERY_TYPE,
         "output_name": LOAD_POWER,
-        "output_type": OUTPUT_TYPE_POWER,
+        "output_type": OutputType.POWER,
         "advanced": False,
     }
 
@@ -361,7 +361,7 @@ def test_sensor_availability_follows_coordinator(device_entry: DeviceEntry) -> N
 
     coordinator = _create_mock_coordinator()
     output = _make_output(
-        type_=OUTPUT_TYPE_POWER,
+        type_=OutputType.POWER,
         unit="kW",
         state=1.0,
         forecast=None,
@@ -395,7 +395,7 @@ async def test_sensor_async_added_to_hass_runs_initial_update(device_entry: Devi
 
     coordinator = _create_mock_coordinator()
     output = _make_output(
-        type_=OUTPUT_TYPE_POWER,
+        type_=OutputType.POWER,
         unit="kW",
         state=1.0,
         forecast=None,
@@ -439,7 +439,7 @@ async def test_async_setup_entry_creates_sub_device_sensors(
         battery_key: {
             sub_device_key: {
                 LOAD_POWER: _make_output(
-                    type_=OUTPUT_TYPE_POWER,
+                    type_=OutputType.POWER,
                     unit="kW",
                     state=1.0,
                     forecast=None,
@@ -477,7 +477,7 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
     """Coordinator updates apply the direction attribute."""
     coordinator = _create_mock_coordinator()
     initial_output = _make_output(
-        type_=OUTPUT_TYPE_POWER,
+        type_=OutputType.POWER,
         unit="kW",
         state=1.0,
         forecast=None,
@@ -501,7 +501,7 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
     sensor.async_write_ha_state = Mock()
 
     updated_output = _make_output(
-        type_=OUTPUT_TYPE_POWER,
+        type_=OutputType.POWER,
         unit="kW",
         state=1.0,
         forecast=None,
@@ -524,7 +524,7 @@ def test_handle_coordinator_update_missing_output_clears_value(device_entry: Dev
     """If the specific output is missing from data, sensor value is cleared."""
     coordinator = _create_mock_coordinator()
     initial_output = _make_output(
-        type_=OUTPUT_TYPE_POWER,
+        type_=OutputType.POWER,
         unit="kW",
         state=1.0,
         forecast=None,

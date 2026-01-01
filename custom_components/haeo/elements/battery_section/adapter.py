@@ -10,7 +10,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
-from custom_components.haeo.model.const import OUTPUT_TYPE_POWER
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import BatterySectionSubentryFlowHandler
@@ -120,10 +120,10 @@ class BatterySectionAdapter:
 
         # Power outputs
         section_outputs[BATTERY_SECTION_POWER_CHARGE] = replace(
-            battery_data[model_battery.BATTERY_POWER_CHARGE], type=OUTPUT_TYPE_POWER
+            battery_data[model_battery.BATTERY_POWER_CHARGE], type=OutputType.POWER
         )
         section_outputs[BATTERY_SECTION_POWER_DISCHARGE] = replace(
-            battery_data[model_battery.BATTERY_POWER_DISCHARGE], type=OUTPUT_TYPE_POWER
+            battery_data[model_battery.BATTERY_POWER_DISCHARGE], type=OutputType.POWER
         )
 
         # Active power (discharge - charge)
@@ -133,7 +133,7 @@ class BatterySectionAdapter:
             battery_data[model_battery.BATTERY_POWER_CHARGE],
             values=[d - c for c, d in zip(charge_values, discharge_values, strict=True)],
             direction=None,
-            type=OUTPUT_TYPE_POWER,
+            type=OutputType.POWER,
         )
 
         # Energy stored

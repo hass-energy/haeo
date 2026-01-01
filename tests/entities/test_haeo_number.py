@@ -16,7 +16,7 @@ from custom_components.haeo.const import CONF_NAME, DOMAIN
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.model import OUTPUT_TYPE_ENERGY, OUTPUT_TYPE_POWER
+from custom_components.haeo.model import OutputType
 
 # --- Fixtures ---
 
@@ -76,7 +76,7 @@ def power_field_info() -> InputFieldInfo[NumberEntityDescription]:
             native_max_value=100.0,
             native_step=0.1,
         ),
-        output_type=OUTPUT_TYPE_POWER,
+        output_type=OutputType.POWER,
         direction="+",
         time_series=True,
     )
@@ -95,7 +95,7 @@ def scalar_field_info() -> InputFieldInfo[NumberEntityDescription]:
             native_max_value=1000.0,
             native_step=1.0,
         ),
-        output_type=OUTPUT_TYPE_ENERGY,
+        output_type=OutputType.ENERGY,
         time_series=False,
     )
 
