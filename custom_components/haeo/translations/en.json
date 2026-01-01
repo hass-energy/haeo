@@ -126,7 +126,7 @@
             "capacity": "Capacity",
             "discharge_cost": "Discharge Cost",
             "early_charge_incentive": "Early Charge Incentive",
-            "efficiency": "One-way Efficiency",
+            "efficiency": "Round-trip Efficiency",
             "initial_charge_percentage": "State of Charge",
             "max_charge_percentage": "Max Charge Level",
             "max_charge_power": "Max Charging Power",
