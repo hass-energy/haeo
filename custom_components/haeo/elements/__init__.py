@@ -28,7 +28,19 @@ Sub-element Naming Convention:
 
 from collections.abc import Mapping, Sequence
 import logging
-from typing import Any, Final, Literal, NamedTuple, Protocol, TypeGuard, get_origin, get_type_hints, runtime_checkable
+import types
+from typing import (
+    Any,
+    Final,
+    Literal,
+    NamedTuple,
+    Protocol,
+    TypeGuard,
+    get_args,
+    get_origin,
+    get_type_hints,
+    runtime_checkable,
+)
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -264,12 +276,19 @@ def _conforms_to_typed_dict(value: Mapping[str, Any], typed_dict_cls: type) -> b
         check_type = origin if origin is not None else expected_type
 
         # Handle Literal types by checking if value is one of the allowed values
-        if check_type is Literal:
-            # For Literal, we don't do isinstance check - just ensure the field exists
-            continue
-
-        if not isinstance(value[key], check_type):
-            return False
+        # For Literal, we don't do isinstance check - just ensure the field exists
+        if check_type is not Literal:
+            if check_type is types.UnionType:
+                # Handle union types (e.g., list[str] | float)
+                # Use the origin for generic args (e.g., list[str] -> list); for primitive
+                # types (e.g., float, int) get_origin() returns None so we fall back to arg
+                # itself, producing a tuple like (list, float) suitable for isinstance().
+                union_args = get_args(expected_type)
+                allowed_types = tuple(get_origin(arg) or arg for arg in union_args)
+                if not isinstance(value[key], allowed_types):
+                    return False
+            elif not isinstance(value[key], check_type):
+                return False
 
     return True
 

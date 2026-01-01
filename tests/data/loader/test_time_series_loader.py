@@ -38,15 +38,30 @@ async def test_time_series_loader_available_handles_missing_sensor(hass: HomeAss
         await loader.load(hass=hass, value=["sensor.missing"], forecast_times=[0])
 
 
-async def test_time_series_loader_rejects_non_sequence_values(hass: HomeAssistant) -> None:
-    """Loader enforces that the provided value is a sequence of entity IDs."""
+async def test_time_series_loader_accepts_constant_values(hass: HomeAssistant) -> None:
+    """Loader accepts constant int and float values and broadcasts them."""
 
     loader = TimeSeriesLoader()
 
-    with pytest.raises(TypeError, match="sensor entity IDs"):
-        await loader.load(hass=hass, value=123, forecast_times=[0])
+    # Integer constant should be accepted and broadcast
+    result = await loader.load(hass=hass, value=123, forecast_times=[0, 1, 2])
+    assert result == [123.0, 123.0]  # 3 fence posts = 2 periods
 
-    assert loader.available(hass=hass, value=123) is False
+    # Float constant should be accepted and broadcast
+    result = await loader.load(hass=hass, value=1.5, forecast_times=[0, 1, 2, 3])
+    assert result == [1.5, 1.5, 1.5]  # 4 fence posts = 3 periods
+
+    # Single fence post means 0 periods
+    result = await loader.load(hass=hass, value=5.0, forecast_times=[0])
+    assert result == []  # 1 fence post = 0 periods
+
+    # Empty fence posts means 0 periods
+    result = await loader.load(hass=hass, value=5.0, forecast_times=[])
+    assert result == []
+
+    # Constants are always available
+    assert loader.available(hass=hass, value=123) is True
+    assert loader.available(hass=hass, value=1.5) is True
 
 
 async def test_time_series_loader_available_requires_valid_sensor_data(hass: HomeAssistant) -> None:
