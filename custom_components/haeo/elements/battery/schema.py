@@ -219,7 +219,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
 class BatteryConfigSchema(TypedDict):
     """Battery element configuration as stored in Home Assistant.
 
-    Schema mode contains entity IDs for sensors.
+    Schema mode contains entity IDs for sensors or constant values.
     """
 
     element_type: Literal["battery"]
@@ -227,8 +227,8 @@ class BatteryConfigSchema(TypedDict):
     connection: str  # Element name that battery connects to
 
     # Required sensors
-    capacity: list[str]  # Energy sensor entity IDs
-    initial_charge_percentage: list[str]  # SOC sensor entity IDs
+    capacity: list[str] | float  # Energy sensor entity IDs or constant value (kWh)
+    initial_charge_percentage: list[str] | float  # SOC sensor entity IDs or constant value (%)
 
     # Optional percentages with defaults
     min_charge_percentage: NotRequired[float]
@@ -236,18 +236,18 @@ class BatteryConfigSchema(TypedDict):
     efficiency: NotRequired[float]
 
     # Optional sensor fields
-    max_charge_power: NotRequired[list[str]]  # Power sensor entity IDs
-    max_discharge_power: NotRequired[list[str]]  # Power sensor entity IDs
+    max_charge_power: NotRequired[list[str] | float]  # Power sensor entity IDs or constant value (kW)
+    max_discharge_power: NotRequired[list[str] | float]  # Power sensor entity IDs or constant value (kW)
 
     # Optional price fields
     early_charge_incentive: NotRequired[float]
-    discharge_cost: NotRequired[list[str]]  # Price sensor entity IDs
+    discharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
 
     # Advanced: undercharge/overcharge regions
     undercharge_percentage: NotRequired[float]
     overcharge_percentage: NotRequired[float]
-    undercharge_cost: NotRequired[list[str]]  # Price sensor entity IDs
-    overcharge_cost: NotRequired[list[str]]  # Price sensor entity IDs
+    undercharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
+    overcharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
 
 
 class BatteryConfigData(TypedDict):

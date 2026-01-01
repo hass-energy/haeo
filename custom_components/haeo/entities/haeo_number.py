@@ -188,11 +188,13 @@ class HaeoInputNumber(RestoreNumber):
         if not values:
             return
 
-        # Build forecast as list of ForecastPoint-style dicts
+        # Build forecast as list of ForecastPoint-style dicts.
+        # Values correspond to periods (fence post intervals), not fence posts.
         local_tz = dt_util.get_default_time_zone()
+        period_timestamps = forecast_timestamps[:-1] if len(forecast_timestamps) > 1 else []
         forecast = [
             {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
-            for ts, val in zip(forecast_timestamps, values, strict=False)
+            for ts, val in zip(period_timestamps, values, strict=True)
         ]
 
         # Build updated extra state attributes
@@ -210,12 +212,14 @@ class HaeoInputNumber(RestoreNumber):
 
         extra_attrs = dict(self._base_extra_attrs)
 
-        if self._attr_native_value is not None:
+        if self._attr_native_value is not None and len(forecast_timestamps) > 1:
             # Build forecast as list of ForecastPoint-style dicts with constant value
+            # Use period start times (exclude last fence post) to get n_periods values
+            # This matches DRIVEN mode which returns one value per period interval
             local_tz = dt_util.get_default_time_zone()
             forecast = [
                 {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_native_value}
-                for ts in forecast_timestamps
+                for ts in forecast_timestamps[:-1]  # Exclude last fence post
             ]
             extra_attrs["forecast"] = forecast
 

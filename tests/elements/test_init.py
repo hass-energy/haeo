@@ -54,19 +54,19 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
             "import_price": ["sensor.import"],
             "export_price": ["sensor.export"],
         },
-        # Wrong type for forecast (should be list)
+        # Wrong type for forecast (should be list or float, not plain str)
         {
             "element_type": "solar",
             "name": "test",
             "connection": "bus",
             "forecast": "not_a_list",
         },
-        # Wrong type for capacity (should be list)
+        # Wrong type for capacity (should be list[str] or float, not bool)
         {
             "element_type": "battery",
             "name": "test",
             "connection": "bus",
-            "capacity": 100.0,
+            "capacity": True,
             "initial_charge_percentage": ["sensor.soc"],
         },
     ],
