@@ -254,10 +254,7 @@ class BatteryAdapter:
         section_capacities: dict[str, list[float]] = {}
 
         # 1. Undercharge section (if configured)
-        if (
-            undercharge_ratio_array is not None
-            and config.get("undercharge_cost") is not None
-        ):
+        if undercharge_ratio_array is not None and config.get("undercharge_cost") is not None:
             section_name = f"{name}:undercharge"
             section_names.append(section_name)
             # Time-varying capacity: (min_ratio - undercharge_ratio) * capacity per period
@@ -299,10 +296,7 @@ class BatteryAdapter:
         initial_charge = max(initial_charge - section_initial_charge, 0.0)
 
         # 3. Overcharge section (if configured)
-        if (
-            overcharge_ratio_array is not None
-            and config.get("overcharge_cost") is not None
-        ):
+        if overcharge_ratio_array is not None and config.get("overcharge_cost") is not None:
             section_name = f"{name}:overcharge"
             section_names.append(section_name)
             # Time-varying capacity: (overcharge_ratio - max_ratio) * capacity per period

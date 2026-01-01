@@ -67,11 +67,11 @@ def build_mode_selector(*, has_default: bool) -> SelectSelector:  # type: ignore
 
     """
     options: list[SelectOptionDict] = [
-        SelectOptionDict(value=InputMode.CONSTANT, label="constant"),
-        SelectOptionDict(value=InputMode.ENTITY_LINK, label="entity_link"),
+        SelectOptionDict(value=InputMode.CONSTANT, label=InputMode.CONSTANT),
+        SelectOptionDict(value=InputMode.ENTITY_LINK, label=InputMode.ENTITY_LINK),
     ]
     if has_default:
-        options.append(SelectOptionDict(value=InputMode.NONE, label="none"))
+        options.append(SelectOptionDict(value=InputMode.NONE, label=InputMode.NONE))
 
     return SelectSelector(
         SelectSelectorConfig(
@@ -168,7 +168,7 @@ def infer_mode_from_value(value: Any) -> InputMode:
     Returns:
         InputMode based on value type:
         - list[str] with items → ENTITY_LINK
-        - float/int/bool → CONSTANT
+        - float/int/bool → CONSTANT (note: bool is subclass of int in Python)
         - None or empty list or missing → NONE
 
     """

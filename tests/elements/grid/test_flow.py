@@ -78,9 +78,7 @@ async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssi
     assert subentry_id is None
 
 
-async def test_schema_uses_default_when_mode_is_none_for_import_price(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_schema_uses_default_when_mode_is_none_for_import_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When import price mode is NONE, the field should not appear in step 2 schema."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 
@@ -109,9 +107,7 @@ async def test_schema_uses_default_when_mode_is_none_for_import_price(
     assert CONF_IMPORT_PRICE not in validated
 
 
-async def test_schema_uses_default_when_mode_is_none_for_export_price(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_schema_uses_default_when_mode_is_none_for_export_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When export price mode is NONE, the field should not appear in step 2 schema."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
 

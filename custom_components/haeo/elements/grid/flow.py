@@ -135,6 +135,10 @@ class GridSubentryFlowHandler(ConfigSubentryFlow):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 1: name, connection, and mode selection."""
+        # Clear step 1 data at start to avoid stale state from incomplete flows
+        if user_input is None:
+            self._step1_data = {}
+
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -196,6 +200,10 @@ class GridSubentryFlowHandler(ConfigSubentryFlow):
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle reconfigure step 1: name, connection, and mode selection."""
+        # Clear step 1 data at start to avoid stale state from incomplete flows
+        if user_input is None:
+            self._step1_data = {}
+
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
 

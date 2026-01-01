@@ -282,6 +282,7 @@ async def test_element_flow_user_step_success(
     assert created_kwargs["data"][CONF_ELEMENT_TYPE] == element_type
     assert created_kwargs["data"][CONF_NAME] == user_input[CONF_NAME]
 
+
 @pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
 async def test_element_flow_user_step_missing_name(
     hass: HomeAssistant,
