@@ -274,9 +274,7 @@ def test_build_value_schema_entry_entity_link_with_exclusions(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """ENTITY_LINK mode respects exclude_entities."""
-    result = build_value_schema_entry(
-        number_field, mode=InputMode.ENTITY_LINK, exclude_entities=["sensor.excluded"]
-    )
+    result = build_value_schema_entry(number_field, mode=InputMode.ENTITY_LINK, exclude_entities=["sensor.excluded"])
     assert result is not None
 
 
