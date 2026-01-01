@@ -17,6 +17,7 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.model.const import OutputType
 
 # --- Fixtures ---
 
@@ -72,7 +73,7 @@ def curtailment_field_info() -> InputFieldInfo[SwitchEntityDescription]:
             key="allow_curtailment",
             translation_key="allow_curtailment",
         ),
-        output_type="flag",
+        output_type=OutputType.STATUS,
     )
 
 
@@ -466,7 +467,7 @@ async def test_translation_key_from_field_info(
             key="enable_export",
             translation_key="custom_translation",
         ),
-        output_type="flag",
+        output_type=OutputType.STATUS,
     )
     subentry = _create_subentry("Test", {"enable_export": True})
     config_entry.runtime_data = None

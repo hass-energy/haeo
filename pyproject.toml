@@ -79,6 +79,7 @@ split-on-trailing-comma = false
     'SIM105',  # Use contextlib.suppress instead of try-except-pass - test exception handling patterns differ
     'BLE001',  # Do not catch blind exception - test code needs to handle various exception types
     'FBT001',  # Boolean positional argument - common in parametrized tests
+    'FBT003',  # Boolean positional value - test assertions often pass literal booleans
 ]
 
 "stubs/**/*.pyi" = [

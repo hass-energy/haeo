@@ -175,3 +175,57 @@ async def test_load_with_both_empty_price_lists_uses_defaults(hass: HomeAssistan
 
     assert result["import_price"] == [DEFAULT_IMPORT_PRICE, DEFAULT_IMPORT_PRICE]
     assert result["export_price"] == [DEFAULT_EXPORT_PRICE, DEFAULT_EXPORT_PRICE]
+
+
+async def test_load_with_scalar_import_price(hass: HomeAssistant) -> None:
+    """Grid load() should broadcast scalar import_price constant."""
+    config: grid.GridConfigSchema = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
+        "import_price": 0.35,
+        "export_price": [],
+    }
+
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    assert result["import_price"] == [0.35, 0.35]
+    assert result["export_price"] == [DEFAULT_EXPORT_PRICE, DEFAULT_EXPORT_PRICE]
+
+
+async def test_load_with_scalar_export_price(hass: HomeAssistant) -> None:
+    """Grid load() should broadcast scalar export_price constant."""
+    config: grid.GridConfigSchema = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
+        "import_price": [],
+        "export_price": 0.08,
+    }
+
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    assert result["import_price"] == [DEFAULT_IMPORT_PRICE, DEFAULT_IMPORT_PRICE]
+    assert result["export_price"] == [0.08, 0.08]
+
+
+async def test_load_with_limit_entity_lists(hass: HomeAssistant) -> None:
+    """Grid load() should load import_limit and export_limit from entity lists."""
+    _set_sensor(hass, "sensor.import_limit", "15", "kW")
+    _set_sensor(hass, "sensor.export_limit", "8", "kW")
+
+    config: grid.GridConfigSchema = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
+        "import_price": 0.30,
+        "export_price": 0.05,
+        "import_limit": ["sensor.import_limit"],
+        "export_limit": ["sensor.export_limit"],
+    }
+
+    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+
+    # Limits loaded from sensors
+    assert result.get("import_limit") == [15.0, 15.0]
+    assert result.get("export_limit") == [8.0, 8.0]

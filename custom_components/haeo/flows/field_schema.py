@@ -14,7 +14,6 @@ from enum import StrEnum
 from typing import Any, Final, Protocol
 
 from homeassistant.components.number import NumberEntityDescription
-from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.helpers.selector import (
     BooleanSelector,
     BooleanSelectorConfig,
@@ -242,7 +241,8 @@ def build_value_schema_entry(
 
     if mode == InputMode.CONSTANT:
         # Build appropriate selector based on entity description type
-        if isinstance(field_info.entity_description, SwitchEntityDescription):
+        # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
+        if type(field_info.entity_description).__name__ == "SwitchEntityDescription":
             selector = boolean_selector_from_field()
         else:
             selector = number_selector_from_field(field_info)  # type: ignore[arg-type]
