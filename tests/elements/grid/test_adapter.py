@@ -16,7 +16,7 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
 
 
-FORECAST_TIMES: Sequence[float] = [0.0, 1800.0]
+FORECAST_TIMES: Sequence[float] = [0.0, 1800.0, 3600.0]  # 3 fence posts = 2 periods
 
 
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
@@ -85,12 +85,12 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
 
     assert result["element_type"] == "grid"
     assert result["name"] == "test_grid"
-    assert len(result["import_price"]) == 1
+    assert len(result["import_price"]) == 2  # 3 fence posts = 2 periods
     assert result["import_price"][0] == 0.30
 
 
 async def test_load_with_optional_limits(hass: HomeAssistant) -> None:
-    """Grid load() should include optional constant limit fields."""
+    """Grid load() should broadcast scalar limit constants to time series."""
     _set_sensor(hass, "sensor.import_price", "0.30", "$/kWh")
     _set_sensor(hass, "sensor.export_price", "0.05", "$/kWh")
 
@@ -106,8 +106,9 @@ async def test_load_with_optional_limits(hass: HomeAssistant) -> None:
 
     result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
-    assert result.get("import_limit") == 10.0
-    assert result.get("export_limit") == 5.0
+    # Scalar constants are broadcast to time series
+    assert result.get("import_limit") == [10.0, 10.0]
+    assert result.get("export_limit") == [5.0, 5.0]
 
 
 async def test_available_returns_true_for_empty_price_lists(hass: HomeAssistant) -> None:

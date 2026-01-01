@@ -27,7 +27,6 @@ def test_is_not_element_config_schema(input_data: Any) -> None:
         {"name": "test"},  # Missing element_type
         {"element_type": "battery"},  # Missing all required fields
         {"element_type": "battery", "name": "test"},  # Missing required battery fields
-        {"element_type": "grid", "name": "test", "connection": "node"},  # Missing price fields
         {"element_type": "connection", "name": "test", "source": "a"},  # Missing target
     ],
 )
@@ -117,6 +116,16 @@ def test_is_element_config_schema_valid_grid() -> None:
         "connection": "main_bus",
         "import_price": ["sensor.import"],
         "export_price": ["sensor.export"],
+    }
+    assert is_element_config_schema(valid_config) is True
+
+
+def test_is_element_config_schema_valid_grid_minimal() -> None:
+    """Test is_element_config_schema with minimal valid grid config (prices optional)."""
+    valid_config = {
+        "element_type": "grid",
+        "name": "test_grid",
+        "connection": "main_bus",
     }
     assert is_element_config_schema(valid_config) is True
 

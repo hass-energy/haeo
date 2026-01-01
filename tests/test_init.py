@@ -381,6 +381,10 @@ async def test_async_update_listener(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test async_update_listener triggers reload."""
+    # Set up runtime_data (required by async_update_listener)
+    mock_coordinator = Mock()
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
+
     # Mock the reload function
     reload_called = False
     connectivity_called = False

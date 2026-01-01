@@ -15,7 +15,7 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
 
 
-FORECAST_TIMES: Sequence[float] = [0.0, 1800.0]
+FORECAST_TIMES: Sequence[float] = [0.0, 1800.0, 3600.0]  # 3 fence posts = 2 periods
 
 
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
@@ -88,7 +88,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
 
     assert result["element_type"] == "battery"
     assert result["name"] == "test_battery"
-    assert len(result["capacity"]) == 1
+    assert len(result["capacity"]) == 2  # 3 fence posts = 2 periods
     assert result["capacity"][0] == 10.0
 
 
@@ -155,7 +155,10 @@ async def test_load_with_optional_time_series_fields(hass: HomeAssistant) -> Non
 
 
 async def test_load_with_optional_scalar_fields(hass: HomeAssistant) -> None:
-    """Battery load() should load optional scalar fields when configured."""
+    """Battery load() should load optional scalar fields when configured.
+
+    Scalar values are broadcast to time series when loaded.
+    """
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
     _set_sensor(hass, "sensor.initial", "50.0", "%")
 
@@ -173,6 +176,7 @@ async def test_load_with_optional_scalar_fields(hass: HomeAssistant) -> None:
     result = await battery.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
     assert result["element_type"] == "battery"
-    assert result.get("early_charge_incentive") == 0.005
-    assert result.get("undercharge_percentage") == 10.0
-    assert result.get("overcharge_percentage") == 90.0
+    # Scalar values are broadcast to time series
+    assert result.get("early_charge_incentive") == [0.005, 0.005]
+    assert result.get("undercharge_percentage") == [10.0, 10.0]
+    assert result.get("overcharge_percentage") == [90.0, 90.0]

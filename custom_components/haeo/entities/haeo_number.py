@@ -254,6 +254,22 @@ class HaeoInputNumber(RestoreNumber):
                     return time_val.timestamp()
         return None
 
+    def is_ready(self) -> bool:
+        """Check if entity is ready for coordinator to read values.
+
+        Returns True if:
+        - Entity is disabled (no values will ever be available)
+        - Entity is enabled and has loaded values
+
+        Returns False if:
+        - Entity is enabled but still loading data
+        """
+        # Disabled entities are "ready" in that we don't need to wait for them
+        if not self._attr_entity_registry_enabled_default:
+            return True
+        # Enabled entities are ready once they've been added and have values
+        return self._added_to_hass and self.get_values() is not None
+
     def get_values(self) -> tuple[float, ...] | None:
         """Return the forecast values as a tuple, or None if not loaded.
 

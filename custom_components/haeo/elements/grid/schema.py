@@ -62,6 +62,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=0.1,
         ),
         output_type="power_limit",
+        time_series=True,
         direction="+",
     ),
     InputFieldInfo(
@@ -76,6 +77,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=0.1,
         ),
         output_type="power_limit",
+        time_series=True,
         direction="-",
     ),
 )
@@ -85,17 +87,23 @@ class GridConfigSchema(TypedDict):
     """Grid element configuration as stored in Home Assistant.
 
     Schema mode contains entity IDs and constant values from the config flow.
+    Values can be:
+    - list[str]: Entity IDs when mode is ENTITY_LINK
+    - float: Constant value when mode is CONSTANT
+    - NotRequired: Field not present when mode is NONE
     """
 
     element_type: Literal["grid"]
     name: str
     connection: str  # Element name to connect to
-    import_price: list[str]  # Entity IDs for import price sensors
-    export_price: list[str]  # Entity IDs for export price sensors
 
-    # Optional fields
-    import_limit: NotRequired[float]  # kW
-    export_limit: NotRequired[float]  # kW
+    # Price fields: entity links or constants (have defaults so can be NONE)
+    import_price: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
+    export_price: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
+
+    # Power limit fields (optional)
+    import_limit: NotRequired[list[str] | float]  # Entity IDs or constant kW
+    export_limit: NotRequired[list[str] | float]  # Entity IDs or constant kW
 
 
 class GridConfigData(TypedDict):
@@ -110,6 +118,6 @@ class GridConfigData(TypedDict):
     import_price: list[float]  # Loaded price values per period ($/kWh)
     export_price: list[float]  # Loaded price values per period ($/kWh)
 
-    # Optional fields
-    import_limit: NotRequired[float]  # kW
-    export_limit: NotRequired[float]  # kW
+    # Optional fields - now time series
+    import_limit: NotRequired[list[float]]  # Loaded values per period (kW)
+    export_limit: NotRequired[list[float]]  # Loaded values per period (kW)

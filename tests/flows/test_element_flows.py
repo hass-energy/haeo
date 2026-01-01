@@ -51,6 +51,9 @@ from tests.conftest import ElementTestData
 
 ALL_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(ELEMENT_TYPES)
 
+# Element types that use two-step flows (mode selection + values)
+TWO_STEP_FLOW_ELEMENTS: frozenset[ElementType] = frozenset({battery.ELEMENT_TYPE, grid.ELEMENT_TYPE})
+
 TEST_ELEMENT_TYPE = "flow_test_element"
 
 
@@ -261,13 +264,23 @@ async def test_element_flow_user_step_success(
     assert result.get("step_id") == "user"
     assert not result.get("errors")
 
-    result = await flow.async_step_user(user_input=user_input)
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        # Two-step flow: submit mode selection, then values
+        mode_input = cases.valid[0].mode_input
+        assert mode_input is not None, f"mode_input required for two-step element {element_type}"
+        result = await flow.async_step_user(user_input=mode_input)
+        assert result.get("type") == FlowResultType.FORM
+        assert result.get("step_id") == "values"
+        result = await flow.async_step_values(user_input=user_input)
+    else:
+        # One-step flow: submit values directly
+        result = await flow.async_step_user(user_input=user_input)
+
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_kwargs = flow.async_create_entry.call_args.kwargs
     assert created_kwargs["data"][CONF_ELEMENT_TYPE] == element_type
     assert created_kwargs["data"][CONF_NAME] == user_input[CONF_NAME]
-
 
 @pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
 async def test_element_flow_user_step_missing_name(
@@ -337,7 +350,19 @@ async def test_element_flow_reconfigure_success(
     assert result.get("step_id") == "reconfigure"
 
     reconfigure_input = deepcopy(existing_config)
-    result = await flow.async_step_reconfigure(user_input=reconfigure_input)
+
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        # Two-step flow: submit mode selection, then values
+        mode_input = element_test_data[element_type].valid[0].mode_input
+        assert mode_input is not None, f"mode_input required for two-step element {element_type}"
+        result = await flow.async_step_reconfigure(user_input=mode_input)
+        assert result.get("type") == FlowResultType.FORM
+        assert result.get("step_id") == "reconfigure_values"
+        result = await flow.async_step_reconfigure_values(user_input=reconfigure_input)
+    else:
+        # One-step flow: submit values directly
+        result = await flow.async_step_reconfigure(user_input=reconfigure_input)
+
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
 
@@ -369,7 +394,19 @@ async def test_element_flow_reconfigure_rename(
     original_name = renamed_input[CONF_NAME]
     renamed_input[CONF_NAME] = f"{original_name} Updated"
 
-    result = await flow.async_step_reconfigure(user_input=renamed_input)
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        # Two-step flow: submit mode selection with updated name, then values
+        mode_input = deepcopy(element_test_data[element_type].valid[0].mode_input)
+        assert mode_input is not None, f"mode_input required for two-step element {element_type}"
+        mode_input[CONF_NAME] = renamed_input[CONF_NAME]
+        result = await flow.async_step_reconfigure(user_input=mode_input)
+        assert result.get("type") == FlowResultType.FORM
+        assert result.get("step_id") == "reconfigure_values"
+        result = await flow.async_step_reconfigure_values(user_input=renamed_input)
+    else:
+        # One-step flow: submit values directly
+        result = await flow.async_step_reconfigure(user_input=renamed_input)
+
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
 

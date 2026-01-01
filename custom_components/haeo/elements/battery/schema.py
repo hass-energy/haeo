@@ -75,6 +75,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=1.0,
         ),
         output_type="soc",
+        time_series=True,
         default=0.0,
     ),
     InputFieldInfo(
@@ -89,6 +90,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=1.0,
         ),
         output_type="soc",
+        time_series=True,
         default=100.0,
     ),
     InputFieldInfo(
@@ -103,6 +105,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=0.1,
         ),
         output_type="soc",
+        time_series=True,
         default=99.0,
     ),
     InputFieldInfo(
@@ -146,6 +149,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type="price",
         direction="-",
+        time_series=True,
         default=0.001,
     ),
     InputFieldInfo(
@@ -173,6 +177,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=1.0,
         ),
         output_type="soc",
+        time_series=True,
     ),
     InputFieldInfo(
         field_name=CONF_OVERCHARGE_PERCENTAGE,
@@ -186,6 +191,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=1.0,
         ),
         output_type="soc",
+        time_series=True,
     ),
     InputFieldInfo(
         field_name=CONF_UNDERCHARGE_COST,
@@ -226,26 +232,26 @@ class BatteryConfigSchema(TypedDict):
     name: str
     connection: str  # Element name that battery connects to
 
-    # Required sensors
+    # Required sensors - can be entity links or constants
     capacity: list[str] | float  # Energy sensor entity IDs or constant value (kWh)
     initial_charge_percentage: list[str] | float  # SOC sensor entity IDs or constant value (%)
 
-    # Optional percentages with defaults
-    min_charge_percentage: NotRequired[float]
-    max_charge_percentage: NotRequired[float]
-    efficiency: NotRequired[float]
+    # Optional fields - can be entity links, constants, or missing (uses default)
+    min_charge_percentage: NotRequired[list[str] | float]
+    max_charge_percentage: NotRequired[list[str] | float]
+    efficiency: NotRequired[list[str] | float]
 
-    # Optional sensor fields
+    # Optional power limits - can be entity links or constants
     max_charge_power: NotRequired[list[str] | float]  # Power sensor entity IDs or constant value (kW)
     max_discharge_power: NotRequired[list[str] | float]  # Power sensor entity IDs or constant value (kW)
 
-    # Optional price fields
-    early_charge_incentive: NotRequired[float]
+    # Optional price fields - can be entity links or constants
+    early_charge_incentive: NotRequired[list[str] | float]
     discharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
 
-    # Advanced: undercharge/overcharge regions
-    undercharge_percentage: NotRequired[float]
-    overcharge_percentage: NotRequired[float]
+    # Advanced: undercharge/overcharge regions - can be entity links or constants
+    undercharge_percentage: NotRequired[list[str] | float]
+    overcharge_percentage: NotRequired[list[str] | float]
     undercharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
     overcharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
 
@@ -264,21 +270,21 @@ class BatteryConfigData(TypedDict):
     capacity: list[float]  # kWh per period
     initial_charge_percentage: list[float]  # % per period (uses first value)
 
-    # Scalars with defaults applied
-    min_charge_percentage: float
-    max_charge_percentage: float
-    efficiency: float
+    # Time series with defaults applied
+    min_charge_percentage: list[float]  # % per period
+    max_charge_percentage: list[float]  # % per period
+    efficiency: list[float]  # % per period
 
     # Optional loaded values
     max_charge_power: NotRequired[list[float]]  # kW per period
     max_discharge_power: NotRequired[list[float]]  # kW per period
 
-    # Optional prices
-    early_charge_incentive: NotRequired[float]  # $/kWh
+    # Optional prices (time series)
+    early_charge_incentive: NotRequired[list[float]]  # $/kWh per period
     discharge_cost: NotRequired[list[float]]  # $/kWh per period
 
-    # Advanced: undercharge/overcharge regions
-    undercharge_percentage: NotRequired[float]  # %
-    overcharge_percentage: NotRequired[float]  # %
+    # Advanced: undercharge/overcharge regions (time series)
+    undercharge_percentage: NotRequired[list[float]]  # % per period
+    overcharge_percentage: NotRequired[list[float]]  # % per period
     undercharge_cost: NotRequired[list[float]]  # $/kWh per period
     overcharge_cost: NotRequired[list[float]]  # $/kWh per period

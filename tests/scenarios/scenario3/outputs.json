@@ -388,7 +388,7 @@
       "mode": "auto",
       "output_type": "price",
       "step": 0.001,
-      "time_series": false
+      "time_series": true
     }
   },
   "number.battery_efficiency": {
@@ -518,7 +518,7 @@
       "mode": "auto",
       "output_type": "soc",
       "step": 0.1,
-      "time_series": false,
+      "time_series": true,
       "unit_of_measurement": "%"
     }
   },
@@ -781,7 +781,7 @@
       "mode": "auto",
       "output_type": "soc",
       "step": 1.0,
-      "time_series": false,
+      "time_series": true,
       "unit_of_measurement": "%"
     }
   },
@@ -1178,7 +1178,7 @@
       "mode": "auto",
       "output_type": "soc",
       "step": 1.0,
-      "time_series": false,
+      "time_series": true,
       "unit_of_measurement": "%"
     }
   },
@@ -1442,7 +1442,7 @@
       "mode": "auto",
       "output_type": "power_limit",
       "step": 0.1,
-      "time_series": false,
+      "time_series": true,
       "unit_of_measurement": "kW"
     }
   },
@@ -1705,7 +1705,7 @@
       "mode": "auto",
       "output_type": "power_limit",
       "step": 0.1,
-      "time_series": false,
+      "time_series": true,
       "unit_of_measurement": "kW"
     }
   },
