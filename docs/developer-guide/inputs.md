@@ -49,6 +49,19 @@ The registry uses an `InputFieldInfo` dataclass that specifies the field name, e
 
 See the element adapter modules for specific registrations.
 
+## Entity Creation
+
+Input entities are only created for fields that are actually configured.
+When a user selects "Not Configured" (mode `NONE`) for an optional field during element setup, no entity is created for that field.
+This keeps the entity list focused on functionality the user has enabled.
+
+**Configured fields**: An entity is created in either EDITABLE or DRIVEN mode depending on the input type.
+
+**Unconfigured fields**: No entity is created.
+The field uses its default value in the optimization model without exposing an entity.
+
+This behavior is controlled by the two-step config flow pattern documented in [Config Flow Development](config-flow.md#two-step-config-flow-pattern).
+
 ## Entity Types
 
 ### Number Entities
@@ -67,9 +80,9 @@ Input entities operate in one of two modes based on how the field was configured
 
 ### Editable Mode
 
-When the configuration does not specify an external sensor:
+When the configuration specifies a constant value (not an external sensor):
 
-- The entity displays the configured default value
+- The entity displays the configured value
 - Users can modify the value through the Home Assistant UI
 - Service calls can update values for automation scenarios
 - Changes persist and affect future optimizations
