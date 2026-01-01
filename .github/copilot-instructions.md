@@ -54,6 +54,25 @@ docs/                       # Documentation
 
 These rules apply to all AI agent interactions with this codebase:
 
+### Design principles
+
+**Convention over configuration**: Prefer uniform patterns that work the same everywhere over configurable options that require case-by-case logic.
+When code paths diverge based on metadata flags or configuration, ask whether the divergence is necessary.
+Often, a single convention that handles all cases uniformly is simpler and more maintainable.
+
+- Derive behavior from existing structure rather than adding metadata flags
+- Make all instances of a pattern work the same way - no special cases
+- Let upstream validation (e.g., config flows) enforce constraints so downstream code can assume valid data
+- If values are missing or None, skip them uniformly rather than checking if skipping is allowed
+
+**Composition over complexity**: Build features by composing simple, focused components rather than adding conditional logic to existing code.
+Each component should do one thing well without needing to know about the internals of other components.
+
+- Separate concerns: validation happens at boundaries, processing assumes valid input
+- Avoid "check if X then do Y else do Z" patterns - instead, make X and Y go through the same code path
+- When adding a feature, prefer creating new simple components over adding branches to existing ones
+- Runtime code shouldn't need to know what the schema says - the schema's job is done at configuration time
+
 ### Clean changes
 
 When making changes, don't leave behind comments describing what was once there.
