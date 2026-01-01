@@ -11,7 +11,7 @@ Input modes:
 """
 
 from enum import StrEnum
-from typing import Any, Final
+from typing import Any, Final, Protocol
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
@@ -39,6 +39,16 @@ class InputMode(StrEnum):
     CONSTANT = "constant"
     ENTITY_LINK = "entity_link"
     NONE = "none"
+
+
+class ConfigSchemaType(Protocol):
+    """Protocol for TypedDict classes used as config schemas.
+
+    This protocol captures the __optional_keys__ attribute that TypedDict
+    classes provide, allowing functions to inspect which fields are optional.
+    """
+
+    __optional_keys__: frozenset[str]
 
 
 # Mode suffix appended to field names for mode selectors
@@ -181,11 +191,14 @@ def infer_mode_from_value(value: Any) -> InputMode:
 
 def build_mode_schema_entry(
     field_info: InputFieldInfo[Any],
+    *,
+    config_schema: ConfigSchemaType,
 ) -> tuple[vol.Marker, Any]:
     """Build a schema entry for mode selection.
 
     Args:
         field_info: Input field metadata.
+        config_schema: The TypedDict class defining the element's configuration.
 
     Returns:
         Tuple of (vol.Required marker, SelectSelector).
@@ -193,13 +206,13 @@ def build_mode_schema_entry(
         For required fields, no default (user must choose CONSTANT or ENTITY_LINK).
 
     """
-    has_default = field_info.default is not None
     mode_key = f"{field_info.field_name}{MODE_SUFFIX}"
+    is_optional = field_info.field_name in config_schema.__optional_keys__
 
-    selector = build_mode_selector(has_default=has_default)
+    selector = build_mode_selector(has_default=is_optional)
 
     # Always required, but optional fields get a default of NONE
-    if has_default:
+    if is_optional:
         return vol.Required(mode_key, default=InputMode.NONE), selector
     return vol.Required(mode_key), selector
 
@@ -256,12 +269,14 @@ def build_value_schema_entry(
 
 def get_mode_defaults(
     input_fields: tuple[InputFieldInfo[Any], ...],
+    config_schema: ConfigSchemaType,
     current_data: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """Get default mode selections for all fields.
 
     Args:
         input_fields: Tuple of input field metadata.
+        config_schema: The TypedDict class defining the element's configuration.
         current_data: Current configuration data (for reconfigure).
 
     Returns:
@@ -277,7 +292,7 @@ def get_mode_defaults(
             # Infer mode from stored value
             value = current_data.get(field_info.field_name)
             defaults[mode_key] = infer_mode_from_value(value)
-        elif field_info.default is not None:
+        elif field_info.field_name in config_schema.__optional_keys__:
             # Default to NONE for optional fields
             defaults[mode_key] = InputMode.NONE
         else:

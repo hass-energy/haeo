@@ -84,7 +84,7 @@ def _build_step1_schema(
 
     # Add mode selectors for all input fields
     for field_info in INPUT_FIELDS:
-        marker, selector = build_mode_schema_entry(field_info)
+        marker, selector = build_mode_schema_entry(field_info, config_schema=GridConfigSchema)
         schema_dict[marker] = selector
 
     return vol.Schema(schema_dict)
@@ -153,7 +153,7 @@ class GridSubentryFlowHandler(ConfigSubentryFlow):
         schema = _build_step1_schema(participants)
 
         # Apply default mode selections
-        defaults = get_mode_defaults(INPUT_FIELDS)
+        defaults = get_mode_defaults(INPUT_FIELDS, GridConfigSchema)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -222,7 +222,7 @@ class GridSubentryFlowHandler(ConfigSubentryFlow):
         defaults = {
             CONF_NAME: subentry.data.get(CONF_NAME),
             CONF_CONNECTION: current_connection,
-            **get_mode_defaults(INPUT_FIELDS, dict(subentry.data)),
+            **get_mode_defaults(INPUT_FIELDS, GridConfigSchema, dict(subentry.data)),
         }
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
@@ -232,9 +232,7 @@ class GridSubentryFlowHandler(ConfigSubentryFlow):
             errors=errors,
         )
 
-    async def async_step_reconfigure_values(
-        self, user_input: dict[str, Any] | None = None
-    ) -> SubentryFlowResult:
+    async def async_step_reconfigure_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle reconfigure step 2: value entry based on mode selections."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()

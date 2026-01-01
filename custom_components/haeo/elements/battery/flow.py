@@ -95,7 +95,7 @@ def _build_step1_schema(
 
     # Add mode selectors for all input fields
     for field_info in INPUT_FIELDS:
-        marker, selector = build_mode_schema_entry(field_info)
+        marker, selector = build_mode_schema_entry(field_info, config_schema=BatteryConfigSchema)
         schema_dict[marker] = selector
 
     return vol.Schema(schema_dict)
@@ -175,7 +175,7 @@ class BatterySubentryFlowHandler(ConfigSubentryFlow):
         schema = _build_step1_schema(participants)
 
         # Apply default mode selections
-        defaults = get_mode_defaults(INPUT_FIELDS)
+        defaults = get_mode_defaults(INPUT_FIELDS, BatteryConfigSchema)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -243,7 +243,7 @@ class BatterySubentryFlowHandler(ConfigSubentryFlow):
 
         # Get current values for pre-population
         current_data = dict(subentry.data)
-        mode_defaults = get_mode_defaults(INPUT_FIELDS, current_data)
+        mode_defaults = get_mode_defaults(INPUT_FIELDS, BatteryConfigSchema, current_data)
         defaults = {
             CONF_NAME: current_data.get(CONF_NAME),
             CONF_CONNECTION: current_data.get(CONF_CONNECTION),
