@@ -40,13 +40,13 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
 class LoadConfigSchema(TypedDict):
     """Load element configuration as stored in Home Assistant.
 
-    Schema mode contains entity IDs for forecast sensors.
+    Schema mode contains entity IDs for forecast sensors or constant values.
     """
 
     element_type: Literal["load"]
     name: str
     connection: str  # Element name to connect to
-    forecast: list[str]  # Entity IDs for power forecast sensors
+    forecast: list[str] | float  # Entity IDs for power forecast sensors or constant value (kW)
 
 
 class LoadConfigData(TypedDict):

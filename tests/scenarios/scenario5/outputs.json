@@ -135,7 +135,7 @@
     "entity_id": "number.battery_discharge_cost",
     "state": "0.02",
     "attributes": {
-      "config_mode": "driven",
+      "config_mode": "editable",
       "direction": "-",
       "element_name": "Battery",
       "element_type": "battery",
@@ -257,7 +257,6 @@
       "min": 0.0,
       "mode": "auto",
       "output_type": "price",
-      "source_entities": ["input_number.battery_discharge_cost"],
       "step": 0.001,
       "time_series": true
     }
@@ -381,8 +380,7 @@
         { "time": "2025-11-13T23:26:00.000000-0800", "value": 0.001 },
         { "time": "2025-11-14T00:26:00.000000-0800", "value": 0.001 },
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 0.001 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.001 },
-        { "time": "2025-11-14T03:26:00.000000-0800", "value": 0.001 }
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 0.001 }
       ],
       "friendly_name": "Battery Early charge incentive",
       "max": 1.0,
@@ -512,8 +510,7 @@
         { "time": "2025-11-13T23:26:00.000000-0800", "value": 99.0 },
         { "time": "2025-11-14T00:26:00.000000-0800", "value": 99.0 },
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 99.0 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 99.0 },
-        { "time": "2025-11-14T03:26:00.000000-0800", "value": 99.0 }
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 99.0 }
       ],
       "friendly_name": "Battery Efficiency",
       "max": 100.0,
@@ -776,8 +773,7 @@
         { "time": "2025-11-13T23:26:00.000000-0800", "value": 100.0 },
         { "time": "2025-11-14T00:26:00.000000-0800", "value": 100.0 },
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 100.0 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 100.0 },
-        { "time": "2025-11-14T03:26:00.000000-0800", "value": 100.0 }
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 100.0 }
       ],
       "friendly_name": "Battery Max charge",
       "max": 100.0,
@@ -1174,8 +1170,7 @@
         { "time": "2025-11-13T23:26:00.000000-0800", "value": 10.0 },
         { "time": "2025-11-14T00:26:00.000000-0800", "value": 10.0 },
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 10.0 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 10.0 },
-        { "time": "2025-11-14T03:26:00.000000-0800", "value": 10.0 }
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 10.0 }
       ],
       "friendly_name": "Battery Min charge",
       "max": 100.0,
@@ -1191,7 +1186,7 @@
     "entity_id": "number.constant_load_forecast",
     "state": "1.0",
     "attributes": {
-      "config_mode": "driven",
+      "config_mode": "editable",
       "device_class": "power",
       "direction": "+",
       "element_name": "Constant Load",
@@ -1314,7 +1309,6 @@
       "min": 0.0,
       "mode": "auto",
       "output_type": "power",
-      "source_entities": ["input_number.constant_load_power"],
       "step": 0.01,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1440,8 +1434,7 @@
         { "time": "2025-11-13T23:26:00.000000-0800", "value": 30.0 },
         { "time": "2025-11-14T00:26:00.000000-0800", "value": 30.0 },
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 30.0 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 30.0 },
-        { "time": "2025-11-14T03:26:00.000000-0800", "value": 30.0 }
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 30.0 }
       ],
       "friendly_name": "Grid Export limit",
       "max": 1000.0,
@@ -1704,8 +1697,7 @@
         { "time": "2025-11-13T23:26:00.000000-0800", "value": 55.0 },
         { "time": "2025-11-14T00:26:00.000000-0800", "value": 55.0 },
         { "time": "2025-11-14T01:26:00.000000-0800", "value": 55.0 },
-        { "time": "2025-11-14T02:26:00.000000-0800", "value": 55.0 },
-        { "time": "2025-11-14T03:26:00.000000-0800", "value": 55.0 }
+        { "time": "2025-11-14T02:26:00.000000-0800", "value": 55.0 }
       ],
       "friendly_name": "Grid Import limit",
       "max": 1000.0,
