@@ -6,7 +6,7 @@ from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.const import ConnectivityLevel
+from custom_components.haeo.const import USE_REACT_CONFIG_UI, ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
@@ -16,7 +16,11 @@ from custom_components.haeo.model.power_connection import (
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
 
-from .flow import SolarSubentryFlowHandler
+if USE_REACT_CONFIG_UI:
+    from .external_flow import SolarExternalFlowHandler as SolarFlowHandler
+else:
+    from .flow import SolarSubentryFlowHandler as SolarFlowHandler
+
 from .schema import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -51,7 +55,7 @@ class SolarAdapter:
     """Adapter for Solar elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = SolarSubentryFlowHandler
+    flow_class: type = SolarFlowHandler
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 

@@ -3,13 +3,17 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal
 
-from custom_components.haeo.const import ConnectivityLevel
+from custom_components.haeo.const import USE_REACT_CONFIG_UI, ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import NodeSubentryFlowHandler
+if USE_REACT_CONFIG_UI:
+    from .external_flow import NodeExternalFlowHandler as NodeFlowHandler
+else:
+    from .flow import NodeSubentryFlowHandler as NodeFlowHandler
+
 from .schema import CONF_IS_SINK, CONF_IS_SOURCE, DEFAULTS, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
 
 # Node output names
@@ -28,7 +32,7 @@ class NodeAdapter:
     """Adapter for Node elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = NodeSubentryFlowHandler
+    flow_class: type = NodeFlowHandler
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 

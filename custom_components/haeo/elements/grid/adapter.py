@@ -6,7 +6,7 @@ from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.const import ConnectivityLevel
+from custom_components.haeo.const import USE_REACT_CONFIG_UI, ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
@@ -18,7 +18,11 @@ from custom_components.haeo.model.power_connection import (
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 
-from .flow import GridSubentryFlowHandler
+if USE_REACT_CONFIG_UI:
+    from .external_flow import GridExternalFlowHandler as GridFlowHandler
+else:
+    from .flow import GridSubentryFlowHandler as GridFlowHandler
+
 from .schema import (
     CONF_CONNECTION,
     DEFAULT_EXPORT_PRICE,
@@ -59,7 +63,7 @@ class GridAdapter:
     """Adapter for Grid elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = GridSubentryFlowHandler
+    flow_class: type = GridFlowHandler
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 

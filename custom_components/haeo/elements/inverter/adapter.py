@@ -6,7 +6,7 @@ from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.const import ConnectivityLevel
+from custom_components.haeo.const import USE_REACT_CONFIG_UI, ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
@@ -19,7 +19,11 @@ from custom_components.haeo.model.power_connection import (
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
 
-from .flow import InverterSubentryFlowHandler
+if USE_REACT_CONFIG_UI:
+    from .external_flow import InverterExternalFlowHandler as InverterFlowHandler
+else:
+    from .flow import InverterSubentryFlowHandler as InverterFlowHandler
+
 from .schema import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_AC_TO_DC,
@@ -64,7 +68,7 @@ class InverterAdapter:
     """Adapter for Inverter elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = InverterSubentryFlowHandler
+    flow_class: type = InverterFlowHandler
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
 

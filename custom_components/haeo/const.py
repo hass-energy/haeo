@@ -55,6 +55,7 @@ DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
 # Feature flag: Use React webapp for config flows instead of native HA forms
 # Set to True to enable the React-based configuration UI
+# Note: When enabled, element flow tests will fail as they expect FORM results
 USE_REACT_CONFIG_UI: Final = False
 
 # Optimization statuses

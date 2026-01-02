@@ -6,14 +6,18 @@ from typing import Any, Final, Literal
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.const import ConnectivityLevel
+from custom_components.haeo.const import USE_REACT_CONFIG_UI, ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import BatterySectionSubentryFlowHandler
+if USE_REACT_CONFIG_UI:
+    from .external_flow import BatterySectionExternalFlowHandler as BatterySectionFlowHandler
+else:
+    from .flow import BatterySectionSubentryFlowHandler as BatterySectionFlowHandler
+
 from .schema import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE,
@@ -59,7 +63,7 @@ class BatterySectionAdapter:
     """Adapter for Battery Section elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = BatterySectionSubentryFlowHandler
+    flow_class: type = BatterySectionFlowHandler
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 
