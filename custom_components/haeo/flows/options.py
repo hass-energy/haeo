@@ -11,9 +11,11 @@ from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON_PRESET,
     CONF_UPDATE_INTERVAL_MINUTES,
+    USE_REACT_CONFIG_UI,
 )
 
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_options_schema, get_tier_config
+from .external import get_options_external_url
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,6 +28,29 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         self._user_input: dict[str, Any] = {}
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Configure hub settings."""
+        # If React UI is enabled, redirect to external webapp
+        if USE_REACT_CONFIG_UI:
+            return await self._async_step_init_external(user_input)
+
+        return await self._async_step_init_native(user_input)
+
+    async def _async_step_init_external(self, user_input: dict[str, Any] | None) -> ConfigFlowResult:
+        """Handle options via external React webapp."""
+        if user_input is None:
+            # Redirect to React webapp
+            url = get_options_external_url(
+                self.hass,
+                flow_id=self.flow_id,
+                entry_id=self.config_entry.entry_id,
+            )
+            return self.async_external_step(step_id="init", url=url)
+
+        # Process submission from React webapp
+        self._user_input = user_input
+        return await self._save_options()
+
+    async def _async_step_init_native(self, user_input: dict[str, Any] | None) -> ConfigFlowResult:
         """Configure hub settings with simplified preset dropdown."""
         if user_input is not None:
             # Store user input for later

@@ -20,11 +20,13 @@ from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
+    USE_REACT_CONFIG_UI,
 )
 from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_setup_schema, get_tier_config
+from .external import get_hub_external_url
 from .options import HubOptionsFlow
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,6 +44,37 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step for hub creation."""
+        # If React UI is enabled, redirect to external webapp
+        if USE_REACT_CONFIG_UI:
+            return await self._async_step_user_external(user_input)
+
+        return await self._async_step_user_native(user_input)
+
+    async def _async_step_user_external(self, user_input: dict[str, Any] | None) -> ConfigFlowResult:
+        """Handle hub creation via external React webapp."""
+        if user_input is None:
+            # Redirect to React webapp
+            url = get_hub_external_url(self.hass, flow_id=self.flow_id)
+            return self.async_external_step(step_id="user", url=url)
+
+        # Process submission from React webapp
+        # Validate that the name is unique
+        hub_name = user_input[CONF_NAME]
+        existing_names = [entry.title for entry in self.hass.config_entries.async_entries(DOMAIN)]
+
+        if hub_name in existing_names:
+            return self.async_abort(reason="name_exists")
+
+        # Check unique_id to prevent duplicates
+        await self.async_set_unique_id(f"haeo_hub_{hub_name.lower().replace(' ', '_')}")
+        self._abort_if_unique_id_configured()
+
+        # Store user input and create entry
+        self._user_input = user_input
+        return await self._create_hub_entry()
+
+    async def _async_step_user_native(self, user_input: dict[str, Any] | None) -> ConfigFlowResult:
+        """Handle hub creation via native Home Assistant UI."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
