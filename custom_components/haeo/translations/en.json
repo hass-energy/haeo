@@ -171,48 +171,31 @@
           "title": "Edit Battery Values",
           "description": "Update values for the selected input sources",
           "sections": {
-            "capacity_settings": {
-              "name": "Capacity",
-              "data": {
-                "capacity": "Capacity",
-                "initial_charge_percentage": "State of Charge"
-              }
-            },
-            "soc_limits": {
-              "name": "State of Charge Limits",
-              "data": {
-                "min_charge_percentage": "Min Charge Level",
-                "max_charge_percentage": "Max Charge Level"
-              }
-            },
-            "power_limits": {
-              "name": "Power Limits",
-              "data": {
-                "max_charge_power": "Max Charging Power",
-                "max_discharge_power": "Max Discharging Power"
-              }
-            },
-            "efficiency_settings": {
-              "name": "Efficiency",
-              "data": {
-                "efficiency": "Round-trip Efficiency"
-              }
-            },
-            "pricing": {
-              "name": "Pricing",
-              "data": {
-                "early_charge_incentive": "Early Charge Incentive",
-                "discharge_cost": "Discharge Cost"
-              }
-            },
             "advanced_regions": {
-              "name": "Advanced Charge Regions",
               "data": {
-                "undercharge_percentage": "Undercharge Percentage",
+                "overcharge_cost": "Overcharge Cost",
                 "overcharge_percentage": "Overcharge Percentage",
                 "undercharge_cost": "Undercharge Cost",
-                "overcharge_cost": "Overcharge Cost"
-              }
+                "undercharge_percentage": "Undercharge Percentage"
+              },
+              "name": "Advanced Charge Regions"
+            },
+            "capacity_settings": {
+              "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
+              "name": "Capacity"
+            },
+            "efficiency_settings": { "data": { "efficiency": "Round-trip Efficiency" }, "name": "Efficiency" },
+            "power_limits": {
+              "data": { "max_charge_power": "Max Charging Power", "max_discharge_power": "Max Discharging Power" },
+              "name": "Power Limits"
+            },
+            "pricing": {
+              "data": { "discharge_cost": "Discharge Cost", "early_charge_incentive": "Early Charge Incentive" },
+              "name": "Pricing"
+            },
+            "soc_limits": {
+              "data": { "max_charge_percentage": "Max Charge Level", "min_charge_percentage": "Min Charge Level" },
+              "name": "State of Charge Limits"
             }
           }
         },
@@ -220,48 +203,31 @@
           "title": "Battery Values",
           "description": "Enter values for the selected input sources",
           "sections": {
-            "capacity_settings": {
-              "name": "Capacity",
-              "data": {
-                "capacity": "Capacity",
-                "initial_charge_percentage": "State of Charge"
-              }
-            },
-            "soc_limits": {
-              "name": "State of Charge Limits",
-              "data": {
-                "min_charge_percentage": "Min Charge Level",
-                "max_charge_percentage": "Max Charge Level"
-              }
-            },
-            "power_limits": {
-              "name": "Power Limits",
-              "data": {
-                "max_charge_power": "Max Charging Power",
-                "max_discharge_power": "Max Discharging Power"
-              }
-            },
-            "efficiency_settings": {
-              "name": "Efficiency",
-              "data": {
-                "efficiency": "Round-trip Efficiency"
-              }
-            },
-            "pricing": {
-              "name": "Pricing",
-              "data": {
-                "early_charge_incentive": "Early Charge Incentive",
-                "discharge_cost": "Discharge Cost"
-              }
-            },
             "advanced_regions": {
-              "name": "Advanced Charge Regions",
               "data": {
-                "undercharge_percentage": "Undercharge Percentage",
+                "overcharge_cost": "Overcharge Cost",
                 "overcharge_percentage": "Overcharge Percentage",
                 "undercharge_cost": "Undercharge Cost",
-                "overcharge_cost": "Overcharge Cost"
-              }
+                "undercharge_percentage": "Undercharge Percentage"
+              },
+              "name": "Advanced Charge Regions"
+            },
+            "capacity_settings": {
+              "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
+              "name": "Capacity"
+            },
+            "efficiency_settings": { "data": { "efficiency": "Round-trip Efficiency" }, "name": "Efficiency" },
+            "power_limits": {
+              "data": { "max_charge_power": "Max Charging Power", "max_discharge_power": "Max Discharging Power" },
+              "name": "Power Limits"
+            },
+            "pricing": {
+              "data": { "discharge_cost": "Discharge Cost", "early_charge_incentive": "Early Charge Incentive" },
+              "name": "Pricing"
+            },
+            "soc_limits": {
+              "data": { "max_charge_percentage": "Max Charge Level", "min_charge_percentage": "Min Charge Level" },
+              "name": "State of Charge Limits"
             }
           }
         }
@@ -389,28 +355,22 @@
           "title": "Edit Grid Values",
           "description": "Update values for the selected input sources",
           "sections": {
-            "pricing": {
-              "data": { "export_price": "Export Price", "import_price": "Import Price" },
-              "name": "Pricing"
-            },
             "power_limits": {
               "data": { "export_limit": "Export Limit", "import_limit": "Import Limit" },
               "name": "Power Limits"
-            }
+            },
+            "pricing": { "data": { "export_price": "Export Price", "import_price": "Import Price" }, "name": "Pricing" }
           }
         },
         "values": {
           "title": "Grid Values",
           "description": "Enter values for the selected input sources",
           "sections": {
-            "pricing": {
-              "data": { "export_price": "Export Price", "import_price": "Import Price" },
-              "name": "Pricing"
-            },
             "power_limits": {
               "data": { "export_limit": "Export Limit", "import_limit": "Import Limit" },
               "name": "Power Limits"
-            }
+            },
+            "pricing": { "data": { "export_price": "Export Price", "import_price": "Import Price" }, "name": "Pricing" }
           }
         }
       },

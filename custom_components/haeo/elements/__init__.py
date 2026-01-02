@@ -348,9 +348,7 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
 
 # Registry mapping element types to their input field definitions
 # Values can be either flat dicts or grouped dicts
-_INPUT_FIELDS_REGISTRY: Final[
-    dict[str, dict[str, InputFieldInfo[Any]] | GroupedInputFields]
-] = {
+_INPUT_FIELDS_REGISTRY: Final[dict[str, dict[str, InputFieldInfo[Any]] | GroupedInputFields]] = {
     battery.ELEMENT_TYPE: battery.INPUT_FIELDS,
     grid.ELEMENT_TYPE: grid.INPUT_FIELDS,
     solar.ELEMENT_TYPE: solar.INPUT_FIELDS,

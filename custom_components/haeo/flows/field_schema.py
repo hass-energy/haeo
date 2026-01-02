@@ -386,9 +386,7 @@ def build_grouped_mode_sections(
         section_schema: dict[vol.Marker, Any] = {}
 
         for field_name, field_info in fields_dict.items():
-            marker, selector = build_mode_schema_entry(
-                field_name, field_info, config_schema=config_schema
-            )
+            marker, selector = build_mode_schema_entry(field_name, field_info, config_schema=config_schema)
             section_schema[marker] = selector
 
         if section_schema:
