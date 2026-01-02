@@ -8,14 +8,16 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
+from custom_components.haeo.flows.constants import ensure_constant_entities_exist
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
-    MODE_SUFFIX,
-    InputMode,
-    build_mode_schema_entry,
-    build_value_schema_entry,
-    get_mode_defaults,
-    get_value_defaults,
+    build_constant_value_schema,
+    build_entity_schema_entry,
+    convert_entity_selections_to_config,
+    get_constant_value_defaults,
+    get_entity_selection_defaults,
+    has_constant_selection,
+    is_constant_entity,
 )
 
 from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, BatteryConfigSchema
@@ -23,9 +25,10 @@ from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, BatteryConfigSc
 
 def _build_step1_schema(
     participants: list[str],
+    exclusion_map: dict[str, list[str]],
     current_connection: str | None = None,
 ) -> vol.Schema:
-    """Build the schema for step 1: name, connection, and mode selections."""
+    """Build the schema for step 1: name, connection, and entity selections."""
     schema_dict: dict[vol.Marker, Any] = {
         # Name field
         vol.Required(CONF_NAME): vol.All(
@@ -38,41 +41,15 @@ def _build_step1_schema(
         vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
     }
 
-    # Add mode selectors for all input fields
+    # Add entity selectors for all input fields
     for field_info in INPUT_FIELDS:
-        marker, selector = build_mode_schema_entry(field_info, config_schema=BatteryConfigSchema)
-        schema_dict[marker] = selector
-
-    return vol.Schema(schema_dict)
-
-
-def _build_step2_schema(
-    mode_selections: dict[str, str],
-    exclusion_map: dict[str, list[str]],
-) -> vol.Schema:
-    """Build the schema for step 2: value entry based on mode selections.
-
-    Args:
-        mode_selections: Mode selections from step 1 (field_name_mode -> mode value).
-        exclusion_map: Field name -> list of incompatible entity IDs.
-
-    Returns:
-        Schema with value input fields based on selected modes.
-
-    """
-    schema_dict: dict[vol.Marker, Any] = {}
-
-    for field_info in INPUT_FIELDS:
-        mode_key = f"{field_info.field_name}{MODE_SUFFIX}"
-        mode_str = mode_selections.get(mode_key, InputMode.NONE)
-        mode = InputMode(mode_str) if mode_str else InputMode.NONE
-
         exclude_entities = exclusion_map.get(field_info.field_name, [])
-        entry = build_value_schema_entry(field_info, mode, exclude_entities=exclude_entities)
-
-        if entry is not None:
-            marker, selector = entry
-            schema_dict[marker] = selector
+        marker, selector = build_entity_schema_entry(
+            field_info,
+            config_schema=BatteryConfigSchema,
+            exclude_entities=exclude_entities,
+        )
+        schema_dict[marker] = selector
 
     return vol.Schema(schema_dict)
 
@@ -89,7 +66,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         self._step1_data: dict[str, Any] = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 1: name, connection, and mode selections."""
+        """Handle step 1: name, connection, and entity selections."""
         # Clear step 1 data at start to avoid stale state from incomplete flows
         if user_input is None:
             self._step1_data = {}
@@ -99,15 +76,39 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is not None:
             name = user_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                # Store step 1 data and proceed to step 2
-                self._step1_data = user_input
-                return await self.async_step_values()
+                # Validate entity selections
+                for field_info in INPUT_FIELDS:
+                    field_name = field_info.field_name
+                    entities = user_input.get(field_name, [])
+                    is_optional = field_name in BatteryConfigSchema.__optional_keys__
 
+                    # Required fields must have at least one selection
+                    if not is_optional and not entities:
+                        errors[field_name] = "required"
+                        continue
+
+                    # If constant entity is selected, it should be the only selection (or validate in step 2)
+                    if any(is_constant_entity(entity_id) for entity_id in entities) and len(entities) > 1:
+                        # Allow mixing for now, but we'll only use constant value in step 2
+                        pass
+
+                if not errors:
+                    # Store step 1 data and proceed to step 2
+                    self._step1_data = user_input
+                    return await self.async_step_values()
+
+        # Ensure constant entities exist before building schema
+        ensure_constant_entities_exist(self.hass)
+
+        entity_metadata = extract_entity_metadata(self.hass)
+        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
         participants = self._get_participant_names()
-        schema = _build_step1_schema(participants)
+        schema = _build_step1_schema(participants, exclusion_map)
 
-        # Apply default mode selections
-        defaults = get_mode_defaults(INPUT_FIELDS, BatteryConfigSchema)
+        # Apply default entity selections
+        defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, BatteryConfigSchema))
+        defaults[CONF_NAME] = None  # No default name
+        defaults[CONF_CONNECTION] = None  # No default connection
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -117,7 +118,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 2: value entry based on mode selections."""
+        """Handle step 2: constant value entry for fields with HAEO_CONSTANT."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -125,23 +126,41 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
 
-            # Build final config from values
-            config: dict[str, Any] = {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                CONF_NAME: name,
-                CONF_CONNECTION: connection,
-                # Add values from step 2 (excluding mode fields which were in step 1)
-                **{k: v for k, v in user_input.items() if not k.endswith(MODE_SUFFIX)},
+            # Extract entity selections from step 1 (excluding name and connection)
+            entity_selections: dict[str, list[str]] = {
+                k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
             }
 
-            return self.async_create_entry(title=str(name), data=cast("BatteryConfigSchema", config))
+            # Convert to final config format
+            config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
-        entity_metadata = extract_entity_metadata(self.hass)
-        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
-        schema = _build_step2_schema(self._step1_data, exclusion_map)
+            # Validate that constant values were provided where needed
+            for field_info in INPUT_FIELDS:
+                field_name = field_info.field_name
+                is_constant = has_constant_selection(entity_selections.get(field_name, []))
+                is_missing = field_name not in user_input
+                is_required = field_name not in BatteryConfigSchema.__optional_keys__ or field_info.default is None
+                if is_constant and is_missing and is_required:
+                    errors[field_name] = "required"
 
-        # Apply default values based on modes
-        defaults = get_value_defaults(INPUT_FIELDS, self._step1_data)
+            if not errors:
+                config: dict[str, Any] = {
+                    CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                    CONF_NAME: name,
+                    CONF_CONNECTION: connection,
+                    **config_dict,
+                }
+
+                return self.async_create_entry(title=str(name), data=cast("BatteryConfigSchema", config))
+
+        # Build schema for constant values only
+        entity_selections: dict[str, list[str]] = {
+            k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
+        }
+        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+
+        # Apply default constant values
+        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -151,7 +170,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 1 of reconfiguration: name, connection, and mode selections."""
+        """Handle step 1 of reconfiguration: name, connection, and entity selections."""
         # Clear step 1 data at start to avoid stale state from incomplete flows
         if user_input is None:
             self._step1_data = {}
@@ -162,24 +181,40 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is not None:
             name = user_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                # Store step 1 data and proceed to step 2
-                self._step1_data = user_input
-                return await self.async_step_reconfigure_values()
+                # Validate entity selections
+                for field_info in INPUT_FIELDS:
+                    field_name = field_info.field_name
+                    entities = user_input.get(field_name, [])
+                    is_optional = field_name in BatteryConfigSchema.__optional_keys__
+
+                    if not is_optional and not entities:
+                        errors[field_name] = "required"
+
+                if not errors:
+                    # Store step 1 data and proceed to step 2
+                    self._step1_data = user_input
+                    return await self.async_step_reconfigure_values()
+
+        # Ensure constant entities exist before building schema
+        ensure_constant_entities_exist(self.hass)
 
         current_connection = subentry.data.get(CONF_CONNECTION)
+        entity_metadata = extract_entity_metadata(self.hass)
+        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
         participants = self._get_participant_names()
         schema = _build_step1_schema(
             participants,
+            exclusion_map,
             current_connection=current_connection if isinstance(current_connection, str) else None,
         )
 
         # Get current values for pre-population
         current_data = dict(subentry.data)
-        mode_defaults = get_mode_defaults(INPUT_FIELDS, BatteryConfigSchema, current_data)
+        entity_defaults = get_entity_selection_defaults(INPUT_FIELDS, BatteryConfigSchema, current_data)
         defaults = {
             CONF_NAME: current_data.get(CONF_NAME),
-            CONF_CONNECTION: current_data.get(CONF_CONNECTION),
-            **mode_defaults,
+            CONF_CONNECTION: current_connection,
+            **entity_defaults,
         }
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
@@ -190,7 +225,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_reconfigure_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 2 of reconfiguration: value entry based on mode selections."""
+        """Handle step 2 of reconfiguration: constant value entry."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
 
@@ -199,29 +234,47 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
 
-            # Build final config from values
-            config: dict[str, Any] = {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                CONF_NAME: name,
-                CONF_CONNECTION: connection,
-                # Add values from step 2 (excluding mode fields)
-                **{k: v for k, v in user_input.items() if not k.endswith(MODE_SUFFIX)},
+            # Extract entity selections from step 1
+            entity_selections: dict[str, list[str]] = {
+                k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
             }
 
-            return self.async_update_and_abort(
-                self._get_entry(),
-                subentry,
-                title=str(name),
-                data=cast("BatteryConfigSchema", config),
-            )
+            # Convert to final config format
+            config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
-        entity_metadata = extract_entity_metadata(self.hass)
-        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
-        schema = _build_step2_schema(self._step1_data, exclusion_map)
+            # Validate constant values
+            for field_info in INPUT_FIELDS:
+                field_name = field_info.field_name
+                is_constant = has_constant_selection(entity_selections.get(field_name, []))
+                is_missing = field_name not in user_input
+                is_required = field_name not in BatteryConfigSchema.__optional_keys__ or field_info.default is None
+                if is_constant and is_missing and is_required:
+                    errors[field_name] = "required"
+
+            if not errors:
+                config: dict[str, Any] = {
+                    CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                    CONF_NAME: name,
+                    CONF_CONNECTION: connection,
+                    **config_dict,
+                }
+
+                return self.async_update_and_abort(
+                    self._get_entry(),
+                    subentry,
+                    title=str(name),
+                    data=cast("BatteryConfigSchema", config),
+                )
+
+        # Build schema for constant values only
+        entity_selections: dict[str, list[str]] = {
+            k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
+        }
+        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
 
         # Get current values for pre-population
         current_data = dict(subentry.data)
-        defaults = get_value_defaults(INPUT_FIELDS, self._step1_data, current_data)
+        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

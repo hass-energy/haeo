@@ -181,6 +181,11 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry."""
+    # Set up constant sentinel entities for each device_class if not already present
+    from custom_components.haeo.flows.constants import ensure_constant_entities_exist  # noqa: PLC0415
+
+    ensure_constant_entities_exist(hass)
+
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 

@@ -21,7 +21,9 @@ class FlowTestCase:
     description: str
     config: dict[str, Any]
     error: str | None = None
-    mode_input: dict[str, Any] | None = None  # For two-step flows (mode selection input)
+    # For two-step flows: step1 entity selection, step2 constant values
+    mode_input: dict[str, Any] | None = None  # Step 1: entity selections (e.g., {field: ["haeo.constant"]})
+    values_input: dict[str, Any] | None = None  # Step 2: constant values (e.g., {field: 10.0})
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,12 +43,14 @@ def _load_flow_cases(cases: Iterable[dict[str, Any]], *, include_error: bool) ->
         config = case.get("config", {})
         error = case.get("error") if include_error else None
         mode_input = case.get("mode_input")
+        values_input = case.get("values_input")
         structured_cases.append(
             FlowTestCase(
                 description=description,
                 config=dict(config),
                 error=error,
                 mode_input=dict(mode_input) if mode_input else None,
+                values_input=dict(values_input) if values_input else None,
             )
         )
     return tuple(structured_cases)

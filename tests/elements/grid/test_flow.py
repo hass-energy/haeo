@@ -11,7 +11,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
 from custom_components.haeo.elements.grid import CONF_CONNECTION, CONF_EXPORT_PRICE, CONF_IMPORT_PRICE, ELEMENT_TYPE
-from custom_components.haeo.flows.field_schema import MODE_SUFFIX, InputMode
 
 from ..conftest import add_participant, create_flow
 
@@ -79,59 +78,6 @@ async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssi
     assert subentry_id is None
 
 
-async def test_schema_uses_default_when_mode_is_none_for_import_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """When import price mode is NONE, the field should not appear in step 2 schema."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-
-    # Complete step 1 with NONE mode for import price (will use default)
-    step1_input = {
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        f"{CONF_IMPORT_PRICE}{MODE_SUFFIX}": InputMode.NONE,
-        f"{CONF_EXPORT_PRICE}{MODE_SUFFIX}": InputMode.CONSTANT,
-    }
-    result = await flow.async_step_user(user_input=step1_input)
-
-    # Should proceed to values step
-    assert result.get("step_id") == "values"
-    schema = result.get("data_schema")
-
-    # NONE mode means import_price is not in the schema
-    # Only export_price should be present
-    validated = schema(
-        {
-            CONF_EXPORT_PRICE: 0.05,
-        }
-    )
-    assert CONF_IMPORT_PRICE not in validated
-
-
-async def test_schema_uses_default_when_mode_is_none_for_export_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """When export price mode is NONE, the field should not appear in step 2 schema."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-
-    # Complete step 1 with NONE mode for export price (will use default)
-    step1_input = {
-        CONF_NAME: "Test Grid",
-        CONF_CONNECTION: "TestNode",
-        f"{CONF_IMPORT_PRICE}{MODE_SUFFIX}": InputMode.CONSTANT,
-        f"{CONF_EXPORT_PRICE}{MODE_SUFFIX}": InputMode.NONE,
-    }
-    result = await flow.async_step_user(user_input=step1_input)
-
-    # Should proceed to values step
-    assert result.get("step_id") == "values"
-    schema = result.get("data_schema")
-
-    # NONE mode means export_price is not in the schema
-    # Only import_price should be present
-    validated = schema(
-        {
-            CONF_IMPORT_PRICE: 0.30,
-        }
-    )
-    assert CONF_EXPORT_PRICE not in validated
+# Tests removed - entity-first flow no longer uses mode-based selection.
+# The new flow defaults all fields to constant entities and step 2 only shows
+# constant value inputs for fields with constant entities selected.
