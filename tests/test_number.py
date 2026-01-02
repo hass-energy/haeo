@@ -163,7 +163,7 @@ async def test_setup_skips_missing_fields_in_config(
     if async_add_entities.called:
         entities = list(async_add_entities.call_args.args[0])
         # Should only have entities for configured fields
-        field_names = {e._field_info.field_name for e in entities}
+        field_names = {e._field_name for e in entities}
         assert "import_price" in field_names
         assert "export_price" in field_names
         # Optional unconfigured fields should NOT have entities created

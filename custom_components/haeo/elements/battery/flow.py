@@ -11,9 +11,9 @@ from custom_components.haeo.data.loader.extractors import extract_entity_metadat
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     MODE_SUFFIX,
-    InputMode,
-    build_mode_schema_entry,
-    build_value_schema_entry,
+    build_grouped_mode_sections,
+    build_grouped_value_sections,
+    flatten_sections,
     get_mode_defaults,
     get_value_defaults,
 )
@@ -38,10 +38,9 @@ def _build_step1_schema(
         vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
     }
 
-    # Add mode selectors for all input fields
-    for field_info in INPUT_FIELDS:
-        marker, selector = build_mode_schema_entry(field_info, config_schema=BatteryConfigSchema)
-        schema_dict[marker] = selector
+    # Add grouped mode selectors for input fields
+    grouped_sections = build_grouped_mode_sections(INPUT_FIELDS, config_schema=BatteryConfigSchema)
+    schema_dict.update(grouped_sections)
 
     return vol.Schema(schema_dict)
 
@@ -60,21 +59,9 @@ def _build_step2_schema(
         Schema with value input fields based on selected modes.
 
     """
-    schema_dict: dict[vol.Marker, Any] = {}
-
-    for field_info in INPUT_FIELDS:
-        mode_key = f"{field_info.field_name}{MODE_SUFFIX}"
-        mode_str = mode_selections.get(mode_key, InputMode.NONE)
-        mode = InputMode(mode_str) if mode_str else InputMode.NONE
-
-        exclude_entities = exclusion_map.get(field_info.field_name, [])
-        entry = build_value_schema_entry(field_info, mode, exclude_entities=exclude_entities)
-
-        if entry is not None:
-            marker, selector = entry
-            schema_dict[marker] = selector
-
-    return vol.Schema(schema_dict)
+    # Build grouped sections for value inputs
+    grouped_sections = build_grouped_value_sections(INPUT_FIELDS, mode_selections, exclusion_map)
+    return vol.Schema(grouped_sections)
 
 
 class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -97,10 +84,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            name = user_input.get(CONF_NAME)
+            # Flatten section-nested input
+            flat_input = flatten_sections(user_input, INPUT_FIELDS)
+            name = flat_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                # Store step 1 data and proceed to step 2
-                self._step1_data = user_input
+                # Store flattened step 1 data and proceed to step 2
+                self._step1_data = flat_input
                 return await self.async_step_values()
 
         participants = self._get_participant_names()
@@ -121,6 +110,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            # Flatten section-nested input
+            flat_input = flatten_sections(user_input, INPUT_FIELDS)
             # Combine step 1 and step 2 data
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
@@ -131,7 +122,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 CONF_NAME: name,
                 CONF_CONNECTION: connection,
                 # Add values from step 2 (excluding mode fields which were in step 1)
-                **{k: v for k, v in user_input.items() if not k.endswith(MODE_SUFFIX)},
+                **{k: v for k, v in flat_input.items() if not k.endswith(MODE_SUFFIX)},
             }
 
             return self.async_create_entry(title=str(name), data=cast("BatteryConfigSchema", config))
@@ -160,10 +151,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_reconfigure_subentry()
 
         if user_input is not None:
-            name = user_input.get(CONF_NAME)
+            # Flatten section-nested input
+            flat_input = flatten_sections(user_input, INPUT_FIELDS)
+            name = flat_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                # Store step 1 data and proceed to step 2
-                self._step1_data = user_input
+                # Store flattened step 1 data and proceed to step 2
+                self._step1_data = flat_input
                 return await self.async_step_reconfigure_values()
 
         current_connection = subentry.data.get(CONF_CONNECTION)
@@ -174,11 +167,10 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
         # Get current values for pre-population
-        current_data = dict(subentry.data)
-        mode_defaults = get_mode_defaults(INPUT_FIELDS, BatteryConfigSchema, current_data)
+        mode_defaults = get_mode_defaults(INPUT_FIELDS, BatteryConfigSchema, dict(subentry.data))
         defaults = {
-            CONF_NAME: current_data.get(CONF_NAME),
-            CONF_CONNECTION: current_data.get(CONF_CONNECTION),
+            CONF_NAME: subentry.data.get(CONF_NAME),
+            CONF_CONNECTION: subentry.data.get(CONF_CONNECTION),
             **mode_defaults,
         }
         schema = self.add_suggested_values_to_schema(schema, defaults)
@@ -195,6 +187,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_reconfigure_subentry()
 
         if user_input is not None:
+            # Flatten section-nested input
+            flat_input = flatten_sections(user_input, INPUT_FIELDS)
             # Combine step 1 and step 2 data
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
@@ -205,7 +199,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 CONF_NAME: name,
                 CONF_CONNECTION: connection,
                 # Add values from step 2 (excluding mode fields)
-                **{k: v for k, v in user_input.items() if not k.endswith(MODE_SUFFIX)},
+                **{k: v for k, v in flat_input.items() if not k.endswith(MODE_SUFFIX)},
             }
 
             return self.async_update_and_abort(
@@ -220,8 +214,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         schema = _build_step2_schema(self._step1_data, exclusion_map)
 
         # Get current values for pre-population
-        current_data = dict(subentry.data)
-        defaults = get_value_defaults(INPUT_FIELDS, self._step1_data, current_data)
+        defaults = get_value_defaults(INPUT_FIELDS, self._step1_data, dict(subentry.data))
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

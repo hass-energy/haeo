@@ -56,7 +56,7 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 
 from . import battery, battery_section, connection, grid, inverter, load, node, solar
-from .input_fields import InputFieldInfo
+from .input_fields import GroupedInputFields, InputFieldInfo, flatten_input_fields
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -347,7 +347,10 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
 
 
 # Registry mapping element types to their input field definitions
-_INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo[Any], ...]]] = {
+# Values can be either flat dicts or grouped dicts
+_INPUT_FIELDS_REGISTRY: Final[
+    dict[str, dict[str, InputFieldInfo[Any]] | GroupedInputFields]
+] = {
     battery.ELEMENT_TYPE: battery.INPUT_FIELDS,
     grid.ELEMENT_TYPE: grid.INPUT_FIELDS,
     solar.ELEMENT_TYPE: solar.INPUT_FIELDS,
@@ -358,18 +361,48 @@ _INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo[Any], ...]]] = {
 }
 
 
-def get_input_fields(element_type: str) -> tuple[InputFieldInfo[Any], ...]:
+def get_input_fields(element_type: str) -> dict[str, InputFieldInfo[Any]]:
     """Return input field definitions for an element type.
 
     Args:
         element_type: The element type (e.g., "battery", "grid")
 
     Returns:
-        Tuple of InputFieldInfo for fields that should become input entities.
-        Returns empty tuple for unknown element types.
+        Dict mapping field names to InputFieldInfo for fields that should become input entities.
+        Returns empty dict for unknown element types.
 
     """
-    return _INPUT_FIELDS_REGISTRY.get(element_type, ())
+    fields = _INPUT_FIELDS_REGISTRY.get(element_type)
+    if fields is None:
+        return {}
+    # Handle both flat dict and grouped dict formats
+    # A grouped dict has dict values, a flat dict has InputFieldInfo values
+    first_value = next(iter(fields.values()), None)
+    if isinstance(first_value, dict):
+        # Grouped format - flatten it
+        return flatten_input_fields(fields)  # type: ignore[arg-type]
+    # Already flat
+    return fields  # type: ignore[return-value]
+
+
+def get_grouped_input_fields(element_type: str) -> GroupedInputFields | None:
+    """Return grouped input field definitions for an element type.
+
+    Args:
+        element_type: The element type (e.g., "battery", "grid")
+
+    Returns:
+        Dictionary mapping section keys to field dicts, or None if not grouped.
+
+    """
+    fields = _INPUT_FIELDS_REGISTRY.get(element_type)
+    if fields is None:
+        return None
+    # Check if it's a grouped dict (values are dicts, not InputFieldInfo)
+    first_value = next(iter(fields.values()), None)
+    if isinstance(first_value, dict):
+        return fields  # type: ignore[return-value]
+    return None
 
 
 __all__ = [
@@ -390,9 +423,12 @@ __all__ = [
     "ElementConfigSchema",
     "ElementDeviceName",
     "ElementType",
+    "GroupedInputFields",
     "InputFieldInfo",
     "ValidatedElementSubentry",
     "collect_element_subentries",
+    "flatten_input_fields",
+    "get_grouped_input_fields",
     "get_input_fields",
     "is_element_config_schema",
     "is_element_type",

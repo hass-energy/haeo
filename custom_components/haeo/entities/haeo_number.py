@@ -51,6 +51,7 @@ class HaeoInputNumber(NumberEntity):
         hass: HomeAssistant,
         config_entry: HaeoConfigEntry,
         subentry: ConfigSubentry,
+        field_name: str,
         field_info: InputFieldInfo[NumberEntityDescription],
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
@@ -59,6 +60,7 @@ class HaeoInputNumber(NumberEntity):
         self._hass = hass
         self._config_entry: HaeoConfigEntry = config_entry
         self._subentry = subentry
+        self._field_name = field_name
         self._field_info = field_info
         self._horizon_manager = horizon_manager
 
@@ -68,7 +70,7 @@ class HaeoInputNumber(NumberEntity):
         # Determine mode from config value type
         # Entity IDs are stored as list[str] from EntitySelector
         # Constants are stored as float from NumberSelector
-        config_value = subentry.data.get(field_info.field_name)
+        config_value = subentry.data.get(field_name)
 
         if isinstance(config_value, list) and config_value:
             # DRIVEN mode: value comes from external sensors (non-empty list)
@@ -87,7 +89,7 @@ class HaeoInputNumber(NumberEntity):
             self._attr_native_value = None
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
+        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_name}"
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
@@ -100,7 +102,7 @@ class HaeoInputNumber(NumberEntity):
             "config_mode": self._entity_mode.value,
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
-            "field_name": field_info.field_name,
+            "field_name": field_name,
             "output_type": field_info.output_type,
             "time_series": field_info.time_series,
         }
@@ -287,7 +289,7 @@ class HaeoInputNumber(NumberEntity):
             self._hass,
             self._config_entry,
             self._subentry,
-            self._field_info.field_name,
+            self._field_name,
             value,
         )
 

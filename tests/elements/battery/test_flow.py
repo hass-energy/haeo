@@ -92,12 +92,14 @@ async def test_schema_rejects_empty_capacity_list(hass: HomeAssistant, hub_entry
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    # Complete step 1 with ENTITY_LINK mode for capacity
+    # Complete step 1 with ENTITY_LINK mode for capacity (nested in sections)
     step1_input = {
         CONF_NAME: "Test Battery",
         CONF_CONNECTION: "TestNode",
-        f"{CONF_CAPACITY}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
-        f"{CONF_INITIAL_CHARGE_PERCENTAGE}{MODE_SUFFIX}": InputMode.CONSTANT,
+        "capacity_settings": {
+            f"{CONF_CAPACITY}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
+            f"{CONF_INITIAL_CHARGE_PERCENTAGE}{MODE_SUFFIX}": InputMode.CONSTANT,
+        },
     }
     result = await flow.async_step_user(user_input=step1_input)
 
@@ -105,12 +107,14 @@ async def test_schema_rejects_empty_capacity_list(hass: HomeAssistant, hub_entry
     assert result.get("step_id") == "values"
     schema = result.get("data_schema")
 
-    # Attempt to validate input with empty capacity list in step 2
+    # Attempt to validate input with empty capacity list in step 2 (nested in sections)
     with pytest.raises(vol.MultipleInvalid) as exc_info:
         schema(
             {
-                CONF_CAPACITY: [],
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
+                "capacity_settings": {
+                    CONF_CAPACITY: [],
+                    CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
+                },
             }
         )
 
@@ -123,12 +127,14 @@ async def test_schema_rejects_empty_initial_charge_list(hass: HomeAssistant, hub
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    # Complete step 1 with ENTITY_LINK mode for initial_charge_percentage
+    # Complete step 1 with ENTITY_LINK mode for initial_charge_percentage (nested in sections)
     step1_input = {
         CONF_NAME: "Test Battery",
         CONF_CONNECTION: "TestNode",
-        f"{CONF_CAPACITY}{MODE_SUFFIX}": InputMode.CONSTANT,
-        f"{CONF_INITIAL_CHARGE_PERCENTAGE}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
+        "capacity_settings": {
+            f"{CONF_CAPACITY}{MODE_SUFFIX}": InputMode.CONSTANT,
+            f"{CONF_INITIAL_CHARGE_PERCENTAGE}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
+        },
     }
     result = await flow.async_step_user(user_input=step1_input)
 
@@ -136,12 +142,14 @@ async def test_schema_rejects_empty_initial_charge_list(hass: HomeAssistant, hub
     assert result.get("step_id") == "values"
     schema = result.get("data_schema")
 
-    # Attempt to validate input with empty initial charge list in step 2
+    # Attempt to validate input with empty initial charge list in step 2 (nested in sections)
     with pytest.raises(vol.MultipleInvalid) as exc_info:
         schema(
             {
-                CONF_CAPACITY: 10.0,
-                CONF_INITIAL_CHARGE_PERCENTAGE: [],
+                "capacity_settings": {
+                    CONF_CAPACITY: 10.0,
+                    CONF_INITIAL_CHARGE_PERCENTAGE: [],
+                },
             }
         )
 

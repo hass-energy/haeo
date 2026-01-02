@@ -85,12 +85,14 @@ async def test_schema_uses_default_when_mode_is_none_for_import_price(hass: Home
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    # Complete step 1 with NONE mode for import price (will use default)
+    # Complete step 1 with NONE mode for import price (will use default) - nested in sections
     step1_input = {
         CONF_NAME: "Test Grid",
         CONF_CONNECTION: "TestNode",
-        f"{CONF_IMPORT_PRICE}{MODE_SUFFIX}": InputMode.NONE,
-        f"{CONF_EXPORT_PRICE}{MODE_SUFFIX}": InputMode.CONSTANT,
+        "pricing": {
+            f"{CONF_IMPORT_PRICE}{MODE_SUFFIX}": InputMode.NONE,
+            f"{CONF_EXPORT_PRICE}{MODE_SUFFIX}": InputMode.CONSTANT,
+        },
     }
     result = await flow.async_step_user(user_input=step1_input)
 
@@ -99,13 +101,16 @@ async def test_schema_uses_default_when_mode_is_none_for_import_price(hass: Home
     schema = result.get("data_schema")
 
     # NONE mode means import_price is not in the schema
-    # Only export_price should be present
+    # Only export_price should be present (nested in pricing section)
     validated = schema(
         {
-            CONF_EXPORT_PRICE: 0.05,
+            "pricing": {
+                CONF_EXPORT_PRICE: 0.05,
+            },
         }
     )
-    assert CONF_IMPORT_PRICE not in validated
+    # The validated output is nested; check the pricing section
+    assert CONF_IMPORT_PRICE not in validated.get("pricing", {})
 
 
 async def test_schema_uses_default_when_mode_is_none_for_export_price(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -114,12 +119,14 @@ async def test_schema_uses_default_when_mode_is_none_for_export_price(hass: Home
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    # Complete step 1 with NONE mode for export price (will use default)
+    # Complete step 1 with NONE mode for export price (will use default) - nested in sections
     step1_input = {
         CONF_NAME: "Test Grid",
         CONF_CONNECTION: "TestNode",
-        f"{CONF_IMPORT_PRICE}{MODE_SUFFIX}": InputMode.CONSTANT,
-        f"{CONF_EXPORT_PRICE}{MODE_SUFFIX}": InputMode.NONE,
+        "pricing": {
+            f"{CONF_IMPORT_PRICE}{MODE_SUFFIX}": InputMode.CONSTANT,
+            f"{CONF_EXPORT_PRICE}{MODE_SUFFIX}": InputMode.NONE,
+        },
     }
     result = await flow.async_step_user(user_input=step1_input)
 
@@ -128,10 +135,13 @@ async def test_schema_uses_default_when_mode_is_none_for_export_price(hass: Home
     schema = result.get("data_schema")
 
     # NONE mode means export_price is not in the schema
-    # Only import_price should be present
+    # Only import_price should be present (nested in pricing section)
     validated = schema(
         {
-            CONF_IMPORT_PRICE: 0.30,
+            "pricing": {
+                CONF_IMPORT_PRICE: 0.30,
+            },
         }
     )
-    assert CONF_EXPORT_PRICE not in validated
+    # The validated output is nested; check the pricing section
+    assert CONF_EXPORT_PRICE not in validated.get("pricing", {})

@@ -17,25 +17,28 @@ CONF_CONNECTION: Final = "connection"
 # Default value for empty forecast (kW)
 DEFAULT_FORECAST: Final[float] = 0.0
 
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_FORECAST,
-        entity_description=NumberEntityDescription(
-            key=CONF_FORECAST,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
-            native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            device_class=NumberDeviceClass.POWER,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.01,
-        ),
-        output_type=OutputType.POWER,
-        direction="+",
-        time_series=True,
-        default=DEFAULT_FORECAST,
+# Individual field definitions (without field_name - keys in INPUT_FIELDS provide that)
+_FORECAST = InputFieldInfo(
+    entity_description=NumberEntityDescription(
+        key=CONF_FORECAST,
+        translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+        device_class=NumberDeviceClass.POWER,
+        native_min_value=0.0,
+        native_max_value=1000.0,
+        native_step=0.01,
     ),
+    output_type=OutputType.POWER,
+    direction="+",
+    time_series=True,
+    default=DEFAULT_FORECAST,
 )
+
+# Input field definitions for creating input entities
+# Keys are field names, values are InputFieldInfo
+INPUT_FIELDS: Final[dict[str, InputFieldInfo[NumberEntityDescription]]] = {
+    CONF_FORECAST: _FORECAST,
+}
 
 
 class LoadConfigSchema(TypedDict):

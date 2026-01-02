@@ -10,14 +10,14 @@ This module provides:
 
 from typing import Any, ClassVar, Final
 
-from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
 import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import EntityMetadata
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import FlatInputFields, GroupedInputFields, flatten_input_fields
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.schema.util import UnitSpec
 
@@ -69,7 +69,7 @@ def filter_incompatible_entities(
 
 
 def build_exclusion_map(
-    input_fields: tuple[InputFieldInfo[Any], ...],
+    input_fields: FlatInputFields | GroupedInputFields,
     entity_metadata: list[EntityMetadata],
 ) -> dict[str, list[str]]:
     """Build field name → incompatible entity IDs mapping from INPUT_FIELDS.
@@ -78,19 +78,26 @@ def build_exclusion_map(
     output_type and computing which entities are incompatible.
 
     Args:
-        input_fields: Tuple of InputFieldInfo from element's schema.
+        input_fields: Flat dict or grouped dict from element's schema.
         entity_metadata: List of entity metadata from extract_entity_metadata.
 
     Returns:
         Dict mapping field names to lists of entity IDs to exclude.
 
     """
+    # Check if grouped (values are dicts, not InputFieldInfo)
+    first_value = next(iter(input_fields.values()), None)
+    if isinstance(first_value, dict):
+        flat_fields = flatten_input_fields(input_fields)  # type: ignore[arg-type]
+    else:
+        flat_fields: FlatInputFields = input_fields  # type: ignore[assignment]
+
     result: dict[str, list[str]] = {}
 
-    for field_info in input_fields:
+    for field_name, field_info in flat_fields.items():
         unit_spec = get_unit_spec_for_output_type(field_info.output_type)
         if unit_spec is not None:
-            result[field_info.field_name] = filter_incompatible_entities(entity_metadata, unit_spec)
+            result[field_name] = filter_incompatible_entities(entity_metadata, unit_spec)
 
     return result
 
@@ -221,21 +228,6 @@ class ElementFlowMixin:
             errors[CONF_NAME] = "name_exists"
             return False
         return True
-
-    def _get_reconfigure_subentry(self) -> ConfigSubentry:
-        """Get the subentry being reconfigured.
-
-        This delegates to the parent class method. Provided here for type hints.
-
-        Returns:
-            The ConfigSubentry being reconfigured.
-
-        Raises:
-            ValueError: If not in a reconfigure flow.
-
-        """
-        # This is provided by ConfigSubentryFlow
-        raise NotImplementedError  # pragma: no cover
 
 
 __all__ = [
