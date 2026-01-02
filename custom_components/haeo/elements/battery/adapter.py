@@ -7,7 +7,7 @@ from typing import Any, Final, Literal
 from homeassistant.core import HomeAssistant
 import numpy as np
 
-from custom_components.haeo.const import ConnectivityLevel
+from custom_components.haeo.const import USE_REACT_CONFIG_UI, ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
@@ -16,7 +16,11 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import BatterySubentryFlowHandler
+if USE_REACT_CONFIG_UI:
+    from .external_flow import BatteryExternalFlowHandler as BatteryFlowHandler
+else:
+    from .flow import BatterySubentryFlowHandler as BatteryFlowHandler
+
 from .schema import (
     CONF_CONNECTION,
     CONF_DISCHARGE_COST,
@@ -89,7 +93,7 @@ class BatteryAdapter:
     """Adapter for Battery elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = BatterySubentryFlowHandler
+    flow_class: type = BatteryFlowHandler
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
 

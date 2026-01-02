@@ -53,6 +53,10 @@ DEFAULT_TIER_4_DURATION: Final = 60
 DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default
 DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
+# Feature flag: Use React webapp for config flows instead of native HA forms
+# Set to True to enable the React-based configuration UI
+USE_REACT_CONFIG_UI: Final = False
+
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"
 OPTIMIZATION_STATUS_FAILED: Final = "failed"

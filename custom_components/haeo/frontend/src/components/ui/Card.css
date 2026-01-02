@@ -1,0 +1,6 @@
+.card {
+  background-color: var(--ha-card-background-color);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--ha-card-box-shadow);
+  overflow: hidden;
+}

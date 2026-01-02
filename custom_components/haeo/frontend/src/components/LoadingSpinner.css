@@ -1,0 +1,35 @@
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  gap: var(--spacing-md);
+}
+
+.loading-spinner__icon {
+  width: 48px;
+  height: 48px;
+  color: var(--ha-primary-color);
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.loading-spinner__message {
+  margin: 0;
+  color: var(--ha-secondary-text-color);
+  font-size: 0.875rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

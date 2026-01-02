@@ -3,7 +3,6 @@ __pycache__
 .pytest*
 *.egg-info
 */build/*
-*/dist/*
 
 # virtual environments
 .venv
@@ -31,3 +30,8 @@ site/
 
 # Node modules
 node_modules/
+
+# Frontend build artifacts (exclude caches, keep dist for HACS)
+custom_components/haeo/frontend/node_modules/
+custom_components/haeo/frontend/.vite/
+# Note: frontend/dist/ is intentionally NOT ignored - it must be committed for HACS

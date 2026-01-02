@@ -1,0 +1,103 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
+  position: relative;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Sizes */
+.button--small {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.75rem;
+}
+
+.button--medium {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.875rem;
+}
+
+.button--large {
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: 1rem;
+}
+
+/* Variants */
+.button--primary {
+  background-color: var(--ha-primary-color);
+  color: white;
+}
+
+.button--primary:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--ha-primary-color) 85%, black);
+}
+
+.button--secondary {
+  background-color: var(--ha-secondary-background-color);
+  color: var(--ha-primary-text-color);
+  border: 1px solid var(--ha-divider-color);
+}
+
+.button--secondary:hover:not(:disabled) {
+  background-color: var(--ha-divider-color);
+}
+
+.button--danger {
+  background-color: var(--ha-error-color);
+  color: white;
+}
+
+.button--danger:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--ha-error-color) 85%, black);
+}
+
+.button--text {
+  background-color: transparent;
+  color: var(--ha-primary-color);
+}
+
+.button--text:hover:not(:disabled) {
+  background-color: rgba(3, 169, 244, 0.1);
+}
+
+/* Loading state */
+.button--loading {
+  pointer-events: none;
+}
+
+.button__spinner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: button-spin 0.75s linear infinite;
+}
+
+.button__content--hidden {
+  visibility: hidden;
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,35 @@
+.flow-expired {
+  text-align: center;
+  padding: var(--spacing-xl);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.flow-expired__icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.flow-expired__title {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--ha-warning-color);
+}
+
+.flow-expired__message {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--ha-secondary-text-color);
+}
+
+.flow-expired__draft-notice {
+  margin: 0 0 var(--spacing-md) 0;
+  padding: var(--spacing-md);
+  background-color: var(--ha-secondary-background-color);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.875rem;
+}
+
+.flow-expired__instructions {
+  margin: 0;
+  color: var(--ha-secondary-text-color);
+  font-size: 0.875rem;
+}

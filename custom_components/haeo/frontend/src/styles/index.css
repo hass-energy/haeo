@@ -1,0 +1,140 @@
+/* Global styles for HAEO configuration app */
+
+/* CSS Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Use HA CSS custom properties with fallbacks */
+:root {
+  /* Colors - these are overridden by HA when running in context */
+  --ha-primary-color: var(--primary-color, #03a9f4);
+  --ha-primary-text-color: var(--primary-text-color, #212121);
+  --ha-secondary-text-color: var(--secondary-text-color, #727272);
+  --ha-disabled-text-color: var(--disabled-text-color, #bdbdbd);
+  --ha-divider-color: var(--divider-color, #e0e0e0);
+  --ha-card-background-color: var(--card-background-color, #ffffff);
+  --ha-primary-background-color: var(--primary-background-color, #fafafa);
+  --ha-secondary-background-color: var(--secondary-background-color, #e5e5e5);
+  --ha-error-color: var(--error-color, #db4437);
+  --ha-warning-color: var(--warning-color, #ff9800);
+  --ha-success-color: var(--success-color, #43a047);
+  --ha-info-color: var(--info-color, #039be5);
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Border radius */
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.15);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ha-primary-text-color: var(--primary-text-color, #e1e1e1);
+    --ha-secondary-text-color: var(--secondary-text-color, #9b9b9b);
+    --ha-disabled-text-color: var(--disabled-text-color, #6f6f6f);
+    --ha-divider-color: var(--divider-color, #3a3a3a);
+    --ha-card-background-color: var(--card-background-color, #1c1c1c);
+    --ha-primary-background-color: var(--primary-background-color, #111111);
+    --ha-secondary-background-color: var(--secondary-background-color, #1c1c1c);
+  }
+}
+
+html {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--ha-primary-background-color);
+  color: var(--ha-primary-text-color);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0 0 var(--spacing-md) 0;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 2rem;
+}
+h2 {
+  font-size: 1.5rem;
+}
+h3 {
+  font-size: 1.25rem;
+}
+h4 {
+  font-size: 1rem;
+}
+
+p {
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+a {
+  color: var(--ha-primary-color);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Form elements */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Utility classes */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

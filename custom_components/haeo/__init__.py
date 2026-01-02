@@ -5,9 +5,11 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 import logging
+from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -17,6 +19,7 @@ from homeassistant.helpers.translation import async_get_translations
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.websocket_api import async_setup_websocket_api
 
 if TYPE_CHECKING:
     from custom_components.haeo.entities.haeo_number import HaeoInputNumber
@@ -28,6 +31,10 @@ _LOGGER = logging.getLogger(__name__)
 _ENTITY_READY_TIMEOUT = 5.0
 # Polling interval when waiting for entities (seconds)
 _ENTITY_READY_POLL_INTERVAL = 0.1
+
+# Frontend static path configuration
+FRONTEND_URL_PATH = "/haeo_static"
+FRONTEND_DIR = Path(__file__).parent / "frontend" / "dist"
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH]
 
@@ -181,6 +188,21 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry."""
+    # Register frontend static path and websocket API (idempotent - only registers once)
+    # Guard against missing HTTP component (e.g., in tests)
+    http = getattr(hass, "http", None)
+    if http is not None:
+        if await hass.async_add_executor_job(FRONTEND_DIR.is_dir):
+            await http.async_register_static_paths(
+                [StaticPathConfig(FRONTEND_URL_PATH, str(FRONTEND_DIR), cache_headers=True)]
+            )
+            _LOGGER.debug("Registered frontend static path: %s -> %s", FRONTEND_URL_PATH, FRONTEND_DIR)
+        else:
+            _LOGGER.warning("Frontend directory not found: %s. Config UI will not be available.", FRONTEND_DIR)
+
+        # Register WebSocket API for React frontend (idempotent - only registers once)
+        await async_setup_websocket_api(hass)
+
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 
