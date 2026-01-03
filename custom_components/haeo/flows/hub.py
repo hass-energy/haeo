@@ -26,7 +26,7 @@ from custom_components.haeo.elements import ELEMENT_TYPE_NODE, ELEMENT_TYPES
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 
 from . import HORIZON_PRESET_CUSTOM, get_custom_tiers_schema, get_hub_setup_schema, get_tier_config
-from .external import get_hub_external_url
+from .external import ensure_static_path_registered, get_hub_external_url
 from .options import HubOptionsFlow
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,6 +53,9 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     async def _async_step_user_external(self, user_input: dict[str, Any] | None) -> ConfigFlowResult:
         """Handle hub creation via external React webapp."""
         if user_input is None:
+            # Ensure static path is registered before redirecting
+            await ensure_static_path_registered(self.hass)
+
             # Redirect to React webapp
             url = get_hub_external_url(self.hass, flow_id=self.flow_id)
             return self.async_external_step(step_id="user", url=url)

@@ -29,15 +29,11 @@ function HubForm() {
 
   // Initialize form with defaults on mount
   useEffect(() => {
-    console.log("[HubForm] Initializing defaults, current formData:", formData);
     // Merge defaults with any existing formData (from draft)
     const newData = { ...FORM_DEFAULTS, ...formData };
-    console.log("[HubForm] Setting formData to:", newData);
     setFormData(newData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
-
-  console.log("[HubForm] Render, formData:", formData);
 
   const isCustom = str(formData.horizon_preset, "5_days") === "custom";
 

@@ -6,8 +6,10 @@ using Home Assistant's external step pattern.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import DOMAIN
@@ -15,9 +17,41 @@ from custom_components.haeo.const import DOMAIN
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry
 
-# Base URL path for the React frontend (registered in __init__.py)
-# Note: Must match FRONTEND_URL_PATH in __init__.py
+# Base URL path for the React frontend
 FRONTEND_URL_PATH = "haeo_static"
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend" / "dist"
+
+# Track whether static path has been registered
+_static_path_registered = False
+
+
+async def ensure_static_path_registered(hass: HomeAssistant) -> bool:
+    """Ensure the frontend static path is registered.
+
+    This is called from config flow before redirecting to the React webapp.
+    It's idempotent - only registers once per HA session.
+
+    Returns:
+        True if static path is available, False otherwise.
+
+    """
+    global _static_path_registered  # noqa: PLW0603
+
+    if _static_path_registered:
+        return True
+
+    http = getattr(hass, "http", None)
+    if http is None:
+        return False
+
+    if await hass.async_add_executor_job(FRONTEND_DIR.is_dir):
+        await http.async_register_static_paths(
+            [StaticPathConfig(f"/{FRONTEND_URL_PATH}", str(FRONTEND_DIR), cache_headers=True)]
+        )
+        _static_path_registered = True
+        return True
+
+    return False
 
 
 def build_external_url(
@@ -145,6 +179,7 @@ def get_options_external_url(
 __all__ = [
     "FRONTEND_URL_PATH",
     "build_external_url",
+    "ensure_static_path_registered",
     "get_element_external_url",
     "get_hub_external_url",
     "get_options_external_url",
