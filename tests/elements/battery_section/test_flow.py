@@ -127,7 +127,75 @@ async def test_values_step_creates_entry_with_constant(
     assert create_kwargs["data"][CONF_INITIAL_CHARGE] == 5.0
 
 
+async def test_values_step_missing_required_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Submitting values step with missing required configurable value should show error."""
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Step 1: select configurable entities
+    step1_input = {
+        CONF_NAME: "Test Battery Section",
+        CONF_CAPACITY: [TEST_CONFIGURABLE_ENTITY_ID],
+        CONF_INITIAL_CHARGE: [TEST_CONFIGURABLE_ENTITY_ID],
+    }
+    result = await flow.async_step_user(user_input=step1_input)
+    assert result.get("step_id") == "values"
+
+    # Step 2: submit without providing capacity (required configurable value)
+    step2_input = {
+        CONF_INITIAL_CHARGE: 5.0,
+    }
+    result = await flow.async_step_values(user_input=step2_input)
+
+    # Should show values form again with error
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "values"
+    assert CONF_CAPACITY in result.get("errors", {})
+
+
 # --- Tests for reconfigure flow ---
+
+
+async def test_reconfigure_empty_required_fields_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Reconfigure with empty required fields should show error."""
+    # Create existing entry with sensor links
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Battery Section",
+        CONF_CAPACITY: ["sensor.capacity"],
+        CONF_INITIAL_CHARGE: ["sensor.soc"],
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Battery Section",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Submit with empty capacity (required field)
+    step1_input = {
+        CONF_NAME: "Test Battery Section",
+        CONF_CAPACITY: [],
+        CONF_INITIAL_CHARGE: ["sensor.soc"],
+    }
+    result = await flow.async_step_reconfigure(user_input=step1_input)
+
+    # Should show reconfigure form again with error
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "reconfigure"
+    assert CONF_CAPACITY in result.get("errors", {})
 
 
 async def test_reconfigure_with_configurable_shows_values_form(
@@ -217,3 +285,49 @@ async def test_reconfigure_values_step_updates_entry(
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
     assert update_kwargs["data"][CONF_CAPACITY] == 15.0
     assert update_kwargs["data"][CONF_INITIAL_CHARGE] == 8.0
+
+
+async def test_reconfigure_values_step_missing_required_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Reconfigure values step with missing required configurable value should show error."""
+    # Create existing entry with sensor links
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Battery Section",
+        CONF_CAPACITY: ["sensor.capacity"],
+        CONF_INITIAL_CHARGE: ["sensor.soc"],
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Battery Section",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Step 1: change to configurable entities
+    step1_input = {
+        CONF_NAME: "Test Battery Section",
+        CONF_CAPACITY: [TEST_CONFIGURABLE_ENTITY_ID],
+        CONF_INITIAL_CHARGE: [TEST_CONFIGURABLE_ENTITY_ID],
+    }
+    result = await flow.async_step_reconfigure(user_input=step1_input)
+    assert result.get("step_id") == "reconfigure_values"
+
+    # Step 2: submit without providing capacity (required configurable value)
+    step2_input = {
+        CONF_INITIAL_CHARGE: 8.0,
+    }
+    result = await flow.async_step_reconfigure_values(user_input=step2_input)
+
+    # Should show reconfigure_values form again with error
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "reconfigure_values"
+    assert CONF_CAPACITY in result.get("errors", {})

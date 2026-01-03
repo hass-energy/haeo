@@ -990,3 +990,52 @@ async def test_async_added_to_hass_restores_off_state(
 
     # Value should be restored from previous state
     assert entity.is_on is False
+
+
+async def test_async_added_to_hass_uses_field_default_when_no_restore(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """Switch entity uses field default when restore state is None."""
+    # Create field info with a default value
+    field_info: InputFieldInfo[SwitchEntityDescription] = InputFieldInfo(
+        field_name="allow_curtailment",
+        entity_description=SwitchEntityDescription(
+            key="allow_curtailment",
+            translation_key="allow_curtailment",
+        ),
+        output_type=OutputType.STATUS,
+        default=True,  # Field has a default value
+    )
+
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "switch.haeo_test_curtailment"})
+    config_entry.runtime_data = None
+
+    # Register the entity in the entity registry
+    registry = er.async_get(hass)
+    unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_allow_curtailment"
+    registry.async_get_or_create(
+        domain="switch",
+        platform="haeo",
+        unique_id=unique_id,
+        suggested_object_id="haeo_test_curtailment",
+    )
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock async_get_last_state to return None (no previous state)
+    entity.async_get_last_state = AsyncMock(return_value=None)
+
+    await entity.async_added_to_hass()
+
+    # Value should fall back to field default
+    assert entity.is_on is True

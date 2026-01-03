@@ -205,7 +205,82 @@ async def test_values_step_creates_entry_with_constant(
     assert create_kwargs["data"][CONF_MAX_POWER_AC_TO_DC] == 5.0
 
 
+async def test_values_step_missing_required_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Submitting values step with missing required configurable value should show error."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Step 1: select configurable entities
+    step1_input = {
+        CONF_NAME: "Test Inverter",
+        CONF_CONNECTION: "TestNode",
+        CONF_MAX_POWER_DC_TO_AC: [TEST_CONFIGURABLE_ENTITY_ID],
+        CONF_MAX_POWER_AC_TO_DC: [TEST_CONFIGURABLE_ENTITY_ID],
+    }
+    result = await flow.async_step_user(user_input=step1_input)
+    assert result.get("step_id") == "values"
+
+    # Step 2: submit without providing one of the required values
+    step2_input = {
+        CONF_MAX_POWER_AC_TO_DC: 5.0,
+    }
+    result = await flow.async_step_values(user_input=step2_input)
+
+    # Should show values form again with error
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "values"
+    assert CONF_MAX_POWER_DC_TO_AC in result.get("errors", {})
+
+
 # --- Tests for reconfigure flow ---
+
+
+async def test_reconfigure_empty_required_fields_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Reconfigure with empty required fields should show error."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    # Create existing entry with sensor links
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Inverter",
+        CONF_CONNECTION: "TestNode",
+        CONF_MAX_POWER_DC_TO_AC: ["sensor.dc_to_ac"],
+        CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_to_dc"],
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Inverter",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Submit with empty required fields
+    step1_input = {
+        CONF_NAME: "Test Inverter",
+        CONF_CONNECTION: "TestNode",
+        CONF_MAX_POWER_DC_TO_AC: [],
+        CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_to_dc"],
+    }
+    result = await flow.async_step_reconfigure(user_input=step1_input)
+
+    # Should show reconfigure form again with error
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "reconfigure"
+    assert CONF_MAX_POWER_DC_TO_AC in result.get("errors", {})
 
 
 async def test_reconfigure_with_configurable_shows_values_form(
@@ -303,3 +378,53 @@ async def test_reconfigure_values_step_updates_entry(
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
     assert update_kwargs["data"][CONF_MAX_POWER_DC_TO_AC] == 10.0
     assert update_kwargs["data"][CONF_MAX_POWER_AC_TO_DC] == 10.0
+
+
+async def test_reconfigure_values_step_missing_required_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Reconfigure values step with missing required configurable value should show error."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    # Create existing entry with sensor links
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Inverter",
+        CONF_CONNECTION: "TestNode",
+        CONF_MAX_POWER_DC_TO_AC: ["sensor.dc_to_ac"],
+        CONF_MAX_POWER_AC_TO_DC: ["sensor.ac_to_dc"],
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Inverter",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Step 1: change to configurable entities
+    step1_input = {
+        CONF_NAME: "Test Inverter",
+        CONF_CONNECTION: "TestNode",
+        CONF_MAX_POWER_DC_TO_AC: [TEST_CONFIGURABLE_ENTITY_ID],
+        CONF_MAX_POWER_AC_TO_DC: [TEST_CONFIGURABLE_ENTITY_ID],
+    }
+    result = await flow.async_step_reconfigure(user_input=step1_input)
+    assert result.get("step_id") == "reconfigure_values"
+
+    # Step 2: submit without providing one of the required values
+    step2_input = {
+        CONF_MAX_POWER_AC_TO_DC: 10.0,
+    }
+    result = await flow.async_step_reconfigure_values(user_input=step2_input)
+
+    # Should show reconfigure_values form again with error
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "reconfigure_values"
+    assert CONF_MAX_POWER_DC_TO_AC in result.get("errors", {})

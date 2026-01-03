@@ -747,9 +747,9 @@ async def test_async_load_data_handles_empty_values(
         horizon_manager=horizon_manager,
     )
 
-    # Mock loader to return empty list
+    # Mock loader to return empty list (using AsyncMock for async method)
     entity._loader = Mock()
-    entity._loader.load = Mock(return_value=[])
+    entity._loader.load = AsyncMock(return_value=[])
 
     # Should not raise
     await entity._async_load_data()
@@ -876,3 +876,58 @@ async def test_async_added_to_hass_handles_invalid_restore_state(
 
     # Value should remain None (invalid state ignored)
     assert entity.native_value is None
+
+
+async def test_async_added_to_hass_uses_field_default_when_no_restore(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """Number entity uses field default when restore state is None."""
+    # Create field info with a default value
+    field_info = InputFieldInfo(
+        field_name="power_limit",
+        entity_description=NumberEntityDescription(
+            key="power_limit",
+            translation_key="power_limit",
+            native_unit_of_measurement="kW",
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.POWER,
+        direction="+",
+        time_series=True,
+        default=25.0,  # Field has a default value
+    )
+
+    subentry = _create_subentry("Test Battery", {"power_limit": ["number.haeo_test_power_limit"]})
+    config_entry.runtime_data = None
+
+    # Register the entity in the entity registry
+    registry = er.async_get(hass)
+    unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_power_limit"
+    registry.async_get_or_create(
+        domain="number",
+        platform="haeo",
+        unique_id=unique_id,
+        suggested_object_id="haeo_test_power_limit",
+    )
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock async_get_last_state to return None (no previous state)
+    entity.async_get_last_state = AsyncMock(return_value=None)
+
+    await entity.async_added_to_hass()
+
+    # Value should fall back to field default
+    assert entity.native_value == 25.0

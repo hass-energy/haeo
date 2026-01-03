@@ -93,13 +93,9 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is not None:
             name = user_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                forecast = user_input.get(CONF_FORECAST, [])
-                if not forecast:
-                    errors[CONF_FORECAST] = "required"
-
-                if not errors:
-                    self._step1_data = user_input
-                    return await self.async_step_values()
+                # Schema validation already enforces non-empty forecast (vol.Length(min=1))
+                self._step1_data = user_input
+                return await self.async_step_values()
 
         # Ensure configurable entity exists before building schema
         ensure_configurable_entities_exist()

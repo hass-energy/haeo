@@ -102,6 +102,33 @@ async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssi
     assert subentry_id is None
 
 
+# --- Tests for validation errors ---
+
+
+async def test_user_step_empty_required_field_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Submitting step 1 with empty required field should show required error."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Submit with empty import_price (required field)
+    user_input = {
+        CONF_NAME: "Test Grid",
+        CONF_CONNECTION: "TestNode",
+        CONF_IMPORT_PRICE: [],
+        CONF_EXPORT_PRICE: [TEST_CONFIGURABLE_ENTITY_ID],
+    }
+    result = await flow.async_step_user(user_input=user_input)
+
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "user"
+    assert CONF_IMPORT_PRICE in result.get("errors", {})
+
+
 # --- Tests for two-step flow with configurable values ---
 
 
@@ -171,7 +198,82 @@ async def test_values_step_creates_entry_with_constant(
     assert create_kwargs["data"][CONF_EXPORT_PRICE] == 0.05
 
 
+async def test_values_step_missing_required_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Submitting values step with missing required configurable value should show error."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Step 1: select configurable entities
+    step1_input = {
+        CONF_NAME: "Test Grid",
+        CONF_CONNECTION: "TestNode",
+        CONF_IMPORT_PRICE: [TEST_CONFIGURABLE_ENTITY_ID],
+        CONF_EXPORT_PRICE: [TEST_CONFIGURABLE_ENTITY_ID],
+    }
+    result = await flow.async_step_user(user_input=step1_input)
+    assert result.get("step_id") == "values"
+
+    # Step 2: submit without providing import_price (required configurable value)
+    step2_input = {
+        CONF_EXPORT_PRICE: 0.05,
+    }
+    result = await flow.async_step_values(user_input=step2_input)
+
+    # Should show values form again with error
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "values"
+    assert CONF_IMPORT_PRICE in result.get("errors", {})
+
+
 # --- Tests for reconfigure flow ---
+
+
+async def test_reconfigure_empty_required_field_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Reconfigure with empty required field should show error."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    # Create existing entry with sensor links
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Grid",
+        CONF_CONNECTION: "TestNode",
+        CONF_IMPORT_PRICE: ["sensor.import"],
+        CONF_EXPORT_PRICE: ["sensor.export"],
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Submit with empty import_price (required field)
+    step1_input = {
+        CONF_NAME: "Test Grid",
+        CONF_CONNECTION: "TestNode",
+        CONF_IMPORT_PRICE: [],
+        CONF_EXPORT_PRICE: ["sensor.export"],
+    }
+    result = await flow.async_step_reconfigure(user_input=step1_input)
+
+    # Should show reconfigure form again with error
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "reconfigure"
+    assert CONF_IMPORT_PRICE in result.get("errors", {})
 
 
 async def test_reconfigure_with_configurable_shows_values_form(
@@ -269,3 +371,53 @@ async def test_reconfigure_values_step_updates_entry(
     update_kwargs = flow.async_update_and_abort.call_args.kwargs
     assert update_kwargs["data"][CONF_IMPORT_PRICE] == 0.30
     assert update_kwargs["data"][CONF_EXPORT_PRICE] == 0.08
+
+
+async def test_reconfigure_values_step_missing_required_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Reconfigure values step with missing required configurable value should show error."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    # Create existing entry with sensor links
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Grid",
+        CONF_CONNECTION: "TestNode",
+        CONF_IMPORT_PRICE: ["sensor.import"],
+        CONF_EXPORT_PRICE: ["sensor.export"],
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Step 1: change to configurable entities
+    step1_input = {
+        CONF_NAME: "Test Grid",
+        CONF_CONNECTION: "TestNode",
+        CONF_IMPORT_PRICE: [TEST_CONFIGURABLE_ENTITY_ID],
+        CONF_EXPORT_PRICE: [TEST_CONFIGURABLE_ENTITY_ID],
+    }
+    result = await flow.async_step_reconfigure(user_input=step1_input)
+    assert result.get("step_id") == "reconfigure_values"
+
+    # Step 2: submit without providing import_price (required configurable value)
+    step2_input = {
+        CONF_EXPORT_PRICE: 0.08,
+    }
+    result = await flow.async_step_reconfigure_values(user_input=step2_input)
+
+    # Should show reconfigure_values form again with error
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "reconfigure_values"
+    assert CONF_IMPORT_PRICE in result.get("errors", {})

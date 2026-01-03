@@ -206,6 +206,35 @@ async def test_values_step_creates_entry_with_constant(
     assert create_kwargs["data"][CONF_NAME] == "Constant Load"
 
 
+async def test_values_step_missing_required_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Submitting values step with missing required configurable value should show error."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Step 1: select configurable entity
+    step1_input = {
+        CONF_NAME: "Constant Load",
+        CONF_CONNECTION: "TestNode",
+        CONF_FORECAST: [TEST_CONFIGURABLE_ENTITY_ID],
+    }
+    result = await flow.async_step_user(user_input=step1_input)
+    assert result.get("step_id") == "values"
+
+    # Step 2: submit without providing forecast (required configurable value)
+    step2_input = {}
+    result = await flow.async_step_values(user_input=step2_input)
+
+    # Should show values form again with error
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "values"
+    assert CONF_FORECAST in result.get("errors", {})
+
+
 # --- Tests for reconfigure flow ---
 
 
@@ -336,3 +365,49 @@ async def test_reconfigure_empty_forecast_shows_error(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "reconfigure"
     assert result.get("errors") == {CONF_FORECAST: "required"}
+
+
+async def test_reconfigure_values_step_missing_required_shows_error(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    mock_configurable_entity: None,
+) -> None:
+    """Reconfigure values step with missing required configurable value should show error."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    # Create existing entry with sensor link
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Load",
+        CONF_CONNECTION: "TestNode",
+        CONF_FORECAST: ["sensor.forecast"],
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Load",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    # Step 1: change to configurable entity
+    step1_input = {
+        CONF_NAME: "Test Load",
+        CONF_CONNECTION: "TestNode",
+        CONF_FORECAST: [TEST_CONFIGURABLE_ENTITY_ID],
+    }
+    result = await flow.async_step_reconfigure(user_input=step1_input)
+    assert result.get("step_id") == "reconfigure_values"
+
+    # Step 2: submit without providing forecast (required configurable value)
+    step2_input = {}
+    result = await flow.async_step_reconfigure_values(user_input=step2_input)
+
+    # Should show reconfigure_values form again with error
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "reconfigure_values"
+    assert CONF_FORECAST in result.get("errors", {})
