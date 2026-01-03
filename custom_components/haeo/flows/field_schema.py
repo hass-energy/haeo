@@ -186,10 +186,11 @@ def build_entity_schema_entry(
         exclude_entities=exclude_entities,
     )
 
-    # Don't set default in vol.Required - EntitySelector doesn't respect it
+    # Don't set defaults in schema - EntitySelector doesn't respect them
     # Defaults are applied via add_suggested_values_to_schema() instead
+    # This ensures "Select an entity" placeholder shows for all empty fields
     if is_optional:
-        return vol.Optional(field_name, default=[]), selector
+        return vol.Optional(field_name), selector
     return vol.Required(field_name), selector
 
 

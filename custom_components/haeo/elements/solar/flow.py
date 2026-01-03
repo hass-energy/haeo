@@ -61,7 +61,7 @@ def _build_step1_schema(
                 ),
                 vol.Length(min=1, msg="At least one entity is required"),
             ),
-            vol.Optional(CONF_PRICE_PRODUCTION, default=[]): build_entity_selector_with_configurable(
+            vol.Optional(CONF_PRICE_PRODUCTION): build_entity_selector_with_configurable(
                 _get_field(CONF_PRICE_PRODUCTION),
                 exclude_entities=exclusion_map.get(CONF_PRICE_PRODUCTION, []),
             ),

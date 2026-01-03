@@ -61,11 +61,11 @@ def _build_step1_schema(
                 _get_field(CONF_MAX_POWER_AC_TO_DC),
                 exclude_entities=exclusion_map.get(CONF_MAX_POWER_AC_TO_DC, []),
             ),
-            vol.Optional(CONF_EFFICIENCY_DC_TO_AC, default=[]): build_entity_selector_with_configurable(
+            vol.Optional(CONF_EFFICIENCY_DC_TO_AC): build_entity_selector_with_configurable(
                 _get_field(CONF_EFFICIENCY_DC_TO_AC),
                 exclude_entities=exclusion_map.get(CONF_EFFICIENCY_DC_TO_AC, []),
             ),
-            vol.Optional(CONF_EFFICIENCY_AC_TO_DC, default=[]): build_entity_selector_with_configurable(
+            vol.Optional(CONF_EFFICIENCY_AC_TO_DC): build_entity_selector_with_configurable(
                 _get_field(CONF_EFFICIENCY_AC_TO_DC),
                 exclude_entities=exclusion_map.get(CONF_EFFICIENCY_AC_TO_DC, []),
             ),
