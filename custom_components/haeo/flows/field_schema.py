@@ -1,8 +1,8 @@
 """Shared utilities for building two-step element config flows.
 
 This module provides utilities for the entity-first config flow pattern:
-1. Step 1 (user): Select name, connections, and entities for each field (with HAEO_CONSTANT option)
-2. Step 2 (values): Enter constant values for fields where HAEO_CONSTANT was selected
+1. Step 1 (user): Select name, connections, and entities for each field (with HAEO Configurable option)
+2. Step 2 (values): Enter constant values for fields where HAEO Configurable was selected
 """
 
 from typing import Any, Protocol
@@ -19,7 +19,7 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-from custom_components.haeo.const import DOMAIN, HAEO_CONSTANT_ENTITY_ID
+from custom_components.haeo.const import DOMAIN, HAEO_CONFIGURABLE_ENTITY_ID
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 
@@ -33,7 +33,7 @@ def is_constant_entity(entity_id: str) -> bool:
         True if the entity is a constant sentinel entity.
 
     """
-    return entity_id == HAEO_CONSTANT_ENTITY_ID
+    return entity_id == HAEO_CONFIGURABLE_ENTITY_ID
 
 
 class ConfigSchemaType(Protocol):
@@ -97,10 +97,10 @@ def build_entity_selector_with_constant(
 
     Does not filter by device_class because:
     1. Unit-based exclusion already narrows down compatible entities
-    2. Device class filtering would exclude the haeo.constant entity
+    2. Device class filtering would exclude the haeo.configurable_entity entity
     3. Many real-world sensors lack proper device_class but have correct units
 
-    The constant entity (haeo.constant) is always included via the 'haeo' domain.
+    The configurable entity (haeo.configurable_entity) is always included via the 'haeo' domain.
 
     Args:
         field_info: Input field metadata (kept for API consistency, may be used for
@@ -116,7 +116,7 @@ def build_entity_selector_with_constant(
     filtered_exclude = [entity_id for entity_id in (exclude_entities or []) if not is_constant_entity(entity_id)]
 
     # Build config - no device_class filter, rely on unit-based exclusion
-    # Include 'haeo' domain so haeo.constant always appears
+    # Include 'haeo' domain so haeo.configurable_entity always appears
     # Include 'number' and 'switch' so HAEO input entities can be re-selected during reconfigure
     config_kwargs: dict[str, Any] = {
         "domain": ["sensor", "input_number", "number", "switch", DOMAIN],
@@ -196,7 +196,7 @@ def build_constant_value_schema(
 ) -> vol.Schema:
     """Build schema for step 2 with constant value inputs.
 
-    Only includes fields where HAEO_CONSTANT is in the entity selection.
+    Only includes fields where HAEO Configurable is in the entity selection.
     When current_data is provided (for reconfigure), fields that already have
     stored constant values are excluded from the schema.
 
@@ -207,7 +207,7 @@ def build_constant_value_schema(
             stored constant values will be excluded from the schema.
 
     Returns:
-        Schema with constant value inputs for fields with HAEO_CONSTANT that
+        Schema with constant value inputs for fields with HAEO Configurable that
         need user input.
 
     """
@@ -273,14 +273,14 @@ def get_entity_selection_defaults(
                 defaults[field_name] = value
             elif isinstance(value, (float, int, bool)):
                 # Constant value - use constant entity
-                defaults[field_name] = [HAEO_CONSTANT_ENTITY_ID]
+                defaults[field_name] = [HAEO_CONFIGURABLE_ENTITY_ID]
             else:
                 # Missing or invalid - use appropriate default based on field type
                 is_optional = field_name in config_schema.__optional_keys__
                 if is_optional and field_info.default is None:
                     defaults[field_name] = []
                 else:
-                    defaults[field_name] = [HAEO_CONSTANT_ENTITY_ID]
+                    defaults[field_name] = [HAEO_CONFIGURABLE_ENTITY_ID]
         else:
             # New entry - default based on whether field is optional without a default
             is_optional = field_name in config_schema.__optional_keys__
@@ -289,7 +289,7 @@ def get_entity_selection_defaults(
                 defaults[field_name] = []
             else:
                 # Required field or optional with default: use constant entity
-                defaults[field_name] = [HAEO_CONSTANT_ENTITY_ID]
+                defaults[field_name] = [HAEO_CONFIGURABLE_ENTITY_ID]
 
     return defaults
 
@@ -308,7 +308,7 @@ def get_constant_value_defaults(
 
     Returns:
         Dict mapping field names to default constant values.
-        Only includes fields where HAEO_CONSTANT is selected.
+        Only includes fields where HAEO Configurable is selected.
 
     """
     defaults: dict[str, Any] = {}
@@ -358,7 +358,7 @@ def can_reuse_constant_values(
     all fields with constant entity selections already have stored values.
 
     If a field was previously configured as an entity (list) and the user
-    switches to haeo.constant, we need to ask for the new value.
+    switches to haeo.configurable_entity, we need to ask for the new value.
 
     Args:
         input_fields: Tuple of input field metadata.
@@ -384,7 +384,7 @@ def can_reuse_constant_values(
         if isinstance(current_value, (float, int, bool)):
             continue
 
-        # If current_value is a list (entity IDs), user is switching TO haeo.constant
+        # If current_value is a list (entity IDs), user is switching TO haeo.configurable_entity
         # from a previously configured entity - need to ask for the new value
         if isinstance(current_value, list):
             return False

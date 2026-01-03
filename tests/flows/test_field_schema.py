@@ -52,8 +52,8 @@ def number_field_with_default() -> InputFieldInfo[NumberEntityDescription]:
 
 
 def test_is_constant_entity_with_constant() -> None:
-    """is_constant_entity returns True for haeo.constant."""
-    assert is_constant_entity("haeo.constant") is True
+    """is_constant_entity returns True for haeo.configurable_entity."""
+    assert is_constant_entity("haeo.configurable_entity") is True
 
 
 def test_is_constant_entity_with_other_entity() -> None:
@@ -67,8 +67,8 @@ def test_is_constant_entity_with_other_entity() -> None:
 
 def test_has_constant_selection_with_constant() -> None:
     """has_constant_selection returns True when constant is in selection."""
-    assert has_constant_selection(["haeo.constant"]) is True
-    assert has_constant_selection(["sensor.power", "haeo.constant"]) is True
+    assert has_constant_selection(["haeo.configurable_entity"]) is True
+    assert has_constant_selection(["sensor.power", "haeo.configurable_entity"]) is True
 
 
 def test_has_constant_selection_without_constant() -> None:
@@ -96,7 +96,7 @@ def test_can_reuse_when_constant_has_stored_value(
 ) -> None:
     """can_reuse_constant_values returns True when constant value is stored."""
     input_fields = (number_field_info,)
-    entity_selections = {"import_limit": ["haeo.constant"]}
+    entity_selections = {"import_limit": ["haeo.configurable_entity"]}
     current_data: dict[str, Any] = {"import_limit": 50.0}  # Stored constant value
 
     assert can_reuse_constant_values(input_fields, entity_selections, current_data) is True
@@ -107,7 +107,7 @@ def test_cannot_reuse_when_switching_from_entity_to_constant(
 ) -> None:
     """can_reuse_constant_values returns False when switching from entity to constant."""
     input_fields = (number_field_info,)
-    entity_selections = {"import_limit": ["haeo.constant"]}
+    entity_selections = {"import_limit": ["haeo.configurable_entity"]}
     current_data: dict[str, Any] = {"import_limit": ["number.haeo_import_limit"]}  # Entity list
 
     # User is switching TO constant from entity - need to ask for value
@@ -119,7 +119,7 @@ def test_cannot_reuse_when_no_value_and_no_default(
 ) -> None:
     """can_reuse_constant_values returns False when no value and no default."""
     input_fields = (number_field_info,)
-    entity_selections = {"import_limit": ["haeo.constant"]}
+    entity_selections = {"import_limit": ["haeo.configurable_entity"]}
     current_data: dict[str, Any] = {}  # No stored value
 
     # No stored value and no default - need user input
@@ -131,7 +131,7 @@ def test_can_reuse_when_field_has_default(
 ) -> None:
     """can_reuse_constant_values returns True when field has default."""
     input_fields = (number_field_with_default,)
-    entity_selections = {"export_limit": ["haeo.constant"]}
+    entity_selections = {"export_limit": ["haeo.configurable_entity"]}
     current_data: dict[str, Any] = {}  # No stored value but has default
 
     assert can_reuse_constant_values(input_fields, entity_selections, current_data) is True
@@ -158,7 +158,7 @@ def test_build_schema_includes_field_with_constant(
 ) -> None:
     """build_constant_value_schema includes fields with constant selection."""
     input_fields = (number_field_info,)
-    entity_selections = {"import_limit": ["haeo.constant"]}
+    entity_selections = {"import_limit": ["haeo.configurable_entity"]}
 
     schema = build_constant_value_schema(input_fields, entity_selections)
 
@@ -171,7 +171,7 @@ def test_build_schema_excludes_field_with_stored_value(
 ) -> None:
     """build_constant_value_schema excludes fields with stored constant values."""
     input_fields = (number_field_info,)
-    entity_selections = {"import_limit": ["haeo.constant"]}
+    entity_selections = {"import_limit": ["haeo.configurable_entity"]}
     current_data: dict[str, Any] = {"import_limit": 50.0}  # Stored value
 
     schema = build_constant_value_schema(input_fields, entity_selections, current_data)
@@ -185,7 +185,7 @@ def test_build_schema_includes_field_switching_from_entity(
 ) -> None:
     """build_constant_value_schema includes fields switching from entity to constant."""
     input_fields = (number_field_info,)
-    entity_selections = {"import_limit": ["haeo.constant"]}
+    entity_selections = {"import_limit": ["haeo.configurable_entity"]}
     current_data: dict[str, Any] = {"import_limit": ["number.haeo_import_limit"]}  # Entity list
 
     schema = build_constant_value_schema(input_fields, entity_selections, current_data)
@@ -199,7 +199,7 @@ def test_build_schema_excludes_field_with_default(
 ) -> None:
     """build_constant_value_schema excludes fields with defaults and no prior value."""
     input_fields = (number_field_with_default,)
-    entity_selections = {"export_limit": ["haeo.constant"]}
+    entity_selections = {"export_limit": ["haeo.configurable_entity"]}
     current_data: dict[str, Any] = {}  # No stored value but has default
 
     schema = build_constant_value_schema(input_fields, entity_selections, current_data)

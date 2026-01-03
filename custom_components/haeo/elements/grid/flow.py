@@ -9,7 +9,7 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.flows.constants import ensure_constant_entities_exist
+from custom_components.haeo.flows.constants import ensure_configurable_entities_exist
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
@@ -95,7 +95,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     return await self.async_step_values()
 
         # Ensure constant entities exist before building schema
-        ensure_constant_entities_exist(self.hass)
+        ensure_configurable_entities_exist(self.hass)
 
         # Get default name from translations
         translations = await async_get_translations(
@@ -121,7 +121,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 2: constant value entry for fields with HAEO_CONSTANT."""
+        """Handle step 2: constant value entry for fields with HAEO Configurable."""
         errors: dict[str, str] = {}
         exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
@@ -189,7 +189,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     return await self.async_step_reconfigure_values()
 
         # Ensure constant entities exist before building schema
-        ensure_constant_entities_exist(self.hass)
+        ensure_configurable_entities_exist(self.hass)
 
         current_connection = subentry.data.get(CONF_CONNECTION)
         entity_metadata = extract_entity_metadata(self.hass)

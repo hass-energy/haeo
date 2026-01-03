@@ -22,7 +22,7 @@ class FlowTestCase:
     config: dict[str, Any]
     error: str | None = None
     # For two-step flows: step1 entity selection, step2 constant values
-    mode_input: dict[str, Any] | None = None  # Step 1: entity selections (e.g., {field: ["haeo.constant"]})
+    mode_input: dict[str, Any] | None = None  # Step 1: entity selections (e.g., {field: ["haeo.configurable_entity"]})
     values_input: dict[str, Any] | None = None  # Step 2: constant values (e.g., {field: 10.0})
 
 

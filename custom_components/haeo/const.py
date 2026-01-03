@@ -53,11 +53,10 @@ DEFAULT_TIER_4_DURATION: Final = 60
 DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default
 DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
-# Sentinel constant entity for user-defined constant values
-# Uses our own 'haeo' domain so it's clearly HAEO-specific (haeo.constant)
-HAEO_CONSTANT: Final = "constant"
-HAEO_CONSTANT_ENTITY_ID: Final = f"{DOMAIN}.{HAEO_CONSTANT}"  # haeo.constant
-HAEO_DEVICE_CLASS: Final = "haeo"  # Special device class so it appears in all EntitySelector dropdowns
+# Sentinel configurable entity for user-defined constant values
+# Uses our own 'haeo' domain so it's clearly HAEO-specific (haeo.configurable_entity)
+HAEO_CONFIGURABLE: Final = "configurable_entity"
+HAEO_CONFIGURABLE_ENTITY_ID: Final = f"{DOMAIN}.{HAEO_CONFIGURABLE}"  # haeo.configurable_entity
 
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"

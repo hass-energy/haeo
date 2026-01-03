@@ -165,7 +165,7 @@ async def _migrate_constants_to_entity_refs(hass: HomeAssistant, entry: HaeoConf
 
     After input entities are created, this function updates subentry configs to replace
     float/bool constant values with references to the HAEO input entity IDs.
-    This simplifies reconfigure flows since there's no haeo.constant to trigger step 2.
+    This simplifies reconfigure flows since there's no haeo.configurable_entity to trigger step 2.
 
     The entity's value is persisted via RestoreEntity, not in the config.
     """
@@ -251,10 +251,10 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry."""
-    # Set up constant sentinel entities for each device_class if not already present
-    from custom_components.haeo.flows.constants import ensure_constant_entities_exist  # noqa: PLC0415
+    # Set up configurable sentinel entities for each device_class if not already present
+    from custom_components.haeo.flows.constants import ensure_configurable_entities_exist  # noqa: PLC0415
 
-    ensure_constant_entities_exist(hass)
+    ensure_configurable_entities_exist(hass)
 
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)

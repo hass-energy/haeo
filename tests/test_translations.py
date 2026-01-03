@@ -100,4 +100,4 @@ def test_no_unused_device_translations() -> None:
 
 
 # Note: InputMode selector translations test removed since we no longer use mode-based selection.
-# The new entity-first approach uses entity selectors with HAEO_CONSTANT option instead.
+# The new entity-first approach uses entity selectors with HAEO Configurable option instead.

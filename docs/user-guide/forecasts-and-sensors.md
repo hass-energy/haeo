@@ -324,14 +324,14 @@ For values that don't change over time (fixed prices, baseline loads, power limi
 
 ### Direct constant entry
 
-During element configuration, select **HAEO Constant Value** for the field and enter your value in step 2.
+During element configuration, select **HAEO Configurable** for the field and enter your value in step 2.
 This is the simplest approach for truly static values.
 
-| Step 1 Selection    | Step 2 Entry | Use Case             |
-| ------------------- | ------------ | -------------------- |
-| HAEO Constant Value | 0.25         | Fixed import price   |
-| HAEO Constant Value | 15           | Static power limit   |
-| HAEO Constant Value | 90           | Fixed SOC percentage |
+| Step 1 Selection  | Step 2 Entry | Use Case             |
+| ----------------- | ------------ | -------------------- |
+| HAEO Configurable | 0.25         | Fixed import price   |
+| HAEO Configurable | 15           | Static power limit   |
+| HAEO Configurable | 90           | Fixed SOC percentage |
 
 ### Input number helpers
 

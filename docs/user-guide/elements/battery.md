@@ -27,8 +27,8 @@ A battery in HAEO represents:
 
 Battery configuration uses the entity-first flow (see [Configuration](../configuration.md#element-configuration) for details):
 
-1. **Step 1**: Enter name, connection, and for each field, select sensors or **HAEO Constant Value** to enter a fixed value
-2. **Step 2**: If HAEO Constant Value was selected for any field, enter the constant values
+1. **Step 1**: Enter name, connection, and for each field, select sensors or **HAEO Configurable** to enter a fixed value
+2. **Step 2**: If HAEO Configurable was selected for any field, enter the constant values
 
 For each field, you choose whether to use a constant value or link to Home Assistant sensors.
 Optional fields can be left empty to disable that functionality.

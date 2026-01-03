@@ -151,17 +151,17 @@ This pattern provides a cleaner user experience with fewer steps for common conf
 ### Flow Steps
 
 **Step 1 (user)**: User enters the element name, connection target, and selects entities for each configurable field.
-The entity selector includes a special `haeo.constant` option for fields where the user wants to enter a fixed value.
+The entity selector includes a special `haeo.configurable_entity` option for fields where the user wants to enter a fixed value.
 
-**Step 2 (values)**: Only shown if `haeo.constant` was selected for any field.
+**Step 2 (values)**: Only shown if `haeo.configurable_entity` was selected for any field.
 User enters the actual constant values for those fields.
 
-### Constant Sentinel Entity
+### Configurable Sentinel Entity
 
-HAEO creates a special `haeo.constant` entity that appears in all entity selector dropdowns.
+HAEO creates a special `haeo.configurable_entity` entity that appears in all entity selector dropdowns.
 When selected, it indicates the user wants to enter a constant value rather than link to a Home Assistant sensor.
 
-The constant entity:
+The configurable entity:
 
 - Is registered in the entity registry with domain `haeo` and device class `haeo`
 - Appears in EntitySelector dropdowns via domain filtering
@@ -173,7 +173,7 @@ Each field can be configured in one of three ways:
 
 | Selection                   | Behavior                                     | Step 2 Required? |
 | --------------------------- | -------------------------------------------- | ---------------- |
-| `haeo.constant`             | User enters a fixed numeric or boolean value | Yes              |
+| `haeo.configurable_entity`  | User enters a fixed numeric or boolean value | Yes              |
 | One or more sensor entities | Value comes from Home Assistant sensors      | No               |
 | Empty (optional fields)     | Field is disabled, uses default if available | No               |
 
@@ -193,7 +193,7 @@ The entity-first flow utilities are in `custom_components/haeo/flows/field_schem
 - `can_reuse_constant_values()`: Determines if step 2 can be skipped during reconfigure
 
 Flow handlers store step 1 data and check if step 2 is needed.
-If no fields have `haeo.constant` selected, step 2 is skipped entirely.
+If no fields have `haeo.configurable_entity` selected, step 2 is skipped entirely.
 
 ### Entity Creation
 

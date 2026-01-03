@@ -11,8 +11,8 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 
 Grid configuration uses the entity-first flow (see [Configuration](../configuration.md#element-configuration) for details):
 
-1. **Step 1**: Enter name, connection, and for each field, select sensors or **HAEO Constant Value** to enter a fixed value
-2. **Step 2**: If HAEO Constant Value was selected for any field, enter the constant values
+1. **Step 1**: Enter name, connection, and for each field, select sensors or **HAEO Configurable** to enter a fixed value
+2. **Step 2**: If HAEO Configurable was selected for any field, enter the constant values
 
 | Field                             | Type   | Required | Default | Description                                                |
 | --------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |
@@ -34,7 +34,7 @@ Used to create sensor entity IDs and identify the grid in connections.
 Configure the cost of importing electricity from the grid.
 You can use either a constant value or one or more Home Assistant sensors.
 
-**Constant value**: Select HAEO Constant Value and enter a fixed price in \$/kWh that stays the same for all periods.
+**Constant value**: Select HAEO Configurable and enter a fixed price in \$/kWh that stays the same for all periods.
 Use this for simple flat-rate tariffs.
 
 **Sensor link**: Select one or more Home Assistant sensors providing electricity import pricing.
@@ -58,7 +58,7 @@ See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details o
 Configure the revenue for exporting electricity to the grid.
 You can use either a constant value or one or more Home Assistant sensors.
 
-**Constant value**: Select HAEO Constant Value and enter a fixed price in \$/kWh.
+**Constant value**: Select HAEO Configurable and enter a fixed price in \$/kWh.
 Use this for simple feed-in tariffs.
 
 **Sensor link**: Select one or more Home Assistant sensors providing export pricing.
@@ -82,7 +82,7 @@ For example, `-0.05` means you pay \$0.05 per kWh to export.
 Maximum power that can be imported from the grid (kW).
 
 **Optional**: Leave empty in step 1 to leave import unlimited.
-You can also select HAEO Constant Value or link to a sensor for dynamic limits.
+You can also select HAEO Configurable or link to a sensor for dynamic limits.
 
 Use this to model:
 
@@ -98,7 +98,7 @@ Use this to model:
 Maximum power that can be exported to the grid (kW).
 
 **Optional**: Leave empty in step 1 to leave export unlimited.
-You can also select HAEO Constant Value or link to a sensor for dynamic limits.
+You can also select HAEO Configurable or link to a sensor for dynamic limits.
 
 Use this to model:
 
@@ -127,15 +127,15 @@ Select multiple sensors for time-varying pricing:
 
 ### Fixed Pricing
 
-Select HAEO Constant Value for fixed rates, or select an input_number helper for adjustable rates:
+Select HAEO Configurable for fixed rates, or select an input_number helper for adjustable rates:
 
-| Field            | Selection           | Value |
-| ---------------- | ------------------- | ----- |
-| **Name**         | -                   | Grid  |
-| **Import Price** | HAEO Constant Value | 0.25  |
-| **Export Price** | HAEO Constant Value | 0.08  |
-| **Import Limit** | HAEO Constant Value | 20    |
-| **Export Limit** | HAEO Constant Value | 5     |
+| Field            | Selection         | Value |
+| ---------------- | ----------------- | ----- |
+| **Name**         | -                 | Grid  |
+| **Import Price** | HAEO Configurable | 0.25  |
+| **Export Price** | HAEO Configurable | 0.08  |
+| **Import Limit** | HAEO Configurable | 20    |
+| **Export Limit** | HAEO Configurable | 5     |
 
 For more examples and sensor configuration, see the [Forecasts and Sensors guide](../forecasts-and-sensors.md).
 
