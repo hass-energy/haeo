@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
