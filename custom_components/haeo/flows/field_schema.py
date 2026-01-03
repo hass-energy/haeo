@@ -191,17 +191,23 @@ def build_constant_value_schema_entry(
 def build_constant_value_schema(
     input_fields: tuple[InputFieldInfo[Any], ...],
     entity_selections: dict[str, list[str]],
+    current_data: dict[str, Any] | None = None,
 ) -> vol.Schema:
     """Build schema for step 2 with constant value inputs.
 
     Only includes fields where HAEO_CONSTANT is in the entity selection.
+    When current_data is provided (for reconfigure), fields that already have
+    stored constant values are excluded from the schema.
 
     Args:
         input_fields: Tuple of input field metadata.
         entity_selections: Entity selections from step 1 (field_name -> list of entity IDs).
+        current_data: Current configuration data (for reconfigure). Fields with
+            stored constant values will be excluded from the schema.
 
     Returns:
-        Schema with constant value inputs for fields with HAEO_CONSTANT.
+        Schema with constant value inputs for fields with HAEO_CONSTANT that
+        need user input.
 
     """
     schema_dict: dict[vol.Marker, Any] = {}
@@ -210,29 +216,40 @@ def build_constant_value_schema(
         field_name = field_info.field_name
         selected_entities = entity_selections.get(field_name, [])
 
-        # Only show constant input if any constant entity is selected
-        if any(is_constant_entity(entity_id) for entity_id in selected_entities):
-            marker, selector = build_constant_value_schema_entry(field_info)
-            schema_dict[marker] = selector
+        # Skip fields without constant selection
+        if not any(is_constant_entity(entity_id) for entity_id in selected_entities):
+            continue
+
+        # For reconfigure, skip fields that already have stored constant values or defaults
+        if current_data is not None:
+            current_value = current_data.get(field_name)
+            if isinstance(current_value, (float, int, bool)):
+                continue
+            if field_info.default is not None:
+                continue
+
+        marker, selector = build_constant_value_schema_entry(field_info)
+        schema_dict[marker] = selector
 
     return vol.Schema(schema_dict)
 
 
 def get_entity_selection_defaults(
     input_fields: tuple[InputFieldInfo[Any], ...],
-    _config_schema: ConfigSchemaType,
+    config_schema: ConfigSchemaType,
     current_data: dict[str, Any] | None = None,
 ) -> dict[str, list[str]]:
     """Get default entity selections for all fields.
 
     Args:
         input_fields: Tuple of input field metadata.
-        _config_schema: Unused, kept for API compatibility.
+        config_schema: TypedDict class to check which fields are optional.
         current_data: Current configuration data (for reconfigure).
 
     Returns:
         Dict mapping field names to default entity selections.
-        All fields default to the constant entity.
+        Required fields and optional fields with defaults: default to constant entity.
+        Optional fields without defaults: default to empty list (nothing selected).
         For reconfigure, infers from stored values.
 
     """
@@ -251,11 +268,21 @@ def get_entity_selection_defaults(
                 # Constant value - use constant entity
                 defaults[field_name] = [HAEO_CONSTANT_ENTITY_ID]
             else:
-                # Missing or invalid - default to constant entity
-                defaults[field_name] = [HAEO_CONSTANT_ENTITY_ID]
+                # Missing or invalid - use appropriate default based on field type
+                is_optional = field_name in config_schema.__optional_keys__
+                if is_optional and field_info.default is None:
+                    defaults[field_name] = []
+                else:
+                    defaults[field_name] = [HAEO_CONSTANT_ENTITY_ID]
         else:
-            # New entry - always default to constant entity (for both required and optional fields)
-            defaults[field_name] = [HAEO_CONSTANT_ENTITY_ID]
+            # New entry - default based on whether field is optional without a default
+            is_optional = field_name in config_schema.__optional_keys__
+            if is_optional and field_info.default is None:
+                # Optional field with no default: nothing selected
+                defaults[field_name] = []
+            else:
+                # Required field or optional with default: use constant entity
+                defaults[field_name] = [HAEO_CONSTANT_ENTITY_ID]
 
     return defaults
 
@@ -311,6 +338,50 @@ def has_constant_selection(entity_selection: list[str]) -> bool:
 
     """
     return any(is_constant_entity(entity_id) for entity_id in entity_selection)
+
+
+def can_reuse_constant_values(
+    input_fields: tuple[InputFieldInfo[Any], ...],
+    entity_selections: dict[str, list[str]],
+    current_data: dict[str, Any],
+) -> bool:
+    """Check if all constant fields have valid values in current_data.
+
+    Used during reconfiguration to skip the constant values step when
+    all fields with constant entity selections already have stored values.
+
+    Args:
+        input_fields: Tuple of input field metadata.
+        entity_selections: Entity selections from step 1 (field_name -> list of entity IDs).
+        current_data: Current configuration data from the subentry.
+
+    Returns:
+        True if all constant fields have stored constant values or defaults.
+
+    """
+    for field_info in input_fields:
+        field_name = field_info.field_name
+        selected_entities = entity_selections.get(field_name, [])
+
+        # Skip fields without constant selection
+        if not has_constant_selection(selected_entities):
+            continue
+
+        # Check if current_data has a valid constant value for this field
+        current_value = current_data.get(field_name)
+
+        # A stored constant value is a float/int/bool (not a list of entities)
+        if isinstance(current_value, (float, int, bool)):
+            continue
+
+        # Check if field has a default value we can use
+        if field_info.default is not None:
+            continue
+
+        # No stored value and no default - need user input
+        return False
+
+    return True
 
 
 def extract_entity_selections(
@@ -403,6 +474,7 @@ __all__ = [
     "build_constant_value_schema_entry",
     "build_entity_schema_entry",
     "build_entity_selector_with_constant",
+    "can_reuse_constant_values",
     "convert_entity_selections_to_config",
     "extract_entity_selections",
     "extract_non_entity_fields",

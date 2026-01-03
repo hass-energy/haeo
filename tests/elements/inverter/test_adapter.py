@@ -88,7 +88,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
 
 
 async def test_load_with_optional_efficiency(hass: HomeAssistant) -> None:
-    """Inverter load() should include optional constant efficiency fields."""
+    """Inverter load() should include optional efficiency fields as time series."""
     _set_sensor(hass, "sensor.max_dc_to_ac", "5.0", "kW")
     _set_sensor(hass, "sensor.max_ac_to_dc", "5.0", "kW")
 
@@ -104,5 +104,6 @@ async def test_load_with_optional_efficiency(hass: HomeAssistant) -> None:
 
     result = await inverter.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
-    assert result.get("efficiency_dc_to_ac") == 97.0
-    assert result.get("efficiency_ac_to_dc") == 95.0
+    # Efficiency fields are now loaded as time series
+    assert result.get("efficiency_dc_to_ac") == [97.0]
+    assert result.get("efficiency_ac_to_dc") == [95.0]

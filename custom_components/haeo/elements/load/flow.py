@@ -14,6 +14,7 @@ from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_ex
 from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
     build_entity_selector_with_constant,
+    can_reuse_constant_values,
     convert_entity_selections_to_config,
     extract_entity_selections,
     get_constant_value_defaults,
@@ -235,13 +236,14 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 )
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+        current_data = dict(subentry.data)
 
-        # If no constant fields, skip to update
-        if not schema.schema:
+        # Skip step 2 if no constant fields or all constant fields already have stored values
+        if can_reuse_constant_values(INPUT_FIELDS, entity_selections, current_data):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-            config_dict = convert_entity_selections_to_config(entity_selections, {}, INPUT_FIELDS)
+            constant_values = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+            config_dict = convert_entity_selections_to_config(entity_selections, constant_values, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
@@ -255,8 +257,10 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 data=cast("LoadConfigSchema", config),
             )
 
+        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections, current_data)
+
         # Get defaults from current data
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, dict(subentry.data))
+        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

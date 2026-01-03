@@ -5,9 +5,10 @@ from typing import Any, ClassVar, cast
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.const import UnitOfEnergy
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
+from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import EntityMetadata, extract_entity_metadata
 from custom_components.haeo.flows.constants import ensure_constant_entities_exist
 from custom_components.haeo.flows.field_schema import (
@@ -99,12 +100,20 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
         # Ensure constant entity exists before building schema
         ensure_constant_entities_exist(self.hass)
 
+        # Get default name from translations
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
+        )
+        default_name = translations.get(
+            f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title", "Battery section"
+        )
+
         entity_metadata = extract_entity_metadata(self.hass)
         schema = _build_step1_schema(entity_metadata)
 
         # Apply defaults
         defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, BatterySectionConfigSchema))
-        defaults[CONF_NAME] = None
+        defaults[CONF_NAME] = default_name
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

@@ -4,15 +4,17 @@ from typing import Any, ClassVar, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
+from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.flows.constants import ensure_constant_entities_exist
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
     build_entity_selector_with_constant,
+    can_reuse_constant_values,
     convert_entity_selections_to_config,
     extract_entity_selections,
     get_constant_value_defaults,
@@ -117,6 +119,12 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         # Ensure constant entity exists before building schema
         ensure_constant_entities_exist(self.hass)
 
+        # Get default name from translations
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
+        )
+        default_name = translations.get(f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title", "Connection")
+
         entity_metadata = extract_entity_metadata(self.hass)
         exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
         participants = self._get_participant_names()
@@ -124,7 +132,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         # Apply defaults - connection fields are all optional for entity selection
         defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, ConnectionConfigSchema))
-        defaults[CONF_NAME] = None
+        defaults[CONF_NAME] = default_name
         defaults[CONF_SOURCE] = None
         defaults[CONF_TARGET] = None
         schema = self.add_suggested_values_to_schema(schema, defaults)
@@ -261,13 +269,15 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 )
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+        current_data = dict(subentry.data)
 
-        if not schema.schema:
+        # Skip step 2 if no constant fields or all constant fields already have stored values
+        if can_reuse_constant_values(INPUT_FIELDS, entity_selections, current_data):
             name = self._step1_data.get(CONF_NAME)
             source = self._step1_data.get(CONF_SOURCE)
             target = self._step1_data.get(CONF_TARGET)
-            config_dict = convert_entity_selections_to_config(entity_selections, {}, INPUT_FIELDS)
+            constant_values = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+            config_dict = convert_entity_selections_to_config(entity_selections, constant_values, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
@@ -282,7 +292,8 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 data=cast("ConnectionConfigSchema", config),
             )
 
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, dict(subentry.data))
+        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections, current_data)
+        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

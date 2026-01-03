@@ -17,9 +17,11 @@ CONF_IMPORT_LIMIT: Final = "import_limit"
 CONF_EXPORT_LIMIT: Final = "export_limit"
 CONF_CONNECTION: Final = "connection"
 
-# Default values for optional fields ($/kWh)
-DEFAULT_IMPORT_PRICE: Final[float] = 0.1
-DEFAULT_EXPORT_PRICE: Final[float] = 0.01
+# Default values for optional fields
+DEFAULT_IMPORT_PRICE: Final[float] = 0.1  # $/kWh - used by adapter when not configured
+DEFAULT_EXPORT_PRICE: Final[float] = 0.01  # $/kWh - used by adapter when not configured
+DEFAULT_IMPORT_LIMIT: Final[float] = 100.0  # kW
+DEFAULT_EXPORT_LIMIT: Final[float] = 100.0  # kW
 
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
@@ -35,7 +37,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         time_series=True,
         direction="-",  # Import = consuming from grid = cost
-        default=DEFAULT_IMPORT_PRICE,
     ),
     InputFieldInfo(
         field_name=CONF_EXPORT_PRICE,
@@ -49,7 +50,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         time_series=True,
         direction="+",  # Export = producing to grid = revenue
-        default=DEFAULT_EXPORT_PRICE,
     ),
     InputFieldInfo(
         field_name=CONF_IMPORT_LIMIT,
@@ -65,6 +65,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="+",
+        default=DEFAULT_IMPORT_LIMIT,
     ),
     InputFieldInfo(
         field_name=CONF_EXPORT_LIMIT,
@@ -80,6 +81,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="-",
+        default=DEFAULT_EXPORT_LIMIT,
     ),
 )
 

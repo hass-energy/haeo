@@ -54,7 +54,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
 
 
 async def test_load_with_optional_fields(hass: HomeAssistant) -> None:
-    """Solar load() should include optional constant fields."""
+    """Solar load() should include optional fields."""
     set_forecast_sensor(hass, "sensor.forecast", "5.0", [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}], "kW")
 
     config: solar.SolarConfigSchema = {
@@ -68,5 +68,6 @@ async def test_load_with_optional_fields(hass: HomeAssistant) -> None:
 
     result = await solar.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
 
-    assert result.get("price_production") == 0.02
+    # price_production is now loaded as time series
+    assert result.get("price_production") == [0.02]
     assert result.get("curtailment") is False

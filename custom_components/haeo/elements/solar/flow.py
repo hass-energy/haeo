@@ -3,16 +3,7 @@
 from typing import Any, ClassVar, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
-from homeassistant.const import CURRENCY_DOLLAR, UnitOfEnergy
-from homeassistant.helpers.selector import (
-    BooleanSelector,
-    BooleanSelectorConfig,
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-    TextSelector,
-    TextSelectorConfig,
-)
+from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig, TextSelector, TextSelectorConfig
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
 
@@ -23,6 +14,7 @@ from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_ex
 from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
     build_entity_selector_with_constant,
+    can_reuse_constant_values,
     convert_entity_selections_to_config,
     extract_entity_selections,
     extract_non_entity_fields,
@@ -43,14 +35,17 @@ from .schema import (
 )
 
 
+def _get_field(field_name: str) -> Any:
+    """Get field info by name."""
+    return next(f for f in INPUT_FIELDS if f.field_name == field_name)
+
+
 def _build_step1_schema(
     exclusion_map: dict[str, list[str]],
     participants: list[str],
     current_connection: str | None = None,
 ) -> vol.Schema:
     """Build the schema for step 1: name, connection, and entity selection."""
-    forecast_field = next(f for f in INPUT_FIELDS if f.field_name == CONF_FORECAST)
-
     return vol.Schema(
         {
             vol.Required(CONF_NAME): vol.All(
@@ -62,20 +57,14 @@ def _build_step1_schema(
             vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
             vol.Required(CONF_FORECAST): vol.All(
                 build_entity_selector_with_constant(
-                    forecast_field,
+                    _get_field(CONF_FORECAST),
                     exclude_entities=exclusion_map.get(CONF_FORECAST, []),
                 ),
                 vol.Length(min=1, msg="At least one entity is required"),
             ),
-            vol.Optional(CONF_PRICE_PRODUCTION): vol.All(
-                vol.Coerce(float),
-                NumberSelector(
-                    NumberSelectorConfig(
-                        mode=NumberSelectorMode.BOX,
-                        step="any",
-                        unit_of_measurement=f"{CURRENCY_DOLLAR}/{UnitOfEnergy.KILO_WATT_HOUR}",
-                    )
-                ),
+            vol.Optional(CONF_PRICE_PRODUCTION, default=[]): build_entity_selector_with_constant(
+                _get_field(CONF_PRICE_PRODUCTION),
+                exclude_entities=exclusion_map.get(CONF_PRICE_PRODUCTION, []),
             ),
             vol.Optional(CONF_CURTAILMENT): vol.All(
                 vol.Coerce(bool),
@@ -131,6 +120,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, SolarConfigSchema))
         defaults[CONF_NAME] = default_name
         defaults[CONF_CONNECTION] = None
+        defaults[CONF_FORECAST] = []  # Default to nothing selected
         defaults.update(DEFAULTS)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
@@ -279,14 +269,15 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 )
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+        current_data = dict(subentry.data)
 
-        # If no constant fields, skip to update
-        if not schema.schema:
+        # Skip step 2 if no constant fields or all constant fields already have stored values
+        if can_reuse_constant_values(INPUT_FIELDS, entity_selections, current_data):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
             non_entity_fields = extract_non_entity_fields(self._step1_data, exclude_keys)
-            config_dict = convert_entity_selections_to_config(entity_selections, {}, INPUT_FIELDS)
+            constant_values = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+            config_dict = convert_entity_selections_to_config(entity_selections, constant_values, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
@@ -301,8 +292,10 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 data=cast("SolarConfigSchema", config),
             )
 
+        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections, current_data)
+
         # Get defaults from current data
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, dict(subentry.data))
+        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

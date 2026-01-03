@@ -3,14 +3,7 @@
 from typing import Any, ClassVar, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
-from homeassistant.const import PERCENTAGE
-from homeassistant.helpers.selector import (
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-    TextSelector,
-    TextSelectorConfig,
-)
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
 
@@ -21,9 +14,9 @@ from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_ex
 from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
     build_entity_selector_with_constant,
+    can_reuse_constant_values,
     convert_entity_selections_to_config,
     extract_entity_selections,
-    extract_non_entity_fields,
     get_constant_value_defaults,
     get_entity_selection_defaults,
     has_constant_selection,
@@ -35,7 +28,6 @@ from .schema import (
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
     CONF_MAX_POWER_DC_TO_AC,
-    DEFAULTS,
     ELEMENT_TYPE,
     INPUT_FIELDS,
     InverterConfigSchema,
@@ -70,31 +62,13 @@ def _build_step1_schema(
                 _get_field(CONF_MAX_POWER_AC_TO_DC),
                 exclude_entities=exclusion_map.get(CONF_MAX_POWER_AC_TO_DC, []),
             ),
-            vol.Optional(CONF_EFFICIENCY_DC_TO_AC): vol.All(
-                vol.Coerce(float),
-                vol.Range(min=0, max=100, msg="Value must be between 0 and 100"),
-                NumberSelector(
-                    NumberSelectorConfig(
-                        mode=NumberSelectorMode.BOX,
-                        min=0,
-                        max=100,
-                        step="any",
-                        unit_of_measurement=PERCENTAGE,
-                    )
-                ),
+            vol.Optional(CONF_EFFICIENCY_DC_TO_AC, default=[]): build_entity_selector_with_constant(
+                _get_field(CONF_EFFICIENCY_DC_TO_AC),
+                exclude_entities=exclusion_map.get(CONF_EFFICIENCY_DC_TO_AC, []),
             ),
-            vol.Optional(CONF_EFFICIENCY_AC_TO_DC): vol.All(
-                vol.Coerce(float),
-                vol.Range(min=0, max=100, msg="Value must be between 0 and 100"),
-                NumberSelector(
-                    NumberSelectorConfig(
-                        mode=NumberSelectorMode.BOX,
-                        min=0,
-                        max=100,
-                        step="any",
-                        unit_of_measurement=PERCENTAGE,
-                    )
-                ),
+            vol.Optional(CONF_EFFICIENCY_AC_TO_DC, default=[]): build_entity_selector_with_constant(
+                _get_field(CONF_EFFICIENCY_AC_TO_DC),
+                exclude_entities=exclusion_map.get(CONF_EFFICIENCY_AC_TO_DC, []),
             ),
         }
     )
@@ -147,7 +121,6 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, InverterConfigSchema))
         defaults[CONF_NAME] = default_name
         defaults[CONF_CONNECTION] = None
-        defaults.update(DEFAULTS)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -165,7 +138,6 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
             entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-            non_entity_fields = extract_non_entity_fields(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             for field_info in INPUT_FIELDS:
@@ -182,7 +154,6 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_NAME: name,
                     CONF_CONNECTION: connection,
                     **config_dict,
-                    **non_entity_fields,
                 }
                 return self.async_create_entry(title=name, data=cast("InverterConfigSchema", config))
 
@@ -192,14 +163,12 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-            non_entity_fields = extract_non_entity_fields(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, {}, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
                 CONF_CONNECTION: connection,
                 **config_dict,
-                **non_entity_fields,
             }
             return self.async_create_entry(title=name, data=cast("InverterConfigSchema", config))
 
@@ -247,9 +216,6 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, InverterConfigSchema, current_data))
         defaults[CONF_NAME] = subentry.data.get(CONF_NAME)
         defaults[CONF_CONNECTION] = current_connection
-        for k, v in subentry.data.items():
-            if k not in defaults:
-                defaults[k] = v
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -268,7 +234,6 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
             entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-            non_entity_fields = extract_non_entity_fields(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             for field_info in INPUT_FIELDS:
@@ -285,7 +250,6 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_NAME: name,
                     CONF_CONNECTION: connection,
                     **config_dict,
-                    **non_entity_fields,
                 }
                 return self.async_update_and_abort(
                     self._get_entry(),
@@ -295,19 +259,19 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 )
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+        current_data = dict(subentry.data)
 
-        if not schema.schema:
+        # Skip step 2 if all constant fields already have stored values
+        if can_reuse_constant_values(INPUT_FIELDS, entity_selections, current_data):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-            non_entity_fields = extract_non_entity_fields(self._step1_data, exclude_keys)
-            config_dict = convert_entity_selections_to_config(entity_selections, {}, INPUT_FIELDS)
+            constant_values = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+            config_dict = convert_entity_selections_to_config(entity_selections, constant_values, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
                 CONF_CONNECTION: connection,
                 **config_dict,
-                **non_entity_fields,
             }
             return self.async_update_and_abort(
                 self._get_entry(),
@@ -316,7 +280,8 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 data=cast("InverterConfigSchema", config),
             )
 
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, dict(subentry.data))
+        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections, current_data)
+        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
