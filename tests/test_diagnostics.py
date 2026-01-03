@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import (
     CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
@@ -44,6 +45,9 @@ from custom_components.haeo.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.elements.grid import CONF_IMPORT_PRICE, GRID_POWER_IMPORT
+from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
+from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
+from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model import OutputType
 
 
@@ -339,3 +343,207 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     )
     assert output_entity is not None
     assert output_entity["state"] == "5.5"
+
+
+async def test_diagnostics_captures_editable_input_number_values(hass: HomeAssistant) -> None:
+    """Diagnostics captures current values from editable input number entities."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    # Add a battery subentry with configurable values
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery",
+                CONF_CAPACITY: 10.0,  # Constant value (editable)
+                CONF_CONNECTION: "DC Bus",
+                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,  # Constant value (editable)
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Create mock input entities
+    mock_capacity_entity = Mock(spec=HaeoInputNumber)
+    mock_capacity_entity.entity_mode = ConfigEntityMode.EDITABLE
+    mock_capacity_entity.native_value = 15.0  # Updated value
+
+    mock_soc_entity = Mock(spec=HaeoInputNumber)
+    mock_soc_entity.entity_mode = ConfigEntityMode.EDITABLE
+    mock_soc_entity.native_value = 75.0  # Updated value
+
+    # Create mock horizon manager
+    mock_horizon_manager = Mock(spec=HorizonManager)
+
+    # Create real HaeoRuntimeData with mock input entities
+    runtime_data = HaeoRuntimeData(
+        horizon_manager=mock_horizon_manager,
+        input_entities={
+            ("Battery", CONF_CAPACITY): mock_capacity_entity,
+            ("Battery", CONF_INITIAL_CHARGE_PERCENTAGE): mock_soc_entity,
+        },
+    )
+    entry.runtime_data = runtime_data
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    # Verify the captured values are in the participant config
+    participants = diagnostics["config"]["participants"]
+    battery_config = participants["Battery"]
+    assert battery_config[CONF_CAPACITY] == 15.0
+    assert battery_config[CONF_INITIAL_CHARGE_PERCENTAGE] == 75.0
+
+
+async def test_diagnostics_captures_editable_input_switch_values(hass: HomeAssistant) -> None:
+    """Diagnostics captures current values from editable input switch entities."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    # Add a solar subentry with curtailment switch
+    from custom_components.haeo.elements.solar import CONF_CURTAILMENT, CONF_FORECAST
+
+    solar_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: "solar",
+                CONF_NAME: "Solar",
+                CONF_FORECAST: ["sensor.solar_forecast"],
+                CONF_CONNECTION: "AC Bus",
+                CONF_CURTAILMENT: True,  # Default value
+            }
+        ),
+        subentry_type="solar",
+        title="Solar",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, solar_subentry)
+
+    # Create mock input switch entity
+    mock_switch_entity = Mock(spec=HaeoInputSwitch)
+    mock_switch_entity.entity_mode = ConfigEntityMode.EDITABLE
+    mock_switch_entity.is_on = False  # Updated value
+
+    # Create mock horizon manager
+    mock_horizon_manager = Mock(spec=HorizonManager)
+
+    # Create real HaeoRuntimeData with mock input entities
+    runtime_data = HaeoRuntimeData(
+        horizon_manager=mock_horizon_manager,
+        input_entities={
+            ("Solar", CONF_CURTAILMENT): mock_switch_entity,
+        },
+    )
+    entry.runtime_data = runtime_data
+
+    # Set up sensor state for forecast
+    hass.states.async_set("sensor.solar_forecast", "5.0", {"unit_of_measurement": "kW"})
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    # Verify the captured switch value is in the participant config
+    participants = diagnostics["config"]["participants"]
+    solar_config = participants["Solar"]
+    assert solar_config[CONF_CURTAILMENT] is False
+
+
+async def test_diagnostics_skips_non_editable_entities(hass: HomeAssistant) -> None:
+    """Diagnostics skips entities that are not in EDITABLE mode."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    # Add a battery subentry with sensor-driven values
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery",
+                CONF_CAPACITY: ["sensor.battery_capacity"],  # Sensor-driven
+                CONF_CONNECTION: "DC Bus",
+                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],  # Sensor-driven
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Create mock input entity in DRIVEN mode
+    mock_capacity_entity = Mock(spec=HaeoInputNumber)
+    mock_capacity_entity.entity_mode = ConfigEntityMode.DRIVEN
+    mock_capacity_entity.native_value = 15.0
+
+    # Create mock horizon manager
+    mock_horizon_manager = Mock(spec=HorizonManager)
+
+    # Create real HaeoRuntimeData with mock input entities
+    runtime_data = HaeoRuntimeData(
+        horizon_manager=mock_horizon_manager,
+        input_entities={
+            ("Battery", CONF_CAPACITY): mock_capacity_entity,
+        },
+    )
+    entry.runtime_data = runtime_data
+
+    # Set up sensor states
+    hass.states.async_set("sensor.battery_capacity", "10.0", {"unit_of_measurement": "kWh"})
+    hass.states.async_set("sensor.battery_soc", "50", {"unit_of_measurement": "%"})
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    # Verify the original sensor-driven config is preserved (not overwritten)
+    participants = diagnostics["config"]["participants"]
+    battery_config = participants["Battery"]
+    assert battery_config[CONF_CAPACITY] == ["sensor.battery_capacity"]
