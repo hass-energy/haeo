@@ -161,20 +161,20 @@
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
-    "battery_section": {
-      "flow_title": "Battery Section",
-      "entry_type": "Battery Section",
-      "initiate_flow": { "user": "Battery Section", "reconfigure": "Battery Section" },
+    "energy_storage": {
+      "flow_title": "Energy Storage",
+      "entry_type": "Energy Storage",
+      "initiate_flow": { "user": "Energy Storage", "reconfigure": "Energy Storage" },
       "step": {
         "user": {
-          "title": "Add Battery Section",
-          "description": "Add a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
-          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" }
+          "title": "Add Energy Storage",
+          "description": "Add a single energy storage element with explicit capacity and initial charge. Connect to other elements using Connection elements.",
+          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Energy Storage Name" }
         },
         "reconfigure": {
-          "title": "Edit Battery Section",
-          "description": "Update battery section configuration",
-          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" }
+          "title": "Edit Energy Storage",
+          "description": "Update energy storage configuration",
+          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Energy Storage Name" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -403,7 +403,7 @@
     "battery_device_normal": { "name": "{name} Main Partition" },
     "battery_device_overcharge": { "name": "{name} Overcharge Partition" },
     "battery_device_undercharge": { "name": "{name} Undercharge Partition" },
-    "battery_section": { "name": "{name}" },
+    "energy_storage": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
@@ -455,15 +455,15 @@
       "battery_power_balance": { "name": "Power balance shadow price" },
       "battery_power_charge": { "name": "Charge power" },
       "battery_power_discharge": { "name": "Discharge power" },
-      "battery_section_energy_in_flow": { "name": "Energy in flow shadow price" },
-      "battery_section_energy_out_flow": { "name": "Energy out flow shadow price" },
-      "battery_section_energy_stored": { "name": "Energy stored" },
-      "battery_section_power_active": { "name": "Active power" },
-      "battery_section_power_balance": { "name": "Power balance shadow price" },
-      "battery_section_power_charge": { "name": "Charge power" },
-      "battery_section_power_discharge": { "name": "Discharge power" },
-      "battery_section_soc_max": { "name": "SOC max shadow price" },
-      "battery_section_soc_min": { "name": "SOC min shadow price" },
+      "energy_storage_energy_in_flow": { "name": "Energy in flow shadow price" },
+      "energy_storage_energy_out_flow": { "name": "Energy out flow shadow price" },
+      "energy_storage_energy_stored": { "name": "Energy stored" },
+      "energy_storage_power_active": { "name": "Active power" },
+      "energy_storage_power_balance": { "name": "Power balance shadow price" },
+      "energy_storage_power_charge": { "name": "Charge power" },
+      "energy_storage_power_discharge": { "name": "Discharge power" },
+      "energy_storage_soc_max": { "name": "SOC max shadow price" },
+      "energy_storage_soc_min": { "name": "SOC min shadow price" },
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },

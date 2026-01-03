@@ -175,11 +175,11 @@ def test_is_element_config_schema_valid_inverter() -> None:
     assert is_element_config_schema(valid_config) is True
 
 
-def test_is_element_config_schema_valid_battery_section() -> None:
-    """Test is_element_config_schema with valid battery_section config."""
+def test_is_element_config_schema_valid_energy_storage() -> None:
+    """Test is_element_config_schema with valid energy_storage config."""
     valid_config = {
-        "element_type": "battery_section",
-        "name": "test_section",
+        "element_type": "energy_storage",
+        "name": "test_storage",
         "capacity": ["sensor.capacity"],
         "initial_charge": ["sensor.charge"],
     }
