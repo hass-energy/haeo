@@ -28,12 +28,14 @@ from .schema import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_OVERCHARGE_COST,
     CONF_OVERCHARGE_PERCENTAGE,
+    CONF_PARTITIONS,
     CONF_UNDERCHARGE_COST,
     CONF_UNDERCHARGE_PERCENTAGE,
     DEFAULTS,
     ELEMENT_TYPE,
     BatteryConfigData,
     BatteryConfigSchema,
+    PartitionConfigData,
 )
 
 type BatteryOutputName = Literal[
@@ -206,6 +208,23 @@ class BatteryAdapter:
         overcharge_cost = config.get(CONF_OVERCHARGE_COST)
         if overcharge_cost is not None:
             data["overcharge_cost"] = await load_value(overcharge_cost)
+
+        # Load new partition-based configuration if present
+        partitions = config.get(CONF_PARTITIONS)
+        if partitions is not None:
+            loaded_partitions: list[PartitionConfigData] = []
+            for partition in partitions:
+                partition_data: PartitionConfigData = {
+                    "name": partition["name"],
+                    "capacity": await load_value(partition["capacity"]),
+                }
+                # Load optional partition costs
+                if "charge_cost" in partition:
+                    partition_data["charge_cost"] = await load_value(partition["charge_cost"])
+                if "discharge_cost" in partition:
+                    partition_data["discharge_cost"] = await load_value(partition["discharge_cost"])
+                loaded_partitions.append(partition_data)
+            data["partitions"] = loaded_partitions
 
         return data
 

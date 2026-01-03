@@ -326,4 +326,3 @@ class BatteryConfigData(TypedDict):
     overcharge_percentage: NotRequired[list[float]]  # % per period
     undercharge_cost: NotRequired[list[float]]  # $/kWh per period
     overcharge_cost: NotRequired[list[float]]  # $/kWh per period
-    overcharge_cost: NotRequired[list[float]]  # $/kWh per period
