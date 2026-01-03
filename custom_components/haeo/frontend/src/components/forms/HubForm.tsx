@@ -2,6 +2,7 @@
  * Hub configuration form.
  */
 
+import { useEffect } from "react";
 import { useFlow } from "../../context/FlowContext";
 import FormField from "./FormField";
 import Button from "../ui/Button";
@@ -17,8 +18,26 @@ const HORIZON_PRESETS = [
   { value: "custom", label: "Custom" },
 ];
 
+/** Default values for hub form fields */
+const FORM_DEFAULTS = {
+  horizon_preset: "5_days",
+  advanced_mode: false,
+} as const;
+
 function HubForm() {
-  const { formData, updateField, submit, isSubmitting, error } = useFlow();
+  const { formData, setFormData, updateField, submit, isSubmitting, error } = useFlow();
+
+  // Initialize form with defaults on mount
+  useEffect(() => {
+    console.log("[HubForm] Initializing defaults, current formData:", formData);
+    // Merge defaults with any existing formData (from draft)
+    const newData = { ...FORM_DEFAULTS, ...formData };
+    console.log("[HubForm] Setting formData to:", newData);
+    setFormData(newData);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount
+
+  console.log("[HubForm] Render, formData:", formData);
 
   const isCustom = str(formData.horizon_preset, "5_days") === "custom";
 

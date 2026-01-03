@@ -57,9 +57,15 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             url = get_hub_external_url(self.hass, flow_id=self.flow_id)
             return self.async_external_step(step_id="user", url=url)
 
-        # Process submission from React webapp
+        # External steps can ONLY return external_step or external_step_done
+        # Validation must happen in the next step (create_hub)
+        self._user_input = user_input
+        return self.async_external_step_done(next_step_id="create_hub")
+
+    async def async_step_create_hub(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Create the hub entry after external step completion."""
         # Validate that the name is unique
-        hub_name = user_input[CONF_NAME]
+        hub_name = self._user_input[CONF_NAME]
         existing_names = [entry.title for entry in self.hass.config_entries.async_entries(DOMAIN)]
 
         if hub_name in existing_names:
@@ -69,8 +75,6 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(f"haeo_hub_{hub_name.lower().replace(' ', '_')}")
         self._abort_if_unique_id_configured()
 
-        # Store user input and create entry
-        self._user_input = user_input
         return await self._create_hub_entry()
 
     async def _async_step_user_native(self, user_input: dict[str, Any] | None) -> ConfigFlowResult:

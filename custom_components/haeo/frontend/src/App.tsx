@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { FlowProvider } from "./context/FlowContext";
 import { ConnectionProvider } from "./context/ConnectionContext";
 import FlowPage from "./pages/FlowPage";
@@ -17,11 +17,20 @@ import NotFoundPage from "./pages/NotFoundPage";
  * - mode: Flow mode (hub, element, options)
  */
 function App() {
+  const location = useLocation();
+  console.log("React Router location:", {
+    pathname: location.pathname,
+    search: location.search,
+    hash: location.hash,
+    fullUrl: window.location.href,
+  });
+
   return (
     <ConnectionProvider>
       <FlowProvider>
         <Routes>
           <Route path="/" element={<FlowPage />} />
+          <Route path="/index.html" element={<FlowPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </FlowProvider>

@@ -11,10 +11,86 @@ import {
   getAuth,
   subscribeEntities,
   type Auth,
+  type AuthData,
   type Connection,
   type HassEntities,
   type MessageBase,
 } from "home-assistant-js-websocket";
+
+/** Storage key for auth tokens */
+const AUTH_TOKENS_KEY = "hassTokens";
+
+/** Storage key for preserving flow params across auth redirects */
+const FLOW_PARAMS_KEY = "haeo_flow_params";
+
+/**
+ * Load tokens from localStorage.
+ */
+async function loadTokens(): Promise<AuthData | null | undefined> {
+  try {
+    const stored = localStorage.getItem(AUTH_TOKENS_KEY);
+    if (stored) {
+      return JSON.parse(stored) as AuthData;
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null;
+}
+
+/**
+ * Save tokens to localStorage.
+ */
+function saveTokens(data: AuthData | null): void {
+  try {
+    if (data) {
+      localStorage.setItem(AUTH_TOKENS_KEY, JSON.stringify(data));
+    } else {
+      localStorage.removeItem(AUTH_TOKENS_KEY);
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Save current flow parameters before auth redirect.
+ * These will be restored after the OAuth callback.
+ */
+function saveFlowParams(): void {
+  const params = window.location.search;
+  if (params && params.includes("flow_id")) {
+    try {
+      sessionStorage.setItem(FLOW_PARAMS_KEY, params);
+    } catch {
+      // Ignore storage errors
+    }
+  }
+}
+
+/**
+ * Restore flow parameters after auth redirect.
+ * Redirects to the original URL with flow params if they were saved.
+ */
+function restoreFlowParams(): boolean {
+  try {
+    const savedParams = sessionStorage.getItem(FLOW_PARAMS_KEY);
+    if (savedParams && !window.location.search.includes("flow_id")) {
+      // We have saved params but current URL doesn't have flow_id
+      // This means we just returned from auth redirect
+      sessionStorage.removeItem(FLOW_PARAMS_KEY);
+      const newUrl = window.location.pathname + savedParams;
+      window.history.replaceState(null, "", newUrl);
+      return true;
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return false;
+}
+
+// Restore flow params on module load (before React renders)
+restoreFlowParams();
 
 /** Connection state */
 export type ConnectionState =
@@ -67,9 +143,25 @@ export class HAConnection {
         );
       } else {
         // Running in HA context - use session auth
-        this.auth = await getAuth({
-          hassUrl: hassUrl || window.location.origin,
+        // Save flow params before auth - getAuth may redirect to HA's auth page
+        saveFlowParams();
+
+        const targetUrl = hassUrl || window.location.origin;
+        console.log("Starting auth flow...", {
+          hassUrl: targetUrl,
+          hasAuthCallback: window.location.search.includes("auth_callback"),
+          search: window.location.search,
+          existingTokens: localStorage.getItem(AUTH_TOKENS_KEY)?.substring(0, 100),
         });
+
+        // Use explicit loadTokens/saveTokens to ensure token reuse
+        this.auth = await getAuth({
+          hassUrl: targetUrl,
+          loadTokens,
+          saveTokens,
+        });
+
+        console.log("Auth completed successfully");
       }
 
       this.connection = await createConnection({ auth: this.auth });
@@ -140,6 +232,13 @@ export class HAConnection {
    */
   getState(): ConnectionState {
     return this.state;
+  }
+
+  /**
+   * Get the current access token for REST API calls.
+   */
+  getAccessToken(): string | null {
+    return this.auth?.accessToken ?? null;
   }
 
   /**

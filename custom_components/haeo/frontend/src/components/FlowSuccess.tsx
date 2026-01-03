@@ -2,6 +2,7 @@
  * Flow success message component.
  */
 
+import { useEffect } from "react";
 import type { FlowResult } from "../types";
 import "./FlowSuccess.css";
 
@@ -11,6 +12,20 @@ interface FlowSuccessProps {
 
 function FlowSuccess({ result }: FlowSuccessProps) {
   const title = result.result?.title || "Configuration";
+
+  // Redirect back to HA after a short delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Close window if opened as popup, otherwise redirect to integrations
+      if (window.opener) {
+        window.close();
+      } else {
+        window.location.href = "/config/integrations/integration/haeo";
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="flow-success">
@@ -22,8 +37,7 @@ function FlowSuccess({ result }: FlowSuccessProps) {
         <strong>{title}</strong> has been configured successfully.
       </p>
       <p className="flow-success__instructions">
-        This window will close automatically. If it doesn&apos;t, you can close
-        it manually.
+        Redirecting back to Home Assistant...
       </p>
     </div>
   );

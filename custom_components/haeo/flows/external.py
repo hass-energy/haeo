@@ -27,7 +27,8 @@ def build_external_url(
     entry_id: str | None = None,
     subentry_type: str | None = None,
     subentry_id: str | None = None,
-    mode: str = "create",
+    source: str | None = None,
+    mode: str = "hub",
 ) -> str:
     """Build the URL for the React configuration webapp.
 
@@ -37,15 +38,16 @@ def build_external_url(
         entry_id: Parent config entry ID (for element flows).
         subentry_type: Type of element being configured.
         subentry_id: ID of existing subentry (for reconfigure flows).
-        mode: Either "create" or "reconfigure".
+        source: Flow source ("user" or "reconfigure").
+        mode: One of "hub", "element", or "options".
 
     Returns:
         Full URL to the React webapp with query parameters.
 
     """
-    # Get the base URL from Home Assistant configuration
-    # We use relative URLs since the React app is served from the same origin
-    base_url = f"/{FRONTEND_URL_PATH}/"
+    # Use index.html explicitly since aiohttp StaticResource doesn't serve
+    # directory index files automatically (returns 403 for directory requests)
+    base_url = f"/{FRONTEND_URL_PATH}/index.html"
 
     # Build query parameters
     params: list[str] = [f"flow_id={flow_id}"]
@@ -58,6 +60,9 @@ def build_external_url(
 
     if subentry_id:
         params.append(f"subentry_id={subentry_id}")
+
+    if source:
+        params.append(f"source={source}")
 
     params.append(f"mode={mode}")
 
@@ -101,14 +106,15 @@ def get_element_external_url(
         URL for the React element configuration page.
 
     """
-    mode = "reconfigure" if subentry_id else "create"
+    source = "reconfigure" if subentry_id else "user"
     return build_external_url(
         hass,
         flow_id=flow_id,
         entry_id=entry_id,
         subentry_type=subentry_type,
         subentry_id=subentry_id,
-        mode=mode,
+        source=source,
+        mode="element",
     )
 
 

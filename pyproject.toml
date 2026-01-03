@@ -30,6 +30,7 @@ dev = [
     "setuptools>=80.9.0",
     "syrupy>=5.0.0",
     "zensical>=0.0.15",
+    "playwright>=1.57.0",
 ]
 
 [tool.ruff]

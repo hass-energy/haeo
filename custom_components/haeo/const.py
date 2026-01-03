@@ -1,6 +1,7 @@
 """Constants for the Home Assistant Energy Optimizer integration."""
 
 import enum
+import os
 from typing import Final, Literal
 
 # Integration domain
@@ -54,9 +55,9 @@ DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default
 DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
 # Feature flag: Use React webapp for config flows instead of native HA forms
-# Set to True to enable the React-based configuration UI
-# Note: When enabled, element flow tests will fail as they expect FORM results
-USE_REACT_CONFIG_UI: Final = False
+# Enable via environment variable: HAEO_REACT_UI=1
+# When enabled, config flows redirect to the React-based configuration webapp
+USE_REACT_CONFIG_UI: Final = os.environ.get("HAEO_REACT_UI", "").lower() in ("1", "true", "yes")
 
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"
