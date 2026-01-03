@@ -2,7 +2,7 @@
 
 This module provides utilities for the entity-first config flow pattern:
 1. Step 1 (user): Select name, connections, and entities for each field (with HAEO Configurable option)
-2. Step 2 (values): Enter constant values for fields where HAEO Configurable was selected
+2. Step 2 (values): Enter configurable values for fields where HAEO Configurable was selected
 
 Functions in this module use async_get_hass() to retrieve the Home Assistant instance
 from the current context, avoiding the need to pass hass as a parameter.
@@ -28,8 +28,8 @@ from custom_components.haeo.const import DOMAIN, HAEO_CONFIGURABLE_UNIQUE_ID
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 
-def is_constant_entity(entity_id: str) -> bool:
-    """Check if an entity ID is the constant sentinel entity.
+def is_configurable_entity(entity_id: str) -> bool:
+    """Check if an entity ID is the HAEO Configurable sentinel entity.
 
     Checks by looking up the entity and comparing its unique_id, since users
     may rename the entity_id.
@@ -38,7 +38,7 @@ def is_constant_entity(entity_id: str) -> bool:
         entity_id: Entity ID to check.
 
     Returns:
-        True if the entity is a constant sentinel entity.
+        True if the entity is the HAEO Configurable sentinel entity.
 
     """
     hass = async_get_hass()
@@ -120,12 +120,12 @@ def boolean_selector_from_field() -> BooleanSelector:  # type: ignore[type-arg]
     return BooleanSelector(BooleanSelectorConfig())
 
 
-def build_entity_selector_with_constant(
+def build_entity_selector_with_configurable(
     field_info: InputFieldInfo[Any],  # noqa: ARG001
     *,
     exclude_entities: list[str] | None = None,
 ) -> EntitySelector:  # type: ignore[type-arg]
-    """Build an EntitySelector with compatible entities plus the constant entity.
+    """Build an EntitySelector with compatible entities plus the HAEO Configurable entity.
 
     Does not filter by device_class because:
     1. Unit-based exclusion already narrows down compatible entities
@@ -143,9 +143,9 @@ def build_entity_selector_with_constant(
         EntitySelector configured for sensor/input_number/haeo domains.
 
     """
-    # Remove constant entity from exclude list (it has unit_of_measurement=None
+    # Remove configurable entity from exclude list (it has unit_of_measurement=None
     # which fails unit filtering, but we always want it available)
-    filtered_exclude = [entity_id for entity_id in (exclude_entities or []) if not is_constant_entity(entity_id)]
+    filtered_exclude = [entity_id for entity_id in (exclude_entities or []) if not is_configurable_entity(entity_id)]
 
     # Build config - no device_class filter, rely on unit-based exclusion
     # Include 'haeo' domain so the configurable entity always appears
@@ -174,14 +174,14 @@ def build_entity_schema_entry(
 
     Returns:
         Tuple of (vol.Required/Optional marker, EntitySelector).
-        Required fields default to the appropriate constant entity for their device_class.
+        Required fields default to the configurable entity.
         Optional fields default to empty list.
 
     """
     field_name = field_info.field_name
     is_optional = field_name in config_schema.__optional_keys__
 
-    selector = build_entity_selector_with_constant(
+    selector = build_entity_selector_with_configurable(
         field_info,
         exclude_entities=exclude_entities,
     )
@@ -193,16 +193,16 @@ def build_entity_schema_entry(
     return vol.Required(field_name), selector
 
 
-def build_constant_value_schema_entry(
+def build_configurable_value_schema_entry(
     field_info: InputFieldInfo[Any],
 ) -> tuple[vol.Marker, Any]:
-    """Build a schema entry for constant value input (step 2).
+    """Build a schema entry for configurable value input (step 2).
 
     Args:
         field_info: Input field metadata.
 
     Returns:
-        Tuple of (vol.Required/Optional marker, Selector) for constant value input.
+        Tuple of (vol.Required/Optional marker, Selector) for configurable value input.
 
     """
     field_name = field_info.field_name
@@ -221,25 +221,25 @@ def build_constant_value_schema_entry(
     return vol.Required(field_name), selector
 
 
-def build_constant_value_schema(
+def build_configurable_value_schema(
     input_fields: tuple[InputFieldInfo[Any], ...],
     entity_selections: dict[str, list[str]],
     current_data: dict[str, Any] | None = None,
 ) -> vol.Schema:
-    """Build schema for step 2 with constant value inputs.
+    """Build schema for step 2 with configurable value inputs.
 
     Only includes fields where HAEO Configurable is in the entity selection.
     When current_data is provided (for reconfigure), fields that already have
-    stored constant values are excluded from the schema.
+    stored configurable values are excluded from the schema.
 
     Args:
         input_fields: Tuple of input field metadata.
         entity_selections: Entity selections from step 1 (field_name -> list of entity IDs).
         current_data: Current configuration data (for reconfigure). Fields with
-            stored constant values will be excluded from the schema.
+            stored configurable values will be excluded from the schema.
 
     Returns:
-        Schema with constant value inputs for fields with HAEO Configurable that
+        Schema with configurable value inputs for fields with HAEO Configurable that
         need user input.
 
     """
@@ -249,25 +249,25 @@ def build_constant_value_schema(
         field_name = field_info.field_name
         selected_entities = entity_selections.get(field_name, [])
 
-        # Skip fields without constant selection
-        if not any(is_constant_entity(entity_id) for entity_id in selected_entities):
+        # Skip fields without configurable selection
+        if not any(is_configurable_entity(entity_id) for entity_id in selected_entities):
             continue
 
-        # For reconfigure, skip fields that already have stored constant values
-        # But include fields where user is switching from entity to constant (current_value is list)
+        # For reconfigure, skip fields that already have stored configurable values
+        # But include fields where user is switching from entity to configurable (current_value is list)
         if current_data is not None:
             current_value = current_data.get(field_name)
-            # If current value is a scalar constant, we can reuse it
+            # If current value is a scalar, we can reuse it
             if isinstance(current_value, (float, int, bool)):
                 continue
-            # If current value is a list (entity IDs), user is switching TO constant - need input
+            # If current value is a list (entity IDs), user is switching TO configurable - need input
             if isinstance(current_value, list):
                 pass  # Include in schema
             # If field has a default and no prior value, use the default
             elif field_info.default is not None:
                 continue
 
-        marker, selector = build_constant_value_schema_entry(field_info)
+        marker, selector = build_configurable_value_schema_entry(field_info)
         schema_dict[marker] = selector
 
     return vol.Schema(schema_dict)
@@ -287,7 +287,7 @@ def get_entity_selection_defaults(
 
     Returns:
         Dict mapping field names to default entity selections.
-        Required fields and optional fields with defaults: default to constant entity.
+        Required fields and optional fields with defaults: default to configurable entity.
         Optional fields without defaults: default to empty list (nothing selected).
         For reconfigure, infers from stored values.
 
@@ -305,7 +305,7 @@ def get_entity_selection_defaults(
                 # Entity links
                 defaults[field_name] = value
             elif isinstance(value, (float, int, bool)):
-                # Constant value - use constant entity
+                # Configurable value - use configurable entity
                 defaults[field_name] = [configurable_entity_id]
             else:
                 # Missing or invalid - use appropriate default based on field type
@@ -321,18 +321,18 @@ def get_entity_selection_defaults(
                 # Optional field with no default: nothing selected
                 defaults[field_name] = []
             else:
-                # Required field or optional with default: use constant entity
+                # Required field or optional with default: use configurable entity
                 defaults[field_name] = [configurable_entity_id]
 
     return defaults
 
 
-def get_constant_value_defaults(
+def get_configurable_value_defaults(
     input_fields: tuple[InputFieldInfo[Any], ...],
     entity_selections: dict[str, list[str]],
     current_data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Get default constant values for step 2.
+    """Get default configurable values for step 2.
 
     Args:
         input_fields: Tuple of input field metadata.
@@ -340,7 +340,7 @@ def get_constant_value_defaults(
         current_data: Current configuration data (for reconfigure).
 
     Returns:
-        Dict mapping field names to default constant values.
+        Dict mapping field names to default configurable values.
         Only includes fields where HAEO Configurable is selected.
 
     """
@@ -350,13 +350,13 @@ def get_constant_value_defaults(
         field_name = field_info.field_name
         selected_entities = entity_selections.get(field_name, [])
 
-        # Only provide defaults for fields with constant entity
-        if not any(is_constant_entity(entity_id) for entity_id in selected_entities):
+        # Only provide defaults for fields with configurable entity
+        if not any(is_configurable_entity(entity_id) for entity_id in selected_entities):
             continue
 
         if current_data is not None and field_name in current_data:
             current_value = current_data[field_name]
-            # If current value is a constant (float/int/bool), use it
+            # If current value is a scalar (float/int/bool), use it
             if isinstance(current_value, (float, int, bool)):
                 defaults[field_name] = current_value
             elif field_info.default is not None:
@@ -367,17 +367,17 @@ def get_constant_value_defaults(
     return defaults
 
 
-def has_constant_selection(entity_selection: list[str]) -> bool:
-    """Check if any constant sentinel entity is in the entity selection.
+def has_configurable_selection(entity_selection: list[str]) -> bool:
+    """Check if the HAEO Configurable entity is in the entity selection.
 
     Args:
         entity_selection: List of selected entity IDs.
 
     Returns:
-        True if any constant entity is in the selection.
+        True if the configurable entity is in the selection.
 
     """
-    return any(is_constant_entity(entity_id) for entity_id in entity_selection)
+    return any(is_configurable_entity(entity_id) for entity_id in entity_selection)
 
 
 def extract_entity_selections(
@@ -416,20 +416,20 @@ def extract_non_entity_fields(
 
 def convert_entity_selections_to_config(
     entity_selections: dict[str, list[str]],
-    constant_values: dict[str, Any],
+    configurable_values: dict[str, Any],
     input_fields: tuple[InputFieldInfo[Any], ...] | None = None,
 ) -> dict[str, Any]:
-    """Convert entity selections and constant values to final config format.
+    """Convert entity selections and configurable values to final config format.
 
     Args:
         entity_selections: Entity selections from step 1.
-        constant_values: Constant values from step 2.
+        configurable_values: Configurable values from step 2.
         input_fields: Optional tuple of input field metadata. If provided, applies
             defaults for optional fields with no selection.
 
     Returns:
         Config dict with:
-        - Fields with constant entity: converted to float (from constant_values)
+        - Fields with configurable entity: converted to float (from configurable_values)
         - Fields with real entities: kept as list[str]
         - Fields with empty selection but default: set to default value
         - Fields with empty selection and no default: omitted
@@ -452,11 +452,11 @@ def convert_entity_selections_to_config(
             # Otherwise omit from config (truly optional with no default)
             continue
 
-        if any(is_constant_entity(entity_id) for entity_id in entities):
-            # Constant value - get from constant_values
-            if field_name in constant_values:
-                config[field_name] = constant_values[field_name]
-            # If constant entity is selected but no value provided, skip (validation should catch this)
+        if any(is_configurable_entity(entity_id) for entity_id in entities):
+            # Configurable value - get from configurable_values
+            if field_name in configurable_values:
+                config[field_name] = configurable_values[field_name]
+            # If configurable entity is selected but no value provided, skip (validation should catch this)
         else:
             # Real entities - keep as list
             config[field_name] = entities
@@ -466,17 +466,17 @@ def convert_entity_selections_to_config(
 
 __all__ = [
     "boolean_selector_from_field",
-    "build_constant_value_schema",
-    "build_constant_value_schema_entry",
+    "build_configurable_value_schema",
+    "build_configurable_value_schema_entry",
     "build_entity_schema_entry",
-    "build_entity_selector_with_constant",
+    "build_entity_selector_with_configurable",
     "convert_entity_selections_to_config",
     "extract_entity_selections",
     "extract_non_entity_fields",
     "get_configurable_entity_id",
-    "get_constant_value_defaults",
+    "get_configurable_value_defaults",
     "get_entity_selection_defaults",
-    "has_constant_selection",
-    "is_constant_entity",
+    "has_configurable_selection",
+    "is_configurable_entity",
     "number_selector_from_field",
 ]

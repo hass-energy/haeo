@@ -12,11 +12,11 @@ from custom_components.haeo.data.loader.extractors import extract_entity_metadat
 from custom_components.haeo.flows.constants import ensure_configurable_entities_exist
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
-    build_constant_value_schema,
-    build_entity_selector_with_constant,
+    build_configurable_value_schema,
+    build_entity_selector_with_configurable,
     convert_entity_selections_to_config,
     extract_entity_selections,
-    get_constant_value_defaults,
+    get_configurable_value_defaults,
     get_entity_selection_defaults,
 )
 
@@ -57,27 +57,27 @@ def _build_step1_schema(
             ),
             vol.Required(CONF_SOURCE): build_participant_selector(participants, current_source),
             vol.Required(CONF_TARGET): build_participant_selector(participants, current_target),
-            vol.Optional(CONF_MAX_POWER_SOURCE_TARGET): build_entity_selector_with_constant(
+            vol.Optional(CONF_MAX_POWER_SOURCE_TARGET): build_entity_selector_with_configurable(
                 _get_field(CONF_MAX_POWER_SOURCE_TARGET),
                 exclude_entities=exclusion_map.get(CONF_MAX_POWER_SOURCE_TARGET, []),
             ),
-            vol.Optional(CONF_MAX_POWER_TARGET_SOURCE): build_entity_selector_with_constant(
+            vol.Optional(CONF_MAX_POWER_TARGET_SOURCE): build_entity_selector_with_configurable(
                 _get_field(CONF_MAX_POWER_TARGET_SOURCE),
                 exclude_entities=exclusion_map.get(CONF_MAX_POWER_TARGET_SOURCE, []),
             ),
-            vol.Optional(CONF_EFFICIENCY_SOURCE_TARGET): build_entity_selector_with_constant(
+            vol.Optional(CONF_EFFICIENCY_SOURCE_TARGET): build_entity_selector_with_configurable(
                 _get_field(CONF_EFFICIENCY_SOURCE_TARGET),
                 exclude_entities=exclusion_map.get(CONF_EFFICIENCY_SOURCE_TARGET, []),
             ),
-            vol.Optional(CONF_EFFICIENCY_TARGET_SOURCE): build_entity_selector_with_constant(
+            vol.Optional(CONF_EFFICIENCY_TARGET_SOURCE): build_entity_selector_with_configurable(
                 _get_field(CONF_EFFICIENCY_TARGET_SOURCE),
                 exclude_entities=exclusion_map.get(CONF_EFFICIENCY_TARGET_SOURCE, []),
             ),
-            vol.Optional(CONF_PRICE_SOURCE_TARGET): build_entity_selector_with_constant(
+            vol.Optional(CONF_PRICE_SOURCE_TARGET): build_entity_selector_with_configurable(
                 _get_field(CONF_PRICE_SOURCE_TARGET),
                 exclude_entities=exclusion_map.get(CONF_PRICE_SOURCE_TARGET, []),
             ),
-            vol.Optional(CONF_PRICE_TARGET_SOURCE): build_entity_selector_with_constant(
+            vol.Optional(CONF_PRICE_TARGET_SOURCE): build_entity_selector_with_configurable(
                 _get_field(CONF_PRICE_TARGET_SOURCE),
                 exclude_entities=exclusion_map.get(CONF_PRICE_TARGET_SOURCE, []),
             ),
@@ -115,7 +115,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 self._step1_data = user_input
                 return await self.async_step_values()
 
-        # Ensure constant entity exists before building schema
+        # Ensure configurable entity exists before building schema
         ensure_configurable_entities_exist()
 
         # Get default name from translations
@@ -143,7 +143,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 2: constant value entry for fields with the configurable entity."""
+        """Handle step 2: configurable value entry for fields with HAEO Configurable."""
         errors: dict[str, str] = {}
         exclude_keys = (CONF_NAME, CONF_SOURCE, CONF_TARGET)
 
@@ -166,7 +166,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 return self.async_create_entry(title=name, data=cast("ConnectionConfigSchema", final_config))
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+        schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections)
 
         if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
@@ -182,7 +182,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             }
             return self.async_create_entry(title=name, data=cast("ConnectionConfigSchema", config))
 
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections)
+        defaults = get_configurable_value_defaults(INPUT_FIELDS, entity_selections)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -240,7 +240,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_reconfigure_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle reconfigure step 2: constant value entry."""
+        """Handle reconfigure step 2: configurable value entry."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
         exclude_keys = (CONF_NAME, CONF_SOURCE, CONF_TARGET)
@@ -269,15 +269,15 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         current_data = dict(subentry.data)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections, current_data)
+        schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections, current_data)
 
-        # Skip step 2 if no constant fields need input
+        # Skip step 2 if no configurable fields need input
         if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
             source = self._step1_data.get(CONF_SOURCE)
             target = self._step1_data.get(CONF_TARGET)
-            constant_values = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
-            config_dict = convert_entity_selections_to_config(entity_selections, constant_values, INPUT_FIELDS)
+            configurable_values = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+            config_dict = convert_entity_selections_to_config(entity_selections, configurable_values, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
@@ -292,7 +292,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 data=cast("ConnectionConfigSchema", config),
             )
 
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+        defaults = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

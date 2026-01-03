@@ -12,13 +12,13 @@ from custom_components.haeo.data.loader.extractors import extract_entity_metadat
 from custom_components.haeo.flows.constants import ensure_configurable_entities_exist
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
-    build_constant_value_schema,
+    build_configurable_value_schema,
     build_entity_schema_entry,
     convert_entity_selections_to_config,
     extract_entity_selections,
-    get_constant_value_defaults,
+    get_configurable_value_defaults,
     get_entity_selection_defaults,
-    has_constant_selection,
+    has_configurable_selection,
 )
 
 from .schema import CONF_CONNECTION, CONF_EARLY_CHARGE_INCENTIVE, ELEMENT_TYPE, INPUT_FIELDS, BatteryConfigSchema
@@ -89,7 +89,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     self._step1_data = user_input
                     return await self.async_step_values()
 
-        # Ensure constant entities exist before building schema
+        # Ensure configurable entity exists before building schema
         ensure_configurable_entities_exist()
 
         # Get default name from translations
@@ -117,7 +117,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 2: constant value entry for fields with HAEO Configurable."""
+        """Handle step 2: configurable value entry for fields with HAEO Configurable."""
         errors: dict[str, str] = {}
         exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
@@ -127,13 +127,13 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
-            # Validate that constant values were provided where needed
+            # Validate that configurable values were provided where needed
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                is_constant = has_constant_selection(entity_selections.get(field_name, []))
+                is_configurable = has_configurable_selection(entity_selections.get(field_name, []))
                 is_missing = field_name not in user_input
                 is_required = field_name not in BatteryConfigSchema.__optional_keys__ or field_info.default is None
-                if is_constant and is_missing and is_required:
+                if is_configurable and is_missing and is_required:
                     errors[field_name] = "required"
 
             if not errors:
@@ -146,12 +146,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
                 return self.async_create_entry(title=str(name), data=cast("BatteryConfigSchema", config))
 
-        # Build schema for constant values only
+        # Build schema for configurable values only
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+        schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections)
 
-        # Apply default constant values
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections)
+        # Apply default configurable values
+        defaults = get_configurable_value_defaults(INPUT_FIELDS, entity_selections)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -186,7 +186,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     self._step1_data = user_input
                     return await self.async_step_reconfigure_values()
 
-        # Ensure constant entities exist before building schema
+        # Ensure configurable entity exists before building schema
         ensure_configurable_entities_exist()
 
         current_connection = subentry.data.get(CONF_CONNECTION)
@@ -216,7 +216,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_reconfigure_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 2 of reconfiguration: constant value entry."""
+        """Handle step 2 of reconfiguration: configurable value entry."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
         exclude_keys = (CONF_NAME, CONF_CONNECTION)
@@ -227,13 +227,13 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
-            # Validate constant values
+            # Validate configurable values
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                is_constant = has_constant_selection(entity_selections.get(field_name, []))
+                is_configurable = has_configurable_selection(entity_selections.get(field_name, []))
                 is_missing = field_name not in user_input
                 is_required = field_name not in BatteryConfigSchema.__optional_keys__ or field_info.default is None
-                if is_constant and is_missing and is_required:
+                if is_configurable and is_missing and is_required:
                     errors[field_name] = "required"
 
             if not errors:
@@ -252,14 +252,14 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         current_data = dict(subentry.data)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections, current_data)
+        schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections, current_data)
 
-        # Skip step 2 if no constant fields need input
+        # Skip step 2 if no configurable fields need input
         if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-            constant_values = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
-            config_dict = convert_entity_selections_to_config(entity_selections, constant_values, INPUT_FIELDS)
+            configurable_values = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+            config_dict = convert_entity_selections_to_config(entity_selections, configurable_values, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
@@ -274,7 +274,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             )
 
         # Get current values for pre-population
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+        defaults = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

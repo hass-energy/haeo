@@ -12,14 +12,14 @@ from custom_components.haeo.data.loader.extractors import extract_entity_metadat
 from custom_components.haeo.flows.constants import ensure_configurable_entities_exist
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
-    build_constant_value_schema,
-    build_entity_selector_with_constant,
+    build_configurable_value_schema,
+    build_entity_selector_with_configurable,
     convert_entity_selections_to_config,
     extract_entity_selections,
     extract_non_entity_fields,
-    get_constant_value_defaults,
+    get_configurable_value_defaults,
     get_entity_selection_defaults,
-    has_constant_selection,
+    has_configurable_selection,
 )
 
 from .schema import (
@@ -55,13 +55,13 @@ def _build_step1_schema(
             ),
             vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
             vol.Required(CONF_FORECAST): vol.All(
-                build_entity_selector_with_constant(
+                build_entity_selector_with_configurable(
                     _get_field(CONF_FORECAST),
                     exclude_entities=exclusion_map.get(CONF_FORECAST, []),
                 ),
                 vol.Length(min=1, msg="At least one entity is required"),
             ),
-            vol.Optional(CONF_PRICE_PRODUCTION, default=[]): build_entity_selector_with_constant(
+            vol.Optional(CONF_PRICE_PRODUCTION, default=[]): build_entity_selector_with_configurable(
                 _get_field(CONF_PRICE_PRODUCTION),
                 exclude_entities=exclusion_map.get(CONF_PRICE_PRODUCTION, []),
             ),
@@ -101,7 +101,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     self._step1_data = user_input
                     return await self.async_step_values()
 
-        # Ensure constant entity exists before building schema
+        # Ensure configurable entity exists before building schema
         ensure_configurable_entities_exist()
 
         # Get default name from translations
@@ -130,7 +130,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 2: constant value entry for fields with the configurable entity."""
+        """Handle step 2: configurable value entry for fields with HAEO Configurable."""
         errors: dict[str, str] = {}
         exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
@@ -141,10 +141,10 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             non_entity_fields = extract_non_entity_fields(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
-            # Validate constant values were provided
+            # Validate configurable values were provided
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                if has_constant_selection(entity_selections.get(field_name, [])) and field_name not in user_input:
+                if has_configurable_selection(entity_selections.get(field_name, [])) and field_name not in user_input:
                     errors[field_name] = "required"
 
             if not errors:
@@ -158,9 +158,9 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 return self.async_create_entry(title=name, data=cast("SolarConfigSchema", final_config))
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+        schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections)
 
-        # If no constant fields, skip to creation
+        # If no configurable fields, skip to creation
         if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
@@ -176,7 +176,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             return self.async_create_entry(title=name, data=cast("SolarConfigSchema", config))
 
         # Apply defaults
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections)
+        defaults = get_configurable_value_defaults(INPUT_FIELDS, entity_selections)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -204,7 +204,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     self._step1_data = user_input
                     return await self.async_step_reconfigure_values()
 
-        # Ensure constant entity exists before building schema
+        # Ensure configurable entity exists before building schema
         ensure_configurable_entities_exist()
 
         entity_metadata = extract_entity_metadata(self.hass)
@@ -235,7 +235,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_reconfigure_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle reconfigure step 2: constant value entry."""
+        """Handle reconfigure step 2: configurable value entry."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
         exclude_keys = (CONF_NAME, CONF_CONNECTION)
@@ -249,7 +249,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                if has_constant_selection(entity_selections.get(field_name, [])) and field_name not in user_input:
+                if has_configurable_selection(entity_selections.get(field_name, [])) and field_name not in user_input:
                     errors[field_name] = "required"
 
             if not errors:
@@ -269,15 +269,15 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         current_data = dict(subentry.data)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections, current_data)
+        schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections, current_data)
 
-        # Skip step 2 if no constant fields need input
+        # Skip step 2 if no configurable fields need input
         if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
             non_entity_fields = extract_non_entity_fields(self._step1_data, exclude_keys)
-            constant_values = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
-            config_dict = convert_entity_selections_to_config(entity_selections, constant_values, INPUT_FIELDS)
+            configurable_values = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+            config_dict = convert_entity_selections_to_config(entity_selections, configurable_values, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
@@ -293,7 +293,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             )
 
         # Get defaults from current data
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+        defaults = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

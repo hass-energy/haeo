@@ -145,7 +145,7 @@ Each flow defines element-specific schema fields, defaults, and validation logic
 
 ## Entity-First Config Flow Pattern
 
-Element types use an entity-first configuration flow where users select entities or constant values directly.
+Element types use an entity-first configuration flow where users select entities or configurable values directly.
 This pattern provides a cleaner user experience with fewer steps for common configurations.
 
 ### Flow Steps
@@ -154,18 +154,18 @@ This pattern provides a cleaner user experience with fewer steps for common conf
 The entity selector includes a special `haeo.configurable_entity` option for fields where the user wants to enter a fixed value.
 
 **Step 2 (values)**: Only shown if `haeo.configurable_entity` was selected for any field.
-User enters the actual constant values for those fields.
+User enters the actual configurable values for those fields.
 
 ### Configurable Sentinel Entity
 
 HAEO creates a special `haeo.configurable_entity` entity that appears in all entity selector dropdowns.
-When selected, it indicates the user wants to enter a constant value rather than link to a Home Assistant sensor.
+When selected, it indicates the user wants to enter a configurable value rather than link to a Home Assistant sensor.
 
 The configurable entity:
 
 - Is registered in the entity registry with domain `haeo` and device class `haeo`
 - Appears in EntitySelector dropdowns via domain filtering
-- Triggers step 2 to collect the actual constant value when selected
+- Triggers step 2 to collect the actual configurable value when selected
 
 ### Input Options
 
@@ -184,15 +184,15 @@ Required fields must have at least one entity selected.
 
 The entity-first flow utilities are in `custom_components/haeo/flows/field_schema.py`:
 
-- `build_entity_selector_with_constant()`: Creates an EntitySelector that includes the constant entity
+- `build_entity_selector_with_configurable()`: Creates an EntitySelector that includes the configurable entity
 - `build_entity_schema_entry()`: Creates the entity selection for step 1
-- `build_constant_value_schema()`: Creates the constant value form for step 2 (returns empty schema if all values can be reused)
+- `build_configurable_value_schema()`: Creates the configurable value form for step 2 (returns empty schema if all values can be reused)
 - `get_entity_selection_defaults()`: Provides default entity selections based on field types
-- `get_constant_value_defaults()`: Extracts current constant values for reconfigure flows
-- `has_constant_selection()`: Checks if any field has the constant entity selected
+- `get_configurable_value_defaults()`: Extracts current configurable values for reconfigure flows
+- `has_configurable_selection()`: Checks if any field has the configurable entity selected
 
 Flow handlers store step 1 data and check if step 2 is needed.
-If `build_constant_value_schema()` returns an empty schema, step 2 is skipped entirely.
+If `build_configurable_value_schema()` returns an empty schema, step 2 is skipped entirely.
 
 ### Entity Creation
 
