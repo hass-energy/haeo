@@ -9,7 +9,7 @@ from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import battery_section as battery_section_element
 from custom_components.haeo.elements.battery_section import BatterySectionConfigData
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model import battery as battery_model
+from custom_components.haeo.model import energy_storage as energy_storage_model
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
 
@@ -42,7 +42,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         ),
         "model": [
             {
-                "element_type": "battery",
+                "element_type": "energy_storage",
                 "name": "test_section",
                 "capacity": [10.0],
                 "initial_charge": 5.0,
@@ -58,14 +58,14 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "test_section",
         "model_outputs": {
             "test_section": {
-                battery_model.BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
-                battery_model.BATTERY_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(5.0, 5.5)),
-                battery_model.BATTERY_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.003,)),
-                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.004,)),
-                battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.005,)),
-                battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.006,)),
+                energy_storage_model.ENERGY_STORAGE_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
+                energy_storage_model.ENERGY_STORAGE_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(5.0, 5.5)),
+                energy_storage_model.ENERGY_STORAGE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.003,)),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.004,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.005,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.006,)),
             },
         },
         "outputs": {
@@ -87,9 +87,9 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "test_section_minimal",
         "model_outputs": {
             "test_section_minimal": {
-                battery_model.BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="-"),
-                battery_model.BATTERY_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="+"),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(5.0, 4.0)),
+                energy_storage_model.ENERGY_STORAGE_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="-"),
+                energy_storage_model.ENERGY_STORAGE_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="+"),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(5.0, 4.0)),
             },
         },
         "outputs": {

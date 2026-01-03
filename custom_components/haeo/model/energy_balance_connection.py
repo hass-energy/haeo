@@ -1,4 +1,4 @@
-"""Battery balance connection for energy redistribution between battery sections."""
+"""Energy balance connection for energy redistribution between energy storage partitions."""
 
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Final, Literal
@@ -12,30 +12,30 @@ from .const import OutputType
 from .output_data import OutputData
 from .util import broadcast_to_sequence
 
-# Model element type for battery balance connections
-ELEMENT_TYPE: Final = "battery_balance_connection"
+# Model element type for energy balance connections
+ELEMENT_TYPE: Final = "energy_balance_connection"
 
 if TYPE_CHECKING:
-    from .battery import Battery
+    from .energy_storage import EnergyStorage
 
-type BatteryBalanceConnectionConstraintName = Literal[
+type EnergyBalanceConnectionConstraintName = Literal[
     "balance_down_lower_bound",
     "balance_down_slack_bound",
     "balance_up_upper_bound",
     "balance_up_slack_bound",
 ]
 
-type BatteryBalanceConnectionOutputName = (
+type EnergyBalanceConnectionOutputName = (
     Literal[
         "balance_power_down",
         "balance_power_up",
         "balance_unmet_demand",
         "balance_absorbed_excess",
     ]
-    | BatteryBalanceConnectionConstraintName
+    | EnergyBalanceConnectionConstraintName
 )
 
-BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES: Final[frozenset[BatteryBalanceConnectionOutputName]] = frozenset(
+ENERGY_BALANCE_CONNECTION_OUTPUT_NAMES: Final[frozenset[EnergyBalanceConnectionOutputName]] = frozenset(
     (
         BALANCE_POWER_DOWN := "balance_power_down",
         BALANCE_POWER_UP := "balance_power_up",
@@ -49,18 +49,18 @@ BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES: Final[frozenset[BatteryBalanceConnectio
 )
 
 
-class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName, BatteryBalanceConnectionConstraintName]):
-    """Lossless energy redistribution between adjacent battery sections.
+class EnergyBalanceConnection(Connection[EnergyBalanceConnectionOutputName, EnergyBalanceConnectionConstraintName]):
+    """Lossless energy redistribution between adjacent energy storage partitions.
 
     Enforces ordering (lower fills before upper) and handles capacity changes
-    through bidirectional power flow. Battery SOC constraints fully bind the
+    through bidirectional power flow. Partition SOC constraints fully bind the
     flow values—this element sets up the feasibility region.
 
     Downward (upper → lower): P_down = min(demand, E_upper)
     Upward (lower → upper): P_up = max(0, excess)
 
     Where:
-        demand = C_lower - E_lower (room in lower section)
+        demand = C_lower - E_lower (room in lower partition)
         excess = E_lower - C_new (energy above new capacity)
     """
 
@@ -79,16 +79,16 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName, Ba
         capacity_lower: Sequence[float] | float,
         slack_penalty: float | None = None,
     ) -> None:
-        """Initialize a battery balance connection.
+        """Initialize an energy balance connection.
 
         Args:
             name: Name of the balance connection
             periods: Period durations in hours
             solver: HiGHS solver instance
-            upper: Name of upper battery section (receives upward transfer)
-            lower: Name of lower battery section (receives downward transfer)
-            capacity_lower: Lower section capacity in kWh (T+1 fence-posted values)
-            slack_penalty: Penalty in $/kWh for slack variables (default: 1.0).
+            upper: Name of upper energy storage partition (receives upward transfer)
+            lower: Name of lower energy storage partition (receives downward transfer)
+            capacity_lower: Lower partition capacity in kWh (T+1 fence-posted values)
+            slack_penalty: Penalty in $/kWh for slack variables (default: 100.0).
                 Must be larger than typical energy prices to ensure min/max
                 constraints are enforced correctly.
 
@@ -105,15 +105,15 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName, Ba
         self.unmet_demand = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_unmet_demand_", out_array=True)
         self.absorbed_excess = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_absorbed_excess_", out_array=True)
 
-        self._upper_battery: Battery | None = None
-        self._lower_battery: Battery | None = None
+        self._upper_partition: EnergyStorage | None = None
+        self._lower_partition: EnergyStorage | None = None
 
-    def set_battery_references(self, upper_battery: "Battery", lower_battery: "Battery") -> None:
-        """Set references to connected battery sections. Called by Network.add()."""
-        self._upper_battery = upper_battery
-        self._lower_battery = lower_battery
-        upper_battery.register_connection(self, "source")
-        lower_battery.register_connection(self, "target")
+    def set_partition_references(self, upper_partition: "EnergyStorage", lower_partition: "EnergyStorage") -> None:
+        """Set references to connected energy storage partitions. Called by Network.add()."""
+        self._upper_partition = upper_partition
+        self._lower_partition = lower_partition
+        upper_partition.register_connection(self, "source")
+        lower_partition.register_connection(self, "target")
 
     @property
     def power_into_source(self) -> HighspyArray:
@@ -134,7 +134,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName, Ba
         return self._power_down - self._power_up
 
     def build_constraints(self) -> None:
-        """Build constraints for the battery balance connection.
+        """Build constraints for the energy balance connection.
 
         Downward flow implements energy_down >= min(demand, available):
             energy_down >= demand - unmet_demand
@@ -166,12 +166,12 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName, Ba
         """
         h = self._solver
 
-        if self._lower_battery is None or self._upper_battery is None:
-            msg = f"Battery references not set for {self.name}"
+        if self._lower_partition is None or self._upper_partition is None:
+            msg = f"Partition references not set for {self.name}"
             raise ValueError(msg)
 
-        lower_stored = self._lower_battery.stored_energy
-        upper_stored = self._upper_battery.stored_energy
+        lower_stored = self._lower_partition.stored_energy
+        upper_stored = self._upper_partition.stored_energy
         capacity_lower = np.array(self.capacity_lower)
         periods = self.periods
 
@@ -180,9 +180,9 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName, Ba
         unmet_demand_energy = self.unmet_demand * periods
         absorbed_excess_energy = self.absorbed_excess * periods
 
-        # demand = room in lower section = capacity - current energy
+        # demand = room in lower partition = capacity - current energy
         demand = capacity_lower[:-1] - lower_stored[:-1]
-        # available = energy in upper section
+        # available = energy in upper partition
         available = upper_stored[:-1]
         # excess = current energy - next capacity (positive when capacity shrinks)
         excess = lower_stored[:-1] - capacity_lower[1:]
@@ -217,9 +217,9 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName, Ba
 
         return [*list(unmet_cost), *list(absorbed_cost)]
 
-    def outputs(self) -> Mapping[BatteryBalanceConnectionOutputName, OutputData]:
+    def outputs(self) -> Mapping[EnergyBalanceConnectionOutputName, OutputData]:
         """Return output specifications for the balance connection."""
-        outputs: dict[BatteryBalanceConnectionOutputName, OutputData] = {
+        outputs: dict[EnergyBalanceConnectionOutputName, OutputData] = {
             BALANCE_POWER_DOWN: OutputData(
                 type=OutputType.POWER_FLOW,
                 unit="kW",

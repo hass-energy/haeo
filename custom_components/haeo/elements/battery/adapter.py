@@ -10,8 +10,8 @@ import numpy as np
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model import battery as model_battery
-from custom_components.haeo.model import battery_balance_connection as model_balance
+from custom_components.haeo.model import energy_balance_connection as model_balance
+from custom_components.haeo.model import energy_storage as model_storage
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
@@ -266,7 +266,7 @@ class BatteryAdapter:
 
             elements.append(
                 {
-                    "element_type": "battery",
+                    "element_type": "energy_storage",
                     "name": section_name,
                     "capacity": undercharge_capacity.tolist(),
                     "initial_charge": section_initial_charge,
@@ -286,7 +286,7 @@ class BatteryAdapter:
 
         elements.append(
             {
-                "element_type": "battery",
+                "element_type": "energy_storage",
                 "name": section_name,
                 "capacity": normal_capacity.tolist(),
                 "initial_charge": section_initial_charge,
@@ -307,7 +307,7 @@ class BatteryAdapter:
 
             elements.append(
                 {
-                    "element_type": "battery",
+                    "element_type": "energy_storage",
                     "name": section_name,
                     "capacity": overcharge_capacity.tolist(),
                     "initial_charge": section_initial_charge,
@@ -375,7 +375,7 @@ class BatteryAdapter:
 
             elements.append(
                 {
-                    "element_type": "battery_balance_connection",
+                    "element_type": "energy_balance_connection",
                     "name": f"{name}:balance:{lower_section.split(':')[-1]}:{upper_section.split(':')[-1]}",
                     "upper": upper_section,
                     "lower": lower_section,
@@ -452,11 +452,15 @@ class BatteryAdapter:
 
         # Calculate aggregate outputs
         # Sum power charge/discharge across all sections
-        all_power_charge = [section[model_battery.BATTERY_POWER_CHARGE] for section in section_outputs.values()]
-        all_power_discharge = [section[model_battery.BATTERY_POWER_DISCHARGE] for section in section_outputs.values()]
+        all_power_charge = [section[model_storage.ENERGY_STORAGE_POWER_CHARGE] for section in section_outputs.values()]
+        all_power_discharge = [
+            section[model_storage.ENERGY_STORAGE_POWER_DISCHARGE] for section in section_outputs.values()
+        ]
 
         # Sum energy stored across all sections
-        all_energy_stored = [section[model_battery.BATTERY_ENERGY_STORED] for section in section_outputs.values()]
+        all_energy_stored = [
+            section[model_storage.ENERGY_STORAGE_ENERGY_STORED] for section in section_outputs.values()
+        ]
 
         # Aggregate power values
         aggregate_power_charge = sum_output_data(all_power_charge)
@@ -505,13 +509,19 @@ class BatteryAdapter:
             section_data = section_outputs[section_key]
 
             section_device_outputs: dict[BatteryOutputName, OutputData] = {
-                BATTERY_ENERGY_STORED: replace(section_data[model_battery.BATTERY_ENERGY_STORED], advanced=True),
-                BATTERY_POWER_CHARGE: replace(section_data[model_battery.BATTERY_POWER_CHARGE], advanced=True),
-                BATTERY_POWER_DISCHARGE: replace(section_data[model_battery.BATTERY_POWER_DISCHARGE], advanced=True),
-                BATTERY_ENERGY_IN_FLOW: replace(section_data[model_battery.BATTERY_ENERGY_IN_FLOW], advanced=True),
-                BATTERY_ENERGY_OUT_FLOW: replace(section_data[model_battery.BATTERY_ENERGY_OUT_FLOW], advanced=True),
-                BATTERY_SOC_MAX: replace(section_data[model_battery.BATTERY_SOC_MAX], advanced=True),
-                BATTERY_SOC_MIN: replace(section_data[model_battery.BATTERY_SOC_MIN], advanced=True),
+                BATTERY_ENERGY_STORED: replace(section_data[model_storage.ENERGY_STORAGE_ENERGY_STORED], advanced=True),
+                BATTERY_POWER_CHARGE: replace(section_data[model_storage.ENERGY_STORAGE_POWER_CHARGE], advanced=True),
+                BATTERY_POWER_DISCHARGE: replace(
+                    section_data[model_storage.ENERGY_STORAGE_POWER_DISCHARGE], advanced=True
+                ),
+                BATTERY_ENERGY_IN_FLOW: replace(
+                    section_data[model_storage.ENERGY_STORAGE_ENERGY_IN_FLOW], advanced=True
+                ),
+                BATTERY_ENERGY_OUT_FLOW: replace(
+                    section_data[model_storage.ENERGY_STORAGE_ENERGY_OUT_FLOW], advanced=True
+                ),
+                BATTERY_SOC_MAX: replace(section_data[model_storage.ENERGY_STORAGE_SOC_MAX], advanced=True),
+                BATTERY_SOC_MIN: replace(section_data[model_storage.ENERGY_STORAGE_SOC_MIN], advanced=True),
             }
 
             # Map to device name

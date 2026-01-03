@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model import battery as model_battery
+from custom_components.haeo.model import energy_storage as model_storage
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
 
@@ -96,11 +96,11 @@ class BatterySectionAdapter:
     def create_model_elements(self, config: BatterySectionConfigData) -> list[dict[str, Any]]:
         """Create model elements for BatterySection configuration.
 
-        Direct pass-through to the model battery element.
+        Direct pass-through to the model energy storage element.
         """
         return [
             {
-                "element_type": "battery",
+                "element_type": "energy_storage",
                 "name": config["name"],
                 "capacity": config["capacity"],
                 "initial_charge": config["initial_charge"][0],
@@ -120,36 +120,38 @@ class BatterySectionAdapter:
 
         # Power outputs
         section_outputs[BATTERY_SECTION_POWER_CHARGE] = replace(
-            battery_data[model_battery.BATTERY_POWER_CHARGE], type=OutputType.POWER
+            battery_data[model_storage.ENERGY_STORAGE_POWER_CHARGE], type=OutputType.POWER
         )
         section_outputs[BATTERY_SECTION_POWER_DISCHARGE] = replace(
-            battery_data[model_battery.BATTERY_POWER_DISCHARGE], type=OutputType.POWER
+            battery_data[model_storage.ENERGY_STORAGE_POWER_DISCHARGE], type=OutputType.POWER
         )
 
         # Active power (discharge - charge)
-        charge_values = battery_data[model_battery.BATTERY_POWER_CHARGE].values
-        discharge_values = battery_data[model_battery.BATTERY_POWER_DISCHARGE].values
+        charge_values = battery_data[model_storage.ENERGY_STORAGE_POWER_CHARGE].values
+        discharge_values = battery_data[model_storage.ENERGY_STORAGE_POWER_DISCHARGE].values
         section_outputs[BATTERY_SECTION_POWER_ACTIVE] = replace(
-            battery_data[model_battery.BATTERY_POWER_CHARGE],
+            battery_data[model_storage.ENERGY_STORAGE_POWER_CHARGE],
             values=[d - c for c, d in zip(charge_values, discharge_values, strict=True)],
             direction=None,
             type=OutputType.POWER,
         )
 
         # Energy stored
-        section_outputs[BATTERY_SECTION_ENERGY_STORED] = battery_data[model_battery.BATTERY_ENERGY_STORED]
+        section_outputs[BATTERY_SECTION_ENERGY_STORED] = battery_data[model_storage.ENERGY_STORAGE_ENERGY_STORED]
 
         # Shadow prices
-        if model_battery.BATTERY_POWER_BALANCE in battery_data:
-            section_outputs[BATTERY_SECTION_POWER_BALANCE] = battery_data[model_battery.BATTERY_POWER_BALANCE]
-        if model_battery.BATTERY_ENERGY_IN_FLOW in battery_data:
-            section_outputs[BATTERY_SECTION_ENERGY_IN_FLOW] = battery_data[model_battery.BATTERY_ENERGY_IN_FLOW]
-        if model_battery.BATTERY_ENERGY_OUT_FLOW in battery_data:
-            section_outputs[BATTERY_SECTION_ENERGY_OUT_FLOW] = battery_data[model_battery.BATTERY_ENERGY_OUT_FLOW]
-        if model_battery.BATTERY_SOC_MAX in battery_data:
-            section_outputs[BATTERY_SECTION_SOC_MAX] = battery_data[model_battery.BATTERY_SOC_MAX]
-        if model_battery.BATTERY_SOC_MIN in battery_data:
-            section_outputs[BATTERY_SECTION_SOC_MIN] = battery_data[model_battery.BATTERY_SOC_MIN]
+        if model_storage.ENERGY_STORAGE_POWER_BALANCE in battery_data:
+            section_outputs[BATTERY_SECTION_POWER_BALANCE] = battery_data[model_storage.ENERGY_STORAGE_POWER_BALANCE]
+        if model_storage.ENERGY_STORAGE_ENERGY_IN_FLOW in battery_data:
+            section_outputs[BATTERY_SECTION_ENERGY_IN_FLOW] = battery_data[model_storage.ENERGY_STORAGE_ENERGY_IN_FLOW]
+        if model_storage.ENERGY_STORAGE_ENERGY_OUT_FLOW in battery_data:
+            section_outputs[BATTERY_SECTION_ENERGY_OUT_FLOW] = battery_data[
+                model_storage.ENERGY_STORAGE_ENERGY_OUT_FLOW
+            ]
+        if model_storage.ENERGY_STORAGE_SOC_MAX in battery_data:
+            section_outputs[BATTERY_SECTION_SOC_MAX] = battery_data[model_storage.ENERGY_STORAGE_SOC_MAX]
+        if model_storage.ENERGY_STORAGE_SOC_MIN in battery_data:
+            section_outputs[BATTERY_SECTION_SOC_MIN] = battery_data[model_storage.ENERGY_STORAGE_SOC_MIN]
 
         return {BATTERY_SECTION_DEVICE: section_outputs}
 
