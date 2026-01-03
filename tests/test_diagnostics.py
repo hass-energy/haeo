@@ -45,6 +45,7 @@ from custom_components.haeo.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.elements.grid import CONF_IMPORT_PRICE, GRID_POWER_IMPORT
+from custom_components.haeo.elements.solar import CONF_CURTAILMENT, CONF_FORECAST
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.horizon import HorizonManager
@@ -436,8 +437,6 @@ async def test_diagnostics_captures_editable_input_switch_values(hass: HomeAssis
     entry.add_to_hass(hass)
 
     # Add a solar subentry with curtailment switch
-    from custom_components.haeo.elements.solar import CONF_CURTAILMENT, CONF_FORECAST
-
     solar_subentry = ConfigSubentry(
         data=MappingProxyType(
             {
