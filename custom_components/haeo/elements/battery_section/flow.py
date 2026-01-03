@@ -4,6 +4,7 @@ from typing import Any, ClassVar, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.const import UnitOfEnergy
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
@@ -40,7 +41,7 @@ def _get_field(field_name: str) -> Any:
     return next(f for f in INPUT_FIELDS if f.field_name == field_name)
 
 
-def _build_step1_schema(entity_metadata: list[EntityMetadata]) -> vol.Schema:
+def _build_step1_schema(hass: HomeAssistant, entity_metadata: list[EntityMetadata]) -> vol.Schema:
     """Build the schema for step 1: name and entity selection."""
     incompatible_energy = _filter_incompatible_entities(entity_metadata, ENERGY_UNITS)
 
@@ -53,10 +54,12 @@ def _build_step1_schema(entity_metadata: list[EntityMetadata]) -> vol.Schema:
                 TextSelector(TextSelectorConfig()),
             ),
             vol.Required(CONF_CAPACITY): build_entity_selector_with_constant(
+                hass,
                 _get_field(CONF_CAPACITY),
                 exclude_entities=incompatible_energy,
             ),
             vol.Required(CONF_INITIAL_CHARGE): build_entity_selector_with_constant(
+                hass,
                 _get_field(CONF_INITIAL_CHARGE),
                 exclude_entities=incompatible_energy,
             ),
@@ -109,10 +112,12 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
         )
 
         entity_metadata = extract_entity_metadata(self.hass)
-        schema = _build_step1_schema(entity_metadata)
+        schema = _build_step1_schema(self.hass, entity_metadata)
 
         # Apply defaults
-        defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, BatterySectionConfigSchema))
+        defaults: dict[str, Any] = dict(
+            get_entity_selection_defaults(self.hass, INPUT_FIELDS, BatterySectionConfigSchema)
+        )
         defaults[CONF_NAME] = default_name
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
@@ -123,7 +128,7 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
         )
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 2: constant value entry for fields with haeo.configurable_entity."""
+        """Handle step 2: constant value entry for fields with the configurable entity."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -136,12 +141,12 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
                 if isinstance(v, list):
                     entity_selections[k] = v
 
-            config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
+            config_dict = convert_entity_selections_to_config(self.hass, entity_selections, user_input, INPUT_FIELDS)
 
             # Validate constant values were provided for required fields
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                if has_constant_selection(entity_selections.get(field_name, [])) and field_name not in user_input:
+                if has_constant_selection(self.hass, entity_selections.get(field_name, [])) and field_name not in user_input:
                     errors[field_name] = "required"
 
             if not errors:
@@ -154,11 +159,11 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
 
         entity_selections = {k: v for k, v in self._step1_data.items() if k != CONF_NAME and isinstance(v, list)}
 
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+        schema = build_constant_value_schema(self.hass, INPUT_FIELDS, entity_selections)
 
         if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
-            config_dict = convert_entity_selections_to_config(entity_selections, {}, INPUT_FIELDS)
+            config_dict = convert_entity_selections_to_config(self.hass, entity_selections, {}, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
@@ -166,7 +171,7 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
             }
             return self.async_create_entry(title=name, data=cast("BatterySectionConfigSchema", config))
 
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections)
+        defaults = get_constant_value_defaults(self.hass, INPUT_FIELDS, entity_selections)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -201,10 +206,10 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
         ensure_configurable_entities_exist(self.hass)
 
         entity_metadata = extract_entity_metadata(self.hass)
-        schema = _build_step1_schema(entity_metadata)
+        schema = _build_step1_schema(self.hass, entity_metadata)
 
         current_data = dict(subentry.data)
-        entity_defaults = get_entity_selection_defaults(INPUT_FIELDS, BatterySectionConfigSchema, current_data)
+        entity_defaults = get_entity_selection_defaults(self.hass, INPUT_FIELDS, BatterySectionConfigSchema, current_data)
         defaults: dict[str, Any] = dict(entity_defaults)
         defaults[CONF_NAME] = subentry.data.get(CONF_NAME)
         schema = self.add_suggested_values_to_schema(schema, defaults)
@@ -230,11 +235,11 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
                 if isinstance(v, list):
                     entity_selections[k] = v
 
-            config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
+            config_dict = convert_entity_selections_to_config(self.hass, entity_selections, user_input, INPUT_FIELDS)
 
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                if has_constant_selection(entity_selections.get(field_name, [])) and field_name not in user_input:
+                if has_constant_selection(self.hass, entity_selections.get(field_name, [])) and field_name not in user_input:
                     errors[field_name] = "required"
 
             if not errors:
@@ -252,11 +257,11 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
 
         entity_selections = {k: v for k, v in self._step1_data.items() if k != CONF_NAME and isinstance(v, list)}
 
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+        schema = build_constant_value_schema(self.hass, INPUT_FIELDS, entity_selections)
 
         if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
-            config_dict = convert_entity_selections_to_config(entity_selections, {}, INPUT_FIELDS)
+            config_dict = convert_entity_selections_to_config(self.hass, entity_selections, {}, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
@@ -269,7 +274,7 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
                 data=cast("BatterySectionConfigSchema", config),
             )
 
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, dict(subentry.data))
+        defaults = get_constant_value_defaults(self.hass, INPUT_FIELDS, entity_selections, dict(subentry.data))
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

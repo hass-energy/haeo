@@ -3,6 +3,7 @@
 from typing import Any, ClassVar, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
@@ -26,6 +27,7 @@ from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, INPUT_FIELDS, 
 
 
 def _build_step1_schema(
+    hass: HomeAssistant,
     exclusion_map: dict[str, list[str]],
     participants: list[str],
     current_connection: str | None = None,
@@ -43,6 +45,7 @@ def _build_step1_schema(
             ),
             vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
             vol.Required(CONF_FORECAST): build_entity_selector_with_constant(
+                hass,
                 forecast_field,
                 exclude_entities=exclusion_map.get(CONF_FORECAST, []),
             ),
@@ -90,10 +93,10 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         entity_metadata = extract_entity_metadata(self.hass)
         exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
         participants = self._get_participant_names()
-        schema = _build_step1_schema(exclusion_map, participants)
+        schema = _build_step1_schema(self.hass, exclusion_map, participants)
 
         # Apply default entity selections
-        defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, LoadConfigSchema))
+        defaults: dict[str, Any] = dict(get_entity_selection_defaults(self.hass, INPUT_FIELDS, LoadConfigSchema))
         defaults[CONF_NAME] = default_name
         defaults[CONF_CONNECTION] = None
         defaults[CONF_FORECAST] = []
@@ -115,31 +118,32 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
             entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-            config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
+            config_dict = convert_entity_selections_to_config(self.hass, entity_selections, user_input, INPUT_FIELDS)
 
             # Validate constant values were provided
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                if has_constant_selection(entity_selections.get(field_name, [])) and field_name not in user_input:
+                selected = entity_selections.get(field_name, [])
+                if has_constant_selection(self.hass, selected) and field_name not in user_input:
                     errors[field_name] = "required"
 
             if not errors:
-                config: dict[str, Any] = {
+                final_config: dict[str, Any] = {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                     CONF_NAME: name,
                     CONF_CONNECTION: connection,
                     **config_dict,
                 }
-                return self.async_create_entry(title=name, data=cast("LoadConfigSchema", config))
+                return self.async_create_entry(title=name, data=cast("LoadConfigSchema", final_config))
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+        schema = build_constant_value_schema(self.hass, INPUT_FIELDS, entity_selections)
 
         # If no constant fields, skip to creation
         if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-            config_dict = convert_entity_selections_to_config(entity_selections, {}, INPUT_FIELDS)
+            config_dict = convert_entity_selections_to_config(self.hass, entity_selections, {}, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
@@ -149,7 +153,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             return self.async_create_entry(title=name, data=cast("LoadConfigSchema", config))
 
         # Apply defaults
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections)
+        defaults = get_constant_value_defaults(self.hass, INPUT_FIELDS, entity_selections)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -186,6 +190,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         current_connection = subentry.data.get(CONF_CONNECTION)
         participants = self._get_participant_names()
         schema = _build_step1_schema(
+            self.hass,
             exclusion_map,
             participants,
             current_connection=current_connection if isinstance(current_connection, str) else None,
@@ -193,7 +198,9 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         # Infer entity selections from current data
         current_data = dict(subentry.data)
-        defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, LoadConfigSchema, current_data))
+        defaults: dict[str, Any] = dict(
+            get_entity_selection_defaults(self.hass, INPUT_FIELDS, LoadConfigSchema, current_data)
+        )
         defaults[CONF_NAME] = subentry.data.get(CONF_NAME)
         defaults[CONF_CONNECTION] = current_connection
         schema = self.add_suggested_values_to_schema(schema, defaults)
@@ -215,15 +222,16 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
             entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-            config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
+            config_dict = convert_entity_selections_to_config(self.hass, entity_selections, user_input, INPUT_FIELDS)
 
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                if has_constant_selection(entity_selections.get(field_name, [])) and field_name not in user_input:
+                selected = entity_selections.get(field_name, [])
+                if has_constant_selection(self.hass, selected) and field_name not in user_input:
                     errors[field_name] = "required"
 
             if not errors:
-                config: dict[str, Any] = {
+                final_config: dict[str, Any] = {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                     CONF_NAME: name,
                     CONF_CONNECTION: connection,
@@ -233,19 +241,21 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     self._get_entry(),
                     subentry,
                     title=str(name),
-                    data=cast("LoadConfigSchema", config),
+                    data=cast("LoadConfigSchema", final_config),
                 )
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         current_data = dict(subentry.data)
 
         # Skip step 2 if no constant fields or all constant fields already have stored values
-        if can_reuse_constant_values(INPUT_FIELDS, entity_selections, current_data):
+        if can_reuse_constant_values(self.hass, INPUT_FIELDS, entity_selections, current_data):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-            constant_values = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
-            config_dict = convert_entity_selections_to_config(entity_selections, constant_values, INPUT_FIELDS)
-            config: dict[str, Any] = {
+            constant_values = get_constant_value_defaults(self.hass, INPUT_FIELDS, entity_selections, current_data)
+            config_dict = convert_entity_selections_to_config(
+                self.hass, entity_selections, constant_values, INPUT_FIELDS
+            )
+            skip_config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
                 CONF_CONNECTION: connection,
@@ -255,13 +265,13 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 self._get_entry(),
                 subentry,
                 title=str(name),
-                data=cast("LoadConfigSchema", config),
+                data=cast("LoadConfigSchema", skip_config),
             )
 
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections, current_data)
+        schema = build_constant_value_schema(self.hass, INPUT_FIELDS, entity_selections, current_data)
 
         # Get defaults from current data
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+        defaults = get_constant_value_defaults(self.hass, INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

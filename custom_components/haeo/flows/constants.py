@@ -3,7 +3,7 @@
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.haeo.const import DOMAIN, HAEO_CONFIGURABLE, HAEO_CONFIGURABLE_ENTITY_ID
+from custom_components.haeo.const import DOMAIN, HAEO_CONFIGURABLE_UNIQUE_ID
 
 
 def ensure_configurable_entities_exist(hass: HomeAssistant) -> None:
@@ -19,21 +19,23 @@ def ensure_configurable_entities_exist(hass: HomeAssistant) -> None:
     """
     registry = er.async_get(hass)
 
-    # Register in entity registry (needed for EntitySelector to show it)
-    existing_entry = registry.async_get(HAEO_CONFIGURABLE_ENTITY_ID)
-    if existing_entry is None:
-        registry.async_get_or_create(
+    # Look up by unique_id (stable) rather than entity_id (user can rename)
+    existing_entity_id = registry.async_get_entity_id(DOMAIN, DOMAIN, HAEO_CONFIGURABLE_UNIQUE_ID)
+    if existing_entity_id is None:
+        # Create the entity - suggested_object_id is just a hint, actual entity_id may differ
+        entry = registry.async_get_or_create(
             domain=DOMAIN,  # Use 'haeo' domain so entity_id is haeo.configurable_entity
             platform=DOMAIN,
-            unique_id=HAEO_CONFIGURABLE,
-            suggested_object_id=HAEO_CONFIGURABLE,
+            unique_id=HAEO_CONFIGURABLE_UNIQUE_ID,
+            suggested_object_id="configurable_entity",
             original_name="HAEO Configurable",
             original_icon="mdi:tune",
         )
+        existing_entity_id = entry.entity_id
 
-    # Also set the state (for any code that reads state values)
+    # Also set the state using the actual entity_id (for any code that reads state values)
     hass.states.async_set(
-        HAEO_CONFIGURABLE_ENTITY_ID,
+        existing_entity_id,
         "configurable",
         {
             "friendly_name": "HAEO Configurable",

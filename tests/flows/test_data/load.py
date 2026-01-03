@@ -1,7 +1,11 @@
 """Test data and validation for load flow configuration."""
 
-from custom_components.haeo.const import CONF_NAME, HAEO_CONFIGURABLE_ENTITY_ID
+from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST
+
+# Entity ID used in tests for the configurable sentinel entity.
+# In tests, the entity registry is mocked to recognize this entity by its unique_id.
+TEST_CONFIGURABLE_ENTITY_ID = "haeo.configurable_entity"
 
 # Test data for load flow
 VALID_DATA = [
@@ -28,11 +32,11 @@ VALID_DATA = [
             CONF_CONNECTION: "Switchboard",
             CONF_FORECAST: 5.0,  # Constant value stored in config
         },
-        # Step 1: select haeo.configurable_entity entity
+        # Step 1: select configurable entity
         "mode_input": {
             CONF_NAME: "Constant Load",
             CONF_CONNECTION: "Switchboard",
-            CONF_FORECAST: [HAEO_CONFIGURABLE_ENTITY_ID],
+            CONF_FORECAST: [TEST_CONFIGURABLE_ENTITY_ID],
         },
         # Step 2: provide constant value
         "values_input": {

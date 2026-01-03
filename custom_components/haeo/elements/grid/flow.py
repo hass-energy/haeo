@@ -3,6 +3,7 @@
 from typing import Any, ClassVar, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
@@ -26,6 +27,7 @@ from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, GridConfigSchem
 
 
 def _build_step1_schema(
+    hass: HomeAssistant,
     participants: list[str],
     exclusion_map: dict[str, list[str]],
     current_connection: str | None = None,
@@ -47,6 +49,7 @@ def _build_step1_schema(
     for field_info in INPUT_FIELDS:
         exclude_entities = exclusion_map.get(field_info.field_name, [])
         marker, selector = build_entity_schema_entry(
+            hass,
             field_info,
             config_schema=GridConfigSchema,
             exclude_entities=exclude_entities,
@@ -106,10 +109,10 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         entity_metadata = extract_entity_metadata(self.hass)
         exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
         participants = self._get_participant_names()
-        schema = _build_step1_schema(participants, exclusion_map)
+        schema = _build_step1_schema(self.hass, participants, exclusion_map)
 
         # Apply default entity selections
-        defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, GridConfigSchema))
+        defaults: dict[str, Any] = dict(get_entity_selection_defaults(self.hass, INPUT_FIELDS, GridConfigSchema))
         defaults[CONF_NAME] = default_name
         defaults[CONF_CONNECTION] = None
         schema = self.add_suggested_values_to_schema(schema, defaults)
@@ -129,12 +132,12 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
             entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-            config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
+            config_dict = convert_entity_selections_to_config(self.hass, entity_selections, user_input, INPUT_FIELDS)
 
             # Validate that constant values were provided where needed
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                is_constant = has_constant_selection(entity_selections.get(field_name, []))
+                is_constant = has_constant_selection(self.hass, entity_selections.get(field_name, []))
                 is_missing = field_name not in user_input
                 is_required = field_name not in GridConfigSchema.__optional_keys__ or field_info.default is None
                 if is_constant and is_missing and is_required:
@@ -150,10 +153,10 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 return self.async_create_entry(title=str(name), data=cast("GridConfigSchema", config))
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
+        schema = build_constant_value_schema(self.hass, INPUT_FIELDS, entity_selections)
 
         # Apply default constant values
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections)
+        defaults = get_constant_value_defaults(self.hass, INPUT_FIELDS, entity_selections)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -196,6 +199,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
         participants = self._get_participant_names()
         schema = _build_step1_schema(
+            self.hass,
             participants,
             exclusion_map,
             current_connection=current_connection if isinstance(current_connection, str) else None,
@@ -203,7 +207,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         # Apply current values plus inferred entity selections
         current_data = dict(subentry.data)
-        entity_defaults = get_entity_selection_defaults(INPUT_FIELDS, GridConfigSchema, current_data)
+        entity_defaults = get_entity_selection_defaults(self.hass, INPUT_FIELDS, GridConfigSchema, current_data)
         defaults = {
             CONF_NAME: subentry.data.get(CONF_NAME),
             CONF_CONNECTION: current_connection,
@@ -227,19 +231,19 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
             entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
-            config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
+            config_dict = convert_entity_selections_to_config(self.hass, entity_selections, user_input, INPUT_FIELDS)
 
             # Validate constant values
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                is_constant = has_constant_selection(entity_selections.get(field_name, []))
+                is_constant = has_constant_selection(self.hass, entity_selections.get(field_name, []))
                 is_missing = field_name not in user_input
                 is_required = field_name not in GridConfigSchema.__optional_keys__ or field_info.default is None
                 if is_constant and is_missing and is_required:
                     errors[field_name] = "required"
 
             if not errors:
-                config: dict[str, Any] = {
+                final_config: dict[str, Any] = {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                     CONF_NAME: name,
                     CONF_CONNECTION: connection,
@@ -249,19 +253,21 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     self._get_entry(),
                     subentry,
                     title=str(name),
-                    data=cast("GridConfigSchema", config),
+                    data=cast("GridConfigSchema", final_config),
                 )
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         current_data = dict(subentry.data)
 
         # Skip step 2 if all constant fields already have stored values
-        if can_reuse_constant_values(INPUT_FIELDS, entity_selections, current_data):
+        if can_reuse_constant_values(self.hass, INPUT_FIELDS, entity_selections, current_data):
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-            constant_values = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
-            config_dict = convert_entity_selections_to_config(entity_selections, constant_values, INPUT_FIELDS)
-            config: dict[str, Any] = {
+            constant_values = get_constant_value_defaults(self.hass, INPUT_FIELDS, entity_selections, current_data)
+            config_dict = convert_entity_selections_to_config(
+                self.hass, entity_selections, constant_values, INPUT_FIELDS
+            )
+            skip_config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
                 CONF_CONNECTION: connection,
@@ -271,13 +277,13 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 self._get_entry(),
                 subentry,
                 title=str(name),
-                data=cast("GridConfigSchema", config),
+                data=cast("GridConfigSchema", skip_config),
             )
 
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections, current_data)
+        schema = build_constant_value_schema(self.hass, INPUT_FIELDS, entity_selections, current_data)
 
         # Get current values for pre-population
-        defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+        defaults = get_constant_value_defaults(self.hass, INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

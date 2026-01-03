@@ -54,9 +54,9 @@ DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default
 DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
 # Sentinel configurable entity for user-defined constant values
-# Uses our own 'haeo' domain so it's clearly HAEO-specific (haeo.configurable_entity)
-HAEO_CONFIGURABLE: Final = "configurable_entity"
-HAEO_CONFIGURABLE_ENTITY_ID: Final = f"{DOMAIN}.{HAEO_CONFIGURABLE}"  # haeo.configurable_entity
+# Uses unique_id for stability - entity_id can be renamed by users
+# The unique_id is used with entity registry lookups to find the current entity_id
+HAEO_CONFIGURABLE_UNIQUE_ID: Final = "configurable_entity"
 
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"
