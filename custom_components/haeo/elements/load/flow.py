@@ -14,7 +14,6 @@ from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_ex
 from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
     build_entity_selector_with_constant,
-    can_reuse_constant_values,
     convert_entity_selections_to_config,
     extract_entity_selections,
     get_constant_value_defaults,
@@ -240,9 +239,10 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         current_data = dict(subentry.data)
+        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections, current_data)
 
-        # Skip step 2 if no constant fields or all constant fields already have stored values
-        if can_reuse_constant_values(INPUT_FIELDS, entity_selections, current_data):
+        # Skip step 2 if no constant fields need input
+        if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
             constant_values = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)
@@ -259,8 +259,6 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 title=str(name),
                 data=cast("LoadConfigSchema", skip_config),
             )
-
-        schema = build_constant_value_schema(INPUT_FIELDS, entity_selections, current_data)
 
         # Get defaults from current data
         defaults = get_constant_value_defaults(INPUT_FIELDS, entity_selections, current_data)

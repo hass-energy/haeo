@@ -186,14 +186,13 @@ The entity-first flow utilities are in `custom_components/haeo/flows/field_schem
 
 - `build_entity_selector_with_constant()`: Creates an EntitySelector that includes the constant entity
 - `build_entity_schema_entry()`: Creates the entity selection for step 1
-- `build_constant_value_schema()`: Creates the constant value form for step 2
+- `build_constant_value_schema()`: Creates the constant value form for step 2 (returns empty schema if all values can be reused)
 - `get_entity_selection_defaults()`: Provides default entity selections based on field types
 - `get_constant_value_defaults()`: Extracts current constant values for reconfigure flows
 - `has_constant_selection()`: Checks if any field has the constant entity selected
-- `can_reuse_constant_values()`: Determines if step 2 can be skipped during reconfigure
 
 Flow handlers store step 1 data and check if step 2 is needed.
-If no fields have `haeo.configurable_entity` selected, step 2 is skipped entirely.
+If `build_constant_value_schema()` returns an empty schema, step 2 is skipped entirely.
 
 ### Entity Creation
 

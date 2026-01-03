@@ -380,58 +380,6 @@ def has_constant_selection(entity_selection: list[str]) -> bool:
     return any(is_constant_entity(entity_id) for entity_id in entity_selection)
 
 
-def can_reuse_constant_values(
-    input_fields: tuple[InputFieldInfo[Any], ...],
-    entity_selections: dict[str, list[str]],
-    current_data: dict[str, Any],
-) -> bool:
-    """Check if all constant fields have valid values in current_data.
-
-    Used during reconfiguration to skip the constant values step when
-    all fields with constant entity selections already have stored values.
-
-    If a field was previously configured as an entity (list) and the user
-    switches to the configurable entity, we need to ask for the new value.
-
-    Args:
-        input_fields: Tuple of input field metadata.
-        entity_selections: Entity selections from step 1 (field_name -> list of entity IDs).
-        current_data: Current configuration data from the subentry.
-
-    Returns:
-        True if all constant fields have stored constant values or defaults.
-
-    """
-    for field_info in input_fields:
-        field_name = field_info.field_name
-        selected_entities = entity_selections.get(field_name, [])
-
-        # Skip fields without constant selection
-        if not has_constant_selection(selected_entities):
-            continue
-
-        # Check if current_data has a valid constant value for this field
-        current_value = current_data.get(field_name)
-
-        # A stored constant value is a float/int/bool (not a list of entities)
-        if isinstance(current_value, (float, int, bool)):
-            continue
-
-        # If current_value is a list (entity IDs), user is switching TO the configurable entity
-        # from a previously configured entity - need to ask for the new value
-        if isinstance(current_value, list):
-            return False
-
-        # Check if field has a default value we can use
-        if field_info.default is not None:
-            continue
-
-        # No stored value and no default - need user input
-        return False
-
-    return True
-
-
 def extract_entity_selections(
     step1_data: dict[str, Any],
     exclude_keys: tuple[str, ...] = (),
@@ -522,7 +470,6 @@ __all__ = [
     "build_constant_value_schema_entry",
     "build_entity_schema_entry",
     "build_entity_selector_with_constant",
-    "can_reuse_constant_values",
     "convert_entity_selections_to_config",
     "extract_entity_selections",
     "extract_non_entity_fields",

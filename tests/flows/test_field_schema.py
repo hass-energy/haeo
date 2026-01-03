@@ -11,7 +11,6 @@ from custom_components.haeo.const import HAEO_CONFIGURABLE_UNIQUE_ID
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
-    can_reuse_constant_values,
     has_constant_selection,
     is_constant_entity,
 )
@@ -115,71 +114,6 @@ def test_has_constant_selection_without_constant(mock_hass_context: MagicMock) -
     """has_constant_selection returns False when constant is not in selection."""
     assert has_constant_selection([]) is False
     assert has_constant_selection(["sensor.power"]) is False
-
-
-# --- Tests for can_reuse_constant_values ---
-
-
-def test_can_reuse_when_no_constant_selected(
-    mock_hass_context: MagicMock,
-    number_field_info: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """can_reuse_constant_values returns True when no constant is selected."""
-    input_fields = (number_field_info,)
-    entity_selections = {"import_limit": ["sensor.power"]}
-    current_data: dict[str, Any] = {"import_limit": ["sensor.power"]}
-
-    assert can_reuse_constant_values(input_fields, entity_selections, current_data) is True
-
-
-def test_can_reuse_when_constant_has_stored_value(
-    mock_hass_context: MagicMock,
-    number_field_info: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """can_reuse_constant_values returns True when constant value is stored."""
-    input_fields = (number_field_info,)
-    entity_selections = {"import_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
-    current_data: dict[str, Any] = {"import_limit": 50.0}  # Stored constant value
-
-    assert can_reuse_constant_values(input_fields, entity_selections, current_data) is True
-
-
-def test_cannot_reuse_when_switching_from_entity_to_constant(
-    mock_hass_context: MagicMock,
-    number_field_info: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """can_reuse_constant_values returns False when switching from entity to constant."""
-    input_fields = (number_field_info,)
-    entity_selections = {"import_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
-    current_data: dict[str, Any] = {"import_limit": ["number.haeo_import_limit"]}  # Entity list
-
-    # User is switching TO constant from entity - need to ask for value
-    assert can_reuse_constant_values(input_fields, entity_selections, current_data) is False
-
-
-def test_cannot_reuse_when_no_value_and_no_default(
-    mock_hass_context: MagicMock,
-    number_field_info: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """can_reuse_constant_values returns False when no value and no default."""
-    input_fields = (number_field_info,)
-    entity_selections = {"import_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
-    current_data: dict[str, Any] = {}  # No stored value
-
-    # No stored value and no default - need user input
-    assert can_reuse_constant_values(input_fields, entity_selections, current_data) is False
-
-
-def test_can_reuse_when_field_has_default(
-    mock_hass_context: MagicMock,
-    number_field_with_default: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """can_reuse_constant_values returns True when field has default."""
-    input_fields = (number_field_with_default,)
-    entity_selections = {"export_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
-    current_data: dict[str, Any] = {}  # No stored value but has default
-
-    assert can_reuse_constant_values(input_fields, entity_selections, current_data) is True
 
 
 # --- Tests for build_constant_value_schema ---
