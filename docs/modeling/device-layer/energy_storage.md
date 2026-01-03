@@ -39,17 +39,17 @@ The adapter passes user configuration directly to the Energy Storage model eleme
 
 ### Energy Storage Device
 
-| Sensor            | Unit   | Update    | Description                             |
-| ----------------- | ------ | --------- | --------------------------------------- |
-| `power_charge`    | kW     | Real-time | Power being charged into storage        |
-| `power_discharge` | kW     | Real-time | Power being discharged from storage     |
-| `power_active`    | kW     | Real-time | Net active power (discharge - charge)   |
-| `energy_stored`   | kWh    | Real-time | Current energy stored                   |
-| `power_balance`   | \$/kW  | Real-time | Shadow price of power at terminals      |
-| `energy_in_flow`  | \$/kWh | Real-time | Shadow price of charging constraint     |
-| `energy_out_flow` | \$/kWh | Real-time | Shadow price of discharging constraint  |
-| `soc_max`         | \$/kWh | Real-time | Shadow price of maximum capacity        |
-| `soc_min`         | \$/kWh | Real-time | Shadow price of minimum capacity        |
+| Sensor            | Unit   | Update    | Description                            |
+| ----------------- | ------ | --------- | -------------------------------------- |
+| `power_charge`    | kW     | Real-time | Power being charged into storage       |
+| `power_discharge` | kW     | Real-time | Power being discharged from storage    |
+| `power_active`    | kW     | Real-time | Net active power (discharge - charge)  |
+| `energy_stored`   | kWh    | Real-time | Current energy stored                  |
+| `power_balance`   | \$/kW  | Real-time | Shadow price of power at terminals     |
+| `energy_in_flow`  | \$/kWh | Real-time | Shadow price of charging constraint    |
+| `energy_out_flow` | \$/kWh | Real-time | Shadow price of discharging constraint |
+| `soc_max`         | \$/kWh | Real-time | Shadow price of maximum capacity       |
+| `soc_min`         | \$/kWh | Real-time | Shadow price of minimum capacity       |
 
 See [Energy Storage Configuration](../../user-guide/elements/energy_storage.md#sensors-created) for detailed sensor documentation.
 

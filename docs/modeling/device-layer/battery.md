@@ -29,18 +29,18 @@ graph LR
 
 The adapter creates 4-10 model elements depending on configuration:
 
-| Model Element                                                                  | Name                                | Parameters From Configuration                                                   |
-| ------------------------------------------------------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------- |
-| [Energy Storage](../model-layer/elements/energy-storage.md)                    | `{name}:undercharge` (optional)     | Capacity: `(min% - undercharge%) * capacity`, initial charge distributed        |
-| [Energy Storage](../model-layer/elements/energy-storage.md)                    | `{name}:normal` (always)            | Capacity: `(max% - min%) * capacity`, initial charge distributed                |
-| [Energy Storage](../model-layer/elements/energy-storage.md)                    | `{name}:overcharge` (optional)      | Capacity: `(overcharge% - max%) * capacity`, initial charge distributed         |
-| [Node](node.md)                                                                | `{name}:node`                       | Pure junction (no power generation/consumption)                                 |
-| [PowerConnection](../model-layer/connections/power-connection.md)              | `{name}:undercharge:to_node`        | Discharge price: undercharge cost penalty                                       |
-| [PowerConnection](../model-layer/connections/power-connection.md)              | `{name}:normal:to_node`             | No pricing (neutral)                                                            |
-| [PowerConnection](../model-layer/connections/power-connection.md)              | `{name}:overcharge:to_node`         | Charge price: overcharge cost penalty                                           |
-| [EnergyBalanceConnection](../model-layer/energy-balance-connection.md)         | `{name}:balance:undercharge:normal` | Enforces fill ordering between undercharge and normal partitions                |
-| [EnergyBalanceConnection](../model-layer/energy-balance-connection.md)         | `{name}:balance:normal:overcharge`  | Enforces fill ordering between normal and overcharge partitions                 |
-| [PowerConnection](../model-layer/connections/power-connection.md)              | `{name}:connection`                 | Efficiency, power limits, early charge/discharge incentive                      |
+| Model Element                                                          | Name                                | Parameters From Configuration                                            |
+| ---------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------ |
+| [Energy Storage](../model-layer/elements/energy-storage.md)            | `{name}:undercharge` (optional)     | Capacity: `(min% - undercharge%) * capacity`, initial charge distributed |
+| [Energy Storage](../model-layer/elements/energy-storage.md)            | `{name}:normal` (always)            | Capacity: `(max% - min%) * capacity`, initial charge distributed         |
+| [Energy Storage](../model-layer/elements/energy-storage.md)            | `{name}:overcharge` (optional)      | Capacity: `(overcharge% - max%) * capacity`, initial charge distributed  |
+| [Node](node.md)                                                        | `{name}:node`                       | Pure junction (no power generation/consumption)                          |
+| [PowerConnection](../model-layer/connections/power-connection.md)      | `{name}:undercharge:to_node`        | Discharge price: undercharge cost penalty                                |
+| [PowerConnection](../model-layer/connections/power-connection.md)      | `{name}:normal:to_node`             | No pricing (neutral)                                                     |
+| [PowerConnection](../model-layer/connections/power-connection.md)      | `{name}:overcharge:to_node`         | Charge price: overcharge cost penalty                                    |
+| [EnergyBalanceConnection](../model-layer/energy-balance-connection.md) | `{name}:balance:undercharge:normal` | Enforces fill ordering between undercharge and normal partitions         |
+| [EnergyBalanceConnection](../model-layer/energy-balance-connection.md) | `{name}:balance:normal:overcharge`  | Enforces fill ordering between normal and overcharge partitions          |
+| [PowerConnection](../model-layer/connections/power-connection.md)      | `{name}:connection`                 | Efficiency, power limits, early charge/discharge incentive               |
 
 ## Architecture Details
 
@@ -112,33 +112,33 @@ The incentives apply to the main connection only, not to partition-to-node conne
 
 Battery creates 1-4 devices in Home Assistant depending on configuration:
 
-| Device      | Name                 | Created When                          | Purpose                                          |
-| ----------- | -------------------- | ------------------------------------- | ------------------------------------------------ |
-| Aggregate   | `{name}`             | Always                                | Total power, energy, SOC across all partitions   |
-| Undercharge | `{name}:undercharge` | `undercharge_percentage` configured   | Undercharge partition metrics and shadow prices  |
-| Normal      | `{name}:normal`      | Multi-partition operation active      | Normal partition metrics and shadow prices       |
-| Overcharge  | `{name}:overcharge`  | `overcharge_percentage` configured    | Overcharge partition metrics and shadow prices   |
+| Device      | Name                 | Created When                        | Purpose                                         |
+| ----------- | -------------------- | ----------------------------------- | ----------------------------------------------- |
+| Aggregate   | `{name}`             | Always                              | Total power, energy, SOC across all partitions  |
+| Undercharge | `{name}:undercharge` | `undercharge_percentage` configured | Undercharge partition metrics and shadow prices |
+| Normal      | `{name}:normal`      | Multi-partition operation active    | Normal partition metrics and shadow prices      |
+| Overcharge  | `{name}:overcharge`  | `overcharge_percentage` configured  | Overcharge partition metrics and shadow prices  |
 
 ## Parameter Mapping
 
 The adapter transforms user configuration into model parameters:
 
-| User Configuration          | Model Element(s)                 | Model Parameter                                                   | Notes                                 |
-| --------------------------- | -------------------------------- | ----------------------------------------------------------------- | ------------------------------------- |
-| `capacity`                  | Energy Storage partitions        | Partition capacities based on percentage ranges                   | Distributed across partitions         |
-| `initial_charge_percentage` | Energy Storage partitions        | `initial_charge` distributed bottom-up                            | Fills partitions sequentially         |
-| `min_charge_percentage`     | Energy Storage partitions        | Defines normal partition lower bound                              | Inner bound (preferred min)           |
-| `max_charge_percentage`     | Energy Storage partitions        | Defines normal partition upper bound                              | Inner bound (preferred max)           |
-| `undercharge_percentage`    | Energy Storage partitions        | Defines undercharge partition lower bound                         | Outer bound (hard min)                |
-| `overcharge_percentage`     | Energy Storage partitions        | Defines overcharge partition upper bound                          | Outer bound (hard max)                |
-| `early_charge_incentive`    | Node-to-target connection        | `price_target_source` (charge), `price_source_target` (discharge) | Time-varying on main connection       |
-| `undercharge_cost`          | Undercharge-to-node connection   | `price_source_target` (discharge penalty)                         | Penalty for undercharge discharge     |
-| `overcharge_cost`           | Overcharge-to-node connection    | `price_target_source` (charge penalty)                            | Penalty for overcharge charging       |
-| `efficiency`                | Node-to-target connection        | `efficiency_source_target`, `efficiency_target_source`            | Applied to both directions            |
-| `max_charge_power`          | Node-to-target connection        | `max_power_target_source`                                         | Network to battery                    |
-| `max_discharge_power`       | Node-to-target connection        | `max_power_source_target`                                         | Battery to network                    |
-| `discharge_cost`            | Node-to-target connection        | Added to `price_source_target`                                    | Added to early discharge incentive    |
-| (automatic)                 | Balance connections              | `capacity_lower` from partition capacity                          | Enforces partition fill ordering      |
+| User Configuration          | Model Element(s)               | Model Parameter                                                   | Notes                              |
+| --------------------------- | ------------------------------ | ----------------------------------------------------------------- | ---------------------------------- |
+| `capacity`                  | Energy Storage partitions      | Partition capacities based on percentage ranges                   | Distributed across partitions      |
+| `initial_charge_percentage` | Energy Storage partitions      | `initial_charge` distributed bottom-up                            | Fills partitions sequentially      |
+| `min_charge_percentage`     | Energy Storage partitions      | Defines normal partition lower bound                              | Inner bound (preferred min)        |
+| `max_charge_percentage`     | Energy Storage partitions      | Defines normal partition upper bound                              | Inner bound (preferred max)        |
+| `undercharge_percentage`    | Energy Storage partitions      | Defines undercharge partition lower bound                         | Outer bound (hard min)             |
+| `overcharge_percentage`     | Energy Storage partitions      | Defines overcharge partition upper bound                          | Outer bound (hard max)             |
+| `early_charge_incentive`    | Node-to-target connection      | `price_target_source` (charge), `price_source_target` (discharge) | Time-varying on main connection    |
+| `undercharge_cost`          | Undercharge-to-node connection | `price_source_target` (discharge penalty)                         | Penalty for undercharge discharge  |
+| `overcharge_cost`           | Overcharge-to-node connection  | `price_target_source` (charge penalty)                            | Penalty for overcharge charging    |
+| `efficiency`                | Node-to-target connection      | `efficiency_source_target`, `efficiency_target_source`            | Applied to both directions         |
+| `max_charge_power`          | Node-to-target connection      | `max_power_target_source`                                         | Network to battery                 |
+| `max_discharge_power`       | Node-to-target connection      | `max_power_source_target`                                         | Battery to network                 |
+| `discharge_cost`            | Node-to-target connection      | Added to `price_source_target`                                    | Added to early discharge incentive |
+| (automatic)                 | Balance connections            | `capacity_lower` from partition capacity                          | Enforces partition fill ordering   |
 
 ## Output Mapping
 
@@ -146,27 +146,27 @@ The adapter aggregates model outputs to user-friendly sensor names:
 
 **Aggregate device outputs**:
 
-| Model Output(s)                                       | Sensor Name       | Description                |
-| ----------------------------------------------------- | ----------------- | -------------------------- |
-| Sum of partition `ENERGY_STORAGE_POWER_CHARGE`        | `power_charge`    | Charge power               |
-| Sum of partition `ENERGY_STORAGE_POWER_DISCHARGE`     | `power_discharge` | Discharge power            |
-| Sum of partition `ENERGY_STORAGE_ENERGY_STORED`       | `energy_stored`   | Energy stored              |
-| Calculated from total energy and capacity             | `state_of_charge` | State of charge            |
-| Node `NODE_POWER_BALANCE`                             | `power_balance`   | Power balance shadow price |
+| Model Output(s)                                   | Sensor Name       | Description                |
+| ------------------------------------------------- | ----------------- | -------------------------- |
+| Sum of partition `ENERGY_STORAGE_POWER_CHARGE`    | `power_charge`    | Charge power               |
+| Sum of partition `ENERGY_STORAGE_POWER_DISCHARGE` | `power_discharge` | Discharge power            |
+| Sum of partition `ENERGY_STORAGE_ENERGY_STORED`   | `energy_stored`   | Energy stored              |
+| Calculated from total energy and capacity         | `state_of_charge` | State of charge            |
+| Node `NODE_POWER_BALANCE`                         | `power_balance`   | Power balance shadow price |
 
 **Partition device outputs** (undercharge, normal, overcharge):
 
-| Model Output(s)                           | Sensor Name          | Description                             |
-| ----------------------------------------- | -------------------- | --------------------------------------- |
-| Partition `ENERGY_STORAGE_ENERGY_STORED`  | `energy_stored`      | Energy stored in this partition         |
-| Partition `ENERGY_STORAGE_POWER_CHARGE`   | `power_charge`       | Charge power in this partition          |
-| Partition `ENERGY_STORAGE_POWER_DISCHARGE`| `power_discharge`    | Discharge power in this partition       |
-| Partition `ENERGY_STORAGE_ENERGY_IN_FLOW` | `energy_in_flow`     | Energy in flow shadow price             |
-| Partition `ENERGY_STORAGE_ENERGY_OUT_FLOW`| `energy_out_flow`    | Energy out flow shadow price            |
-| Partition `ENERGY_STORAGE_SOC_MAX`        | `soc_max`            | SOC max shadow price                    |
-| Partition `ENERGY_STORAGE_SOC_MIN`        | `soc_min`            | SOC min shadow price                    |
-| Balance connection `BALANCE_POWER_DOWN`   | `balance_power_down` | Power flowing down into this partition  |
-| Balance connection `BALANCE_POWER_UP`     | `balance_power_up`   | Power flowing up out of this partition  |
+| Model Output(s)                            | Sensor Name          | Description                            |
+| ------------------------------------------ | -------------------- | -------------------------------------- |
+| Partition `ENERGY_STORAGE_ENERGY_STORED`   | `energy_stored`      | Energy stored in this partition        |
+| Partition `ENERGY_STORAGE_POWER_CHARGE`    | `power_charge`       | Charge power in this partition         |
+| Partition `ENERGY_STORAGE_POWER_DISCHARGE` | `power_discharge`    | Discharge power in this partition      |
+| Partition `ENERGY_STORAGE_ENERGY_IN_FLOW`  | `energy_in_flow`     | Energy in flow shadow price            |
+| Partition `ENERGY_STORAGE_ENERGY_OUT_FLOW` | `energy_out_flow`    | Energy out flow shadow price           |
+| Partition `ENERGY_STORAGE_SOC_MAX`         | `soc_max`            | SOC max shadow price                   |
+| Partition `ENERGY_STORAGE_SOC_MIN`         | `soc_min`            | SOC min shadow price                   |
+| Balance connection `BALANCE_POWER_DOWN`    | `balance_power_down` | Power flowing down into this partition |
+| Balance connection `BALANCE_POWER_UP`      | `balance_power_up`   | Power flowing up out of this partition |
 
 The `balance_power_down` and `balance_power_up` sensors show power flowing through balance connections with adjacent partitions.
 Each partition accumulates power from all adjacent balance connections (partitions can have connections both above and below).

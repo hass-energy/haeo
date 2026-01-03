@@ -319,9 +319,9 @@ These sensors appear on the main battery device:
 
 These sensors appear on region-specific devices (undercharge, normal, overcharge) when configured:
 
-| Sensor                                                                       | Unit | Description                          |
-| ---------------------------------------------------------------------------- | ---- | ------------------------------------ |
-| [`sensor.{name}_{region}_energy_stored`](#energy-stored-by-region)           | kWh  | Energy in this region                |
+| Sensor                                                                       | Unit | Description                            |
+| ---------------------------------------------------------------------------- | ---- | -------------------------------------- |
+| [`sensor.{name}_{region}_energy_stored`](#energy-stored-by-region)           | kWh  | Energy in this region                  |
 | [`sensor.{name}_{region}_power_charge`](#chargedischarge-power-by-region)    | kW   | Charging power in this region          |
 | [`sensor.{name}_{region}_power_discharge`](#chargedischarge-power-by-region) | kW   | Discharging power in this region       |
 | [`sensor.{name}_{region}_energy_in_flow`](#energy-flow-by-region)            | kWh  | Energy flowing into this region        |

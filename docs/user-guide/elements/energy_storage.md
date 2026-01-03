@@ -36,11 +36,11 @@ You must manually create Connection elements to connect the Energy Storage to yo
 
 ## Configuration Fields
 
-| Field                                 | Type                                  | Required | Default | Description                                   |
-| ------------------------------------- | ------------------------------------- | -------- | ------- | --------------------------------------------- |
-| **[Name](#name)**                     | String                                | Yes      | -       | Unique identifier (e.g., "Energy Storage 1")  |
-| **[Capacity](#capacity)**             | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Storage capacity in kWh (can vary over time)  |
-| **[Initial Charge](#initial-charge)** | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Initial energy stored (kWh)                   |
+| Field                                 | Type                                  | Required | Default | Description                                  |
+| ------------------------------------- | ------------------------------------- | -------- | ------- | -------------------------------------------- |
+| **[Name](#name)**                     | String                                | Yes      | -       | Unique identifier (e.g., "Energy Storage 1") |
+| **[Capacity](#capacity)**             | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Storage capacity in kWh (can vary over time) |
+| **[Initial Charge](#initial-charge)** | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Initial energy stored (kWh)                  |
 
 ### Name
 
@@ -65,11 +65,11 @@ The sensor should provide a single current value (not a forecast).
 
 Basic energy storage configuration:
 
-| Field              | Value                    |
-| ------------------ | ------------------------ |
-| **Name**           | Energy Storage 1         |
-| **Capacity**       | sensor.storage_capacity  |
-| **Initial Charge** | sensor.storage_energy    |
+| Field              | Value                   |
+| ------------------ | ----------------------- |
+| **Name**           | Energy Storage 1        |
+| **Capacity**       | sensor.storage_capacity |
+| **Initial Charge** | sensor.storage_energy   |
 
 After creating the Energy Storage element, you must create Connection elements to connect it to other elements in your network (nodes, grids, etc.).
 
@@ -77,17 +77,17 @@ After creating the Energy Storage element, you must create Connection elements t
 
 An Energy Storage element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                               | Unit   | Description                                  |
-| -------------------------------------------------------------------- | ------ | -------------------------------------------- |
-| [`sensor.{name}_energy_storage_power_charge`](#power-charge)         | kW     | Power being charged into the storage         |
-| [`sensor.{name}_energy_storage_power_discharge`](#power-discharge)   | kW     | Power being discharged from the storage      |
-| [`sensor.{name}_energy_storage_power_active`](#power-active)         | kW     | Net active power (discharge - charge)        |
-| [`sensor.{name}_energy_storage_energy_stored`](#energy-stored)       | kWh    | Current energy stored                        |
-| [`sensor.{name}_energy_storage_power_balance`](#power-balance)       | \$/kW  | Shadow price of power at storage terminals   |
-| [`sensor.{name}_energy_storage_energy_in_flow`](#energy-in-flow)     | \$/kWh | Shadow price of charging constraint          |
-| [`sensor.{name}_energy_storage_energy_out_flow`](#energy-out-flow)   | \$/kWh | Shadow price of discharging constraint       |
-| [`sensor.{name}_energy_storage_soc_max`](#soc-max)                   | \$/kWh | Shadow price of maximum capacity constraint  |
-| [`sensor.{name}_energy_storage_soc_min`](#soc-min)                   | \$/kWh | Shadow price of minimum capacity constraint  |
+| Sensor                                                             | Unit   | Description                                 |
+| ------------------------------------------------------------------ | ------ | ------------------------------------------- |
+| [`sensor.{name}_energy_storage_power_charge`](#power-charge)       | kW     | Power being charged into the storage        |
+| [`sensor.{name}_energy_storage_power_discharge`](#power-discharge) | kW     | Power being discharged from the storage     |
+| [`sensor.{name}_energy_storage_power_active`](#power-active)       | kW     | Net active power (discharge - charge)       |
+| [`sensor.{name}_energy_storage_energy_stored`](#energy-stored)     | kWh    | Current energy stored                       |
+| [`sensor.{name}_energy_storage_power_balance`](#power-balance)     | \$/kW  | Shadow price of power at storage terminals  |
+| [`sensor.{name}_energy_storage_energy_in_flow`](#energy-in-flow)   | \$/kWh | Shadow price of charging constraint         |
+| [`sensor.{name}_energy_storage_energy_out_flow`](#energy-out-flow) | \$/kWh | Shadow price of discharging constraint      |
+| [`sensor.{name}_energy_storage_soc_max`](#soc-max)                 | \$/kWh | Shadow price of maximum capacity constraint |
+| [`sensor.{name}_energy_storage_soc_min`](#soc-min)                 | \$/kWh | Shadow price of minimum capacity constraint |
 
 ### Power Charge
 
