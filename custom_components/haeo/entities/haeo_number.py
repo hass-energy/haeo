@@ -1,6 +1,7 @@
 """Number entity for HAEO input configuration."""
 
 from collections.abc import Callable
+import contextlib
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -9,15 +10,16 @@ from homeassistant.components.number import NumberEntity, NumberEntityDescriptio
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.util import async_update_subentry_value
 
 
 class ConfigEntityMode(Enum):
@@ -27,17 +29,17 @@ class ConfigEntityMode(Enum):
     DRIVEN = "driven"  # Value driven by external entity
 
 
-class HaeoInputNumber(NumberEntity):
+class HaeoInputNumber(RestoreEntity, NumberEntity):
     """Number entity representing a configurable input parameter.
 
     This entity serves as an intermediate layer between external sensors
     and the optimization model. It can operate in two modes:
 
-    - EDITABLE: User can directly set the value. Used when config contains
-      a static value rather than an entity ID.
-      Value is persisted to config entry and survives restarts.
+    - EDITABLE: User can directly set the value. Used when config references
+      this entity's own ID (self-referencing) or contains a static float value.
+      Value is persisted via RestoreEntity and survives restarts.
     - DRIVEN: Value is driven by an external sensor. Used when config
-      contains an entity ID. In this mode, user edits are ignored.
+      contains external entity IDs. In this mode, user edits are ignored.
 
     Both modes provide a forecast attribute with values across the time horizon.
     """
@@ -65,16 +67,30 @@ class HaeoInputNumber(NumberEntity):
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
+        # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
+        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
+
+        # Look up our own entity_id from the entity registry (if registered)
+        registry = er.async_get(hass)
+        own_entity_id = registry.async_get_entity_id("number", "haeo", self._attr_unique_id)
+
         # Determine mode from config value type
         # Entity IDs are stored as list[str] from EntitySelector
         # Constants are stored as float from NumberSelector
         config_value = subentry.data.get(field_info.field_name)
 
         if isinstance(config_value, list) and config_value:
-            # DRIVEN mode: value comes from external sensors (non-empty list)
-            self._entity_mode = ConfigEntityMode.DRIVEN
-            self._source_entity_ids: list[str] = config_value
-            self._attr_native_value = None  # Will be set when data loads
+            # Check if this is a self-referencing entity (config contains our own entity_id)
+            if own_entity_id and own_entity_id in config_value:
+                # Self-referencing = EDITABLE mode, value restored via RestoreEntity
+                self._entity_mode = ConfigEntityMode.EDITABLE
+                self._source_entity_ids = []
+                self._attr_native_value = None  # Will be restored in async_added_to_hass
+            else:
+                # DRIVEN mode: value comes from external sensors
+                self._entity_mode = ConfigEntityMode.DRIVEN
+                self._source_entity_ids = config_value
+                self._attr_native_value = None  # Will be set when data loads
         elif isinstance(config_value, int | float):
             # EDITABLE mode: value is a constant
             self._entity_mode = ConfigEntityMode.EDITABLE
@@ -85,9 +101,6 @@ class HaeoInputNumber(NumberEntity):
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_ids = []
             self._attr_native_value = None
-
-        # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
@@ -138,7 +151,14 @@ class HaeoInputNumber(NumberEntity):
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Use field default if no config value
+            # Restore previous state if available (for self-referencing entities)
+            if self._attr_native_value is None:
+                last_state = await self.async_get_last_state()
+                if last_state is not None and last_state.state not in (None, "unknown", "unavailable"):
+                    with contextlib.suppress(ValueError, TypeError):
+                        self._attr_native_value = float(last_state.state)
+
+            # Use field default if still no value
             if self._attr_native_value is None and self._field_info.default is not None:
                 self._attr_native_value = float(self._field_info.default)
             # Update forecast for initial value
@@ -270,8 +290,8 @@ class HaeoInputNumber(NumberEntity):
         In DRIVEN mode, user changes are effectively ignored because the
         source entity will overwrite with its value.
 
-        In EDITABLE mode, the value is persisted to the config entry so it
-        survives restarts and is visible in reconfigure flows.
+        In EDITABLE mode, the value is persisted via RestoreEntity and
+        survives restarts.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
             # Read-only in driven mode, but we still update to avoid confusion
@@ -281,15 +301,6 @@ class HaeoInputNumber(NumberEntity):
         self._attr_native_value = value
         self._update_editable_forecast()
         self.async_write_ha_state()
-
-        # Persist to config entry so value survives restarts and shows in reconfigure
-        await async_update_subentry_value(
-            self._hass,
-            self._config_entry,
-            self._subentry,
-            self._field_info.field_name,
-            value,
-        )
 
 
 __all__ = ["ConfigEntityMode", "HaeoInputNumber"]

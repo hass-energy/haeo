@@ -117,8 +117,9 @@ def build_entity_selector_with_constant(
 
     # Build config - no device_class filter, rely on unit-based exclusion
     # Include 'haeo' domain so haeo.constant always appears
+    # Include 'number' and 'switch' so HAEO input entities can be re-selected during reconfigure
     config_kwargs: dict[str, Any] = {
-        "domain": ["sensor", "input_number", DOMAIN],
+        "domain": ["sensor", "input_number", "number", "switch", DOMAIN],
         "multiple": True,
         "exclude_entities": filtered_exclude,
     }
@@ -220,12 +221,18 @@ def build_constant_value_schema(
         if not any(is_constant_entity(entity_id) for entity_id in selected_entities):
             continue
 
-        # For reconfigure, skip fields that already have stored constant values or defaults
+        # For reconfigure, skip fields that already have stored constant values
+        # But include fields where user is switching from entity to constant (current_value is list)
         if current_data is not None:
             current_value = current_data.get(field_name)
+            # If current value is a scalar constant, we can reuse it
             if isinstance(current_value, (float, int, bool)):
                 continue
-            if field_info.default is not None:
+            # If current value is a list (entity IDs), user is switching TO constant - need input
+            if isinstance(current_value, list):
+                pass  # Include in schema
+            # If field has a default and no prior value, use the default
+            elif field_info.default is not None:
                 continue
 
         marker, selector = build_constant_value_schema_entry(field_info)
@@ -350,6 +357,9 @@ def can_reuse_constant_values(
     Used during reconfiguration to skip the constant values step when
     all fields with constant entity selections already have stored values.
 
+    If a field was previously configured as an entity (list) and the user
+    switches to haeo.constant, we need to ask for the new value.
+
     Args:
         input_fields: Tuple of input field metadata.
         entity_selections: Entity selections from step 1 (field_name -> list of entity IDs).
@@ -373,6 +383,11 @@ def can_reuse_constant_values(
         # A stored constant value is a float/int/bool (not a list of entities)
         if isinstance(current_value, (float, int, bool)):
             continue
+
+        # If current_value is a list (entity IDs), user is switching TO haeo.constant
+        # from a previously configured entity - need to ask for the new value
+        if isinstance(current_value, list):
+            return False
 
         # Check if field has a default value we can use
         if field_info.default is not None:

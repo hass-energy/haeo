@@ -8,28 +8,29 @@ from homeassistant.components.switch import SwitchEntity, SwitchEntityDescriptio
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_ON, EntityCategory
 from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.util import async_update_subentry_value
 
 
-class HaeoInputSwitch(SwitchEntity):
+class HaeoInputSwitch(RestoreEntity, SwitchEntity):
     """Switch entity representing a configurable boolean parameter.
 
     This entity serves as an intermediate layer between external sensors
     and the optimization model. It can operate in two modes:
 
-    - EDITABLE: User can toggle the switch. Used when config contains
-      a static boolean value rather than an entity ID.
-      Value is persisted to config entry and survives restarts.
+    - EDITABLE: User can toggle the switch. Used when config references
+      this entity's own ID (self-referencing) or contains a static boolean.
+      Value is persisted via RestoreEntity and survives restarts.
     - DRIVEN: Value is driven by an external sensor. Used when config
-      contains an entity ID. In this mode, user toggles are ignored.
+      contains external entity IDs. In this mode, user toggles are ignored.
 
     Both modes provide forecast timestamps for consistency with other entities.
     """
@@ -57,24 +58,35 @@ class HaeoInputSwitch(SwitchEntity):
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
+        # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
+        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
+
+        # Look up our own entity_id from the entity registry (if registered)
+        registry = er.async_get(hass)
+        own_entity_id = registry.async_get_entity_id("switch", "haeo", self._attr_unique_id)
+
         # Determine mode from config value type
         # Entity IDs are stored as str from EntitySelector
         # Boolean constants are stored as bool from BooleanSelector
         config_value = subentry.data.get(field_info.field_name)
 
         if isinstance(config_value, str):
-            # DRIVEN mode: value comes from external sensor
-            self._entity_mode = ConfigEntityMode.DRIVEN
-            self._source_entity_id: str | None = config_value
-            self._attr_is_on = None  # Will be set when data loads
+            # Check if this is a self-referencing entity (config contains our own entity_id)
+            if own_entity_id and config_value == own_entity_id:
+                # Self-referencing = EDITABLE mode, value restored via RestoreEntity
+                self._entity_mode = ConfigEntityMode.EDITABLE
+                self._source_entity_id: str | None = None
+                self._attr_is_on = None  # Will be restored in async_added_to_hass
+            else:
+                # DRIVEN mode: value comes from external sensor
+                self._entity_mode = ConfigEntityMode.DRIVEN
+                self._source_entity_id = config_value
+                self._attr_is_on = None  # Will be set when data loads
         else:
             # EDITABLE mode: value is a boolean or None (optional field)
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_id = None
             self._attr_is_on = bool(config_value) if config_value is not None else None
-
-        # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
@@ -122,7 +134,13 @@ class HaeoInputSwitch(SwitchEntity):
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Use field default if no config value
+            # Restore previous state if available (for self-referencing entities)
+            if self._attr_is_on is None:
+                last_state = await self.async_get_last_state()
+                if last_state is not None and last_state.state not in (None, "unknown", "unavailable"):
+                    self._attr_is_on = last_state.state == STATE_ON
+
+            # Use field default if still no value
             if self._attr_is_on is None and self._field_info.default is not None:
                 self._attr_is_on = bool(self._field_info.default)
             # Update forecast for initial value
@@ -233,8 +251,8 @@ class HaeoInputSwitch(SwitchEntity):
         In DRIVEN mode, user changes are effectively ignored because the
         source entity will overwrite with its value.
 
-        In EDITABLE mode, the value is persisted to the config entry so it
-        survives restarts and is visible in reconfigure flows.
+        In EDITABLE mode, the value is persisted via RestoreEntity and
+        survives restarts.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
             self.async_write_ha_state()
@@ -244,23 +262,14 @@ class HaeoInputSwitch(SwitchEntity):
         self._update_forecast()
         self.async_write_ha_state()
 
-        # Persist to config entry so value survives restarts and shows in reconfigure
-        await async_update_subentry_value(
-            self._hass,
-            self._config_entry,
-            self._subentry,
-            self._field_info.field_name,
-            value=True,
-        )
-
     async def async_turn_off(self, **_kwargs: Any) -> None:
         """Handle user turning switch off.
 
         In DRIVEN mode, user changes are effectively ignored because the
         source entity will overwrite with its value.
 
-        In EDITABLE mode, the value is persisted to the config entry so it
-        survives restarts and is visible in reconfigure flows.
+        In EDITABLE mode, the value is persisted via RestoreEntity and
+        survives restarts.
         """
         if self._entity_mode == ConfigEntityMode.DRIVEN:
             self.async_write_ha_state()
@@ -269,15 +278,6 @@ class HaeoInputSwitch(SwitchEntity):
         self._attr_is_on = False
         self._update_forecast()
         self.async_write_ha_state()
-
-        # Persist to config entry so value survives restarts and shows in reconfigure
-        await async_update_subentry_value(
-            self._hass,
-            self._config_entry,
-            self._subentry,
-            self._field_info.field_name,
-            value=False,
-        )
 
 
 __all__ = ["HaeoInputSwitch"]

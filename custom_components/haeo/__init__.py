@@ -12,6 +12,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
@@ -159,6 +160,75 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         _LOGGER.debug("Switchboard node created successfully")
 
 
+async def _migrate_constants_to_entity_refs(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
+    """Migrate constant values in config to entity ID references.
+
+    After input entities are created, this function updates subentry configs to replace
+    float/bool constant values with references to the HAEO input entity IDs.
+    This simplifies reconfigure flows since there's no haeo.constant to trigger step 2.
+
+    The entity's value is persisted via RestoreEntity, not in the config.
+    """
+    from custom_components.haeo.elements import get_input_fields, is_element_type  # noqa: PLC0415
+
+    entity_registry = er.async_get(hass)
+
+    for subentry in entry.subentries.values():
+        element_type = subentry.subentry_type
+        if not is_element_type(element_type):
+            continue
+
+        input_fields = get_input_fields(element_type)
+        updates: dict[str, list[str] | str] = {}
+
+        for field_info in input_fields:
+            field_name = field_info.field_name
+            config_value = subentry.data.get(field_name)
+
+            # Check if this is a constant value that needs migration
+            if isinstance(config_value, int | float):
+                # Number field - look up entity_id
+                unique_id = f"{entry.entry_id}_{subentry.subentry_id}_{field_name}"
+                entity_id = entity_registry.async_get_entity_id("number", "haeo", unique_id)
+                if entity_id:
+                    updates[field_name] = [entity_id]  # Number fields store as list
+                    _LOGGER.debug(
+                        "Migrating %s.%s: %.2f -> %s",
+                        subentry.title,
+                        field_name,
+                        config_value,
+                        entity_id,
+                    )
+            elif isinstance(config_value, bool):
+                # Switch field - look up entity_id
+                unique_id = f"{entry.entry_id}_{subentry.subentry_id}_{field_name}"
+                entity_id = entity_registry.async_get_entity_id("switch", "haeo", unique_id)
+                if entity_id:
+                    updates[field_name] = entity_id  # Switch fields store as str
+                    _LOGGER.debug(
+                        "Migrating %s.%s: %s -> %s",
+                        subentry.title,
+                        field_name,
+                        config_value,
+                        entity_id,
+                    )
+
+        # Apply updates if any
+        if updates:
+            # Set flag to prevent reload during migration
+            runtime_data = entry.runtime_data
+            if runtime_data is not None:
+                runtime_data.value_update_in_progress = True
+
+            try:
+                new_data = dict(subentry.data)
+                new_data.update(updates)
+                hass.config_entries.async_update_subentry(entry, subentry, data=new_data)
+            finally:
+                if runtime_data is not None:
+                    runtime_data.value_update_in_progress = False
+
+
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
     """Handle options update or subentry changes."""
     from .network import evaluate_network_connectivity  # noqa: PLC0415
@@ -225,6 +295,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Set up input platforms first - they populate runtime_data.input_entities
     # Input entities register themselves synchronously, though their data loads asynchronously
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
+
+    # Migrate constant values to entity references
+    # This updates config to store entity IDs instead of float/bool values
+    await _migrate_constants_to_entity_refs(hass, entry)
 
     # Wait for input entities to be ready before creating coordinator
     # This gives async_added_to_hass() time to run and load DRIVEN mode entity data

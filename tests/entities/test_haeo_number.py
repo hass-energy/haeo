@@ -196,53 +196,14 @@ async def test_editable_mode_set_native_value(
         horizon_manager=horizon_manager,
     )
 
-    # Mock async_write_ha_state and config entry update
+    # Mock async_write_ha_state
     entity.async_write_ha_state = Mock()
-    hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_set_native_value(15.0)
 
     assert entity.native_value == 15.0
     entity.async_write_ha_state.assert_called_once()
-    # Value should be persisted to config entry
-    hass.config_entries.async_update_subentry.assert_called_once()
-
-
-async def test_editable_mode_set_native_value_with_runtime_data(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """Number entity in EDITABLE mode sets value_update_in_progress flag when runtime_data exists."""
-    subentry = _create_subentry("Test Battery", {"power_limit": 5.0})
-
-    # Create mock runtime_data with value_update_in_progress attribute
-    mock_runtime_data = Mock()
-    mock_runtime_data.value_update_in_progress = False
-    config_entry.runtime_data = mock_runtime_data
-
-    entity = HaeoInputNumber(
-        hass=hass,
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=power_field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-    )
-
-    # Mock async_write_ha_state and config entry update
-    entity.async_write_ha_state = Mock()
-    hass.config_entries.async_update_subentry = Mock()
-
-    await entity.async_set_native_value(15.0)
-
-    assert entity.native_value == 15.0
-    entity.async_write_ha_state.assert_called_once()
-    hass.config_entries.async_update_subentry.assert_called_once()
-    # Flag should be cleared after update
-    assert mock_runtime_data.value_update_in_progress is False
+    # Value is persisted via RestoreEntity, not config entry
 
 
 # --- Tests for DRIVEN mode ---
