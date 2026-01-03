@@ -94,6 +94,7 @@
             "name": "Battery Name",
             "overcharge_cost_mode": "Overcharge Cost Source",
             "overcharge_percentage_mode": "Overcharge Percentage Source",
+            "partition_count": "Number of Partitions",
             "undercharge_cost_mode": "Undercharge Cost Source",
             "undercharge_percentage_mode": "Undercharge Percentage Source"
           }
@@ -115,6 +116,7 @@
             "name": "Battery Name",
             "overcharge_cost_mode": "Overcharge Cost Source",
             "overcharge_percentage_mode": "Overcharge Percentage Source",
+            "partition_count": "Number of Partitions",
             "undercharge_cost_mode": "Undercharge Cost Source",
             "undercharge_percentage_mode": "Undercharge Percentage Source"
           }
@@ -134,6 +136,26 @@
             "min_charge_percentage": "Min Charge Level",
             "overcharge_cost": "Overcharge Cost",
             "overcharge_percentage": "Overcharge Percentage",
+            "partition_0_capacity": "Partition 1 Capacity",
+            "partition_0_charge_cost": "Partition 1 Charge Cost",
+            "partition_0_discharge_cost": "Partition 1 Discharge Cost",
+            "partition_0_name": "Partition 1 Name",
+            "partition_1_capacity": "Partition 2 Capacity",
+            "partition_1_charge_cost": "Partition 2 Charge Cost",
+            "partition_1_discharge_cost": "Partition 2 Discharge Cost",
+            "partition_1_name": "Partition 2 Name",
+            "partition_2_capacity": "Partition 3 Capacity",
+            "partition_2_charge_cost": "Partition 3 Charge Cost",
+            "partition_2_discharge_cost": "Partition 3 Discharge Cost",
+            "partition_2_name": "Partition 3 Name",
+            "partition_3_capacity": "Partition 4 Capacity",
+            "partition_3_charge_cost": "Partition 4 Charge Cost",
+            "partition_3_discharge_cost": "Partition 4 Discharge Cost",
+            "partition_3_name": "Partition 4 Name",
+            "partition_4_capacity": "Partition 5 Capacity",
+            "partition_4_charge_cost": "Partition 5 Charge Cost",
+            "partition_4_discharge_cost": "Partition 5 Discharge Cost",
+            "partition_4_name": "Partition 5 Name",
             "undercharge_cost": "Undercharge Cost",
             "undercharge_percentage": "Undercharge Percentage"
           }
@@ -153,28 +175,29 @@
             "min_charge_percentage": "Min Charge Level",
             "overcharge_cost": "Overcharge Cost",
             "overcharge_percentage": "Overcharge Percentage",
+            "partition_0_capacity": "Partition 1 Capacity",
+            "partition_0_charge_cost": "Partition 1 Charge Cost",
+            "partition_0_discharge_cost": "Partition 1 Discharge Cost",
+            "partition_0_name": "Partition 1 Name",
+            "partition_1_capacity": "Partition 2 Capacity",
+            "partition_1_charge_cost": "Partition 2 Charge Cost",
+            "partition_1_discharge_cost": "Partition 2 Discharge Cost",
+            "partition_1_name": "Partition 2 Name",
+            "partition_2_capacity": "Partition 3 Capacity",
+            "partition_2_charge_cost": "Partition 3 Charge Cost",
+            "partition_2_discharge_cost": "Partition 3 Discharge Cost",
+            "partition_2_name": "Partition 3 Name",
+            "partition_3_capacity": "Partition 4 Capacity",
+            "partition_3_charge_cost": "Partition 4 Charge Cost",
+            "partition_3_discharge_cost": "Partition 4 Discharge Cost",
+            "partition_3_name": "Partition 4 Name",
+            "partition_4_capacity": "Partition 5 Capacity",
+            "partition_4_charge_cost": "Partition 5 Charge Cost",
+            "partition_4_discharge_cost": "Partition 5 Discharge Cost",
+            "partition_4_name": "Partition 5 Name",
             "undercharge_cost": "Undercharge Cost",
             "undercharge_percentage": "Undercharge Percentage"
           }
-        }
-      },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
-      "abort": { "reconfigure_successful": "Configuration updated successfully" }
-    },
-    "energy_storage": {
-      "flow_title": "Energy Storage",
-      "entry_type": "Energy Storage",
-      "initiate_flow": { "user": "Energy Storage", "reconfigure": "Energy Storage" },
-      "step": {
-        "user": {
-          "title": "Add Energy Storage",
-          "description": "Add a single energy storage element with explicit capacity and initial charge. Connect to other elements using Connection elements.",
-          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Energy Storage Name" }
-        },
-        "reconfigure": {
-          "title": "Edit Energy Storage",
-          "description": "Update energy storage configuration",
-          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Energy Storage Name" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -224,6 +247,25 @@
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
+    "energy_storage": {
+      "flow_title": "Energy Storage",
+      "entry_type": "Energy Storage",
+      "initiate_flow": { "user": "Energy Storage", "reconfigure": "Energy Storage" },
+      "step": {
+        "user": {
+          "title": "Add Energy Storage",
+          "description": "Add a single energy storage element with explicit capacity and initial charge. Connect to other elements using Connection elements.",
+          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Energy Storage Name" }
+        },
+        "reconfigure": {
+          "title": "Edit Energy Storage",
+          "description": "Update energy storage configuration",
+          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Energy Storage Name" }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "grid": {
@@ -403,8 +445,8 @@
     "battery_device_normal": { "name": "{name} Main Partition" },
     "battery_device_overcharge": { "name": "{name} Overcharge Partition" },
     "battery_device_undercharge": { "name": "{name} Undercharge Partition" },
-    "energy_storage": { "name": "{name}" },
     "connection": { "name": "{name}" },
+    "energy_storage": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
     "load": { "name": "{name}" },
@@ -455,15 +497,6 @@
       "battery_power_balance": { "name": "Power balance shadow price" },
       "battery_power_charge": { "name": "Charge power" },
       "battery_power_discharge": { "name": "Discharge power" },
-      "energy_storage_energy_in_flow": { "name": "Energy in flow shadow price" },
-      "energy_storage_energy_out_flow": { "name": "Energy out flow shadow price" },
-      "energy_storage_energy_stored": { "name": "Energy stored" },
-      "energy_storage_power_active": { "name": "Active power" },
-      "energy_storage_power_balance": { "name": "Power balance shadow price" },
-      "energy_storage_power_charge": { "name": "Charge power" },
-      "energy_storage_power_discharge": { "name": "Discharge power" },
-      "energy_storage_soc_max": { "name": "SOC max shadow price" },
-      "energy_storage_soc_min": { "name": "SOC min shadow price" },
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },
@@ -473,6 +506,15 @@
       "connection_shadow_power_max_source_target": { "name": "Max {source} to {target} power shadow price" },
       "connection_shadow_power_max_target_source": { "name": "Max {target} to {source} power shadow price" },
       "connection_time_slice": { "name": "Time slice shadow price" },
+      "energy_storage_energy_in_flow": { "name": "Energy in flow shadow price" },
+      "energy_storage_energy_out_flow": { "name": "Energy out flow shadow price" },
+      "energy_storage_energy_stored": { "name": "Energy stored" },
+      "energy_storage_power_active": { "name": "Active power" },
+      "energy_storage_power_balance": { "name": "Power balance shadow price" },
+      "energy_storage_power_charge": { "name": "Charge power" },
+      "energy_storage_power_discharge": { "name": "Discharge power" },
+      "energy_storage_soc_max": { "name": "SOC max shadow price" },
+      "energy_storage_soc_min": { "name": "SOC min shadow price" },
       "grid_power_active": { "name": "Active power" },
       "grid_power_export": { "name": "Export power" },
       "grid_power_import": { "name": "Import power" },
