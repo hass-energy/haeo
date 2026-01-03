@@ -10,7 +10,7 @@ Analyze the differences between the current branch and the `main` branch, then u
 
 First, identify what has changed:
 
-1. **Get the diff**: Compare the current branch to `main` using `git diff main...HEAD` or `git diff main HEAD`
+1. **Get the diff**: Compare the current branch to `main` using `git diff origin/main...HEAD` or `git diff origin/main HEAD`
 
 2. **Categorize changes**:
 
