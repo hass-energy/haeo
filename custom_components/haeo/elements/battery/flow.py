@@ -22,7 +22,7 @@ from custom_components.haeo.flows.field_schema import (
     has_constant_selection,
 )
 
-from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, BatteryConfigSchema
+from .schema import CONF_CONNECTION, CONF_EARLY_CHARGE_INCENTIVE, ELEMENT_TYPE, INPUT_FIELDS, BatteryConfigSchema
 
 
 def _build_step1_schema(
@@ -108,6 +108,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, BatteryConfigSchema))
         defaults[CONF_NAME] = default_name
         defaults[CONF_CONNECTION] = None
+        defaults[CONF_EARLY_CHARGE_INCENTIVE] = []
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

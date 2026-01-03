@@ -2,12 +2,13 @@
 
 from types import MappingProxyType
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -754,4 +755,124 @@ async def test_async_load_data_handles_empty_values(
     await entity._async_load_data()
 
     # State should not have changed
+    assert entity.native_value is None
+
+
+# --- Tests for self-referencing entity detection ---
+
+
+async def test_self_referencing_entity_uses_editable_mode(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Number entity detects self-referencing entity ID and uses EDITABLE mode."""
+    subentry = _create_subentry("Test Battery", {"power_limit": ["number.haeo_test_power_limit"]})
+    config_entry.runtime_data = None
+
+    # Register the entity in the entity registry first
+    registry = er.async_get(hass)
+    unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_power_limit"
+    registry.async_get_or_create(
+        domain="number",
+        platform="haeo",
+        unique_id=unique_id,
+        suggested_object_id="haeo_test_power_limit",
+    )
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Should be EDITABLE mode because entity_id matches self
+    assert entity.entity_mode == ConfigEntityMode.EDITABLE
+    assert entity._source_entity_ids == []
+
+
+async def test_async_added_to_hass_restores_state(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Number entity restores previous state from RestoreEntity."""
+    subentry = _create_subentry("Test Battery", {"power_limit": ["number.haeo_test_power_limit"]})
+    config_entry.runtime_data = None
+
+    # Register the entity in the entity registry
+    registry = er.async_get(hass)
+    unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_power_limit"
+    registry.async_get_or_create(
+        domain="number",
+        platform="haeo",
+        unique_id=unique_id,
+        suggested_object_id="haeo_test_power_limit",
+    )
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock async_get_last_state to return a previous state
+    mock_state = Mock()
+    mock_state.state = "42.5"
+    entity.async_get_last_state = AsyncMock(return_value=mock_state)
+
+    await entity.async_added_to_hass()
+
+    # Value should be restored from previous state
+    assert entity.native_value == 42.5
+
+
+async def test_async_added_to_hass_handles_invalid_restore_state(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Number entity handles invalid restore state gracefully."""
+    subentry = _create_subentry("Test Battery", {"power_limit": ["number.haeo_test_power_limit"]})
+    config_entry.runtime_data = None
+
+    # Register the entity in the entity registry
+    registry = er.async_get(hass)
+    unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_power_limit"
+    registry.async_get_or_create(
+        domain="number",
+        platform="haeo",
+        unique_id=unique_id,
+        suggested_object_id="haeo_test_power_limit",
+    )
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock async_get_last_state to return invalid state
+    mock_state = Mock()
+    mock_state.state = "not_a_number"
+    entity.async_get_last_state = AsyncMock(return_value=mock_state)
+
+    await entity.async_added_to_hass()
+
+    # Value should remain None (invalid state ignored)
     assert entity.native_value is None

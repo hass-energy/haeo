@@ -96,6 +96,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, LoadConfigSchema))
         defaults[CONF_NAME] = default_name
         defaults[CONF_CONNECTION] = None
+        defaults[CONF_FORECAST] = []
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

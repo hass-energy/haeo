@@ -7,12 +7,14 @@ from unittest.mock import AsyncMock, Mock
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import (
     HaeoRuntimeData,
     _ensure_required_subentries,
+    _migrate_constants_to_entity_refs,
     async_reload_entry,
     async_remove_config_entry_device,
     async_setup_entry,
@@ -479,3 +481,142 @@ async def test_async_remove_config_entry_device(hass: HomeAssistant, mock_hub_en
     # Try to remove again - device already gone, should return False
     result = await async_remove_config_entry_device(hass, mock_hub_entry, device)
     assert result is False
+
+
+# --- Tests for _migrate_constants_to_entity_refs ---
+
+
+async def test_migrate_constants_to_entity_refs_number_field(hass: HomeAssistant) -> None:
+    """Test migration of float constant values to entity references."""
+    # Create hub entry
+    hub_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Network",
+        },
+        entry_id="test_hub_migrate",
+        title="Test Network",
+    )
+    hub_entry.add_to_hass(hass)
+
+    # Create grid subentry with float constant values
+    grid_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
+                CONF_NAME: "Grid",
+                CONF_IMPORT_LIMIT: 100.0,  # Float constant
+                CONF_EXPORT_LIMIT: 50.0,  # Float constant
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_GRID,
+        title="Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, grid_subentry)
+
+    # Get the actual subentry_id
+    subentry_id = next(s.subentry_id for s in hub_entry.subentries.values() if s.title == "Grid")
+
+    # Register entities in entity registry (simulates what number platform does)
+    entity_registry = er.async_get(hass)
+    entity_registry.async_get_or_create(
+        domain="number",
+        platform="haeo",
+        unique_id=f"{hub_entry.entry_id}_{subentry_id}_{CONF_IMPORT_LIMIT}",
+        suggested_object_id="grid_import_limit",
+    )
+    entity_registry.async_get_or_create(
+        domain="number",
+        platform="haeo",
+        unique_id=f"{hub_entry.entry_id}_{subentry_id}_{CONF_EXPORT_LIMIT}",
+        suggested_object_id="grid_export_limit",
+    )
+
+    # Set up mock runtime data to prevent reload
+    hub_entry.runtime_data = HaeoRuntimeData(horizon_manager=_create_mock_horizon_manager())
+
+    # Run migration
+    await _migrate_constants_to_entity_refs(hass, hub_entry)
+
+    # Verify config was updated to use entity references
+    updated_subentry = next(s for s in hub_entry.subentries.values() if s.title == "Grid")
+    assert isinstance(updated_subentry.data[CONF_IMPORT_LIMIT], list)
+    assert updated_subentry.data[CONF_IMPORT_LIMIT] == ["number.grid_import_limit"]
+    assert isinstance(updated_subentry.data[CONF_EXPORT_LIMIT], list)
+    assert updated_subentry.data[CONF_EXPORT_LIMIT] == ["number.grid_export_limit"]
+
+
+async def test_migrate_constants_skips_entity_lists(hass: HomeAssistant) -> None:
+    """Test migration skips fields that already have entity references."""
+    # Create hub entry
+    hub_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Network",
+        },
+        entry_id="test_hub_skip",
+        title="Test Network",
+    )
+    hub_entry.add_to_hass(hass)
+
+    # Create grid subentry with entity list (already migrated)
+    grid_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_GRID,
+                CONF_NAME: "Grid",
+                CONF_IMPORT_LIMIT: ["sensor.power_limit"],  # Already entity list
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_GRID,
+        title="Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, grid_subentry)
+
+    # Set up mock runtime data
+    hub_entry.runtime_data = HaeoRuntimeData(horizon_manager=_create_mock_horizon_manager())
+
+    # Run migration
+    await _migrate_constants_to_entity_refs(hass, hub_entry)
+
+    # Verify config was NOT changed
+    updated_subentry = next(s for s in hub_entry.subentries.values() if s.title == "Grid")
+    assert updated_subentry.data[CONF_IMPORT_LIMIT] == ["sensor.power_limit"]
+
+
+async def test_migrate_constants_skips_non_element_subentries(hass: HomeAssistant) -> None:
+    """Test migration skips non-element subentries like network."""
+    # Create hub entry
+    hub_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Network",
+        },
+        entry_id="test_hub_network",
+        title="Test Network",
+    )
+    hub_entry.add_to_hass(hass)
+
+    # Create network subentry (should be skipped)
+    network_subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_NAME: "Network", CONF_ELEMENT_TYPE: "network"}),
+        subentry_type="network",
+        title="Network",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, network_subentry)
+
+    # Set up mock runtime data
+    hub_entry.runtime_data = HaeoRuntimeData(horizon_manager=_create_mock_horizon_manager())
+
+    # Run migration - should not raise
+    await _migrate_constants_to_entity_refs(hass, hub_entry)
+
+    # Verify network subentry was not modified
+    updated_subentry = next(s for s in hub_entry.subentries.values() if s.title == "Network")
+    assert updated_subentry.data[CONF_NAME] == "Network"

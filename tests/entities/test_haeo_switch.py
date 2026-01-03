@@ -2,12 +2,13 @@
 
 from types import MappingProxyType
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -869,3 +870,123 @@ async def test_load_source_state_with_none_source_entity(
 
     # State should still be True from config
     assert entity.is_on is True
+
+
+# --- Tests for self-referencing entity detection ---
+
+
+async def test_self_referencing_entity_uses_editable_mode(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Switch entity detects self-referencing entity ID and uses EDITABLE mode."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "switch.haeo_test_curtailment"})
+    config_entry.runtime_data = None
+
+    # Register the entity in the entity registry first
+    registry = er.async_get(hass)
+    unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_allow_curtailment"
+    registry.async_get_or_create(
+        domain="switch",
+        platform="haeo",
+        unique_id=unique_id,
+        suggested_object_id="haeo_test_curtailment",
+    )
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Should be EDITABLE mode because entity_id matches self
+    assert entity.entity_mode == ConfigEntityMode.EDITABLE
+    assert entity._source_entity_id is None
+
+
+async def test_async_added_to_hass_restores_state(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Switch entity restores previous state from RestoreEntity."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "switch.haeo_test_curtailment"})
+    config_entry.runtime_data = None
+
+    # Register the entity in the entity registry
+    registry = er.async_get(hass)
+    unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_allow_curtailment"
+    registry.async_get_or_create(
+        domain="switch",
+        platform="haeo",
+        unique_id=unique_id,
+        suggested_object_id="haeo_test_curtailment",
+    )
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock async_get_last_state to return a previous state
+    mock_state = Mock()
+    mock_state.state = STATE_ON
+    entity.async_get_last_state = AsyncMock(return_value=mock_state)
+
+    await entity.async_added_to_hass()
+
+    # Value should be restored from previous state
+    assert entity.is_on is True
+
+
+async def test_async_added_to_hass_restores_off_state(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Switch entity restores OFF state from RestoreEntity."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": "switch.haeo_test_curtailment"})
+    config_entry.runtime_data = None
+
+    # Register the entity in the entity registry
+    registry = er.async_get(hass)
+    unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_allow_curtailment"
+    registry.async_get_or_create(
+        domain="switch",
+        platform="haeo",
+        unique_id=unique_id,
+        suggested_object_id="haeo_test_curtailment",
+    )
+
+    entity = HaeoInputSwitch(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock async_get_last_state to return a previous state
+    mock_state = Mock()
+    mock_state.state = STATE_OFF
+    entity.async_get_last_state = AsyncMock(return_value=mock_state)
+
+    await entity.async_added_to_hass()
+
+    # Value should be restored from previous state
+    assert entity.is_on is False
