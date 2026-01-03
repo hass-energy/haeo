@@ -143,46 +143,62 @@ Each element type has its own flow class in `custom_components/haeo/flows/`:
 
 Each flow defines element-specific schema fields, defaults, and validation logic.
 
-## Two-Step Config Flow Pattern
+## Entity-First Config Flow Pattern
 
-Some element types use a two-step configuration flow that separates mode selection from value entry.
-This pattern provides a cleaner user experience when fields can be configured in different ways.
+Element types use an entity-first configuration flow where users select entities or constant values directly.
+This pattern provides a cleaner user experience with fewer steps for common configurations.
 
 ### Flow Steps
 
-**Step 1 (user)**: User enters the element name, connection target, and selects an **input mode** for each configurable field.
+**Step 1 (user)**: User enters the element name, connection target, and selects entities for each configurable field.
+The entity selector includes a special `haeo.constant` option for fields where the user wants to enter a fixed value.
 
-**Step 2 (values)**: Based on the mode selections, the UI shows appropriate inputs for each field.
+**Step 2 (values)**: Only shown if `haeo.constant` was selected for any field.
+User enters the actual constant values for those fields.
 
-### Input Modes
+### Constant Sentinel Entity
 
-The `InputMode` enum defines how each field receives its value:
+HAEO creates a special `haeo.constant` entity that appears in all entity selector dropdowns.
+When selected, it indicates the user wants to enter a constant value rather than link to a Home Assistant sensor.
 
-| Mode          | Description                                            | UI Widget              |
-| ------------- | ------------------------------------------------------ | ---------------------- |
-| `CONSTANT`    | User enters a fixed numeric value                      | NumberSelector         |
-| `ENTITY_LINK` | Value comes from one or more Home Assistant sensors    | EntitySelector (multi) |
-| `NONE`        | Field is disabled (only available for optional fields) | No input shown         |
+The constant entity:
 
-The `NONE` option only appears for optional fields (those marked with `NotRequired` in the TypedDict schema).
-Required fields only show `CONSTANT` and `ENTITY_LINK` options.
+- Is registered in the entity registry with domain `haeo` and device class `haeo`
+- Appears in EntitySelector dropdowns via domain filtering
+- Triggers step 2 to collect the actual constant value when selected
+
+### Input Options
+
+Each field can be configured in one of three ways:
+
+| Selection                   | Behavior                                     | Step 2 Required? |
+| --------------------------- | -------------------------------------------- | ---------------- |
+| `haeo.constant`             | User enters a fixed numeric or boolean value | Yes              |
+| One or more sensor entities | Value comes from Home Assistant sensors      | No               |
+| Empty (optional fields)     | Field is disabled, uses default if available | No               |
+
+Optional fields (those marked with `NotRequired` in the TypedDict schema) can be left empty.
+Required fields must have at least one entity selected.
 
 ### Implementation Pattern
 
-The two-step flow utilities are in `custom_components/haeo/flows/field_schema.py`:
+The entity-first flow utilities are in `custom_components/haeo/flows/field_schema.py`:
 
-- `build_mode_schema_entry()`: Creates the mode selector for step 1
-- `build_value_schema_entry()`: Creates the value input for step 2 based on selected mode
-- `get_mode_defaults()`: Provides default mode selections based on field types
-- `get_value_defaults()`: Extracts current values for reconfigure flows
+- `build_entity_selector_with_constant()`: Creates an EntitySelector that includes the constant entity
+- `build_entity_schema_entry()`: Creates the entity selection for step 1
+- `build_constant_value_schema()`: Creates the constant value form for step 2
+- `get_entity_selection_defaults()`: Provides default entity selections based on field types
+- `get_constant_value_defaults()`: Extracts current constant values for reconfigure flows
+- `has_constant_selection()`: Checks if any field has the constant entity selected
+- `can_reuse_constant_values()`: Determines if step 2 can be skipped during reconfigure
 
-Flow handlers store step 1 data and use it to build the step 2 schema dynamically.
-When mode is `NONE`, no value entry is shown and no input entity is created for that field.
+Flow handlers store step 1 data and check if step 2 is needed.
+If no fields have `haeo.constant` selected, step 2 is skipped entirely.
 
 ### Entity Creation
 
 Input entities are only created for fields that are actually configured.
-If a user selects `NONE` for an optional field, no entity is created for that field.
+If a user leaves an optional field empty, no entity is created for that field.
 This keeps the entity list clean and focused on configured functionality.
 
 ## Field Schema System

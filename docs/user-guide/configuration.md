@@ -102,15 +102,20 @@ After creating your hub, add elements to represent your devices through the Home
 
 ### Element configuration
 
-Most elements use a two-step configuration process:
+Most elements use a streamlined configuration process:
 
-**Step 1 - Settings and modes**: Enter the element name, select connection targets, and choose how each field receives its value—either a constant you enter, a sensor link, or not configured (for optional fields).
+**Step 1 - Settings and entities**: Enter the element name, select connection targets, and for each configurable field, either:
 
-**Step 2 - Values**: Enter the actual values or select sensors for each field based on your mode selections.
+- Select one or more Home Assistant sensors to provide the value
+- Select **HAEO Constant Value** to enter a fixed value
+- Leave empty for optional fields you don't need
+
+**Step 2 - Constant values** (only if needed): If you selected HAEO Constant Value for any field, enter the actual numeric or boolean values.
+This step is skipped entirely if all fields use sensor links.
 
 !!! tip "Optional fields"
 
-    For optional fields like power limits, select "Not Configured" if you don't need that constraint.
+    For optional fields like power limits, leave the entity selector empty if you don't need that constraint.
     The optimization will run without that limit applied.
 
 !!! note "Network entry"

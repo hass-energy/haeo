@@ -52,7 +52,7 @@ See the element adapter modules for specific registrations.
 ## Entity Creation
 
 Input entities are only created for fields that are actually configured.
-When a user selects "Not Configured" (mode `NONE`) for an optional field during element setup, no entity is created for that field.
+When a user leaves an optional field empty during element setup, no entity is created for that field.
 This keeps the entity list focused on functionality the user has enabled.
 
 **Configured fields**: An entity is created in either EDITABLE or DRIVEN mode depending on the input type.
@@ -60,7 +60,7 @@ This keeps the entity list focused on functionality the user has enabled.
 **Unconfigured fields**: No entity is created.
 The field uses its default value in the optimization model without exposing an entity.
 
-This behavior is controlled by the two-step config flow pattern documented in [Config Flow Development](config-flow.md#two-step-config-flow-pattern).
+This behavior is controlled by the entity-first config flow pattern documented in [Config Flow Development](config-flow.md#entity-first-config-flow-pattern).
 
 ## Entity Types
 
@@ -80,7 +80,7 @@ Input entities operate in one of two modes based on how the field was configured
 
 ### Editable Mode
 
-When the configuration specifies a constant value (not an external sensor):
+When the configuration specifies the `haeo.constant` entity (indicating a constant value):
 
 - The entity displays the configured value
 - Users can modify the value through the Home Assistant UI
@@ -88,9 +88,12 @@ When the configuration specifies a constant value (not an external sensor):
 - Changes persist and affect future optimizations
 - Useful for what-if analysis and dynamic adjustments
 
+During setup, when users select `haeo.constant` in an entity selector, they enter a constant value in the next step.
+This value is stored and the configuration is migrated to reference the HAEO input entity ID.
+
 ### Driven Mode
 
-When the configuration specifies an entity ID or list of entity IDs:
+When the configuration specifies one or more sensor entity IDs:
 
 - The entity loads data from source sensors using TimeSeriesLoader
 - Values update automatically when source sensors change

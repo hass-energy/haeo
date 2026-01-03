@@ -31,9 +31,9 @@ Connections define how power flows between elements in your network with support
 
     **Leaving fields unset**: When a direction should allow unlimited flow with no losses or costs, leave the corresponding fields empty rather than creating sensors with maximum or default values.
 
-    **Using constant values**: All sensor fields require sensor entities.
+    **Using constant values**: Select **HAEO Constant Value** in the entity selector, then enter your constant in step 2.
 
-Use [input number helpers](https://www.home-assistant.io/integrations/input_number/) to configure constant values.
+Alternatively, use [input number helpers](https://www.home-assistant.io/integrations/input_number/) for values you want to adjust through the Home Assistant UI.
 
 ### Connection Endpoint Selection
 
