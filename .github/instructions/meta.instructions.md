@@ -14,7 +14,7 @@ This file governs how to maintain the instruction and rule files themselves.
 HAEO uses two parallel AI instruction systems that share the same source files:
 
 - **GitHub Copilot**: `.github/instructions/*.instructions.md` (source files)
-- **Cursor**: `.cursor/rules/*/RULE.md` (symlinks to source files)
+- **Cursor**: `.cursor/rules/*/RULE.mdc` (symlinks to source files)
 
 ### Combined frontmatter
 
@@ -31,14 +31,14 @@ This allows Cursor rules to be symlinks to the Copilot instruction files.
 
 ### Current symlink structure
 
-Each Cursor rule directory contains a `RULE.md` symlink pointing to the corresponding Copilot instruction:
+Each Cursor rule directory contains a `RULE.mdc` symlink pointing to the corresponding Copilot instruction:
 
-| Cursor Rule      | Symlink Target                                         |
-| ---------------- | ------------------------------------------------------ |
-| `haeo/RULE.md`   | `../../../.github/copilot-instructions.md`             |
-| `python/RULE.md` | `../../../.github/instructions/python.instructions.md` |
-| `model/RULE.md`  | `../../../.github/instructions/model.instructions.md`  |
-| (etc.)           | (etc.)                                                 |
+| Cursor Rule       | Symlink Target                                         |
+| ----------------- | ------------------------------------------------------ |
+| `haeo/RULE.mdc`   | `../../../.github/copilot-instructions.md`             |
+| `python/RULE.mdc` | `../../../.github/instructions/python.instructions.md` |
+| `model/RULE.mdc`  | `../../../.github/instructions/model.instructions.md`  |
+| (etc.)            | (etc.)                                                 |
 
 ## Keeping systems in sync
 
@@ -49,7 +49,7 @@ When adding a new instruction file:
 
 1. Create the file in `.github/instructions/` with combined frontmatter
 2. Create the corresponding directory in `.cursor/rules/`
-3. Create a symlink: `ln -s ../../../.github/instructions/name.instructions.md .cursor/rules/name/RULE.md`
+3. Create a symlink: `ln -s ../../../.github/instructions/name.instructions.md .cursor/rules/name/RULE.mdc`
 
 ## Self-maintenance process
 
