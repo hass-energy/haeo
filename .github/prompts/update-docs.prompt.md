@@ -11,18 +11,21 @@ Analyze the differences between the current branch and the `main` branch, then u
 First, identify what has changed:
 
 1. **Get the diff**: Compare the current branch to `main` using `git diff main...HEAD` or `git diff main HEAD`
+
 2. **Categorize changes**:
-   - New features (new files, new functions, new classes)
-   - Modified features (changed behavior, updated APIs)
-   - Deleted features (removed functionality)
-   - Bug fixes (behavior corrections)
-   - Refactoring (internal changes without behavior changes)
+
+    - New features (new files, new functions, new classes)
+    - Modified features (changed behavior, updated APIs)
+    - Deleted features (removed functionality)
+    - Bug fixes (behavior corrections)
+    - Refactoring (internal changes without behavior changes)
 
 3. **Map changes to documentation areas**:
-   - **User-facing changes** → `docs/user-guide/` (configuration, usage, examples)
-   - **Developer-facing changes** → `docs/developer-guide/` (architecture, APIs, extension points)
-   - **Model/mathematical changes** → `docs/modeling/` (LP formulation, constraints, cost functions)
-   - **Element-specific changes** → Both user-guide and modeling docs for that element
+
+    - **User-facing changes** → `docs/user-guide/` (configuration, usage, examples)
+    - **Developer-facing changes** → `docs/developer-guide/` (architecture, APIs, extension points)
+    - **Model/mathematical changes** → `docs/modeling/` (LP formulation, constraints, cost functions)
+    - **Element-specific changes** → Both user-guide and modeling docs for that element
 
 ## Step 2: Documentation Update Strategy
 
@@ -31,8 +34,8 @@ For each identified change, determine what documentation needs updating:
 ### New Features
 
 - **New elements**: Create documentation in both `docs/user-guide/elements/` and `docs/modeling/device-layer/` (and `model-layer/` if applicable)
-  - Use templates from `docs/developer-guide/templates/` as starting points
-  - Follow element documentation patterns from existing elements
+    - Use templates from `docs/developer-guide/templates/` as starting points
+    - Follow element documentation patterns from existing elements
 - **New configuration options**: Update relevant element pages in `docs/user-guide/elements/`
 - **New sensors**: Document in element pages and update `docs/user-guide/forecasts-and-sensors.md` if behavior changes
 - **New developer APIs**: Document in `docs/developer-guide/` with architecture focus, not code reproduction
@@ -72,9 +75,9 @@ When updating documentation, strictly follow the guidelines in `docs/developer-g
 
 - **Link, don't duplicate**: Reference existing authoritative sources rather than repeating information
 - **Single source of truth**:
-  - Forecasts/sensors → `docs/user-guide/forecasts-and-sensors.md`
-  - Units → `docs/developer-guide/units.md`
-  - Home Assistant concepts → Link to HA developer docs
+    - Forecasts/sensors → `docs/user-guide/forecasts-and-sensors.md`
+    - Units → `docs/developer-guide/units.md`
+    - Home Assistant concepts → Link to HA developer docs
 - **Progressive disclosure**: High-level pages describe patterns, detail pages provide specifics
 
 ### User-Facing Pages
@@ -104,15 +107,17 @@ Map code changes to specific documentation locations:
 If changes affect an element type (battery, grid, solar, load, node, connection, etc.):
 
 1. **User guide**: `docs/user-guide/elements/{element}.md`
-   - Configuration fields
-   - Examples
-   - Sensors created
-   - Troubleshooting
+
+    - Configuration fields
+    - Examples
+    - Sensors created
+    - Troubleshooting
 
 2. **Modeling docs**:
-   - `docs/modeling/device-layer/{element}.md` (if device-layer element)
-   - `docs/modeling/model-layer/elements/{element}.md` (if model-layer element)
-   - `docs/modeling/model-layer/connections/{connection}.md` (if connection)
+
+    - `docs/modeling/device-layer/{element}.md` (if device-layer element)
+    - `docs/modeling/model-layer/elements/{element}.md` (if model-layer element)
+    - `docs/modeling/model-layer/connections/{connection}.md` (if connection)
 
 3. **Developer guide**: `docs/developer-guide/` (if architecture or extension points change)
 
@@ -135,7 +140,7 @@ If changes affect data loading or sensors:
 Before finalizing documentation updates:
 
 - [ ] **Terminology**: Verify consistent use of "Hub", "Element", "Connection", "Sensor"
-- [ ] **Units**: Power in kW, energy in kWh, prices in $/kWh, time in seconds (internal) or hours (user-facing)
+- [ ] **Units**: Power in kW, energy in kWh, prices in \$/kWh, time in seconds (internal) or hours (user-facing)
 - [ ] **Links**: Test all internal links resolve correctly
 - [ ] **Cross-references**: Update links to changed sections
 - [ ] **Next Steps**: Ensure user-facing pages have Next Steps sections
@@ -154,6 +159,7 @@ Before finalizing documentation updates:
 ## Output
 
 Provide a summary of:
+
 - Files changed in the branch
 - Documentation files updated
 - New documentation files created (if any)
