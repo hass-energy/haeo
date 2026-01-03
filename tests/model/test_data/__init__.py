@@ -29,13 +29,13 @@ def highs_sequence(h: Highs, name: str, length: int) -> tuple[list[highs_var], H
 
 
 # Import modules after defining utilities to avoid circular imports
-from . import battery, connection, node  # noqa: E402
+from . import connection, energy_storage, node  # noqa: E402
 
 
 def _aggregate_element_cases() -> list[ElementTestCase]:
     """Aggregate valid element test cases."""
     return [
-        *battery.VALID_CASES,
+        *energy_storage.VALID_CASES,
         *node.VALID_CASES,
     ]
 
@@ -50,7 +50,7 @@ def _aggregate_connection_cases() -> list[ConnectionTestCase]:
 def _aggregate_invalid_element_cases() -> list[ElementTestCase]:
     """Aggregate invalid element test cases."""
     return [
-        *battery.INVALID_CASES,
+        *energy_storage.INVALID_CASES,
         *node.INVALID_CASES,
     ]
 
@@ -73,8 +73,8 @@ __all__ = [
     "INVALID_ELEMENT_CASES",
     "VALID_CONNECTION_CASES",
     "VALID_ELEMENT_CASES",
-    "battery",
     "connection",
+    "energy_storage",
     "highs_sequence",
     "node",
 ]

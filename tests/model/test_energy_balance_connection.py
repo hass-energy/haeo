@@ -1,7 +1,7 @@
-"""Tests for BatteryBalanceConnection constraints.
+"""Tests for EnergyBalanceConnection constraints.
 
-This test suite verifies the battery balance connection's constraint formulation
-using simplified mock batteries with controlled stored_energy values and SOC
+This test suite verifies the energy balance connection's constraint formulation
+using simplified mock partitions with controlled stored_energy values and SOC
 constraints. The tests confirm that:
 
 1. Downward flow: power_down = min(demand, available)
@@ -12,7 +12,7 @@ constraints. The tests confirm that:
    - When capacity stable: power_up = 0
    - When capacity shrinks: power_up = excess amount
 
-The battery balance connection only provides one-sided bounds; the external SOC
+The energy balance connection only provides one-sided bounds; the external SOC
 constraints (E >= 0, E <= C) fully bind the solution to exact values.
 """
 
@@ -26,12 +26,12 @@ import numpy as np
 from numpy.typing import NDArray
 import pytest
 
-from custom_components.haeo.model.battery_balance_connection import BatteryBalanceConnection
+from custom_components.haeo.model.energy_balance_connection import EnergyBalanceConnection
 
 
 @dataclass
-class MockBattery:
-    """Simplified battery for testing balance connection constraints.
+class MockPartition:
+    """Simplified partition for testing balance connection constraints.
 
     Provides stored_energy as HiGHS linear expressions and adds basic SOC
     constraints (0 <= E <= capacity) to the solver.
@@ -45,7 +45,7 @@ class MockBattery:
     stored_energy: HighspyArray
     _energy_in: HighspyArray
     _energy_out: HighspyArray
-    _connections: list[tuple[BatteryBalanceConnection, str]]
+    _connections: list[tuple[EnergyBalanceConnection, str]]
 
     @classmethod
     def create(
@@ -56,7 +56,7 @@ class MockBattery:
         initial_charge: float,
         solver: Highs,
     ) -> Self:
-        """Create a mock battery with SOC constraints."""
+        """Create a mock partition with SOC constraints."""
         # Broadcast capacity to T+1 fence posts
         cap = tuple([float(capacity)] * (n_periods + 1)) if isinstance(capacity, float | int) else capacity
 
@@ -92,8 +92,8 @@ class MockBattery:
             _connections=[],
         )
 
-    def register_connection(self, connection: BatteryBalanceConnection, end: str) -> None:
-        """Register a connection to this battery."""
+    def register_connection(self, connection: EnergyBalanceConnection, end: str) -> None:
+        """Register a connection to this partition."""
         self._connections.append((connection, end))
 
     def connection_power(self, _periods: NDArray[np.floating]) -> HighspyArray:
@@ -126,15 +126,15 @@ class MockBattery:
 
 @dataclass
 class BalanceTestScenario:
-    """Test scenario for battery balance connection."""
+    """Test scenario for energy balance connection."""
 
     description: str
     n_periods: int
     periods: tuple[float, ...]
-    # Upper battery config
+    # Upper partition config
     upper_capacity: float | tuple[float, ...]
     upper_initial: float
-    # Lower battery config (capacity can change over time for upward flow tests)
+    # Lower partition config (capacity can change over time for upward flow tests)
     lower_capacity: float | tuple[float, ...]
     lower_initial: float
     # Expected results
@@ -267,17 +267,17 @@ BALANCE_TEST_SCENARIOS: list[BalanceTestScenario] = [
     BALANCE_TEST_SCENARIOS,
     ids=lambda s: s.description.lower().replace(" ", "_").replace(",", "").replace(":", ""),
 )
-def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs) -> None:
+def test_energy_balance_connection(scenario: BalanceTestScenario, solver: Highs) -> None:
     """Verify balance connection produces correct power flows."""
-    # Create mock batteries
-    upper = MockBattery.create(
+    # Create mock partitions
+    upper = MockPartition.create(
         name="upper",
         n_periods=scenario.n_periods,
         capacity=scenario.upper_capacity,
         initial_charge=scenario.upper_initial,
         solver=solver,
     )
-    lower = MockBattery.create(
+    lower = MockPartition.create(
         name="lower",
         n_periods=scenario.n_periods,
         capacity=scenario.lower_capacity,
@@ -286,7 +286,7 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     )
 
     # Create balance connection
-    connection = BatteryBalanceConnection(
+    connection = EnergyBalanceConnection(
         name="balance",
         periods=scenario.periods,
         solver=solver,
@@ -295,11 +295,11 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
         capacity_lower=scenario.lower_capacity,
     )
 
-    # Set battery references and build constraints
-    # MockBattery provides the same interface as Battery but isn't a subtype
-    connection.set_battery_references(upper, lower)  # type: ignore[arg-type]
+    # Set partition references and build constraints
+    # MockPartition provides the same interface as EnergyStorage but isn't a subtype
+    connection.set_partition_references(upper, lower)  # type: ignore[arg-type]
 
-    # Build power balance for batteries (links connections to energy change)
+    # Build power balance for partitions (links connections to energy change)
     upper.build_power_balance(scenario.periods)
     lower.build_power_balance(scenario.periods)
 
@@ -329,9 +329,9 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     )
 
 
-def test_battery_balance_connection_missing_references(solver: Highs) -> None:
-    """Verify error when battery references not set."""
-    connection = BatteryBalanceConnection(
+def test_energy_balance_connection_missing_references(solver: Highs) -> None:
+    """Verify error when partition references not set."""
+    connection = EnergyBalanceConnection(
         name="balance",
         periods=(1.0,),
         solver=solver,
@@ -340,16 +340,16 @@ def test_battery_balance_connection_missing_references(solver: Highs) -> None:
         capacity_lower=10.0,
     )
 
-    with pytest.raises(ValueError, match="Battery references not set"):
+    with pytest.raises(ValueError, match="Partition references not set"):
         connection.build_constraints()
 
 
-def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
+def test_energy_balance_connection_outputs_structure(solver: Highs) -> None:
     """Verify outputs method returns expected structure before optimization."""
-    upper = MockBattery.create("upper", 2, 10.0, 5.0, solver)
-    lower = MockBattery.create("lower", 2, 10.0, 3.0, solver)
+    upper = MockPartition.create("upper", 2, 10.0, 5.0, solver)
+    lower = MockPartition.create("lower", 2, 10.0, 3.0, solver)
 
-    connection = BatteryBalanceConnection(
+    connection = EnergyBalanceConnection(
         name="balance",
         periods=(1.0, 1.0),
         solver=solver,
@@ -357,8 +357,8 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
         lower="lower",
         capacity_lower=10.0,
     )
-    # MockBattery provides the same interface as Battery but isn't a subtype
-    connection.set_battery_references(upper, lower)  # type: ignore[arg-type]
+    # MockPartition provides the same interface as EnergyStorage but isn't a subtype
+    connection.set_partition_references(upper, lower)  # type: ignore[arg-type]
     connection.build_constraints()
 
     # Run solver

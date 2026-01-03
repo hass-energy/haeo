@@ -61,7 +61,7 @@ Advanced elements include:
 
 - **Connection**: Explicit power flow paths between elements
 - **Node**: Virtual power balance points (with advanced source/sink configuration)
-- **Battery Section**: Direct access to model layer Battery element
+- **Energy Storage**: Direct access to model layer Energy Storage element
 
 Most users should use the standard elements which provide automatic connections and optimized behavior.
 Advanced elements require manual connection configuration and are intended for users who understand the underlying model layer.
@@ -104,11 +104,11 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Node guide](node.md)
 
-- :material-battery-charging:{ .lg .middle } __Battery Section configuration__ (Advanced)
+- :material-battery-charging:{ .lg .middle } __Energy Storage configuration__ (Advanced)
 
-    Direct access to model layer Battery element.
+    Direct access to model layer Energy Storage element.
 
-    [:material-arrow-right: Battery Section guide](battery_section.md)
+    [:material-arrow-right: Energy Storage guide](energy_storage.md)
 
 - :material-connection:{ .lg .middle } __Connection configuration__ (Advanced)
 

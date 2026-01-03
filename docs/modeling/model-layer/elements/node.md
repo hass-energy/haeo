@@ -96,13 +96,13 @@ Used to connect multiple elements at a common point (Kirchhoff's law).
 
 <div class="grid cards" markdown>
 
-- :material-battery-charging:{ .lg .middle } **Battery model**
+- :material-battery-charging:{ .lg .middle } **Energy Storage model**
 
     ---
 
     Energy storage with SOC dynamics.
 
-    [:material-arrow-right: Battery formulation](battery.md)
+    [:material-arrow-right: Energy Storage formulation](energy-storage.md)
 
 - :material-connection:{ .lg .middle } **Connections**
 

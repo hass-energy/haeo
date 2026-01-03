@@ -65,13 +65,13 @@ The magnitude indicates how valuable additional capacity would be at that point.
 
 <div class="grid cards" markdown>
 
-- :material-battery-charging:{ .lg .middle } **Battery modeling**
+- :material-battery-charging:{ .lg .middle } **Energy Storage modeling**
 
     ---
 
-    Understand how battery constraints generate shadow prices for state-of-charge and energy balance.
+    Understand how storage constraints generate shadow prices for state-of-charge and energy balance.
 
-    [:material-arrow-right: Battery model](model-layer/elements/battery.md)
+    [:material-arrow-right: Energy Storage model](model-layer/elements/energy-storage.md)
 
 - :material-transmission-tower:{ .lg .middle } **Grid modeling**
 

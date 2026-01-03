@@ -8,10 +8,10 @@ from typing import Any
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons
 
-from .battery import Battery
-from .battery_balance_connection import BatteryBalanceConnection
 from .connection import Connection
 from .element import Element
+from .energy_balance_connection import EnergyBalanceConnection
+from .energy_storage import EnergyStorage
 from .node import Node
 from .power_connection import PowerConnection
 
@@ -70,8 +70,8 @@ class Network:
 
         """
         factories: dict[str, Callable[..., Element[Any, Any]]] = {
-            "battery": Battery,
-            "battery_balance_connection": BatteryBalanceConnection,
+            "energy_storage": EnergyStorage,
+            "energy_balance_connection": EnergyBalanceConnection,
             "connection": PowerConnection,
             "node": Node,
         }
@@ -81,8 +81,8 @@ class Network:
         self.elements[name] = element
 
         # Register connections immediately when adding Connection elements
-        # (but not BatteryBalanceConnection - those register themselves via set_battery_references)
-        if isinstance(element, Connection) and not isinstance(element, BatteryBalanceConnection):
+        # (but not EnergyBalanceConnection - those register themselves via set_partition_references)
+        if isinstance(element, Connection) and not isinstance(element, EnergyBalanceConnection):
             # Get source and target elements
             source_element = self.elements.get(element.source)
             target_element = self.elements.get(element.target)
@@ -99,21 +99,21 @@ class Network:
                 msg = f"Failed to register connection {name} with target {element.target}: Not found or invalid"
                 raise ValueError(msg)
 
-        # Register battery balance connections with their battery sections
-        if isinstance(element, BatteryBalanceConnection):
-            # BatteryBalanceConnection uses source=upper, target=lower
+        # Register energy balance connections with their energy storage partitions
+        if isinstance(element, EnergyBalanceConnection):
+            # EnergyBalanceConnection uses source=upper, target=lower
             upper_element = self.elements.get(element.source)
             lower_element = self.elements.get(element.target)
 
-            if not isinstance(upper_element, Battery):
-                msg = f"Upper element '{element.source}' is not a battery"
+            if not isinstance(upper_element, EnergyStorage):
+                msg = f"Upper element '{element.source}' is not an energy storage partition"
                 raise TypeError(msg)
 
-            if not isinstance(lower_element, Battery):
-                msg = f"Lower element '{element.target}' is not a battery"
+            if not isinstance(lower_element, EnergyStorage):
+                msg = f"Lower element '{element.target}' is not an energy storage partition"
                 raise TypeError(msg)
 
-            element.set_battery_references(upper_element, lower_element)
+            element.set_partition_references(upper_element, lower_element)
 
         return element
 

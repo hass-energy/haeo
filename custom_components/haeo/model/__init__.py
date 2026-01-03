@@ -1,7 +1,5 @@
 """HAEO energy modeling components."""
 
-from .battery_balance_connection import ELEMENT_TYPE as MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION
-from .battery_balance_connection import BatteryBalanceConnection as BatteryBalanceConnection
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
 from .connection import CONNECTION_POWER_TARGET_SOURCE as CONNECTION_POWER_TARGET_SOURCE
@@ -11,6 +9,8 @@ from .connection import ConnectionConstraintName as ConnectionConstraintName
 from .connection import ConnectionOutputName as ConnectionOutputName
 from .const import OutputType
 from .element import Element as Element
+from .energy_balance_connection import ELEMENT_TYPE as MODEL_ELEMENT_ENERGY_BALANCE_CONNECTION
+from .energy_balance_connection import EnergyBalanceConnection as EnergyBalanceConnection
 from .network import Network as Network
 from .output_data import OutputData
 from .output_names import ModelOutputName
@@ -23,13 +23,13 @@ __all__ = [
     "CONNECTION_POWER_SOURCE_TARGET",
     "CONNECTION_POWER_TARGET_SOURCE",
     "CONNECTION_TIME_SLICE",
-    "MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION",
+    "MODEL_ELEMENT_ENERGY_BALANCE_CONNECTION",
     "POWER_CONNECTION_OUTPUT_NAMES",
-    "BatteryBalanceConnection",
     "Connection",
     "ConnectionConstraintName",
     "ConnectionOutputName",
     "Element",
+    "EnergyBalanceConnection",
     "ModelOutputName",
     "Network",
     "OutputData",
