@@ -14,10 +14,10 @@ from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
     build_entity_schema_entry,
     convert_entity_selections_to_config,
+    extract_entity_selections,
     get_constant_value_defaults,
     get_entity_selection_defaults,
     has_constant_selection,
-    is_constant_entity,
 )
 
 from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, BatteryConfigSchema
@@ -76,24 +76,15 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is not None:
             name = user_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                # Validate entity selections
+                # Validate entity selections - required fields must have at least one selection
                 for field_info in INPUT_FIELDS:
                     field_name = field_info.field_name
                     entities = user_input.get(field_name, [])
                     is_optional = field_name in BatteryConfigSchema.__optional_keys__
-
-                    # Required fields must have at least one selection
                     if not is_optional and not entities:
                         errors[field_name] = "required"
-                        continue
-
-                    # If constant entity is selected, it should be the only selection (or validate in step 2)
-                    if any(is_constant_entity(entity_id) for entity_id in entities) and len(entities) > 1:
-                        # Allow mixing for now, but we'll only use constant value in step 2
-                        pass
 
                 if not errors:
-                    # Store step 1 data and proceed to step 2
                     self._step1_data = user_input
                     return await self.async_step_values()
 
@@ -120,18 +111,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 2: constant value entry for fields with HAEO_CONSTANT."""
         errors: dict[str, str] = {}
+        exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
         if user_input is not None:
-            # Combine step 1 and step 2 data
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-
-            # Extract entity selections from step 1 (excluding name and connection)
-            entity_selections: dict[str, list[str]] = {
-                k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
-            }
-
-            # Convert to final config format
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             # Validate that constant values were provided where needed
@@ -154,9 +139,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 return self.async_create_entry(title=str(name), data=cast("BatteryConfigSchema", config))
 
         # Build schema for constant values only
-        entity_selections: dict[str, list[str]] = {
-            k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
-        }
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
 
         # Apply default constant values
@@ -228,18 +211,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Handle step 2 of reconfiguration: constant value entry."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
+        exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
         if user_input is not None:
-            # Combine step 1 and step 2 data
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-
-            # Extract entity selections from step 1
-            entity_selections: dict[str, list[str]] = {
-                k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
-            }
-
-            # Convert to final config format
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             # Validate constant values
@@ -258,7 +235,6 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_CONNECTION: connection,
                     **config_dict,
                 }
-
                 return self.async_update_and_abort(
                     self._get_entry(),
                     subentry,
@@ -266,10 +242,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     data=cast("BatteryConfigSchema", config),
                 )
 
-        # Build schema for constant values only
-        entity_selections: dict[str, list[str]] = {
-            k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
-        }
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
 
         # Get current values for pre-population

@@ -22,6 +22,8 @@ from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
     build_entity_selector_with_constant,
     convert_entity_selections_to_config,
+    extract_entity_selections,
+    extract_non_entity_fields,
     get_constant_value_defaults,
     get_entity_selection_defaults,
     has_constant_selection,
@@ -157,21 +159,13 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 2: constant value entry for fields with haeo.constant."""
         errors: dict[str, str] = {}
+        exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
         if user_input is not None:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-
-            entity_selections: dict[str, list[str]] = {}
-            non_entity_fields: dict[str, Any] = {}
-            for k, v in self._step1_data.items():
-                if k in (CONF_NAME, CONF_CONNECTION):
-                    continue
-                if isinstance(v, list):
-                    entity_selections[k] = v
-                else:
-                    non_entity_fields[k] = v
-
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
+            non_entity_fields = extract_non_entity_fields(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             for field_info in INPUT_FIELDS:
@@ -192,20 +186,13 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 }
                 return self.async_create_entry(title=name, data=cast("InverterConfigSchema", config))
 
-        entity_selections = {
-            k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION) and isinstance(v, list)
-        }
-
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
 
         if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-            non_entity_fields = {
-                k: v
-                for k, v in self._step1_data.items()
-                if k not in (CONF_NAME, CONF_CONNECTION) and not isinstance(v, list)
-            }
+            non_entity_fields = extract_non_entity_fields(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, {}, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
@@ -275,21 +262,13 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Handle reconfigure step 2: constant value entry."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
+        exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
         if user_input is not None:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-
-            entity_selections: dict[str, list[str]] = {}
-            non_entity_fields: dict[str, Any] = {}
-            for k, v in self._step1_data.items():
-                if k in (CONF_NAME, CONF_CONNECTION):
-                    continue
-                if isinstance(v, list):
-                    entity_selections[k] = v
-                else:
-                    non_entity_fields[k] = v
-
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
+            non_entity_fields = extract_non_entity_fields(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             for field_info in INPUT_FIELDS:
@@ -315,20 +294,13 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     data=cast("InverterConfigSchema", config),
                 )
 
-        entity_selections = {
-            k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION) and isinstance(v, list)
-        }
-
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
 
         if not schema.schema:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-            non_entity_fields = {
-                k: v
-                for k, v in self._step1_data.items()
-                if k not in (CONF_NAME, CONF_CONNECTION) and not isinstance(v, list)
-            }
+            non_entity_fields = extract_non_entity_fields(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, {}, INPUT_FIELDS)
             config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,

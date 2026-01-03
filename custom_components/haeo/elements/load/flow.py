@@ -15,6 +15,7 @@ from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
     build_entity_selector_with_constant,
     convert_entity_selections_to_config,
+    extract_entity_selections,
     get_constant_value_defaults,
     get_entity_selection_defaults,
     has_constant_selection,
@@ -106,17 +107,12 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 2: constant value entry for fields with haeo.constant."""
         errors: dict[str, str] = {}
+        exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
         if user_input is not None:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-
-            # Extract entity selections from step 1
-            entity_selections: dict[str, list[str]] = {
-                k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
-            }
-
-            # Convert to final config format
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             # Validate constant values were provided
@@ -134,9 +130,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 }
                 return self.async_create_entry(title=name, data=cast("LoadConfigSchema", config))
 
-        # Extract entity selections for schema building
-        entity_selections = {k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)}
-
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
 
         # If no constant fields, skip to creation
@@ -213,15 +207,12 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Handle reconfigure step 2: constant value entry."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
+        exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
         if user_input is not None:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-
-            entity_selections: dict[str, list[str]] = {
-                k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
-            }
-
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             for field_info in INPUT_FIELDS:
@@ -243,8 +234,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     data=cast("LoadConfigSchema", config),
                 )
 
-        entity_selections = {k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)}
-
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
 
         # If no constant fields, skip to update

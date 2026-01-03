@@ -313,6 +313,40 @@ def has_constant_selection(entity_selection: list[str]) -> bool:
     return any(is_constant_entity(entity_id) for entity_id in entity_selection)
 
 
+def extract_entity_selections(
+    step1_data: dict[str, Any],
+    exclude_keys: tuple[str, ...] = (),
+) -> dict[str, list[str]]:
+    """Extract entity selections (list fields) from step 1 data.
+
+    Args:
+        step1_data: Data from step 1 of the flow.
+        exclude_keys: Keys to exclude (e.g., name, connection fields).
+
+    Returns:
+        Dict mapping field names to entity ID lists.
+
+    """
+    return {k: v for k, v in step1_data.items() if k not in exclude_keys and isinstance(v, list)}
+
+
+def extract_non_entity_fields(
+    step1_data: dict[str, Any],
+    exclude_keys: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    """Extract non-entity fields (non-list values) from step 1 data.
+
+    Args:
+        step1_data: Data from step 1 of the flow.
+        exclude_keys: Keys to exclude (e.g., name, connection fields).
+
+    Returns:
+        Dict mapping field names to their values.
+
+    """
+    return {k: v for k, v in step1_data.items() if k not in exclude_keys and not isinstance(v, list)}
+
+
 def convert_entity_selections_to_config(
     entity_selections: dict[str, list[str]],
     constant_values: dict[str, Any],
@@ -370,6 +404,8 @@ __all__ = [
     "build_entity_schema_entry",
     "build_entity_selector_with_constant",
     "convert_entity_selections_to_config",
+    "extract_entity_selections",
+    "extract_non_entity_fields",
     "get_constant_value_defaults",
     "get_entity_selection_defaults",
     "has_constant_selection",

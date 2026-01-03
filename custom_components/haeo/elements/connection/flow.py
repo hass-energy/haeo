@@ -14,6 +14,7 @@ from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
     build_entity_selector_with_constant,
     convert_entity_selections_to_config,
+    extract_entity_selections,
     get_constant_value_defaults,
     get_entity_selection_defaults,
 )
@@ -137,23 +138,16 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 2: constant value entry for fields with haeo.constant."""
         errors: dict[str, str] = {}
+        exclude_keys = (CONF_NAME, CONF_SOURCE, CONF_TARGET)
 
         if user_input is not None:
             name = self._step1_data.get(CONF_NAME)
             source = self._step1_data.get(CONF_SOURCE)
             target = self._step1_data.get(CONF_TARGET)
-
-            entity_selections: dict[str, list[str]] = {}
-            for k, v in self._step1_data.items():
-                if k in (CONF_NAME, CONF_SOURCE, CONF_TARGET):
-                    continue
-                if isinstance(v, list):
-                    entity_selections[k] = v
-
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             # Connection fields are all optional, no required validation needed
-
             if not errors:
                 config: dict[str, Any] = {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE,
@@ -164,12 +158,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 }
                 return self.async_create_entry(title=name, data=cast("ConnectionConfigSchema", config))
 
-        entity_selections = {
-            k: v
-            for k, v in self._step1_data.items()
-            if k not in (CONF_NAME, CONF_SOURCE, CONF_TARGET) and isinstance(v, list)
-        }
-
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
 
         if not schema.schema:
@@ -247,19 +236,13 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Handle reconfigure step 2: constant value entry."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
+        exclude_keys = (CONF_NAME, CONF_SOURCE, CONF_TARGET)
 
         if user_input is not None:
             name = self._step1_data.get(CONF_NAME)
             source = self._step1_data.get(CONF_SOURCE)
             target = self._step1_data.get(CONF_TARGET)
-
-            entity_selections: dict[str, list[str]] = {}
-            for k, v in self._step1_data.items():
-                if k in (CONF_NAME, CONF_SOURCE, CONF_TARGET):
-                    continue
-                if isinstance(v, list):
-                    entity_selections[k] = v
-
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             if not errors:
@@ -277,12 +260,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     data=cast("ConnectionConfigSchema", config),
                 )
 
-        entity_selections = {
-            k: v
-            for k, v in self._step1_data.items()
-            if k not in (CONF_NAME, CONF_SOURCE, CONF_TARGET) and isinstance(v, list)
-        }
-
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
 
         if not schema.schema:

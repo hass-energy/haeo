@@ -14,6 +14,7 @@ from custom_components.haeo.flows.field_schema import (
     build_constant_value_schema,
     build_entity_schema_entry,
     convert_entity_selections_to_config,
+    extract_entity_selections,
     get_constant_value_defaults,
     get_entity_selection_defaults,
     has_constant_selection,
@@ -114,17 +115,12 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 2: constant value entry for fields with HAEO_CONSTANT."""
         errors: dict[str, str] = {}
+        exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
         if user_input is not None:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-
-            # Extract entity selections from step 1 (excluding name and connection)
-            entity_selections: dict[str, list[str]] = {
-                k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
-            }
-
-            # Convert to final config format
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             # Validate that constant values were provided where needed
@@ -143,13 +139,9 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_CONNECTION: connection,
                     **config_dict,
                 }
-
                 return self.async_create_entry(title=str(name), data=cast("GridConfigSchema", config))
 
-        # Build schema for constant values only
-        entity_selections: dict[str, list[str]] = {
-            k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
-        }
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
 
         # Apply default constant values
@@ -221,17 +213,12 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Handle reconfigure step 2: constant value entry."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
+        exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
         if user_input is not None:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
-
-            # Extract entity selections from step 1
-            entity_selections: dict[str, list[str]] = {
-                k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
-            }
-
-            # Convert to final config format
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
             config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
             # Validate constant values
@@ -250,7 +237,6 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     CONF_CONNECTION: connection,
                     **config_dict,
                 }
-
                 return self.async_update_and_abort(
                     self._get_entry(),
                     subentry,
@@ -258,10 +244,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     data=cast("GridConfigSchema", config),
                 )
 
-        # Build schema for constant values only
-        entity_selections: dict[str, list[str]] = {
-            k: v for k, v in self._step1_data.items() if k not in (CONF_NAME, CONF_CONNECTION)
-        }
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
         schema = build_constant_value_schema(INPUT_FIELDS, entity_selections)
 
         # Get current values for pre-population
