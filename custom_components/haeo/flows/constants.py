@@ -1,22 +1,22 @@
 """Utilities for managing configurable sentinel entities in config flows."""
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import async_get_hass
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.const import DOMAIN, HAEO_CONFIGURABLE_UNIQUE_ID
 
 
-def ensure_configurable_entities_exist(hass: HomeAssistant) -> None:
+def ensure_configurable_entities_exist() -> None:
     """Ensure the configurable sentinel entity exists for config flows.
 
     Creates a single configurable entity in the 'haeo' domain.
     This entity appears in all EntitySelector dropdowns because we include
     'haeo' in the domain filter list.
 
-    Args:
-        hass: Home Assistant instance.
-
+    Uses async_get_hass() to retrieve the Home Assistant instance from the
+    current context.
     """
+    hass = async_get_hass()
     registry = er.async_get(hass)
 
     # Look up by unique_id (stable) rather than entity_id (user can rename)

@@ -254,7 +254,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Set up configurable sentinel entities for each device_class if not already present
     from custom_components.haeo.flows.constants import ensure_configurable_entities_exist  # noqa: PLC0415
 
-    ensure_configurable_entities_exist(hass)
+    ensure_configurable_entities_exist()
 
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)

@@ -3,12 +3,15 @@
 This module provides utilities for the entity-first config flow pattern:
 1. Step 1 (user): Select name, connections, and entities for each field (with HAEO Configurable option)
 2. Step 2 (values): Enter constant values for fields where HAEO Configurable was selected
+
+Functions in this module use async_get_hass() to retrieve the Home Assistant instance
+from the current context, avoiding the need to pass hass as a parameter.
 """
 
 from typing import Any, Protocol
 
 from homeassistant.components.number import NumberEntityDescription
-from homeassistant.core import HomeAssistant
+from homeassistant.core import async_get_hass
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
@@ -25,32 +28,29 @@ from custom_components.haeo.const import DOMAIN, HAEO_CONFIGURABLE_UNIQUE_ID
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 
 
-def is_constant_entity(hass: HomeAssistant, entity_id: str) -> bool:
+def is_constant_entity(entity_id: str) -> bool:
     """Check if an entity ID is the constant sentinel entity.
 
     Checks by looking up the entity and comparing its unique_id, since users
     may rename the entity_id.
 
     Args:
-        hass: Home Assistant instance.
         entity_id: Entity ID to check.
 
     Returns:
         True if the entity is a constant sentinel entity.
 
     """
+    hass = async_get_hass()
     registry = er.async_get(hass)
     entry = registry.async_get(entity_id)
     return entry is not None and entry.unique_id == HAEO_CONFIGURABLE_UNIQUE_ID
 
 
-def get_configurable_entity_id(hass: HomeAssistant) -> str:
+def get_configurable_entity_id() -> str:
     """Get the current entity_id for the configurable sentinel entity.
 
     Uses the stable unique_id to find the entity, since users may rename the entity_id.
-
-    Args:
-        hass: Home Assistant instance.
 
     Returns:
         The current entity_id.
@@ -59,6 +59,7 @@ def get_configurable_entity_id(hass: HomeAssistant) -> str:
         RuntimeError: If the entity doesn't exist (should never happen after setup).
 
     """
+    hass = async_get_hass()
     registry = er.async_get(hass)
     entity_id = registry.async_get_entity_id(DOMAIN, DOMAIN, HAEO_CONFIGURABLE_UNIQUE_ID)
     if entity_id is None:
@@ -120,7 +121,6 @@ def boolean_selector_from_field() -> BooleanSelector:  # type: ignore[type-arg]
 
 
 def build_entity_selector_with_constant(
-    hass: HomeAssistant,
     field_info: InputFieldInfo[Any],  # noqa: ARG001
     *,
     exclude_entities: list[str] | None = None,
@@ -135,7 +135,6 @@ def build_entity_selector_with_constant(
     The configurable entity is always included via the 'haeo' domain.
 
     Args:
-        hass: Home Assistant instance.
         field_info: Input field metadata (kept for API consistency, may be used for
             device_class filtering in future).
         exclude_entities: Entity IDs to exclude from selection (already filtered by unit compatibility).
@@ -146,9 +145,7 @@ def build_entity_selector_with_constant(
     """
     # Remove constant entity from exclude list (it has unit_of_measurement=None
     # which fails unit filtering, but we always want it available)
-    filtered_exclude = [
-        entity_id for entity_id in (exclude_entities or []) if not is_constant_entity(hass, entity_id)
-    ]
+    filtered_exclude = [entity_id for entity_id in (exclude_entities or []) if not is_constant_entity(entity_id)]
 
     # Build config - no device_class filter, rely on unit-based exclusion
     # Include 'haeo' domain so the configurable entity always appears
@@ -163,7 +160,6 @@ def build_entity_selector_with_constant(
 
 
 def build_entity_schema_entry(
-    hass: HomeAssistant,
     field_info: InputFieldInfo[Any],
     *,
     config_schema: ConfigSchemaType,
@@ -172,7 +168,6 @@ def build_entity_schema_entry(
     """Build a schema entry for entity selection (step 1).
 
     Args:
-        hass: Home Assistant instance.
         field_info: Input field metadata.
         config_schema: The TypedDict class defining the element's configuration.
         exclude_entities: Entity IDs to exclude from selection.
@@ -187,7 +182,6 @@ def build_entity_schema_entry(
     is_optional = field_name in config_schema.__optional_keys__
 
     selector = build_entity_selector_with_constant(
-        hass,
         field_info,
         exclude_entities=exclude_entities,
     )
@@ -228,7 +222,6 @@ def build_constant_value_schema_entry(
 
 
 def build_constant_value_schema(
-    hass: HomeAssistant,
     input_fields: tuple[InputFieldInfo[Any], ...],
     entity_selections: dict[str, list[str]],
     current_data: dict[str, Any] | None = None,
@@ -240,7 +233,6 @@ def build_constant_value_schema(
     stored constant values are excluded from the schema.
 
     Args:
-        hass: Home Assistant instance.
         input_fields: Tuple of input field metadata.
         entity_selections: Entity selections from step 1 (field_name -> list of entity IDs).
         current_data: Current configuration data (for reconfigure). Fields with
@@ -258,7 +250,7 @@ def build_constant_value_schema(
         selected_entities = entity_selections.get(field_name, [])
 
         # Skip fields without constant selection
-        if not any(is_constant_entity(hass, entity_id) for entity_id in selected_entities):
+        if not any(is_constant_entity(entity_id) for entity_id in selected_entities):
             continue
 
         # For reconfigure, skip fields that already have stored constant values
@@ -282,7 +274,6 @@ def build_constant_value_schema(
 
 
 def get_entity_selection_defaults(
-    hass: HomeAssistant,
     input_fields: tuple[InputFieldInfo[Any], ...],
     config_schema: ConfigSchemaType,
     current_data: dict[str, Any] | None = None,
@@ -290,7 +281,6 @@ def get_entity_selection_defaults(
     """Get default entity selections for all fields.
 
     Args:
-        hass: Home Assistant instance.
         input_fields: Tuple of input field metadata.
         config_schema: TypedDict class to check which fields are optional.
         current_data: Current configuration data (for reconfigure).
@@ -303,7 +293,7 @@ def get_entity_selection_defaults(
 
     """
     defaults: dict[str, list[str]] = {}
-    configurable_entity_id = get_configurable_entity_id(hass)
+    configurable_entity_id = get_configurable_entity_id()
 
     for field_info in input_fields:
         field_name = field_info.field_name
@@ -338,7 +328,6 @@ def get_entity_selection_defaults(
 
 
 def get_constant_value_defaults(
-    hass: HomeAssistant,
     input_fields: tuple[InputFieldInfo[Any], ...],
     entity_selections: dict[str, list[str]],
     current_data: dict[str, Any] | None = None,
@@ -346,7 +335,6 @@ def get_constant_value_defaults(
     """Get default constant values for step 2.
 
     Args:
-        hass: Home Assistant instance.
         input_fields: Tuple of input field metadata.
         entity_selections: Entity selections from step 1.
         current_data: Current configuration data (for reconfigure).
@@ -363,7 +351,7 @@ def get_constant_value_defaults(
         selected_entities = entity_selections.get(field_name, [])
 
         # Only provide defaults for fields with constant entity
-        if not any(is_constant_entity(hass, entity_id) for entity_id in selected_entities):
+        if not any(is_constant_entity(entity_id) for entity_id in selected_entities):
             continue
 
         if current_data is not None and field_name in current_data:
@@ -379,22 +367,20 @@ def get_constant_value_defaults(
     return defaults
 
 
-def has_constant_selection(hass: HomeAssistant, entity_selection: list[str]) -> bool:
+def has_constant_selection(entity_selection: list[str]) -> bool:
     """Check if any constant sentinel entity is in the entity selection.
 
     Args:
-        hass: Home Assistant instance.
         entity_selection: List of selected entity IDs.
 
     Returns:
         True if any constant entity is in the selection.
 
     """
-    return any(is_constant_entity(hass, entity_id) for entity_id in entity_selection)
+    return any(is_constant_entity(entity_id) for entity_id in entity_selection)
 
 
 def can_reuse_constant_values(
-    hass: HomeAssistant,
     input_fields: tuple[InputFieldInfo[Any], ...],
     entity_selections: dict[str, list[str]],
     current_data: dict[str, Any],
@@ -408,7 +394,6 @@ def can_reuse_constant_values(
     switches to the configurable entity, we need to ask for the new value.
 
     Args:
-        hass: Home Assistant instance.
         input_fields: Tuple of input field metadata.
         entity_selections: Entity selections from step 1 (field_name -> list of entity IDs).
         current_data: Current configuration data from the subentry.
@@ -422,7 +407,7 @@ def can_reuse_constant_values(
         selected_entities = entity_selections.get(field_name, [])
 
         # Skip fields without constant selection
-        if not has_constant_selection(hass, selected_entities):
+        if not has_constant_selection(selected_entities):
             continue
 
         # Check if current_data has a valid constant value for this field
@@ -482,7 +467,6 @@ def extract_non_entity_fields(
 
 
 def convert_entity_selections_to_config(
-    hass: HomeAssistant,
     entity_selections: dict[str, list[str]],
     constant_values: dict[str, Any],
     input_fields: tuple[InputFieldInfo[Any], ...] | None = None,
@@ -490,7 +474,6 @@ def convert_entity_selections_to_config(
     """Convert entity selections and constant values to final config format.
 
     Args:
-        hass: Home Assistant instance.
         entity_selections: Entity selections from step 1.
         constant_values: Constant values from step 2.
         input_fields: Optional tuple of input field metadata. If provided, applies
@@ -521,7 +504,7 @@ def convert_entity_selections_to_config(
             # Otherwise omit from config (truly optional with no default)
             continue
 
-        if any(is_constant_entity(hass, entity_id) for entity_id in entities):
+        if any(is_constant_entity(entity_id) for entity_id in entities):
             # Constant value - get from constant_values
             if field_name in constant_values:
                 config[field_name] = constant_values[field_name]
