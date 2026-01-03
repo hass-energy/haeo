@@ -314,15 +314,12 @@ def get_entity_selection_defaults(
                     defaults[field_name] = []
                 else:
                     defaults[field_name] = [configurable_entity_id]
+        elif field_info.default is None:
+            # New entry with no default: nothing selected (user must actively choose)
+            defaults[field_name] = []
         else:
-            # New entry - default based on whether field is optional without a default
-            is_optional = field_name in config_schema.__optional_keys__
-            if is_optional and field_info.default is None:
-                # Optional field with no default: nothing selected
-                defaults[field_name] = []
-            else:
-                # Required field or optional with default: use configurable entity
-                defaults[field_name] = [configurable_entity_id]
+            # New entry with default: use configurable entity
+            defaults[field_name] = [configurable_entity_id]
 
     return defaults
 

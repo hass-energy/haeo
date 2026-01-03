@@ -100,9 +100,9 @@ class GridConfigSchema(TypedDict):
     name: str
     connection: str  # Element name to connect to
 
-    # Price fields: entity links or constants (have defaults so can be NONE)
-    import_price: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
-    export_price: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
+    # Price fields: required (user must select an entity or enter a value)
+    import_price: list[str] | float  # Entity IDs or constant $/kWh
+    export_price: list[str] | float  # Entity IDs or constant $/kWh
 
     # Power limit fields (optional)
     import_limit: NotRequired[list[str] | float]  # Entity IDs or constant kW
