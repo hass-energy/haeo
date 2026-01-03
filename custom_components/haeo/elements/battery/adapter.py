@@ -233,9 +233,136 @@ class BatteryAdapter:
         charge/discharge costs. Partitions are ordered bottom-to-top with greedy
         initial charge allocation.
         """
-        # TODO: Implement partition-based element creation
-        # For now, fall back to legacy behavior
-        raise NotImplementedError("Partition-based configuration not yet implemented")
+        name = config["name"]
+        elements: list[dict[str, Any]] = []
+
+        # We only call this method after checking "partitions" in config
+        partitions = config.get("partitions")
+        if partitions is None:
+            msg = "Partition-based config requires 'partitions' field"
+            raise ValueError(msg)
+
+        n_periods = len(partitions[0]["capacity"])
+
+        # Get initial SOC from first period
+        initial_soc = config["initial_charge_percentage"][0]
+        initial_soc_ratio = initial_soc / 100.0
+
+        # Calculate early charge/discharge incentives (use first period if present)
+        early_charge_list = config.get("early_charge_incentive")
+        early_charge_incentive = early_charge_list[0] if early_charge_list else DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
+
+        # Calculate total capacity across all partitions (for initial charge calc)
+        total_capacity_first = sum(p["capacity"][0] for p in partitions)
+
+        # Calculate initial charge in kWh based on total capacity
+        initial_charge = initial_soc_ratio * total_capacity_first
+
+        # Track partition names and capacities for balance connections
+        partition_names: list[str] = []
+        partition_capacities: dict[str, list[float]] = {}
+
+        # 1. Create energy storage elements for each partition (greedy bottom-up allocation)
+        for partition in partitions:
+            partition_name = f"{name}:{partition['name']}"
+            partition_names.append(partition_name)
+            partition_capacity = partition["capacity"]
+            partition_capacities[partition_name] = partition_capacity
+
+            # Greedy allocation: fill this partition up to its capacity
+            partition_capacity_first = partition_capacity[0]
+            partition_initial_charge = min(initial_charge, partition_capacity_first)
+
+            elements.append(
+                {
+                    "element_type": "energy_storage",
+                    "name": partition_name,
+                    "capacity": partition_capacity,
+                    "initial_charge": partition_initial_charge,
+                }
+            )
+
+            # Subtract allocated charge from remaining
+            initial_charge = max(initial_charge - partition_initial_charge, 0.0)
+
+        # 2. Create internal node
+        node_name = f"{name}:node"
+        elements.append(
+            {
+                "element_type": "node",
+                "name": node_name,
+                "is_source": False,
+                "is_sink": False,
+            }
+        )
+
+        # 3. Create connections from partitions to internal node
+        for i, partition in enumerate(partitions):
+            partition_name = partition_names[i]
+            charge_cost = partition.get("charge_cost")
+            discharge_cost = partition.get("discharge_cost")
+
+            connection_spec: dict[str, Any] = {
+                "element_type": "connection",
+                "name": f"{partition_name}:to_node",
+                "source": partition_name,
+                "target": node_name,
+            }
+
+            # Add costs if configured
+            if charge_cost is not None:
+                connection_spec["price_target_source"] = charge_cost  # Charge penalty
+            if discharge_cost is not None:
+                connection_spec["price_source_target"] = discharge_cost  # Discharge penalty
+
+            elements.append(connection_spec)
+
+        # 4. Create balance connections between adjacent partitions (enforces fill ordering)
+        # Lower partitions fill before upper partitions
+        for i in range(len(partition_names) - 1):
+            lower_partition = partition_names[i]
+            upper_partition = partition_names[i + 1]
+            lower_capacity = partition_capacities[lower_partition]
+
+            # Extract short names for balance connection naming
+            lower_short = lower_partition.split(":")[-1]
+            upper_short = upper_partition.split(":")[-1]
+
+            elements.append(
+                {
+                    "element_type": "energy_balance_connection",
+                    "name": f"{name}:balance:{lower_short}:{upper_short}",
+                    "upper": upper_partition,
+                    "lower": lower_partition,
+                    "capacity_lower": lower_capacity,
+                }
+            )
+
+        # 5. Create connection from internal node to target
+        # Time-varying early charge incentive applied here (charge earlier in horizon)
+        charge_early_incentive = [
+            -early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+        ]
+        discharge_early_incentive = [
+            early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+        ]
+
+        elements.append(
+            {
+                "element_type": "connection",
+                "name": f"{name}:connection",
+                "source": node_name,
+                "target": config["connection"],
+                "efficiency_source_target": config["efficiency"],  # Node to network (discharge)
+                "efficiency_target_source": config["efficiency"],  # Network to node (charge)
+                "max_power_source_target": config.get("max_discharge_power"),
+                "max_power_target_source": config.get("max_charge_power"),
+                "price_target_source": charge_early_incentive,  # Charge early incentive
+                "price_source_target": discharge_early_incentive,  # Discharge early disincentive
+            }
+        )
+
+        return elements
 
     def _create_legacy_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
         """Create model elements using legacy percentage-based configuration."""
