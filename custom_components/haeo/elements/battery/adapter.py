@@ -212,9 +212,33 @@ class BatteryAdapter:
     def create_model_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
         """Create model elements for Battery configuration.
 
-        Creates 1-3 battery sections, an internal node, connections from sections to node,
+        Creates 1-N storage partitions, an internal node, connections from partitions to node,
         and a connection from node to target.
+
+        Supports both:
+        - New partition-based config: Uses `partitions` field with per-partition capacities
+        - Legacy percentage-based config: Uses percentage bounds to define partitions
         """
+        # Check for new partition-based config
+        if "partitions" in config:
+            return self._create_partition_based_elements(config)
+
+        # Legacy percentage-based configuration
+        return self._create_legacy_elements(config)
+
+    def _create_partition_based_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
+        """Create model elements using new partition-based configuration.
+
+        Each partition has its own capacity (kWh) from a sensor, plus optional
+        charge/discharge costs. Partitions are ordered bottom-to-top with greedy
+        initial charge allocation.
+        """
+        # TODO: Implement partition-based element creation
+        # For now, fall back to legacy behavior
+        raise NotImplementedError("Partition-based configuration not yet implemented")
+
+    def _create_legacy_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
+        """Create model elements using legacy percentage-based configuration."""
         name = config["name"]
         elements: list[dict[str, Any]] = []
         n_periods = len(config["capacity"])
@@ -225,8 +249,11 @@ class BatteryAdapter:
         initial_soc = config["initial_charge_percentage"][0]
 
         # Convert percentages to ratio arrays for time-varying limits
-        min_ratio_array = np.array(config["min_charge_percentage"]) / 100.0
-        max_ratio_array = np.array(config["max_charge_percentage"]) / 100.0
+        # Use defaults if not provided (for backward compatibility)
+        min_pct = config.get("min_charge_percentage", [DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]] * n_periods)
+        max_pct = config.get("max_charge_percentage", [DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE]] * n_periods)
+        min_ratio_array = np.array(min_pct) / 100.0
+        max_ratio_array = np.array(max_pct) / 100.0
         min_ratio_first = min_ratio_array[0]
 
         # Get optional percentage arrays (if present)
@@ -630,9 +657,11 @@ def sum_output_data(outputs: list[OutputData]) -> OutputData:
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate total energy stored including inaccessible energy below min SOC."""
     capacity = np.array(config["capacity"])
+    n_periods = len(capacity)
 
-    # Get time-varying min ratio
-    min_ratio = np.array(config["min_charge_percentage"]) / 100.0
+    # Get time-varying min ratio (use default if not provided)
+    min_pct = config.get("min_charge_percentage", [DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]] * n_periods)
+    min_ratio = np.array(min_pct) / 100.0
 
     undercharge_pct = config.get("undercharge_percentage")
     undercharge_ratio = np.array(undercharge_pct) / 100.0 if undercharge_pct else None

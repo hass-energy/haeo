@@ -10,28 +10,38 @@ from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "battery"
 
-# Configuration field names
+# Configuration field names - battery level
 CONF_CAPACITY: Final = "capacity"
 CONF_INITIAL_CHARGE_PERCENTAGE: Final = "initial_charge_percentage"
-CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
-CONF_MAX_CHARGE_PERCENTAGE: Final = "max_charge_percentage"
 CONF_EFFICIENCY: Final = "efficiency"
 CONF_MAX_CHARGE_POWER: Final = "max_charge_power"
 CONF_MAX_DISCHARGE_POWER: Final = "max_discharge_power"
 CONF_EARLY_CHARGE_INCENTIVE: Final = "early_charge_incentive"
+CONF_CONNECTION: Final = "connection"
+CONF_PARTITIONS: Final = "partitions"
+
+# Configuration field names - partition level
+CONF_PARTITION_NAME: Final = "partition_name"
+CONF_PARTITION_CAPACITY: Final = "partition_capacity"
+CONF_PARTITION_CHARGE_COST: Final = "partition_charge_cost"
+CONF_PARTITION_DISCHARGE_COST: Final = "partition_discharge_cost"
+
+# Legacy configuration field names (deprecated, for migration)
+CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
+CONF_MAX_CHARGE_PERCENTAGE: Final = "max_charge_percentage"
 CONF_DISCHARGE_COST: Final = "discharge_cost"
 CONF_UNDERCHARGE_PERCENTAGE: Final = "undercharge_percentage"
 CONF_OVERCHARGE_PERCENTAGE: Final = "overcharge_percentage"
 CONF_UNDERCHARGE_COST: Final = "undercharge_cost"
 CONF_OVERCHARGE_COST: Final = "overcharge_cost"
-CONF_CONNECTION: Final = "connection"
 
 # Default values for optional fields
 DEFAULTS: Final[dict[str, float]] = {
-    CONF_MIN_CHARGE_PERCENTAGE: 0.0,
-    CONF_MAX_CHARGE_PERCENTAGE: 100.0,
     CONF_EFFICIENCY: 99.0,
     CONF_EARLY_CHARGE_INCENTIVE: 0.001,
+    # Legacy defaults
+    CONF_MIN_CHARGE_PERCENTAGE: 0.0,
+    CONF_MAX_CHARGE_PERCENTAGE: 100.0,
 }
 
 # Input field definitions for creating input entities
@@ -223,10 +233,33 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
 )
 
 
+# Partition schema definitions (new partition-based design)
+class PartitionConfigSchema(TypedDict):
+    """Single partition configuration as stored in Home Assistant.
+
+    Each partition defines a capacity region of the battery with its own costs.
+    """
+
+    name: str  # Partition name (e.g., "reserve", "normal", "overflow")
+    capacity: list[str] | float  # Capacity sensor entity IDs or constant value (kWh)
+    charge_cost: NotRequired[list[str] | float]  # Cost to charge into this partition ($/kWh)
+    discharge_cost: NotRequired[list[str] | float]  # Cost to discharge from this partition ($/kWh)
+
+
+class PartitionConfigData(TypedDict):
+    """Single partition configuration with loaded values."""
+
+    name: str
+    capacity: list[float]  # kWh per period
+    charge_cost: NotRequired[list[float]]  # $/kWh per period
+    discharge_cost: NotRequired[list[float]]  # $/kWh per period
+
+
 class BatteryConfigSchema(TypedDict):
     """Battery element configuration as stored in Home Assistant.
 
     Schema mode contains entity IDs for sensors or constant values.
+    Supports both legacy percentage-based and new partition-based configurations.
     """
 
     element_type: Literal["battery"]
@@ -234,23 +267,24 @@ class BatteryConfigSchema(TypedDict):
     connection: str  # Element name that battery connects to
 
     # Required sensors - can be entity links or constants
-    capacity: list[str] | float  # Energy sensor entity IDs or constant value (kWh)
+    capacity: list[str] | float  # Total battery capacity (kWh) - used with legacy config
     initial_charge_percentage: list[str] | float  # SOC sensor entity IDs or constant value (%)
 
     # Optional fields - can be entity links, constants, or missing (uses default)
-    min_charge_percentage: NotRequired[list[str] | float]
-    max_charge_percentage: NotRequired[list[str] | float]
     efficiency: NotRequired[list[str] | float]
+    early_charge_incentive: NotRequired[list[str] | float]
 
     # Optional power limits - can be entity links or constants
     max_charge_power: NotRequired[list[str] | float]  # Power sensor entity IDs or constant value (kW)
     max_discharge_power: NotRequired[list[str] | float]  # Power sensor entity IDs or constant value (kW)
 
-    # Optional price fields - can be entity links or constants
-    early_charge_incentive: NotRequired[list[str] | float]
-    discharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
+    # NEW: Partition-based configuration (takes precedence over legacy fields)
+    partitions: NotRequired[list[PartitionConfigSchema]]
 
-    # Advanced: undercharge/overcharge regions - can be entity links or constants
+    # LEGACY: Percentage-based configuration (deprecated, for backward compatibility)
+    min_charge_percentage: NotRequired[list[str] | float]
+    max_charge_percentage: NotRequired[list[str] | float]
+    discharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
     undercharge_percentage: NotRequired[list[str] | float]
     overcharge_percentage: NotRequired[list[str] | float]
     undercharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
@@ -268,12 +302,10 @@ class BatteryConfigData(TypedDict):
     connection: str  # Element name that battery connects to
 
     # Loaded sensor values (time series)
-    capacity: list[float]  # kWh per period
+    capacity: list[float]  # Total kWh per period (used with legacy config)
     initial_charge_percentage: list[float]  # % per period (uses first value)
 
     # Time series with defaults applied
-    min_charge_percentage: list[float]  # % per period
-    max_charge_percentage: list[float]  # % per period
     efficiency: list[float]  # % per period
 
     # Optional loaded values
@@ -282,10 +314,16 @@ class BatteryConfigData(TypedDict):
 
     # Optional prices (time series)
     early_charge_incentive: NotRequired[list[float]]  # $/kWh per period
-    discharge_cost: NotRequired[list[float]]  # $/kWh per period
 
-    # Advanced: undercharge/overcharge regions (time series)
+    # NEW: Partition-based configuration (takes precedence over legacy fields)
+    partitions: NotRequired[list[PartitionConfigData]]
+
+    # LEGACY: Percentage-based configuration (deprecated, for backward compatibility)
+    min_charge_percentage: NotRequired[list[float]]  # % per period
+    max_charge_percentage: NotRequired[list[float]]  # % per period
+    discharge_cost: NotRequired[list[float]]  # $/kWh per period
     undercharge_percentage: NotRequired[list[float]]  # % per period
     overcharge_percentage: NotRequired[list[float]]  # % per period
     undercharge_cost: NotRequired[list[float]]  # $/kWh per period
+    overcharge_cost: NotRequired[list[float]]  # $/kWh per period
     overcharge_cost: NotRequired[list[float]]  # $/kWh per period
