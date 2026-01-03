@@ -12,7 +12,7 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 Grid configuration uses the entity-first flow (see [Configuration](../configuration.md#element-configuration) for details):
 
 1. **Step 1**: Enter name, connection, and for each field, select sensors or **HAEO Configurable** to enter a fixed value
-2. **Step 2**: If HAEO Configurable was selected for any field, enter the constant values
+2. **Step 2**: If HAEO Configurable was selected for any field, enter the configurable values
 
 | Field                             | Type   | Required | Default | Description                                                |
 | --------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |
@@ -34,7 +34,7 @@ Used to create sensor entity IDs and identify the grid in connections.
 Configure the cost of importing electricity from the grid.
 You can use either a constant value or one or more Home Assistant sensors.
 
-**Constant value**: Select HAEO Configurable and enter a fixed price in \$/kWh that stays the same for all periods.
+**Fixed value**: Select HAEO Configurable and enter a fixed price in \$/kWh that stays the same for all periods.
 Use this for simple flat-rate tariffs.
 
 **Sensor link**: Select one or more Home Assistant sensors providing electricity import pricing.
@@ -58,7 +58,7 @@ See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details o
 Configure the revenue for exporting electricity to the grid.
 You can use either a constant value or one or more Home Assistant sensors.
 
-**Constant value**: Select HAEO Configurable and enter a fixed price in \$/kWh.
+**Fixed value**: Select HAEO Configurable and enter a fixed price in \$/kWh.
 Use this for simple feed-in tariffs.
 
 **Sensor link**: Select one or more Home Assistant sensors providing export pricing.

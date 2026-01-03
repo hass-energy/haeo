@@ -80,7 +80,7 @@ Input entities operate in one of two modes based on how the field was configured
 
 ### Editable Mode
 
-When the configuration specifies the `haeo.configurable_entity` entity (indicating a constant value):
+When the configuration specifies the `haeo.configurable_entity` entity (indicating a configurable value):
 
 - The entity displays the configured value
 - Users can modify the value through the Home Assistant UI
@@ -88,7 +88,7 @@ When the configuration specifies the `haeo.configurable_entity` entity (indicati
 - Changes persist and affect future optimizations
 - Useful for what-if analysis and dynamic adjustments
 
-During setup, when users select `haeo.configurable_entity` in an entity selector, they enter a constant value in the next step.
+During setup, when users select `haeo.configurable_entity` in an entity selector, they enter a configurable value in the next step.
 This value is stored and the configuration is migrated to reference the HAEO input entity ID.
 
 ### Driven Mode

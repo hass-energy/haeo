@@ -318,11 +318,11 @@ template:
 
 HAEO will detect this as a simple forecast format and extract the data.
 
-## Using Constants vs Sensors
+## Using Configurable Values vs Sensors
 
 For values that don't change over time (fixed prices, baseline loads, power limits), you have two options:
 
-### Direct constant entry
+### Direct configurable entry
 
 During element configuration, select **HAEO Configurable** for the field and enter your value in step 2.
 This is the simplest approach for truly static values.
@@ -368,7 +368,7 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 **When to use each approach**:
 
-- **Direct constant**: Values that rarely change (capacity, efficiency)
+- **Direct configurable**: Values that rarely change (capacity, efficiency)
 - **Input_number helper**: Values you adjust regularly (target SOC, temporary overrides)
 - **Forecast sensor**: Values that vary over time (prices, solar generation)
 

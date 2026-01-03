@@ -110,7 +110,7 @@ Most elements use a streamlined configuration process:
 - Select **HAEO Configurable** to enter a fixed value
 - Leave empty for optional fields you don't need
 
-**Step 2 - Constant values** (only if needed): If you selected HAEO Configurable for any field, enter the actual numeric or boolean values.
+**Step 2 - Configurable values** (only if needed): If you selected HAEO Configurable for any field, enter the actual numeric or boolean values.
 This step is skipped entirely if all fields use sensor links.
 
 !!! tip "Optional fields"
