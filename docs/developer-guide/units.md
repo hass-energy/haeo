@@ -129,13 +129,13 @@ def add_battery(
 
 <div class="grid cards" markdown>
 
-- :material-battery-charging:{ .lg .middle } **Battery Modeling**
+- :material-battery-charging:{ .lg .middle } **Energy Storage Modeling**
 
     ---
 
-    See units in context of battery formulation.
+    See units in context of storage formulation.
 
-    [:material-arrow-right: Battery modeling](../modeling/model-layer/elements/battery.md)
+    [:material-arrow-right: Energy Storage modeling](../modeling/model-layer/elements/energy-storage.md)
 
 - :material-transmission-tower:{ .lg .middle } **Grid Modeling**
 
