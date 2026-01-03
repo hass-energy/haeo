@@ -46,7 +46,11 @@ async def async_setup_entry(
 
         # Filter to only switch fields (by entity description class name)
         # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
-        switch_fields = [f for f in input_fields if type(f.entity_description).__name__ == "SwitchEntityDescription"]
+        switch_fields = {
+            field_name: field_info
+            for field_name, field_info in input_fields.items()
+            if type(field_info.entity_description).__name__ == "SwitchEntityDescription"
+        }
 
         if not switch_fields:
             continue
@@ -61,15 +65,16 @@ async def async_setup_entry(
             translation_placeholders={"name": subentry.title},
         )
 
-        for field_info in switch_fields:
+        for field_name, field_info in switch_fields.items():
             # Only create entities for configured fields
-            if field_info.field_name not in subentry.data:
+            if field_name not in subentry.data:
                 continue
 
             entity = HaeoInputSwitch(
                 hass=hass,
                 config_entry=config_entry,
                 subentry=subentry,
+                field_name=field_name,
                 field_info=field_info,
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,
@@ -78,7 +83,6 @@ async def async_setup_entry(
 
             # Register in runtime_data for coordinator access
             element_name = subentry.title
-            field_name = field_info.field_name
             runtime_data.input_entities[(element_name, field_name)] = entity
             _LOGGER.debug("Registered input entity: %s.%s", element_name, field_name)
 

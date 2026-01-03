@@ -4,7 +4,7 @@ from typing import Any
 
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import FlowResultType, section
 from homeassistant.helpers.translation import async_get_translations
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -357,6 +357,15 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
 
         for field in schema.schema:
             field_name = field.schema
-            assert f"{base_key}.step.user.data.{field_name}" in translations, (
-                f"Missing translation for {element_type} field '{field_name}'"
-            )
+            field_value = schema.schema[field]
+            # Check if this is a section (grouped fields) or a regular field
+            if isinstance(field_value, section):
+                # Sections have translations under step.user.sections.<name>.name
+                assert f"{base_key}.step.user.sections.{field_name}.name" in translations, (
+                    f"Missing section translation for {element_type} section '{field_name}'"
+                )
+            else:
+                # Regular fields have translations under step.user.data.<name>
+                assert f"{base_key}.step.user.data.{field_name}" in translations, (
+                    f"Missing translation for {element_type} field '{field_name}'"
+                )

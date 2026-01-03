@@ -516,7 +516,7 @@
       "max": 100.0,
       "min": 50.0,
       "mode": "auto",
-      "output_type": "soc",
+      "output_type": "efficiency",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -647,7 +647,7 @@
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "soc",
+      "output_type": "state_of_charge",
       "source_entities": ["sensor.sigen_plant_battery_state_of_charge"],
       "step": 0.1,
       "time_series": true,
@@ -779,7 +779,7 @@
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "soc",
+      "output_type": "state_of_charge",
       "step": 1.0,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -1176,7 +1176,7 @@
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "soc",
+      "output_type": "state_of_charge",
       "step": 1.0,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -3883,7 +3883,7 @@
       ],
       "friendly_name": "Battery State of charge",
       "output_name": "battery_state_of_charge",
-      "output_type": "soc",
+      "output_type": "state_of_charge",
       "state_class": "measurement",
       "unit_of_measurement": "%"
     }

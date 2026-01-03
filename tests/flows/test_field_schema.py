@@ -38,7 +38,6 @@ class MockConfigSchema(ConfigSchemaType):
 def number_field() -> InputFieldInfo[NumberEntityDescription]:
     """Create a number input field for testing."""
     return InputFieldInfo(
-        field_name="test_field",
         entity_description=NumberEntityDescription(
             key="test_field",
             name="Test Field",
@@ -56,7 +55,6 @@ def number_field() -> InputFieldInfo[NumberEntityDescription]:
 def switch_field() -> InputFieldInfo[SwitchEntityDescription]:
     """Create a switch input field for testing."""
     return InputFieldInfo(
-        field_name="test_switch",
         entity_description=SwitchEntityDescription(
             key="test_switch",
             name="Test Switch",
@@ -70,7 +68,6 @@ def switch_field() -> InputFieldInfo[SwitchEntityDescription]:
 def required_field() -> InputFieldInfo[NumberEntityDescription]:
     """Create a required input field (no default) for testing."""
     return InputFieldInfo(
-        field_name="required_field",
         entity_description=NumberEntityDescription(
             key="required_field",
             name="Required Field",
@@ -185,7 +182,7 @@ def test_build_mode_schema_entry_optional_field_has_default(
     schema = MockConfigSchema()
     schema.__optional_keys__ = frozenset({"test_field"})
 
-    marker, _selector = build_mode_schema_entry(number_field, config_schema=schema)
+    marker, _selector = build_mode_schema_entry("test_field", number_field, config_schema=schema)
 
     assert isinstance(marker, vol.Required)
     assert marker.schema == "test_field_mode"
@@ -200,7 +197,7 @@ def test_build_mode_schema_entry_required_field_no_default(
     schema = MockConfigSchema()
     schema.__optional_keys__ = frozenset()
 
-    marker, _selector = build_mode_schema_entry(required_field, config_schema=schema)
+    marker, _selector = build_mode_schema_entry("required_field", required_field, config_schema=schema)
 
     assert isinstance(marker, vol.Required)
     assert marker.schema == "required_field_mode"
@@ -214,7 +211,7 @@ def test_build_value_schema_entry_none_mode_returns_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """NONE mode returns None schema entry."""
-    result = build_value_schema_entry(number_field, mode=InputMode.NONE)
+    result = build_value_schema_entry("test_field", number_field, mode=InputMode.NONE)
     assert result is None
 
 
@@ -222,7 +219,7 @@ def test_build_value_schema_entry_constant_mode_number_field(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """CONSTANT mode for number field creates number selector."""
-    result = build_value_schema_entry(number_field, mode=InputMode.CONSTANT)
+    result = build_value_schema_entry("test_field", number_field, mode=InputMode.CONSTANT)
     assert result is not None
     marker, selector = result
     assert isinstance(marker, vol.Optional)
@@ -233,7 +230,7 @@ def test_build_value_schema_entry_constant_mode_switch_field(
     switch_field: InputFieldInfo[SwitchEntityDescription],
 ) -> None:
     """CONSTANT mode for switch field creates boolean selector."""
-    result = build_value_schema_entry(switch_field, mode=InputMode.CONSTANT)
+    result = build_value_schema_entry("test_switch", switch_field, mode=InputMode.CONSTANT)
     assert result is not None
     marker, selector = result
     assert isinstance(marker, vol.Optional)
@@ -244,7 +241,7 @@ def test_build_value_schema_entry_constant_mode_required_field(
     required_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """CONSTANT mode for required field creates Required marker."""
-    result = build_value_schema_entry(required_field, mode=InputMode.CONSTANT)
+    result = build_value_schema_entry("required_field", required_field, mode=InputMode.CONSTANT)
     assert result is not None
     marker, _selector = result
     assert isinstance(marker, vol.Required)
@@ -254,7 +251,7 @@ def test_build_value_schema_entry_entity_link_mode(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """ENTITY_LINK mode creates entity selector."""
-    result = build_value_schema_entry(number_field, mode=InputMode.ENTITY_LINK)
+    result = build_value_schema_entry("test_field", number_field, mode=InputMode.ENTITY_LINK)
     assert result is not None
     marker, _selector = result
     assert isinstance(marker, vol.Optional)
@@ -264,7 +261,7 @@ def test_build_value_schema_entry_entity_link_mode_required(
     required_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """ENTITY_LINK mode for required field creates Required marker."""
-    result = build_value_schema_entry(required_field, mode=InputMode.ENTITY_LINK)
+    result = build_value_schema_entry("required_field", required_field, mode=InputMode.ENTITY_LINK)
     assert result is not None
     marker, _selector = result
     assert isinstance(marker, vol.Required)
@@ -274,7 +271,9 @@ def test_build_value_schema_entry_entity_link_with_exclusions(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """ENTITY_LINK mode respects exclude_entities."""
-    result = build_value_schema_entry(number_field, mode=InputMode.ENTITY_LINK, exclude_entities=["sensor.excluded"])
+    result = build_value_schema_entry(
+        "test_field", number_field, mode=InputMode.ENTITY_LINK, exclude_entities=["sensor.excluded"]
+    )
     assert result is not None
 
 
@@ -287,10 +286,11 @@ def test_get_mode_defaults_new_entry_optional_field(
     """New entry optional field defaults to NONE."""
     schema = MockConfigSchema()
     schema.__optional_keys__ = frozenset({"test_field"})
+    input_fields = {"test_section": {"test_field": number_field}}
 
-    defaults = get_mode_defaults((number_field,), schema)
+    defaults = get_mode_defaults(input_fields, schema)
 
-    assert defaults["test_field_mode"] == InputMode.NONE
+    assert defaults["test_section"]["test_field_mode"] == InputMode.NONE
 
 
 def test_get_mode_defaults_new_entry_required_field(
@@ -299,10 +299,11 @@ def test_get_mode_defaults_new_entry_required_field(
     """New entry required field defaults to CONSTANT."""
     schema = MockConfigSchema()
     schema.__optional_keys__ = frozenset()
+    input_fields = {"test_section": {"required_field": required_field}}
 
-    defaults = get_mode_defaults((required_field,), schema)
+    defaults = get_mode_defaults(input_fields, schema)
 
-    assert defaults["required_field_mode"] == InputMode.CONSTANT
+    assert defaults["test_section"]["required_field_mode"] == InputMode.CONSTANT
 
 
 def test_get_mode_defaults_reconfigure_preserves_mode(
@@ -311,10 +312,11 @@ def test_get_mode_defaults_reconfigure_preserves_mode(
     """Reconfigure preserves existing mode."""
     schema = MockConfigSchema()
     current_data = {"test_field": ["sensor.test"]}
+    input_fields = {"test_section": {"test_field": number_field}}
 
-    defaults = get_mode_defaults((number_field,), schema, current_data)
+    defaults = get_mode_defaults(input_fields, schema, current_data)
 
-    assert defaults["test_field_mode"] == InputMode.ENTITY_LINK
+    assert defaults["test_section"]["test_field_mode"] == InputMode.ENTITY_LINK
 
 
 # --- Tests for get_value_defaults ---
@@ -325,10 +327,11 @@ def test_get_value_defaults_new_entry_uses_default(
 ) -> None:
     """New entry uses field default for constant mode."""
     modes: dict[str, str] = {"test_field_mode": InputMode.CONSTANT}
+    input_fields = {"test_section": {"test_field": number_field}}
 
-    defaults = get_value_defaults((number_field,), modes)
+    defaults = get_value_defaults(input_fields, modes)
 
-    assert defaults["test_field"] == 50.0
+    assert defaults["test_section"]["test_field"] == 50.0
 
 
 def test_get_value_defaults_reconfigure_preserves_value(
@@ -337,10 +340,11 @@ def test_get_value_defaults_reconfigure_preserves_value(
     """Reconfigure preserves current value when mode matches."""
     modes: dict[str, str] = {"test_field_mode": InputMode.CONSTANT}
     current_data = {"test_field": 75.0}
+    input_fields = {"test_section": {"test_field": number_field}}
 
-    defaults = get_value_defaults((number_field,), modes, current_data)
+    defaults = get_value_defaults(input_fields, modes, current_data)
 
-    assert defaults["test_field"] == 75.0
+    assert defaults["test_section"]["test_field"] == 75.0
 
 
 def test_get_value_defaults_mode_change_uses_default(
@@ -349,10 +353,11 @@ def test_get_value_defaults_mode_change_uses_default(
     """Mode change from ENTITY_LINK to CONSTANT uses default."""
     modes: dict[str, str] = {"test_field_mode": InputMode.CONSTANT}
     current_data = {"test_field": ["sensor.test"]}
+    input_fields = {"test_section": {"test_field": number_field}}
 
-    defaults = get_value_defaults((number_field,), modes, current_data)
+    defaults = get_value_defaults(input_fields, modes, current_data)
 
-    assert defaults["test_field"] == 50.0
+    assert defaults["test_section"]["test_field"] == 50.0
 
 
 def test_get_value_defaults_none_mode_excluded(
@@ -360,7 +365,8 @@ def test_get_value_defaults_none_mode_excluded(
 ) -> None:
     """NONE mode fields are not included in defaults."""
     modes: dict[str, str] = {"test_field_mode": InputMode.NONE}
+    input_fields = {"test_section": {"test_field": number_field}}
 
-    defaults = get_value_defaults((number_field,), modes)
+    defaults = get_value_defaults(input_fields, modes)
 
-    assert "test_field" not in defaults
+    assert "test_field" not in defaults.get("test_section", {})

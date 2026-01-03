@@ -4,6 +4,7 @@ from typing import Any, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.const import PERCENTAGE
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import (
     EntitySelector,
     EntitySelectorConfig,
@@ -33,6 +34,18 @@ from .schema import (
 )
 
 
+def _flatten_sections(user_input: dict[str, Any]) -> dict[str, Any]:
+    """Flatten section-nested user input for inverter config."""
+    result: dict[str, Any] = {}
+    for key, value in user_input.items():
+        # Check if this is a section group (key exists in INPUT_FIELDS dict)
+        if key in INPUT_FIELDS and isinstance(value, dict):
+            result.update(value)
+        else:
+            result[key] = value
+    return result
+
+
 def _build_schema(
     exclusion_map: dict[str, list[str]],
     participants: list[str],
@@ -48,45 +61,61 @@ def _build_schema(
                 TextSelector(TextSelectorConfig()),
             ),
             vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
-            vol.Required(CONF_MAX_POWER_DC_TO_AC): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=True,
-                    exclude_entities=exclusion_map.get(CONF_MAX_POWER_DC_TO_AC, []),
-                )
-            ),
-            vol.Required(CONF_MAX_POWER_AC_TO_DC): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=True,
-                    exclude_entities=exclusion_map.get(CONF_MAX_POWER_AC_TO_DC, []),
-                )
-            ),
-            vol.Optional(CONF_EFFICIENCY_DC_TO_AC): vol.All(
-                vol.Coerce(float),
-                vol.Range(min=0, max=100, msg="Value must be between 0 and 100"),
-                NumberSelector(
-                    NumberSelectorConfig(
-                        mode=NumberSelectorMode.BOX,
-                        min=0,
-                        max=100,
-                        step="any",
-                        unit_of_measurement=PERCENTAGE,
-                    )
+            # Power limits section
+            vol.Required("power_limits"): section(
+                vol.Schema(
+                    {
+                        vol.Required(CONF_MAX_POWER_DC_TO_AC): EntitySelector(
+                            EntitySelectorConfig(
+                                domain=["sensor", "input_number"],
+                                multiple=True,
+                                exclude_entities=exclusion_map.get(CONF_MAX_POWER_DC_TO_AC, []),
+                            )
+                        ),
+                        vol.Required(CONF_MAX_POWER_AC_TO_DC): EntitySelector(
+                            EntitySelectorConfig(
+                                domain=["sensor", "input_number"],
+                                multiple=True,
+                                exclude_entities=exclusion_map.get(CONF_MAX_POWER_AC_TO_DC, []),
+                            )
+                        ),
+                    }
                 ),
+                {"collapsed": True},
             ),
-            vol.Optional(CONF_EFFICIENCY_AC_TO_DC): vol.All(
-                vol.Coerce(float),
-                vol.Range(min=0, max=100, msg="Value must be between 0 and 100"),
-                NumberSelector(
-                    NumberSelectorConfig(
-                        mode=NumberSelectorMode.BOX,
-                        min=0,
-                        max=100,
-                        step="any",
-                        unit_of_measurement=PERCENTAGE,
-                    )
+            # Efficiency settings section
+            vol.Required("efficiency_settings"): section(
+                vol.Schema(
+                    {
+                        vol.Optional(CONF_EFFICIENCY_DC_TO_AC): vol.All(
+                            vol.Coerce(float),
+                            vol.Range(min=0, max=100, msg="Value must be between 0 and 100"),
+                            NumberSelector(
+                                NumberSelectorConfig(
+                                    mode=NumberSelectorMode.BOX,
+                                    min=0,
+                                    max=100,
+                                    step="any",
+                                    unit_of_measurement=PERCENTAGE,
+                                )
+                            ),
+                        ),
+                        vol.Optional(CONF_EFFICIENCY_AC_TO_DC): vol.All(
+                            vol.Coerce(float),
+                            vol.Range(min=0, max=100, msg="Value must be between 0 and 100"),
+                            NumberSelector(
+                                NumberSelectorConfig(
+                                    mode=NumberSelectorMode.BOX,
+                                    min=0,
+                                    max=100,
+                                    step="any",
+                                    unit_of_measurement=PERCENTAGE,
+                                )
+                            ),
+                        ),
+                    }
                 ),
+                {"collapsed": True},
             ),
         }
     )
@@ -100,9 +129,11 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            name = user_input.get(CONF_NAME)
+            # Flatten section-nested input
+            flat_input = _flatten_sections(user_input)
+            name = flat_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                config = cast("InverterConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
+                config = cast("InverterConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat_input})
                 return self.async_create_entry(title=name, data=config)
 
         # Get default name from translations
@@ -129,9 +160,11 @@ class InverterSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_reconfigure_subentry()
 
         if user_input is not None:
-            name = user_input.get(CONF_NAME)
+            # Flatten section-nested input
+            flat_input = _flatten_sections(user_input)
+            name = flat_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                config = cast("InverterConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
+                config = cast("InverterConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat_input})
                 return self.async_update_and_abort(
                     self._get_entry(),
                     subentry,

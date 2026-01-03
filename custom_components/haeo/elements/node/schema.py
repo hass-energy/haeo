@@ -19,27 +19,31 @@ DEFAULTS: Final[dict[str, bool]] = {
     CONF_IS_SINK: False,
 }
 
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo[SwitchEntityDescription], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_IS_SOURCE,
-        entity_description=SwitchEntityDescription(
-            key=CONF_IS_SOURCE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
-        ),
-        output_type=OutputType.STATUS,
-        default=False,
+# Individual field definitions (without field_name - keys in INPUT_FIELDS provide that)
+_IS_SOURCE = InputFieldInfo(
+    entity_description=SwitchEntityDescription(
+        key=CONF_IS_SOURCE,
+        translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
     ),
-    InputFieldInfo(
-        field_name=CONF_IS_SINK,
-        entity_description=SwitchEntityDescription(
-            key=CONF_IS_SINK,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
-        ),
-        output_type=OutputType.STATUS,
-        default=False,
-    ),
+    output_type=OutputType.STATUS,
+    default=False,
 )
+
+_IS_SINK = InputFieldInfo(
+    entity_description=SwitchEntityDescription(
+        key=CONF_IS_SINK,
+        translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
+    ),
+    output_type=OutputType.STATUS,
+    default=False,
+)
+
+# Input field definitions for creating input entities
+# Keys are field names, values are InputFieldInfo
+INPUT_FIELDS: Final[dict[str, InputFieldInfo[SwitchEntityDescription]]] = {
+    CONF_IS_SOURCE: _IS_SOURCE,
+    CONF_IS_SINK: _IS_SINK,
+}
 
 
 class NodeConfigSchema(TypedDict):

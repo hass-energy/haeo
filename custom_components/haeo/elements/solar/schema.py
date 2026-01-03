@@ -22,45 +22,50 @@ DEFAULTS: Final[dict[str, bool]] = {
     CONF_CURTAILMENT: True,
 }
 
-# Input field definitions for creating input entities (mix of Number and Switch)
-INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_FORECAST,
-        entity_description=NumberEntityDescription(
-            key=CONF_FORECAST,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
-            native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            device_class=NumberDeviceClass.POWER,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.01,
-        ),
-        output_type=OutputType.POWER,
-        direction="-",
-        time_series=True,
+# Individual field definitions (without field_name - keys in INPUT_FIELDS provide that)
+_FORECAST = InputFieldInfo(
+    entity_description=NumberEntityDescription(
+        key=CONF_FORECAST,
+        translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+        device_class=NumberDeviceClass.POWER,
+        native_min_value=0.0,
+        native_max_value=1000.0,
+        native_step=0.01,
     ),
-    InputFieldInfo(
-        field_name=CONF_PRICE_PRODUCTION,
-        entity_description=NumberEntityDescription(
-            key=CONF_PRICE_PRODUCTION,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_PRODUCTION}",
-            native_min_value=-1.0,
-            native_max_value=10.0,
-            native_step=0.001,
-        ),
-        output_type=OutputType.PRICE,
-        direction="+",
-    ),
-    InputFieldInfo(
-        field_name=CONF_CURTAILMENT,
-        entity_description=SwitchEntityDescription(
-            key=CONF_CURTAILMENT,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
-        ),
-        output_type=OutputType.STATUS,
-        default=True,
-    ),
+    output_type=OutputType.POWER,
+    direction="-",
+    time_series=True,
 )
+
+_PRICE_PRODUCTION = InputFieldInfo(
+    entity_description=NumberEntityDescription(
+        key=CONF_PRICE_PRODUCTION,
+        translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_PRODUCTION}",
+        native_min_value=-1.0,
+        native_max_value=10.0,
+        native_step=0.001,
+    ),
+    output_type=OutputType.PRICE,
+    direction="+",
+)
+
+_CURTAILMENT = InputFieldInfo(
+    entity_description=SwitchEntityDescription(
+        key=CONF_CURTAILMENT,
+        translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
+    ),
+    output_type=OutputType.STATUS,
+    default=True,
+)
+
+# Input field definitions for creating input entities (mix of Number and Switch)
+# Keys are field names, values are InputFieldInfo
+INPUT_FIELDS: Final[dict[str, InputFieldInfo[Any]]] = {
+    CONF_FORECAST: _FORECAST,
+    CONF_PRICE_PRODUCTION: _PRICE_PRODUCTION,
+    CONF_CURTAILMENT: _CURTAILMENT,
+}
 
 
 class SolarConfigSchema(TypedDict):

@@ -5,7 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import GroupedInputFields, InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "grid"
@@ -21,67 +21,77 @@ CONF_CONNECTION: Final = "connection"
 DEFAULT_IMPORT_PRICE: Final[float] = 0.1
 DEFAULT_EXPORT_PRICE: Final[float] = 0.01
 
-# Input field definitions for creating input entities
-INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
-    InputFieldInfo(
-        field_name=CONF_IMPORT_PRICE,
-        entity_description=NumberEntityDescription(
-            key=CONF_IMPORT_PRICE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
-            native_min_value=-1.0,
-            native_max_value=10.0,
-            native_step=0.001,
-        ),
-        output_type=OutputType.PRICE,
-        time_series=True,
-        direction="-",  # Import = consuming from grid = cost
-        default=DEFAULT_IMPORT_PRICE,
+# Individual field definitions (without field_name - keys in INPUT_FIELDS provide that)
+_IMPORT_PRICE = InputFieldInfo(
+    entity_description=NumberEntityDescription(
+        key=CONF_IMPORT_PRICE,
+        translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
+        native_min_value=-1.0,
+        native_max_value=10.0,
+        native_step=0.001,
     ),
-    InputFieldInfo(
-        field_name=CONF_EXPORT_PRICE,
-        entity_description=NumberEntityDescription(
-            key=CONF_EXPORT_PRICE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
-            native_min_value=-1.0,
-            native_max_value=10.0,
-            native_step=0.001,
-        ),
-        output_type=OutputType.PRICE,
-        time_series=True,
-        direction="+",  # Export = producing to grid = revenue
-        default=DEFAULT_EXPORT_PRICE,
-    ),
-    InputFieldInfo(
-        field_name=CONF_IMPORT_LIMIT,
-        entity_description=NumberEntityDescription(
-            key=CONF_IMPORT_LIMIT,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
-            native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            device_class=NumberDeviceClass.POWER,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.POWER_LIMIT,
-        time_series=True,
-        direction="+",
-    ),
-    InputFieldInfo(
-        field_name=CONF_EXPORT_LIMIT,
-        entity_description=NumberEntityDescription(
-            key=CONF_EXPORT_LIMIT,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
-            native_unit_of_measurement=UnitOfPower.KILO_WATT,
-            device_class=NumberDeviceClass.POWER,
-            native_min_value=0.0,
-            native_max_value=1000.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.POWER_LIMIT,
-        time_series=True,
-        direction="-",
-    ),
+    output_type=OutputType.PRICE,
+    time_series=True,
+    direction="-",  # Import = consuming from grid = cost
+    default=DEFAULT_IMPORT_PRICE,
 )
+
+_EXPORT_PRICE = InputFieldInfo(
+    entity_description=NumberEntityDescription(
+        key=CONF_EXPORT_PRICE,
+        translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
+        native_min_value=-1.0,
+        native_max_value=10.0,
+        native_step=0.001,
+    ),
+    output_type=OutputType.PRICE,
+    time_series=True,
+    direction="+",  # Export = producing to grid = revenue
+    default=DEFAULT_EXPORT_PRICE,
+)
+
+_IMPORT_LIMIT = InputFieldInfo(
+    entity_description=NumberEntityDescription(
+        key=CONF_IMPORT_LIMIT,
+        translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
+        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+        device_class=NumberDeviceClass.POWER,
+        native_min_value=0.0,
+        native_max_value=1000.0,
+        native_step=0.1,
+    ),
+    output_type=OutputType.POWER_LIMIT,
+    time_series=True,
+    direction="+",
+)
+
+_EXPORT_LIMIT = InputFieldInfo(
+    entity_description=NumberEntityDescription(
+        key=CONF_EXPORT_LIMIT,
+        translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
+        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+        device_class=NumberDeviceClass.POWER,
+        native_min_value=0.0,
+        native_max_value=1000.0,
+        native_step=0.1,
+    ),
+    output_type=OutputType.POWER_LIMIT,
+    time_series=True,
+    direction="-",
+)
+
+# Input field definitions organized by UI section
+# Keys in inner dicts are field names, values are InputFieldInfo
+INPUT_FIELDS: Final[GroupedInputFields] = {
+    "pricing": {
+        CONF_IMPORT_PRICE: _IMPORT_PRICE,
+        CONF_EXPORT_PRICE: _EXPORT_PRICE,
+    },
+    "power_limits": {
+        CONF_IMPORT_LIMIT: _IMPORT_LIMIT,
+        CONF_EXPORT_LIMIT: _EXPORT_LIMIT,
+    },
+}
 
 
 class GridConfigSchema(TypedDict):
