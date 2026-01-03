@@ -7,7 +7,7 @@ import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import battery as battery_element
-from custom_components.haeo.elements.battery import BatteryConfigData
+from custom_components.haeo.elements.battery import BatteryConfigData, PartitionConfigData
 from custom_components.haeo.model import ModelOutputName, power_connection
 from custom_components.haeo.model import energy_storage as energy_storage_model
 from custom_components.haeo.model import energy_balance_connection as balance_model
@@ -184,6 +184,107 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "max_power_target_source": [5.0],
                 "price_target_source": [-0.001],
                 "price_source_target": [0.003],  # early_discharge_incentive + discharge_cost
+            },
+        ],
+    },
+    {
+        "description": "Battery with partition-based configuration",
+        "data": BatteryConfigData(
+            element_type="battery",
+            name="battery_partitions",
+            connection="network",
+            capacity=[10.0],  # Total capacity for reference
+            initial_charge_percentage=[50.0],
+            efficiency=[95.0],
+            max_charge_power=[5.0],
+            max_discharge_power=[5.0],
+            partitions=[
+                PartitionConfigData(name="reserve", capacity=[2.0], charge_cost=[0.0], discharge_cost=[0.05]),
+                PartitionConfigData(name="normal", capacity=[6.0]),
+                PartitionConfigData(name="overflow", capacity=[2.0], charge_cost=[0.03]),
+            ],
+        ),
+        "model": [
+            # First partition: reserve (bottom)
+            {
+                "element_type": "energy_storage",
+                "name": "battery_partitions:reserve",
+                "capacity": [2.0],
+                "initial_charge": 2.0,  # Greedy: fill from bottom, 5kWh total, 2kWh fits here
+            },
+            # Second partition: normal (middle)
+            {
+                "element_type": "energy_storage",
+                "name": "battery_partitions:normal",
+                "capacity": [6.0],
+                "initial_charge": 3.0,  # Remaining 3kWh after reserve is filled
+            },
+            # Third partition: overflow (top)
+            {
+                "element_type": "energy_storage",
+                "name": "battery_partitions:overflow",
+                "capacity": [2.0],
+                "initial_charge": 0.0,  # No energy left after normal is partially filled
+            },
+            # Internal node
+            {
+                "element_type": "node",
+                "name": "battery_partitions:node",
+                "is_source": False,
+                "is_sink": False,
+            },
+            # Reserve connection with charge_cost and discharge_cost
+            {
+                "element_type": "connection",
+                "name": "battery_partitions:reserve:to_node",
+                "source": "battery_partitions:reserve",
+                "target": "battery_partitions:node",
+                "price_target_source": [0.0],  # charge_cost
+                "price_source_target": [0.05],  # discharge_cost
+            },
+            # Normal connection: no penalty
+            {
+                "element_type": "connection",
+                "name": "battery_partitions:normal:to_node",
+                "source": "battery_partitions:normal",
+                "target": "battery_partitions:node",
+            },
+            # Overflow connection with charge cost
+            {
+                "element_type": "connection",
+                "name": "battery_partitions:overflow:to_node",
+                "source": "battery_partitions:overflow",
+                "target": "battery_partitions:node",
+                "price_target_source": [0.03],
+            },
+            # Balance connection: reserve -> normal
+            {
+                "element_type": "energy_balance_connection",
+                "name": "battery_partitions:balance:reserve:normal",
+                "upper": "battery_partitions:normal",
+                "lower": "battery_partitions:reserve",
+                "capacity_lower": [2.0],
+            },
+            # Balance connection: normal -> overflow
+            {
+                "element_type": "energy_balance_connection",
+                "name": "battery_partitions:balance:normal:overflow",
+                "upper": "battery_partitions:overflow",
+                "lower": "battery_partitions:normal",
+                "capacity_lower": [6.0],
+            },
+            # Main connection to network (with default early_charge_incentive)
+            {
+                "element_type": "connection",
+                "name": "battery_partitions:connection",
+                "source": "battery_partitions:node",
+                "target": "network",
+                "efficiency_source_target": [95.0],
+                "efficiency_target_source": [95.0],
+                "max_power_source_target": [5.0],
+                "max_power_target_source": [5.0],
+                "price_target_source": [-0.001],  # Negative early_charge_incentive (default)
+                "price_source_target": [0.001],  # early_charge_incentive (default)
             },
         ],
     },
