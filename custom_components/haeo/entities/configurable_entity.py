@@ -27,11 +27,7 @@ class ConfigurableEntity(Entity):
     _attr_name = "HAEO Configurable"
     _attr_icon = "mdi:tune"
     _attr_unique_id = CONFIGURABLE_ENTITY_UNIQUE_ID
-
-    @property
-    def state(self) -> str:
-        """Return static state."""
-        return "configurable"
+    _attr_state = "configurable"
 
 
 __all__ = ["ConfigurableEntity"]
