@@ -1,9 +1,10 @@
 """Tests for the HAEO sensor platform."""
 
+from collections.abc import Generator
 from datetime import UTC, datetime
 from types import MappingProxyType
 from typing import Literal, cast
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigSubentry
@@ -28,6 +29,25 @@ from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.model import OutputType
 from custom_components.haeo.sensor import async_setup_entry
+
+
+@pytest.fixture(autouse=True)
+def _suppress_sentinel_entity() -> Generator[None]:
+    """Prevent the configurable sentinel entity from being added during tests.
+
+    The sentinel entity is an implementation detail that would affect entity
+    counts in tests. This fixture simulates the sentinel already existing
+    in the entity registry.
+    """
+
+    def mock_async_get(hass) -> Mock:  # noqa: ANN001
+        """Return a mock registry that says the sentinel already exists."""
+        mock_registry = Mock()
+        mock_registry.async_get_entity_id.return_value = "sensor.haeo_configurable_entity"
+        return mock_registry
+
+    with patch("custom_components.haeo.sensor.er.async_get", side_effect=mock_async_get):
+        yield
 
 
 def _create_mock_coordinator() -> Mock:
