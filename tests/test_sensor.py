@@ -192,8 +192,8 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
 
     async_add_entities.assert_called_once()
     sensors = list(async_add_entities.call_args.args[0])
-    # 1 horizon + 1 sentinel + 3 output sensors = 5 total
-    assert len(sensors) == 5
+    # 1 horizon + 3 output sensors = 4 total
+    assert len(sensors) == 4
 
     status_sensor = next(sensor for sensor in sensors if sensor.translation_key == OUTPUT_NAME_OPTIMIZATION_STATUS)
     assert status_sensor.device_class is SensorDeviceClass.ENUM
@@ -246,14 +246,14 @@ async def test_async_setup_entry_creates_horizon_when_no_outputs(
 
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    # Horizon + sentinel entities are always added
+    # Horizon entity is always added
     async_add_entities.assert_called_once()
     entities = async_add_entities.call_args[0][0]
-    assert len(entities) == 2
+    assert len(entities) == 1
     # Import is at function scope to avoid circular import issues in test module
     from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity  # noqa: PLC0415
 
-    assert any(isinstance(e, HaeoHorizonEntity) for e in entities)
+    assert isinstance(entities[0], HaeoHorizonEntity)
 
 
 def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry) -> None:
@@ -458,8 +458,8 @@ async def test_async_setup_entry_creates_sub_device_sensors(
 
     async_add_entities.assert_called_once()
     sensors = list(async_add_entities.call_args.args[0])
-    # 3 entities: horizon + sentinel + 1 output sensor
-    assert len(sensors) == 3
+    # 2 entities: horizon + 1 output sensor
+    assert len(sensors) == 2
 
     # Find the output sensor (not the horizon entity)
     output_sensors = [s for s in sensors if isinstance(s, HaeoSensor)]

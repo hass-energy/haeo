@@ -11,6 +11,5 @@ def test_configurable_entity_attributes() -> None:
     assert entity.unique_id == CONFIGURABLE_ENTITY_UNIQUE_ID
     assert entity.name == "HAEO Configurable"
     assert entity.icon == "mdi:tune"
-    assert entity.native_value == "configurable"
+    assert entity.state == "configurable"
     assert entity.should_poll is False
-    assert entity.available is True
