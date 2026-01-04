@@ -190,12 +190,14 @@ async def test_editable_mode_turn_on(
         horizon_manager=horizon_manager,
     )
     entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_turn_on()
 
     assert entity.is_on is True
     entity.async_write_ha_state.assert_called_once()
-    # Value is persisted via RestoreEntity, not config entry
+    # Value should be persisted to config entry
+    hass.config_entries.async_update_subentry.assert_called_once()
 
 
 async def test_editable_mode_turn_off(
@@ -218,12 +220,14 @@ async def test_editable_mode_turn_off(
         horizon_manager=horizon_manager,
     )
     entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_turn_off()
 
     assert entity.is_on is False
     entity.async_write_ha_state.assert_called_once()
-    # Value is persisted via RestoreEntity, not config entry
+    # Value should be persisted to config entry
+    hass.config_entries.async_update_subentry.assert_called_once()
 
 
 # --- Tests for DRIVEN mode ---

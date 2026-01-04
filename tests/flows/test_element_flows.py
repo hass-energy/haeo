@@ -249,6 +249,7 @@ async def test_element_flow_user_step_success(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Validate the happy path for adding each element type."""
 
@@ -297,6 +298,7 @@ async def test_element_flow_user_step_missing_name(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Ensure missing names are rejected for all element types."""
 
@@ -317,6 +319,7 @@ async def test_element_flow_user_step_duplicate_name(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Ensure duplicate names are detected when creating elements."""
 
@@ -340,6 +343,7 @@ async def test_element_flow_reconfigure_success(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Verify reconfigure submissions succeed for unchanged data."""
     # Grid uses entity-first pattern with different test approach - see tests/elements/grid/test_flow.py
@@ -389,6 +393,7 @@ async def test_element_flow_reconfigure_rename(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Verify reconfigure handles renaming across element types."""
     # Grid uses entity-first pattern with different test approach - see tests/elements/grid/test_flow.py
@@ -437,6 +442,7 @@ async def test_element_flow_reconfigure_missing_name(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Ensure empty names are rejected during reconfigure flows."""
 
@@ -465,6 +471,7 @@ async def test_element_flow_reconfigure_duplicate_name(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Ensure reconfigure prevents renaming to an existing element."""
 

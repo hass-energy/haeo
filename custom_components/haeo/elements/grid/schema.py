@@ -17,11 +17,11 @@ CONF_IMPORT_LIMIT: Final = "import_limit"
 CONF_EXPORT_LIMIT: Final = "export_limit"
 CONF_CONNECTION: Final = "connection"
 
-# Default values for optional fields
-DEFAULT_IMPORT_PRICE: Final[float] = 0.1  # $/kWh - used by adapter when not configured
-DEFAULT_EXPORT_PRICE: Final[float] = 0.01  # $/kWh - used by adapter when not configured
-DEFAULT_IMPORT_LIMIT: Final[float] = 100.0  # kW
-DEFAULT_EXPORT_LIMIT: Final[float] = 100.0  # kW
+# Default values for optional fields ($/kWh for prices, kW for limits)
+DEFAULT_IMPORT_PRICE: Final[float] = 0.1
+DEFAULT_EXPORT_PRICE: Final[float] = 0.01
+DEFAULT_IMPORT_LIMIT: Final[float] = 100.0
+DEFAULT_EXPORT_LIMIT: Final[float] = 100.0
 
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (

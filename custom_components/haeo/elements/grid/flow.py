@@ -9,7 +9,6 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
-from custom_components.haeo.flows.constants import ensure_configurable_entities_exist
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
     build_configurable_value_schema,
@@ -92,9 +91,6 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     # Store step 1 data and proceed to step 2
                     self._step1_data = user_input
                     return await self.async_step_values()
-
-        # Ensure configurable entity exists before building schema
-        ensure_configurable_entities_exist()
 
         # Get default name from translations
         translations = await async_get_translations(
@@ -186,9 +182,6 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                     # Store step 1 data and proceed to step 2
                     self._step1_data = user_input
                     return await self.async_step_reconfigure_values()
-
-        # Ensure configurable entity exists before building schema
-        ensure_configurable_entities_exist()
 
         current_connection = subentry.data.get(CONF_CONNECTION)
         entity_metadata = extract_entity_metadata(self.hass)

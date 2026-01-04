@@ -198,12 +198,14 @@ async def test_editable_mode_set_native_value(
 
     # Mock async_write_ha_state and config entry update
     entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_set_native_value(15.0)
 
     assert entity.native_value == 15.0
     entity.async_write_ha_state.assert_called_once()
-    # Value is persisted via RestoreEntity, not config entry
+    # Value should be persisted to config entry
+    hass.config_entries.async_update_subentry.assert_called_once()
 
 
 async def test_editable_mode_set_native_value_with_runtime_data(
@@ -213,7 +215,7 @@ async def test_editable_mode_set_native_value_with_runtime_data(
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """Number entity in EDITABLE mode works when runtime_data exists."""
+    """Number entity in EDITABLE mode sets value_update_in_progress flag when runtime_data exists."""
     subentry = _create_subentry("Test Battery", {"power_limit": 5.0})
 
     # Create mock runtime_data with value_update_in_progress attribute
@@ -230,14 +232,17 @@ async def test_editable_mode_set_native_value_with_runtime_data(
         horizon_manager=horizon_manager,
     )
 
-    # Mock async_write_ha_state
+    # Mock async_write_ha_state and config entry update
     entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
 
     await entity.async_set_native_value(15.0)
 
     assert entity.native_value == 15.0
     entity.async_write_ha_state.assert_called_once()
-    # Value is persisted via RestoreEntity, not config entry
+    hass.config_entries.async_update_subentry.assert_called_once()
+    # Flag should be cleared after update
+    assert mock_runtime_data.value_update_in_progress is False
 
 
 # --- Tests for DRIVEN mode ---

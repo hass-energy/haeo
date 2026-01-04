@@ -395,7 +395,7 @@ def get_configurable_entity_id() -> str:
     registry = er.async_get(hass)
     entity_id = registry.async_get_entity_id(DOMAIN, DOMAIN, HAEO_CONFIGURABLE_UNIQUE_ID)
     if entity_id is None:
-        msg = "Configurable entity not found - ensure_configurable_entities_exist() should have been called"
+        msg = "Configurable entity not found - setup_configurable_entity() should have run during setup"
         raise RuntimeError(msg)
     return entity_id
 

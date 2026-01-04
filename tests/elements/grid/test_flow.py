@@ -1,8 +1,7 @@
 """Tests for grid element config flow."""
 
-from collections.abc import Generator
 from types import MappingProxyType
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from homeassistant.config_entries import ConfigSubentry
@@ -10,36 +9,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, HAEO_CONFIGURABLE_UNIQUE_ID
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
 from custom_components.haeo.elements.grid import CONF_CONNECTION, CONF_EXPORT_PRICE, CONF_IMPORT_PRICE, ELEMENT_TYPE
 
+from tests.conftest import TEST_CONFIGURABLE_ENTITY_ID
+
 from ..conftest import add_participant, create_flow
 
-# Test entity ID for the configurable entity
-TEST_CONFIGURABLE_ENTITY_ID = "haeo.configurable_entity"
 
-
-@pytest.fixture
-def mock_configurable_entity() -> Generator[None]:
-    """Mock the entity registry to recognize the configurable test entity."""
-    mock_entry = MagicMock()
-    mock_entry.unique_id = HAEO_CONFIGURABLE_UNIQUE_ID
-
-    def mock_async_get(entity_id: str) -> MagicMock | None:
-        if entity_id == TEST_CONFIGURABLE_ENTITY_ID:
-            return mock_entry
-        return None
-
-    mock_registry = MagicMock()
-    mock_registry.async_get = mock_async_get
-    mock_registry.async_get_entity_id.return_value = TEST_CONFIGURABLE_ENTITY_ID
-
-    with patch("custom_components.haeo.flows.field_schema.er.async_get", return_value=mock_registry):
-        yield
-
-
-async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry, mock_configurable_entity: None) -> None:
     """Grid reconfigure should include deleted connection target in options."""
     # Create grid that references a deleted connection target
     existing_config = {

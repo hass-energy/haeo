@@ -1,22 +1,27 @@
 """Utilities for managing configurable sentinel entities in config flows."""
 
-from homeassistant.core import async_get_hass
+import logging
+
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.const import DOMAIN, HAEO_CONFIGURABLE_UNIQUE_ID
 
+_LOGGER = logging.getLogger(__name__)
 
-def ensure_configurable_entities_exist() -> None:
-    """Ensure the configurable sentinel entity exists for config flows.
+
+def setup_configurable_entity(hass: HomeAssistant) -> None:
+    """Set up the configurable sentinel entity for config flows.
 
     Creates a single configurable entity in the 'haeo' domain.
-    This entity appears in all EntitySelector dropdowns because we include
-    'haeo' in the domain filter list.
+    This entity appears in EntitySelector dropdowns when the haeo domain
+    is included in the filter, allowing users to indicate they want to
+    enter a constant value instead of selecting an external entity.
 
-    Uses async_get_hass() to retrieve the Home Assistant instance from the
-    current context.
+    Args:
+        hass: Home Assistant instance.
+
     """
-    hass = async_get_hass()
     registry = er.async_get(hass)
 
     # Look up by unique_id (stable) rather than entity_id (user can rename)
@@ -24,7 +29,7 @@ def ensure_configurable_entities_exist() -> None:
     if existing_entity_id is None:
         # Create the entity - suggested_object_id is just a hint, actual entity_id may differ
         entry = registry.async_get_or_create(
-            domain=DOMAIN,  # Use 'haeo' domain so entity_id is haeo.configurable_entity
+            domain=DOMAIN,
             platform=DOMAIN,
             unique_id=HAEO_CONFIGURABLE_UNIQUE_ID,
             suggested_object_id="configurable_entity",
@@ -33,7 +38,7 @@ def ensure_configurable_entities_exist() -> None:
         )
         existing_entity_id = entry.entity_id
 
-    # Also set the state using the actual entity_id (for any code that reads state values)
+    # Set state so the entity appears in selectors
     hass.states.async_set(
         existing_entity_id,
         "configurable",
@@ -42,3 +47,6 @@ def ensure_configurable_entities_exist() -> None:
             "icon": "mdi:tune",
         },
     )
+
+
+__all__ = ["setup_configurable_entity"]
