@@ -14,13 +14,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import EnergyStorageSubentryFlowHandler
-from .schema import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE,
-    ELEMENT_TYPE,
-    EnergyStorageConfigData,
-    EnergyStorageConfigSchema,
-)
+from .schema import CONF_CAPACITY, CONF_INITIAL_CHARGE, ELEMENT_TYPE, EnergyStorageConfigData, EnergyStorageConfigSchema
 
 type EnergyStorageOutputName = Literal[
     "energy_storage_power_charge",
