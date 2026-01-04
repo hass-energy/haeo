@@ -16,7 +16,6 @@ from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.flows.constants import setup_configurable_entity
 from custom_components.haeo.horizon import HorizonManager
 
 if TYPE_CHECKING:
@@ -182,9 +181,6 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry."""
-    # Set up configurable sentinel entity if not already present
-    setup_configurable_entity(hass)
-
     # Ensure required subentries exist (auto-create if missing)
     await _ensure_required_subentries(hass, entry)
 

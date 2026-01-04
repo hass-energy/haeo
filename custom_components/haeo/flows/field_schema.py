@@ -393,9 +393,10 @@ def get_configurable_entity_id() -> str:
     """
     hass = async_get_hass()
     registry = er.async_get(hass)
-    entity_id = registry.async_get_entity_id(DOMAIN, DOMAIN, HAEO_CONFIGURABLE_UNIQUE_ID)
+    # Sentinel is a sensor entity created via sensor.py
+    entity_id = registry.async_get_entity_id("sensor", DOMAIN, HAEO_CONFIGURABLE_UNIQUE_ID)
     if entity_id is None:
-        msg = "Configurable entity not found - setup_configurable_entity() should have run during setup"
+        msg = "Configurable entity not found - sensor platform should have created it during setup"
         raise RuntimeError(msg)
     return entity_id
 
@@ -428,10 +429,10 @@ def build_entity_selector_with_configurable(
     filtered_exclude = [entity_id for entity_id in (exclude_entities or []) if not is_configurable_entity(entity_id)]
 
     # Build config - no device_class filter, rely on unit-based exclusion
-    # Include 'haeo' domain so the configurable entity always appears
     # Include 'number' and 'switch' so HAEO input entities can be re-selected during reconfigure
+    # The configurable sentinel is a sensor entity, so it's included via 'sensor' domain
     config_kwargs: dict[str, Any] = {
-        "domain": ["sensor", "input_number", "number", "switch", DOMAIN],
+        "domain": ["sensor", "input_number", "number", "switch"],
         "multiple": True,
         "exclude_entities": filtered_exclude,
     }

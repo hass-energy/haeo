@@ -122,8 +122,8 @@ def auto_enable_custom_integrations(enable_custom_integrations: None) -> bool:
     return enable_custom_integrations is None
 
 
-# Test entity ID for the configurable entity
-TEST_CONFIGURABLE_ENTITY_ID = "haeo.configurable_entity"
+# Test entity ID for the configurable entity (now a sensor, not haeo domain)
+TEST_CONFIGURABLE_ENTITY_ID = "sensor.haeo_configurable_entity"
 
 
 @pytest.fixture
