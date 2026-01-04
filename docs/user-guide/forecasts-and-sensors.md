@@ -318,20 +318,20 @@ template:
 
 HAEO will detect this as a simple forecast format and extract the data.
 
-## Using Constants vs Sensors
+## Using Configurable Values vs Sensors
 
 For values that don't change over time (fixed prices, baseline loads, power limits), you have two options:
 
-### Direct constant entry
+### Direct configurable entry
 
-During element configuration, select **Constant** mode for the field and enter your value directly.
+During element configuration, select **HAEO Configurable** for the field and enter your value in step 2.
 This is the simplest approach for truly static values.
 
-| Step 1 Selection | Step 2 Entry | Use Case             |
-| ---------------- | ------------ | -------------------- |
-| Constant         | 0.25         | Fixed import price   |
-| Constant         | 15           | Static power limit   |
-| Constant         | 90           | Fixed SOC percentage |
+| Step 1 Selection  | Step 2 Entry | Use Case             |
+| ----------------- | ------------ | -------------------- |
+| HAEO Configurable | 0.25         | Fixed import price   |
+| HAEO Configurable | 15           | Static power limit   |
+| HAEO Configurable | 90           | Fixed SOC percentage |
 
 ### Input number helpers
 
@@ -351,12 +351,12 @@ For values you want to adjust through the Home Assistant UI without reconfigurin
 
 **Using in HAEO configuration**:
 
-During element configuration, select **Entity Link** mode and reference the input_number:
+During element configuration, select the input_number in the entity selector:
 
-| Field            | Mode        | Value                           |
-| ---------------- | ----------- | ------------------------------- |
-| **Import Price** | Entity Link | input_number.fixed_import_price |
-| **Import Limit** | Entity Link | input_number.inverter_rating    |
+| Field            | Selection                       |
+| ---------------- | ------------------------------- |
+| **Import Price** | input_number.fixed_import_price |
+| **Import Limit** | input_number.inverter_rating    |
 
 HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
 
@@ -368,7 +368,7 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 **When to use each approach**:
 
-- **Direct constant**: Values that rarely change (capacity, efficiency)
+- **Direct configurable**: Values that rarely change (capacity, efficiency)
 - **Input_number helper**: Values you adjust regularly (target SOC, temporary overrides)
 - **Forecast sensor**: Values that vary over time (prices, solar generation)
 

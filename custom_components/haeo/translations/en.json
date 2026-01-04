@@ -81,42 +81,42 @@
           "title": "Add Battery",
           "description": "Set up battery parameters for energy optimization",
           "data": {
-            "capacity_mode": "Capacity Source",
+            "capacity": "Capacity",
             "connection": "Connection",
-            "discharge_cost_mode": "Discharge Cost Source",
-            "early_charge_incentive_mode": "Early Charge Incentive Source",
-            "efficiency_mode": "Efficiency Source",
-            "initial_charge_percentage_mode": "State of Charge Source",
-            "max_charge_percentage_mode": "Max Charge Level Source",
-            "max_charge_power_mode": "Max Charging Power Source",
-            "max_discharge_power_mode": "Max Discharging Power Source",
-            "min_charge_percentage_mode": "Min Charge Level Source",
+            "discharge_cost": "Discharge Cost",
+            "early_charge_incentive": "Early Charge Incentive",
+            "efficiency": "Round-trip Efficiency",
+            "initial_charge_percentage": "State of Charge",
+            "max_charge_percentage": "Max Charge Level",
+            "max_charge_power": "Max Charging Power",
+            "max_discharge_power": "Max Discharging Power",
+            "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
-            "overcharge_cost_mode": "Overcharge Cost Source",
-            "overcharge_percentage_mode": "Overcharge Percentage Source",
-            "undercharge_cost_mode": "Undercharge Cost Source",
-            "undercharge_percentage_mode": "Undercharge Percentage Source"
+            "overcharge_cost": "Overcharge Cost",
+            "overcharge_percentage": "Overcharge Percentage",
+            "undercharge_cost": "Undercharge Cost",
+            "undercharge_percentage": "Undercharge Percentage"
           }
         },
         "reconfigure": {
           "title": "Edit Battery",
           "description": "Update battery configuration",
           "data": {
-            "capacity_mode": "Capacity Source",
+            "capacity": "Capacity",
             "connection": "Connection",
-            "discharge_cost_mode": "Discharge Cost Source",
-            "early_charge_incentive_mode": "Early Charge Incentive Source",
-            "efficiency_mode": "Efficiency Source",
-            "initial_charge_percentage_mode": "State of Charge Source",
-            "max_charge_percentage_mode": "Max Charge Level Source",
-            "max_charge_power_mode": "Max Charging Power Source",
-            "max_discharge_power_mode": "Max Discharging Power Source",
-            "min_charge_percentage_mode": "Min Charge Level Source",
+            "discharge_cost": "Discharge Cost",
+            "early_charge_incentive": "Early Charge Incentive",
+            "efficiency": "Round-trip Efficiency",
+            "initial_charge_percentage": "State of Charge",
+            "max_charge_percentage": "Max Charge Level",
+            "max_charge_power": "Max Charging Power",
+            "max_discharge_power": "Max Discharging Power",
+            "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
-            "overcharge_cost_mode": "Overcharge Cost Source",
-            "overcharge_percentage_mode": "Overcharge Percentage Source",
-            "undercharge_cost_mode": "Undercharge Cost Source",
-            "undercharge_percentage_mode": "Undercharge Percentage Source"
+            "overcharge_cost": "Overcharge Cost",
+            "overcharge_percentage": "Overcharge Percentage",
+            "undercharge_cost": "Undercharge Cost",
+            "undercharge_percentage": "Undercharge Percentage"
           }
         },
         "reconfigure_values": {
@@ -236,10 +236,10 @@
           "description": "Set up grid import/export parameters and pricing",
           "data": {
             "connection": "Connection",
-            "export_limit_mode": "Export Limit Source",
-            "export_price_mode": "Export Price Source",
-            "import_limit_mode": "Import Limit Source",
-            "import_price_mode": "Import Price Source",
+            "export_limit": "Export Limit",
+            "export_price": "Export Price",
+            "import_limit": "Import Limit",
+            "import_price": "Import Price",
             "name": "Grid Name"
           }
         },
@@ -248,10 +248,10 @@
           "description": "Update grid configuration",
           "data": {
             "connection": "Connection",
-            "export_limit_mode": "Export Limit Source",
-            "export_price_mode": "Export Price Source",
-            "import_limit_mode": "Import Limit Source",
-            "import_price_mode": "Import Price Source",
+            "export_limit": "Export Limit",
+            "export_price": "Export Price",
+            "import_limit": "Import Limit",
+            "import_price": "Import Price",
             "name": "Grid Name"
           }
         },

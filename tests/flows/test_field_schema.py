@@ -1,366 +1,526 @@
-"""Tests for flows/field_schema.py utilities."""
+"""Tests for the field_schema utilities."""
+
+from collections.abc import Generator
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
-from homeassistant.helpers.selector import BooleanSelector, EntitySelector, NumberSelector
 import pytest
 import voluptuous as vol
 
+from custom_components.haeo.const import HAEO_CONFIGURABLE_UNIQUE_ID
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.field_schema import (
-    ConfigSchemaType,
-    InputMode,
-    boolean_selector_from_field,
-    build_mode_schema_entry,
-    build_mode_selector,
-    build_value_schema_entry,
-    entity_selector_from_field,
-    get_mode_defaults,
-    get_value_defaults,
-    infer_mode_from_value,
+    build_configurable_value_schema,
+    build_configurable_value_schema_entry,
+    convert_entity_selections_to_config,
+    get_configurable_entity_id,
+    get_configurable_value_defaults,
+    get_entity_selection_defaults,
+    has_configurable_selection,
+    is_configurable_entity,
     number_selector_from_field,
 )
 from custom_components.haeo.model.const import OutputType
 
-# --- Mock types ---
-
-
-class MockConfigSchema(ConfigSchemaType):
-    """Mock config schema for testing."""
-
-    __optional_keys__: frozenset[str] = frozenset({"optional_field"})
-
-
-# --- Fixtures ---
+# Test entity ID for the configurable entity
+TEST_CONFIGURABLE_ENTITY_ID = "haeo.configurable_entity"
 
 
 @pytest.fixture
-def number_field() -> InputFieldInfo[NumberEntityDescription]:
-    """Create a number input field for testing."""
+def mock_registry() -> MagicMock:
+    """Return a mock entity registry."""
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_hass_context(mock_registry: MagicMock) -> Generator[MagicMock]:
+    """Set up mock hass context that recognizes the configurable entity.
+
+    This patches both async_get_hass() and the entity registry to simulate
+    the runtime environment where the configurable entity exists.
+    """
+    # Create a mock registry entry for the configurable entity
+    mock_entry = MagicMock()
+    mock_entry.unique_id = HAEO_CONFIGURABLE_UNIQUE_ID
+
+    def async_get(entity_id: str) -> MagicMock | None:
+        if entity_id == TEST_CONFIGURABLE_ENTITY_ID:
+            return mock_entry
+        return None
+
+    mock_registry.async_get = async_get
+    mock_registry.async_get_entity_id.return_value = TEST_CONFIGURABLE_ENTITY_ID
+
+    mock_hass = MagicMock()
+
+    with (
+        patch("custom_components.haeo.flows.field_schema.async_get_hass", return_value=mock_hass),
+        patch("custom_components.haeo.flows.field_schema.er.async_get", return_value=mock_registry),
+    ):
+        yield mock_hass
+
+
+@pytest.fixture
+def number_field_info() -> InputFieldInfo[NumberEntityDescription]:
+    """Return a number field info for testing."""
     return InputFieldInfo(
-        field_name="test_field",
+        field_name="import_limit",
         entity_description=NumberEntityDescription(
-            key="test_field",
-            name="Test Field",
+            key="import_limit",
+            translation_key="import_limit",
             native_min_value=0.0,
-            native_max_value=100.0,
-            native_step=1.0,
-            native_unit_of_measurement="kW",
+            native_max_value=1000.0,
+            native_step=0.1,
         ),
         output_type=OutputType.POWER,
-        default=50.0,
     )
 
 
 @pytest.fixture
-def switch_field() -> InputFieldInfo[SwitchEntityDescription]:
-    """Create a switch input field for testing."""
+def number_field_with_default() -> InputFieldInfo[NumberEntityDescription]:
+    """Return a number field info with a default value."""
     return InputFieldInfo(
-        field_name="test_switch",
-        entity_description=SwitchEntityDescription(
-            key="test_switch",
-            name="Test Switch",
+        field_name="export_limit",
+        entity_description=NumberEntityDescription(
+            key="export_limit",
+            translation_key="export_limit",
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
         ),
-        output_type=OutputType.STATUS,
+        output_type=OutputType.POWER,
+        default=100.0,
+    )
+
+
+@pytest.fixture
+def number_field_with_unit() -> InputFieldInfo[NumberEntityDescription]:
+    """Return a number field info with unit of measurement."""
+    return InputFieldInfo(
+        field_name="capacity",
+        entity_description=NumberEntityDescription(
+            key="capacity",
+            translation_key="capacity",
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=0.1,
+            native_unit_of_measurement="kWh",
+        ),
+        output_type=OutputType.ENERGY,
+    )
+
+
+@pytest.fixture
+def switch_field_info() -> InputFieldInfo[SwitchEntityDescription]:
+    """Return a switch field info for testing."""
+    return InputFieldInfo(
+        field_name="enabled",
+        entity_description=SwitchEntityDescription(
+            key="enabled",
+            translation_key="enabled",
+        ),
+        output_type=OutputType.POWER,
         default=True,
     )
 
 
-@pytest.fixture
-def required_field() -> InputFieldInfo[NumberEntityDescription]:
-    """Create a required input field (no default) for testing."""
-    return InputFieldInfo(
-        field_name="required_field",
-        entity_description=NumberEntityDescription(
-            key="required_field",
-            name="Required Field",
-            native_min_value=0.0,
-            native_max_value=100.0,
-        ),
-        output_type=OutputType.POWER,
-        default=None,
-    )
+class MockConfigSchema:
+    """Mock TypedDict-like class for testing config schemas."""
+
+    __optional_keys__ = frozenset({"export_limit"})
 
 
-# --- Tests for boolean_selector_from_field ---
+# --- Tests for is_configurable_entity ---
 
 
-def test_boolean_selector_from_field_returns_boolean_selector() -> None:
-    """Boolean selector is created."""
-    selector = boolean_selector_from_field()
-    assert isinstance(selector, BooleanSelector)
+def test_is_configurable_entity_with_configurable(mock_hass_context: MagicMock) -> None:
+    """is_configurable_entity returns True for the configurable entity."""
+    assert is_configurable_entity(TEST_CONFIGURABLE_ENTITY_ID) is True
+
+
+def test_is_configurable_entity_with_other_entity(mock_hass_context: MagicMock) -> None:
+    """is_configurable_entity returns False for other entities."""
+    assert is_configurable_entity("sensor.power") is False
+    assert is_configurable_entity("number.haeo_import_limit") is False
+
+
+# --- Tests for has_configurable_selection ---
+
+
+def test_has_configurable_selection_with_configurable(mock_hass_context: MagicMock) -> None:
+    """has_configurable_selection returns True when configurable entity is in selection."""
+    assert has_configurable_selection([TEST_CONFIGURABLE_ENTITY_ID]) is True
+    assert has_configurable_selection(["sensor.power", TEST_CONFIGURABLE_ENTITY_ID]) is True
+
+
+def test_has_configurable_selection_without_configurable(mock_hass_context: MagicMock) -> None:
+    """has_configurable_selection returns False when configurable entity is not in selection."""
+    assert has_configurable_selection([]) is False
+    assert has_configurable_selection(["sensor.power"]) is False
+
+
+# --- Tests for build_configurable_value_schema ---
+
+
+def test_build_schema_excludes_fields_without_configurable(
+    mock_hass_context: MagicMock,
+    number_field_info: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """build_configurable_value_schema excludes fields without configurable selection."""
+    input_fields = (number_field_info,)
+    entity_selections = {"import_limit": ["sensor.power"]}
+
+    schema = build_configurable_value_schema(input_fields, entity_selections)
+
+    # Schema should be empty
+    assert len(schema.schema) == 0
+
+
+def test_build_schema_includes_field_with_configurable(
+    mock_hass_context: MagicMock,
+    number_field_info: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """build_configurable_value_schema includes fields with configurable selection."""
+    input_fields = (number_field_info,)
+    entity_selections = {"import_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
+
+    schema = build_configurable_value_schema(input_fields, entity_selections)
+
+    # Schema should include the field
+    assert len(schema.schema) == 1
+
+
+def test_build_schema_excludes_field_with_stored_value(
+    mock_hass_context: MagicMock,
+    number_field_info: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """build_configurable_value_schema excludes fields with stored configurable values."""
+    input_fields = (number_field_info,)
+    entity_selections = {"import_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
+    current_data: dict[str, Any] = {"import_limit": 50.0}  # Stored value
+
+    schema = build_configurable_value_schema(input_fields, entity_selections, current_data)
+
+    # Schema should be empty - value is already stored
+    assert len(schema.schema) == 0
+
+
+def test_build_schema_includes_field_switching_from_entity(
+    mock_hass_context: MagicMock,
+    number_field_info: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """build_configurable_value_schema includes fields switching from entity to configurable."""
+    input_fields = (number_field_info,)
+    entity_selections = {"import_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
+    current_data: dict[str, Any] = {"import_limit": ["number.haeo_import_limit"]}  # Entity list
+
+    schema = build_configurable_value_schema(input_fields, entity_selections, current_data)
+
+    # Schema should include the field - user is switching to configurable
+    assert len(schema.schema) == 1
+
+
+def test_build_schema_excludes_field_with_default(
+    mock_hass_context: MagicMock,
+    number_field_with_default: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """build_configurable_value_schema excludes fields with defaults and no prior value."""
+    input_fields = (number_field_with_default,)
+    entity_selections = {"export_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
+    current_data: dict[str, Any] = {}  # No stored value but has default
+
+    schema = build_configurable_value_schema(input_fields, entity_selections, current_data)
+
+    # Schema should be empty - default will be used
+    assert len(schema.schema) == 0
+
+
+# --- Tests for get_configurable_entity_id ---
+
+
+def test_get_configurable_entity_id_raises_when_not_found() -> None:
+    """get_configurable_entity_id raises RuntimeError when entity not found."""
+    mock_hass = MagicMock()
+    mock_registry = MagicMock()
+    mock_registry.async_get_entity_id.return_value = None
+
+    with (
+        patch("custom_components.haeo.flows.field_schema.async_get_hass", return_value=mock_hass),
+        patch("custom_components.haeo.flows.field_schema.er.async_get", return_value=mock_registry),
+        pytest.raises(RuntimeError, match="Configurable entity not found"),
+    ):
+        get_configurable_entity_id()
+
+
+def test_get_configurable_entity_id_returns_entity_id(mock_hass_context: MagicMock) -> None:
+    """get_configurable_entity_id returns the entity ID when found."""
+    entity_id = get_configurable_entity_id()
+    assert entity_id == TEST_CONFIGURABLE_ENTITY_ID
 
 
 # --- Tests for number_selector_from_field ---
 
 
-def test_number_selector_from_field_creates_selector(
-    number_field: InputFieldInfo[NumberEntityDescription],
+def test_number_selector_from_field_with_unit(
+    number_field_with_unit: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Number selector is created with correct config."""
-    selector = number_selector_from_field(number_field)
-    assert isinstance(selector, NumberSelector)
+    """number_selector_from_field includes unit of measurement when present."""
+    selector = number_selector_from_field(number_field_with_unit)
+    config = selector.config
+
+    assert config["unit_of_measurement"] == "kWh"
+    assert config["min"] == 0.0
+    assert config["max"] == 100.0
 
 
-# --- Tests for entity_selector_from_field ---
+# --- Tests for build_configurable_value_schema_entry ---
 
 
-def test_entity_selector_from_field_creates_selector(
-    number_field: InputFieldInfo[NumberEntityDescription],
+def test_build_configurable_value_schema_entry_for_switch(
+    switch_field_info: InputFieldInfo[SwitchEntityDescription],
 ) -> None:
-    """Entity selector is created."""
-    selector = entity_selector_from_field(number_field)
-    assert isinstance(selector, EntitySelector)
+    """build_configurable_value_schema_entry returns BooleanSelector for switch fields."""
+    marker, selector = build_configurable_value_schema_entry(switch_field_info)
 
-
-def test_entity_selector_from_field_with_exclusions(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """Entity selector excludes specified entities."""
-    selector = entity_selector_from_field(number_field, exclude_entities=["sensor.excluded"])
-    assert isinstance(selector, EntitySelector)
-
-
-# --- Tests for infer_mode_from_value ---
-
-
-def test_infer_mode_from_value_none_returns_none_mode() -> None:
-    """None value infers NONE mode."""
-    assert infer_mode_from_value(None) == InputMode.NONE
-
-
-def test_infer_mode_from_value_empty_list_returns_none_mode() -> None:
-    """Empty list infers NONE mode."""
-    assert infer_mode_from_value([]) == InputMode.NONE
-
-
-def test_infer_mode_from_value_entity_list_returns_entity_link_mode() -> None:
-    """List of entity IDs infers ENTITY_LINK mode."""
-    assert infer_mode_from_value(["sensor.test"]) == InputMode.ENTITY_LINK
-
-
-def test_infer_mode_from_value_float_returns_constant_mode() -> None:
-    """Float value infers CONSTANT mode."""
-    assert infer_mode_from_value(3.14) == InputMode.CONSTANT
-
-
-def test_infer_mode_from_value_int_returns_constant_mode() -> None:
-    """Int value infers CONSTANT mode."""
-    assert infer_mode_from_value(42) == InputMode.CONSTANT
-
-
-def test_infer_mode_from_value_bool_returns_constant_mode() -> None:
-    """Bool value infers CONSTANT mode."""
-    assert infer_mode_from_value(True) == InputMode.CONSTANT
-    assert infer_mode_from_value(False) == InputMode.CONSTANT
-
-
-def test_infer_mode_from_value_unknown_type_returns_none_mode() -> None:
-    """Unknown type returns NONE mode."""
-    assert infer_mode_from_value({"unknown": "dict"}) == InputMode.NONE
-
-
-# --- Tests for build_mode_selector ---
-
-
-def test_build_mode_selector_with_default_includes_none_option() -> None:
-    """Mode selector with default includes NONE option."""
-    selector = build_mode_selector(has_default=True)
-    assert selector is not None
-
-
-def test_build_mode_selector_without_default_excludes_none_option() -> None:
-    """Mode selector without default excludes NONE option."""
-    selector = build_mode_selector(has_default=False)
-    assert selector is not None
-
-
-# --- Tests for build_mode_schema_entry ---
-
-
-def test_build_mode_schema_entry_optional_field_has_default(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """Optional field creates Required schema entry with default of NONE."""
-    schema = MockConfigSchema()
-    schema.__optional_keys__ = frozenset({"test_field"})
-
-    marker, _selector = build_mode_schema_entry(number_field, config_schema=schema)
-
-    assert isinstance(marker, vol.Required)
-    assert marker.schema == "test_field_mode"
-    assert callable(marker.default)
-    assert marker.default() == InputMode.NONE
-
-
-def test_build_mode_schema_entry_required_field_no_default(
-    required_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """Required field creates Required schema entry without default."""
-    schema = MockConfigSchema()
-    schema.__optional_keys__ = frozenset()
-
-    marker, _selector = build_mode_schema_entry(required_field, config_schema=schema)
-
-    assert isinstance(marker, vol.Required)
-    assert marker.schema == "required_field_mode"
-    assert marker.default is vol.UNDEFINED
-
-
-# --- Tests for build_value_schema_entry ---
-
-
-def test_build_value_schema_entry_none_mode_returns_none(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """NONE mode returns None schema entry."""
-    result = build_value_schema_entry(number_field, mode=InputMode.NONE)
-    assert result is None
-
-
-def test_build_value_schema_entry_constant_mode_number_field(
-    number_field: InputFieldInfo[NumberEntityDescription],
-) -> None:
-    """CONSTANT mode for number field creates number selector."""
-    result = build_value_schema_entry(number_field, mode=InputMode.CONSTANT)
-    assert result is not None
-    marker, selector = result
+    # Switch with default should be Optional
     assert isinstance(marker, vol.Optional)
-    assert isinstance(selector, NumberSelector)
+    assert marker.schema == "enabled"
+    # Should be a BooleanSelector
+    assert selector.__class__.__name__ == "BooleanSelector"
 
 
-def test_build_value_schema_entry_constant_mode_switch_field(
-    switch_field: InputFieldInfo[SwitchEntityDescription],
+def test_build_configurable_value_schema_entry_for_number_with_default(
+    number_field_with_default: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """CONSTANT mode for switch field creates boolean selector."""
-    result = build_value_schema_entry(switch_field, mode=InputMode.CONSTANT)
-    assert result is not None
-    marker, selector = result
+    """build_configurable_value_schema_entry returns Optional for fields with defaults."""
+    marker, _ = build_configurable_value_schema_entry(number_field_with_default)
+
     assert isinstance(marker, vol.Optional)
-    assert isinstance(selector, BooleanSelector)
+    assert marker.schema == "export_limit"
 
 
-def test_build_value_schema_entry_constant_mode_required_field(
-    required_field: InputFieldInfo[NumberEntityDescription],
+def test_build_configurable_value_schema_entry_for_number_without_default(
+    number_field_info: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """CONSTANT mode for required field creates Required marker."""
-    result = build_value_schema_entry(required_field, mode=InputMode.CONSTANT)
-    assert result is not None
-    marker, _selector = result
+    """build_configurable_value_schema_entry returns Required for fields without defaults."""
+    marker, _ = build_configurable_value_schema_entry(number_field_info)
+
     assert isinstance(marker, vol.Required)
+    assert marker.schema == "import_limit"
 
 
-def test_build_value_schema_entry_entity_link_mode(
-    number_field: InputFieldInfo[NumberEntityDescription],
+# --- Tests for get_entity_selection_defaults ---
+
+
+def test_get_entity_selection_defaults_with_invalid_current_value(
+    mock_hass_context: MagicMock,
+    number_field_info: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """ENTITY_LINK mode creates entity selector."""
-    result = build_value_schema_entry(number_field, mode=InputMode.ENTITY_LINK)
-    assert result is not None
-    marker, _selector = result
-    assert isinstance(marker, vol.Optional)
+    """get_entity_selection_defaults handles invalid current values gracefully."""
+    input_fields = (number_field_info,)
+    # Current data has an invalid value (None or some other non-list/non-scalar)
+    current_data: dict[str, Any] = {"import_limit": None}
+
+    # Use MockConfigSchema with empty optional keys (all fields required)
+    class RequiredFieldSchema:
+        __optional_keys__: frozenset[str] = frozenset()
+
+    defaults = get_entity_selection_defaults(input_fields, RequiredFieldSchema(), current_data)
+
+    # Required field with invalid value should default to configurable entity
+    assert defaults["import_limit"] == [TEST_CONFIGURABLE_ENTITY_ID]
 
 
-def test_build_value_schema_entry_entity_link_mode_required(
-    required_field: InputFieldInfo[NumberEntityDescription],
+def test_get_entity_selection_defaults_optional_field_no_default_invalid_value(
+    mock_hass_context: MagicMock,
 ) -> None:
-    """ENTITY_LINK mode for required field creates Required marker."""
-    result = build_value_schema_entry(required_field, mode=InputMode.ENTITY_LINK)
-    assert result is not None
-    marker, _selector = result
-    assert isinstance(marker, vol.Required)
+    """get_entity_selection_defaults handles optional fields with no default correctly."""
+
+    class OptionalNoDefaultSchema:
+        __optional_keys__: frozenset[str] = frozenset({"optional_field"})
+
+    # Create a field info without default
+    optional_no_default = InputFieldInfo(
+        field_name="optional_field",
+        entity_description=NumberEntityDescription(
+            key="optional_field",
+            translation_key="optional_field",
+            native_min_value=0.0,
+            native_max_value=100.0,
+        ),
+        output_type=OutputType.POWER,
+        default=None,  # No default
+    )
+    input_fields = (optional_no_default,)
+    current_data: dict[str, Any] = {"optional_field": None}
+
+    defaults = get_entity_selection_defaults(input_fields, OptionalNoDefaultSchema(), current_data)
+
+    # Optional field without default and invalid value should be empty list
+    assert defaults["optional_field"] == []
 
 
-def test_build_value_schema_entry_entity_link_with_exclusions(
-    number_field: InputFieldInfo[NumberEntityDescription],
+def test_get_entity_selection_defaults_optional_with_default_invalid_value(
+    mock_hass_context: MagicMock,
 ) -> None:
-    """ENTITY_LINK mode respects exclude_entities."""
-    result = build_value_schema_entry(number_field, mode=InputMode.ENTITY_LINK, exclude_entities=["sensor.excluded"])
-    assert result is not None
+    """get_entity_selection_defaults for optional field with default uses configurable."""
+
+    class OptionalWithDefaultSchema:
+        __optional_keys__: frozenset[str] = frozenset({"optional_with_default"})
+
+    # Create a field info with default
+    optional_with_default = InputFieldInfo(
+        field_name="optional_with_default",
+        entity_description=NumberEntityDescription(
+            key="optional_with_default",
+            translation_key="optional_with_default",
+            native_min_value=0.0,
+            native_max_value=100.0,
+        ),
+        output_type=OutputType.POWER,
+        default=50.0,  # Has default
+    )
+    input_fields = (optional_with_default,)
+    current_data: dict[str, Any] = {"optional_with_default": None}
+
+    defaults = get_entity_selection_defaults(input_fields, OptionalWithDefaultSchema(), current_data)
+
+    # Optional field with default and invalid value should use configurable
+    assert defaults["optional_with_default"] == [TEST_CONFIGURABLE_ENTITY_ID]
 
 
-# --- Tests for get_mode_defaults ---
+# --- Tests for get_configurable_value_defaults ---
 
 
-def test_get_mode_defaults_new_entry_optional_field(
-    number_field: InputFieldInfo[NumberEntityDescription],
+def test_get_configurable_value_defaults_with_scalar_current_value(
+    mock_hass_context: MagicMock,
+    number_field_info: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """New entry optional field defaults to NONE."""
-    schema = MockConfigSchema()
-    schema.__optional_keys__ = frozenset({"test_field"})
+    """get_configurable_value_defaults uses scalar current values."""
+    input_fields = (number_field_info,)
+    entity_selections = {"import_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
+    current_data: dict[str, Any] = {"import_limit": 42.0}
 
-    defaults = get_mode_defaults((number_field,), schema)
+    defaults = get_configurable_value_defaults(input_fields, entity_selections, current_data)
 
-    assert defaults["test_field_mode"] == InputMode.NONE
+    assert defaults["import_limit"] == 42.0
 
 
-def test_get_mode_defaults_new_entry_required_field(
-    required_field: InputFieldInfo[NumberEntityDescription],
+def test_get_configurable_value_defaults_with_boolean_current_value(
+    mock_hass_context: MagicMock,
+    switch_field_info: InputFieldInfo[SwitchEntityDescription],
 ) -> None:
-    """New entry required field defaults to CONSTANT."""
-    schema = MockConfigSchema()
-    schema.__optional_keys__ = frozenset()
+    """get_configurable_value_defaults handles boolean current values."""
+    input_fields = (switch_field_info,)
+    entity_selections = {"enabled": [TEST_CONFIGURABLE_ENTITY_ID]}
+    current_data: dict[str, Any] = {"enabled": False}
 
-    defaults = get_mode_defaults((required_field,), schema)
+    defaults = get_configurable_value_defaults(input_fields, entity_selections, current_data)
 
-    assert defaults["required_field_mode"] == InputMode.CONSTANT
+    assert defaults["enabled"] is False
 
 
-def test_get_mode_defaults_reconfigure_preserves_mode(
-    number_field: InputFieldInfo[NumberEntityDescription],
+def test_get_configurable_value_defaults_with_int_current_value(
+    mock_hass_context: MagicMock,
+    number_field_info: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Reconfigure preserves existing mode."""
-    schema = MockConfigSchema()
-    current_data = {"test_field": ["sensor.test"]}
+    """get_configurable_value_defaults handles int current values."""
+    input_fields = (number_field_info,)
+    entity_selections = {"import_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
+    current_data: dict[str, Any] = {"import_limit": 50}
 
-    defaults = get_mode_defaults((number_field,), schema, current_data)
+    defaults = get_configurable_value_defaults(input_fields, entity_selections, current_data)
 
-    assert defaults["test_field_mode"] == InputMode.ENTITY_LINK
-
-
-# --- Tests for get_value_defaults ---
+    assert defaults["import_limit"] == 50
 
 
-def test_get_value_defaults_new_entry_uses_default(
-    number_field: InputFieldInfo[NumberEntityDescription],
+def test_get_configurable_value_defaults_falls_back_to_field_default(
+    mock_hass_context: MagicMock,
+    number_field_with_default: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """New entry uses field default for constant mode."""
-    modes: dict[str, str] = {"test_field_mode": InputMode.CONSTANT}
+    """get_configurable_value_defaults uses field default when current value is not scalar."""
+    input_fields = (number_field_with_default,)
+    entity_selections = {"export_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
+    # Current value is a list (entity links), not a scalar
+    current_data: dict[str, Any] = {"export_limit": ["sensor.something"]}
 
-    defaults = get_value_defaults((number_field,), modes)
+    defaults = get_configurable_value_defaults(input_fields, entity_selections, current_data)
 
-    assert defaults["test_field"] == 50.0
+    # Should fall back to field default
+    assert defaults["export_limit"] == 100.0
 
 
-def test_get_value_defaults_reconfigure_preserves_value(
-    number_field: InputFieldInfo[NumberEntityDescription],
+def test_get_configurable_value_defaults_uses_field_default_no_current_data(
+    mock_hass_context: MagicMock,
+    number_field_with_default: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Reconfigure preserves current value when mode matches."""
-    modes: dict[str, str] = {"test_field_mode": InputMode.CONSTANT}
-    current_data = {"test_field": 75.0}
+    """get_configurable_value_defaults uses field default when no current data."""
+    input_fields = (number_field_with_default,)
+    entity_selections = {"export_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
 
-    defaults = get_value_defaults((number_field,), modes, current_data)
+    defaults = get_configurable_value_defaults(input_fields, entity_selections)
 
-    assert defaults["test_field"] == 75.0
+    assert defaults["export_limit"] == 100.0
 
 
-def test_get_value_defaults_mode_change_uses_default(
-    number_field: InputFieldInfo[NumberEntityDescription],
+# --- Tests for convert_entity_selections_to_config ---
+
+
+def test_convert_entity_selections_to_config_empty_selection_with_default(
+    mock_hass_context: MagicMock,
+    number_field_with_default: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """Mode change from ENTITY_LINK to CONSTANT uses default."""
-    modes: dict[str, str] = {"test_field_mode": InputMode.CONSTANT}
-    current_data = {"test_field": ["sensor.test"]}
+    """convert_entity_selections_to_config applies default for empty selections."""
+    entity_selections: dict[str, list[str]] = {"export_limit": []}
+    configurable_values: dict[str, Any] = {}
+    input_fields = (number_field_with_default,)
 
-    defaults = get_value_defaults((number_field,), modes, current_data)
+    config = convert_entity_selections_to_config(entity_selections, configurable_values, input_fields)
 
-    assert defaults["test_field"] == 50.0
+    # Empty selection should use the field's default value
+    assert config["export_limit"] == 100.0
 
 
-def test_get_value_defaults_none_mode_excluded(
-    number_field: InputFieldInfo[NumberEntityDescription],
+def test_convert_entity_selections_to_config_empty_selection_no_default(
+    mock_hass_context: MagicMock,
+    number_field_info: InputFieldInfo[NumberEntityDescription],
 ) -> None:
-    """NONE mode fields are not included in defaults."""
-    modes: dict[str, str] = {"test_field_mode": InputMode.NONE}
+    """convert_entity_selections_to_config omits fields with empty selection and no default."""
+    entity_selections: dict[str, list[str]] = {"import_limit": []}
+    configurable_values: dict[str, Any] = {}
+    input_fields = (number_field_info,)
 
-    defaults = get_value_defaults((number_field,), modes)
+    config = convert_entity_selections_to_config(entity_selections, configurable_values, input_fields)
 
-    assert "test_field" not in defaults
+    # Empty selection without default should be omitted
+    assert "import_limit" not in config
+
+
+def test_convert_entity_selections_to_config_with_configurable_value(
+    mock_hass_context: MagicMock,
+    number_field_info: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """convert_entity_selections_to_config uses configurable value from step 2."""
+    entity_selections = {"import_limit": [TEST_CONFIGURABLE_ENTITY_ID]}
+    configurable_values: dict[str, Any] = {"import_limit": 75.0}
+    input_fields = (number_field_info,)
+
+    config = convert_entity_selections_to_config(entity_selections, configurable_values, input_fields)
+
+    assert config["import_limit"] == 75.0
+
+
+def test_convert_entity_selections_to_config_with_real_entities(
+    mock_hass_context: MagicMock,
+    number_field_info: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """convert_entity_selections_to_config keeps real entity lists."""
+    entity_selections = {"import_limit": ["sensor.power1", "sensor.power2"]}
+    configurable_values: dict[str, Any] = {}
+    input_fields = (number_field_info,)
+
+    config = convert_entity_selections_to_config(entity_selections, configurable_values, input_fields)
+
+    assert config["import_limit"] == ["sensor.power1", "sensor.power2"]

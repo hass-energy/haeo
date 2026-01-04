@@ -77,7 +77,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
-        default=0.0,
     ),
     InputFieldInfo(
         field_name=CONF_MAX_CHARGE_PERCENTAGE,
@@ -92,7 +91,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
-        default=100.0,
     ),
     InputFieldInfo(
         field_name=CONF_EFFICIENCY,
@@ -107,7 +105,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.EFFICIENCY,
         time_series=True,
-        default=99.0,
     ),
     InputFieldInfo(
         field_name=CONF_MAX_CHARGE_POWER,

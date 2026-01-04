@@ -50,6 +50,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
         ),
         output_type=OutputType.PRICE,
         direction="+",
+        time_series=True,
     ),
     InputFieldInfo(
         field_name=CONF_CURTAILMENT,
@@ -74,8 +75,8 @@ class SolarConfigSchema(TypedDict):
     connection: str  # Element name to connect to
     forecast: list[str]  # Entity IDs for power forecast sensors
 
-    # Optional fields
-    price_production: NotRequired[float]  # $/kWh production incentive
+    # Optional fields - can be entity links or constants
+    price_production: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
     curtailment: NotRequired[bool]  # Whether solar can be curtailed
 
 
@@ -91,5 +92,5 @@ class SolarConfigData(TypedDict):
     forecast: list[float]  # Loaded power values per period (kW)
 
     # Optional fields
-    price_production: NotRequired[float]  # $/kWh production incentive
+    price_production: NotRequired[list[float]]  # Loaded price per period ($/kWh)
     curtailment: NotRequired[bool]  # Whether solar can be curtailed

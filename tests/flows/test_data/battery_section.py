@@ -12,6 +12,12 @@ VALID_DATA = [
             CONF_CAPACITY: ["sensor.battery_capacity"],
             CONF_INITIAL_CHARGE: ["sensor.battery_charge"],
         },
+        "mode_input": {
+            CONF_NAME: "Test Section",
+            CONF_CAPACITY: ["sensor.battery_capacity"],
+            CONF_INITIAL_CHARGE: ["sensor.battery_charge"],
+        },
+        "values_input": {},
     },
 ]
 

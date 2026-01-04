@@ -7,7 +7,7 @@ from typing import Any, Final, Literal
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
+from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.node import NODE_POWER_BALANCE
@@ -84,7 +84,6 @@ class InverterAdapter:
     ) -> InverterConfigData:
         """Load inverter configuration values from sensors."""
         ts_loader = TimeSeriesLoader()
-        const_loader = ConstantLoader[float](float)
 
         max_power_dc_to_ac = await ts_loader.load(
             hass=hass,
@@ -105,11 +104,19 @@ class InverterAdapter:
             "max_power_ac_to_dc": max_power_ac_to_dc,
         }
 
-        # Load optional fields
+        # Load optional time series fields
         if CONF_EFFICIENCY_DC_TO_AC in config:
-            data["efficiency_dc_to_ac"] = await const_loader.load(value=config[CONF_EFFICIENCY_DC_TO_AC])
+            data["efficiency_dc_to_ac"] = await ts_loader.load(
+                hass=hass,
+                value=config[CONF_EFFICIENCY_DC_TO_AC],
+                forecast_times=forecast_times,
+            )
         if CONF_EFFICIENCY_AC_TO_DC in config:
-            data["efficiency_ac_to_dc"] = await const_loader.load(value=config[CONF_EFFICIENCY_AC_TO_DC])
+            data["efficiency_ac_to_dc"] = await ts_loader.load(
+                hass=hass,
+                value=config[CONF_EFFICIENCY_AC_TO_DC],
+                forecast_times=forecast_times,
+            )
 
         return data
 

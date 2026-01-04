@@ -69,7 +69,6 @@ class SolarAdapter:
     ) -> SolarConfigData:
         """Load solar configuration values from sensors."""
         ts_loader = TimeSeriesLoader()
-        const_loader_float = ConstantLoader[float](float)
         const_loader_bool = ConstantLoader[bool](bool)
 
         forecast = await ts_loader.load(
@@ -87,7 +86,11 @@ class SolarAdapter:
 
         # Load optional fields
         if CONF_PRICE_PRODUCTION in config:
-            data["price_production"] = await const_loader_float.load(value=config[CONF_PRICE_PRODUCTION])
+            data["price_production"] = await ts_loader.load(
+                hass=hass,
+                value=config[CONF_PRICE_PRODUCTION],
+                forecast_times=forecast_times,
+            )
         if CONF_CURTAILMENT in config:
             data["curtailment"] = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
 

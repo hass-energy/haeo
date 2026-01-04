@@ -268,23 +268,28 @@ async def test_element_flow_user_step_success(
     assert result.get("step_id") == "user"
     assert not result.get("errors")
 
+    expected_name: str
     if element_type in TWO_STEP_FLOW_ELEMENTS:
-        # Two-step flow: submit mode selection, then values
+        # Two-step flow: submit entity selection (step 1), then constant values (step 2)
         mode_input = cases.valid[0].mode_input
+        values_input = cases.valid[0].values_input or {}
         assert mode_input is not None, f"mode_input required for two-step element {element_type}"
         result = await flow.async_step_user(user_input=mode_input)
-        assert result.get("type") == FlowResultType.FORM
-        assert result.get("step_id") == "values"
-        result = await flow.async_step_values(user_input=user_input)
+        # Step 2 may be skipped if no constant entities were selected
+        if result.get("step_id") == "values":
+            result = await flow.async_step_values(user_input=values_input)
+        name_value = mode_input.get(CONF_NAME)
+        expected_name = name_value if isinstance(name_value, str) else ""
     else:
         # One-step flow: submit values directly
         result = await flow.async_step_user(user_input=user_input)
+        expected_name = user_input[CONF_NAME]
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     created_kwargs = flow.async_create_entry.call_args.kwargs
     assert created_kwargs["data"][CONF_ELEMENT_TYPE] == element_type
-    assert created_kwargs["data"][CONF_NAME] == user_input[CONF_NAME]
+    assert created_kwargs["data"][CONF_NAME] == expected_name
 
 
 @pytest.mark.parametrize("element_type", ALL_ELEMENT_TYPES)
@@ -358,13 +363,14 @@ async def test_element_flow_reconfigure_success(
     reconfigure_input = deepcopy(existing_config)
 
     if element_type in TWO_STEP_FLOW_ELEMENTS:
-        # Two-step flow: submit mode selection, then values
+        # Two-step flow: submit entity selection, then constant values
         mode_input = element_test_data[element_type].valid[0].mode_input
+        values_input = element_test_data[element_type].valid[0].values_input or {}
         assert mode_input is not None, f"mode_input required for two-step element {element_type}"
         result = await flow.async_step_reconfigure(user_input=mode_input)
-        assert result.get("type") == FlowResultType.FORM
-        assert result.get("step_id") == "reconfigure_values"
-        result = await flow.async_step_reconfigure_values(user_input=reconfigure_input)
+        # Step 2 may be skipped if no constant entities were selected
+        if result.get("step_id") == "reconfigure_values":
+            result = await flow.async_step_reconfigure_values(user_input=values_input)
     else:
         # One-step flow: submit values directly
         result = await flow.async_step_reconfigure(user_input=reconfigure_input)
@@ -402,14 +408,15 @@ async def test_element_flow_reconfigure_rename(
     renamed_input[CONF_NAME] = f"{original_name} Updated"
 
     if element_type in TWO_STEP_FLOW_ELEMENTS:
-        # Two-step flow: submit mode selection with updated name, then values
+        # Two-step flow: submit entity selection with updated name, then constant values
         mode_input = deepcopy(element_test_data[element_type].valid[0].mode_input)
+        values_input = element_test_data[element_type].valid[0].values_input or {}
         assert mode_input is not None, f"mode_input required for two-step element {element_type}"
         mode_input[CONF_NAME] = renamed_input[CONF_NAME]
         result = await flow.async_step_reconfigure(user_input=mode_input)
-        assert result.get("type") == FlowResultType.FORM
-        assert result.get("step_id") == "reconfigure_values"
-        result = await flow.async_step_reconfigure_values(user_input=renamed_input)
+        # Step 2 may be skipped if no constant entities were selected
+        if result.get("step_id") == "reconfigure_values":
+            result = await flow.async_step_reconfigure_values(user_input=values_input)
     else:
         # One-step flow: submit values directly
         result = await flow.async_step_reconfigure(user_input=renamed_input)

@@ -17,12 +17,6 @@ CONF_EFFICIENCY_AC_TO_DC: Final = "efficiency_ac_to_dc"
 CONF_MAX_POWER_DC_TO_AC: Final = "max_power_dc_to_ac"
 CONF_MAX_POWER_AC_TO_DC: Final = "max_power_ac_to_dc"
 
-# Default values for optional fields
-DEFAULTS: Final[dict[str, float]] = {
-    CONF_EFFICIENCY_DC_TO_AC: 100.0,
-    CONF_EFFICIENCY_AC_TO_DC: 100.0,
-}
-
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
     InputFieldInfo(
@@ -65,7 +59,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=0.1,
         ),
         output_type=OutputType.EFFICIENCY,
-        default=100.0,
+        time_series=True,
     ),
     InputFieldInfo(
         field_name=CONF_EFFICIENCY_AC_TO_DC,
@@ -79,7 +73,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=0.1,
         ),
         output_type=OutputType.EFFICIENCY,
-        default=100.0,
+        time_series=True,
     ),
 )
 
@@ -96,9 +90,9 @@ class InverterConfigSchema(TypedDict):
     max_power_dc_to_ac: list[str]  # Entity IDs for DC to AC power limit
     max_power_ac_to_dc: list[str]  # Entity IDs for AC to DC power limit
 
-    # Optional fields
-    efficiency_dc_to_ac: NotRequired[float]  # Percentage (0-100)
-    efficiency_ac_to_dc: NotRequired[float]  # Percentage (0-100)
+    # Optional fields - can be entity links, constants, or missing (uses default)
+    efficiency_dc_to_ac: NotRequired[list[str] | float]  # Entity IDs or constant (%)
+    efficiency_ac_to_dc: NotRequired[list[str] | float]  # Entity IDs or constant (%)
 
 
 class InverterConfigData(TypedDict):
@@ -113,6 +107,6 @@ class InverterConfigData(TypedDict):
     max_power_dc_to_ac: list[float]  # Loaded power limit per period (kW)
     max_power_ac_to_dc: list[float]  # Loaded power limit per period (kW)
 
-    # Optional fields
-    efficiency_dc_to_ac: NotRequired[float]  # Percentage (0-100)
-    efficiency_ac_to_dc: NotRequired[float]  # Percentage (0-100)
+    # Optional fields (time series)
+    efficiency_dc_to_ac: NotRequired[list[float]]  # Percentage per period (0-100)
+    efficiency_ac_to_dc: NotRequired[list[float]]  # Percentage per period (0-100)
