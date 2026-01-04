@@ -6,7 +6,7 @@ they want to enter a constant value instead of selecting an external entity.
 
 from homeassistant.components.sensor import SensorEntity
 
-from custom_components.haeo.const import HAEO_CONFIGURABLE_UNIQUE_ID
+from custom_components.haeo.const import CONFIGURABLE_ENTITY_UNIQUE_ID
 
 
 class HaeoConfigurableSentinel(SensorEntity):
@@ -24,7 +24,7 @@ class HaeoConfigurableSentinel(SensorEntity):
     _attr_has_entity_name = False
     _attr_name = "HAEO Configurable"
     _attr_icon = "mdi:tune"
-    _attr_unique_id = HAEO_CONFIGURABLE_UNIQUE_ID
+    _attr_unique_id = CONFIGURABLE_ENTITY_UNIQUE_ID
     _attr_native_value = "configurable"
     _attr_available = True
 
