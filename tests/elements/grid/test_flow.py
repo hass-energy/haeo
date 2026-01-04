@@ -3,7 +3,6 @@
 from types import MappingProxyType
 from unittest.mock import Mock
 
-import pytest
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
