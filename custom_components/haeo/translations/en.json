@@ -236,10 +236,10 @@
           "description": "Set up grid import/export parameters and pricing",
           "data": {
             "connection": "Connection",
-            "export_limit_mode": "Export Limit Source",
-            "export_price_mode": "Export Price Source",
-            "import_limit_mode": "Import Limit Source",
-            "import_price_mode": "Import Price Source",
+            "export_limit": "Export Limit",
+            "export_price": "Export Price",
+            "import_limit": "Import Limit",
+            "import_price": "Import Price",
             "name": "Grid Name"
           }
         },
@@ -248,10 +248,10 @@
           "description": "Update grid configuration",
           "data": {
             "connection": "Connection",
-            "export_limit_mode": "Export Limit Source",
-            "export_price_mode": "Export Price Source",
-            "import_limit_mode": "Import Limit Source",
-            "import_price_mode": "Import Price Source",
+            "export_limit": "Export Limit",
+            "export_price": "Export Price",
+            "import_limit": "Import Limit",
+            "import_price": "Import Price",
             "name": "Grid Name"
           }
         },

@@ -4,18 +4,20 @@ from typing import Any, ClassVar, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
+from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
 
-from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 from custom_components.haeo.flows.field_schema import (
-    MODE_SUFFIX,
-    InputMode,
-    build_mode_schema_entry,
-    build_value_schema_entry,
-    get_mode_defaults,
-    get_value_defaults,
+    build_configurable_value_schema,
+    build_entity_schema_entry,
+    convert_entity_selections_to_config,
+    extract_entity_selections,
+    get_configurable_value_defaults,
+    get_entity_selection_defaults,
+    has_configurable_selection,
 )
 
 from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, GridConfigSchema
@@ -23,9 +25,10 @@ from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, GridConfigSchem
 
 def _build_step1_schema(
     participants: list[str],
+    exclusion_map: dict[str, list[str]],
     current_connection: str | None = None,
 ) -> vol.Schema:
-    """Build the schema for step 1: name, connection, and mode selections."""
+    """Build the schema for step 1: name, connection, and entity selections."""
     schema_dict: dict[vol.Marker, Any] = {
         # Name field
         vol.Required(CONF_NAME): vol.All(
@@ -38,41 +41,15 @@ def _build_step1_schema(
         vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
     }
 
-    # Add mode selectors for all input fields
+    # Add entity selectors for all input fields
     for field_info in INPUT_FIELDS:
-        marker, selector = build_mode_schema_entry(field_info, config_schema=GridConfigSchema)
-        schema_dict[marker] = selector
-
-    return vol.Schema(schema_dict)
-
-
-def _build_step2_schema(
-    mode_selections: dict[str, str],
-    exclusion_map: dict[str, list[str]],
-) -> vol.Schema:
-    """Build the schema for step 2: value entry based on mode selections.
-
-    Args:
-        mode_selections: Mode selections from step 1 (field_name_mode -> mode value).
-        exclusion_map: Field name -> list of incompatible entity IDs.
-
-    Returns:
-        Schema with value input fields based on selected modes.
-
-    """
-    schema_dict: dict[vol.Marker, Any] = {}
-
-    for field_info in INPUT_FIELDS:
-        mode_key = f"{field_info.field_name}{MODE_SUFFIX}"
-        mode_str = mode_selections.get(mode_key, InputMode.NONE)
-        mode = InputMode(mode_str) if mode_str else InputMode.NONE
-
         exclude_entities = exclusion_map.get(field_info.field_name, [])
-        entry = build_value_schema_entry(field_info, mode, exclude_entities=exclude_entities)
-
-        if entry is not None:
-            marker, selector = entry
-            schema_dict[marker] = selector
+        marker, selector = build_entity_schema_entry(
+            field_info,
+            config_schema=GridConfigSchema,
+            exclude_entities=exclude_entities,
+        )
+        schema_dict[marker] = selector
 
     return vol.Schema(schema_dict)
 
@@ -89,7 +66,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         self._step1_data: dict[str, Any] = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 1: name, connection, and mode selection."""
+        """Handle step 1: name, connection, and entity selection."""
         # Clear step 1 data at start to avoid stale state from incomplete flows
         if user_input is None:
             self._step1_data = {}
@@ -99,15 +76,37 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is not None:
             name = user_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                # Store step 1 data and proceed to step 2
-                self._step1_data = user_input
-                return await self.async_step_values()
+                # Validate entity selections
+                for field_info in INPUT_FIELDS:
+                    field_name = field_info.field_name
+                    entities = user_input.get(field_name, [])
+                    is_optional = field_name in GridConfigSchema.__optional_keys__
 
+                    # Required fields must have at least one selection
+                    if not is_optional and not entities:
+                        errors[field_name] = "required"
+                        continue
+
+                if not errors:
+                    # Store step 1 data and proceed to step 2
+                    self._step1_data = user_input
+                    return await self.async_step_values()
+
+        # Get default name from translations
+        translations = await async_get_translations(
+            self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
+        )
+        default_name = translations.get(f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title", "Grid")
+
+        entity_metadata = extract_entity_metadata(self.hass)
+        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
         participants = self._get_participant_names()
-        schema = _build_step1_schema(participants)
+        schema = _build_step1_schema(participants, exclusion_map)
 
-        # Apply default mode selections
-        defaults = get_mode_defaults(INPUT_FIELDS, GridConfigSchema)
+        # Apply default entity selections
+        defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, GridConfigSchema))
+        defaults[CONF_NAME] = default_name
+        defaults[CONF_CONNECTION] = None
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -117,30 +116,39 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 2: value entry based on mode selections."""
+        """Handle step 2: configurable value entry for fields with HAEO Configurable."""
         errors: dict[str, str] = {}
+        exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
         if user_input is not None:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
+            config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
-            # Build final config from values
-            config: dict[str, Any] = {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-                CONF_NAME: name,
-                CONF_CONNECTION: connection,
-                # Add values from step 2 (excluding mode fields which were in step 1)
-                **{k: v for k, v in user_input.items() if not k.endswith(MODE_SUFFIX)},
-            }
+            # Validate that configurable values were provided where needed
+            for field_info in INPUT_FIELDS:
+                field_name = field_info.field_name
+                is_configurable = has_configurable_selection(entity_selections.get(field_name, []))
+                is_missing = field_name not in user_input
+                is_required = field_name not in GridConfigSchema.__optional_keys__ or field_info.default is None
+                if is_configurable and is_missing and is_required:
+                    errors[field_name] = "required"
 
-            return self.async_create_entry(title=str(name), data=cast("GridConfigSchema", config))
+            if not errors:
+                config: dict[str, Any] = {
+                    CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                    CONF_NAME: name,
+                    CONF_CONNECTION: connection,
+                    **config_dict,
+                }
+                return self.async_create_entry(title=str(name), data=cast("GridConfigSchema", config))
 
-        entity_metadata = extract_entity_metadata(self.hass)
-        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
-        schema = _build_step2_schema(self._step1_data, exclusion_map)
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
+        schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections)
 
-        # Apply default values based on modes
-        defaults = get_value_defaults(INPUT_FIELDS, self._step1_data)
+        # Apply default configurable values
+        defaults = get_configurable_value_defaults(INPUT_FIELDS, entity_selections)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(
@@ -150,7 +158,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle reconfigure step 1: name, connection, and mode selection."""
+        """Handle reconfigure step 1: name, connection, and entity selection."""
         # Clear step 1 data at start to avoid stale state from incomplete flows
         if user_input is None:
             self._step1_data = {}
@@ -161,22 +169,37 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is not None:
             name = user_input.get(CONF_NAME)
             if self._validate_name(name, errors):
-                # Store step 1 data and proceed to step 2
-                self._step1_data = user_input
-                return await self.async_step_reconfigure_values()
+                # Validate entity selections
+                for field_info in INPUT_FIELDS:
+                    field_name = field_info.field_name
+                    entities = user_input.get(field_name, [])
+                    is_optional = field_name in GridConfigSchema.__optional_keys__
+
+                    if not is_optional and not entities:
+                        errors[field_name] = "required"
+
+                if not errors:
+                    # Store step 1 data and proceed to step 2
+                    self._step1_data = user_input
+                    return await self.async_step_reconfigure_values()
 
         current_connection = subentry.data.get(CONF_CONNECTION)
+        entity_metadata = extract_entity_metadata(self.hass)
+        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
         participants = self._get_participant_names()
         schema = _build_step1_schema(
             participants,
+            exclusion_map,
             current_connection=current_connection if isinstance(current_connection, str) else None,
         )
 
-        # Apply current values plus inferred modes
+        # Apply current values plus inferred entity selections
+        current_data = dict(subentry.data)
+        entity_defaults = get_entity_selection_defaults(INPUT_FIELDS, GridConfigSchema, current_data)
         defaults = {
             CONF_NAME: subentry.data.get(CONF_NAME),
             CONF_CONNECTION: current_connection,
-            **get_mode_defaults(INPUT_FIELDS, GridConfigSchema, dict(subentry.data)),
+            **entity_defaults,
         }
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
@@ -187,36 +210,65 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
 
     async def async_step_reconfigure_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle reconfigure step 2: value entry based on mode selections."""
+        """Handle reconfigure step 2: configurable value entry."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
+        exclude_keys = (CONF_NAME, CONF_CONNECTION)
 
         if user_input is not None:
             name = self._step1_data.get(CONF_NAME)
             connection = self._step1_data.get(CONF_CONNECTION)
+            entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
+            config_dict = convert_entity_selections_to_config(entity_selections, user_input, INPUT_FIELDS)
 
-            # Build final config from values
-            config: dict[str, Any] = {
+            # Validate configurable values
+            for field_info in INPUT_FIELDS:
+                field_name = field_info.field_name
+                is_configurable = has_configurable_selection(entity_selections.get(field_name, []))
+                is_missing = field_name not in user_input
+                is_required = field_name not in GridConfigSchema.__optional_keys__ or field_info.default is None
+                if is_configurable and is_missing and is_required:
+                    errors[field_name] = "required"
+
+            if not errors:
+                final_config: dict[str, Any] = {
+                    CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                    CONF_NAME: name,
+                    CONF_CONNECTION: connection,
+                    **config_dict,
+                }
+                return self.async_update_and_abort(
+                    self._get_entry(),
+                    subentry,
+                    title=str(name),
+                    data=cast("GridConfigSchema", final_config),
+                )
+
+        entity_selections = extract_entity_selections(self._step1_data, exclude_keys)
+        current_data = dict(subentry.data)
+        schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections, current_data)
+
+        # Skip step 2 if no configurable fields need input
+        if not schema.schema:
+            name = self._step1_data.get(CONF_NAME)
+            connection = self._step1_data.get(CONF_CONNECTION)
+            configurable_values = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
+            config_dict = convert_entity_selections_to_config(entity_selections, configurable_values, INPUT_FIELDS)
+            skip_config: dict[str, Any] = {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
                 CONF_CONNECTION: connection,
-                # Add values from step 2 (excluding mode fields)
-                **{k: v for k, v in user_input.items() if not k.endswith(MODE_SUFFIX)},
+                **config_dict,
             }
-
             return self.async_update_and_abort(
                 self._get_entry(),
                 subentry,
                 title=str(name),
-                data=cast("GridConfigSchema", config),
+                data=cast("GridConfigSchema", skip_config),
             )
 
-        entity_metadata = extract_entity_metadata(self.hass)
-        exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
-        schema = _build_step2_schema(self._step1_data, exclusion_map)
-
         # Get current values for pre-population
-        defaults = get_value_defaults(INPUT_FIELDS, self._step1_data, dict(subentry.data))
+        defaults = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(

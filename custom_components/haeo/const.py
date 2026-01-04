@@ -53,6 +53,11 @@ DEFAULT_TIER_4_DURATION: Final = 60
 DEFAULT_UPDATE_INTERVAL_MINUTES: Final = 5  # 5 minutes default
 DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
+# Sentinel configurable entity for user-defined constant values
+# Uses unique_id for stability - entity_id can be renamed by users
+# The unique_id is used with entity registry lookups to find the current entity_id
+HAEO_CONFIGURABLE_UNIQUE_ID: Final = "haeo_configurable_entity"
+
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"
 OPTIMIZATION_STATUS_FAILED: Final = "failed"

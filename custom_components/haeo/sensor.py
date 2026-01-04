@@ -6,11 +6,13 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK, HAEO_CONFIGURABLE_UNIQUE_ID
 from custom_components.haeo.entities import HaeoSensor
+from custom_components.haeo.entities.configurable_sentinel import HaeoConfigurableSentinel
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,6 +69,12 @@ async def async_setup_entry(
         horizon_manager=horizon_manager,
     )
     entities: list[SensorEntity] = [horizon_entity]
+
+    # Create the configurable sentinel entity (once, not per config entry)
+    # This entity appears in EntitySelector dropdowns for constant value entry
+    entity_registry = er.async_get(hass)
+    if entity_registry.async_get_entity_id("sensor", DOMAIN, HAEO_CONFIGURABLE_UNIQUE_ID) is None:
+        entities.append(HaeoConfigurableSentinel())
 
     # Create sensors for each output in the coordinator data grouped by element
     if coordinator.data:
