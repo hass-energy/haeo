@@ -1,10 +1,9 @@
 """Tests for the HAEO sensor platform."""
 
-from collections.abc import Generator
 from datetime import UTC, datetime
 from types import MappingProxyType
 from typing import Literal, cast
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigSubentry
@@ -29,25 +28,6 @@ from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.model import OutputType
 from custom_components.haeo.sensor import async_setup_entry
-
-
-@pytest.fixture(autouse=True)
-def _suppress_sentinel_entity() -> Generator[None]:
-    """Prevent the configurable sentinel entity from being added during tests.
-
-    The sentinel entity is an implementation detail that would affect entity
-    counts in tests. This fixture simulates the sentinel already existing
-    in the entity registry.
-    """
-
-    def mock_async_get(hass) -> Mock:  # noqa: ANN001
-        """Return a mock registry that says the sentinel already exists."""
-        mock_registry = Mock()
-        mock_registry.async_get_entity_id.return_value = "sensor.haeo_configurable_entity"
-        return mock_registry
-
-    with patch("custom_components.haeo.sensor.er.async_get", side_effect=mock_async_get):
-        yield
 
 
 def _create_mock_coordinator() -> Mock:
@@ -212,8 +192,8 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
 
     async_add_entities.assert_called_once()
     sensors = list(async_add_entities.call_args.args[0])
-    # 3 output sensors + 1 horizon entity = 4 total
-    assert len(sensors) == 4
+    # 1 horizon + 1 sentinel + 3 output sensors = 5 total
+    assert len(sensors) == 5
 
     status_sensor = next(sensor for sensor in sensors if sensor.translation_key == OUTPUT_NAME_OPTIMIZATION_STATUS)
     assert status_sensor.device_class is SensorDeviceClass.ENUM
@@ -266,15 +246,14 @@ async def test_async_setup_entry_creates_horizon_when_no_outputs(
 
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    # Horizon entity is always added (created in sensor platform from horizon_manager)
+    # Horizon + sentinel entities are always added
     async_add_entities.assert_called_once()
     entities = async_add_entities.call_args[0][0]
-    assert len(entities) == 1
-    # The first entity is the HaeoHorizonEntity created in sensor platform
+    assert len(entities) == 2
     # Import is at function scope to avoid circular import issues in test module
     from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity  # noqa: PLC0415
 
-    assert isinstance(entities[0], HaeoHorizonEntity)
+    assert any(isinstance(e, HaeoHorizonEntity) for e in entities)
 
 
 def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry) -> None:
@@ -479,8 +458,8 @@ async def test_async_setup_entry_creates_sub_device_sensors(
 
     async_add_entities.assert_called_once()
     sensors = list(async_add_entities.call_args.args[0])
-    # 2 entities: horizon entity + 1 output sensor
-    assert len(sensors) == 2
+    # 3 entities: horizon + sentinel + 1 output sensor
+    assert len(sensors) == 3
 
     # Find the output sensor (not the horizon entity)
     output_sensors = [s for s in sensors if isinstance(s, HaeoSensor)]
