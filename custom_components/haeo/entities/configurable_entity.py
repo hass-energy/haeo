@@ -1,4 +1,4 @@
-"""Configurable sentinel entity for config flow value entry.
+"""Configurable entity for config flow value entry.
 
 This sensor entity appears in EntitySelector dropdowns to let users indicate
 they want to enter a constant value instead of selecting an external entity.
@@ -9,7 +9,7 @@ from homeassistant.components.sensor import SensorEntity
 from custom_components.haeo.const import CONFIGURABLE_ENTITY_UNIQUE_ID
 
 
-class HaeoConfigurableSentinel(SensorEntity):
+class ConfigurableEntity(SensorEntity):
     """Sentinel entity for config flow configurable fields.
 
     This sensor serves as a marker in EntitySelector dropdowns. When selected,
@@ -29,4 +29,4 @@ class HaeoConfigurableSentinel(SensorEntity):
     _attr_available = True
 
 
-__all__ = ["HaeoConfigurableSentinel"]
+__all__ = ["ConfigurableEntity"]

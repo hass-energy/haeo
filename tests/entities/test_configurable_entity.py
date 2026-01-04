@@ -1,12 +1,12 @@
-"""Tests for the HaeoConfigurableSentinel entity."""
+"""Tests for the ConfigurableEntity."""
 
 from custom_components.haeo.const import CONFIGURABLE_ENTITY_UNIQUE_ID
-from custom_components.haeo.entities.configurable_sentinel import HaeoConfigurableSentinel
+from custom_components.haeo.entities.configurable_entity import ConfigurableEntity
 
 
-def test_sentinel_attributes() -> None:
-    """Sentinel entity has correct static attributes."""
-    entity = HaeoConfigurableSentinel()
+def test_configurable_entity_attributes() -> None:
+    """Configurable entity has correct static attributes."""
+    entity = ConfigurableEntity()
 
     assert entity.unique_id == CONFIGURABLE_ENTITY_UNIQUE_ID
     assert entity.name == "HAEO Configurable"
