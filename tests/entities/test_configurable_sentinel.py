@@ -13,10 +13,4 @@ def test_sentinel_attributes() -> None:
     assert entity.icon == "mdi:tune"
     assert entity.native_value == "configurable"
     assert entity.should_poll is False
-
-
-def test_sentinel_always_available() -> None:
-    """Sentinel entity is always available."""
-    entity = HaeoConfigurableSentinel()
-
-    assert entity._attr_available is True
+    assert entity.available is True
