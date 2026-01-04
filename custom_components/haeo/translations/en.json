@@ -80,81 +80,155 @@
         "user": {
           "title": "Add Battery",
           "description": "Set up battery parameters for energy optimization",
-          "data": {
-            "capacity_mode": "Capacity Source",
-            "connection": "Connection",
-            "discharge_cost_mode": "Discharge Cost Source",
-            "early_charge_incentive_mode": "Early Charge Incentive Source",
-            "efficiency_mode": "Efficiency Source",
-            "initial_charge_percentage_mode": "State of Charge Source",
-            "max_charge_percentage_mode": "Max Charge Level Source",
-            "max_charge_power_mode": "Max Charging Power Source",
-            "max_discharge_power_mode": "Max Discharging Power Source",
-            "min_charge_percentage_mode": "Min Charge Level Source",
-            "name": "Battery Name",
-            "overcharge_cost_mode": "Overcharge Cost Source",
-            "overcharge_percentage_mode": "Overcharge Percentage Source",
-            "undercharge_cost_mode": "Undercharge Cost Source",
-            "undercharge_percentage_mode": "Undercharge Percentage Source"
+          "data": { "connection": "Connection", "name": "Battery Name" },
+          "sections": {
+            "advanced_regions": {
+              "data": {
+                "overcharge_cost_mode": "Overcharge Cost Source",
+                "overcharge_percentage_mode": "Overcharge Percentage Source",
+                "undercharge_cost_mode": "Undercharge Cost Source",
+                "undercharge_percentage_mode": "Undercharge Percentage Source"
+              },
+              "name": "Advanced Charge Regions"
+            },
+            "capacity_settings": {
+              "data": {
+                "capacity_mode": "Capacity Source",
+                "initial_charge_percentage_mode": "State of Charge Source"
+              },
+              "name": "Capacity"
+            },
+            "efficiency_settings": { "data": { "efficiency_mode": "Efficiency Source" }, "name": "Efficiency" },
+            "power_limits": {
+              "data": {
+                "max_charge_power_mode": "Max Charging Power Source",
+                "max_discharge_power_mode": "Max Discharging Power Source"
+              },
+              "name": "Power Limits"
+            },
+            "pricing": {
+              "data": {
+                "discharge_cost_mode": "Discharge Cost Source",
+                "early_charge_incentive_mode": "Early Charge Incentive Source"
+              },
+              "name": "Pricing"
+            },
+            "soc_limits": {
+              "data": {
+                "max_charge_percentage_mode": "Max Charge Level Source",
+                "min_charge_percentage_mode": "Min Charge Level Source"
+              },
+              "name": "State of Charge Limits"
+            }
           }
         },
         "reconfigure": {
           "title": "Edit Battery",
           "description": "Update battery configuration",
-          "data": {
-            "capacity_mode": "Capacity Source",
-            "connection": "Connection",
-            "discharge_cost_mode": "Discharge Cost Source",
-            "early_charge_incentive_mode": "Early Charge Incentive Source",
-            "efficiency_mode": "Efficiency Source",
-            "initial_charge_percentage_mode": "State of Charge Source",
-            "max_charge_percentage_mode": "Max Charge Level Source",
-            "max_charge_power_mode": "Max Charging Power Source",
-            "max_discharge_power_mode": "Max Discharging Power Source",
-            "min_charge_percentage_mode": "Min Charge Level Source",
-            "name": "Battery Name",
-            "overcharge_cost_mode": "Overcharge Cost Source",
-            "overcharge_percentage_mode": "Overcharge Percentage Source",
-            "undercharge_cost_mode": "Undercharge Cost Source",
-            "undercharge_percentage_mode": "Undercharge Percentage Source"
+          "data": { "connection": "Connection", "name": "Battery Name" },
+          "sections": {
+            "advanced_regions": {
+              "data": {
+                "overcharge_cost_mode": "Overcharge Cost Source",
+                "overcharge_percentage_mode": "Overcharge Percentage Source",
+                "undercharge_cost_mode": "Undercharge Cost Source",
+                "undercharge_percentage_mode": "Undercharge Percentage Source"
+              },
+              "name": "Advanced Charge Regions"
+            },
+            "capacity_settings": {
+              "data": {
+                "capacity_mode": "Capacity Source",
+                "initial_charge_percentage_mode": "State of Charge Source"
+              },
+              "name": "Capacity"
+            },
+            "efficiency_settings": { "data": { "efficiency_mode": "Efficiency Source" }, "name": "Efficiency" },
+            "power_limits": {
+              "data": {
+                "max_charge_power_mode": "Max Charging Power Source",
+                "max_discharge_power_mode": "Max Discharging Power Source"
+              },
+              "name": "Power Limits"
+            },
+            "pricing": {
+              "data": {
+                "discharge_cost_mode": "Discharge Cost Source",
+                "early_charge_incentive_mode": "Early Charge Incentive Source"
+              },
+              "name": "Pricing"
+            },
+            "soc_limits": {
+              "data": {
+                "max_charge_percentage_mode": "Max Charge Level Source",
+                "min_charge_percentage_mode": "Min Charge Level Source"
+              },
+              "name": "State of Charge Limits"
+            }
           }
         },
         "reconfigure_values": {
           "title": "Edit Battery Values",
           "description": "Update values for the selected input sources",
-          "data": {
-            "capacity": "Capacity",
-            "discharge_cost": "Discharge Cost",
-            "early_charge_incentive": "Early Charge Incentive",
-            "efficiency": "Round-trip Efficiency",
-            "initial_charge_percentage": "State of Charge",
-            "max_charge_percentage": "Max Charge Level",
-            "max_charge_power": "Max Charging Power",
-            "max_discharge_power": "Max Discharging Power",
-            "min_charge_percentage": "Min Charge Level",
-            "overcharge_cost": "Overcharge Cost",
-            "overcharge_percentage": "Overcharge Percentage",
-            "undercharge_cost": "Undercharge Cost",
-            "undercharge_percentage": "Undercharge Percentage"
+          "sections": {
+            "advanced_regions": {
+              "data": {
+                "overcharge_cost": "Overcharge Cost",
+                "overcharge_percentage": "Overcharge Percentage",
+                "undercharge_cost": "Undercharge Cost",
+                "undercharge_percentage": "Undercharge Percentage"
+              },
+              "name": "Advanced Charge Regions"
+            },
+            "capacity_settings": {
+              "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
+              "name": "Capacity"
+            },
+            "efficiency_settings": { "data": { "efficiency": "Round-trip Efficiency" }, "name": "Efficiency" },
+            "power_limits": {
+              "data": { "max_charge_power": "Max Charging Power", "max_discharge_power": "Max Discharging Power" },
+              "name": "Power Limits"
+            },
+            "pricing": {
+              "data": { "discharge_cost": "Discharge Cost", "early_charge_incentive": "Early Charge Incentive" },
+              "name": "Pricing"
+            },
+            "soc_limits": {
+              "data": { "max_charge_percentage": "Max Charge Level", "min_charge_percentage": "Min Charge Level" },
+              "name": "State of Charge Limits"
+            }
           }
         },
         "values": {
           "title": "Battery Values",
           "description": "Enter values for the selected input sources",
-          "data": {
-            "capacity": "Capacity",
-            "discharge_cost": "Discharge Cost",
-            "early_charge_incentive": "Early Charge Incentive",
-            "efficiency": "Round-trip Efficiency",
-            "initial_charge_percentage": "State of Charge",
-            "max_charge_percentage": "Max Charge Level",
-            "max_charge_power": "Max Charging Power",
-            "max_discharge_power": "Max Discharging Power",
-            "min_charge_percentage": "Min Charge Level",
-            "overcharge_cost": "Overcharge Cost",
-            "overcharge_percentage": "Overcharge Percentage",
-            "undercharge_cost": "Undercharge Cost",
-            "undercharge_percentage": "Undercharge Percentage"
+          "sections": {
+            "advanced_regions": {
+              "data": {
+                "overcharge_cost": "Overcharge Cost",
+                "overcharge_percentage": "Overcharge Percentage",
+                "undercharge_cost": "Undercharge Cost",
+                "undercharge_percentage": "Undercharge Percentage"
+              },
+              "name": "Advanced Charge Regions"
+            },
+            "capacity_settings": {
+              "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
+              "name": "Capacity"
+            },
+            "efficiency_settings": { "data": { "efficiency": "Round-trip Efficiency" }, "name": "Efficiency" },
+            "power_limits": {
+              "data": { "max_charge_power": "Max Charging Power", "max_discharge_power": "Max Discharging Power" },
+              "name": "Power Limits"
+            },
+            "pricing": {
+              "data": { "discharge_cost": "Discharge Cost", "early_charge_incentive": "Early Charge Incentive" },
+              "name": "Pricing"
+            },
+            "soc_limits": {
+              "data": { "max_charge_percentage": "Max Charge Level", "min_charge_percentage": "Min Charge Level" },
+              "name": "State of Charge Limits"
+            }
           }
         }
       },
@@ -188,31 +262,47 @@
         "user": {
           "title": "Add Connection",
           "description": "Set up connection parameters between devices",
-          "data": {
-            "efficiency_source_target": "Efficiency Source to Target (%)",
-            "efficiency_target_source": "Efficiency Target to Source (%)",
-            "max_power_source_target": "Maximum Power Source to Target",
-            "max_power_target_source": "Maximum Power Target to Source",
-            "name": "Connection Name",
-            "price_source_target": "Price Source to Target",
-            "price_target_source": "Price Target to Source",
-            "source": "Source Device",
-            "target": "Target Device"
+          "data": { "name": "Connection Name", "source": "Source Device", "target": "Target Device" },
+          "sections": {
+            "source_to_target": {
+              "data": {
+                "efficiency_source_target": "Efficiency (%)",
+                "max_power_source_target": "Maximum Power",
+                "price_source_target": "Price"
+              },
+              "name": "Source to Target"
+            },
+            "target_to_source": {
+              "data": {
+                "efficiency_target_source": "Efficiency (%)",
+                "max_power_target_source": "Maximum Power",
+                "price_target_source": "Price"
+              },
+              "name": "Target to Source"
+            }
           }
         },
         "reconfigure": {
           "title": "Edit Connection",
           "description": "Update connection configuration",
-          "data": {
-            "efficiency_source_target": "Efficiency Source to Target (%)",
-            "efficiency_target_source": "Efficiency Target to Source (%)",
-            "max_power_source_target": "Maximum Power Source to Target",
-            "max_power_target_source": "Maximum Power Target to Source",
-            "name": "Connection Name",
-            "price_source_target": "Price Source to Target",
-            "price_target_source": "Price Target to Source",
-            "source": "Source Device",
-            "target": "Target Device"
+          "data": { "name": "Connection Name", "source": "Source Device", "target": "Target Device" },
+          "sections": {
+            "source_to_target": {
+              "data": {
+                "efficiency_source_target": "Efficiency (%)",
+                "max_power_source_target": "Maximum Power",
+                "price_source_target": "Price"
+              },
+              "name": "Source to Target"
+            },
+            "target_to_source": {
+              "data": {
+                "efficiency_target_source": "Efficiency (%)",
+                "max_power_target_source": "Maximum Power",
+                "price_target_source": "Price"
+              },
+              "name": "Target to Source"
+            }
           }
         }
       },
@@ -234,45 +324,53 @@
         "user": {
           "title": "Add Grid",
           "description": "Set up grid import/export parameters and pricing",
-          "data": {
-            "connection": "Connection",
-            "export_limit_mode": "Export Limit Source",
-            "export_price_mode": "Export Price Source",
-            "import_limit_mode": "Import Limit Source",
-            "import_price_mode": "Import Price Source",
-            "name": "Grid Name"
+          "data": { "connection": "Connection", "name": "Grid Name" },
+          "sections": {
+            "power_limits": {
+              "data": { "export_limit_mode": "Export Limit Source", "import_limit_mode": "Import Limit Source" },
+              "name": "Power Limits"
+            },
+            "pricing": {
+              "data": { "export_price_mode": "Export Price Source", "import_price_mode": "Import Price Source" },
+              "name": "Pricing"
+            }
           }
         },
         "reconfigure": {
           "title": "Edit Grid",
           "description": "Update grid configuration",
-          "data": {
-            "connection": "Connection",
-            "export_limit_mode": "Export Limit Source",
-            "export_price_mode": "Export Price Source",
-            "import_limit_mode": "Import Limit Source",
-            "import_price_mode": "Import Price Source",
-            "name": "Grid Name"
+          "data": { "connection": "Connection", "name": "Grid Name" },
+          "sections": {
+            "power_limits": {
+              "data": { "export_limit_mode": "Export Limit Source", "import_limit_mode": "Import Limit Source" },
+              "name": "Power Limits"
+            },
+            "pricing": {
+              "data": { "export_price_mode": "Export Price Source", "import_price_mode": "Import Price Source" },
+              "name": "Pricing"
+            }
           }
         },
         "reconfigure_values": {
           "title": "Edit Grid Values",
           "description": "Update values for the selected input sources",
-          "data": {
-            "export_limit": "Export Limit",
-            "export_price": "Export Price",
-            "import_limit": "Import Limit",
-            "import_price": "Import Price"
+          "sections": {
+            "power_limits": {
+              "data": { "export_limit": "Export Limit", "import_limit": "Import Limit" },
+              "name": "Power Limits"
+            },
+            "pricing": { "data": { "export_price": "Export Price", "import_price": "Import Price" }, "name": "Pricing" }
           }
         },
         "values": {
           "title": "Grid Values",
           "description": "Enter values for the selected input sources",
-          "data": {
-            "export_limit": "Export Limit",
-            "export_price": "Export Price",
-            "import_limit": "Import Limit",
-            "import_price": "Import Price"
+          "sections": {
+            "power_limits": {
+              "data": { "export_limit": "Export Limit", "import_limit": "Import Limit" },
+              "name": "Power Limits"
+            },
+            "pricing": { "data": { "export_price": "Export Price", "import_price": "Import Price" }, "name": "Pricing" }
           }
         }
       },
@@ -287,25 +385,37 @@
         "user": {
           "title": "Add Inverter",
           "description": "Set up a bidirectional inverter with DC bus for battery and solar connections",
-          "data": {
-            "connection": "AC Connection",
-            "efficiency_ac_to_dc": "AC to DC efficiency (Optional)",
-            "efficiency_dc_to_ac": "DC to AC efficiency (Optional)",
-            "max_power_ac_to_dc": "Max AC to DC power",
-            "max_power_dc_to_ac": "Max DC to AC power",
-            "name": "Inverter Name"
+          "data": { "connection": "AC Connection", "name": "Inverter Name" },
+          "sections": {
+            "efficiency_settings": {
+              "data": {
+                "efficiency_ac_to_dc": "AC to DC efficiency (Optional)",
+                "efficiency_dc_to_ac": "DC to AC efficiency (Optional)"
+              },
+              "name": "Efficiency"
+            },
+            "power_limits": {
+              "data": { "max_power_ac_to_dc": "Max AC to DC power", "max_power_dc_to_ac": "Max DC to AC power" },
+              "name": "Power Limits"
+            }
           }
         },
         "reconfigure": {
           "title": "Edit Inverter",
           "description": "Update inverter configuration",
-          "data": {
-            "connection": "AC Connection",
-            "efficiency_ac_to_dc": "AC to DC efficiency (Optional)",
-            "efficiency_dc_to_ac": "DC to AC efficiency (Optional)",
-            "max_power_ac_to_dc": "Max AC to DC power",
-            "max_power_dc_to_ac": "Max DC to AC power",
-            "name": "Inverter Name"
+          "data": { "connection": "AC Connection", "name": "Inverter Name" },
+          "sections": {
+            "efficiency_settings": {
+              "data": {
+                "efficiency_ac_to_dc": "AC to DC efficiency (Optional)",
+                "efficiency_dc_to_ac": "DC to AC efficiency (Optional)"
+              },
+              "name": "Efficiency"
+            },
+            "power_limits": {
+              "data": { "max_power_ac_to_dc": "Max AC to DC power", "max_power_dc_to_ac": "Max DC to AC power" },
+              "name": "Power Limits"
+            }
           }
         }
       },

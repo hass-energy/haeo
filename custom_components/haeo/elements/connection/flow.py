@@ -3,6 +3,7 @@
 from typing import Any, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig, TextSelector, TextSelectorConfig
 import voluptuous as vol
 
@@ -25,6 +26,18 @@ from .schema import (
 )
 
 
+def _flatten_sections(user_input: dict[str, Any]) -> dict[str, Any]:
+    """Flatten section-nested user input for connection config."""
+    result: dict[str, Any] = {}
+    for key, value in user_input.items():
+        # Check if this is a section group (INPUT_FIELDS keys)
+        if key in INPUT_FIELDS and isinstance(value, dict):
+            result.update(value)
+        else:
+            result[key] = value
+    return result
+
+
 def _build_schema(
     exclusion_map: dict[str, list[str]],
     participants: list[str],
@@ -42,47 +55,63 @@ def _build_schema(
             ),
             vol.Required(CONF_SOURCE): build_participant_selector(participants, current_source),
             vol.Required(CONF_TARGET): build_participant_selector(participants, current_target),
-            vol.Optional(CONF_MAX_POWER_SOURCE_TARGET): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=True,
-                    exclude_entities=exclusion_map.get(CONF_MAX_POWER_SOURCE_TARGET, []),
-                )
+            # Source to Target section
+            vol.Required("source_to_target"): section(
+                vol.Schema(
+                    {
+                        vol.Optional(CONF_MAX_POWER_SOURCE_TARGET): EntitySelector(
+                            EntitySelectorConfig(
+                                domain=["sensor", "input_number"],
+                                multiple=True,
+                                exclude_entities=exclusion_map.get(CONF_MAX_POWER_SOURCE_TARGET, []),
+                            )
+                        ),
+                        vol.Optional(CONF_EFFICIENCY_SOURCE_TARGET): EntitySelector(
+                            EntitySelectorConfig(
+                                domain=["sensor", "input_number"],
+                                multiple=True,
+                                exclude_entities=exclusion_map.get(CONF_EFFICIENCY_SOURCE_TARGET, []),
+                            )
+                        ),
+                        vol.Optional(CONF_PRICE_SOURCE_TARGET): EntitySelector(
+                            EntitySelectorConfig(
+                                domain=["sensor", "input_number"],
+                                multiple=True,
+                                exclude_entities=exclusion_map.get(CONF_PRICE_SOURCE_TARGET, []),
+                            )
+                        ),
+                    }
+                ),
+                {"collapsed": True},
             ),
-            vol.Optional(CONF_MAX_POWER_TARGET_SOURCE): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=True,
-                    exclude_entities=exclusion_map.get(CONF_MAX_POWER_TARGET_SOURCE, []),
-                )
-            ),
-            vol.Optional(CONF_EFFICIENCY_SOURCE_TARGET): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=True,
-                    exclude_entities=exclusion_map.get(CONF_EFFICIENCY_SOURCE_TARGET, []),
-                )
-            ),
-            vol.Optional(CONF_EFFICIENCY_TARGET_SOURCE): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=True,
-                    exclude_entities=exclusion_map.get(CONF_EFFICIENCY_TARGET_SOURCE, []),
-                )
-            ),
-            vol.Optional(CONF_PRICE_SOURCE_TARGET): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=True,
-                    exclude_entities=exclusion_map.get(CONF_PRICE_SOURCE_TARGET, []),
-                )
-            ),
-            vol.Optional(CONF_PRICE_TARGET_SOURCE): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["sensor", "input_number"],
-                    multiple=True,
-                    exclude_entities=exclusion_map.get(CONF_PRICE_TARGET_SOURCE, []),
-                )
+            # Target to Source section
+            vol.Required("target_to_source"): section(
+                vol.Schema(
+                    {
+                        vol.Optional(CONF_MAX_POWER_TARGET_SOURCE): EntitySelector(
+                            EntitySelectorConfig(
+                                domain=["sensor", "input_number"],
+                                multiple=True,
+                                exclude_entities=exclusion_map.get(CONF_MAX_POWER_TARGET_SOURCE, []),
+                            )
+                        ),
+                        vol.Optional(CONF_EFFICIENCY_TARGET_SOURCE): EntitySelector(
+                            EntitySelectorConfig(
+                                domain=["sensor", "input_number"],
+                                multiple=True,
+                                exclude_entities=exclusion_map.get(CONF_EFFICIENCY_TARGET_SOURCE, []),
+                            )
+                        ),
+                        vol.Optional(CONF_PRICE_TARGET_SOURCE): EntitySelector(
+                            EntitySelectorConfig(
+                                domain=["sensor", "input_number"],
+                                multiple=True,
+                                exclude_entities=exclusion_map.get(CONF_PRICE_TARGET_SOURCE, []),
+                            )
+                        ),
+                    }
+                ),
+                {"collapsed": True},
             ),
         }
     )
@@ -96,16 +125,18 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            name = user_input.get(CONF_NAME)
+            # Flatten section-nested input
+            flat_input = _flatten_sections(user_input)
+            name = flat_input.get(CONF_NAME)
             if self._validate_name(name, errors):
                 # Validate source != target
-                source = user_input.get(CONF_SOURCE)
-                target = user_input.get(CONF_TARGET)
+                source = flat_input.get(CONF_SOURCE)
+                target = flat_input.get(CONF_TARGET)
                 if source and target and source == target:
                     errors[CONF_TARGET] = "cannot_connect_to_self"
 
             if not errors:
-                config = cast("ConnectionConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
+                config = cast("ConnectionConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat_input})
                 return self.async_create_entry(title=name, data=config)
 
         entity_metadata = extract_entity_metadata(self.hass)
@@ -125,16 +156,18 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_reconfigure_subentry()
 
         if user_input is not None:
-            name = user_input.get(CONF_NAME)
+            # Flatten section-nested input
+            flat_input = _flatten_sections(user_input)
+            name = flat_input.get(CONF_NAME)
             if self._validate_name(name, errors):
                 # Validate source != target
-                source = user_input.get(CONF_SOURCE)
-                target = user_input.get(CONF_TARGET)
+                source = flat_input.get(CONF_SOURCE)
+                target = flat_input.get(CONF_TARGET)
                 if source and target and source == target:
                     errors[CONF_TARGET] = "cannot_connect_to_self"
 
             if not errors:
-                config = cast("ConnectionConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
+                config = cast("ConnectionConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat_input})
                 return self.async_update_and_abort(
                     self._get_entry(),
                     subentry,

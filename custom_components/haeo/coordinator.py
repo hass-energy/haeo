@@ -377,9 +377,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             }
 
             # Get input field definitions for this element type
-            input_field_infos = get_input_fields(element_type)
-            input_field_map = {f.field_name: f for f in input_field_infos}
-            input_field_names = set(input_field_map.keys())
+            # input_fields is dict[str, InputFieldInfo] where keys are field names
+            input_fields = get_input_fields(element_type)
+            input_field_names = set(input_fields.keys())
 
             # Process non-input fields from config first
             for field_name in element_config:
@@ -393,8 +393,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 loaded_data[field_name] = element_config[field_name]
 
             # Load values from input entities
-            for field_info in input_field_infos:
-                field_name = field_info.field_name
+            for field_name, field_info in input_fields.items():
                 key = (element_name, field_name)
 
                 if key not in runtime_data.input_entities:
