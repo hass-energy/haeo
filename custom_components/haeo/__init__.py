@@ -12,9 +12,18 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.translation import async_get_translations
 
-from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import (
+    CONF_ADVANCED_MODE,
+    CONF_ELEMENT_TYPE,
+    CONF_NAME,
+    CONFIGURABLE_ENTITY_UNIQUE_ID,
+    DOMAIN,
+    ELEMENT_TYPE_NETWORK,
+)
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.horizon import HorizonManager
 
@@ -210,6 +219,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Create runtime data for this setup
     runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager)
     entry.runtime_data = runtime_data
+
+    # Create the configurable entity (once globally, not per config entry)
+    # This entity appears in EntitySelector dropdowns for constant value entry
+    entity_registry = er.async_get(hass)
+    if entity_registry.async_get_entity_id(DOMAIN, DOMAIN, CONFIGURABLE_ENTITY_UNIQUE_ID) is None:
+        from custom_components.haeo.entities.configurable_entity import ConfigurableEntity  # noqa: PLC0415
+
+        component: EntityComponent[ConfigurableEntity] = EntityComponent(_LOGGER, DOMAIN, hass)
+        await component.async_add_entities([ConfigurableEntity()])
 
     # Start horizon manager's scheduled updates
     horizon_manager.start()
