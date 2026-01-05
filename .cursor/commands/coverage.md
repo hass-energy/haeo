@@ -1,0 +1,1 @@
+../../.github/prompts/coverage.prompt.md
