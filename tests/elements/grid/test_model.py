@@ -67,6 +67,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             "grid_main:connection": {
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
+                power_connection.CONNECTION_COST_SOURCE_TARGET: OutputData(type=OutputType.COST, unit="$", values=(0.5,), direction="+"),
+                power_connection.CONNECTION_COST_TARGET_SOURCE: OutputData(type=OutputType.COST, unit="$", values=(-0.25,), direction="-"),
                 power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
                 power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
@@ -76,6 +78,9 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 grid_element.GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(7.0,), direction="-"),
                 grid_element.GRID_POWER_IMPORT: OutputData(type=OutputType.POWER, unit="kW", values=(5.0,), direction="+"),
                 grid_element.GRID_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(-2.0,), direction=None),
+                grid_element.GRID_COST_IMPORT: OutputData(type=OutputType.COST, unit="$", values=(0.5,), direction="-"),
+                grid_element.GRID_COST_EXPORT: OutputData(type=OutputType.COST, unit="$", values=(-0.25,), direction="+"),
+                grid_element.GRID_COST_NET: OutputData(type=OutputType.COST, unit="$", values=(0.25,), direction=None),
                 grid_element.GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
                 grid_element.GRID_POWER_MAX_IMPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }

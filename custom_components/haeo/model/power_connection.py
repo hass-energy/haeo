@@ -33,6 +33,8 @@ type PowerConnectionOutputName = (
         "connection_power_source_target",
         "connection_power_target_source",
         "connection_power_active",
+        "connection_cost_source_target",
+        "connection_cost_target_source",
     ]
     | PowerConnectionConstraintName
 )
@@ -40,6 +42,9 @@ type PowerConnectionOutputName = (
 POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = frozenset(
     (
         CONNECTION_POWER_ACTIVE := "connection_power_active",
+        # Cost outputs
+        CONNECTION_COST_SOURCE_TARGET := "connection_cost_source_target",
+        CONNECTION_COST_TARGET_SOURCE := "connection_cost_target_source",
         # Constraints
         CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET := "connection_shadow_power_max_source_target",
         CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE := "connection_shadow_power_max_target_source",
@@ -213,6 +218,29 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
                 direction="-",
             ),
         }
+
+        # Calculate cost outputs: cost = price * power * period ($/kWh * kW * h = $)
+        # Extract power values for cost calculation
+        power_st = self.extract_values(self.power_source_target)
+        power_ts = self.extract_values(self.power_target_source)
+
+        if self.price_source_target is not None:
+            # Cost for source to target flow
+            cost_st = tuple(
+                p * pw * t for p, pw, t in zip(self.price_source_target, power_st, self.periods, strict=True)
+            )
+            outputs[CONNECTION_COST_SOURCE_TARGET] = OutputData(
+                type=OutputType.COST, unit="$", values=cost_st, direction="+"
+            )
+
+        if self.price_target_source is not None:
+            # Cost for target to source flow
+            cost_ts = tuple(
+                p * pw * t for p, pw, t in zip(self.price_target_source, power_ts, self.periods, strict=True)
+            )
+            outputs[CONNECTION_COST_TARGET_SOURCE] = OutputData(
+                type=OutputType.COST, unit="$", values=cost_ts, direction="-"
+            )
 
         # Output constraint shadow prices
         for constraint_name in self._constraints:

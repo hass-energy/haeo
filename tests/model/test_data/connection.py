@@ -113,6 +113,8 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
+            # Cost = price * power * period = 0.5 * 0.0 * 1.0 = 0.0
+            "connection_cost_source_target": {"type": "cost", "unit": "$", "values": (0.0, 0.0)},
         },
     },
     {
@@ -157,6 +159,9 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
+            # Cost = price * power * period, with zero power all costs are zero
+            "connection_cost_source_target": {"type": "cost", "unit": "$", "values": (0.0, 0.0)},
+            "connection_cost_target_source": {"type": "cost", "unit": "$", "values": (0.0, 0.0)},
         },
     },
     {

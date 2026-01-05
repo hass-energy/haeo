@@ -12,6 +12,8 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.power_connection import (
+    CONNECTION_COST_SOURCE_TARGET,
+    CONNECTION_COST_TARGET_SOURCE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
@@ -33,6 +35,9 @@ type GridOutputName = Literal[
     "grid_power_import",
     "grid_power_export",
     "grid_power_active",
+    "grid_cost_import",
+    "grid_cost_export",
+    "grid_cost_net",
     "grid_power_max_import_price",
     "grid_power_max_export_price",
 ]
@@ -42,6 +47,10 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
         GRID_POWER_IMPORT := "grid_power_import",
         GRID_POWER_EXPORT := "grid_power_export",
         GRID_POWER_ACTIVE := "grid_power_active",
+        # Cost outputs
+        GRID_COST_IMPORT := "grid_cost_import",
+        GRID_COST_EXPORT := "grid_cost_export",
+        GRID_COST_NET := "grid_cost_net",
         # Shadow prices
         GRID_POWER_MAX_IMPORT_PRICE := "grid_power_max_import_price",
         GRID_POWER_MAX_EXPORT_PRICE := "grid_power_max_export_price",
@@ -194,6 +203,32 @@ class GridAdapter:
             direction=None,
             type=OutputType.POWER,
         )
+
+        # Cost outputs: import cost, export cost (negative = revenue), and net cost
+        # Import cost: positive value = money spent
+        if CONNECTION_COST_SOURCE_TARGET in connection:
+            import_cost_data = connection[CONNECTION_COST_SOURCE_TARGET]
+            grid_outputs[GRID_COST_IMPORT] = replace(import_cost_data, direction="-")
+        else:
+            # If no import price was configured, import cost is zero
+            n_periods = len(connection[CONNECTION_POWER_SOURCE_TARGET].values)
+            import_cost_data = OutputData(type=OutputType.COST, unit="$", values=tuple([0.0] * n_periods))
+            grid_outputs[GRID_COST_IMPORT] = replace(import_cost_data, direction="-")
+
+        # Export cost: negative value = money earned (revenue)
+        # The price_target_source is already negated in create_model_elements, so cost is negative
+        if CONNECTION_COST_TARGET_SOURCE in connection:
+            export_cost_data = connection[CONNECTION_COST_TARGET_SOURCE]
+            grid_outputs[GRID_COST_EXPORT] = replace(export_cost_data, direction="+")
+        else:
+            # If no export price was configured, export cost is zero
+            n_periods = len(connection[CONNECTION_POWER_TARGET_SOURCE].values)
+            export_cost_data = OutputData(type=OutputType.COST, unit="$", values=tuple([0.0] * n_periods))
+            grid_outputs[GRID_COST_EXPORT] = replace(export_cost_data, direction="+")
+
+        # Net cost = import cost + export cost (where export cost is negative = revenue)
+        net_cost_values = tuple(i + e for i, e in zip(import_cost_data.values, export_cost_data.values, strict=True))
+        grid_outputs[GRID_COST_NET] = OutputData(type=OutputType.COST, unit="$", values=net_cost_values, direction=None)
 
         # Output the given inputs if they exist
         if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
