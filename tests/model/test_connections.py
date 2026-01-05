@@ -3,7 +3,7 @@
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import highs_var
+from highspy.highs import highs_linear_expression, highs_var
 import pytest
 
 from custom_components.haeo.model.connection import Connection
@@ -81,8 +81,14 @@ def _solve_connection_scenario(
     element.apply_constraints()
     element.apply_costs()
 
-    # Objective function - collect costs from _applied_costs
-    cost_terms = [cost for cost in element._applied_costs.values() if cost is not None]
+    # Objective function - collect costs from _applied_costs (flatten lists)
+    cost_terms: list[highs_linear_expression] = []
+    for cost_value in element._applied_costs.values():
+        if cost_value is not None:
+            if isinstance(cost_value, list):
+                cost_terms.extend(cost_value)
+            else:
+                cost_terms.append(cost_value)
     if source_cost != 0.0:
         cost_terms.append(Highs.qsum(source_vars[i] * source_cost * periods[i] for i in range(n_periods)))
     if target_cost != 0.0:
@@ -149,7 +155,7 @@ def test_connection_validation(case: ConnectionTestCase, solver: Highs) -> None:
 def test_base_connection_power_into_properties(solver: Highs) -> None:
     """Base Connection class power_into_source and power_into_target properties."""
     # Create a base Connection (lossless bidirectional)
-    conn: Connection[str, str] = Connection(
+    conn: Connection[str] = Connection(
         name="test_conn",
         periods=[1.0, 1.0],
         solver=solver,

@@ -39,7 +39,7 @@ class TestBatteryReactiveUpdate:
         # Update battery capacity via TrackedParam (must be sequence for T+1 boundaries)
         battery = network.elements["battery"]
         assert isinstance(battery, Battery)
-        battery.capacity = (20.0, 20.0, 20.0, 20.0)
+        battery.capacity = np.array([20.0, 20.0, 20.0, 20.0])
 
         # Second optimization should use updated capacity
         cost2 = network.optimize()
@@ -98,7 +98,7 @@ class TestBatteryReactiveUpdate:
         assert isinstance(battery, Battery)
 
         # Update with sequence (varying capacity per period boundary)
-        battery.capacity = [8.0, 9.0, 10.0, 11.0]  # 4 values for 3 periods + 1
+        battery.capacity = np.array([8.0, 9.0, 10.0, 11.0])  # 4 values for 3 periods + 1
 
         assert len(battery.capacity) == 4
         np.testing.assert_array_equal(battery.capacity, [8.0, 9.0, 10.0, 11.0])
@@ -129,7 +129,7 @@ class TestConnectionReactiveUpdate:
         assert isinstance(connection, PowerConnection)
 
         # Update max power via TrackedParam
-        connection.max_power_source_target = 10.0
+        connection.max_power_source_target = np.array([10.0, 10.0, 10.0])
 
         # Verify max power was updated
         np.testing.assert_array_equal(connection.max_power_source_target, [10.0, 10.0, 10.0])
@@ -161,7 +161,7 @@ class TestConnectionReactiveUpdate:
         assert isinstance(connection, PowerConnection)
 
         # Update price via TrackedParam
-        connection.price_source_target = 0.20
+        connection.price_source_target = np.array([0.20, 0.20, 0.20])
 
         # Second optimization - cost = 5 kW * 3 hours * $0.20/kWh = $3.00
         cost2 = network.optimize()
@@ -189,7 +189,7 @@ class TestConnectionReactiveUpdate:
         connection = network.elements["conn"]
         assert isinstance(connection, PowerConnection)
 
-        connection.max_power_target_source = 7.0
+        connection.max_power_target_source = np.array([7.0])
         np.testing.assert_array_equal(connection.max_power_target_source, [7.0])
 
     def test_update_price_target_source(self) -> None:
@@ -219,7 +219,7 @@ class TestConnectionReactiveUpdate:
         assert isinstance(connection, PowerConnection)
 
         # Double the import price via TrackedParam
-        connection.price_target_source = 0.30
+        connection.price_target_source = np.array([0.30])
 
         cost2 = network.optimize()
         # Still no incentive to charge, so no cost
@@ -249,7 +249,7 @@ class TestConnectionReactiveUpdate:
         assert isinstance(connection, PowerConnection)
 
         # Update with varying prices per period via TrackedParam
-        connection.price_source_target = [0.05, 0.10, 0.15]
+        connection.price_source_target = np.array([0.05, 0.10, 0.15])
         np.testing.assert_array_equal(connection.price_source_target, [0.05, 0.10, 0.15])
 
 
@@ -296,15 +296,15 @@ class TestNetworkWarmStart:
         # (capacity must be sequence for T+1 boundaries)
         battery = network2.elements["battery"]
         assert isinstance(battery, Battery)
-        battery.capacity = (10.0, 10.0, 10.0, 10.0)
+        battery.capacity = np.array([10.0, 10.0, 10.0, 10.0])
         battery.initial_charge = 5.0
 
         connection = network2.elements["conn"]
         assert isinstance(connection, PowerConnection)
-        connection.max_power_source_target = (5.0, 5.0, 5.0)
-        connection.max_power_target_source = (5.0, 5.0, 5.0)
-        connection.price_source_target = (-0.10, -0.10, -0.10)
-        connection.price_target_source = (0.15, 0.15, 0.15)
+        connection.max_power_source_target = np.array([5.0, 5.0, 5.0])
+        connection.max_power_target_source = np.array([5.0, 5.0, 5.0])
+        connection.price_source_target = np.array([-0.10, -0.10, -0.10])
+        connection.price_target_source = np.array([0.15, 0.15, 0.15])
 
         # Second optimization (warm start)
         cost2 = network2.optimize()
