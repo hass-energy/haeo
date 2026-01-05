@@ -3,6 +3,9 @@
 from .battery_balance_connection import ELEMENT_TYPE as MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION
 from .battery_balance_connection import BatteryBalanceConnection as BatteryBalanceConnection
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
+from .schedulable_load import SCHEDULABLE_LOAD_OUTPUT_NAMES as SCHEDULABLE_LOAD_OUTPUT_NAMES
+from .schedulable_load import SchedulableLoad as SchedulableLoad
+from .schedulable_load import SchedulableLoadOutputName as SchedulableLoadOutputName
 from .connection import CONNECTION_POWER_SOURCE_TARGET as CONNECTION_POWER_SOURCE_TARGET
 from .connection import CONNECTION_POWER_TARGET_SOURCE as CONNECTION_POWER_TARGET_SOURCE
 from .connection import CONNECTION_TIME_SLICE as CONNECTION_TIME_SLICE
@@ -25,6 +28,7 @@ __all__ = [
     "CONNECTION_TIME_SLICE",
     "MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION",
     "POWER_CONNECTION_OUTPUT_NAMES",
+    "SCHEDULABLE_LOAD_OUTPUT_NAMES",
     "BatteryBalanceConnection",
     "Connection",
     "ConnectionConstraintName",
@@ -36,4 +40,6 @@ __all__ = [
     "OutputType",
     "PowerConnection",
     "PowerConnectionOutputName",
+    "SchedulableLoad",
+    "SchedulableLoadOutputName",
 ]
