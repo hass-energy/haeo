@@ -213,7 +213,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     entry.runtime_data = runtime_data
 
     # Set up sentinel entities for config flows
-    await async_setup_sentinel_entities()
+    await async_setup_sentinel_entities(hass)
 
     # Start horizon manager's scheduled updates
     horizon_manager.start()
@@ -273,7 +273,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> boo
         # Clean up sentinel entities if this is the last HAEO config entry
         remaining_entries = [e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id]
         if not remaining_entries:
-            async_unload_sentinel_entities()
+            async_unload_sentinel_entities(hass)
 
     return unload_ok
 

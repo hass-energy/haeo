@@ -393,8 +393,7 @@ def get_configurable_entity_id() -> str:
     """
     hass = async_get_hass()
     registry = er.async_get(hass)
-    # Sentinel is a sensor entity created via sensor.py
-    entity_id = registry.async_get_entity_id("sensor", DOMAIN, CONFIGURABLE_ENTITY_UNIQUE_ID)
+    entity_id = registry.async_get_entity_id(DOMAIN, DOMAIN, CONFIGURABLE_ENTITY_UNIQUE_ID)
     if entity_id is None:
         msg = "Configurable entity not found - sensor platform should have created it during setup"
         raise RuntimeError(msg)

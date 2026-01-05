@@ -1,6 +1,6 @@
 """Utilities for managing configurable sentinel entities in config flows."""
 
-from homeassistant.core import async_get_hass
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import translation
 
@@ -10,14 +10,13 @@ TRANSLATION_KEY = "configurable_entity"
 ICON = "mdi:tune"
 
 
-async def async_setup_sentinel_entities() -> None:
+async def async_setup_sentinel_entities(hass: HomeAssistant) -> None:
     """Set up the sentinel entities for config flows.
 
     Uses the entity registry directly (no platform forwarding) to avoid
     domain/platform naming conflicts that occur when platform name matches
     integration domain.
     """
-    hass = async_get_hass()
     registry = er.async_get(hass)
 
     # Load translated name
@@ -44,12 +43,11 @@ async def async_setup_sentinel_entities() -> None:
     )
 
 
-def async_unload_sentinel_entities() -> None:
+def async_unload_sentinel_entities(hass: HomeAssistant) -> None:
     """Unload the sentinel entities.
 
     Removes the state and entity registry entry for the sentinel entities.
     """
-    hass = async_get_hass()
     registry = er.async_get(hass)
 
     # Look up by unique_id to get the current entity_id
