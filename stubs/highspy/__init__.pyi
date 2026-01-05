@@ -50,6 +50,25 @@ class highs_cons:
 
 class highs_linear_expression:
     """HiGHS linear expression type."""
+
+    # Internal state for coefficient extraction
+    @property
+    def idxs(self) -> list[int]:
+        """Variable indices in this expression."""
+        ...
+    @property
+    def vals(self) -> list[float]:
+        """Coefficients for each variable index."""
+        ...
+    @property
+    def bounds(self) -> tuple[float, float] | None:
+        """Lower and upper bounds if constraint-like, else None."""
+        ...
+    @property
+    def constant(self) -> float | None:
+        """Constant term in expression, if any."""
+        ...
+
     def __init__(self, value: float = ...) -> None: ...
     def __add__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
     def __radd__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
@@ -179,6 +198,27 @@ class Highs:
             col: Index of the variable column
             lower: New lower bound
             upper: New upper bound
+
+        """
+        ...
+    def changeCoeff(self, row: int, col: int, value: float) -> None:
+        """Change a coefficient in the constraint matrix.
+
+        Args:
+            row: Index of the constraint row
+            col: Index of the variable column
+            value: New coefficient value
+
+        """
+        ...
+    def getExpr(self, cons: highs_cons) -> highs_linear_expression:
+        """Get the linear expression for an existing constraint.
+
+        Args:
+            cons: The constraint to get the expression for
+
+        Returns:
+            The linear expression representing the constraint's left-hand side
 
         """
         ...
