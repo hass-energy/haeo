@@ -4,6 +4,7 @@ Brief description of this device element's purpose and what it models (1-2 sente
 Focus on the user-facing functionality and the physical system being represented.
 
 <!-- When creating a new element, replace {element} with the actual element type name -->
+
 <!-- Link to user guide: [User guide](../../user-guide/elements/{element}.md) -->
 
 ## Model Elements Created
@@ -65,6 +66,7 @@ List all sensors this device creates, organized by device.
 | `another_sensor` | kWh  | Real-time | Description of sensor purpose |
 
 <!-- Replace {element} with the actual element type name when using this template -->
+
 <!-- See [Element Configuration](../../user-guide/elements/{element}.md) for detailed sensor and configuration documentation. -->
 
 ## Configuration Example

@@ -26,23 +26,23 @@ Using auxiliary variables to model the max and min operations, the formulation r
 
 ### Parameters
 
-| Parameter        | Dimensions | Source        | Description                                                  |
-| ---------------- | ---------- | ------------- | ------------------------------------------------------------ |
-| $P$              | scalar     | Configuration | Load power consumption (kW)                                  |
-| $d$              | scalar     | Configuration | Load run duration (hours)                                    |
-| $s_{\min}$       | scalar     | Configuration | Earliest allowed start time (hours from horizon start)       |
-| $s_{\max}$       | scalar     | Configuration | Latest allowed start time (hours from horizon start)         |
-| $\Delta t$       | $T$        | Configuration | Time period durations (hours)                                |
-| $b_t$            | $T+1$      | Derived       | Cumulative time at each boundary: $b_0 = 0$, $b_t = \sum_{i=0}^{t-1} \Delta t_i$ |
+| Parameter  | Dimensions | Source        | Description                                                                      |
+| ---------- | ---------- | ------------- | -------------------------------------------------------------------------------- |
+| $P$        | scalar     | Configuration | Load power consumption (kW)                                                      |
+| $d$        | scalar     | Configuration | Load run duration (hours)                                                        |
+| $s_{\min}$ | scalar     | Configuration | Earliest allowed start time (hours from horizon start)                           |
+| $s_{\max}$ | scalar     | Configuration | Latest allowed start time (hours from horizon start)                             |
+| $\Delta t$ | $T$        | Configuration | Time period durations (hours)                                                    |
+| $b_t$      | $T+1$      | Derived       | Cumulative time at each boundary: $b_0 = 0$, $b_t = \sum_{i=0}^{t-1} \Delta t_i$ |
 
 ### Decision Variables
 
-| Variable       | Dimensions | Domain                    | Description                                                |
-| -------------- | ---------- | ------------------------- | ---------------------------------------------------------- |
-| $s$            | scalar     | $[s_{\min}, s_{\max}]$    | Scheduled start time (hours from horizon start)            |
-| $L_t$          | $T$        | $[0, H]$                  | Left edge: where active region starts in period $t$        |
-| $R_t$          | $T$        | $[0, H + d]$              | Right edge: where active region ends in period $t$         |
-| $\omega_t$     | $T$        | $[0, \Delta t]$           | Overlap: duration the load is active in period $t$ (hours) |
+| Variable   | Dimensions | Domain                 | Description                                                |
+| ---------- | ---------- | ---------------------- | ---------------------------------------------------------- |
+| $s$        | scalar     | $[s_{\min}, s_{\max}]$ | Scheduled start time (hours from horizon start)            |
+| $L_t$      | $T$        | $[0, H]$               | Left edge: where active region starts in period $t$        |
+| $R_t$      | $T$        | $[0, H + d]$           | Right edge: where active region ends in period $t$         |
+| $\omega_t$ | $T$        | $[0, \Delta t]$        | Overlap: duration the load is active in period $t$ (hours) |
 
 Where $H = \sum \Delta t$ is the total horizon length.
 
@@ -125,18 +125,18 @@ This constraint directly couples the overlap variables to the network power flow
 
 ### Shadow Prices
 
-| Constraint          | Unit   | Interpretation                                               |
-| ------------------- | ------ | ------------------------------------------------------------ |
-| `left_edge_boundary`| \$/kWh | Value of relaxing period boundary constraint on left edge    |
-| `left_edge_start`   | \$/kWh | Value of relaxing start time constraint on left edge         |
-| `right_edge_boundary`| \$/kWh | Value of relaxing period boundary constraint on right edge   |
-| `right_edge_end`    | \$/kWh | Value of relaxing end time constraint on right edge          |
-| `overlap_min`       | \$/kWh | Value of overlap exceeding right minus left edge             |
-| `overlap_max`       | \$/kWh | Value of overlap exceeding period duration                   |
-| `total_overlap`     | \$/kWh | Marginal value of total active duration                      |
-| `earliest_start`    | \$/kWh | Value of being able to start earlier                         |
-| `latest_start`      | \$/kWh | Value of being able to start later                           |
-| `power_balance`     | \$/kW  | Marginal value of power at the load terminals                |
+| Constraint            | Unit   | Interpretation                                             |
+| --------------------- | ------ | ---------------------------------------------------------- |
+| `left_edge_boundary`  | \$/kWh | Value of relaxing period boundary constraint on left edge  |
+| `left_edge_start`     | \$/kWh | Value of relaxing start time constraint on left edge       |
+| `right_edge_boundary` | \$/kWh | Value of relaxing period boundary constraint on right edge |
+| `right_edge_end`      | \$/kWh | Value of relaxing end time constraint on right edge        |
+| `overlap_min`         | \$/kWh | Value of overlap exceeding right minus left edge           |
+| `overlap_max`         | \$/kWh | Value of overlap exceeding period duration                 |
+| `total_overlap`       | \$/kWh | Marginal value of total active duration                    |
+| `earliest_start`      | \$/kWh | Value of being able to start earlier                       |
+| `latest_start`        | \$/kWh | Value of being able to start later                         |
+| `power_balance`       | \$/kW  | Marginal value of power at the load terminals              |
 
 ### Cost Contribution
 
