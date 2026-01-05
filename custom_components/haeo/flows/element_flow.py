@@ -234,8 +234,8 @@ class ElementFlowMixin:
             ValueError: If not in a reconfigure flow.
 
         """
-        # This is provided by ConfigSubentryFlow
-        raise NotImplementedError  # pragma: no cover
+        # Delegate to ConfigSubentryFlow via super()
+        return super()._get_reconfigure_subentry()  # type: ignore[misc]
 
 
 __all__ = [
