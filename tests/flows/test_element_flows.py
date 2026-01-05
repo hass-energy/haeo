@@ -58,6 +58,10 @@ TWO_STEP_FLOW_ELEMENTS: frozenset[ElementType] = frozenset(
     if getattr(entry.flow_class, "has_value_source_step", False)
 )
 
+# Grid uses a different two-step flow pattern (entity-first instead of mode-based)
+# It has dedicated tests in tests/elements/grid/test_flow.py
+GRID_ELEMENT_TYPE: ElementType = "grid"
+
 TEST_ELEMENT_TYPE = "flow_test_element"
 
 
@@ -245,6 +249,7 @@ async def test_element_flow_user_step_success(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Validate the happy path for adding each element type."""
 
@@ -293,6 +298,7 @@ async def test_element_flow_user_step_missing_name(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Ensure missing names are rejected for all element types."""
 
@@ -313,6 +319,7 @@ async def test_element_flow_user_step_duplicate_name(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Ensure duplicate names are detected when creating elements."""
 
@@ -336,8 +343,12 @@ async def test_element_flow_reconfigure_success(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Verify reconfigure submissions succeed for unchanged data."""
+    # Grid uses entity-first pattern with different test approach - see tests/elements/grid/test_flow.py
+    if element_type == GRID_ELEMENT_TYPE:
+        pytest.skip("Grid uses entity-first flow pattern tested separately")
 
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)
 
@@ -382,8 +393,12 @@ async def test_element_flow_reconfigure_rename(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Verify reconfigure handles renaming across element types."""
+    # Grid uses entity-first pattern with different test approach - see tests/elements/grid/test_flow.py
+    if element_type == GRID_ELEMENT_TYPE:
+        pytest.skip("Grid uses entity-first flow pattern tested separately")
 
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)
 
@@ -427,6 +442,7 @@ async def test_element_flow_reconfigure_missing_name(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Ensure empty names are rejected during reconfigure flows."""
 
@@ -455,6 +471,7 @@ async def test_element_flow_reconfigure_duplicate_name(
     hub_entry: MockConfigEntry,
     element_type: ElementType,
     element_test_data: dict[ElementType, ElementTestData],
+    mock_configurable_entity: None,
 ) -> None:
     """Ensure reconfigure prevents renaming to an existing element."""
 

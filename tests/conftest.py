@@ -1,13 +1,15 @@
 """Test configuration and fixtures."""
 
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from dataclasses import dataclass
 from importlib import import_module
 from logging import config as logging_config_module
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from custom_components.haeo.const import CONFIGURABLE_ENTITY_UNIQUE_ID
 from custom_components.haeo.elements import ELEMENT_TYPES
 
 # Enable custom component for testing
@@ -118,3 +120,34 @@ def configure_logging() -> None:
 def auto_enable_custom_integrations(enable_custom_integrations: None) -> bool:
     """Enable loading custom integrations in all tests."""
     return enable_custom_integrations is None
+
+
+# Test entity ID for the configurable entity (now a sensor, not haeo domain)
+TEST_CONFIGURABLE_ENTITY_ID = "sensor.haeo_configurable_entity"
+
+
+@pytest.fixture
+def mock_configurable_entity() -> Generator[None]:
+    """Mock the entity registry to recognize the configurable test entity.
+
+    This fixture patches the entity registry lookup in field_schema to return
+    the expected configurable entity, allowing config flow tests to run without
+    actually setting up the integration.
+
+    Use this fixture in tests that exercise config flows which call
+    get_configurable_entity_id() or get_entity_selection_defaults().
+    """
+    mock_entry = MagicMock()
+    mock_entry.unique_id = CONFIGURABLE_ENTITY_UNIQUE_ID
+
+    def mock_async_get(entity_id: str) -> MagicMock | None:
+        if entity_id == TEST_CONFIGURABLE_ENTITY_ID:
+            return mock_entry
+        return None
+
+    mock_registry = MagicMock()
+    mock_registry.async_get = mock_async_get
+    mock_registry.async_get_entity_id.return_value = TEST_CONFIGURABLE_ENTITY_ID
+
+    with patch("custom_components.haeo.flows.field_schema.er.async_get", return_value=mock_registry):
+        yield
