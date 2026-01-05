@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -18,6 +18,7 @@ from .connection import (
 )
 from .const import OutputType
 from .output_data import OutputData
+from .reactive import TrackedParam, cached_constraint, cached_cost
 from .util import broadcast_to_sequence
 
 type PowerConnectionConstraintName = (
@@ -54,7 +55,7 @@ POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = fro
 )
 
 
-class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConstraintName]):
+class PowerConnection(Connection[PowerConnectionOutputName]):
     """Power connection for electrical system modeling.
 
     Models bidirectional power flow between elements with optional limits,
@@ -64,7 +65,15 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
     - Power limits (max_power_source_target, max_power_target_source)
     - Efficiency losses (efficiency_source_target, efficiency_target_source)
     - Transfer pricing (price_source_target, price_target_source)
+
+    Uses TrackedParam for parameters that can change between optimizations.
     """
+
+    # Tracked parameters - changes automatically invalidate dependent constraints/costs
+    max_power_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    max_power_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    price_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    price_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
 
     def __init__(
         self,
@@ -103,9 +112,11 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
         super().__init__(name=name, periods=periods, solver=solver, source=source, target=target)
         n_periods = self.n_periods
 
-        # Broadcast power limits to n_periods
+        # Set tracked parameters via broadcast
         self.max_power_source_target = broadcast_to_sequence(max_power_source_target, n_periods)
         self.max_power_target_source = broadcast_to_sequence(max_power_target_source, n_periods)
+        self.price_source_target = broadcast_to_sequence(price_source_target, n_periods)
+        self.price_target_source = broadcast_to_sequence(price_target_source, n_periods)
 
         # Store fixed_power flag for constraint building
         self._fixed_power = fixed_power
@@ -120,10 +131,6 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
         if ts_eff_values is None:
             ts_eff_values = np.ones(n_periods) * 100.0
         self._efficiency_target_source: NDArray[np.floating] = ts_eff_values / 100.0
-
-        # Store prices (None means no cost)
-        self.price_source_target = broadcast_to_sequence(price_source_target, n_periods)
-        self.price_target_source = broadcast_to_sequence(price_target_source, n_periods)
 
     @property
     def power_into_source(self) -> HighspyArray:
@@ -141,147 +148,65 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
         """
         return self._power_source_target * self._efficiency_source_target - self._power_target_source
 
-    def build_constraints(self) -> None:
-        """Build constraints for the connection.
-
-        Variables are created in __init__, this method only adds constraints.
-        """
-        h = self._solver
-
-        # Add power constraints - equality if the power is fixed, inequality if only max bounds are provided
-        if self.max_power_source_target is not None:
-            if self._fixed_power:
-                self._constraints[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = h.addConstrs(
-                    self.power_source_target == self.max_power_source_target
-                )
-            else:
-                self._constraints[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET] = h.addConstrs(
-                    self.power_source_target <= self.max_power_source_target
-                )
-
-        if self.max_power_target_source is not None:
-            if self._fixed_power:
-                self._constraints[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = h.addConstrs(
-                    self.power_target_source == self.max_power_target_source
-                )
-            else:
-                self._constraints[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE] = h.addConstrs(
-                    self.power_target_source <= self.max_power_target_source
-                )
-
-        # Time slicing constraint: prevent simultaneous full bidirectional power flow
-        # This allows cycling but on a time-sliced basis (e.g., 50% forward, 50% backward)
-        if self.max_power_source_target is not None and self.max_power_target_source is not None:
-            # Create constraints for all periods to maintain consistent structure
-            # For periods with zero max power, np.divide gives 0 (where=False)
-            # This makes the constraint 0 + 0 <= 1 (always satisfied)
-            normalized_st = self.power_source_target * np.divide(
-                1.0,
-                self.max_power_source_target,
-                out=np.zeros(self.n_periods),
-                where=self.max_power_source_target > 0,
-            )
-            normalized_ts = self.power_target_source * np.divide(
-                1.0,
-                self.max_power_target_source,
-                out=np.zeros(self.n_periods),
-                where=self.max_power_target_source > 0,
-            )
-            time_slice_exprs = normalized_st + normalized_ts <= 1.0
-            self._constraints[CONNECTION_TIME_SLICE] = h.addConstrs(time_slice_exprs)
-
-    def update(self, **kwargs: object) -> None:
-        """Update connection parameters in-place for warm start optimization.
-
-        Supports updating:
-        - max_power_source_target: Updates power limit constraint bounds
-        - max_power_target_source: Updates power limit constraint bounds
-        - price_source_target: Updates objective coefficients for source→target power variables
-        - price_target_source: Updates objective coefficients for target→source power variables
-
-        Note: efficiency updates are not supported (require coefficient changes in other elements'
-        constraints). If efficiency changes, a full network rebuild is needed.
-
-        Args:
-            **kwargs: Parameter values to update
-
-        """
-        h = self._solver
-
-        # Helper to cast kwargs values to proper types for broadcast_to_sequence
-        def cast_to_float_or_sequence(value: object) -> float | Sequence[float] | None:
-            if isinstance(value, (int, float)):
-                return float(value)
-            if isinstance(value, Sequence) and not isinstance(value, str):
-                return [float(v) for v in value]
+    @cached_constraint
+    def power_max_source_target_constraint(self) -> list[highs_cons] | None:
+        """Constraint: limit power flow from source to target."""
+        if self.max_power_source_target is None:
             return None
 
-        # Update max_power_source_target if provided
-        if "max_power_source_target" in kwargs:
-            raw_value = cast_to_float_or_sequence(kwargs["max_power_source_target"])
-            new_max = broadcast_to_sequence(raw_value, self.n_periods) if raw_value is not None else None
-            if new_max is not None:
-                self.max_power_source_target = new_max
-                power_max_constraints = self._constraints.get(CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET)
-                if power_max_constraints is not None and isinstance(power_max_constraints, list):
-                    for i, cons in enumerate(power_max_constraints):
-                        if self._fixed_power:
-                            # Equality constraint: lower == upper == max_power
-                            h.changeRowBounds(cons.index, float(new_max[i]), float(new_max[i]))
-                        else:
-                            # Inequality constraint: -inf <= power <= max_power
-                            h.changeRowBounds(cons.index, -float("inf"), float(new_max[i]))
+        if self._fixed_power:
+            return self._solver.addConstrs(self.power_source_target == self.max_power_source_target)
+        return self._solver.addConstrs(self.power_source_target <= self.max_power_source_target)
 
-        # Update max_power_target_source if provided
-        if "max_power_target_source" in kwargs:
-            raw_value = cast_to_float_or_sequence(kwargs["max_power_target_source"])
-            new_max = broadcast_to_sequence(raw_value, self.n_periods) if raw_value is not None else None
-            if new_max is not None:
-                self.max_power_target_source = new_max
-                power_max_constraints = self._constraints.get(CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE)
-                if power_max_constraints is not None and isinstance(power_max_constraints, list):
-                    for i, cons in enumerate(power_max_constraints):
-                        if self._fixed_power:
-                            # Equality constraint: lower == upper == max_power
-                            h.changeRowBounds(cons.index, float(new_max[i]), float(new_max[i]))
-                        else:
-                            # Inequality constraint: -inf <= power <= max_power
-                            h.changeRowBounds(cons.index, -float("inf"), float(new_max[i]))
+    @cached_constraint
+    def power_max_target_source_constraint(self) -> list[highs_cons] | None:
+        """Constraint: limit power flow from target to source."""
+        if self.max_power_target_source is None:
+            return None
 
-        # Update price_source_target if provided
-        if "price_source_target" in kwargs:
-            raw_value = cast_to_float_or_sequence(kwargs["price_source_target"])
-            new_price = broadcast_to_sequence(raw_value, self.n_periods) if raw_value is not None else None
-            if new_price is not None:
-                self.price_source_target = new_price
-                # Update objective coefficients: price * power * period_duration
-                # Each variable's cost coefficient is price[i] * periods[i]
-                for i in range(self.n_periods):
-                    cost_coeff = float(new_price[i]) * float(self.periods[i])
-                    h.changeColCost(self.power_source_target[i].index, cost_coeff)
+        if self._fixed_power:
+            return self._solver.addConstrs(self.power_target_source == self.max_power_target_source)
+        return self._solver.addConstrs(self.power_target_source <= self.max_power_target_source)
 
-        # Update price_target_source if provided
-        if "price_target_source" in kwargs:
-            raw_value = cast_to_float_or_sequence(kwargs["price_target_source"])
-            new_price = broadcast_to_sequence(raw_value, self.n_periods) if raw_value is not None else None
-            if new_price is not None:
-                self.price_target_source = new_price
-                # Update objective coefficients: price * power * period_duration
-                for i in range(self.n_periods):
-                    cost_coeff = float(new_price[i]) * float(self.periods[i])
-                    h.changeColCost(self.power_target_source[i].index, cost_coeff)
+    @cached_constraint
+    def time_slice_constraint(self) -> list[highs_cons] | None:
+        """Constraint: prevent simultaneous full bidirectional power flow."""
+        if self.max_power_source_target is None or self.max_power_target_source is None:
+            return None
 
-    def cost(self) -> Sequence[highs_linear_expression]:
-        """Return the cost expressions of the connection with transfer pricing."""
+        # Create constraints for all periods to maintain consistent structure
+        # For periods with zero max power, np.divide gives 0 (where=False)
+        # This makes the constraint 0 + 0 <= 1 (always satisfied)
+        normalized_st = self.power_source_target * np.divide(
+            1.0,
+            self.max_power_source_target,
+            out=np.zeros(self.n_periods),
+            where=np.asarray(self.max_power_source_target) > 0,
+        )
+        normalized_ts = self.power_target_source * np.divide(
+            1.0,
+            self.max_power_target_source,
+            out=np.zeros(self.n_periods),
+            where=np.asarray(self.max_power_target_source) > 0,
+        )
+        time_slice_exprs = normalized_st + normalized_ts <= 1.0
+        return self._solver.addConstrs(time_slice_exprs)
 
-        costs: list[highs_linear_expression] = []
-        if self.price_source_target is not None:
-            costs.append(Highs.qsum(self.price_source_target * self.power_source_target * self.periods))
+    @cached_cost
+    def cost_source_target(self) -> highs_linear_expression | None:
+        """Cost for power flow from source to target."""
+        if self.price_source_target is None:
+            return None
+        # Multiply power array by price tuple and period tuple
+        return Highs.qsum(self.power_source_target * self.price_source_target * self.periods)
 
-        if self.price_target_source is not None:
-            costs.append(Highs.qsum(self.price_target_source * self.power_target_source * self.periods))
-
-        return costs
+    @cached_cost
+    def cost_target_source(self) -> highs_linear_expression | None:
+        """Cost for power flow from target to source."""
+        if self.price_target_source is None:
+            return None
+        # Multiply power array by price tuple and period tuple
+        return Highs.qsum(self.power_target_source * self.price_target_source * self.periods)
 
     def outputs(self) -> Mapping[PowerConnectionOutputName, OutputData]:
         """Return output specifications for the connection."""
@@ -323,12 +248,20 @@ class PowerConnection(Connection[PowerConnectionOutputName, PowerConnectionConst
                 type=OutputType.COST, unit="$", values=cost_ts, direction="-"
             )
 
-        # Output constraint shadow prices
-        for constraint_name in self._constraints:
-            outputs[constraint_name] = OutputData(
-                type=OutputType.SHADOW_PRICE,
-                unit="$/kW",
-                values=self.extract_values(self._constraints[constraint_name]),
-            )
+        # Output constraint shadow prices from applied constraints
+        constraint_mapping: dict[str, tuple[PowerConnectionConstraintName, str]] = {
+            "power_max_source_target_constraint": (CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET, "$/kW"),
+            "power_max_target_source_constraint": (CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE, "$/kW"),
+            "time_slice_constraint": (CONNECTION_TIME_SLICE, "$/kW"),
+        }
+
+        for method_name, (output_name, unit) in constraint_mapping.items():
+            if method_name in self._applied_constraints:
+                constraint_value = self._applied_constraints[method_name]
+                outputs[output_name] = OutputData(
+                    type=OutputType.SHADOW_PRICE,
+                    unit=unit,
+                    values=self.extract_values(constraint_value),
+                )
 
         return outputs

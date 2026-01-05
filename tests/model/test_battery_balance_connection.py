@@ -18,7 +18,7 @@ constraints (E >= 0, E <= C) fully bind the solution to exact values.
 
 from dataclasses import dataclass
 from functools import reduce
-from typing import Self
+from typing import Any, Self
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -303,11 +303,18 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     upper.build_power_balance(scenario.periods)
     lower.build_power_balance(scenario.periods)
 
-    # Build balance connection constraints
-    connection.build_constraints()
+    # Apply balance connection constraints
+    connection.apply_constraints()
 
-    # Add slack penalties to objective (required for min/max constraint behavior)
-    costs = connection.cost()
+    # Apply costs and add slack penalties to objective (required for min/max constraint behavior)
+    connection.apply_costs()
+    costs: list[Any] = []
+    for cost_value in connection._applied_costs.values():
+        if cost_value is not None:
+            if isinstance(cost_value, list):
+                costs.extend(cost_value)
+            else:
+                costs.append(cost_value)
     if len(costs) > 0:
         # Use reduce to avoid sum() returning Literal[0] when sequence is empty
         solver.minimize(reduce(lambda a, b: a + b, costs))
@@ -341,7 +348,7 @@ def test_battery_balance_connection_missing_references(solver: Highs) -> None:
     )
 
     with pytest.raises(ValueError, match="Battery references not set"):
-        connection.build_constraints()
+        connection.apply_constraints()
 
 
 def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
@@ -359,7 +366,7 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
     )
     # MockBattery provides the same interface as Battery but isn't a subtype
     connection.set_battery_references(upper, lower)  # type: ignore[arg-type]
-    connection.build_constraints()
+    connection.apply_constraints()
 
     # Run solver
     solver.run()

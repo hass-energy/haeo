@@ -29,7 +29,7 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
 CONNECTION_TIME_SLICE: Final = "connection_time_slice"
 
 
-class Connection[OutputNameT: str, ConstraintNameT: str](Element[OutputNameT, ConstraintNameT]):
+class Connection[OutputNameT: str](Element[OutputNameT]):
     """Lossless bidirectional connection between elements.
 
     Provides basic power flow variables and the interface for elements to

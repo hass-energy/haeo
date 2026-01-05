@@ -56,15 +56,26 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
 
         element.connection_power = mock_connection_power
 
-        # Call build_constraints() to set up power balance with mocked connection_power
-        element.build_constraints()
+        # Call apply_constraints() to set up power balance with mocked connection_power
+        element.apply_constraints()
 
-        # Collect all cost terms
+        # Apply costs to collect cost terms from the element
+        element.apply_costs()
+
+        # Collect all cost terms from applied costs
+        element_costs: list[Any] = []
+        for cost_value in element._applied_costs.values():
+            if cost_value is not None:
+                if isinstance(cost_value, list):
+                    element_costs.extend(cost_value)
+                else:
+                    element_costs.append(cost_value)
+
         input_cost = broadcast_to_sequence(inputs.get("input_cost", 0.0), n_periods)
         output_cost = broadcast_to_sequence(inputs.get("output_cost", 0.0), n_periods)
 
         cost_terms = [
-            *element.cost(),
+            *element_costs,
             *[input_cost[i] * power_in_vars[i] * periods[i] for i in range(n_periods) if input_cost[i] != 0.0],
             *[output_cost[i] * power_out_vars[i] * periods[i] for i in range(n_periods) if output_cost[i] != 0.0],
         ]

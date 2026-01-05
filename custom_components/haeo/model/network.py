@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from highspy import Highs, HighsModelStatus
-from highspy.highs import highs_cons
+from highspy.highs import highs_cons, highs_linear_expression
 
 from .battery import Battery
 from .battery_balance_connection import BatteryBalanceConnection
@@ -33,9 +33,8 @@ class Network:
 
     name: str
     periods: Sequence[float]  # Period durations in hours (one per optimization interval)
-    elements: dict[str, Element[Any, Any]] = field(default_factory=dict)
+    elements: dict[str, Element[Any]] = field(default_factory=dict)
     _solver: Highs = field(default_factory=Highs, repr=False)
-    _constraints_built: bool = field(default=False, repr=False)
 
     def __post_init__(self) -> None:
         """Set up the solver with logging callback."""
@@ -58,14 +57,12 @@ class Network:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def add(self, element_type: str, name: str, **kwargs: object) -> Element[Any, Any]:
-        """Add a new element or update an existing one.
+    def add(self, element_type: str, name: str, **kwargs: object) -> Element[Any]:
+        """Add a new element to the network.
 
-        For new elements: Creates the element and registers connections.
-        For existing elements: Calls element.update() to modify parameters in-place.
-
-        This enables warm start optimization by reusing the existing model structure
-        and only updating parameter values via HiGHS in-place modification APIs.
+        Creates the element and registers connections. For parameter updates,
+        modify the element's TrackedParam attributes directly - this will
+        automatically invalidate dependent constraints for the next optimization.
 
         Args:
             element_type: Type of element as a string
@@ -73,17 +70,11 @@ class Network:
             **kwargs: Additional arguments specific to the element type
 
         Returns:
-            The created or updated element
+            The created element
 
         """
-        # Check if element already exists - if so, update it
-        if name in self.elements:
-            existing_element = self.elements[name]
-            existing_element.update(**kwargs)
-            return existing_element
-
         # Create new element
-        factories: dict[str, Callable[..., Element[Any, Any]]] = {
+        factories: dict[str, Callable[..., Element[Any]]] = {
             "battery": Battery,
             "battery_balance_connection": BatteryBalanceConnection,
             "connection": PowerConnection,
@@ -136,9 +127,9 @@ class Network:
 
         After optimization, access optimized values directly from elements and connections.
 
-        On first call, builds constraints for all elements. On subsequent calls (warm start),
-        skips constraint building since they're already in the solver and have been updated
-        via element.update() calls.
+        Applies constraints and costs from all elements. On first call, this builds all
+        constraints. On subsequent calls, only invalidated constraints are rebuilt
+        (those whose TrackedParam dependencies have changed).
 
         Returns:
             The total optimization cost
@@ -149,18 +140,29 @@ class Network:
 
         h = self._solver
 
-        # Build constraints for all elements (only on first optimization)
-        if not self._constraints_built:
-            for element_name, element in self.elements.items():
-                try:
-                    element.build_constraints()
-                except Exception as e:
-                    msg = f"Failed to build constraints for element '{element_name}'"
-                    raise ValueError(msg) from e
-            self._constraints_built = True
+        # Apply constraints for all elements (reactive - only rebuilds if invalidated)
+        for element_name, element in self.elements.items():
+            try:
+                element.apply_constraints()
+            except Exception as e:
+                msg = f"Failed to apply constraints for element '{element_name}'"
+                raise ValueError(msg) from e
 
-        # Collect all cost expressions from elements and set objective
-        costs = [c for element in self.elements.values() for c in element.cost()]
+        # Apply costs for all elements (reactive - only rebuilds if invalidated)
+        costs: list[highs_linear_expression] = []
+        for element_name, element in self.elements.items():
+            try:
+                element.apply_costs()
+                # Collect costs from applied_costs dict
+                for cost_value in element._applied_costs.values():  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+                    if cost_value is not None:
+                        if isinstance(cost_value, list):
+                            costs.extend(cost_value)
+                        else:
+                            costs.append(cost_value)
+            except Exception as e:
+                msg = f"Failed to apply costs for element '{element_name}'"
+                raise ValueError(msg) from e
 
         if costs:
             h.minimize(Highs.qsum(costs))
@@ -204,7 +206,12 @@ class Network:
         result: list[highs_cons] = []
         for element_name, element in self.elements.items():
             try:
-                result.extend(element.constraints())
+                # Collect constraints from applied_constraints dict
+                for cons_value in element._applied_constraints.values():  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+                    if isinstance(cons_value, list):
+                        result.extend(cons_value)
+                    else:
+                        result.append(cons_value)
             except Exception as e:
                 msg = f"Failed to get constraints for element '{element_name}'"
                 raise ValueError(msg) from e

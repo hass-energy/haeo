@@ -4,23 +4,18 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression, highs_var
+from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
 from .output_data import OutputData
+from .reactive import ReactiveElement
 
 if TYPE_CHECKING:
     from .connection import Connection
 
-# Type alias for values that can be in constraint storage
-type ConstraintValue = highs_cons | Sequence[highs_cons]
 
-# Type alias for expression types (variables or expressions)
-type ExpressionValue = highs_var | highs_linear_expression | float
-
-
-class Element[OutputNameT: str, ConstraintNameT: str]:
+class Element[OutputNameT: str](ReactiveElement):
     """Base class for electrical entities in energy system modeling.
 
     All values use kW-based units:
@@ -28,6 +23,10 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
     - Energy: kWh
     - Time (periods): hours (variable-width intervals)
     - Price: $/kWh
+
+    Elements define constraints using @cached_constraint decorators and
+    costs using @cached_cost decorators. Parameters that can change between
+    optimizations should use TrackedParam descriptors.
     """
 
     def __init__(self, name: str, periods: Sequence[float], *, solver: Highs) -> None:
@@ -44,18 +43,15 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
         self.periods = np.asarray(periods)
         self._solver = solver
 
-        # Constraint storage - dictionary allows re-entrancy
-        self._constraints: dict[ConstraintNameT, ConstraintValue] = {}
-
         # Track connections for power balance
-        self._connections: list[tuple[Connection[Any, Any], Literal["source", "target"]]] = []
+        self._connections: list[tuple[Connection[Any], Literal["source", "target"]]] = []
 
     @property
     def n_periods(self) -> int:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def register_connection(self, connection: "Connection[Any, Any]", end: Literal["source", "target"]) -> None:
+    def register_connection(self, connection: "Connection[Any]", end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
         Args:
@@ -94,66 +90,6 @@ class Element[OutputNameT: str, ConstraintNameT: str]:
                 total_power = total_power + conn.power_into_target
 
         return total_power
-
-    def build_constraints(self) -> None:
-        """Build network-dependent constraints (e.g., power balance).
-
-        This method is called after all connections are registered and should
-        create and store constraints in self._constraints dictionary.
-
-        Elements should use connection_power() to get the net power from
-        connections when building their power balance constraints.
-
-        The solver is available via self._solver (set in __init__).
-
-        Default implementation does nothing. Subclasses should override as needed.
-        """
-
-    def update(self, **kwargs: object) -> None:
-        """Update element parameters in-place for warm start optimization.
-
-        This method updates parameter values using HiGHS in-place modification APIs
-        (changeRowBounds, changeColCost, changeColBounds) without rebuilding the model.
-
-        Called by Network.add_or_update() when an element already exists.
-
-        Default implementation does nothing. Subclasses should override to handle
-        their specific updateable parameters.
-
-        Args:
-            **kwargs: Parameter values to update (same as constructor parameters)
-
-        """
-
-    def constraints(self) -> list[highs_cons]:
-        """Return all constraints from this element.
-
-        Returns:
-            A flat list of all constraints stored in this element.
-
-        """
-        result: list[highs_cons] = []
-        for value in self._constraints.values():
-            if isinstance(value, Sequence):
-                result.extend(value)
-            else:
-                result.append(value)
-        return result
-
-    def cost(self) -> Sequence[ExpressionValue]:
-        """Return the cost expressions of the entity.
-
-        Returns a sequence of cost expressions for aggregation at the network level.
-
-        Units: $ = ($/kWh) * kW * period_hours
-
-        Returns:
-            Sequence of cost expressions (empty if no cost)
-
-        Default implementation returns empty list. Subclasses should override as needed.
-
-        """
-        return []
 
     def extract_values(
         self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | highs_cons | None

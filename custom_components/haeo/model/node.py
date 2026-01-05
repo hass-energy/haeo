@@ -4,10 +4,12 @@ from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
 from highspy import Highs
+from highspy.highs import highs_cons
 
 from .const import OutputType
 from .element import Element
 from .output_data import OutputData
+from .reactive import cached_constraint
 
 type NodeConstraintName = Literal["node_power_balance"]
 
@@ -18,7 +20,7 @@ NODE_POWER_BALANCE: Final[NodeOutputName] = "node_power_balance"
 NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
 
 
-class Node(Element[NodeOutputName, NodeConstraintName]):
+class Node(Element[NodeOutputName]):
     """Node entity for electrical system modeling.
 
     Node acts as an infinite source and/or sink. Power limits and pricing are configured
@@ -56,7 +58,8 @@ class Node(Element[NodeOutputName, NodeConstraintName]):
         self.is_source = is_source
         self.is_sink = is_sink
 
-    def build_constraints(self) -> None:
+    @cached_constraint
+    def power_balance_constraint(self) -> list[highs_cons] | None:
         """Bound the connection power based on source/sink behavior."""
         h = self._solver
 
@@ -67,16 +70,15 @@ class Node(Element[NodeOutputName, NodeConstraintName]):
 
         if not self.is_source and not self.is_sink:
             # Power balance is that connection power must be zero
-            self._constraints[NODE_POWER_BALANCE] = h.addConstrs(conn_power == 0)
-        elif self.is_source and not self.is_sink:
+            return h.addConstrs(conn_power == 0)
+        if self.is_source and not self.is_sink:
             # Only produce power therefore connection power can be less than or equal to zero
-            self._constraints[NODE_POWER_BALANCE] = h.addConstrs(conn_power <= 0)
-        elif not self.is_source and self.is_sink:
+            return h.addConstrs(conn_power <= 0)
+        if not self.is_source and self.is_sink:
             # Only consume power therefore connection power can be >= 0
-            self._constraints[NODE_POWER_BALANCE] = h.addConstrs(conn_power >= 0)
-        elif self.is_source and self.is_sink:
-            # Can both produce and consume power so there are no bounds
-            pass
+            return h.addConstrs(conn_power >= 0)
+        # Can both produce and consume power so there are no bounds
+        return None
 
     def outputs(self) -> Mapping[NodeOutputName, OutputData]:
         """Return element-agnostic outputs for the node.
@@ -86,11 +88,12 @@ class Node(Element[NodeOutputName, NodeConstraintName]):
         outputs: dict[NodeOutputName, OutputData] = {}
 
         # All constraints are power balance for Node
-        if NODE_POWER_BALANCE in self._constraints:
+        if "power_balance_constraint" in self._applied_constraints:
+            constraint = self._applied_constraints["power_balance_constraint"]
             outputs[NODE_POWER_BALANCE] = OutputData(
                 type=OutputType.SHADOW_PRICE,
                 unit="$/kW",
-                values=self.extract_values(self._constraints[NODE_POWER_BALANCE]),
+                values=self.extract_values(constraint),
             )
 
         return outputs

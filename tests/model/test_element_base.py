@@ -74,36 +74,28 @@ def test_connection_power_with_source_end(solver: Highs) -> None:
     assert h.val(result[1]) == pytest.approx(-2.0)
 
 
-def test_constraints_with_single_constraint(solver: Highs) -> None:
-    """Test constraints() method when a single constraint (not a sequence) is stored.
+def test_apply_constraints_populates_applied_constraints(solver: Highs) -> None:
+    """Test that apply_constraints() populates _applied_constraints from @cached_constraint methods.
 
-    This tests the else branch (line 106 in element.py).
+    With the reactive pattern, constraints are discovered via @cached_constraint decorators
+    and stored in _applied_constraints after calling apply_constraints().
     """
     h = solver
 
-    # Create a simple element
-    element = Node(name="test_node", periods=[1.0] * 3, solver=h)
+    # Create a simple element that has constraint methods
+    # Use is_sink=False so the power_balance_constraint actually creates constraints
+    element = Node(name="test_node", periods=[1.0] * 3, solver=h, is_source=True, is_sink=False)
 
-    # Create variables for constraints
-    x = h.addVariable(lb=0, name="x")
-    y = h.addVariable(lb=0, name="y")
+    # Before applying, _applied_constraints should be empty
+    assert len(element._applied_constraints) == 0
 
-    # Manually add a single constraint (not a list) for testing
-    single_constraint = h.addConstr(x <= 10)
-    element._constraints["single"] = single_constraint  # type: ignore[index]
+    # Apply constraints
+    element.apply_constraints()
 
-    # Also add a list of constraints
-    list_constraints = h.addConstrs([x <= 5, y <= 5])
-    element._constraints["list"] = list_constraints  # type: ignore[index]
-
-    # Get all constraints
-    result = element.constraints()
-
-    # Should have 3 constraints total: 1 single + 2 from list
-    assert len(result) == 3
-    assert single_constraint in result
-    assert list_constraints[0] in result
-    assert list_constraints[1] in result
+    # After applying, _applied_constraints should have entries from @cached_constraint methods
+    # Node has power_balance_constraint (returns constraints when is_source=True, is_sink=False)
+    assert len(element._applied_constraints) > 0
+    assert "power_balance_constraint" in element._applied_constraints
 
 
 def test_connection_power_with_multiple_connections(solver: Highs) -> None:
@@ -151,7 +143,7 @@ def test_element_default_outputs(solver: Highs) -> None:
     """Test Element base class default outputs() returns empty dict."""
 
     # Create a minimal Element subclass that doesn't override outputs()
-    class MinimalElement(Element[str, str]):
+    class MinimalElement(Element[str]):
         pass
 
     element = MinimalElement("test", [1.0], solver=solver)

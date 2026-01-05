@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import highs_linear_expression
+from highspy.highs import highs_cons, highs_linear_expression
 
 from custom_components.haeo.model.reactive import (
     CachedConstraint,
@@ -338,19 +338,21 @@ class TestApplyConstraints:
 
         class Element(ReactiveElement):
             @cached_constraint
-            def my_constraint(self) -> list[highs_linear_expression]:
-                # Return a valid constraint expression with bounds
-                return [x <= 5.0]
+            def my_constraint(self) -> list[highs_cons]:
+                # Constraint methods call addConstrs and return highs_cons
+                return solver.addConstrs([x <= 5.0])
 
         elem = Element()
+        elem._solver = solver  # type: ignore[attr-defined]
 
-        elem.apply_constraints(solver)
+        elem.apply_constraints()
 
         # Constraint should be tracked in _applied_constraints
         assert "my_constraint" in elem._applied_constraints
 
     def test_apply_constraints_skips_none_result(self) -> None:
         """Test that apply_constraints handles None result gracefully."""
+        solver = Highs()
 
         class Element(ReactiveElement):
             @cached_constraint
@@ -359,8 +361,9 @@ class TestApplyConstraints:
 
         elem = Element()
         solver = Highs()
+        elem._solver = solver  # type: ignore[attr-defined]
 
-        elem.apply_constraints(solver)
+        elem.apply_constraints()
 
         # No constraint should be added
         assert "my_constraint" not in elem._applied_constraints

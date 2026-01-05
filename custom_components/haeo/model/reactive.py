@@ -18,6 +18,7 @@ from typing import Any, TypeVar, overload
 
 from highspy import Highs
 from highspy.highs import highs_cons, highs_linear_expression
+import numpy as np
 
 T = TypeVar("T")
 
@@ -78,8 +79,24 @@ class TrackedParam[T]:
         old = getattr(obj, self._private, _UNSET)
         setattr(obj, self._private, value)
         # Only invalidate if value actually changed and is not initial set
-        if old is not _UNSET and old != value:
+        if old is not _UNSET and not _values_equal(old, value):
             obj.invalidate_dependents(self._name)
+
+
+def _values_equal(a: object, b: object) -> bool:
+    """Compare two values for equality, handling numpy arrays."""
+    # Handle numpy array comparisons
+    if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        try:
+            # Cast to ArrayLike to satisfy type checker
+            return bool(np.array_equal(a, b))  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return False
+    # Standard equality for other types
+    try:
+        return bool(a == b)
+    except (TypeError, ValueError):
+        return False
 
 
 # Sentinel for unset values
@@ -121,9 +138,7 @@ class CachedMethod:
     @overload
     def __get__(self, obj: "ReactiveElement", objtype: type) -> Callable[[], Any]: ...
 
-    def __get__(
-        self, obj: "ReactiveElement | None", objtype: type
-    ) -> "CachedMethod | Callable[[], Any]":
+    def __get__(self, obj: "ReactiveElement | None", objtype: type) -> "CachedMethod | Callable[[], Any]":
         """Return bound method that uses caching."""
         if obj is None:
             return self
@@ -200,6 +215,7 @@ class ReactiveElement:
             CachedKind.COST: set(),
         }
         self._applied_constraints: dict[str, highs_cons | list[highs_cons]] = {}
+        self._applied_costs: dict[str, highs_linear_expression | list[highs_linear_expression] | None] = {}
 
     # Unified cache access methods (called by CachedMethod)
 
@@ -237,16 +253,15 @@ class ReactiveElement:
 
     # Constraint application methods
 
-    def apply_constraints(self, solver: Highs) -> None:
+    def apply_constraints(self) -> None:
         """Apply any invalidated constraints to the solver.
 
         For constraints that haven't been applied yet, adds them to the solver.
         For constraints that exist, updates coefficients and bounds in-place.
 
-        Args:
-            solver: The HiGHS solver instance
-
+        Requires self._solver to be set (typically by Element.__init__).
         """
+        solver = self._solver  # type: ignore[attr-defined]
         # Find all cached_constraint methods on this class
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
@@ -256,30 +271,54 @@ class ReactiveElement:
     def _apply_single_constraint(self, solver: Highs, constraint_name: str) -> None:
         """Apply a single constraint method to the solver.
 
+        The constraint method is responsible for calling solver.addConstr() or
+        solver.addConstrs() and returning the resulting highs_cons object(s).
+
         Args:
             solver: The HiGHS solver instance
             constraint_name: Name of the cached_constraint method
 
         """
-        # Get the constraint method and call it (uses cache if valid)
-        method = getattr(self, constraint_name)
-        expr = method()
-
-        if expr is None:
+        # Check if already applied and not invalidated
+        is_invalidated = constraint_name in self._invalidated[CachedKind.CONSTRAINT]
+        existing = self._applied_constraints.get(constraint_name)
+        if existing is not None and not is_invalidated:
             return
 
-        existing = self._applied_constraints.get(constraint_name)
+        # If invalidated and we have existing constraints, delete them before rebuilding
+        if existing is not None and is_invalidated:
+            self._delete_constraints(solver, existing)
+            del self._applied_constraints[constraint_name]
 
-        if existing is None:
-            # First time: add constraint to solver
-            if isinstance(expr, list):
-                self._applied_constraints[constraint_name] = solver.addConstrs(expr)
-            else:
-                self._applied_constraints[constraint_name] = solver.addConstr(expr)
-        elif constraint_name in self._invalidated[CachedKind.CONSTRAINT]:
-            # Update existing constraint(s)
-            self._update_constraint(solver, existing, expr)
-            self._invalidated[CachedKind.CONSTRAINT].discard(constraint_name)
+        # Get the constraint method and call it (adds constraint to solver and returns highs_cons)
+        method = getattr(self, constraint_name)
+        result = method()
+
+        if result is None:
+            return
+
+        # Store the constraint(s) - the method already added them to the solver
+        self._applied_constraints[constraint_name] = result
+        self._invalidated[CachedKind.CONSTRAINT].discard(constraint_name)
+
+    def _delete_constraints(
+        self,
+        solver: Highs,
+        constraints: highs_cons | list[highs_cons],
+    ) -> None:
+        """Delete constraint(s) from the solver.
+
+        Args:
+            solver: The HiGHS solver instance
+            constraints: The constraint(s) to delete
+
+        """
+        if isinstance(constraints, list):
+            indices = [cons.index for cons in constraints]
+            if indices:
+                solver.deleteRows(len(indices), indices)
+        else:
+            solver.deleteRows(1, [constraints.index])
 
     def _update_constraint(
         self,
@@ -339,31 +378,25 @@ class ReactiveElement:
             if old_val != new_val:
                 solver.changeCoeff(cons.index, var_idx, new_val)
 
-    def apply_costs(self, solver: Highs) -> None:
-        """Apply any invalidated cost expressions to the solver.
+    def apply_costs(self) -> None:
+        """Apply any invalidated cost expressions.
 
-        For costs that haven't been applied yet, this is handled by minimize().
-        For costs that have changed, updates objective coefficients in-place.
+        Evaluates cost methods and stores results in _applied_costs.
+        The Network.optimize() method collects these and sets the objective.
 
-        Args:
-            solver: The HiGHS solver instance
-
+        Requires self._solver to be set (typically by Element.__init__).
         """
         # Find all cached_cost methods on this class
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
+            # Check if we need to recompute
             if (
                 isinstance(attr, CachedMethod)
                 and attr.kind == CachedKind.COST
-                and name in self._invalidated[CachedKind.COST]
+                and (name not in self._applied_costs or name in self._invalidated[CachedKind.COST])
             ):
                 # Get the cost method and call it (uses cache if valid)
                 method = getattr(self, name)
-                cost_exprs = method()
-
-                # Update objective coefficients for each expression
-                for expr in cost_exprs:
-                    for var_idx, coeff in zip(expr.idxs, expr.vals, strict=True):
-                        solver.changeColCost(var_idx, coeff)
-
+                cost_value = method()
+                self._applied_costs[name] = cost_value
                 self._invalidated[CachedKind.COST].discard(name)

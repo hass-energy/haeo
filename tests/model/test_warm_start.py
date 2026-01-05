@@ -1,4 +1,8 @@
-"""Unit tests for warm start optimization functionality."""
+"""Unit tests for reactive warm start optimization functionality.
+
+With the reactive pattern, parameters are updated directly on elements via TrackedParam,
+and the caching system automatically invalidates and rebuilds only the affected constraints.
+"""
 
 import numpy as np
 import pytest
@@ -8,11 +12,11 @@ from custom_components.haeo.model.battery import Battery
 from custom_components.haeo.model.power_connection import PowerConnection
 
 
-class TestBatteryUpdate:
-    """Tests for Battery.update() method."""
+class TestBatteryReactiveUpdate:
+    """Tests for Battery parameter updates via TrackedParam."""
 
     def test_update_capacity_modifies_soc_constraints(self) -> None:
-        """Test that updating capacity modifies SOC max constraint bounds."""
+        """Test that setting capacity directly invalidates and rebuilds SOC constraints."""
         network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
         # Add battery and run initial optimization
@@ -32,26 +36,24 @@ class TestBatteryUpdate:
         # First optimization
         cost1 = network.optimize()
 
-        # Update battery capacity (simulate SOC sensor update)
+        # Update battery capacity via TrackedParam (must be sequence for T+1 boundaries)
         battery = network.elements["battery"]
         assert isinstance(battery, Battery)
-        battery.update(capacity=20.0)
+        battery.capacity = (20.0, 20.0, 20.0, 20.0)
 
         # Second optimization should use updated capacity
         cost2 = network.optimize()
 
         # Verify battery capacity was updated
-        assert np.all(battery.capacity == 20.0)
+        assert np.all(np.array(battery.capacity) == 20.0)
 
         # Cost should be different with larger capacity (more flexibility)
-        # With larger capacity, may be able to store more or discharge more
-        # The exact difference depends on the optimization, but they shouldn't be identical
-        # unless the scenario doesn't benefit from extra capacity
+        # Both optimizations should succeed
         assert cost1 is not None
         assert cost2 is not None
 
     def test_update_initial_charge_modifies_constraint(self) -> None:
-        """Test that updating initial_charge modifies the initial state constraint."""
+        """Test that setting initial_charge invalidates the initial state constraint."""
         network = Network(name="test", periods=[1.0])
 
         network.add("battery", "battery", capacity=10.0, initial_charge=2.0)
@@ -68,11 +70,11 @@ class TestBatteryUpdate:
         # First optimization
         cost1 = network.optimize()
 
-        # Update initial charge (simulate battery SOC increasing)
+        # Update initial charge via TrackedParam
         battery = network.elements["battery"]
         assert isinstance(battery, Battery)
         old_initial_charge = battery.initial_charge
-        battery.update(initial_charge=8.0)
+        battery.initial_charge = 8.0
 
         # Verify initial charge was updated in the element
         assert battery.initial_charge == 8.0
@@ -86,7 +88,7 @@ class TestBatteryUpdate:
         assert cost2 is not None
 
     def test_update_with_sequence_capacity(self) -> None:
-        """Test updating capacity with a sequence value."""
+        """Test setting capacity with a sequence value."""
         network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
         network.add("battery", "battery", capacity=10.0, initial_charge=5.0)
@@ -96,17 +98,17 @@ class TestBatteryUpdate:
         assert isinstance(battery, Battery)
 
         # Update with sequence (varying capacity per period boundary)
-        battery.update(capacity=[8.0, 9.0, 10.0, 11.0])  # 4 values for 3 periods + 1
+        battery.capacity = [8.0, 9.0, 10.0, 11.0]  # 4 values for 3 periods + 1
 
         assert len(battery.capacity) == 4
         np.testing.assert_array_equal(battery.capacity, [8.0, 9.0, 10.0, 11.0])
 
 
-class TestConnectionUpdate:
-    """Tests for PowerConnection.update() method."""
+class TestConnectionReactiveUpdate:
+    """Tests for PowerConnection parameter updates via TrackedParam."""
 
     def test_update_max_power_source_target(self) -> None:
-        """Test updating max_power_source_target modifies constraint bounds."""
+        """Test setting max_power_source_target invalidates constraint bounds."""
         network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
         network.add("node", "source", is_source=True, is_sink=False)
@@ -126,8 +128,8 @@ class TestConnectionUpdate:
         connection = network.elements["conn"]
         assert isinstance(connection, PowerConnection)
 
-        # Update max power
-        connection.update(max_power_source_target=10.0)
+        # Update max power via TrackedParam
+        connection.max_power_source_target = 10.0
 
         # Verify max power was updated
         np.testing.assert_array_equal(connection.max_power_source_target, [10.0, 10.0, 10.0])
@@ -137,7 +139,7 @@ class TestConnectionUpdate:
         assert cost2 is not None
 
     def test_update_price_source_target(self) -> None:
-        """Test updating price_source_target modifies objective coefficients."""
+        """Test setting price_source_target invalidates objective coefficients."""
         network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
         network.add("node", "source", is_source=True, is_sink=False)
@@ -158,8 +160,8 @@ class TestConnectionUpdate:
         connection = network.elements["conn"]
         assert isinstance(connection, PowerConnection)
 
-        # Update price to double
-        connection.update(price_source_target=0.20)
+        # Update price via TrackedParam
+        connection.price_source_target = 0.20
 
         # Second optimization - cost = 5 kW * 3 hours * $0.20/kWh = $3.00
         cost2 = network.optimize()
@@ -168,7 +170,7 @@ class TestConnectionUpdate:
         assert pytest.approx(cost2 / cost1, rel=1e-6) == 2.0
 
     def test_update_max_power_target_source(self) -> None:
-        """Test updating max_power_target_source modifies constraint bounds."""
+        """Test setting max_power_target_source invalidates constraint bounds."""
         network = Network(name="test", periods=[1.0])
 
         network.add("node", "source", is_source=True, is_sink=True)
@@ -187,11 +189,11 @@ class TestConnectionUpdate:
         connection = network.elements["conn"]
         assert isinstance(connection, PowerConnection)
 
-        connection.update(max_power_target_source=7.0)
+        connection.max_power_target_source = 7.0
         np.testing.assert_array_equal(connection.max_power_target_source, [7.0])
 
     def test_update_price_target_source(self) -> None:
-        """Test updating price_target_source modifies objective coefficients."""
+        """Test setting price_target_source invalidates objective coefficients."""
         network = Network(name="test", periods=[1.0])
 
         # Battery starts empty, needs to charge from grid
@@ -216,8 +218,8 @@ class TestConnectionUpdate:
         connection = network.elements["conn"]
         assert isinstance(connection, PowerConnection)
 
-        # Double the import price
-        connection.update(price_target_source=0.30)
+        # Double the import price via TrackedParam
+        connection.price_target_source = 0.30
 
         cost2 = network.optimize()
         # Still no incentive to charge, so no cost
@@ -227,7 +229,7 @@ class TestConnectionUpdate:
         np.testing.assert_array_equal(connection.price_target_source, [0.30])
 
     def test_update_with_sequence_values(self) -> None:
-        """Test updating connection parameters with sequence values."""
+        """Test setting connection parameters with sequence values."""
         network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
         network.add("node", "source", is_source=True, is_sink=False)
@@ -246,57 +248,13 @@ class TestConnectionUpdate:
         connection = network.elements["conn"]
         assert isinstance(connection, PowerConnection)
 
-        # Update with varying prices per period
-        connection.update(price_source_target=[0.05, 0.10, 0.15])
+        # Update with varying prices per period via TrackedParam
+        connection.price_source_target = [0.05, 0.10, 0.15]
         np.testing.assert_array_equal(connection.price_source_target, [0.05, 0.10, 0.15])
 
 
 class TestNetworkWarmStart:
-    """Tests for Network warm start behavior."""
-
-    def test_add_updates_existing_element(self) -> None:
-        """Test that add() updates existing elements instead of creating new ones."""
-        network = Network(name="test", periods=[1.0, 1.0, 1.0])
-
-        # Add battery
-        battery1 = network.add("battery", "battery", capacity=10.0, initial_charge=5.0)
-        assert isinstance(battery1, Battery)
-
-        # First optimization
-        network.optimize()
-
-        # "Add" same battery with different parameters - should update
-        battery2 = network.add("battery", "battery", capacity=20.0, initial_charge=10.0)
-
-        # Should return the same element instance
-        assert battery2 is battery1
-
-        # Parameters should be updated
-        np.testing.assert_array_equal(battery1.capacity, [20.0, 20.0, 20.0, 20.0])
-        assert battery1.initial_charge == 10.0
-
-    def test_constraints_built_flag_prevents_rebuilding(self) -> None:
-        """Test that constraints are only built on first optimization."""
-        network = Network(name="test", periods=[1.0])
-
-        network.add("node", "source", is_source=True, is_sink=False)
-        network.add("node", "sink", is_source=False, is_sink=True)
-        network.add(
-            "connection",
-            "conn",
-            source="source",
-            target="sink",
-            max_power_source_target=5.0,
-        )
-
-        # First optimization builds constraints
-        assert network._constraints_built is False
-        network.optimize()
-        assert network._constraints_built is True
-
-        # Second optimization skips constraint building
-        network.optimize()
-        assert network._constraints_built is True
+    """Tests for Network warm start behavior with reactive pattern."""
 
     def test_warm_start_produces_same_result(self) -> None:
         """Test that warm start optimization produces same result as cold start."""
@@ -334,19 +292,19 @@ class TestNetworkWarmStart:
         # First optimization
         network2.optimize()
 
-        # Update to same parameters as network1
+        # Update to same parameters as network1 via TrackedParam
+        # (capacity must be sequence for T+1 boundaries)
         battery = network2.elements["battery"]
         assert isinstance(battery, Battery)
-        battery.update(capacity=10.0, initial_charge=5.0)
+        battery.capacity = (10.0, 10.0, 10.0, 10.0)
+        battery.initial_charge = 5.0
 
         connection = network2.elements["conn"]
         assert isinstance(connection, PowerConnection)
-        connection.update(
-            max_power_source_target=5.0,
-            max_power_target_source=5.0,
-            price_source_target=-0.10,
-            price_target_source=0.15,
-        )
+        connection.max_power_source_target = (5.0, 5.0, 5.0)
+        connection.max_power_target_source = (5.0, 5.0, 5.0)
+        connection.price_source_target = (-0.10, -0.10, -0.10)
+        connection.price_target_source = (0.15, 0.15, 0.15)
 
         # Second optimization (warm start)
         cost2 = network2.optimize()
