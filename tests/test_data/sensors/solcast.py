@@ -7,11 +7,7 @@ VALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.solcast_forecast",
         "state": "0",
-        "attributes": {
-            "detailedForecast": [
-                {"period_start": "2025-10-06T00:00:00+11:00", "pv_estimate": 0}
-            ]
-        },
+        "attributes": {"detailedForecast": [{"period_start": "2025-10-06T00:00:00+11:00", "pv_estimate": 0}]},
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
         "expected_data": [(1759669200.0, 0.0)],
@@ -86,9 +82,7 @@ INVALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.solcast_bad_timestamp",
         "state": "0",
-        "attributes": {
-            "detailedForecast": [{"period_start": "not a timestamp", "pv_estimate": 100}]
-        },
+        "attributes": {"detailedForecast": [{"period_start": "not a timestamp", "pv_estimate": 100}]},
         "expected_format": None,
         "description": "Solcast sensor with invalid timestamp",
     },

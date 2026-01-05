@@ -46,12 +46,7 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "amber2mqtt",
         "expected_unit": "$/kWh",
-        "expected_data": [
-            (1759662000.0, 0.13),
-            (np.nextafter(1759662300.0, -np.inf), 0.13),
-            (1759662300.0, 0.15),
-            (1759662600.0, 0.15)
-        ],
+        "expected_data": [(1759662000.0, 0.13), (np.nextafter(1759662300.0, -np.inf), 0.13), (1759662300.0, 0.15), (1759662600.0, 0.15)],
         "description": "Multiple Amber2MQTT forecast entries",
     },
     {
@@ -65,7 +60,7 @@ VALID: list[dict[str, Any]] = [
                     "start_time": "2025-10-05T11:00:01+00:00",
                     "end_time": "2025-10-05T11:05:00+00:00",
                 }
-            ]
+            ],
         },
         "expected_format": "amber2mqtt",
         "expected_unit": "$/kWh",
@@ -83,7 +78,7 @@ VALID: list[dict[str, Any]] = [
                     "start_time": "2025-10-05T11:00:01+00:00",
                     "end_time": "2025-10-05T11:05:00+00:00",
                 }
-            ]
+            ],
         },
         "expected_format": "amber2mqtt",
         "expected_unit": "$/kWh",
@@ -131,18 +126,14 @@ INVALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.amber2mqtt_missing_end_time",
         "state": "0.13",
-        "attributes": {
-            "Forecasts": [{"start_time": "2025-10-05T11:00:01+00:00", "per_kwh": 0.13}]
-        },
+        "attributes": {"Forecasts": [{"start_time": "2025-10-05T11:00:01+00:00", "per_kwh": 0.13}]},
         "expected_format": None,
         "description": "Amber2MQTT forecast missing end_time",
     },
     {
         "entity_id": "sensor.amber2mqtt_bad_timestamp",
         "state": "0.13",
-        "attributes": {
-            "Forecasts": [{"start_time": "not a timestamp", "end_time": "2025-10-05T11:05:00+00:00", "per_kwh": 0.1}]
-        },
+        "attributes": {"Forecasts": [{"start_time": "not a timestamp", "end_time": "2025-10-05T11:05:00+00:00", "per_kwh": 0.1}]},
         "expected_format": None,
         "description": "Amber2MQTT forecast with invalid timestamp",
     },

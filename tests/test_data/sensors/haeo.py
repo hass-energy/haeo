@@ -171,9 +171,7 @@ INVALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.haeo_missing_unit",
         "state": "0",
-        "attributes": {
-            "forecast": [{"time": "2025-10-06T00:00:00+11:00", "value": 100.0}]
-        },
+        "attributes": {"forecast": [{"time": "2025-10-06T00:00:00+11:00", "value": 100.0}]},
         "expected_format": None,
         "description": "HAEO sensor missing unit_of_measurement attribute",
     },
