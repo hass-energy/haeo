@@ -10,8 +10,9 @@ The pattern is inspired by reactive frameworks like MobX:
 - Parameter changes invalidate only dependent constraints
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from contextvars import ContextVar
+from enum import Enum, auto
 from functools import partial
 from typing import Any, TypeVar, overload
 
@@ -22,6 +23,13 @@ T = TypeVar("T")
 
 # Context for tracking parameter access during constraint computation
 _tracking_context: ContextVar[set[str] | None] = ContextVar("tracking", default=None)
+
+
+class CachedKind(Enum):
+    """Kind of cached method for reflection-based discovery."""
+
+    CONSTRAINT = auto()
+    COST = auto()
 
 
 class TrackedParam[T]:
@@ -87,11 +95,62 @@ class _UnsetType:
 _UNSET = _UnsetType()
 
 
-class CachedConstraint:
-    """Descriptor/decorator that caches constraint expressions with automatic dependency tracking.
+class CachedMethod:
+    """Base descriptor/decorator that caches method results with automatic dependency tracking.
 
     On first call, tracks which TrackedParam values are accessed and caches the result.
-    Subsequent calls return cached result unless the constraint was invalidated.
+    Subsequent calls return cached result unless the method was invalidated.
+
+    Subclasses set `kind` to distinguish constraints from costs for reflection-based discovery.
+    """
+
+    kind: CachedKind  # Set by subclasses
+
+    def __init__(self, fn: Callable[..., Any]) -> None:
+        """Initialize with the method."""
+        self._fn = fn
+        self._name: str = fn.__name__
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        """Store the method name."""
+        self._name = name
+
+    @overload
+    def __get__(self, obj: None, objtype: type) -> "CachedMethod": ...
+
+    @overload
+    def __get__(self, obj: "ReactiveElement", objtype: type) -> Callable[[], Any]: ...
+
+    def __get__(
+        self, obj: "ReactiveElement | None", objtype: type
+    ) -> "CachedMethod | Callable[[], Any]":
+        """Return bound method that uses caching."""
+        if obj is None:
+            return self
+        return partial(self._call, obj)
+
+    def _call(self, obj: "ReactiveElement") -> Any:
+        """Execute with caching and dependency tracking."""
+        # Return cached if not invalidated
+        if obj.has_cached(self.kind, self._name) and not obj.is_invalidated(self.kind, self._name):
+            return obj.get_cached(self.kind, self._name)
+
+        # Track parameter access during computation
+        tracking: set[str] = set()
+        token = _tracking_context.set(tracking)
+        try:
+            result = self._fn(obj)
+        finally:
+            _tracking_context.reset(token)
+
+        # Store result and dependencies
+        obj.set_cached(self.kind, self._name, result, tracking)
+
+        return result
+
+
+class CachedConstraint(CachedMethod):
+    """Decorator that caches constraint expressions with automatic dependency tracking.
 
     Usage:
         class Battery(ReactiveElement):
@@ -103,105 +162,17 @@ class CachedConstraint:
 
     """
 
-    def __init__(self, fn: Callable[..., Any]) -> None:
-        """Initialize with the constraint method."""
-        self._fn = fn
-        self._name: str = fn.__name__
-
-    def __set_name__(self, owner: type, name: str) -> None:
-        """Store the constraint name."""
-        self._name = name
-
-    @overload
-    def __get__(self, obj: None, objtype: type) -> "CachedConstraint": ...
-
-    @overload
-    def __get__(self, obj: "ReactiveElement", objtype: type) -> Callable[[], Any]: ...
-
-    def __get__(
-        self, obj: "ReactiveElement | None", objtype: type
-    ) -> "CachedConstraint | Callable[[], Any]":
-        """Return bound method that uses caching."""
-        if obj is None:
-            return self
-        return partial(self._call, obj)
-
-    def _call(self, obj: "ReactiveElement") -> Any:
-        """Execute with caching and dependency tracking."""
-        # Return cached if not invalidated
-        if obj.has_cached_constraint(self._name) and not obj.is_constraint_invalidated(self._name):
-            return obj.get_cached_constraint(self._name)
-
-        # Track parameter access during computation
-        tracking: set[str] = set()
-        token = _tracking_context.set(tracking)
-        try:
-            result = self._fn(obj)
-        finally:
-            _tracking_context.reset(token)
-
-        # Store result and dependencies
-        obj.cache_constraint(self._name, result, tracking)
-
-        return result
+    kind = CachedKind.CONSTRAINT
 
 
-# Convenient decorator alias
+class CachedCost(CachedMethod):
+    """Decorator that caches cost expressions with automatic dependency tracking."""
+
+    kind = CachedKind.COST
+
+
+# Convenient decorator aliases
 cached_constraint = CachedConstraint
-
-
-class CachedCost:
-    """Descriptor/decorator that caches cost expressions with automatic dependency tracking.
-
-    Similar to CachedConstraint but for objective function contributions.
-    """
-
-    def __init__(self, fn: Callable[..., Sequence[highs_linear_expression]]) -> None:
-        """Initialize with the cost method."""
-        self._fn = fn
-        self._name: str = fn.__name__
-
-    def __set_name__(self, owner: type, name: str) -> None:
-        """Store the cost method name."""
-        self._name = name
-
-    @overload
-    def __get__(self, obj: None, objtype: type) -> "CachedCost": ...
-
-    @overload
-    def __get__(
-        self, obj: "ReactiveElement", objtype: type
-    ) -> Callable[[], Sequence[highs_linear_expression]]: ...
-
-    def __get__(
-        self, obj: "ReactiveElement | None", objtype: type
-    ) -> "CachedCost | Callable[[], Sequence[highs_linear_expression]]":
-        """Return bound method that uses caching."""
-        if obj is None:
-            return self
-        return partial(self._call, obj)
-
-    def _call(self, obj: "ReactiveElement") -> Sequence[highs_linear_expression]:
-        """Execute with caching and dependency tracking."""
-        # Return cached if not invalidated
-        if obj.has_cached_cost(self._name) and not obj.is_cost_invalidated(self._name):
-            return obj.get_cached_cost(self._name)
-
-        # Track parameter access during computation
-        tracking: set[str] = set()
-        token = _tracking_context.set(tracking)
-        try:
-            result = self._fn(obj)
-        finally:
-            _tracking_context.reset(token)
-
-        # Store result and dependencies
-        obj.cache_cost(self._name, result, tracking)
-
-        return result
-
-
-# Convenient decorator alias
 cached_cost = CachedCost
 
 
@@ -209,78 +180,60 @@ class ReactiveElement:
     """Mixin providing reactive parameter and constraint caching infrastructure.
 
     Elements inheriting from this class can use TrackedParam for parameters
-    and @cached_constraint for constraint methods. Dependency tracking is automatic.
+    and @cached_constraint/@cached_cost for methods. Dependency tracking is automatic.
     """
 
     def __init__(self) -> None:
         """Initialize reactive infrastructure."""
         super().__init__()
-        self._invalidated: set[str] = set()
-        self._constraint_cache: dict[str, Any] = {}
-        self._constraint_deps: dict[str, set[str]] = {}
+        # Unified cache storage indexed by kind
+        self._cache: dict[CachedKind, dict[str, Any]] = {
+            CachedKind.CONSTRAINT: {},
+            CachedKind.COST: {},
+        }
+        self._deps: dict[CachedKind, dict[str, set[str]]] = {
+            CachedKind.CONSTRAINT: {},
+            CachedKind.COST: {},
+        }
+        self._invalidated: dict[CachedKind, set[str]] = {
+            CachedKind.CONSTRAINT: set(),
+            CachedKind.COST: set(),
+        }
         self._applied_constraints: dict[str, highs_cons | list[highs_cons]] = {}
-        self._invalidated_costs: set[str] = set()
-        self._cost_cache: dict[str, Sequence[highs_linear_expression]] = {}
-        self._cost_deps: dict[str, set[str]] = {}
 
-    # Cache access methods for constraints (called by CachedConstraint)
+    # Unified cache access methods (called by CachedMethod)
 
-    def has_cached_constraint(self, name: str) -> bool:
-        """Check if a constraint is cached."""
-        return name in self._constraint_cache
+    def has_cached(self, kind: CachedKind, name: str) -> bool:
+        """Check if a method result is cached."""
+        return name in self._cache[kind]
 
-    def is_constraint_invalidated(self, name: str) -> bool:
-        """Check if a constraint is invalidated."""
-        return name in self._invalidated
+    def is_invalidated(self, kind: CachedKind, name: str) -> bool:
+        """Check if a method result is invalidated."""
+        return name in self._invalidated[kind]
 
-    def get_cached_constraint(self, name: str) -> Any:
-        """Get a cached constraint."""
-        return self._constraint_cache[name]
+    def get_cached(self, kind: CachedKind, name: str) -> Any:
+        """Get a cached result."""
+        return self._cache[kind][name]
 
-    def cache_constraint(self, name: str, result: Any, deps: set[str]) -> None:
-        """Cache a constraint with its dependencies."""
-        self._constraint_cache[name] = result
-        self._constraint_deps[name] = deps
-        self._invalidated.discard(name)
-
-    # Cache access methods for costs (called by CachedCost)
-
-    def has_cached_cost(self, name: str) -> bool:
-        """Check if a cost is cached."""
-        return name in self._cost_cache
-
-    def is_cost_invalidated(self, name: str) -> bool:
-        """Check if a cost is invalidated."""
-        return name in self._invalidated_costs
-
-    def get_cached_cost(self, name: str) -> Sequence[highs_linear_expression]:
-        """Get a cached cost."""
-        return self._cost_cache[name]
-
-    def cache_cost(self, name: str, result: Sequence[highs_linear_expression], deps: set[str]) -> None:
-        """Cache a cost with its dependencies."""
-        self._cost_cache[name] = result
-        self._cost_deps[name] = deps
-        self._invalidated_costs.discard(name)
+    def set_cached(self, kind: CachedKind, name: str, result: Any, deps: set[str]) -> None:
+        """Cache a result with its dependencies."""
+        self._cache[kind][name] = result
+        self._deps[kind][name] = deps
+        self._invalidated[kind].discard(name)
 
     # Dependency tracking
 
     def invalidate_dependents(self, param_name: str) -> None:
-        """Mark constraints and costs that depend on the given parameter as needing recomputation.
+        """Mark methods that depend on the given parameter as needing recomputation.
 
         Args:
             param_name: The parameter name that changed
 
         """
-        # Invalidate constraints that depend on this parameter
-        for constraint_name, deps in self._constraint_deps.items():
-            if param_name in deps:
-                self._invalidated.add(constraint_name)
-
-        # Invalidate costs that depend on this parameter
-        for cost_name, deps in self._cost_deps.items():
-            if param_name in deps:
-                self._invalidated_costs.add(cost_name)
+        for kind in CachedKind:
+            for method_name, deps in self._deps[kind].items():
+                if param_name in deps:
+                    self._invalidated[kind].add(method_name)
 
     # Constraint application methods
 
@@ -297,7 +250,7 @@ class ReactiveElement:
         # Find all cached_constraint methods on this class
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
-            if isinstance(attr, CachedConstraint):
+            if isinstance(attr, CachedMethod) and attr.kind == CachedKind.CONSTRAINT:
                 self._apply_single_constraint(solver, name)
 
     def _apply_single_constraint(self, solver: Highs, constraint_name: str) -> None:
@@ -323,10 +276,10 @@ class ReactiveElement:
                 self._applied_constraints[constraint_name] = solver.addConstrs(expr)
             else:
                 self._applied_constraints[constraint_name] = solver.addConstr(expr)
-        elif constraint_name in self._invalidated:
+        elif constraint_name in self._invalidated[CachedKind.CONSTRAINT]:
             # Update existing constraint(s)
             self._update_constraint(solver, existing, expr)
-            self._invalidated.discard(constraint_name)
+            self._invalidated[CachedKind.CONSTRAINT].discard(constraint_name)
 
     def _update_constraint(
         self,
@@ -399,7 +352,11 @@ class ReactiveElement:
         # Find all cached_cost methods on this class
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
-            if isinstance(attr, CachedCost) and name in self._invalidated_costs:
+            if (
+                isinstance(attr, CachedMethod)
+                and attr.kind == CachedKind.COST
+                and name in self._invalidated[CachedKind.COST]
+            ):
                 # Get the cost method and call it (uses cache if valid)
                 method = getattr(self, name)
                 cost_exprs = method()
@@ -409,4 +366,4 @@ class ReactiveElement:
                     for var_idx, coeff in zip(expr.idxs, expr.vals, strict=True):
                         solver.changeColCost(var_idx, coeff)
 
-                self._invalidated_costs.discard(name)
+                self._invalidated[CachedKind.COST].discard(name)

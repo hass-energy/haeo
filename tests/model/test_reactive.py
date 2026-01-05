@@ -9,6 +9,7 @@ from highspy.highs import highs_linear_expression
 from custom_components.haeo.model.reactive import (
     CachedConstraint,
     CachedCost,
+    CachedKind,
     ReactiveElement,
     TrackedParam,
     cached_constraint,
@@ -39,8 +40,9 @@ class TestTrackedParam:
         elem = Element()
         elem.capacity = 10.0
 
-        # No constraints defined yet, but _invalidated should be empty
-        assert len(elem._invalidated) == 0
+        # No constraints defined yet, but _invalidated should be empty for all kinds
+        assert len(elem._invalidated[CachedKind.CONSTRAINT]) == 0
+        assert len(elem._invalidated[CachedKind.COST]) == 0
 
     def test_change_value_invalidates_dependents(self) -> None:
         """Test that changing a value invalidates dependent constraints."""
@@ -58,14 +60,14 @@ class TestTrackedParam:
 
         # Call constraint to establish dependency
         elem.soc_constraint()
-        assert "soc_constraint" in elem._constraint_deps
-        assert "capacity" in elem._constraint_deps["soc_constraint"]
+        assert "soc_constraint" in elem._deps[CachedKind.CONSTRAINT]
+        assert "capacity" in elem._deps[CachedKind.CONSTRAINT]["soc_constraint"]
 
         # Change value
         elem.capacity = 20.0
 
         # Constraint should be invalidated
-        assert "soc_constraint" in elem._invalidated
+        assert "soc_constraint" in elem._invalidated[CachedKind.CONSTRAINT]
 
     def test_same_value_does_not_invalidate(self) -> None:
         """Test that setting the same value does not invalidate."""
@@ -86,7 +88,7 @@ class TestTrackedParam:
         elem.capacity = 10.0
 
         # Should not be invalidated
-        assert "soc_constraint" not in elem._invalidated
+        assert "soc_constraint" not in elem._invalidated[CachedKind.CONSTRAINT]
 
     def test_class_access_returns_descriptor(self) -> None:
         """Test accessing TrackedParam on class returns the descriptor."""
@@ -146,7 +148,7 @@ class TestCachedConstraint:
 
         # Change capacity (invalidates constraint)
         elem.capacity = 10.0
-        assert "my_constraint" in elem._invalidated
+        assert "my_constraint" in elem._invalidated[CachedKind.CONSTRAINT]
 
         # Next call should recompute
         result2 = elem.my_constraint()
@@ -170,7 +172,7 @@ class TestCachedConstraint:
 
         elem.combined_constraint()
 
-        deps = elem._constraint_deps["combined_constraint"]
+        deps = elem._deps[CachedKind.CONSTRAINT]["combined_constraint"]
         assert "capacity" in deps
         assert "efficiency" in deps
 
@@ -232,7 +234,7 @@ class TestCachedCost:
 
         # Change price (invalidates cost)
         elem.price = 0.50
-        assert "my_cost" in elem._invalidated_costs
+        assert "my_cost" in elem._invalidated[CachedKind.COST]
 
         # Next call should recompute
         elem.my_cost()
@@ -256,13 +258,13 @@ class TestReactiveElement:
         """Test that ReactiveElement initializes all tracking structures."""
         elem = ReactiveElement()
 
-        assert elem._invalidated == set()
-        assert elem._constraint_cache == {}
-        assert elem._constraint_deps == {}
+        assert elem._invalidated[CachedKind.CONSTRAINT] == set()
+        assert elem._invalidated[CachedKind.COST] == set()
+        assert elem._cache[CachedKind.CONSTRAINT] == {}
+        assert elem._cache[CachedKind.COST] == {}
+        assert elem._deps[CachedKind.CONSTRAINT] == {}
+        assert elem._deps[CachedKind.COST] == {}
         assert elem._applied_constraints == {}
-        assert elem._invalidated_costs == set()
-        assert elem._cost_cache == {}
-        assert elem._cost_deps == {}
 
     def test_invalidate_dependents_constraints(self) -> None:
         """Test invalidate_dependents marks correct constraints."""
@@ -299,9 +301,9 @@ class TestReactiveElement:
         # Change 'a' - should invalidate uses_a and uses_both but not uses_b
         elem.a = 10.0
 
-        assert "uses_a" in elem._invalidated
-        assert "uses_both" in elem._invalidated
-        assert "uses_b" not in elem._invalidated
+        assert "uses_a" in elem._invalidated[CachedKind.CONSTRAINT]
+        assert "uses_both" in elem._invalidated[CachedKind.CONSTRAINT]
+        assert "uses_b" not in elem._invalidated[CachedKind.CONSTRAINT]
 
     def test_invalidate_dependents_costs(self) -> None:
         """Test invalidate_dependents marks correct costs."""
@@ -323,7 +325,7 @@ class TestReactiveElement:
         # Change price
         elem.price = 0.50
 
-        assert "price_cost" in elem._invalidated_costs
+        assert "price_cost" in elem._invalidated[CachedKind.COST]
 
 
 class TestApplyConstraints:
