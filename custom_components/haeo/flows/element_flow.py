@@ -10,7 +10,7 @@ This module provides:
 
 from typing import Any, ClassVar, Final
 
-from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
 import voluptuous as vol
@@ -221,21 +221,6 @@ class ElementFlowMixin:
             errors[CONF_NAME] = "name_exists"
             return False
         return True
-
-    def _get_reconfigure_subentry(self) -> ConfigSubentry:
-        """Get the subentry being reconfigured.
-
-        This delegates to the parent class method. Provided here for type hints.
-
-        Returns:
-            The ConfigSubentry being reconfigured.
-
-        Raises:
-            ValueError: If not in a reconfigure flow.
-
-        """
-        # Delegate to ConfigSubentryFlow via super()
-        return super()._get_reconfigure_subentry()  # type: ignore[misc]
 
 
 __all__ = [
