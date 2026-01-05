@@ -73,7 +73,8 @@ class TrackedParam[T]:
         tracking = _tracking_context.get()
         if tracking is not None:
             tracking.add(self._name)
-        return getattr(obj, self._private)
+        # Return UNSET if the parameter has never been set
+        return getattr(obj, self._private, _UNSET)  # type: ignore[return-value]
 
     def __set__(self, obj: "Element[Any]", value: T) -> None:
         """Set the parameter value and invalidate dependent constraints."""
@@ -111,6 +112,36 @@ class _UnsetType:
 
 
 _UNSET = _UnsetType()
+
+# Public alias for use in type hints and checks
+UNSET: _UnsetType = _UNSET
+"""Sentinel value indicating a TrackedParam has not been set.
+
+Use `is_set()` to check if a parameter value has been set.
+"""
+
+
+def is_set(value: object) -> bool:
+    """Check if a TrackedParam value has been set.
+
+    Args:
+        value: The value to check (from a TrackedParam access)
+
+    Returns:
+        True if the value is set (not UNSET), False otherwise
+
+    Example:
+        class MyElement(Element):
+            capacity = TrackedParam[float]()
+
+            @constraint
+            def my_constraint(self) -> highs_linear_expression | None:
+                if not is_set(self.capacity):
+                    return None  # Skip constraint until capacity is set
+                return self.energy <= self.capacity
+
+    """
+    return value is not _UNSET
 
 
 class CachedMethod:
