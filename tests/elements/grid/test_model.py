@@ -127,6 +127,28 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             }
         },
     },
+    {
+        "description": "Grid with export cost only",
+        "name": "grid_export_only",
+        "model_outputs": {
+            "grid_export_only:connection": {
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(6.0,), direction="-"),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
+                power_connection.CONNECTION_COST_TARGET_SOURCE: OutputData(type=OutputType.COST, unit="$", values=(-0.6,), direction="-"),
+                # No import cost - no import pricing was configured
+            }
+        },
+        "outputs": {
+            grid_element.GRID_DEVICE_GRID: {
+                grid_element.GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(6.0,), direction="-"),
+                grid_element.GRID_POWER_IMPORT: OutputData(type=OutputType.POWER, unit="kW", values=(0.0,), direction="+"),
+                grid_element.GRID_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(-6.0,), direction=None),
+                grid_element.GRID_COST_EXPORT: OutputData(type=OutputType.COST, unit="$", values=(-0.6,), direction="+"),
+                grid_element.GRID_COST_NET: OutputData(type=OutputType.COST, unit="$", values=(-0.6,), direction=None),
+                # No import cost - no import pricing was configured
+            }
+        },
+    },
 ]
 
 
