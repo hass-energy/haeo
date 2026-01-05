@@ -39,11 +39,12 @@ Open `htmlcov/index.html` in a browser to see:
 To focus on changes in the current branch:
 
 ```bash
-# Get list of changed Python test files
-git diff main...HEAD --name-only --diff-filter=AM | grep '\.py$' | grep '^tests/' | xargs
+# List changed test files
+git diff main...HEAD --name-only -z --diff-filter=AM -- 'tests/**/*.py' | xargs -0 -n1
 
-# Run coverage while executing only tests for changed files
-uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=term-missing $(git diff main...HEAD --name-only --diff-filter=AM | grep '\.py$' | grep '^tests/' | tr '\n' ' ')
+# Run coverage for changed test files only (safe from shell injection)
+git diff main...HEAD --name-only -z --diff-filter=AM -- 'tests/**/*.py' | \
+    xargs -0 uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=term-missing
 ```
 
 ## Step 2: Analyze Coverage Results

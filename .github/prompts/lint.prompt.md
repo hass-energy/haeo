@@ -31,7 +31,7 @@ uv run pyright
 ### Markdown Formatting
 
 ```bash
-uv run mdformat --check $(git ls-files '*.md' '*.mdx')
+git ls-files -z '*.md' '*.mdx' | xargs -0 uv run mdformat --check
 ```
 
 ### JSON Formatting
@@ -65,7 +65,7 @@ For each tool that reports issues:
 
 ### Markdown Formatting Issues
 
-- Run `uv run mdformat $(git ls-files '*.md' '*.mdx')` to format markdown files
+- Run `git ls-files -z '*.md' '*.mdx' | xargs -0 uv run mdformat` to format markdown files
 - Ensure semantic line breaks (one sentence per line)
 - Follow documentation guidelines from `docs/developer-guide/documentation-guidelines.md`
 
@@ -85,7 +85,7 @@ uv run ruff format --check
 uv run pyright
 
 # Markdown check
-uv run mdformat --check $(git ls-files '*.md' '*.mdx')
+git ls-files -z '*.md' '*.mdx' | xargs -0 uv run mdformat --check
 
 # JSON check
 npx --yes prettier@3 --check .
