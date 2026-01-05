@@ -413,7 +413,7 @@
     "solar": { "name": "{name}" }
   },
   "entity": {
-    "haeo": { "configurable_entity": { "name": "HAEO Configurable" } },
+    "haeo": { "configurable_entity": { "name": "Configurable Entity" } },
     "number": {
       "battery_capacity": { "name": "Capacity" },
       "battery_discharge_cost": { "name": "Discharge cost" },

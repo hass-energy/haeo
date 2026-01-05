@@ -31,7 +31,6 @@ async def async_setup_sentinel_entities() -> None:
             domain=DOMAIN,
             platform=DOMAIN,
             unique_id=CONFIGURABLE_ENTITY_UNIQUE_ID,
-            suggested_object_id="configurable_entity",
             original_name=friendly_name,
             original_icon=ICON,
         )
@@ -39,7 +38,7 @@ async def async_setup_sentinel_entities() -> None:
 
     hass.states.async_set(
         entity_id,
-        "configurable",
+        "configurable_entity",
         {"friendly_name": friendly_name, "icon": ICON},
     )
 
