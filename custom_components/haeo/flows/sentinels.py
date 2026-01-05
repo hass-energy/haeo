@@ -38,7 +38,7 @@ async def async_setup_sentinel_entities() -> None:
 
     hass.states.async_set(
         entity_id,
-        "configurable_entity",
+        "",
         {"friendly_name": friendly_name, "icon": ICON},
     )
 
