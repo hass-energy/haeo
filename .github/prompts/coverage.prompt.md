@@ -40,7 +40,7 @@ To focus on changes in the current branch:
 
 ```bash
 # Get list of changed Python files
-git diff main...HEAD --name-only --diff-filter=AM | grep '\.py$' | grep -E '^(custom_components|tests)/' | grep -v '^tests/' | xargs
+git diff main...HEAD --name-only --diff-filter=AM | grep '\.py$' | grep -E '^(custom_components|tests)/' | grep -v '^tests/'
 
 # Run coverage for changed files only
 uv run pytest --cov=custom_components/haeo --cov-branch --cov-report=term-missing $(git diff main...HEAD --name-only --diff-filter=AM | grep '\.py$' | grep -E '^custom_components/' | tr '\n' ' ')
