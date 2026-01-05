@@ -22,7 +22,6 @@ from .connection import (
     ConnectionConstraintName,
 )
 
-
 type PowerConnectionConstraintName = (
     Literal[
         "connection_shadow_power_max_source_target",
@@ -209,21 +208,21 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
         return Highs.qsum(self.power_target_source * self.price_target_source * self.periods)
 
     @output
-    def output_power_source_target(self) -> OutputData:
+    def connection_power_source_target(self) -> OutputData:
         """Power flow from source to target."""
         return OutputData(
             type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self.power_source_target), direction="+"
         )
 
     @output
-    def output_power_target_source(self) -> OutputData:
+    def connection_power_target_source(self) -> OutputData:
         """Power flow from target to source."""
         return OutputData(
             type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self.power_target_source), direction="-"
         )
 
     @output
-    def output_cost_source_target(self) -> OutputData | None:
+    def connection_cost_source_target(self) -> OutputData | None:
         """Cost for power flow from source to target."""
         if self.price_source_target is None:
             return None
@@ -232,7 +231,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
         return OutputData(type=OutputType.COST, unit="$", values=cost_st, direction="+")
 
     @output
-    def output_cost_target_source(self) -> OutputData | None:
+    def connection_cost_target_source(self) -> OutputData | None:
         """Cost for power flow from target to source."""
         if self.price_target_source is None:
             return None
@@ -241,7 +240,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
         return OutputData(type=OutputType.COST, unit="$", values=cost_ts, direction="-")
 
     @output
-    def output_shadow_power_max_source_target(self) -> OutputData | None:
+    def connection_shadow_power_max_source_target(self) -> OutputData | None:
         """Shadow price for maximum power from source to target."""
         if "power_max_source_target_constraint" not in self._applied_constraints:
             return None
@@ -249,7 +248,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
         return OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=self.extract_values(constraint_value))
 
     @output
-    def output_shadow_power_max_target_source(self) -> OutputData | None:
+    def connection_shadow_power_max_target_source(self) -> OutputData | None:
         """Shadow price for maximum power from target to source."""
         if "power_max_target_source_constraint" not in self._applied_constraints:
             return None
@@ -257,7 +256,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
         return OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=self.extract_values(constraint_value))
 
     @output
-    def output_shadow_time_slice(self) -> OutputData | None:
+    def connection_time_slice(self) -> OutputData | None:
         """Shadow price for time slice constraint."""
         if "time_slice_constraint" not in self._applied_constraints:
             return None
