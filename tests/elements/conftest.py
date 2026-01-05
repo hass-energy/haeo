@@ -26,6 +26,7 @@ async def setup_sentinel_entities(hass: HomeAssistant) -> None:
     """Set up the configurable sentinel entity for element tests."""
     await async_setup_sentinel_entities(hass)
 
+
 # Default forecast times for adapter load tests (0s, 30min)
 FORECAST_TIMES: Final[Sequence[float]] = (0.0, 1800.0)
 

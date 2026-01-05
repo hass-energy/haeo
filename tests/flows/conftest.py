@@ -1,7 +1,7 @@
 """Fixtures for config flow tests."""
 
-import pytest
 from homeassistant.core import HomeAssistant
+import pytest
 
 from custom_components.haeo.flows.sentinels import async_setup_sentinel_entities
 
