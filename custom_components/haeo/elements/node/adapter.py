@@ -6,7 +6,7 @@ from typing import Any, Final, Literal
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model.node import NODE_POWER_BALANCE
+from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import NodeSubentryFlowHandler

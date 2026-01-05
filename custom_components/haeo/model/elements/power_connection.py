@@ -8,6 +8,11 @@ from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.reactive import TrackedParam, constraint, cost, output
+from custom_components.haeo.model.util import broadcast_to_sequence
+
 from .connection import (
     CONNECTION_OUTPUT_NAMES,
     CONNECTION_POWER_SOURCE_TARGET,
@@ -16,10 +21,6 @@ from .connection import (
     Connection,
     ConnectionConstraintName,
 )
-from .const import OutputType
-from .output_data import OutputData
-from .reactive import TrackedParam, constraint, cost, output
-from .util import broadcast_to_sequence
 
 type PowerConnectionConstraintName = (
     Literal[

@@ -5,6 +5,7 @@ from typing import Any
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
+import pytest
 
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import (
@@ -198,12 +199,8 @@ class TestDictStyleAccess:
 
         elem = create_test_element(TestElement)
 
-        try:
+        with pytest.raises(KeyError, match="unknown_param"):
             _ = elem["unknown_param"]
-            msg = "Expected KeyError"
-            raise AssertionError(msg)
-        except KeyError as e:
-            assert "unknown_param" in str(e)
 
     def test_setitem_unknown_key_raises_keyerror(self) -> None:
         """Test that __setitem__ raises KeyError for unknown keys."""
@@ -213,12 +210,8 @@ class TestDictStyleAccess:
 
         elem = create_test_element(TestElement)
 
-        try:
+        with pytest.raises(KeyError, match="unknown_param"):
             elem["unknown_param"] = 123
-            msg = "Expected KeyError"
-            raise AssertionError(msg)
-        except KeyError as e:
-            assert "unknown_param" in str(e)
 
     def test_getitem_regular_attribute_raises_keyerror(self) -> None:
         """Test that __getitem__ raises KeyError for non-TrackedParam attributes."""
@@ -229,12 +222,8 @@ class TestDictStyleAccess:
         elem = create_test_element(TestElement)
 
         # 'name' is a regular attribute, not a TrackedParam
-        try:
+        with pytest.raises(KeyError, match="name"):
             _ = elem["name"]
-            msg = "Expected KeyError"
-            raise AssertionError(msg)
-        except KeyError as e:
-            assert "name" in str(e)
 
 
 class TestCachedConstraint:

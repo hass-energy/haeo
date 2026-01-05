@@ -10,8 +10,8 @@ import pytest
 from custom_components.haeo.model import Network
 from custom_components.haeo.model import network as network_module
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.node import Node
-from custom_components.haeo.model.power_connection import PowerConnection
+from custom_components.haeo.model.elements.node import Node
+from custom_components.haeo.model.elements.power_connection import PowerConnection
 
 # Test constants
 HOURS_PER_DAY = 24

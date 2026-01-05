@@ -9,8 +9,8 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import battery as model_battery
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import BatterySectionSubentryFlowHandler

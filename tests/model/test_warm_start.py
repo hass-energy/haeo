@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 
 from custom_components.haeo.model import Network
-from custom_components.haeo.model.battery import Battery
-from custom_components.haeo.model.power_connection import PowerConnection
+from custom_components.haeo.model.elements.battery import Battery
+from custom_components.haeo.model.elements.power_connection import PowerConnection
 
 
 class TestBatteryReactiveUpdate:

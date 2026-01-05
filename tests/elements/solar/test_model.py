@@ -8,8 +8,9 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import solar as solar_element
 from custom_components.haeo.elements.solar import SolarConfigData
-from custom_components.haeo.model import ModelOutputName, power_connection
+from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
 
 

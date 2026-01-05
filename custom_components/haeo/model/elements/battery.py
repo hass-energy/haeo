@@ -8,11 +8,11 @@ from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
-from .const import OutputType
-from .element import Element
-from .output_data import OutputData
-from .reactive import TrackedParam, constraint, output
-from .util import broadcast_to_sequence
+from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.element import Element
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.reactive import TrackedParam, constraint, output
+from custom_components.haeo.model.util import broadcast_to_sequence
 
 # Type for battery constraint names
 type BatteryConstraintName = Literal[

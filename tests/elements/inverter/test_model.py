@@ -8,9 +8,10 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import inverter as inverter_element
 from custom_components.haeo.elements.inverter import InverterConfigData
-from custom_components.haeo.model import ModelOutputName, power_connection
+from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.node import NODE_POWER_BALANCE
+from custom_components.haeo.model.elements import power_connection
+from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
 

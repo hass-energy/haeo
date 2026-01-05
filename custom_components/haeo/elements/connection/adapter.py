@@ -10,8 +10,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.power_connection import (
+from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_ACTIVE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
@@ -21,6 +20,7 @@ from custom_components.haeo.model.power_connection import (
     POWER_CONNECTION_OUTPUT_NAMES,
     PowerConnectionOutputName,
 )
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import ConnectionSubentryFlowHandler
 from .schema import (

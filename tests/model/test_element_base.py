@@ -5,9 +5,9 @@ from unittest.mock import Mock
 from highspy import Highs
 import pytest
 
-from custom_components.haeo.model.connection import Connection
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.node import Node
+from custom_components.haeo.model.elements.connection import Connection
+from custom_components.haeo.model.elements.node import Node
 
 
 def test_connection_power_with_target_end(solver: Highs) -> None:

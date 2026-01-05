@@ -8,11 +8,12 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import battery as battery_element
 from custom_components.haeo.elements.battery import BatteryConfigData
-from custom_components.haeo.model import ModelOutputName, power_connection
-from custom_components.haeo.model import battery as battery_model
-from custom_components.haeo.model import battery_balance_connection as balance_model
-from custom_components.haeo.model import node as node_model
+from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import battery as battery_model
+from custom_components.haeo.model.elements import battery_balance_connection as balance_model
+from custom_components.haeo.model.elements import node as node_model
+from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
 
 

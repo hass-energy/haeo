@@ -1,7 +1,7 @@
 """Connection element for HAEO integration."""
 
 # Re-export power connection output names from model
-from custom_components.haeo.model.power_connection import (
+from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_ACTIVE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,

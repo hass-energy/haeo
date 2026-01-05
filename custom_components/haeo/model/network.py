@@ -8,12 +8,12 @@ from typing import Any
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
 
-from .battery import Battery
-from .battery_balance_connection import BatteryBalanceConnection
-from .connection import Connection
 from .element import Element
-from .node import Node
-from .power_connection import PowerConnection
+from .elements.battery import Battery
+from .elements.battery_balance_connection import BatteryBalanceConnection
+from .elements.connection import Connection
+from .elements.node import Node
+from .elements.power_connection import PowerConnection
 
 _LOGGER = logging.getLogger(__name__)
 

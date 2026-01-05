@@ -6,10 +6,10 @@ from typing import Final, Literal
 from highspy import Highs
 from highspy.highs import highs_linear_expression
 
-from .const import OutputType
-from .element import Element
-from .output_data import OutputData
-from .reactive import constraint, output
+from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.element import Element
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.reactive import constraint, output
 
 type NodeConstraintName = Literal["node_power_balance"]
 

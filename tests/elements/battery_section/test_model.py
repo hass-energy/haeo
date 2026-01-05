@@ -9,8 +9,8 @@ from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import battery_section as battery_section_element
 from custom_components.haeo.elements.battery_section import BatterySectionConfigData
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model import battery as battery_model
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import battery as battery_model
 from custom_components.haeo.model.output_data import OutputData
 
 

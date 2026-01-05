@@ -6,7 +6,7 @@ from highspy import Highs
 from highspy.highs import HighspyArray
 import pytest
 
-from custom_components.haeo.model.node import Node
+from custom_components.haeo.model.elements.node import Node
 from custom_components.haeo.model.util import broadcast_to_sequence
 
 from . import test_data

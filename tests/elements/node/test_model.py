@@ -10,7 +10,7 @@ from custom_components.haeo.elements import node as node_element
 from custom_components.haeo.elements.node import NodeConfigData
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.node import NODE_POWER_BALANCE
+from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
 

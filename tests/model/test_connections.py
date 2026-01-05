@@ -6,8 +6,8 @@ from highspy import Highs
 from highspy.highs import highs_linear_expression, highs_var
 import pytest
 
-from custom_components.haeo.model.connection import Connection
-from custom_components.haeo.model.power_connection import PowerConnection
+from custom_components.haeo.model.elements.connection import Connection
+from custom_components.haeo.model.elements.power_connection import PowerConnection
 
 from . import test_data
 from .test_data.connection_types import ConnectionTestCase, ConnectionTestCaseInputs

@@ -10,10 +10,10 @@ import numpy as np
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model import battery as model_battery
-from custom_components.haeo.model import battery_balance_connection as model_balance
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.node import NODE_POWER_BALANCE
+from custom_components.haeo.model.elements import battery as model_battery
+from custom_components.haeo.model.elements import battery_balance_connection as model_balance
+from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import BatterySubentryFlowHandler

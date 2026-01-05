@@ -26,7 +26,7 @@ import numpy as np
 from numpy.typing import NDArray
 import pytest
 
-from custom_components.haeo.model.battery_balance_connection import BatteryBalanceConnection
+from custom_components.haeo.model.elements.battery_balance_connection import BatteryBalanceConnection
 
 
 @dataclass

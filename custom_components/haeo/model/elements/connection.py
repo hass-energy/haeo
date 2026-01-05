@@ -10,7 +10,7 @@ from typing import Final, Literal
 from highspy import Highs
 from highspy.highs import HighspyArray
 
-from .element import Element
+from custom_components.haeo.model.element import Element
 
 # Base connection output names - extended by subclasses
 type ConnectionOutputName = Literal[

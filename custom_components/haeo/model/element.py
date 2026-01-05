@@ -12,7 +12,7 @@ from .output_data import OutputData
 from .reactive import CachedKind, CachedMethod, OutputMethod, TrackedParam
 
 if TYPE_CHECKING:
-    from .connection import Connection
+    from .elements.connection import Connection
 
 
 class Element[OutputNameT: str]:
