@@ -18,10 +18,10 @@ graph LR
     Element2 -->|connects to| External
 ```
 
-| Model Element                                               | Name            | Parameters From Configuration |
-| ----------------------------------------------------------- | --------------- | ----------------------------- |
-| [Model Element A](../../modeling/model-layer/battery.md)    | `{name}`        | List key parameters passed    |
-| [Model Element B](../../modeling/model-layer/connection.md) | `{name}:suffix` | List key parameters passed    |
+| Model Element                                                                 | Name            | Parameters From Configuration |
+| ----------------------------------------------------------------------------- | --------------- | ----------------------------- |
+| [Model Element A](../../modeling/model-layer/elements/battery.md)             | `{name}`        | List key parameters passed    |
+| [Model Element B](../../modeling/model-layer/connections/power-connection.md) | `{name}:suffix` | List key parameters passed    |
 
 !!! note "Template Instructions"
 
@@ -29,12 +29,11 @@ graph LR
     - Place external connection targets (nodes) OUTSIDE the subgraph
     - Don't show the Device Layer element itself (implied by page context)
     - Keep model element labels concise
-    - For elements with no external connections (like Node), show only the subgraph
 
 ## Devices Created
 
 Describe the Home Assistant devices created by this element.
-Most elements create a single device, but some (like Battery with multiple SOC sections) may create multiple.
+Most elements create a single device, but some may create multiple.
 
 | Device    | Name            | Created When              | Purpose                         |
 | --------- | --------------- | ------------------------- | ------------------------------- |
@@ -53,21 +52,16 @@ Show the key mappings that aren't obvious.
 
 ## Sensors Created
 
-List all sensors this device creates, organized by device.
+### Sensor Summary
 
-### [Device Name]
+List all sensors this device creates, organized by device.
 
 | Sensor           | Unit | Update    | Description                   |
 | ---------------- | ---- | --------- | ----------------------------- |
 | `sensor_name`    | kW   | Real-time | Description of sensor purpose |
 | `another_sensor` | kWh  | Real-time | Description of sensor purpose |
 
-!!! note "Template Instructions"
-
-    - Use actual sensor entity names (e.g., `power_imported`, not `import_power`)
-    - Verify sensor names match implementation
-    - Group sensors by device if multiple devices are created
-    - Link to forecasts-and-sensors.md for forecast-related sensors
+See [Element Configuration](../../user-guide/elements/%7Belement%7D.md) for detailed sensor and configuration documentation.
 
 ## Configuration Example
 
@@ -107,12 +101,8 @@ Provide practical advice for setting configuration values:
 
 !!! note "Template Instructions"
 
-    When using this template:
-
-    1. Curate Next Steps cards to show 3-4 most relevant actions for readers of this page
-    2. Link to related Device Layer elements (e.g., connecting battery to grid)
-    3. Link to relevant Model Layer documentation for deeper understanding
-    4. Link to user guide for configuration details
+    Curate 3-4 Next Steps cards for readers of this page.
+    Link to related Device Layer elements, Model Layer documentation, or user guides.
 
 <div class="grid cards" markdown>
 

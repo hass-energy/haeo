@@ -26,7 +26,7 @@ When local generation exceeds demand, the shadow price may drop to zero or becom
 
 ## Example: Solar forecast limit
 
-The solar forecast limit constrains photovoltaic output to the predicted generation.
+The solar forecast limit constrains solar output to the predicted generation.
 Its shadow price reveals when this physical limit is restricting the optimizer.
 
 During midday when prices are negative, curtailment may already be occurring.
@@ -71,7 +71,7 @@ The magnitude indicates how valuable additional capacity would be at that point.
 
     Understand how battery constraints generate shadow prices for state-of-charge and energy balance.
 
-    [:material-arrow-right: Battery model](model-layer/battery.md)
+    [:material-arrow-right: Battery model](model-layer/elements/battery.md)
 
 - :material-transmission-tower:{ .lg .middle } **Grid modeling**
 

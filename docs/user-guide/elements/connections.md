@@ -2,6 +2,12 @@
 
 Connections define how power flows between elements in your network with support for bidirectional flow, efficiency losses, and transmission costs.
 
+!!! warning "Advanced Element"
+
+    Connection is only available when **Advanced Mode** is enabled on your hub.
+    This element is intended for advanced users who need explicit control over power flow paths.
+    Most users should rely on implicit connections created automatically by other elements.
+
 !!! note "Implicit connections"
 
     Many elements create implicit connections automatically.
@@ -29,17 +35,41 @@ Connections define how power flows between elements in your network with support
 
 Use [input number helpers](https://www.home-assistant.io/integrations/input_number/) to configure constant values.
 
+### Connection Endpoint Selection
+
+The **Source** and **Target** fields show a dropdown of available elements that can be used as connection endpoints.
+The list of available elements is filtered based on connectivity level and your hub's Advanced Mode setting.
+
+**Why filtering?**
+Standard elements (Grid, Battery, Solar, Load) create implicit connections automatically.
+Explicit connections between these elements are usually unnecessary and can lead to configuration errors.
+The filtering hides these elements by default to prevent common mistakes.
+
+**Filtering behavior:**
+
+- Advanced elements that require manual connection setup always appear in the selector regardless of Advanced Mode.
+- Standard elements that create implicit connections automatically only appear when Advanced Mode is enabled.
+- Connection elements never appear as endpoints to prevent invalid connection topologies.
+
+This filtering ensures that connection endpoints are appropriate for your configuration level.
+Each element's documentation describes its connectivity level and when it appears in connection selectors.
+
 ## Configuration Example
 
-Bidirectional connection between grid and battery:
+Bidirectional connection between two network nodes:
 
-| Field                       | Value                             |
-| --------------------------- | --------------------------------- |
-| **Name**                    | Grid to Battery                   |
-| **Source**                  | Grid                              |
-| **Target**                  | Battery                           |
-| **Max Power Source→Target** | input_number.grid_charge_limit    |
-| **Max Power Target→Source** | input_number.grid_discharge_limit |
+| Field                       | Value                  |
+| --------------------------- | ---------------------- |
+| **Name**                    | DC Bus to AC Bus       |
+| **Source**                  | DC Node                |
+| **Target**                  | AC Node                |
+| **Max Power Source→Target** | input_number.max_power |
+| **Max Power Target→Source** | input_number.max_power |
+
+!!! note "Advanced Mode required for standard elements"
+
+    This example uses elements that are always available in connection selectors.
+    To connect standard elements that create implicit connections, enable Advanced Mode on your hub.
 
 ## Physical Interpretation
 
@@ -64,17 +94,18 @@ Connection pricing models fees for using a power transfer path (wheeling charges
 
 Leave both power limits unset for unlimited flow in both directions:
 
-| Field                       | Value           |
-| --------------------------- | --------------- |
-| **Name**                    | Solar to Main   |
-| **Source**                  | Solar           |
-| **Target**                  | Main Node       |
-| **Max Power Source→Target** | _(leave empty)_ |
-| **Max Power Target→Source** | _(leave empty)_ |
+| Field                       | Value            |
+| --------------------------- | ---------------- |
+| **Name**                    | DC Bus to AC Bus |
+| **Source**                  | DC Node          |
+| **Target**                  | AC Node          |
+| **Max Power Source→Target** | _(leave empty)_  |
+| **Max Power Target→Source** | _(leave empty)_  |
 
-!!! note
+!!! note "Advanced Mode required for standard elements"
 
-    Solar will only produce, so reverse flow won't occur naturally.
+    This example uses elements that are always available in connection selectors.
+    To connect standard elements that create implicit connections, enable Advanced Mode on your hub.
 
 ### Unidirectional Connection
 
@@ -82,29 +113,29 @@ Set one direction's limit to 0 to prevent flow:
 
 | Field                       | Value                  |
 | --------------------------- | ---------------------- |
-| **Name**                    | Solar to Main          |
-| **Source**                  | Solar                  |
-| **Target**                  | Main Node              |
-| **Max Power Source→Target** | input_number.solar_max |
+| **Name**                    | DC Bus to AC Bus       |
+| **Source**                  | DC Node                |
+| **Target**                  | AC Node                |
+| **Max Power Source→Target** | input_number.max_power |
 | **Max Power Target→Source** | input_number.zero      |
 
 !!! note
 
     Set `input_number.zero` value to `0` to prevent reverse flow.
 
-### Hybrid Inverter
+### Bidirectional Connection with Efficiency
 
-Model AC-DC conversion with efficiency:
+Model power conversion with efficiency losses:
 
-| Field                        | Value                            |
-| ---------------------------- | -------------------------------- |
-| **Name**                     | DC to AC Inverter                |
-| **Source**                   | DC_Node                          |
-| **Target**                   | AC_Node                          |
-| **Max Power Source→Target**  | input_number.inverter_rating     |
-| **Max Power Target→Source**  | input_number.inverter_rating     |
-| **Efficiency Source→Target** | input_number.inverter_efficiency |
-| **Efficiency Target→Source** | input_number.inverter_efficiency |
+| Field                        | Value                   |
+| ---------------------------- | ----------------------- |
+| **Name**                     | DC Bus to AC Bus        |
+| **Source**                   | DC_Node                 |
+| **Target**                   | AC_Node                 |
+| **Max Power Source→Target**  | input_number.max_power  |
+| **Max Power Target→Source**  | input_number.max_power  |
+| **Efficiency Source→Target** | input_number.efficiency |
+| **Efficiency Target→Source** | input_number.efficiency |
 
 ### Availability Windows
 
@@ -136,26 +167,50 @@ Then configure the connection:
 | **Target**                  | EV_Battery                      |
 | **Max Power Source→Target** | sensor.ev_charging_availability |
 
+!!! note "Advanced Mode required"
+
+    This example uses standard elements that require Advanced Mode to appear in connection selectors.
+
 The optimizer will only schedule charging when the sensor value is non-zero.
 
+### Input Entities
+
+Each configuration field creates a corresponding input entity in Home Assistant.
+Input entities appear as Number entities with the `config` entity category.
+
+| Input                                    | Unit   | Description                            |
+| ---------------------------------------- | ------ | -------------------------------------- |
+| `number.{name}_max_power_source_target`  | kW     | Maximum forward power (if configured)  |
+| `number.{name}_max_power_target_source`  | kW     | Maximum reverse power (if configured)  |
+| `number.{name}_efficiency_source_target` | %      | Forward efficiency (if configured)     |
+| `number.{name}_efficiency_target_source` | %      | Reverse efficiency (if configured)     |
+| `number.{name}_price_source_target`      | \$/kWh | Forward transfer price (if configured) |
+| `number.{name}_price_target_source`      | \$/kWh | Reverse transfer price (if configured) |
+
+Input entities include a `forecast` attribute showing values for each optimization period.
+See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+
 ## Sensors Created
+
+### Sensor Summary
 
 A Connection element creates 1 device in Home Assistant with the following sensors.
 Not all sensors are created for every connection - only those relevant to the configuration.
 
-| Sensor                                                                            | Unit   | Description                             |
-| --------------------------------------------------------------------------------- | ------ | --------------------------------------- |
-| [`sensor.{name}_power_source_target`](#power-source-target)                       | kW     | Power flowing from source to target     |
-| [`sensor.{name}_power_target_source`](#power-target-source)                       | kW     | Power flowing from target to source     |
-| [`sensor.{name}_power_max_source_target`](#power-max-source-target)               | kW     | Maximum forward power (when limited)    |
-| [`sensor.{name}_power_max_target_source`](#power-max-target-source)               | kW     | Maximum reverse power (when limited)    |
-| [`sensor.{name}_price_source_target`](#price-source-target)                       | \$/kWh | Forward transfer price                  |
-| [`sensor.{name}_price_target_source`](#price-target-source)                       | \$/kWh | Reverse transfer price                  |
-| [`sensor.{name}_shadow_power_max_source_target`](#shadow-power-max-source-target) | \$/kW  | Value of additional forward capacity    |
-| [`sensor.{name}_shadow_power_max_target_source`](#shadow-power-max-target-source) | \$/kW  | Value of additional reverse capacity    |
-| [`sensor.{name}_time_slice`](#time-slice)                                         | \$/kW  | Value of relaxing time-slice constraint |
+The sensor display names use the actual source and target element names configured for the connection.
+For example, a connection between two elements would show their actual names in the sensor name instead of generic "Source to Target".
 
-### Power Source Target
+| Sensor                                                                                     | Unit  | Description                             |
+| ------------------------------------------------------------------------------------------ | ----- | --------------------------------------- |
+| [`sensor.{name}_power_source_target`](#source-to-target-power)                             | kW    | Power flowing from source to target     |
+| [`sensor.{name}_power_target_source`](#target-to-source-power)                             | kW    | Power flowing from target to source     |
+| [`sensor.{name}_power_max_source_target`](#max-source-to-target-power)                     | kW    | Maximum forward power (when limited)    |
+| [`sensor.{name}_power_max_target_source`](#max-target-to-source-power)                     | kW    | Maximum reverse power (when limited)    |
+| [`sensor.{name}_shadow_power_max_source_target`](#max-source-to-target-power-shadow-price) | \$/kW | Value of additional forward capacity    |
+| [`sensor.{name}_shadow_power_max_target_source`](#max-target-to-source-power-shadow-price) | \$/kW | Value of additional reverse capacity    |
+| [`sensor.{name}_time_slice`](#time-slice-shadow-price)                                     | \$/kW | Value of relaxing time-slice constraint |
+
+### Source to Target Power
 
 The optimal power flowing from the source element to the target element.
 
@@ -165,7 +220,7 @@ The direction is determined by the connection configuration (source → target).
 
 **Example**: A value of 3.5 kW means 3.5 kW is flowing from the source element to the target element at this time period.
 
-### Power Target Source
+### Target to Source Power
 
 The optimal power flowing from the target element to the source element.
 
@@ -175,27 +230,17 @@ This represents reverse flow through the connection (target → source).
 
 **Example**: A value of 2.0 kW means 2.0 kW is flowing from the target element back to the source element at this time period.
 
-### Power Max Source Target
+### Max Source to Target Power
 
 The configured maximum forward power limit from the sensor configuration.
 Only created when a forward power limit is configured.
 
-### Power Max Target Source
+### Max Target to Source Power
 
 The configured maximum reverse power limit from the sensor configuration.
 Only created when a reverse power limit is configured.
 
-### Price Source Target
-
-The configured price for power transfer in the forward direction.
-Only created when a forward price is configured.
-
-### Price Target Source
-
-The configured price for power transfer in the reverse direction.
-Only created when a reverse price is configured.
-
-### Shadow Power Max Source Target
+### Max Source to Target Power Shadow Price
 
 The marginal value of additional forward capacity (source → target).
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -213,7 +258,7 @@ Only created when a forward power limit is configured.
 
 **Example**: A value of 0.08 means that if the connection could transfer 1 kW more in the forward direction, the total system cost would decrease by \$0.08 at this time period.
 
-### Shadow Power Max Target Source
+### Max Target to Source Power Shadow Price
 
 The marginal value of additional reverse capacity (target → source).
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -231,7 +276,7 @@ Only created when a reverse power limit is configured.
 
 **Example**: A value of 0.12 means that if the connection could transfer 1 kW more in the reverse direction, the total system cost would decrease by \$0.12 at this time period.
 
-### Time Slice
+### Time Slice Shadow Price
 
 The marginal value of relaxing the time-slicing constraint.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.

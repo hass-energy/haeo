@@ -165,7 +165,7 @@ automation:
 ### Protect real hardware
 
 - Enforce min and max limits using dedicated `number` entities exposed by your inverter or charger.
-- Add a final verification step that confirms the actuator accepted the change (for example, compare `sensor.haeo_battery_power` after a short delay).
+- Add a final verification step that confirms the actuator accepted the change (for example, compare `sensor.{battery_name}_power_charge` after a short delay).
 - Log every applied recommendation to the Logbook so you can audit changes if the device misbehaves.
 - During commissioning, keep automations in "monitor only" mode by replacing actuator calls with notifications until you are confident in the behavior.
 

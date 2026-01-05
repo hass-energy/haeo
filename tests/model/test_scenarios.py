@@ -9,8 +9,8 @@ def test_simple_optimization() -> None:
     network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add a simple grid and load
-    network.add("source_sink", "grid", is_source=True, is_sink=True)
-    network.add("source_sink", "net", is_source=False, is_sink=False)
+    network.add("node", "grid", is_source=True, is_sink=True)
+    network.add("node", "net", is_source=False, is_sink=False)
     network.add(
         ELEMENT_TYPE_CONNECTION,
         "grid_connection",
@@ -21,7 +21,7 @@ def test_simple_optimization() -> None:
         price_source_target=[0.1, 0.2, 0.15],
         price_target_source=[0.05, 0.08, 0.06],
     )
-    network.add("source_sink", "load", is_source=False, is_sink=True)
+    network.add("node", "load", is_source=False, is_sink=True)
     network.add(
         ELEMENT_TYPE_CONNECTION,
         "load_connection",
@@ -42,8 +42,8 @@ def test_network_validation() -> None:
     network = Network(name="test_network", periods=[1.0] * 3)
 
     # Add entities
-    network.add("source_sink", "source", is_source=True, is_sink=False)
-    network.add("source_sink", "sink", is_source=False, is_sink=True)
+    network.add("node", "source", is_source=True, is_sink=False)
+    network.add("node", "sink", is_source=False, is_sink=True)
 
     # Create valid connection
     network.add(

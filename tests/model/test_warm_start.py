@@ -5,7 +5,7 @@ import pytest
 
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.battery import Battery
-from custom_components.haeo.model.connection import Connection
+from custom_components.haeo.model.power_connection import PowerConnection
 
 
 class TestBatteryUpdate:
@@ -17,7 +17,7 @@ class TestBatteryUpdate:
 
         # Add battery and run initial optimization
         network.add("battery", "battery", capacity=10.0, initial_charge=5.0)
-        network.add("source_sink", "grid", is_source=True, is_sink=True)
+        network.add("node", "grid", is_source=True, is_sink=True)
         network.add(
             "connection",
             "battery_grid",
@@ -55,7 +55,7 @@ class TestBatteryUpdate:
         network = Network(name="test", periods=[1.0])
 
         network.add("battery", "battery", capacity=10.0, initial_charge=2.0)
-        network.add("source_sink", "grid", is_source=True, is_sink=True)
+        network.add("node", "grid", is_source=True, is_sink=True)
         network.add(
             "connection",
             "battery_grid",
@@ -103,14 +103,14 @@ class TestBatteryUpdate:
 
 
 class TestConnectionUpdate:
-    """Tests for Connection.update() method."""
+    """Tests for PowerConnection.update() method."""
 
     def test_update_max_power_source_target(self) -> None:
         """Test updating max_power_source_target modifies constraint bounds."""
         network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
-        network.add("source_sink", "source", is_source=True, is_sink=False)
-        network.add("source_sink", "sink", is_source=False, is_sink=True)
+        network.add("node", "source", is_source=True, is_sink=False)
+        network.add("node", "sink", is_source=False, is_sink=True)
         network.add(
             "connection",
             "conn",
@@ -124,7 +124,7 @@ class TestConnectionUpdate:
         network.optimize()
 
         connection = network.elements["conn"]
-        assert isinstance(connection, Connection)
+        assert isinstance(connection, PowerConnection)
 
         # Update max power
         connection.update(max_power_source_target=10.0)
@@ -140,8 +140,8 @@ class TestConnectionUpdate:
         """Test updating price_source_target modifies objective coefficients."""
         network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
-        network.add("source_sink", "source", is_source=True, is_sink=False)
-        network.add("source_sink", "sink", is_source=False, is_sink=True)
+        network.add("node", "source", is_source=True, is_sink=False)
+        network.add("node", "sink", is_source=False, is_sink=True)
         network.add(
             "connection",
             "conn",
@@ -156,7 +156,7 @@ class TestConnectionUpdate:
         cost1 = network.optimize()
 
         connection = network.elements["conn"]
-        assert isinstance(connection, Connection)
+        assert isinstance(connection, PowerConnection)
 
         # Update price to double
         connection.update(price_source_target=0.20)
@@ -171,8 +171,8 @@ class TestConnectionUpdate:
         """Test updating max_power_target_source modifies constraint bounds."""
         network = Network(name="test", periods=[1.0])
 
-        network.add("source_sink", "source", is_source=True, is_sink=True)
-        network.add("source_sink", "sink", is_source=True, is_sink=True)
+        network.add("node", "source", is_source=True, is_sink=True)
+        network.add("node", "sink", is_source=True, is_sink=True)
         network.add(
             "connection",
             "conn",
@@ -185,7 +185,7 @@ class TestConnectionUpdate:
         network.optimize()
 
         connection = network.elements["conn"]
-        assert isinstance(connection, Connection)
+        assert isinstance(connection, PowerConnection)
 
         connection.update(max_power_target_source=7.0)
         np.testing.assert_array_equal(connection.max_power_target_source, [7.0])
@@ -196,7 +196,7 @@ class TestConnectionUpdate:
 
         # Battery starts empty, needs to charge from grid
         network.add("battery", "battery", capacity=10.0, initial_charge=0.0)
-        network.add("source_sink", "grid", is_source=True, is_sink=True)
+        network.add("node", "grid", is_source=True, is_sink=True)
         network.add(
             "connection",
             "conn",
@@ -214,7 +214,7 @@ class TestConnectionUpdate:
         assert pytest.approx(cost1) == 0.0
 
         connection = network.elements["conn"]
-        assert isinstance(connection, Connection)
+        assert isinstance(connection, PowerConnection)
 
         # Double the import price
         connection.update(price_target_source=0.30)
@@ -230,8 +230,8 @@ class TestConnectionUpdate:
         """Test updating connection parameters with sequence values."""
         network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
-        network.add("source_sink", "source", is_source=True, is_sink=False)
-        network.add("source_sink", "sink", is_source=False, is_sink=True)
+        network.add("node", "source", is_source=True, is_sink=False)
+        network.add("node", "sink", is_source=False, is_sink=True)
         network.add(
             "connection",
             "conn",
@@ -244,7 +244,7 @@ class TestConnectionUpdate:
         network.optimize()
 
         connection = network.elements["conn"]
-        assert isinstance(connection, Connection)
+        assert isinstance(connection, PowerConnection)
 
         # Update with varying prices per period
         connection.update(price_source_target=[0.05, 0.10, 0.15])
@@ -279,8 +279,8 @@ class TestNetworkWarmStart:
         """Test that constraints are only built on first optimization."""
         network = Network(name="test", periods=[1.0])
 
-        network.add("source_sink", "source", is_source=True, is_sink=False)
-        network.add("source_sink", "sink", is_source=False, is_sink=True)
+        network.add("node", "source", is_source=True, is_sink=False)
+        network.add("node", "sink", is_source=False, is_sink=True)
         network.add(
             "connection",
             "conn",
@@ -303,7 +303,7 @@ class TestNetworkWarmStart:
         # Create first network (cold start)
         network1 = Network(name="test1", periods=[1.0, 1.0, 1.0])
         network1.add("battery", "battery", capacity=10.0, initial_charge=5.0)
-        network1.add("source_sink", "grid", is_source=True, is_sink=True)
+        network1.add("node", "grid", is_source=True, is_sink=True)
         network1.add(
             "connection",
             "conn",
@@ -320,7 +320,7 @@ class TestNetworkWarmStart:
         network2 = Network(name="test2", periods=[1.0, 1.0, 1.0])
         # First add with initial parameters
         network2.add("battery", "battery", capacity=5.0, initial_charge=2.0)
-        network2.add("source_sink", "grid", is_source=True, is_sink=True)
+        network2.add("node", "grid", is_source=True, is_sink=True)
         network2.add(
             "connection",
             "conn",
@@ -340,7 +340,7 @@ class TestNetworkWarmStart:
         battery.update(capacity=10.0, initial_charge=5.0)
 
         connection = network2.elements["conn"]
-        assert isinstance(connection, Connection)
+        assert isinstance(connection, PowerConnection)
         connection.update(
             max_power_source_target=5.0,
             max_power_target_source=5.0,
@@ -358,8 +358,8 @@ class TestNetworkWarmStart:
         """Test that updating connection via network.add updates prices correctly."""
         network = Network(name="test", periods=[1.0])
 
-        network.add("source_sink", "source", is_source=True, is_sink=False)
-        network.add("source_sink", "sink", is_source=False, is_sink=True)
+        network.add("node", "source", is_source=True, is_sink=False)
+        network.add("node", "sink", is_source=False, is_sink=True)
         network.add(
             "connection",
             "conn",

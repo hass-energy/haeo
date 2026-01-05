@@ -9,10 +9,11 @@ from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons
 
 from .battery import Battery
+from .battery_balance_connection import BatteryBalanceConnection
 from .connection import Connection
 from .element import Element
 from .node import Node
-from .source_sink import SourceSink
+from .power_connection import PowerConnection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,8 +85,8 @@ class Network:
         # Create new element
         factories: dict[str, Callable[..., Element[Any, Any]]] = {
             "battery": Battery,
-            "connection": Connection,
-            "source_sink": SourceSink,
+            "battery_balance_connection": BatteryBalanceConnection,
+            "connection": PowerConnection,
             "node": Node,
         }
 
@@ -94,7 +95,8 @@ class Network:
         self.elements[name] = element
 
         # Register connections immediately when adding Connection elements
-        if isinstance(element, Connection):
+        # (but not BatteryBalanceConnection - those register themselves via set_battery_references)
+        if isinstance(element, Connection) and not isinstance(element, BatteryBalanceConnection):
             # Get source and target elements
             source_element = self.elements.get(element.source)
             target_element = self.elements.get(element.target)
@@ -110,6 +112,22 @@ class Network:
             else:
                 msg = f"Failed to register connection {name} with target {element.target}: Not found or invalid"
                 raise ValueError(msg)
+
+        # Register battery balance connections with their battery sections
+        if isinstance(element, BatteryBalanceConnection):
+            # BatteryBalanceConnection uses source=upper, target=lower
+            upper_element = self.elements.get(element.source)
+            lower_element = self.elements.get(element.target)
+
+            if not isinstance(upper_element, Battery):
+                msg = f"Upper element '{element.source}' is not a battery"
+                raise TypeError(msg)
+
+            if not isinstance(lower_element, Battery):
+                msg = f"Lower element '{element.target}' is not a battery"
+                raise TypeError(msg)
+
+            element.set_battery_references(upper_element, lower_element)
 
         return element
 
@@ -143,6 +161,7 @@ class Network:
 
         # Collect all cost expressions from elements and set objective
         costs = [c for element in self.elements.values() for c in element.cost()]
+
         if costs:
             h.minimize(Highs.qsum(costs))
         else:

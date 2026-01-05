@@ -1,18 +1,18 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 import time
-from typing import Any, Literal, TypedDict, get_type_hints
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfTime
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.debounce import Debouncer
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
+from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -20,9 +20,9 @@ from homeassistant.util import dt as dt_util
 from . import data as data_module
 from .const import (
     CONF_DEBOUNCE_SECONDS,
-    CONF_UPDATE_INTERVAL_MINUTES,
+    CONF_ELEMENT_TYPE,
+    CONF_NAME,
     DEFAULT_DEBOUNCE_SECONDS,
-    DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     OPTIMIZATION_STATUS_FAILED,
@@ -32,88 +32,25 @@ from .const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
     NetworkOutputName,
-    tiers_to_periods_seconds,
 )
 from .elements import (
     ELEMENT_TYPES,
+    ElementConfigData,
     ElementConfigSchema,
     ElementDeviceName,
     ElementOutputName,
     collect_element_subentries,
+    get_input_fields,
+    is_element_type,
 )
-from .model import (
-    OUTPUT_TYPE_COST,
-    OUTPUT_TYPE_DURATION,
-    OUTPUT_TYPE_ENERGY,
-    OUTPUT_TYPE_POWER,
-    OUTPUT_TYPE_POWER_FLOW,
-    OUTPUT_TYPE_POWER_LIMIT,
-    OUTPUT_TYPE_PRICE,
-    OUTPUT_TYPE_SHADOW_PRICE,
-    OUTPUT_TYPE_SOC,
-    OUTPUT_TYPE_STATUS,
-    ModelOutputName,
-    Network,
-    OutputData,
-    OutputType,
-)
+from .model import ModelOutputName, Network, OutputData, OutputType
 from .repairs import dismiss_optimization_failure_issue
-from .schema import get_field_meta
+from .util.forecast_times import tiers_to_periods_seconds
+
+if TYPE_CHECKING:
+    from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def collect_entity_ids(value: Any) -> set[str]:
-    """Recursively collect entity IDs from nested configuration values."""
-    if isinstance(value, str):
-        return {value}
-
-    if isinstance(value, Mapping):
-        mapping_ids: set[str] = set()
-        for nested in value.values():
-            mapping_ids.update(collect_entity_ids(nested))
-        return mapping_ids
-
-    if isinstance(value, Sequence) and not isinstance(value, str):
-        sequence_ids: set[str] = set()
-        for nested in value:
-            sequence_ids.update(collect_entity_ids(nested))
-        return sequence_ids
-
-    return set()
-
-
-def extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
-    """Extract entity IDs from a configuration using schema loaders."""
-    entity_ids: set[str] = set()
-
-    element_type = config["element_type"]
-    data_config_class = ELEMENT_TYPES[element_type].data
-    hints = get_type_hints(data_config_class, include_extras=True)
-
-    for field_name in hints:
-        # Skip metadata fields
-        if field_name in ("element_type", "name"):
-            continue
-
-        field_value = config.get(field_name)
-        if field_value is None:
-            continue
-
-        field_meta = get_field_meta(field_name, data_config_class)
-        if field_meta is None:
-            continue
-
-        # Check if this is a constant field (not a sensor)
-        if field_meta.field_type == "constant":
-            continue
-
-        try:
-            entity_ids.update(collect_entity_ids(field_value))
-        except TypeError:
-            continue
-
-    return entity_ids
 
 
 class ForecastPoint(TypedDict):
@@ -146,24 +83,24 @@ class CoordinatorOutput:
 
 
 DEVICE_CLASS_MAP: dict[OutputType, SensorDeviceClass] = {
-    OUTPUT_TYPE_POWER: SensorDeviceClass.POWER,
-    OUTPUT_TYPE_POWER_FLOW: SensorDeviceClass.POWER,
-    OUTPUT_TYPE_POWER_LIMIT: SensorDeviceClass.POWER,
-    OUTPUT_TYPE_ENERGY: SensorDeviceClass.ENERGY,
-    OUTPUT_TYPE_SOC: SensorDeviceClass.BATTERY,
-    OUTPUT_TYPE_COST: SensorDeviceClass.MONETARY,
-    OUTPUT_TYPE_PRICE: SensorDeviceClass.MONETARY,
-    OUTPUT_TYPE_SHADOW_PRICE: SensorDeviceClass.MONETARY,
-    OUTPUT_TYPE_DURATION: SensorDeviceClass.DURATION,
-    OUTPUT_TYPE_STATUS: SensorDeviceClass.ENUM,
+    OutputType.POWER: SensorDeviceClass.POWER,
+    OutputType.POWER_FLOW: SensorDeviceClass.POWER,
+    OutputType.POWER_LIMIT: SensorDeviceClass.POWER,
+    OutputType.ENERGY: SensorDeviceClass.ENERGY,
+    OutputType.STATE_OF_CHARGE: SensorDeviceClass.BATTERY,
+    OutputType.COST: SensorDeviceClass.MONETARY,
+    OutputType.PRICE: SensorDeviceClass.MONETARY,
+    OutputType.SHADOW_PRICE: SensorDeviceClass.MONETARY,
+    OutputType.DURATION: SensorDeviceClass.DURATION,
+    OutputType.STATUS: SensorDeviceClass.ENUM,
 }
 
 STATE_CLASS_MAP: dict[OutputType, SensorStateClass | None] = {
-    OUTPUT_TYPE_POWER: SensorStateClass.MEASUREMENT,
-    OUTPUT_TYPE_POWER_FLOW: SensorStateClass.MEASUREMENT,
-    OUTPUT_TYPE_POWER_LIMIT: SensorStateClass.MEASUREMENT,
-    OUTPUT_TYPE_SOC: SensorStateClass.MEASUREMENT,
-    OUTPUT_TYPE_DURATION: SensorStateClass.MEASUREMENT,
+    OutputType.POWER: SensorStateClass.MEASUREMENT,
+    OutputType.POWER_FLOW: SensorStateClass.MEASUREMENT,
+    OutputType.POWER_LIMIT: SensorStateClass.MEASUREMENT,
+    OutputType.STATE_OF_CHARGE: SensorStateClass.MEASUREMENT,
+    OutputType.DURATION: SensorStateClass.MEASUREMENT,
 }
 
 STATUS_OPTIONS: tuple[str, ...] = tuple(
@@ -181,7 +118,7 @@ def _build_coordinator_output(
     output_name: ElementOutputName,
     output_data: OutputData,
     *,
-    forecast_times: tuple[int, ...] | None,
+    forecast_times: tuple[float, ...] | None,
 ) -> CoordinatorOutput:
     """Convert model output values into coordinator state and forecast.
 
@@ -231,7 +168,7 @@ def _build_coordinator_output(
         entity_category=(EntityCategory.DIAGNOSTIC if output_name == OUTPUT_NAME_OPTIMIZATION_DURATION else None),
         device_class=DEVICE_CLASS_MAP.get(output_data.type),
         state_class=STATE_CLASS_MAP.get(output_data.type),
-        options=(STATUS_OPTIONS if output_data.type == OUTPUT_TYPE_STATUS else None),
+        options=(STATUS_OPTIONS if output_data.type == OutputType.STATUS else None),
         advanced=output_data.advanced,
     )
 
@@ -241,195 +178,414 @@ type CoordinatorData = dict[str, SubentryDevices]
 
 
 class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
-    """Data update coordinator for HAEO integration."""
+    """Data update coordinator for HAEO integration.
+
+    Reads pre-loaded data from input entities (HaeoInputNumber/HaeoInputSwitch)
+    instead of loading directly from source entities. This provides:
+    - Single source of truth for loaded data
+    - User visibility into intermediate values
+    - Event-driven optimization triggered by input entity changes
+
+    Custom debouncing logic:
+    - Optimize immediately when inputs are valid and aligned
+    - During cooldown period, batch updates and optimize after cooldown expires
+    - No time-based updates - driven entirely by input entity changes
+    """
 
     # Refine config entry type to not be optional
     config_entry: ConfigEntry
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
-
         # Runtime attributes exposed to other integration modules
         self.network: Network | None = None
 
-        self._participant_configs: dict[str, ElementConfigSchema] = {
-            participant.name: participant.config for participant in collect_element_subentries(config_entry)
-        }
+        # Build participant configs and track subentry IDs
+        self._participant_configs: dict[str, ElementConfigSchema] = {}
+        self._participant_subentry_ids: dict[str, str] = {}  # element_name -> subentry_id
 
-        self._state_change_unsub: Callable[[], None] | None = None
+        for participant in collect_element_subentries(config_entry):
+            self._participant_configs[participant.name] = participant.config
+            self._participant_subentry_ids[participant.name] = participant.subentry.subentry_id
 
-        debounce_seconds = float(config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
-        update_interval_minutes = config_entry.data.get(CONF_UPDATE_INTERVAL_MINUTES, DEFAULT_UPDATE_INTERVAL_MINUTES)
+        # Custom debouncing state
+        self._debounce_seconds = float(config_entry.data.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS))
+        self._last_optimization_time: float | None = None
+        self._debounce_timer: CALLBACK_TYPE | None = None
+        self._pending_refresh: bool = False
+        self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
 
+        # No update_interval - we're event-driven from input entities
+        # No request_refresh_debouncer - we handle debouncing ourselves
         super().__init__(
             hass,
             _LOGGER,
             name=f"{DOMAIN}_{config_entry.entry_id}",
-            update_interval=timedelta(minutes=update_interval_minutes),
             config_entry=config_entry,
-            request_refresh_debouncer=Debouncer(hass, _LOGGER, cooldown=debounce_seconds, immediate=True),
             always_update=False,
         )
 
-        # Extract entity IDs from all participant configurations
-        all_entity_ids: set[str] = set()
-        for config in self._participant_configs.values():
-            all_entity_ids.update(extract_entity_ids_from_config(config))
+        # State change subscription - starts as None, set up after first successful refresh
+        self._state_change_unsub: Callable[[], None] | None = None
+        # Track if subscriptions have been enabled after first successful refresh
+        self._subscriptions_enabled: bool = False
 
-        # Set up state change listeners for all entity IDs in configuration
-        if all_entity_ids:
+    def _get_config_entry(self) -> "HaeoConfigEntry":
+        """Get the typed config entry."""
+        return self.config_entry  # type: ignore[return-value]
+
+    def _get_runtime_data(self) -> "HaeoRuntimeData | None":
+        """Get runtime data from config entry, or None if not available."""
+        config_entry = self._get_config_entry()
+        return getattr(config_entry, "runtime_data", None)
+
+    def _subscribe_to_input_entities(self) -> None:
+        """Subscribe to state changes from input entities."""
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            return
+
+        input_entity_ids = [entity.entity_id for entity in runtime_data.input_entities.values()]
+
+        # Subscribe to horizon manager changes (direct callback, not via HA state tracking)
+        runtime_data.horizon_manager.subscribe(self._handle_horizon_change)
+
+        if input_entity_ids:
             self._state_change_unsub = async_track_state_change_event(
                 self.hass,
-                list(all_entity_ids),
-                self._state_change_handler,
+                input_entity_ids,
+                self._handle_input_state_change,
             )
 
-    async def _state_change_handler(self, _event: Any) -> None:
-        """Handle state change events for monitored entities."""
-        await self.async_request_refresh()
+    @callback
+    def _handle_input_state_change(self, _event: Event[EventStateChangedData]) -> None:
+        """Handle state change events from input entities."""
+        self._trigger_optimization()
+
+    @callback
+    def _handle_horizon_change(self) -> None:
+        """Handle horizon manager changes."""
+        self._trigger_optimization()
+
+    @callback
+    def _trigger_optimization(self) -> None:
+        """Trigger optimization with debouncing logic.
+
+        - If optimization is already in progress, mark pending and return
+        - If inputs are aligned and no recent optimization, optimize immediately
+        - If within cooldown period, mark pending and wait for timer
+        - When timer fires, optimize if pending updates exist
+        """
+        # If optimization is in progress, just mark pending
+        if self._optimization_in_progress:
+            self._pending_refresh = True
+            return
+
+        current_time = time.time()
+
+        # Check if we're within the cooldown period
+        if self._last_optimization_time is not None:
+            time_since_last = current_time - self._last_optimization_time
+            if time_since_last < self._debounce_seconds:
+                # Within cooldown - mark pending and ensure timer is set
+                self._pending_refresh = True
+                if self._debounce_timer is None:
+                    remaining = self._debounce_seconds - time_since_last
+                    self._debounce_timer = async_call_later(self.hass, remaining, self._debounce_timer_callback)
+                return
+
+        # Not in cooldown - check if inputs are ready and optimize immediately
+        self._maybe_trigger_refresh()
+
+    @callback
+    def _debounce_timer_callback(self, _now: datetime) -> None:
+        """Handle debounce timer expiration."""
+        self._debounce_timer = None
+
+        if self._pending_refresh:
+            self._pending_refresh = False
+            self._maybe_trigger_refresh()
+
+    @callback
+    def _maybe_trigger_refresh(self) -> None:
+        """Trigger a coordinator refresh if inputs are aligned."""
+        if not self._are_inputs_aligned():
+            _LOGGER.debug("Inputs not aligned, skipping optimization")
+            return
+
+        # Mark as in progress BEFORE creating the task to prevent race conditions
+        # The flag will be cleared in _async_update_data's finally block
+        self._optimization_in_progress = True
+
+        # Use create_task to run the async refresh
+        self.hass.async_create_task(self.async_refresh())
+
+    def _are_inputs_aligned(self) -> bool:
+        """Check if all input entities have the same horizon start time.
+
+        Returns True if all inputs are loaded and aligned to the same horizon.
+        Returns False if any input is missing data or horizons don't match.
+        """
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            return False
+
+        # Get expected horizon from horizon manager
+        expected_horizon = runtime_data.horizon_manager.get_forecast_timestamps()
+        if not expected_horizon:
+            return False
+        expected_start = expected_horizon[0]
+
+        # Check all input entities have values and matching horizon
+        for entity in runtime_data.input_entities.values():
+            entity_horizon = entity.horizon_start
+            if entity_horizon is None:
+                return False
+            # Allow small floating point tolerance
+            if abs(entity_horizon - expected_start) > 1.0:
+                return False
+
+        return True
+
+    def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
+        """Load element configurations from input entities.
+
+        Reads forecast values from input entities and constructs ElementConfigData
+        for each element, ready for the optimization model.
+        """
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            msg = "Runtime data not available"
+            raise UpdateFailed(msg)
+
+        _LOGGER.debug(
+            "Loading from input entities. runtime_data.input_entities: %s", list(runtime_data.input_entities.keys())
+        )
+
+        loaded_configs: dict[str, ElementConfigData] = {}
+
+        for element_name, element_config in self._participant_configs.items():
+            element_type = element_config[CONF_ELEMENT_TYPE]
+            if not is_element_type(element_type):
+                msg = f"Invalid element type {element_type} for {element_name}"
+                raise RuntimeError(msg)
+
+            # Start with the base config (element_type, name)
+            loaded_data: dict[str, Any] = {
+                CONF_ELEMENT_TYPE: element_type,
+                CONF_NAME: element_name,
+            }
+
+            # Get input field definitions for this element type
+            input_field_infos = get_input_fields(element_type)
+            input_field_map = {f.field_name: f for f in input_field_infos}
+            input_field_names = set(input_field_map.keys())
+
+            # Process non-input fields from config first
+            for field_name in element_config:
+                if field_name in (CONF_ELEMENT_TYPE, CONF_NAME):
+                    continue
+                if field_name in input_field_names:
+                    # Input fields are handled separately below
+                    continue
+                # Not an input field - copy directly from config
+                # This handles participant references (e.g., connection: "Switchboard")
+                loaded_data[field_name] = element_config[field_name]
+
+            # Load values from input entities
+            for field_info in input_field_infos:
+                field_name = field_info.field_name
+                key = (element_name, field_name)
+
+                if key not in runtime_data.input_entities:
+                    # No entity - field not in INPUT_FIELDS registry
+                    continue
+
+                entity = runtime_data.input_entities[key]
+                values = entity.get_values()
+
+                if values is None:
+                    # Entity disabled or not ready - skip this field
+                    continue
+
+                # Check if field is time_series or scalar
+                if field_info.time_series:
+                    # Return as list for time series fields
+                    loaded_data[field_name] = list(values)
+                else:
+                    # Return first value for scalar fields
+                    loaded_data[field_name] = values[0] if values else None
+
+            loaded_configs[element_name] = loaded_data  # type: ignore[assignment]
+
+        return loaded_configs
 
     def cleanup(self) -> None:
         """Clean up coordinator resources when unloading."""
-
         if self._state_change_unsub is not None:
             self._state_change_unsub()
             self._state_change_unsub = None
 
-    @staticmethod
-    def _generate_forecast_timestamps(periods_seconds: Sequence[int]) -> tuple[int, ...]:
-        """Return forecast timestamps representing all fence posts (period boundaries).
-
-        Generates n_periods+1 timestamps representing the start of each period plus
-        the end of the final period. These are the "fence posts" in the fence post problem.
-
-        With variable-width intervals, each period can have a different duration.
-
-        Example: periods [60, 60, 300] starting at t=0 returns [0, 60, 120, 420]
-        """
-        epoch_seconds = dt_util.utcnow().timestamp()
-        # Floor to current or most recent period boundary for clean timestamps
-        smallest_period = min(periods_seconds) if periods_seconds else 60
-        rounded_epoch = int(epoch_seconds // smallest_period * smallest_period)
-
-        timestamps: list[int] = [rounded_epoch]
-        for period in periods_seconds:
-            timestamps.append(timestamps[-1] + period)
-        return tuple(timestamps)
+        if self._debounce_timer is not None:
+            self._debounce_timer()
+            self._debounce_timer = None
 
     async def _async_update_data(self) -> CoordinatorData:
-        """Update data from Home Assistant entities and run optimization."""
+        """Update data from input entities and run optimization."""
+        # Check if optimization is already in progress
+        # If so, skip this call - we'll use existing data or signal retry
+        if self._optimization_in_progress:
+            # Return existing data if available (may be None before first refresh)
+            # The base class sets self.data to None initially (via type: ignore)
+            # so we need to get it as Any first to check for None
+            existing_data: Any = self.data
+            if existing_data is not None:
+                return existing_data
+            # First run with concurrent call - raise to signal retry later
+            msg = "Concurrent optimization during first refresh"
+            raise UpdateFailed(msg)
+
         start_time = time.time()
 
-        # Convert tier configuration to list of period durations in seconds
-        periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
-        forecast_timestamps = self._generate_forecast_timestamps(periods_seconds)
+        # Set flag to prevent concurrent optimization triggers from callbacks
+        # This is cleared in the finally block
+        self._optimization_in_progress = True
 
-        # Check that all required sensor data is available before loading
-        missing_sensors: list[str] = []
-        for name, element_config in self._participant_configs.items():
-            # Check availability for entire config
-            if not data_module.config_available(
-                element_config,
-                hass=self.hass,
-                forecast_times=list(forecast_timestamps),
-            ):
-                missing_sensors.append(name)
+        try:
+            # Mark optimization start time immediately to prevent concurrent triggers
+            # This ensures debouncing works even if optimization takes a long time
+            self._last_optimization_time = start_time
 
-        if missing_sensors:
-            raise UpdateFailed(
-                translation_key="missing_sensors",
-                translation_placeholders={"unavailable_sensors": ", ".join(missing_sensors)},
+            # Convert tier configuration to list of period durations in seconds
+            periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
+
+            # Get forecast timestamps from horizon manager
+            runtime_data = self._get_runtime_data()
+            if runtime_data is None:
+                msg = "Runtime data not available"
+                raise UpdateFailed(msg)
+
+            forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
+
+            # Load element configurations from input entities
+            loaded_configs = self._load_from_input_entities()
+
+            _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
+
+            # Build network with loaded configurations (reuse existing for warm start)
+            network = await data_module.load_network(
+                self.config_entry,
+                periods_seconds=periods_seconds,
+                participants=loaded_configs,
+                existing_network=self.network,
             )
 
-        # Load element configurations (convert entity IDs to values)
-        loaded_configs = await data_module.load_element_configs(
-            self.hass,
-            self._participant_configs,
-            forecast_timestamps,
-        )
+            # Perform the optimization
+            cost = await self.hass.async_add_executor_job(network.optimize)
 
-        # Build network with loaded configurations (reuse existing for warm start)
-        network = await data_module.load_network(
-            self.config_entry,
-            periods_seconds=periods_seconds,
-            participants=loaded_configs,
-            existing_network=self.network,
-        )
+            end_time = time.time()
+            optimization_duration = end_time - start_time
 
-        # Perform the optimization
-        cost = await self.hass.async_add_executor_job(network.optimize)
+            # Record optimization time for debouncing
+            self._last_optimization_time = end_time
 
-        end_time = time.time()
-        optimization_duration = end_time - start_time
+            _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
+            dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
 
-        _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
-        dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
+            # Persist runtime state for diagnostics and system health
+            self.network = network
 
-        # Persist runtime state for diagnostics and system health
-        self.network = network
+            network_output_data: dict[NetworkOutputName, OutputData] = {
+                OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
+                    OutputType.COST, unit=self.hass.config.currency, values=(cost,)
+                ),
+                OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
+                    OutputType.STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
+                ),
+                OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
+                    OutputType.DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
+                ),
+            }
 
-        network_output_data: dict[NetworkOutputName, OutputData] = {
-            OUTPUT_NAME_OPTIMIZATION_COST: OutputData(OUTPUT_TYPE_COST, unit=self.hass.config.currency, values=(cost,)),
-            OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
-                OUTPUT_TYPE_STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
-            ),
-            OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
-                OUTPUT_TYPE_DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
-            ),
-        }
+            # Load the network subentry name from translations
+            translations = await async_get_translations(
+                self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
+            )
+            network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
-        result: CoordinatorData = {
-            # Hub outputs use config entry title as subentry, network element type as device
-            self.config_entry.title: {
-                ELEMENT_TYPE_NETWORK: {
-                    name: _build_coordinator_output(name, output, forecast_times=None)
-                    for name, output in network_output_data.items()
+            result: CoordinatorData = {
+                # HAEO outputs use network subentry name as key, network element type as device
+                network_subentry_name: {
+                    ELEMENT_TYPE_NETWORK: {
+                        name: _build_coordinator_output(name, output, forecast_times=None)
+                        for name, output in network_output_data.items()
+                    }
                 }
             }
-        }
 
-        # Build nested outputs structure from all network model elements
-        model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
-            element_name: element.outputs() for element_name, element in network.elements.items()
-        }
+            # Build nested outputs structure from all network model elements
+            model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
+                element_name: element.outputs() for element_name, element in network.elements.items()
+            }
 
-        # Process each config element using its outputs function to transform model outputs into device outputs
-        for element_name, element_config in self._participant_configs.items():
-            element_type = element_config["element_type"]
-            outputs_fn = ELEMENT_TYPES[element_type].outputs
+            # Process each config element using its outputs function to transform model outputs into device outputs
+            for element_name, element_config in self._participant_configs.items():
+                element_type = element_config[CONF_ELEMENT_TYPE]
+                outputs_fn = ELEMENT_TYPES[element_type].outputs
 
-            # outputs function returns {device_name: {output_name: OutputData}}
-            # May return multiple devices per config element (e.g., battery regions)
-            try:
-                adapter_outputs: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = outputs_fn(
-                    element_name, model_outputs, loaded_configs[element_name]
-                )
-            except KeyError:
-                _LOGGER.exception(
-                    "Failed to get outputs for config element %r (type=%r): missing model element. "
-                    "Available model elements: %s",
-                    element_name,
-                    element_type,
-                    list(model_outputs.keys()),
-                )
-                raise
-
-            # Process each device's outputs, grouping under the subentry (element_name)
-            subentry_devices: SubentryDevices = {}
-            for device_name, device_outputs in adapter_outputs.items():
-                processed_outputs: dict[ElementOutputName, CoordinatorOutput] = {
-                    output_name: _build_coordinator_output(
-                        output_name,
-                        output_data,
-                        forecast_times=forecast_timestamps,
+                # outputs function returns {device_name: {output_name: OutputData}}
+                # May return multiple devices per config element (e.g., battery regions)
+                try:
+                    adapter_outputs: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = outputs_fn(
+                        element_name, model_outputs, loaded_configs[element_name]
                     )
-                    for output_name, output_data in device_outputs.items()
-                }
+                except KeyError:
+                    _LOGGER.exception(
+                        "Failed to get outputs for config element %r (type=%r): missing model element. "
+                        "Available model elements: %s",
+                        element_name,
+                        element_type,
+                        list(model_outputs.keys()),
+                    )
+                    raise
 
-                if processed_outputs:
-                    subentry_devices[device_name] = processed_outputs
+                # Process each device's outputs, grouping under the subentry (element_name)
+                subentry_devices: SubentryDevices = {}
+                for device_name, device_outputs in adapter_outputs.items():
+                    processed_outputs: dict[ElementOutputName, CoordinatorOutput] = {
+                        output_name: _build_coordinator_output(
+                            output_name,
+                            output_data,
+                            forecast_times=forecast_timestamps,
+                        )
+                        for output_name, output_data in device_outputs.items()
+                    }
 
-            if subentry_devices:
-                result[element_name] = subentry_devices
+                    if processed_outputs:
+                        subentry_devices[device_name] = processed_outputs
 
-        return result
+                if subentry_devices:
+                    result[element_name] = subentry_devices
+
+            # Enable subscriptions after first successful refresh
+            # This prevents callbacks from triggering during initial setup
+            if not self._subscriptions_enabled:
+                self._subscriptions_enabled = True
+                self._subscribe_to_input_entities()
+
+            return result
+        finally:
+            # Always clear the in-progress flag
+            self._optimization_in_progress = False
+            # Clear pending flag - the next state change will trigger a new optimization
+            self._pending_refresh = False
+
+
+__all__ = [
+    "STATUS_OPTIONS",
+    "CoordinatorData",
+    "CoordinatorOutput",
+    "ForecastPoint",
+    "HaeoDataUpdateCoordinator",
+    "_build_coordinator_output",
+]

@@ -11,7 +11,8 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import (
-    _ensure_network_subentry,
+    HaeoRuntimeData,
+    _ensure_required_subentries,
     async_reload_entry,
     async_remove_config_entry_device,
     async_setup_entry,
@@ -19,13 +20,35 @@ from custom_components.haeo import (
     async_update_listener,
 )
 from custom_components.haeo.const import (
+    CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
     CONF_INTEGRATION_TYPE,
     CONF_NAME,
+    CONF_TIER_1_COUNT,
+    CONF_TIER_1_DURATION,
+    CONF_TIER_2_COUNT,
+    CONF_TIER_2_DURATION,
+    CONF_TIER_3_COUNT,
+    CONF_TIER_3_DURATION,
+    CONF_TIER_4_COUNT,
+    CONF_TIER_4_DURATION,
+    DEFAULT_TIER_1_COUNT,
+    DEFAULT_TIER_1_DURATION,
+    DEFAULT_TIER_2_COUNT,
+    DEFAULT_TIER_2_DURATION,
+    DEFAULT_TIER_3_COUNT,
+    DEFAULT_TIER_3_DURATION,
+    DEFAULT_TIER_4_COUNT,
+    DEFAULT_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
-from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY, ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_GRID
+from custom_components.haeo.elements import (
+    ELEMENT_TYPE_BATTERY,
+    ELEMENT_TYPE_CONNECTION,
+    ELEMENT_TYPE_GRID,
+    ELEMENT_TYPE_NODE,
+)
 from custom_components.haeo.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.grid import (
@@ -44,6 +67,14 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Network",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
         entry_id="hub_entry_id",
         title="Test HAEO Integration",
@@ -117,6 +148,20 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
     return subentry
 
 
+def _create_mock_horizon_manager() -> Mock:
+    """Create a mock horizon manager for tests."""
+    horizon = Mock()
+    horizon.get_forecast_timestamps.return_value = (1000.0, 2000.0, 3000.0)
+    horizon.subscribe.return_value = Mock()  # Unsubscribe callback
+    return horizon
+
+
+def _create_mock_runtime_data(coordinator: Mock) -> HaeoRuntimeData:
+    """Create mock runtime data with horizon manager and coordinator."""
+    horizon = _create_mock_horizon_manager()
+    return HaeoRuntimeData(horizon_manager=horizon, coordinator=coordinator)
+
+
 async def test_setup_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test setting up a hub entry."""
     # Test basic hub setup functionality
@@ -130,15 +175,91 @@ async def test_setup_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEn
 async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test unloading a hub entry."""
 
-    # Set up a mock coordinator
-    mock_hub_entry.runtime_data = AsyncMock()
+    # Set up a mock runtime data with proper structure
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
 
     # Test that unload works
     result = await async_unload_entry(hass, mock_hub_entry)
 
     assert result is True
-    # Coordinator should be cleaned up
+    # Coordinator cleanup should be called
+    mock_coordinator.cleanup.assert_called_once()
+    # runtime_data should be cleared
     assert mock_hub_entry.runtime_data is None
+
+
+async def test_unload_last_entry_cleans_up_sentinels(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unloading the last HAEO entry cleans up sentinel entities."""
+    # Set up mock runtime data
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
+
+    # Track if async_unload_sentinel_entities was called
+    cleanup_called = False
+
+    def mock_cleanup() -> None:
+        nonlocal cleanup_called
+        cleanup_called = True
+
+    monkeypatch.setattr(
+        "custom_components.haeo.async_unload_sentinel_entities",
+        mock_cleanup,
+    )
+
+    # This is the only entry, so unloading should trigger cleanup
+    result = await async_unload_entry(hass, mock_hub_entry)
+
+    assert result is True
+    assert cleanup_called, "async_unload_sentinel_entities should be called for last entry"
+
+
+async def test_unload_with_remaining_entries_skips_sentinel_cleanup(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unloading with other HAEO entries remaining does not clean up sentinels."""
+    # Create a second HAEO entry that will remain
+    other_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Other Network",
+        },
+        entry_id="other_entry_id",
+        title="Other HAEO Integration",
+    )
+    other_entry.add_to_hass(hass)
+
+    # Set up mock runtime data for the entry being unloaded
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
+
+    # Track if async_unload_sentinel_entities was called
+    unload_called = False
+
+    def mock_unload() -> None:
+        nonlocal unload_called
+        unload_called = True
+
+    monkeypatch.setattr(
+        "custom_components.haeo.async_unload_sentinel_entities",
+        mock_unload,
+    )
+
+    # Unload mock_hub_entry - other_entry still remains
+    result = await async_unload_entry(hass, mock_hub_entry)
+
+    assert result is True
+    assert not unload_called, "async_unload_sentinel_entities should NOT be called when other entries remain"
 
 
 async def test_async_setup_entry_initializes_coordinator(
@@ -153,7 +274,7 @@ async def test_async_setup_entry_initializes_coordinator(
             super().__init__()
             self.hass = hass_param
             self.config_entry = entry_param
-            self.async_config_entry_first_refresh = AsyncMock()
+            self.async_refresh = AsyncMock()
             self.cleanup = Mock()
 
     created: list[DummyCoordinator] = []
@@ -173,16 +294,21 @@ async def test_async_setup_entry_initializes_coordinator(
     assert result is True
     assert created, "Coordinator should be instantiated"
     coordinator = created[0]
-    assert mock_hub_entry.runtime_data is coordinator
-    coordinator.async_config_entry_first_refresh.assert_awaited_once()
-    forward_mock.assert_awaited_once()
+    runtime_data = mock_hub_entry.runtime_data
+    assert runtime_data is not None
+    assert runtime_data.coordinator is coordinator
+    coordinator.async_refresh.assert_awaited_once()
+    # forward_mock is called twice: once for INPUT_PLATFORMS, once for OUTPUT_PLATFORMS
+    assert forward_mock.await_count == 2
 
 
 async def test_reload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test reloading a hub entry."""
 
-    # Set up initial mock coordinator
-    mock_hub_entry.runtime_data = AsyncMock()
+    # Set up initial mock coordinator with sync cleanup method
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()  # cleanup is a sync method
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
 
     # Test that reload works
     with suppress(Exception):
@@ -191,8 +317,10 @@ async def test_reload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     assert True
 
 
-async def test_ensure_network_subentry_already_exists(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
-    """Test that _ensure_network_subentry skips if network already exists."""
+async def test_ensure_required_subentries_network_already_exists(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """Test that _ensure_required_subentries skips network if already exists."""
     # First, create a network subentry
     network_subentry = ConfigSubentry(
         data=MappingProxyType({CONF_NAME: "Network", CONF_ELEMENT_TYPE: "network"}),
@@ -203,31 +331,109 @@ async def test_ensure_network_subentry_already_exists(hass: HomeAssistant, mock_
     hass.config_entries.async_add_subentry(mock_hub_entry, network_subentry)
 
     # Call ensure again - should skip creating another one
-    await _ensure_network_subentry(hass, mock_hub_entry)
+    await _ensure_required_subentries(hass, mock_hub_entry)
 
     # Count network subentries - should still be only 1
     network_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == "network")
     assert network_count == 1
 
 
-async def test_ensure_network_subentry_creates_new(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
-    """Test that _ensure_network_subentry creates network if missing."""
+async def test_ensure_required_subentries_creates_network(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
+    """Test that _ensure_required_subentries creates network if missing."""
     # Verify no network subentry exists initially
     network_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == "network")
     assert network_count == 0
 
     # Call ensure - should create one
-    await _ensure_network_subentry(hass, mock_hub_entry)
+    await _ensure_required_subentries(hass, mock_hub_entry)
 
     # Verify network subentry was created
     network_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == "network")
     assert network_count == 1
 
 
+async def test_ensure_required_subentries_creates_switchboard_non_advanced(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """Test that _ensure_required_subentries creates switchboard node in non-advanced mode."""
+    # Verify no node subentry exists initially
+    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 0
+
+    # Call ensure - should create switchboard node in non-advanced mode
+    await _ensure_required_subentries(hass, mock_hub_entry)
+
+    # Verify node subentry was created
+    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 1
+
+    # Verify the created node has correct configuration
+    node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_subentry.data[CONF_NAME] == "Switchboard"  # Default name when translations not available
+    assert node_subentry.data["is_source"] is False
+    assert node_subentry.data["is_sink"] is False
+
+
+async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
+    hass: HomeAssistant,
+) -> None:
+    """Test that _ensure_required_subentries does not create switchboard in advanced mode."""
+    # Create a hub entry with advanced_mode enabled
+    advanced_hub_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Network",
+            CONF_ADVANCED_MODE: True,
+        },
+        entry_id="hub_entry_id",
+        title="Test HAEO Integration",
+    )
+    advanced_hub_entry.add_to_hass(hass)
+
+    # Verify no node subentry exists initially
+    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 0
+
+    # Call ensure - should NOT create switchboard node in advanced mode
+    await _ensure_required_subentries(hass, advanced_hub_entry)
+
+    # Verify no node subentry was created
+    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 0
+
+
+async def test_ensure_required_subentries_skips_switchboard_if_exists(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """Test that _ensure_required_subentries does not duplicate nodes if one exists."""
+    # Create a node subentry first
+    node_subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_NAME: "Existing Node", CONF_ELEMENT_TYPE: ELEMENT_TYPE_NODE}),
+        subentry_type=ELEMENT_TYPE_NODE,
+        title="Existing Node",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(mock_hub_entry, node_subentry)
+
+    # Verify one node subentry exists
+    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 1
+
+    # Call ensure - should not create another one
+    await _ensure_required_subentries(hass, mock_hub_entry)
+
+    # Verify still only one node subentry
+    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ELEMENT_TYPE_NODE)
+    assert node_count == 1
+
+
 async def test_reload_entry_failure_handling(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
     """Test reload handles setup failures gracefully."""
-    # Mock runtime data
-    mock_hub_entry.runtime_data = AsyncMock()
+    # Mock runtime data with sync cleanup method
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()  # cleanup is a sync method
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
 
     # Attempt reload - should work but may have warnings about state
     try:
@@ -247,6 +453,10 @@ async def test_async_update_listener(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test async_update_listener triggers reload."""
+    # Set up runtime_data (required by async_update_listener)
+    mock_coordinator = Mock()
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
+
     # Mock the reload function
     reload_called = False
     connectivity_called = False
@@ -265,7 +475,7 @@ async def test_async_update_listener(
         assert entry_arg is mock_hub_entry
         ensure_called = True
 
-    monkeypatch.setattr("custom_components.haeo._ensure_network_subentry", mock_ensure)
+    monkeypatch.setattr("custom_components.haeo._ensure_required_subentries", mock_ensure)
 
     async def mock_evaluate(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
         nonlocal connectivity_called
@@ -285,6 +495,39 @@ async def test_async_update_listener(
     assert reload_called
     assert connectivity_called
     assert ensure_called
+
+
+async def test_async_update_listener_value_update_in_progress(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test async_update_listener skips reload when value update is in progress."""
+    # Set up runtime_data with value_update_in_progress=True
+    mock_coordinator = AsyncMock()
+    mock_hub_entry.runtime_data = HaeoRuntimeData(
+        horizon_manager=_create_mock_horizon_manager(),
+        coordinator=mock_coordinator,
+        value_update_in_progress=True,
+    )
+
+    # Mock the reload function to track if it's called
+    reload_called = False
+
+    async def mock_reload(entry_id: str) -> bool:
+        nonlocal reload_called
+        reload_called = True
+        return True
+
+    hass.config_entries.async_reload = mock_reload
+
+    # Call update listener
+    await async_update_listener(hass, mock_hub_entry)
+
+    # Verify: flag should be cleared, coordinator refreshed, NO reload
+    assert mock_hub_entry.runtime_data.value_update_in_progress is False
+    mock_coordinator.async_refresh.assert_called_once()
+    assert not reload_called
 
 
 async def test_async_remove_config_entry_device(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:

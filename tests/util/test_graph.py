@@ -7,7 +7,7 @@ import pytest
 from custom_components.haeo.util.graph import find_connected_components
 
 
-class TestCase(TypedDict):
+class GraphTestCase(TypedDict):
     """Test case for find_connected_components."""
 
     description: str
@@ -17,7 +17,7 @@ class TestCase(TypedDict):
     expected_num_components: int
 
 
-TEST_CASES: dict[str, TestCase] = {
+TEST_CASES: dict[str, GraphTestCase] = {
     "empty": {
         "description": "empty graph is considered connected",
         "adjacency": {},
@@ -71,7 +71,7 @@ TEST_CASES: dict[str, TestCase] = {
 
 
 @pytest.mark.parametrize("test_case", TEST_CASES.values(), ids=TEST_CASES.keys())
-def test_find_connected_components(test_case: TestCase) -> None:
+def test_find_connected_components(test_case: GraphTestCase) -> None:
     """Test find_connected_components with various graph structures."""
     result = find_connected_components(test_case["adjacency"])
     assert result.is_connected is test_case["expected_is_connected"], test_case["description"]

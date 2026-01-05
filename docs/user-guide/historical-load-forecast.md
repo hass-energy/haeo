@@ -1,12 +1,26 @@
 # Historical Load Forecast
 
-HAEO doesn't generate load forecasts itself, but you can create a simple forecast based on historical consumption data.
+HAEO doesn't generate load forecasts itself, but you can create forecasts based on historical consumption data.
 This approach works well for loads that follow predictable daily patterns.
 
-The strategy is straightforward: fetch the same hour from 7 days ago, then use that pattern for the next 7 days.
-This gives HAEO a reasonable estimate of future load without requiring external forecasting services.
+## Recommended: Use HAFO
 
-## Prerequisites
+The easiest way to create historical load forecasts is with [HAFO (Home Assistant Forecaster)](https://hafo.haeo.io).
+HAFO is a companion integration designed specifically for this purpose:
+
+1. Install HAFO via HACS
+2. Create a forecast helper for your load sensor
+3. Configure HAEO to use the HAFO sensor as its load forecast source
+
+HAFO handles all the complexity automatically - fetching historical statistics, shifting them forward, and cycling patterns to fill any forecast horizon.
+See the [HAFO documentation](https://hafo.haeo.io) for installation and configuration details.
+
+## Manual Approach
+
+If you prefer not to install another integration, you can create forecasts manually using Home Assistant's python_script integration.
+The strategy is straightforward: fetch the same hour from 7 days ago, then use that pattern for the next 7 days.
+
+### Prerequisites
 
 Enable the [Python Scripts integration](https://www.home-assistant.io/integrations/python_script/) in Home Assistant.
 Add the following to your `configuration.yaml`:
@@ -17,7 +31,7 @@ python_script:
 
 Create the `python_scripts` directory in your config folder if it doesn't exist.
 
-## Step 1: Create the Forecast Sensor Script
+### Step 1: Create the Forecast Sensor Script
 
 Create `config/python_scripts/set_forecast_sensor.py`:
 
@@ -56,7 +70,7 @@ else:
 This script creates a sensor with a `forecast` attribute that HAEO can read.
 It copies `unit_of_measurement`, `device_class`, `state_class`, and `icon` from the source sensor, and appends "Forecast" to the friendly name.
 
-## Step 2: Create the Extraction Script
+### Step 2: Create the Extraction Script
 
 Create a Home Assistant script that fetches historical data and publishes the forecast.
 Go to **Settings** → **Automations & Scenes** → **Scripts** → **Add Script** and use YAML mode:
@@ -126,7 +140,7 @@ sequence:
 The script fetches the last 7 days of hourly mean values and shifts them forward by 7 days.
 Units are copied from the source sensor automatically.
 
-## Step 3: Create Hourly Automation
+### Step 3: Create Hourly Automation
 
 Create an automation to run the extraction script every hour.
 Go to **Settings** → **Automations & Scenes** → **Create Automation**:
@@ -144,7 +158,7 @@ action:
 
 This runs at the top of every hour and on Home Assistant startup, since python_script sensors don't persist across restarts.
 
-## Using with HAEO
+### Using with HAEO
 
 Configure your Load element to use the forecast sensor:
 

@@ -54,13 +54,21 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Grid modeling](grid.md)
 
-- :material-weather-sunny:{ .lg .middle } **Photovoltaics**
+- :material-swap-horizontal:{ .lg .middle } **Inverter**
+
+    ---
+
+    Bidirectional DC/AC power conversion with DC bus.
+
+    [:material-arrow-right: Inverter modeling](inverter.md)
+
+- :material-weather-sunny:{ .lg .middle } **Solar**
 
     ---
 
     Solar generation with optional curtailment.
 
-    [:material-arrow-right: Photovoltaics modeling](photovoltaics.md)
+    [:material-arrow-right: Solar modeling](solar.md)
 
 - :material-gauge:{ .lg .middle } **Load**
 
@@ -69,5 +77,13 @@ This prevents naming collisions and groups related components visually in Home A
     Power consumption modeling.
 
     [:material-arrow-right: Load modeling](loads.md)
+
+- :material-battery-charging:{ .lg .middle } **Battery Section**
+
+    ---
+
+    Direct access to model layer Battery element.
+
+    [:material-arrow-right: Battery Section modeling](battery_section.md)
 
 </div>

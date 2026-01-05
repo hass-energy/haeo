@@ -5,6 +5,10 @@ HAEO optimizes when to charge and discharge based on electricity prices, solar a
 
 Internally, HAEO represents batteries using multiple interconnected sections (undercharge, normal, overcharge) with cost-based preferences to guide operation. This provides flexible, economically-rational battery behavior.
 
+!!! note "Connection endpoints"
+
+    Battery elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+
 For mathematical details, see [Battery Modeling](../../modeling/device-layer/battery.md).
 
 ## Configuration
@@ -19,24 +23,34 @@ A battery in HAEO represents:
 - **Efficiency** losses during charge/discharge cycles
 - **Operating range preferences** guided by economic costs (min/max SOC)
 
+### Configuration process
+
+Battery configuration uses a two-step flow (see [Configuration](../configuration.md#two-step-element-configuration) for details):
+
+1. **Step 1**: Enter name, connection, and select input mode for each field (Constant, Entity Link, or Not Configured)
+2. **Step 2**: Enter values or select sensors based on your mode selections
+
+For each field, you choose whether to use a constant value or link to Home Assistant sensors.
+Optional fields can be set to "Not Configured" to disable that functionality.
+
 ## Configuration Fields
 
-| Field                                                          | Type                                  | Required | Default | Description                                                |
-| -------------------------------------------------------------- | ------------------------------------- | -------- | ------- | ---------------------------------------------------------- |
-| **[Name](#name)**                                              | String                                | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
-| **[Capacity](#capacity)**                                      | Number (kWh)                          | Yes      | -       | Total energy storage capacity                              |
-| **[Current Charge Percentage](#current-charge-percentage)**    | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
-| **[Min Charge Percentage](#min-and-max-charge-percentage)**    | Number (%)                            | No       | 10      | Preferred minimum SOC (%)                                  |
-| **[Max Charge Percentage](#min-and-max-charge-percentage)**    | Number (%)                            | No       | 90      | Preferred maximum SOC (%)                                  |
-| **[Undercharge Percentage](#undercharge-configuration)**       | Number (%)                            | No       | -       | Hard minimum SOC limit (%)                                 |
-| **[Overcharge Percentage](#overcharge-configuration)**         | Number (%)                            | No       | -       | Hard maximum SOC limit (%)                                 |
-| **[Undercharge Cost](#undercharge-configuration)**             | Number (\$/kWh)                       | No       | -       | Economic penalty for discharging below min SOC             |
-| **[Overcharge Cost](#overcharge-configuration)**               | Number (\$/kWh)                       | No       | -       | Economic penalty for charging above max SOC                |
-| **[Efficiency](#efficiency)**                                  | Number (%)                            | No       | 99      | Round-trip efficiency                                      |
-| **[Max Charge Power](#max-charge-and-discharge-power)**        | Number (kW)                           | No       | -       | Maximum charging power                                     |
-| **[Max Discharge Power](#max-charge-and-discharge-power)**     | Number (kW)                           | No       | -       | Maximum discharging power                                  |
-| **[Early Charge Incentive](#early-charge-incentive-advanced)** | Number (\$/kWh)                       | No       | 0.001   | Small cost to prefer early charging (advanced)             |
-| **[Discharge Cost](#discharge-cost)**                          | Number (\$/kWh)                       | No       | 0       | Base discharge cost for degradation modeling               |
+| Field                                                          | Type       | Required | Default | Description                                                |
+| -------------------------------------------------------------- | ---------- | -------- | ------- | ---------------------------------------------------------- |
+| **[Name](#name)**                                              | String     | Yes      | -       | Unique identifier (e.g., "Main Battery", "Garage Battery") |
+| **[Capacity](#capacity)**                                      | Energy     | Yes      | -       | Total energy storage capacity                              |
+| **[Current Charge Percentage](#current-charge-percentage)**    | Percentage | Yes      | -       | Home Assistant sensor reporting current SOC (0-100%)       |
+| **[Min Charge Percentage](#min-and-max-charge-percentage)**    | Percentage | No       | 10      | Preferred minimum SOC (%)                                  |
+| **[Max Charge Percentage](#min-and-max-charge-percentage)**    | Percentage | No       | 90      | Preferred maximum SOC (%)                                  |
+| **[Undercharge Percentage](#undercharge-configuration)**       | Percentage | No       | -       | Hard minimum SOC limit (%)                                 |
+| **[Overcharge Percentage](#overcharge-configuration)**         | Percentage | No       | -       | Hard maximum SOC limit (%)                                 |
+| **[Undercharge Cost](#undercharge-configuration)**             | Price      | No       | -       | Economic penalty for discharging below min SOC             |
+| **[Overcharge Cost](#overcharge-configuration)**               | Price      | No       | -       | Economic penalty for charging above max SOC                |
+| **[Efficiency](#efficiency)**                                  | Percentage | No       | 99      | Round-trip efficiency                                      |
+| **[Max Charge Power](#max-charge-and-discharge-power)**        | Power      | No       | -       | Maximum charging power                                     |
+| **[Max Discharge Power](#max-charge-and-discharge-power)**     | Power      | No       | -       | Maximum discharging power                                  |
+| **[Early Charge Incentive](#early-charge-incentive-advanced)** | Price      | No       | 0.001   | Small cost to prefer early charging (advanced)             |
+| **[Discharge Cost](#discharge-cost)**                          | Price      | No       | 0       | Base discharge cost for degradation modeling               |
 
 If not specified, power is unconstrained (limited only by other system constraints).
 
@@ -255,7 +269,32 @@ In this example:
 - Higher undercharge cost reflects greater degradation risk at low SOC
 - Optimizer will use extended sections only when grid conditions justify the penalties
 
+### Input Entities
+
+Each configuration field creates a corresponding input entity in Home Assistant.
+Input entities appear as Number entities with the `config` entity category.
+
+| Input                                                | Unit   | Description                                    |
+| ---------------------------------------------------- | ------ | ---------------------------------------------- |
+| `number.{name}_capacity`                             | kWh    | Battery storage capacity                       |
+| `number.{name}_soc`                                  | %      | Current state of charge from sensor            |
+| `number.{name}_soc_min`                              | %      | Preferred minimum SOC (normal section floor)   |
+| `number.{name}_soc_max`                              | %      | Preferred maximum SOC (normal section ceiling) |
+| `number.{name}_soc_target`                           | %      | Target SOC at end of horizon                   |
+| `number.{name}_max_charge_power`                     | kW     | Maximum charging power                         |
+| `number.{name}_max_discharge_power`                  | kW     | Maximum discharging power                      |
+| `number.{name}_charge_cost_per_cycle`                | -      | Base cycle degradation cost                    |
+| `number.{name}_charge_cost_per_kwh`                  | \$/kWh | Per-kWh charging cost                          |
+| `number.{name}_undercharge_soc`                      | %      | Hard minimum SOC limit (if configured)         |
+| `number.{name}_overcharge_soc`                       | %      | Hard maximum SOC limit (if configured)         |
+| `number.{name}_undercharge_cost` / `overcharge_cost` | \$/kWh | Penalty costs for extended regions             |
+
+Input entities include a `forecast` attribute showing values for each optimization period.
+See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+
 ## Sensors Created
+
+### Sensor Summary
 
 A Battery element creates 1-4 devices in Home Assistant depending on configuration:
 
@@ -270,8 +309,8 @@ These sensors appear on the main battery device:
 
 | Sensor                                                       | Unit  | Description                                  |
 | ------------------------------------------------------------ | ----- | -------------------------------------------- |
-| [`sensor.{name}_power_charge`](#power-charge)                | kW    | Charging power                               |
-| [`sensor.{name}_power_discharge`](#power-discharge)          | kW    | Discharging power                            |
+| [`sensor.{name}_power_charge`](#charge-power)                | kW    | Charging power                               |
+| [`sensor.{name}_power_discharge`](#discharge-power)          | kW    | Discharging power                            |
 | [`sensor.{name}_energy_stored`](#energy-stored)              | kWh   | Current energy level                         |
 | [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %     | State of charge percentage                   |
 | [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kW | Marginal value of power at battery terminals |
@@ -280,19 +319,35 @@ These sensors appear on the main battery device:
 
 These sensors appear on region-specific devices (undercharge, normal, overcharge) when configured:
 
-| Sensor                                                                       | Unit   | Description                       |
-| ---------------------------------------------------------------------------- | ------ | --------------------------------- |
-| [`sensor.{name}_{region}_energy_stored`](#energy-stored-by-region)           | kWh    | Energy in this region             |
-| [`sensor.{name}_{region}_power_charge`](#power-chargedischarge-by-region)    | kW     | Charging power in this region     |
-| [`sensor.{name}_{region}_power_discharge`](#power-chargedischarge-by-region) | kW     | Discharging power in this region  |
-| [`sensor.{name}_{region}_charge_price`](#chargedischarge-price-by-region)    | \$/kWh | Charging price in this region     |
-| [`sensor.{name}_{region}_discharge_price`](#chargedischarge-price-by-region) | \$/kWh | Discharging price in this region  |
-| [`sensor.{name}_{region}_energy_in_flow`](#energy-flow-by-region)            | kWh    | Energy flowing into this region   |
-| [`sensor.{name}_{region}_energy_out_flow`](#energy-flow-by-region)           | kWh    | Energy flowing out of this region |
-| [`sensor.{name}_{region}_soc_max`](#soc-bounds-by-region)                    | %      | Maximum SOC for this region       |
-| [`sensor.{name}_{region}_soc_min`](#soc-bounds-by-region)                    | %      | Minimum SOC for this region       |
+| Sensor                                                                       | Unit | Description                          |
+| ---------------------------------------------------------------------------- | ---- | ------------------------------------ |
+| [`sensor.{name}_{region}_energy_stored`](#energy-stored-by-region)           | kWh  | Energy in this region                |
+| [`sensor.{name}_{region}_power_charge`](#chargedischarge-power-by-region)    | kW   | Charging power in this region        |
+| [`sensor.{name}_{region}_power_discharge`](#chargedischarge-power-by-region) | kW   | Discharging power in this region     |
+| [`sensor.{name}_{region}_energy_in_flow`](#energy-flow-by-region)            | kWh  | Energy flowing into this region      |
+| [`sensor.{name}_{region}_energy_out_flow`](#energy-flow-by-region)           | kWh  | Energy flowing out of this region    |
+| [`sensor.{name}_{region}_soc_max`](#soc-bounds-by-region)                    | %    | Maximum SOC for this region          |
+| [`sensor.{name}_{region}_soc_min`](#soc-bounds-by-region)                    | %    | Minimum SOC for this region          |
+| [`sensor.{name}_{region}_balance_power_down`](#balance-power-by-region)      | kW   | Power flowing down into this section |
+| [`sensor.{name}_{region}_balance_power_up`](#balance-power-by-region)        | kW   | Power flowing up out of this section |
 
-### Power Charge
+### Balance Power (by region)
+
+Shows the power flowing through balance connections with adjacent battery sections.
+
+- **Balance power down**: Power flowing into this section from balance connections (entering)
+- **Balance power up**: Power flowing out of this section via balance connections (leaving)
+
+For a three-section battery:
+
+- **Undercharge**: Has balance connection to normal section above
+- **Normal**: Has balance connections to both undercharge (below) and overcharge (above)
+- **Overcharge**: Has balance connection to normal section below
+
+Balance power is typically zero during normal operation.
+Nonzero values occur when section capacity changes force energy redistribution, such as when capacity sensors update.
+
+### Charge Power
 
 The optimal charging power for this battery at each time period.
 
@@ -302,7 +357,7 @@ A value of 0 means the battery is not charging.
 
 **Example**: A value of 3.2 kW means the battery is charging at an average rate of 3.2 kW during this period, limited by the configured max charge power or other system constraints.
 
-### Power Discharge
+### Discharge Power
 
 The optimal discharging power for this battery at each time period.
 
@@ -335,18 +390,11 @@ Provides a convenient percentage view of the battery level.
 Shows energy stored in each region: undercharge (below min SOC), normal (min to max SOC), or overcharge (above max SOC).
 A nonzero value in undercharge or overcharge regions indicates the battery is operating outside its normal range.
 
-### Power Charge/Discharge (by region)
+### Charge/Discharge Power (by region)
 
 Shows power flowing into or out of each region.
 Undercharge discharge incurs penalties; overcharge charge incurs penalties.
 Moving toward normal operation (charging undercharge, discharging overcharge) has no penalty.
-
-### Charge/Discharge Price (by region)
-
-Shows effective costs/revenue for each region.
-Undercharge discharge price includes the undercharge penalty (may be negative, meaning discharge costs money).
-Overcharge charge price includes the overcharge penalty.
-Normal region prices reflect base costs only.
 
 ### Energy Flow (by region)
 

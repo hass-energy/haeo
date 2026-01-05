@@ -72,7 +72,7 @@ Available sensors include:
 - **Grid**: `sensor.{grid_name}_shadow_price_power_import_max` and `sensor.{grid_name}_shadow_price_power_export_max` indicate when import or export limits restrict the optimization.
 - **Other controllable elements**: `sensor.{entity_name}_shadow_price_power_consumption_max` and `sensor.{entity_name}_shadow_price_power_production_max` appear for any device that enforces variable power caps.
 - **Connections**: `sensor.{connection_name}_shadow_price_power_flow_min` and `sensor.{connection_name}_shadow_price_power_flow_max` tell you when minimum or maximum flow limits block energy transfers between elements.
-- **Solar**: `sensor.{pv_name}_shadow_price_forecast_limit` shows when extra photovoltaic output would reduce total cost.
+- **Solar**: `sensor.{pv_name}_shadow_price_forecast_limit` shows when extra solar output would reduce total cost.
 
 Each shadow price sensor mirrors the standard forecast attribute layout so you can inspect future periods in dashboards and automations.
 Review [Shadow Prices](../modeling/shadow-prices.md) for detailed interpretation guidance.

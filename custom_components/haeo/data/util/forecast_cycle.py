@@ -9,7 +9,7 @@ from . import ForecastSeries
 _SECONDS_PER_DAY: Final = 24 * 60 * 60
 
 
-def normalize_forecast_cycle(forecast_series: ForecastSeries, current_time: int) -> tuple[ForecastSeries, int]:
+def normalize_forecast_cycle(forecast_series: ForecastSeries, current_time: float) -> tuple[ForecastSeries, float]:
     """Return a 24-hour aligned forecast block starting at ``current_time``."""
 
     # First take the forecast and repeat it as needed to make it a multiple of 24 hours long

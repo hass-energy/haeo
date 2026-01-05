@@ -22,7 +22,7 @@ async def evaluate_network_connectivity(
     """Validate the network connectivity for an entry and manage repair issues."""
 
     participants = dict(participant_configs) if participant_configs is not None else collect_participant_configs(entry)
-    result = await validate_network_topology(hass, participants)
+    result = await validate_network_topology(hass, participants, entry)
 
     if result.is_connected:
         dismiss_disconnected_network_issue(hass, entry.entry_id)

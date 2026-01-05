@@ -1,13 +1,13 @@
 # Grid Modeling
 
-The Grid device composes a [SourceSink](../model-layer/source-sink.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connection.md) to model utility grid connections with time-varying import/export pricing.
+The Grid device composes a [Node](../model-layer/elements/node.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connections/power-connection.md) to model utility grid connections with time-varying import/export pricing.
 
 ## Model Elements Created
 
 ```mermaid
 graph LR
     subgraph "Device"
-        SS["SourceSink<br/>(is_source=true, is_sink=true)"]
+        SS["Node<br/>(is_source=true, is_sink=true)"]
         Conn["Connection<br/>{name}:connection"]
     end
 
@@ -17,10 +17,10 @@ graph LR
     Conn <-->|connects to| Node
 ```
 
-| Model Element                               | Name                | Parameters From Configuration              |
-| ------------------------------------------- | ------------------- | ------------------------------------------ |
-| [SourceSink](../model-layer/source-sink.md) | `{name}`            | is_source=true, is_sink=true               |
-| [Connection](../model-layer/connection.md)  | `{name}:connection` | import/export limits, import/export prices |
+| Model Element                                                | Name                | Parameters From Configuration              |
+| ------------------------------------------------------------ | ------------------- | ------------------------------------------ |
+| [Node](../model-layer/elements/node.md)                      | `{name}`            | is_source=true, is_sink=true               |
+| [Connection](../model-layer/connections/power-connection.md) | `{name}:connection` | import/export limits, import/export prices |
 
 ## Devices Created
 
@@ -34,34 +34,36 @@ Grid creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into model parameters:
 
-| User Configuration | Model Element | Model Parameter           | Notes                           |
-| ------------------ | ------------- | ------------------------- | ------------------------------- |
-| `import_price`     | Connection    | `price_target_source`     | Cost per kWh imported           |
-| `export_price`     | Connection    | `price_source_target`     | Revenue per kWh exported        |
-| `import_limit`     | Connection    | `max_power_target_source` | Maximum import power (optional) |
-| `export_limit`     | Connection    | `max_power_source_target` | Maximum export power (optional) |
-| `connection`       | Connection    | `target`                  | Node to connect to              |
-| —                  | SourceSink    | `is_source=true`          | Grid can supply power           |
-| —                  | SourceSink    | `is_sink=true`            | Grid can absorb power           |
+| User Configuration | Model Element   | Model Parameter           | Notes                           |
+| ------------------ | --------------- | ------------------------- | ------------------------------- |
+| `import_price`     | PowerConnection | `price_target_source`     | Cost per kWh imported           |
+| `export_price`     | PowerConnection | `price_source_target`     | Revenue per kWh exported        |
+| `import_limit`     | PowerConnection | `max_power_target_source` | Maximum import power (optional) |
+| `export_limit`     | PowerConnection | `max_power_source_target` | Maximum export power (optional) |
+| `connection`       | PowerConnection | `target`                  | Node to connect to              |
+| —                  | Node            | `is_source=true`          | Grid can supply power           |
+| —                  | Node            | `is_sink=true`            | Grid can absorb power           |
 
 ## Sensors Created
 
 ### Grid Device
 
-| Sensor                   | Unit   | Update    | Description                         |
-| ------------------------ | ------ | --------- | ----------------------------------- |
-| `power_imported`         | kW     | Real-time | Power imported from grid            |
-| `power_exported`         | kW     | Real-time | Power exported to grid              |
-| `price_import`           | \$/kWh | Real-time | Current import price                |
-| `price_export`           | \$/kWh | Real-time | Current export price                |
-| `power_max_import`       | kW     | Real-time | Maximum import power (when limited) |
-| `power_max_export`       | kW     | Real-time | Maximum export power (when limited) |
-| `power_max_import_price` | \$/kW  | Real-time | Value of additional import capacity |
-| `power_max_export_price` | \$/kW  | Real-time | Value of additional export capacity |
+| Sensor                   | Unit    | Update    | Description                        |
+| ------------------------ | ------- | --------- | ---------------------------------- |
+| `power_import`           | kW      | Real-time | Import power                       |
+| `power_export`           | kW      | Real-time | Export power                       |
+| `cost_import`            | \$      | Real-time | Cost of imports (when priced)      |
+| `cost_export`            | \$      | Real-time | Revenue from exports (when priced) |
+| `cost_net`               | \$      | Real-time | Net cost (when any price exists)   |
+| `power_max_import`       | kW      | Real-time | Max import power (when limited)    |
+| `power_max_export`       | kW      | Real-time | Max export power (when limited)    |
+| `power_max_import_price` | \\\$/kW | Real-time | Max import power shadow price      |
+| `power_max_export_price` | \\\$/kW | Real-time | Max export power shadow price      |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
+The `cost_*` sensors are only created when the corresponding price is configured.
 
-See [Grid Configuration](../../user-guide/elements/grid.md#sensors-created) for detailed sensor documentation.
+See [Grid Configuration](../../user-guide/elements/grid.md) for detailed sensor and configuration documentation.
 
 ## Configuration Examples
 
@@ -119,13 +121,13 @@ Grid represents the utility connection that can supply power (import) when local
 
     [:material-arrow-right: Grid configuration](../../user-guide/elements/grid.md)
 
-- :material-power-plug:{ .lg .middle } **SourceSink model**
+- :material-power-plug:{ .lg .middle } **Node model**
 
     ---
 
     Underlying model element for Grid.
 
-    [:material-arrow-right: SourceSink formulation](../model-layer/source-sink.md)
+    [:material-arrow-right: Node formulation](../model-layer/elements/node.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 
@@ -133,6 +135,6 @@ Grid represents the utility connection that can supply power (import) when local
 
     How power limits and pricing are applied.
 
-    [:material-arrow-right: Connection formulation](../model-layer/connection.md)
+    [:material-arrow-right: PowerConnection formulation](../model-layer/connections/power-connection.md)
 
 </div>

@@ -7,6 +7,8 @@ implementations found in sibling modules.
 
 The adapter layer transforms configuration elements into model elements:
     Configuration Element (with entity IDs) →
+    Adapter.load() →
+    Configuration Data (with loaded values) →
     Adapter.create_model_elements() →
     Model Elements (pure optimization)
 """
@@ -26,16 +28,24 @@ from custom_components.haeo.elements import (
     ElementConfigSchema,
 )
 from custom_components.haeo.model import Network
-from custom_components.haeo.schema import available as config_available
-from custom_components.haeo.schema import load as config_load
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def config_available(config: ElementConfigSchema, *, hass: HomeAssistant, **kwargs: Any) -> bool:
+    """Check if all required sensors/forecasts are available for a config.
+
+    Delegates to the element-specific available() function from the registry.
+    """
+    element_type = config[CONF_ELEMENT_TYPE]
+    entry = ELEMENT_TYPES[element_type]
+    return entry.available(config, hass=hass, **kwargs)
 
 
 async def load_element_configs(
     hass: HomeAssistant,
     participants: Mapping[str, ElementConfigSchema],
-    forecast_times: Sequence[int],
+    forecast_times: Sequence[float],
 ) -> dict[str, ElementConfigData]:
     """Load sensor values for all element configurations.
 
@@ -57,8 +67,10 @@ async def load_element_configs(
     forecast_times_list = list(forecast_times)
 
     for element_name, element_config in participants.items():
-        # Load all fields using the high-level config_load function
-        loaded_params: ElementConfigData = await config_load(
+        entry = ELEMENT_TYPES[element_config[CONF_ELEMENT_TYPE]]
+
+        # Load all fields using the element-specific load function
+        loaded_params: ElementConfigData = await entry.load(
             element_config,
             hass=hass,
             forecast_times=forecast_times_list,
@@ -86,15 +98,13 @@ async def load_network(
         participants: Mapping of element names to loaded configurations (with values)
         existing_network: Optional existing network to update (for warm start)
 
+    Returns:
+        Network instance ready for optimization (may be empty if no participants)
+
     Raises:
         ValueError: when required sensor/forecast data is missing.
 
     """
-    if not participants:
-        _LOGGER.warning("No participants configured for hub")
-        msg = "No participants configured"
-        raise ValueError(msg)
-
     # ==================================================================================
     # Unit boundary: seconds → hours
     # ==================================================================================
@@ -109,6 +119,10 @@ async def load_network(
         net = existing_network
     else:
         net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
+
+    if not participants:
+        _LOGGER.info("No participants configured for hub - returning empty network")
+        return net
 
     # Collect all model elements from all config elements
     all_model_elements: list[dict[str, Any]] = []

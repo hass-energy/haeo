@@ -3,20 +3,18 @@
 from datetime import UTC, datetime
 from typing import Any
 
-# Valid HAEO sensor configurations
 VALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.haeo_power_forecast",
         "state": "100.0",
         "attributes": {
-            "forecast": [
-                {"time": "2025-10-06T00:00:00+11:00", "value": 100.0},
-            ],
+            "forecast": [{"time": "2025-10-06T00:00:00+11:00", "value": 100.0}],
             "unit_of_measurement": "W",
             "device_class": "power",
         },
         "expected_format": "haeo",
-        "expected_count": 1,
+        "expected_unit": "kW",
+        "expected_data": [(1759669200.0, 0.1)],
         "description": "Single HAEO forecast entry with power",
     },
     {
@@ -32,7 +30,8 @@ VALID: list[dict[str, Any]] = [
             "device_class": "power",
         },
         "expected_format": "haeo",
-        "expected_count": 3,
+        "expected_unit": "kW",
+        "expected_data": [(1759669200.0, 50.0), (1759671000.0, 75.0), (1759672800.0, 100.0)],
         "description": "Multiple HAEO forecast entries",
     },
     {
@@ -47,7 +46,8 @@ VALID: list[dict[str, Any]] = [
             "device_class": "power",
         },
         "expected_format": "haeo",
-        "expected_count": 2,
+        "expected_unit": "kW",
+        "expected_data": [(1759708800.0, 0.025), (1759710600.0, 0.05)],
         "description": "HAEO forecast with datetime objects",
     },
     {
@@ -62,20 +62,20 @@ VALID: list[dict[str, Any]] = [
             "device_class": "energy",
         },
         "expected_format": "haeo",
-        "expected_count": 2,
+        "expected_unit": "kWh",
+        "expected_data": [(1759669200.0, 10.5), (1759672800.0, 12.0)],
         "description": "HAEO forecast with energy device class",
     },
     {
         "entity_id": "sensor.haeo_no_device_class",
         "state": "5.0",
         "attributes": {
-            "forecast": [
-                {"time": "2025-10-06T00:00:00+11:00", "value": 5.0},
-            ],
+            "forecast": [{"time": "2025-10-06T00:00:00+11:00", "value": 5.0}],
             "unit_of_measurement": "W",
         },
         "expected_format": "haeo",
-        "expected_count": 1,
+        "expected_unit": "W",
+        "expected_data": [(1759669200.0, 5.0)],
         "description": "HAEO forecast without device_class attribute",
     },
     {
@@ -90,54 +90,44 @@ VALID: list[dict[str, Any]] = [
             "device_class": "power",
         },
         "expected_format": "haeo",
-        "expected_count": 2,
+        "expected_unit": "kW",
+        "expected_data": [(1759669200.0, 0.1), (1759671000.0, 0.2)],
         "description": "HAEO forecast with integer values (should be converted to float)",
     },
     {
         "entity_id": "sensor.haeo_invalid_device_class",
         "state": "100.0",
         "attributes": {
-            "forecast": [
-                {"time": "2025-10-06T00:00:00+11:00", "value": 100.0},
-            ],
+            "forecast": [{"time": "2025-10-06T00:00:00+11:00", "value": 100.0}],
             "unit_of_measurement": "W",
             "device_class": "invalid_device_class",
         },
         "expected_format": "haeo",
-        "expected_count": 1,
+        "expected_unit": "W",
+        "expected_data": [(1759669200.0, 100.0)],
         "description": "HAEO forecast with invalid device_class (should be ignored)",
     },
 ]
 
-# Invalid HAEO sensor configurations
 INVALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.haeo_no_forecast",
         "state": "0",
-        "attributes": {
-            "unit_of_measurement": "W",
-            "device_class": "power",
-        },
+        "attributes": {"unit_of_measurement": "W", "device_class": "power"},
         "expected_format": None,
         "description": "HAEO sensor missing forecast attribute",
     },
     {
         "entity_id": "sensor.haeo_empty_forecast",
         "state": "0",
-        "attributes": {
-            "forecast": [],
-            "unit_of_measurement": "W",
-        },
+        "attributes": {"forecast": [], "unit_of_measurement": "W"},
         "expected_format": None,
         "description": "HAEO sensor with empty forecast list",
     },
     {
         "entity_id": "sensor.haeo_forecast_not_list",
         "state": "0",
-        "attributes": {
-            "forecast": {"some": "dict"},
-            "unit_of_measurement": "W",
-        },
+        "attributes": {"forecast": {"some": "dict"}, "unit_of_measurement": "W"},
         "expected_format": None,
         "description": "HAEO sensor with forecast as dict instead of list",
     },
@@ -145,9 +135,7 @@ INVALID: list[dict[str, Any]] = [
         "entity_id": "sensor.haeo_bad_timestamp",
         "state": "0",
         "attributes": {
-            "forecast": [
-                {"time": "not a timestamp", "value": 100.0},
-            ],
+            "forecast": [{"time": "not a timestamp", "value": 100.0}],
             "unit_of_measurement": "W",
         },
         "expected_format": None,
@@ -157,9 +145,7 @@ INVALID: list[dict[str, Any]] = [
         "entity_id": "sensor.haeo_non_numeric_value",
         "state": "0",
         "attributes": {
-            "forecast": [
-                {"time": "2025-10-06T00:00:00+11:00", "value": "not a number"},
-            ],
+            "forecast": [{"time": "2025-10-06T00:00:00+11:00", "value": "not a number"}],
             "unit_of_measurement": "W",
         },
         "expected_format": None,
@@ -168,12 +154,7 @@ INVALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.haeo_missing_time_field",
         "state": "0",
-        "attributes": {
-            "forecast": [
-                {"value": 50.0},
-            ],
-            "unit_of_measurement": "W",
-        },
+        "attributes": {"forecast": [{"value": 50.0}], "unit_of_measurement": "W"},
         "expected_format": None,
         "description": "HAEO forecast entry missing time field",
     },
@@ -181,9 +162,7 @@ INVALID: list[dict[str, Any]] = [
         "entity_id": "sensor.haeo_missing_value_field",
         "state": "0",
         "attributes": {
-            "forecast": [
-                {"time": "2025-10-06T00:00:00+11:00"},
-            ],
+            "forecast": [{"time": "2025-10-06T00:00:00+11:00"}],
             "unit_of_measurement": "W",
         },
         "expected_format": None,
@@ -192,11 +171,7 @@ INVALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.haeo_missing_unit",
         "state": "0",
-        "attributes": {
-            "forecast": [
-                {"time": "2025-10-06T00:00:00+11:00", "value": 100.0},
-            ],
-        },
+        "attributes": {"forecast": [{"time": "2025-10-06T00:00:00+11:00", "value": 100.0}]},
         "expected_format": None,
         "description": "HAEO sensor missing unit_of_measurement attribute",
     },
@@ -204,9 +179,7 @@ INVALID: list[dict[str, Any]] = [
         "entity_id": "sensor.haeo_non_string_unit",
         "state": "0",
         "attributes": {
-            "forecast": {
-                "2025-10-06T00:00:00+11:00": 100.0,
-            },
+            "forecast": {"2025-10-06T00:00:00+11:00": 100.0},
             "unit_of_measurement": 123,
         },
         "expected_format": None,
@@ -216,9 +189,7 @@ INVALID: list[dict[str, Any]] = [
         "entity_id": "sensor.haeo_empty_unit",
         "state": "0",
         "attributes": {
-            "forecast": {
-                "2025-10-06T00:00:00+11:00": 100.0,
-            },
+            "forecast": {"2025-10-06T00:00:00+11:00": 100.0},
             "unit_of_measurement": "",
         },
         "expected_format": None,

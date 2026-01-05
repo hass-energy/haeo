@@ -78,7 +78,7 @@ The `environment.json` timestamp is used as the freeze time for the test, and `o
       "max_power": 5000
     },
     "solar": {
-      "element_type": "photovoltaics",
+      "element_type": "solar",
       "max_power": "sensor.solar_power"
     },
     "grid": {

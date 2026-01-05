@@ -13,7 +13,7 @@ def parse_datetime_to_timestamp(value: Any) -> int:
         value: Either a datetime object or an ISO format datetime string
 
     Returns:
-        Unix timestamp in seconds
+        Unix timestamp in seconds as an integer
 
     Raises:
         ValueError: If value is not a valid datetime string or datetime object

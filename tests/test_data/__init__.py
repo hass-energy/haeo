@@ -1,9 +1,9 @@
 """Centralized test data infrastructure for HAEO tests.
 
-This module provides organized test data for elements and sensors,
+This module provides organized test data for sensors,
 making it easy to write parameterized tests.
 """
 
-from . import elements, sensors
+from . import sensors
 
-__all__ = ["elements", "sensors"]
+__all__ = ["sensors"]

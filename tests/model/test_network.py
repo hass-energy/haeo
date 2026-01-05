@@ -9,9 +9,9 @@ import pytest
 
 from custom_components.haeo.model import Network
 from custom_components.haeo.model import network as network_module
-from custom_components.haeo.model.connection import Connection
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.source_sink import SourceSink
+from custom_components.haeo.model.node import Node
+from custom_components.haeo.model.power_connection import PowerConnection
 
 # Test constants
 HOURS_PER_DAY = 24
@@ -20,8 +20,9 @@ CONNECTION_PERIODS = 3
 
 # Model element type strings
 ELEMENT_TYPE_BATTERY = "battery"
+ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION = "battery_balance_connection"
 ELEMENT_TYPE_CONNECTION = "connection"
-ELEMENT_TYPE_SOURCE_SINK = "source_sink"
+ELEMENT_TYPE_NODE = "node"
 
 
 def test_network_initialization() -> None:
@@ -64,11 +65,11 @@ def test_connect_entities() -> None:
 
     # Add entities
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
-    network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
+    network.add(ELEMENT_TYPE_NODE, "grid1", is_sink=False, is_source=True)
 
     # Connect them
     connection = cast(
-        "Connection",
+        "PowerConnection",
         network.add(
             ELEMENT_TYPE_CONNECTION,
             "battery1_to_grid1",
@@ -89,7 +90,7 @@ def test_connect_entities() -> None:
     # Check that the connection element was added
     connection_name = "battery1_to_grid1"
     assert connection_name in network.elements
-    assert isinstance(network.elements[connection_name], Connection)
+    assert isinstance(network.elements[connection_name], PowerConnection)
 
 
 def test_connect_nonexistent_entities() -> None:
@@ -123,7 +124,7 @@ def test_connect_source_is_connection() -> None:
     )
     # Add entities and a connection
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
-    network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
+    network.add(ELEMENT_TYPE_NODE, "grid1", is_sink=False, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="battery1", target="grid1")
 
     # Try to create another connection using the connection as source
@@ -141,7 +142,7 @@ def test_connect_target_is_connection() -> None:
     )
     # Add entities and a connection
     network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
-    network.add(ELEMENT_TYPE_SOURCE_SINK, "grid1", is_sink=False, is_source=True)
+    network.add(ELEMENT_TYPE_NODE, "grid1", is_sink=False, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="battery1", target="grid1")
 
     # Try to create another connection using the connection as target
@@ -154,7 +155,7 @@ def test_connect_target_is_connection() -> None:
 def test_validate_raises_when_source_missing() -> None:
     """Validate should raise when a connection source is missing."""
     net = Network(name="net", periods=[1.0] * 1)
-    net.elements["conn"] = Connection(
+    net.elements["conn"] = PowerConnection(
         name="conn",
         periods=[1.0] * 1,
         solver=net._solver,
@@ -169,10 +170,10 @@ def test_validate_raises_when_source_missing() -> None:
 def test_validate_raises_when_target_missing() -> None:
     """Validate should raise when a connection target is missing."""
     net = Network(name="net", periods=[1.0] * 1)
-    net.elements["source_node"] = SourceSink(
+    net.elements["source_node"] = Node(
         name="source_node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True
     )
-    net.elements["conn"] = Connection(
+    net.elements["conn"] = PowerConnection(
         name="conn",
         periods=[1.0] * 1,
         solver=net._solver,
@@ -188,9 +189,9 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     """Validate should reject connections that point to connection elements."""
     net = Network(name="net", periods=[1.0] * 1)
     # Non-connection element to satisfy target for conn2
-    net.elements["node"] = SourceSink(name="node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True)
+    net.elements["node"] = Node(name="node", periods=[1.0] * 1, solver=net._solver, is_source=True, is_sink=True)
 
-    net.elements["conn2"] = Connection(
+    net.elements["conn2"] = PowerConnection(
         name="conn2",
         periods=[1.0] * 1,
         solver=net._solver,
@@ -199,7 +200,7 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
     )
 
     # conn1 references conn2 as source and target to hit both connection checks
-    net.elements["conn1"] = Connection(
+    net.elements["conn1"] = PowerConnection(
         name="conn1",
         periods=[1.0] * 1,
         solver=net._solver,
@@ -252,8 +253,8 @@ def test_network_optimize_validates_before_running() -> None:
     )
 
     # Add elements but create an invalid connection (connection to connection)
-    network.add(ELEMENT_TYPE_SOURCE_SINK, "node1", is_sink=True, is_source=True)
-    network.add(ELEMENT_TYPE_SOURCE_SINK, "node2", is_sink=True, is_source=True)
+    network.add(ELEMENT_TYPE_NODE, "node1", is_sink=True, is_source=True)
+    network.add(ELEMENT_TYPE_NODE, "node2", is_sink=True, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="node1", target="node2")
 
     # Connect conn2 to conn1 (invalid)
@@ -272,7 +273,7 @@ def test_network_optimize_build_constraints_error() -> None:
     )
 
     # Add a regular element
-    network.add(ELEMENT_TYPE_SOURCE_SINK, "node1", is_sink=True, is_source=True)
+    network.add(ELEMENT_TYPE_NODE, "node1", is_sink=True, is_source=True)
 
     # Mock an element that raises an exception during build_constraints
     mock_element = Mock(spec=Element)
@@ -294,11 +295,18 @@ def test_network_optimize_success_logs_solver_output(
     caplog.set_level(logging.DEBUG, logger=network_module.__name__)
 
     network = Network(name="test_network", periods=[1.0] * 2)
-    network.add(ELEMENT_TYPE_SOURCE_SINK, "node", is_sink=True, is_source=True)
+    network.add(ELEMENT_TYPE_NODE, "node", is_sink=True, is_source=True)
 
     result = network.optimize()
 
     assert result == 0.0
+
+
+def test_log_callback_handles_empty_message() -> None:
+    """Test _log_callback handles empty messages gracefully."""
+    # Should not raise, just verify it doesn't crash
+    Network._log_callback(0, "")
+    Network._log_callback(1, "   ")  # Whitespace only
 
 
 def test_network_optimize_raises_on_solver_failure(
@@ -306,7 +314,7 @@ def test_network_optimize_raises_on_solver_failure(
 ) -> None:
     """Optimize should surface solver failure status with context."""
     network = Network(name="test_network", periods=[1.0] * 1)
-    network.add(ELEMENT_TYPE_SOURCE_SINK, "node", is_sink=True, is_source=True)
+    network.add(ELEMENT_TYPE_NODE, "node", is_sink=True, is_source=True)
 
     def mock_optimize() -> float:
         # Call build_constraints to set up the model
@@ -324,3 +332,94 @@ def test_network_optimize_raises_on_solver_failure(
 
     with pytest.raises(ValueError, match="Optimization failed with status: Unbounded"):
         mock_optimize()
+
+
+def test_network_optimize_raises_on_infeasible_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test optimize() raises ValueError when network optimization fails."""
+    # Create a valid network
+    network = Network(name="test_network", periods=[1.0] * 1)
+    network.add(ELEMENT_TYPE_NODE, "node", is_sink=True, is_source=True)
+
+    # Track if run() has been called
+    run_called = False
+
+    original_run = network._solver.run
+    original_get_model_status = network._solver.getModelStatus
+
+    def mock_run() -> None:
+        nonlocal run_called
+        original_run()
+        run_called = True
+
+    def mock_get_model_status() -> HighsModelStatus:
+        # After run() is called, return a non-optimal status
+        if run_called:
+            return HighsModelStatus.kInfeasible
+        return original_get_model_status()
+
+    monkeypatch.setattr(network._solver, "run", mock_run)
+    monkeypatch.setattr(network._solver, "getModelStatus", mock_get_model_status)
+
+    # This should raise ValueError with the error message from optimize()
+    with pytest.raises(ValueError, match="Optimization failed with status:"):
+        network.optimize()
+
+
+def test_add_battery_balance_connection() -> None:
+    """Test adding a battery balance connection via Network.add()."""
+    network = Network(name="test_network", periods=[1.0] * 3)
+
+    # Add two battery sections
+    network.add(ELEMENT_TYPE_BATTERY, "upper_section", capacity=10.0, initial_charge=5.0)
+    network.add(ELEMENT_TYPE_BATTERY, "lower_section", capacity=10.0, initial_charge=5.0)
+
+    # Add battery balance connection
+    balance = network.add(
+        ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+        "balance",
+        upper="upper_section",
+        lower="lower_section",
+        capacity_lower=10.0,
+    )
+
+    assert balance is not None
+    assert balance.name == "balance"
+    assert "balance" in network.elements
+
+
+def test_add_battery_balance_connection_upper_not_battery() -> None:
+    """Test battery balance connection raises TypeError when upper is not a battery."""
+    network = Network(name="test_network", periods=[1.0] * 3)
+
+    # Add a node (not a battery) as upper
+    network.add(ELEMENT_TYPE_NODE, "not_a_battery", is_sink=True, is_source=True)
+    network.add(ELEMENT_TYPE_BATTERY, "lower_section", capacity=10.0, initial_charge=5.0)
+
+    with pytest.raises(TypeError, match="Upper element 'not_a_battery' is not a battery"):
+        network.add(
+            ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+            "balance",
+            upper="not_a_battery",
+            lower="lower_section",
+            capacity_lower=10.0,
+        )
+
+
+def test_add_battery_balance_connection_lower_not_battery() -> None:
+    """Test battery balance connection raises TypeError when lower is not a battery."""
+    network = Network(name="test_network", periods=[1.0] * 3)
+
+    # Add battery as upper, node as lower
+    network.add(ELEMENT_TYPE_BATTERY, "upper_section", capacity=10.0, initial_charge=5.0)
+    network.add(ELEMENT_TYPE_NODE, "not_a_battery", is_sink=True, is_source=True)
+
+    with pytest.raises(TypeError, match="Lower element 'not_a_battery' is not a battery"):
+        network.add(
+            ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+            "balance",
+            upper="upper_section",
+            lower="not_a_battery",
+            capacity_lower=10.0,
+        )

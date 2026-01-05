@@ -6,7 +6,7 @@ from typing import Final, Literal
 from highspy import Highs
 from highspy.highs import highs_cons, highs_linear_expression
 
-from .const import OUTPUT_TYPE_ENERGY, OUTPUT_TYPE_POWER, OUTPUT_TYPE_SHADOW_PRICE
+from .const import OutputType
 from .element import Element
 from .output_data import OutputData
 from .util import broadcast_to_sequence
@@ -180,19 +180,19 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
         """Return battery output specifications."""
         outputs: dict[BatteryOutputName, OutputData] = {
             BATTERY_POWER_CHARGE: OutputData(
-                type=OUTPUT_TYPE_POWER,
+                type=OutputType.POWER,
                 unit="kW",
                 values=self.extract_values(self.power_consumption),
                 direction="-",
             ),
             BATTERY_POWER_DISCHARGE: OutputData(
-                type=OUTPUT_TYPE_POWER,
+                type=OutputType.POWER,
                 unit="kW",
                 values=self.extract_values(self.power_production),
                 direction="+",
             ),
             BATTERY_ENERGY_STORED: OutputData(
-                type=OUTPUT_TYPE_ENERGY,
+                type=OutputType.ENERGY,
                 unit="kWh",
                 values=self.extract_values(self.stored_energy),
             ),
@@ -206,7 +206,7 @@ class Battery(Element[BatteryOutputName, BatteryConstraintName]):
 
             unit = "$/kW" if constraint_name in BATTERY_POWER_CONSTRAINTS else "$/kWh"
             outputs[constraint_name] = OutputData(
-                type=OUTPUT_TYPE_SHADOW_PRICE,
+                type=OutputType.SHADOW_PRICE,
                 unit=unit,
                 values=self.extract_values(self._constraints[constraint_name]),
             )
