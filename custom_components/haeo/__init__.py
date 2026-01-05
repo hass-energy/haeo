@@ -212,7 +212,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager)
     entry.runtime_data = runtime_data
 
-    # Set up configurable sentinel entity for config flows (uses entity registry directly)
+    # Set up sentinel entities for config flows
     await async_setup_sentinel_entities()
 
     # Start horizon manager's scheduled updates
