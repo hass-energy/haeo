@@ -139,9 +139,7 @@ class EnergyStorageAdapter:
         if model_storage.ENERGY_STORAGE_ENERGY_IN_FLOW in storage_data:
             storage_outputs[ENERGY_STORAGE_ENERGY_IN_FLOW] = storage_data[model_storage.ENERGY_STORAGE_ENERGY_IN_FLOW]
         if model_storage.ENERGY_STORAGE_ENERGY_OUT_FLOW in storage_data:
-            storage_outputs[ENERGY_STORAGE_ENERGY_OUT_FLOW] = storage_data[
-                model_storage.ENERGY_STORAGE_ENERGY_OUT_FLOW
-            ]
+            storage_outputs[ENERGY_STORAGE_ENERGY_OUT_FLOW] = storage_data[model_storage.ENERGY_STORAGE_ENERGY_OUT_FLOW]
         if model_storage.ENERGY_STORAGE_SOC_MAX in storage_data:
             storage_outputs[ENERGY_STORAGE_SOC_MAX] = storage_data[model_storage.ENERGY_STORAGE_SOC_MAX]
         if model_storage.ENERGY_STORAGE_SOC_MIN in storage_data:
