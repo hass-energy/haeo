@@ -58,9 +58,6 @@ TWO_STEP_FLOW_ELEMENTS: frozenset[ElementType] = frozenset(
     if getattr(entry.flow_class, "has_value_source_step", False)
 )
 
-# Grid uses a different two-step flow pattern (entity-first instead of mode-based)
-# It has dedicated tests in tests/elements/grid/test_flow.py
-GRID_ELEMENT_TYPE: ElementType = "grid"
 
 TEST_ELEMENT_TYPE = "flow_test_element"
 
@@ -343,7 +340,7 @@ async def test_element_flow_reconfigure_success(
 ) -> None:
     """Verify reconfigure submissions succeed for unchanged data."""
     # Grid uses entity-first pattern with different test approach - see tests/elements/grid/test_flow.py
-    if element_type == GRID_ELEMENT_TYPE:
+    if element_type == grid.ELEMENT_TYPE:
         pytest.skip("Grid uses entity-first flow pattern tested separately")
 
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)
@@ -392,7 +389,7 @@ async def test_element_flow_reconfigure_rename(
 ) -> None:
     """Verify reconfigure handles renaming across element types."""
     # Grid uses entity-first pattern with different test approach - see tests/elements/grid/test_flow.py
-    if element_type == GRID_ELEMENT_TYPE:
+    if element_type == grid.ELEMENT_TYPE:
         pytest.skip("Grid uses entity-first flow pattern tested separately")
 
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)

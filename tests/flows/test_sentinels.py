@@ -9,7 +9,7 @@ from custom_components.haeo.flows.sentinels import async_setup_sentinel_entities
 
 
 @pytest.fixture(autouse=True)
-async def configurable_entity() -> None:
+async def setup_sentinel_entities() -> None:
     """Override the autouse fixture from conftest - these tests manage the entity directly."""
 
 

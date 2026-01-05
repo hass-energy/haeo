@@ -22,7 +22,7 @@ from custom_components.haeo.flows.sentinels import async_setup_sentinel_entities
 
 
 @pytest.fixture(autouse=True)
-async def configurable_entity(hass: HomeAssistant) -> None:
+async def setup_sentinel_entities(hass: HomeAssistant) -> None:
     """Set up the configurable sentinel entity for element tests."""
     await async_setup_sentinel_entities(hass)
 
