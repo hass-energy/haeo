@@ -4,6 +4,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 # Valid HAEO sensor configurations
+# HAEO uses the sensor's unit_of_measurement and device_class to determine conversion
+# Power in W is converted to kW, power in kW stays as kW
+# Timestamps: 2025-10-06T00:00:00+11:00 = 2025-10-05T13:00:00Z = 1759669200
+#             2025-10-06T00:30:00+11:00 = 2025-10-05T13:30:00Z = 1759671000
+#             2025-10-06T01:00:00+11:00 = 2025-10-05T14:00:00Z = 1759672800
+# UTC times: 2025-10-06T00:00:00Z = 1759708800
+#            2025-10-06T00:30:00Z = 1759710600
 VALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.haeo_power_forecast",
@@ -17,6 +24,11 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "haeo",
         "expected_count": 1,
+        "expected_unit": "kW",
+        # 100 W = 0.1 kW
+        "expected_data": [
+            (1759669200.0, 0.1),
+        ],
         "description": "Single HAEO forecast entry with power",
     },
     {
@@ -33,6 +45,13 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "haeo",
         "expected_count": 3,
+        "expected_unit": "kW",
+        # Already in kW, no conversion
+        "expected_data": [
+            (1759669200.0, 50.0),
+            (1759671000.0, 75.0),
+            (1759672800.0, 100.0),
+        ],
         "description": "Multiple HAEO forecast entries",
     },
     {
@@ -48,6 +67,12 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "haeo",
         "expected_count": 2,
+        "expected_unit": "kW",
+        # 25 W = 0.025 kW, 50 W = 0.05 kW
+        "expected_data": [
+            (1759708800.0, 0.025),
+            (1759710600.0, 0.05),
+        ],
         "description": "HAEO forecast with datetime objects",
     },
     {
@@ -63,6 +88,12 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "haeo",
         "expected_count": 2,
+        "expected_unit": "kWh",
+        # Already in kWh, no conversion
+        "expected_data": [
+            (1759669200.0, 10.5),
+            (1759672800.0, 12.0),
+        ],
         "description": "HAEO forecast with energy device class",
     },
     {
@@ -76,6 +107,11 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "haeo",
         "expected_count": 1,
+        "expected_unit": "W",
+        # No device_class, so no conversion
+        "expected_data": [
+            (1759669200.0, 5.0),
+        ],
         "description": "HAEO forecast without device_class attribute",
     },
     {
@@ -91,6 +127,12 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "haeo",
         "expected_count": 2,
+        "expected_unit": "kW",
+        # 100 W = 0.1 kW, 200 W = 0.2 kW
+        "expected_data": [
+            (1759669200.0, 0.1),
+            (1759671000.0, 0.2),
+        ],
         "description": "HAEO forecast with integer values (should be converted to float)",
     },
     {
@@ -105,6 +147,11 @@ VALID: list[dict[str, Any]] = [
         },
         "expected_format": "haeo",
         "expected_count": 1,
+        "expected_unit": "W",
+        # Invalid device_class is ignored, so unit stays as W
+        "expected_data": [
+            (1759669200.0, 100.0),
+        ],
         "description": "HAEO forecast with invalid device_class (should be ignored)",
     },
 ]
