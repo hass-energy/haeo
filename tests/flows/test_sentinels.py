@@ -26,14 +26,14 @@ async def test_setup_sentinel_entities_creates_entity(hass: HomeAssistant) -> No
     assert entity_id is not None
     state = hass.states.get(entity_id)
     assert state is not None
-    assert state.state == "configurable"
-    assert state.attributes["friendly_name"] == "HAEO Configurable"
+    assert state.state == ""
+    assert state.attributes["friendly_name"] == "Configurable Entity"
     assert state.attributes["icon"] == "mdi:tune"
 
     # Verify registry entry has correct metadata
     entry = registry.async_get(entity_id)
     assert entry is not None
-    assert entry.original_name == "HAEO Configurable"
+    assert entry.original_name == "Configurable Entity"
     assert entry.original_icon == "mdi:tune"
 
 
