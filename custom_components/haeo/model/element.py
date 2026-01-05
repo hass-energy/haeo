@@ -23,10 +23,6 @@ class Element[OutputNameT: str](ReactiveElement):
     - Energy: kWh
     - Time (periods): hours (variable-width intervals)
     - Price: $/kWh
-
-    Elements define constraints using @constraint decorators and
-    costs using @cost decorators. Parameters that can change between
-    optimizations should use TrackedParam descriptors.
     """
 
     def __init__(self, name: str, periods: Sequence[float], *, solver: Highs) -> None:

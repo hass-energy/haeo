@@ -69,7 +69,7 @@ class Battery(Element[BatteryOutputName]):
     Uses TrackedParam for parameters that can change between optimizations.
     """
 
-    # Tracked parameters - changes automatically invalidate dependent constraints
+    # Parameters
     capacity: TrackedParam[NDArray[np.float64]] = TrackedParam()
     initial_charge: TrackedParam[float] = TrackedParam()
 

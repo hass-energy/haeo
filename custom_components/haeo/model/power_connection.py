@@ -65,11 +65,9 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
     - Power limits (max_power_source_target, max_power_target_source)
     - Efficiency losses (efficiency_source_target, efficiency_target_source)
     - Transfer pricing (price_source_target, price_target_source)
-
-    Uses TrackedParam for parameters that can change between optimizations.
     """
 
-    # Tracked parameters - changes automatically invalidate dependent constraints/costs
+    # Parameters
     max_power_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     max_power_target_source: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     price_source_target: TrackedParam[NDArray[np.float64] | None] = TrackedParam()

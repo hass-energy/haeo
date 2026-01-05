@@ -64,15 +64,13 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
     Where:
         demand = C_lower - E_lower (room in lower section)
         excess = E_lower - C_new (energy above new capacity)
-
-    Uses TrackedParam for parameters that can change between optimizations.
     """
 
     # Default penalty for slack variables in $/kWh
     # Must be larger than any reasonable energy price to ensure slacks are minimized
     DEFAULT_SLACK_PENALTY: Final[float] = 100.0
 
-    # Tracked parameters - changes automatically invalidate dependent constraints/costs
+    # Parameters
     capacity_lower: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
