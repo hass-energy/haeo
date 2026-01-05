@@ -114,7 +114,6 @@ VALID_CASES: list[ConnectionTestCase] = [
         "expected_outputs": {
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (5.0, 5.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
-            # Cost = price * power * period: 0.10 * 5.0 * 1.0 = 0.5, 0.20 * 5.0 * 0.5 = 0.5
             "connection_cost_source_target": {"type": "cost", "unit": "$", "values": (0.5, 0.5)},
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.9, -0.4)},
         },
@@ -161,13 +160,10 @@ VALID_CASES: list[ConnectionTestCase] = [
             "target_cost": -1.0,  # Strong incentive to deliver power to target
         },
         "expected_outputs": {
-            # Forward flow is incentivized: -1.0 revenue at target - 0.10 transfer = -0.90 net benefit
             "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (4.0, 4.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
-            # Cost = price * power * period: 0.10 * 4.0 * 1.0 = 0.4, 0.20 * 4.0 * 1.0 = 0.8
             "connection_cost_source_target": {"type": "cost", "unit": "$", "values": (0.4, 0.8)},
             "connection_cost_target_source": {"type": "cost", "unit": "$", "values": (0.0, 0.0)},
-            # Shadow prices: forward flow is limited, so shadow price reflects marginal benefit
             "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.9, -0.8)},
             "connection_shadow_power_max_target_source": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
             "connection_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},

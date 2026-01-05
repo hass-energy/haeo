@@ -167,12 +167,16 @@ A Grid element creates 1 device in Home Assistant with the following sensors.
 | ------------------------------------------------------------------------ | ----- | ----------------------------------- |
 | [`sensor.{name}_power_import`](#import-power)                            | kW    | Power imported from grid            |
 | [`sensor.{name}_power_export`](#export-power)                            | kW    | Power exported to grid              |
+| [`sensor.{name}_cost_import`](#import-cost)                              | \$    | Cost of importing electricity       |
+| [`sensor.{name}_cost_export`](#export-cost)                              | \$    | Revenue from exporting electricity  |
+| [`sensor.{name}_cost_net`](#net-cost)                                    | \$    | Net cost (import cost minus export revenue) |
 | [`sensor.{name}_power_max_import`](#max-import-power)                    | kW    | Maximum import power (when limited) |
 | [`sensor.{name}_power_max_export`](#max-export-power)                    | kW    | Maximum export power (when limited) |
 | [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kW | Value of additional import capacity |
 | [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kW | Value of additional export capacity |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
+The `cost_*` sensors are only created when the corresponding price is configured.
 
 ### Import Power
 
@@ -193,6 +197,36 @@ When exporting, this represents electricity you're selling back to the utility.
 A value of 0 means no export is occurring (either self-consuming all generation or importing).
 
 **Example**: A value of 2.1 kW means the optimization determined that exporting 2.1 kW to the grid at this time maximizes total system value (typically during high export prices or excess generation).
+
+### Import Cost
+
+The cost of electricity imported from the grid at each time period.
+Calculated as import price multiplied by import power multiplied by period duration.
+
+Values are always positive or zero, representing money you pay to the utility.
+Only created when an import price is configured.
+
+**Example**: A value of \$0.50 means you're paying \$0.50 to import electricity during this time period.
+
+### Export Cost
+
+The revenue from electricity exported to the grid at each time period.
+Calculated as export price multiplied by export power multiplied by period duration.
+
+Values are always negative or zero, representing money you earn from the utility (revenue is shown as negative cost).
+Only created when an export price is configured.
+
+**Example**: A value of -\$0.30 means you're earning \$0.30 from exporting electricity during this time period.
+
+### Net Cost
+
+The net cost of grid usage at each time period.
+Calculated as import cost plus export cost.
+
+When both import and export prices are configured, this shows your net spending or earnings.
+Positive values mean net spending; negative values mean net earnings.
+
+**Example**: If you import \$0.50 worth and export \$0.30 worth in a period, the net cost is \$0.20 (net spending).
 
 ### Max Import Power
 
