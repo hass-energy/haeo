@@ -95,24 +95,27 @@ VALID_CASES: list[ConnectionTestCase] = [
         },
     },
     {
-        "description": "Connection with transfer pricing discouraging flow",
+        "description": "Connection with transfer pricing and power flow",
         "factory": PowerConnection,
         "data": {
-            "name": "priced_link",
-            "periods": [1.0] * 2,
-            "source": "node_a",
-            "target": "node_b",
-            "price_source_target": [0.5, 0.5],  # High transfer cost
+            "name": "priced_active_link",
+            "periods": [1.0, 0.5],
+            "source": "cheap_grid",
+            "target": "load_node",
+            "max_power_source_target": 5.0,
+            "price_source_target": [0.10, 0.20],  # Transfer pricing
         },
         "inputs": {
-            "source_power": [None, None],
-            "target_power": [None, None],
-            "source_cost": 0.1,
-            "target_cost": -0.2,  # Not enough to offset transfer cost
+            "source_power": [None, None],  # Infinite source
+            "target_power": [None, None],  # Infinite sink
+            "source_cost": 0.0,
+            "target_cost": -1.0,  # Strong incentive to consume at target
         },
         "expected_outputs": {
-            "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
+            "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (5.0, 5.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
+            "connection_cost_source_target": {"type": "cost", "unit": "$", "values": (0.5, 0.5)},
+            "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.9, -0.4)},
         },
     },
     {
@@ -138,25 +141,32 @@ VALID_CASES: list[ConnectionTestCase] = [
         },
     },
     {
-        "description": "Connection with bidirectional transfer pricing",
+        "description": "Connection with bidirectional transfer pricing and forward flow",
         "factory": PowerConnection,
         "data": {
             "name": "bidirectional_priced",
-            "periods": [1.0] * 2,
+            "periods": [1.0, 1.0],
             "source": "node_a",
             "target": "node_b",
-            "price_source_target": [0.1, 0.1],
-            "price_target_source": [0.15, 0.15],
+            "max_power_source_target": 4.0,
+            "max_power_target_source": 3.0,
+            "price_source_target": [0.10, 0.20],
+            "price_target_source": [0.15, 0.25],
         },
         "inputs": {
             "source_power": [None, None],
             "target_power": [None, None],
             "source_cost": 0.0,
-            "target_cost": 0.0,
+            "target_cost": -1.0,  # Strong incentive to deliver power to target
         },
         "expected_outputs": {
-            "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
+            "connection_power_source_target": {"type": "power_flow", "unit": "kW", "values": (4.0, 4.0)},
             "connection_power_target_source": {"type": "power_flow", "unit": "kW", "values": (0.0, 0.0)},
+            "connection_cost_source_target": {"type": "cost", "unit": "$", "values": (0.4, 0.8)},
+            "connection_cost_target_source": {"type": "cost", "unit": "$", "values": (0.0, 0.0)},
+            "connection_shadow_power_max_source_target": {"type": "shadow_price", "unit": "$/kW", "values": (-0.9, -0.8)},
+            "connection_shadow_power_max_target_source": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
+            "connection_time_slice": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0)},
         },
     },
     {
