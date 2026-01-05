@@ -109,15 +109,8 @@ class LoadAdapter:
         connection = model_outputs[f"{name}:connection"]
 
         load_outputs: dict[LoadOutputName, OutputData] = {
-            LOAD_POWER: replace(
-                connection[CONNECTION_POWER_TARGET_SOURCE],
-                name=LOAD_POWER,
-                type=OutputType.POWER,
-            ),
-            LOAD_FORECAST_LIMIT_PRICE: replace(
-                connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
-                name=LOAD_FORECAST_LIMIT_PRICE,
-            ),
+            LOAD_POWER: replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OutputType.POWER),
+            LOAD_FORECAST_LIMIT_PRICE: connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE],
         }
 
         return {LOAD_DEVICE_LOAD: load_outputs}

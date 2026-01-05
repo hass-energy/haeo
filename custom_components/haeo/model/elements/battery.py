@@ -149,33 +149,20 @@ class Battery(Element[BatteryOutputName]):
     def battery_power_charge(self) -> OutputData:
         """Output: power being consumed to charge the battery."""
         return OutputData(
-            name=BATTERY_POWER_CHARGE,
-            type=OutputType.POWER,
-            unit="kW",
-            values=self.extract_values(self.power_consumption),
-            direction="-",
+            type=OutputType.POWER, unit="kW", values=self.extract_values(self.power_consumption), direction="-"
         )
 
     @output
     def battery_power_discharge(self) -> OutputData:
         """Output: power being produced by discharging the battery."""
         return OutputData(
-            name=BATTERY_POWER_DISCHARGE,
-            type=OutputType.POWER,
-            unit="kW",
-            values=self.extract_values(self.power_production),
-            direction="+",
+            type=OutputType.POWER, unit="kW", values=self.extract_values(self.power_production), direction="+"
         )
 
     @output
     def battery_energy_stored(self) -> OutputData:
         """Output: energy currently stored in the battery."""
-        return OutputData(
-            name=BATTERY_ENERGY_STORED,
-            type=OutputType.ENERGY,
-            unit="kWh",
-            values=self.extract_values(self.stored_energy),
-        )
+        return OutputData(type=OutputType.ENERGY, unit="kWh", values=self.extract_values(self.stored_energy))
 
     @output
     def battery_power_balance(self) -> OutputData | None:
@@ -183,7 +170,6 @@ class Battery(Element[BatteryOutputName]):
         if "power_balance_constraint" not in self._applied_constraints:
             return None
         return OutputData(
-            name=BATTERY_POWER_BALANCE,
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
             values=self.extract_values(self._applied_constraints["power_balance_constraint"]),
@@ -195,7 +181,6 @@ class Battery(Element[BatteryOutputName]):
         if "energy_in_flow_constraint" not in self._applied_constraints:
             return None
         return OutputData(
-            name=BATTERY_ENERGY_IN_FLOW,
             type=OutputType.SHADOW_PRICE,
             unit="$/kWh",
             values=self.extract_values(self._applied_constraints["energy_in_flow_constraint"]),
@@ -207,7 +192,6 @@ class Battery(Element[BatteryOutputName]):
         if "energy_out_flow_constraint" not in self._applied_constraints:
             return None
         return OutputData(
-            name=BATTERY_ENERGY_OUT_FLOW,
             type=OutputType.SHADOW_PRICE,
             unit="$/kWh",
             values=self.extract_values(self._applied_constraints["energy_out_flow_constraint"]),
@@ -219,7 +203,6 @@ class Battery(Element[BatteryOutputName]):
         if "soc_max_constraint" not in self._applied_constraints:
             return None
         return OutputData(
-            name=BATTERY_SOC_MAX,
             type=OutputType.SHADOW_PRICE,
             unit="$/kWh",
             values=self.extract_values(self._applied_constraints["soc_max_constraint"]),
@@ -231,7 +214,6 @@ class Battery(Element[BatteryOutputName]):
         if "soc_min_constraint" not in self._applied_constraints:
             return None
         return OutputData(
-            name=BATTERY_SOC_MIN,
             type=OutputType.SHADOW_PRICE,
             unit="$/kWh",
             values=self.extract_values(self._applied_constraints["soc_min_constraint"]),

@@ -480,7 +480,6 @@ class BatteryAdapter:
         # Active battery power (discharge - charge)
         aggregate_outputs[BATTERY_POWER_ACTIVE] = replace(
             aggregate_power_discharge,
-            name=BATTERY_POWER_ACTIVE,
             values=[
                 d - c
                 for d, c in zip(
@@ -495,9 +494,7 @@ class BatteryAdapter:
 
         # Add node power balance as battery power balance
         if NODE_POWER_BALANCE in node_outputs:
-            aggregate_outputs[BATTERY_POWER_BALANCE] = replace(
-                node_outputs[NODE_POWER_BALANCE], name=BATTERY_POWER_BALANCE
-            )
+            aggregate_outputs[BATTERY_POWER_BALANCE] = node_outputs[NODE_POWER_BALANCE]
 
         result: dict[BatteryDeviceName, dict[BatteryOutputName, OutputData]] = {
             BATTERY_DEVICE_BATTERY: aggregate_outputs
@@ -583,7 +580,6 @@ class BatteryAdapter:
 
             if power_down_values is not None:
                 result[device_key][BATTERY_BALANCE_POWER_DOWN] = OutputData(
-                    name=BATTERY_BALANCE_POWER_DOWN,
                     type=OutputType.POWER_FLOW,
                     unit="kW",
                     values=tuple(float(v) for v in power_down_values),
@@ -591,7 +587,6 @@ class BatteryAdapter:
                 )
             if power_up_values is not None:
                 result[device_key][BATTERY_BALANCE_POWER_UP] = OutputData(
-                    name=BATTERY_BALANCE_POWER_UP,
                     type=OutputType.POWER_FLOW,
                     unit="kW",
                     values=tuple(float(v) for v in power_up_values),
@@ -614,7 +609,6 @@ def sum_output_data(outputs: list[OutputData]) -> OutputData:
     summed_values = np.sum([o.values for o in outputs], axis=0)
 
     return OutputData(
-        name=first.name,
         type=first.type,
         unit=first.unit,
         values=tuple(summed_values.tolist()),
@@ -642,7 +636,6 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
     total_values = np.array(aggregate_energy.values) + inaccessible_energy
 
     return OutputData(
-        name=aggregate_energy.name,
         type=aggregate_energy.type,
         unit=aggregate_energy.unit,
         values=tuple(total_values.tolist()),
@@ -659,7 +652,6 @@ def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> Outpu
     soc_values = np.array(total_energy.values) / fence_post_capacity * 100.0
 
     return OutputData(
-        name=BATTERY_STATE_OF_CHARGE,
         type=OutputType.STATE_OF_CHARGE,
         unit="%",
         values=tuple(soc_values.tolist()),

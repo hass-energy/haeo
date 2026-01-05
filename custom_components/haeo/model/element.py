@@ -171,7 +171,7 @@ class Element[OutputNameT: str]:
         """Return output specifications for the element.
 
         Discovers all @output decorated methods via reflection and calls them.
-        Each @output method returns an OutputData with a name field.
+        The method name is used as the output name (dictionary key).
         """
         result: dict[OutputNameT, OutputData] = {}
         for name in dir(type(self)):
@@ -180,7 +180,7 @@ class Element[OutputNameT: str]:
                 method = getattr(self, name)
                 output_data = method()
                 if output_data is not None:
-                    result[output_data.name] = output_data  # type: ignore[literal-required]
+                    result[name] = output_data  # type: ignore[literal-required]
         return result
 
     # Reactive infrastructure methods (merged from ReactiveElement)

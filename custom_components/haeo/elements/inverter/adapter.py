@@ -153,17 +153,12 @@ class InverterAdapter:
 
         # source_target = DC to AC (inverting)
         # target_source = AC to DC (rectifying)
-        inverter_outputs[INVERTER_POWER_DC_TO_AC] = replace(
-            connection[CONNECTION_POWER_SOURCE_TARGET], name=INVERTER_POWER_DC_TO_AC
-        )
-        inverter_outputs[INVERTER_POWER_AC_TO_DC] = replace(
-            connection[CONNECTION_POWER_TARGET_SOURCE], name=INVERTER_POWER_AC_TO_DC
-        )
+        inverter_outputs[INVERTER_POWER_DC_TO_AC] = connection[CONNECTION_POWER_SOURCE_TARGET]
+        inverter_outputs[INVERTER_POWER_AC_TO_DC] = connection[CONNECTION_POWER_TARGET_SOURCE]
 
         # Active inverter power (DC to AC - AC to DC)
         inverter_outputs[INVERTER_POWER_ACTIVE] = replace(
             connection[CONNECTION_POWER_SOURCE_TARGET],
-            name=INVERTER_POWER_ACTIVE,
             values=[
                 dc_to_ac - ac_to_dc
                 for dc_to_ac, ac_to_dc in zip(
@@ -177,17 +172,11 @@ class InverterAdapter:
         )
 
         # DC bus power balance shadow price
-        inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = replace(
-            dc_bus[NODE_POWER_BALANCE], name=INVERTER_DC_BUS_POWER_BALANCE
-        )
+        inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus[NODE_POWER_BALANCE]
 
         # Shadow prices
-        inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = replace(
-            connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET], name=INVERTER_MAX_POWER_DC_TO_AC_PRICE
-        )
-        inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = replace(
-            connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE], name=INVERTER_MAX_POWER_AC_TO_DC_PRICE
-        )
+        inverter_outputs[INVERTER_MAX_POWER_DC_TO_AC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+        inverter_outputs[INVERTER_MAX_POWER_AC_TO_DC_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
 
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}
 

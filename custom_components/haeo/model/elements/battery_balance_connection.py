@@ -241,43 +241,25 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
     def output_power_down(self) -> OutputData:
         """Power flow from upper to lower section."""
         return OutputData(
-            name=BALANCE_POWER_DOWN,
-            type=OutputType.POWER_FLOW,
-            unit="kW",
-            values=self.extract_values(self._power_down),
-            direction="+",
+            type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self._power_down), direction="+"
         )
 
     @output
     def output_power_up(self) -> OutputData:
         """Power flow from lower to upper section."""
         return OutputData(
-            name=BALANCE_POWER_UP,
-            type=OutputType.POWER_FLOW,
-            unit="kW",
-            values=self.extract_values(self._power_up),
-            direction="-",
+            type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self._power_up), direction="-"
         )
 
     @output
     def output_unmet_demand(self) -> OutputData:
         """Unmet demand slack variable."""
-        return OutputData(
-            name=BALANCE_UNMET_DEMAND,
-            type=OutputType.POWER_FLOW,
-            unit="kW",
-            values=self.extract_values(self.unmet_demand),
-        )
+        return OutputData(type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self.unmet_demand))
 
     @output
     def output_absorbed_excess(self) -> OutputData:
         """Absorbed excess slack variable."""
-        return OutputData(
-            name=BALANCE_ABSORBED_EXCESS,
-            type=OutputType.POWER_FLOW,
-            unit="kW",
-            values=self.extract_values(self.absorbed_excess),
-        )
+        return OutputData(type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self.absorbed_excess))
 
     @output
     def output_shadow_down_lower_bound(self) -> OutputData | None:
@@ -285,7 +267,6 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         if "down_lower_bound_constraint" not in self._applied_constraints:
             return None
         return OutputData(
-            name=BALANCE_DOWN_LOWER_BOUND,
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
             values=self.extract_values(self._applied_constraints["down_lower_bound_constraint"]),
@@ -297,7 +278,6 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         if "down_slack_bound_constraint" not in self._applied_constraints:
             return None
         return OutputData(
-            name=BALANCE_DOWN_SLACK_BOUND,
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
             values=self.extract_values(self._applied_constraints["down_slack_bound_constraint"]),
@@ -309,7 +289,6 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         if "up_upper_bound_constraint" not in self._applied_constraints:
             return None
         return OutputData(
-            name=BALANCE_UP_UPPER_BOUND,
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
             values=self.extract_values(self._applied_constraints["up_upper_bound_constraint"]),
@@ -321,7 +300,6 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         if "up_slack_bound_constraint" not in self._applied_constraints:
             return None
         return OutputData(
-            name=BALANCE_UP_SLACK_BOUND,
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
             values=self.extract_values(self._applied_constraints["up_slack_bound_constraint"]),

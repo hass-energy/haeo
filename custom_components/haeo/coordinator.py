@@ -497,22 +497,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             network_output_data: dict[NetworkOutputName, OutputData] = {
                 OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
-                    name=OUTPUT_NAME_OPTIMIZATION_COST,
-                    type=OutputType.COST,
-                    unit=self.hass.config.currency,
-                    values=(cost,),
+                    type=OutputType.COST, unit=self.hass.config.currency, values=(cost,)
                 ),
                 OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
-                    name=OUTPUT_NAME_OPTIMIZATION_STATUS,
-                    type=OutputType.STATUS,
-                    unit=None,
-                    values=(OPTIMIZATION_STATUS_SUCCESS,),
+                    type=OutputType.STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
                 ),
                 OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
-                    name=OUTPUT_NAME_OPTIMIZATION_DURATION,
-                    type=OutputType.DURATION,
-                    unit=UnitOfTime.SECONDS,
-                    values=(optimization_duration,),
+                    type=OutputType.DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
                 ),
             }
 

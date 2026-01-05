@@ -87,7 +87,6 @@ class Node(Element[NodeOutputName]):
         if "power_balance_constraint" not in self._applied_constraints:
             return None
         return OutputData(
-            name=NODE_POWER_BALANCE,
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
             values=self.extract_values(self._applied_constraints["power_balance_constraint"]),
