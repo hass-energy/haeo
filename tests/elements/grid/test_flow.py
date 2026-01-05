@@ -17,7 +17,7 @@ from tests.conftest import TEST_CONFIGURABLE_ENTITY_ID
 from ..conftest import add_participant, create_flow
 
 
-async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry, configurable_entity: None) -> None:
+async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Grid reconfigure should include deleted connection target in options."""
     # Create grid that references a deleted connection target
     existing_config = {
@@ -86,7 +86,6 @@ async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssi
 async def test_user_step_empty_required_field_shows_error(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    configurable_entity: None,
 ) -> None:
     """Submitting step 1 with empty required field should show required error."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
@@ -113,7 +112,6 @@ async def test_user_step_empty_required_field_shows_error(
 async def test_user_step_with_configurable_shows_values_form(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    configurable_entity: None,
 ) -> None:
     """Selecting configurable entity should show values form (step 2)."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
@@ -137,7 +135,6 @@ async def test_user_step_with_configurable_shows_values_form(
 async def test_values_step_creates_entry_with_constant(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    configurable_entity: None,
 ) -> None:
     """Submitting values step should create entry with constant values."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
@@ -179,7 +176,6 @@ async def test_values_step_creates_entry_with_constant(
 async def test_values_step_missing_required_shows_error(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    configurable_entity: None,
 ) -> None:
     """Submitting values step with missing required configurable value should show error."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
@@ -214,7 +210,6 @@ async def test_values_step_missing_required_shows_error(
 async def test_reconfigure_empty_required_field_shows_error(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    configurable_entity: None,
 ) -> None:
     """Reconfigure with empty required field should show error."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
@@ -257,7 +252,6 @@ async def test_reconfigure_empty_required_field_shows_error(
 async def test_reconfigure_with_configurable_shows_values_form(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    configurable_entity: None,
 ) -> None:
     """Reconfigure with configurable entity should show values form."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
@@ -299,7 +293,6 @@ async def test_reconfigure_with_configurable_shows_values_form(
 async def test_reconfigure_values_step_updates_entry(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    configurable_entity: None,
 ) -> None:
     """Submitting reconfigure values step should update entry."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
@@ -354,7 +347,6 @@ async def test_reconfigure_values_step_updates_entry(
 async def test_reconfigure_values_step_missing_required_shows_error(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    configurable_entity: None,
 ) -> None:
     """Reconfigure values step with missing required configurable value should show error."""
     add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)

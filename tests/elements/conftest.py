@@ -18,6 +18,13 @@ from custom_components.haeo.const import (
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES, ElementType
+from custom_components.haeo.flows.sentinels import async_setup_sentinel_entities
+
+
+@pytest.fixture(autouse=True)
+async def configurable_entity(hass: HomeAssistant) -> None:
+    """Set up the configurable sentinel entity for element tests."""
+    await async_setup_sentinel_entities(hass)
 
 # Default forecast times for adapter load tests (0s, 30min)
 FORECAST_TIMES: Final[Sequence[float]] = (0.0, 1800.0)

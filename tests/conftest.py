@@ -6,12 +6,10 @@ from importlib import import_module
 from logging import config as logging_config_module
 from typing import Any
 
-from homeassistant.core import HomeAssistant
 import pytest
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements import ELEMENT_TYPES
-from custom_components.haeo.flows.sentinels import async_setup_sentinel_entities
 
 # Enable custom component for testing
 pytest_plugins = ["pytest_homeassistant_custom_component"]
@@ -124,13 +122,3 @@ def configure_logging() -> None:
 def auto_enable_custom_integrations(enable_custom_integrations: None) -> bool:
     """Enable loading custom integrations in all tests."""
     return enable_custom_integrations is None
-
-
-@pytest.fixture
-async def configurable_entity(hass: HomeAssistant) -> None:
-    """Set up the real configurable sentinel entity for config flow tests.
-
-    Use this fixture in tests that exercise config flows which call
-    get_configurable_entity_id() or is_configurable_entity().
-    """
-    await async_setup_sentinel_entities(hass)

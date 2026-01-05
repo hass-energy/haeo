@@ -1,10 +1,16 @@
 """Tests for configurable entity management."""
 
+import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.const import CONFIGURABLE_ENTITY_UNIQUE_ID, DOMAIN
 from custom_components.haeo.flows.sentinels import async_setup_sentinel_entities, async_unload_sentinel_entities
+
+
+@pytest.fixture(autouse=True)
+async def configurable_entity() -> None:
+    """Override the autouse fixture from conftest - these tests manage the entity directly."""
 
 
 async def test_setup_sentinel_entities_creates_entity(hass: HomeAssistant) -> None:

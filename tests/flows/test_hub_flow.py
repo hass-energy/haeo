@@ -313,7 +313,7 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
         assert hasattr(flow_class, "async_step_reconfigure")
 
 
-async def test_subentry_translations_exist(hass: HomeAssistant, configurable_entity: None) -> None:
+async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
     """Ensure all element subentry flows expose complete translations."""
 
     hub_entry = MockConfigEntry()
