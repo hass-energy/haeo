@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 from .const import OutputType
 from .element import Element
 from .output_data import OutputData
-from .reactive import TrackedParam, cached_constraint
+from .reactive import TrackedParam, constraint
 from .util import broadcast_to_sequence
 
 # Type for battery constraint names
@@ -108,37 +108,37 @@ class Battery(Element[BatteryOutputName]):
         self.power_production = (self.energy_out[1:] - self.energy_out[:-1]) * (1.0 / self.periods)
         self.stored_energy = self.energy_in - self.energy_out
 
-    @cached_constraint
+    @constraint
     def initial_charge_constraint(self) -> highs_cons:
         """Constraint: energy_in[0] == initial_charge."""
         return self._solver.addConstr(self.energy_in[0] == self.initial_charge)
 
-    @cached_constraint
+    @constraint
     def initial_discharge_constraint(self) -> highs_cons:
         """Constraint: energy_out[0] == 0."""
         return self._solver.addConstr(self.energy_out[0] == 0.0)
 
-    @cached_constraint
+    @constraint
     def energy_in_flow_constraint(self) -> list[highs_cons]:
         """Constraint: cumulative energy in can only increase."""
         return self._solver.addConstrs(self.energy_in[1:] >= self.energy_in[:-1])
 
-    @cached_constraint
+    @constraint
     def energy_out_flow_constraint(self) -> list[highs_cons]:
         """Constraint: cumulative energy out can only increase."""
         return self._solver.addConstrs(self.energy_out[1:] >= self.energy_out[:-1])
 
-    @cached_constraint
+    @constraint
     def soc_max_constraint(self) -> list[highs_cons]:
         """Constraint: stored energy cannot exceed capacity."""
         return self._solver.addConstrs(self.stored_energy[1:] <= self.capacity[1:])
 
-    @cached_constraint
+    @constraint
     def soc_min_constraint(self) -> list[highs_cons]:
         """Constraint: stored energy cannot be negative."""
         return self._solver.addConstrs(self.stored_energy[1:] >= 0)
 
-    @cached_constraint
+    @constraint
     def power_balance_constraint(self) -> list[highs_cons]:
         """Constraint: connection_power equals net battery power."""
         return self._solver.addConstrs(self.connection_power() == self.power_consumption - self.power_production)

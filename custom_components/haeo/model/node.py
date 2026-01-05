@@ -9,7 +9,7 @@ from highspy.highs import highs_cons
 from .const import OutputType
 from .element import Element
 from .output_data import OutputData
-from .reactive import cached_constraint
+from .reactive import constraint
 
 type NodeConstraintName = Literal["node_power_balance"]
 
@@ -58,7 +58,7 @@ class Node(Element[NodeOutputName]):
         self.is_source = is_source
         self.is_sink = is_sink
 
-    @cached_constraint
+    @constraint
     def power_balance_constraint(self) -> list[highs_cons] | None:
         """Bound the connection power based on source/sink behavior."""
         h = self._solver

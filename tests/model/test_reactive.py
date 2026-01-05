@@ -12,8 +12,8 @@ from custom_components.haeo.model.reactive import (
     CachedKind,
     ReactiveElement,
     TrackedParam,
-    cached_constraint,
-    cached_cost,
+    constraint,
+    cost,
 )
 
 
@@ -50,7 +50,7 @@ class TestTrackedParam:
         class Element(ReactiveElement):
             capacity = TrackedParam[float]()
 
-            @cached_constraint
+            @constraint
             def soc_constraint(self) -> list[Any]:
                 _ = self.capacity  # Access to establish dependency
                 return []
@@ -75,7 +75,7 @@ class TestTrackedParam:
         class Element(ReactiveElement):
             capacity = TrackedParam[float]()
 
-            @cached_constraint
+            @constraint
             def soc_constraint(self) -> list[Any]:
                 _ = self.capacity
                 return []
@@ -100,14 +100,14 @@ class TestTrackedParam:
 
 
 class TestCachedConstraint:
-    """Tests for cached_constraint decorator."""
+    """Tests for constraint decorator."""
 
     def test_caches_result(self) -> None:
         """Test that constraint result is cached."""
         call_count = 0
 
         class Element(ReactiveElement):
-            @cached_constraint
+            @constraint
             def my_constraint(self) -> list[int]:
                 nonlocal call_count
                 call_count += 1
@@ -132,7 +132,7 @@ class TestCachedConstraint:
         class Element(ReactiveElement):
             capacity = TrackedParam[float]()
 
-            @cached_constraint
+            @constraint
             def my_constraint(self) -> list[float]:
                 nonlocal call_count
                 call_count += 1
@@ -162,7 +162,7 @@ class TestCachedConstraint:
             capacity = TrackedParam[float]()
             efficiency = TrackedParam[float]()
 
-            @cached_constraint
+            @constraint
             def combined_constraint(self) -> list[float]:
                 return [self.capacity * self.efficiency]
 
@@ -180,7 +180,7 @@ class TestCachedConstraint:
         """Test accessing CachedConstraint on class returns the descriptor."""
 
         class Element(ReactiveElement):
-            @cached_constraint
+            @constraint
             def my_constraint(self) -> list[int]:
                 return []
 
@@ -188,14 +188,14 @@ class TestCachedConstraint:
 
 
 class TestCachedCost:
-    """Tests for cached_cost decorator."""
+    """Tests for cost decorator."""
 
     def test_caches_result(self) -> None:
         """Test that cost result is cached."""
         call_count = 0
 
         class Element(ReactiveElement):
-            @cached_cost
+            @cost
             def my_cost(self) -> Sequence[highs_linear_expression]:
                 nonlocal call_count
                 call_count += 1
@@ -218,7 +218,7 @@ class TestCachedCost:
         class Element(ReactiveElement):
             price = TrackedParam[float]()
 
-            @cached_cost
+            @cost
             def my_cost(self) -> Sequence[highs_linear_expression]:
                 nonlocal call_count
                 call_count += 1
@@ -244,7 +244,7 @@ class TestCachedCost:
         """Test accessing CachedCost on class returns the descriptor."""
 
         class Element(ReactiveElement):
-            @cached_cost
+            @cost
             def my_cost(self) -> Sequence[highs_linear_expression]:
                 return []
 
@@ -273,17 +273,17 @@ class TestReactiveElement:
             a = TrackedParam[float]()
             b = TrackedParam[float]()
 
-            @cached_constraint
+            @constraint
             def uses_a(self) -> list[int]:
                 _ = self.a
                 return []
 
-            @cached_constraint
+            @constraint
             def uses_b(self) -> list[int]:
                 _ = self.b
                 return []
 
-            @cached_constraint
+            @constraint
             def uses_both(self) -> list[int]:
                 _ = self.a
                 _ = self.b
@@ -311,7 +311,7 @@ class TestReactiveElement:
         class Element(ReactiveElement):
             price = TrackedParam[float]()
 
-            @cached_cost
+            @cost
             def price_cost(self) -> Sequence[highs_linear_expression]:
                 _ = self.price
                 return []
@@ -337,7 +337,7 @@ class TestApplyConstraints:
         x = solver.addVariable(lb=0.0, ub=10.0)
 
         class Element(ReactiveElement):
-            @cached_constraint
+            @constraint
             def my_constraint(self) -> list[highs_cons]:
                 # Constraint methods call addConstrs and return highs_cons
                 return solver.addConstrs([x <= 5.0])
@@ -355,7 +355,7 @@ class TestApplyConstraints:
         solver = Highs()
 
         class Element(ReactiveElement):
-            @cached_constraint
+            @constraint
             def my_constraint(self) -> None:
                 return None
 
@@ -370,7 +370,7 @@ class TestApplyConstraints:
 
 
 class TestIntegration:
-    """Integration tests combining TrackedParam and cached_constraint."""
+    """Integration tests combining TrackedParam and constraint."""
 
     def test_reactive_workflow(self) -> None:
         """Test complete reactive workflow with parameter changes."""
@@ -385,7 +385,7 @@ class TestIntegration:
                 self.initial_charge = initial_charge
                 self._soc_values: list[float] = []
 
-            @cached_constraint
+            @constraint
             def soc_max_constraint(self) -> list[float]:
                 # Simulated constraint that depends on capacity
                 self._soc_values = [self.capacity * 0.9]

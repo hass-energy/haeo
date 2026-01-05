@@ -24,8 +24,8 @@ class Element[OutputNameT: str](ReactiveElement):
     - Time (periods): hours (variable-width intervals)
     - Price: $/kWh
 
-    Elements define constraints using @cached_constraint decorators and
-    costs using @cached_cost decorators. Parameters that can change between
+    Elements define constraints using @constraint decorators and
+    costs using @cost decorators. Parameters that can change between
     optimizations should use TrackedParam descriptors.
     """
 

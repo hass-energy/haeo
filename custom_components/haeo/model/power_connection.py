@@ -18,7 +18,7 @@ from .connection import (
 )
 from .const import OutputType
 from .output_data import OutputData
-from .reactive import TrackedParam, cached_constraint, cached_cost
+from .reactive import TrackedParam, constraint, cost
 from .util import broadcast_to_sequence
 
 type PowerConnectionConstraintName = (
@@ -148,7 +148,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
         """
         return self._power_source_target * self._efficiency_source_target - self._power_target_source
 
-    @cached_constraint
+    @constraint
     def power_max_source_target_constraint(self) -> list[highs_cons] | None:
         """Constraint: limit power flow from source to target."""
         if self.max_power_source_target is None:
@@ -158,7 +158,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
             return self._solver.addConstrs(self.power_source_target == self.max_power_source_target)
         return self._solver.addConstrs(self.power_source_target <= self.max_power_source_target)
 
-    @cached_constraint
+    @constraint
     def power_max_target_source_constraint(self) -> list[highs_cons] | None:
         """Constraint: limit power flow from target to source."""
         if self.max_power_target_source is None:
@@ -168,7 +168,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
             return self._solver.addConstrs(self.power_target_source == self.max_power_target_source)
         return self._solver.addConstrs(self.power_target_source <= self.max_power_target_source)
 
-    @cached_constraint
+    @constraint
     def time_slice_constraint(self) -> list[highs_cons] | None:
         """Constraint: prevent simultaneous full bidirectional power flow."""
         if self.max_power_source_target is None or self.max_power_target_source is None:
@@ -192,7 +192,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
         time_slice_exprs = normalized_st + normalized_ts <= 1.0
         return self._solver.addConstrs(time_slice_exprs)
 
-    @cached_cost
+    @cost
     def cost_source_target(self) -> highs_linear_expression | None:
         """Cost for power flow from source to target."""
         if self.price_source_target is None:
@@ -200,7 +200,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
         # Multiply power array by price tuple and period tuple
         return Highs.qsum(self.power_source_target * self.price_source_target * self.periods)
 
-    @cached_cost
+    @cost
     def cost_target_source(self) -> highs_linear_expression | None:
         """Cost for power flow from target to source."""
         if self.price_target_source is None:

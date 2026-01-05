@@ -5,7 +5,7 @@ efficient warm start optimization where only changed constraints are updated.
 
 The pattern is inspired by reactive frameworks like MobX:
 - Parameters are declared as TrackedParam descriptors
-- Constraint methods are decorated with @cached_constraint
+- Constraint methods are decorated with @constraint
 - Dependencies are tracked automatically during first execution
 - Parameter changes invalidate only dependent constraints
 """
@@ -43,7 +43,7 @@ class TrackedParam[T]:
         class Battery(ReactiveElement):
             capacity = TrackedParam[Sequence[float]]()
 
-            @cached_constraint
+            @constraint
             def soc_max_constraint(self) -> list[highs_linear_expression]:
                 # Accessing self.capacity records dependency
                 return [self.stored_energy[i] <= self.capacity[i] for i in range(self.n_periods)]
@@ -171,7 +171,7 @@ class CachedConstraint(CachedMethod):
         class Battery(ReactiveElement):
             capacity = TrackedParam[Sequence[float]]()
 
-            @cached_constraint
+            @constraint
             def soc_max_constraint(self) -> list[highs_linear_expression]:
                 return [self.stored_energy[i] <= self.capacity[i] for i in ...]
 
@@ -187,15 +187,15 @@ class CachedCost(CachedMethod):
 
 
 # Convenient decorator aliases
-cached_constraint = CachedConstraint
-cached_cost = CachedCost
+constraint = CachedConstraint
+cost = CachedCost
 
 
 class ReactiveElement:
     """Mixin providing reactive parameter and constraint caching infrastructure.
 
     Elements inheriting from this class can use TrackedParam for parameters
-    and @cached_constraint/@cached_cost for methods. Dependency tracking is automatic.
+    and @constraint/@cost for methods. Dependency tracking is automatic.
     """
 
     def __init__(self) -> None:
@@ -262,7 +262,7 @@ class ReactiveElement:
         Requires self._solver to be set (typically by Element.__init__).
         """
         solver = self._solver  # type: ignore[attr-defined]
-        # Find all cached_constraint methods on this class
+        # Find all constraint methods on this class
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if isinstance(attr, CachedMethod) and attr.kind == CachedKind.CONSTRAINT:
@@ -276,7 +276,7 @@ class ReactiveElement:
 
         Args:
             solver: The HiGHS solver instance
-            constraint_name: Name of the cached_constraint method
+            constraint_name: Name of the constraint method
 
         """
         # Check if already applied and not invalidated
@@ -386,7 +386,7 @@ class ReactiveElement:
 
         Requires self._solver to be set (typically by Element.__init__).
         """
-        # Find all cached_cost methods on this class
+        # Find all cost methods on this class
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             # Check if we need to recompute

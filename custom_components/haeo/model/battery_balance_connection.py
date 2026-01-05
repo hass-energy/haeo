@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 from .connection import Connection
 from .const import OutputType
 from .output_data import OutputData
-from .reactive import TrackedParam, cached_constraint, cached_cost
+from .reactive import TrackedParam, constraint, cost
 from .util import broadcast_to_sequence
 
 # Model element type for battery balance connections
@@ -140,7 +140,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         """
         return self._power_down - self._power_up
 
-    @cached_constraint
+    @constraint
     def down_lower_bound_constraint(self) -> list[highs_cons]:
         """Constraint: energy_down >= demand - unmet_demand."""
         if self._lower_battery is None or self._upper_battery is None:
@@ -159,7 +159,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
 
         return self._solver.addConstrs(energy_down >= demand - unmet_demand_energy)
 
-    @cached_constraint
+    @constraint
     def down_slack_bound_constraint(self) -> list[highs_cons]:
         """Constraint: unmet_demand >= demand - available."""
         if self._lower_battery is None or self._upper_battery is None:
@@ -180,7 +180,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
 
         return self._solver.addConstrs(unmet_demand_energy >= demand - available)
 
-    @cached_constraint
+    @constraint
     def up_upper_bound_constraint(self) -> list[highs_cons]:
         """Constraint: energy_up <= excess + absorbed_excess."""
         if self._lower_battery is None or self._upper_battery is None:
@@ -199,7 +199,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
 
         return self._solver.addConstrs(energy_up <= excess + absorbed_excess_energy)
 
-    @cached_constraint
+    @constraint
     def up_slack_bound_constraint(self) -> list[highs_cons]:
         """Constraint: absorbed_excess >= -excess."""
         if self._lower_battery is None or self._upper_battery is None:
@@ -217,7 +217,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
 
         return self._solver.addConstrs(absorbed_excess_energy >= -excess)
 
-    @cached_cost
+    @cost
     def slack_penalty_cost(self) -> list[highs_linear_expression]:
         """Return cost expressions penalizing slack variables.
 

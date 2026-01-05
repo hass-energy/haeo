@@ -75,9 +75,9 @@ def test_connection_power_with_source_end(solver: Highs) -> None:
 
 
 def test_apply_constraints_populates_applied_constraints(solver: Highs) -> None:
-    """Test that apply_constraints() populates _applied_constraints from @cached_constraint methods.
+    """Test that apply_constraints() populates _applied_constraints from @constraint methods.
 
-    With the reactive pattern, constraints are discovered via @cached_constraint decorators
+    With the reactive pattern, constraints are discovered via @constraint decorators
     and stored in _applied_constraints after calling apply_constraints().
     """
     h = solver
@@ -92,7 +92,7 @@ def test_apply_constraints_populates_applied_constraints(solver: Highs) -> None:
     # Apply constraints
     element.apply_constraints()
 
-    # After applying, _applied_constraints should have entries from @cached_constraint methods
+    # After applying, _applied_constraints should have entries from @constraint methods
     # Node has power_balance_constraint (returns constraints when is_source=True, is_sink=False)
     assert len(element._applied_constraints) > 0
     assert "power_balance_constraint" in element._applied_constraints
