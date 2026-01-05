@@ -45,7 +45,9 @@ def test_extract_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_dat
     assert isinstance(result.data, list), "Valid forecasts should return a list of time series entries"
 
     expected_data: list[tuple[float, float]] = sensor_data["expected_data"]
-    assert result.data == pytest.approx(expected_data, rel=1e-9)
+    assert len(result.data) == len(expected_data)
+    for actual, expected in zip(result.data, expected_data, strict=True):
+        assert actual == pytest.approx(expected, rel=1e-9)
 
     expected_unit: str = sensor_data["expected_unit"]
     assert result.unit == expected_unit
