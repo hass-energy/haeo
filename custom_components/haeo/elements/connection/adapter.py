@@ -154,6 +154,7 @@ class ConnectionAdapter:
         # Active connection power (source_target - target_source)
         connection_outputs[CONNECTION_POWER_ACTIVE] = replace(
             connection[CONNECTION_POWER_SOURCE_TARGET],
+            name=CONNECTION_POWER_ACTIVE,
             values=[
                 st - ts
                 for st, ts in zip(

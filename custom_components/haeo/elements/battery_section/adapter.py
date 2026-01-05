@@ -120,10 +120,14 @@ class BatterySectionAdapter:
 
         # Power outputs
         section_outputs[BATTERY_SECTION_POWER_CHARGE] = replace(
-            battery_data[model_battery.BATTERY_POWER_CHARGE], type=OutputType.POWER
+            battery_data[model_battery.BATTERY_POWER_CHARGE],
+            name=BATTERY_SECTION_POWER_CHARGE,
+            type=OutputType.POWER,
         )
         section_outputs[BATTERY_SECTION_POWER_DISCHARGE] = replace(
-            battery_data[model_battery.BATTERY_POWER_DISCHARGE], type=OutputType.POWER
+            battery_data[model_battery.BATTERY_POWER_DISCHARGE],
+            name=BATTERY_SECTION_POWER_DISCHARGE,
+            type=OutputType.POWER,
         )
 
         # Active power (discharge - charge)
@@ -131,25 +135,44 @@ class BatterySectionAdapter:
         discharge_values = battery_data[model_battery.BATTERY_POWER_DISCHARGE].values
         section_outputs[BATTERY_SECTION_POWER_ACTIVE] = replace(
             battery_data[model_battery.BATTERY_POWER_CHARGE],
+            name=BATTERY_SECTION_POWER_ACTIVE,
             values=[d - c for c, d in zip(charge_values, discharge_values, strict=True)],
             direction=None,
             type=OutputType.POWER,
         )
 
         # Energy stored
-        section_outputs[BATTERY_SECTION_ENERGY_STORED] = battery_data[model_battery.BATTERY_ENERGY_STORED]
+        section_outputs[BATTERY_SECTION_ENERGY_STORED] = replace(
+            battery_data[model_battery.BATTERY_ENERGY_STORED],
+            name=BATTERY_SECTION_ENERGY_STORED,
+        )
 
         # Shadow prices
         if model_battery.BATTERY_POWER_BALANCE in battery_data:
-            section_outputs[BATTERY_SECTION_POWER_BALANCE] = battery_data[model_battery.BATTERY_POWER_BALANCE]
+            section_outputs[BATTERY_SECTION_POWER_BALANCE] = replace(
+                battery_data[model_battery.BATTERY_POWER_BALANCE],
+                name=BATTERY_SECTION_POWER_BALANCE,
+            )
         if model_battery.BATTERY_ENERGY_IN_FLOW in battery_data:
-            section_outputs[BATTERY_SECTION_ENERGY_IN_FLOW] = battery_data[model_battery.BATTERY_ENERGY_IN_FLOW]
+            section_outputs[BATTERY_SECTION_ENERGY_IN_FLOW] = replace(
+                battery_data[model_battery.BATTERY_ENERGY_IN_FLOW],
+                name=BATTERY_SECTION_ENERGY_IN_FLOW,
+            )
         if model_battery.BATTERY_ENERGY_OUT_FLOW in battery_data:
-            section_outputs[BATTERY_SECTION_ENERGY_OUT_FLOW] = battery_data[model_battery.BATTERY_ENERGY_OUT_FLOW]
+            section_outputs[BATTERY_SECTION_ENERGY_OUT_FLOW] = replace(
+                battery_data[model_battery.BATTERY_ENERGY_OUT_FLOW],
+                name=BATTERY_SECTION_ENERGY_OUT_FLOW,
+            )
         if model_battery.BATTERY_SOC_MAX in battery_data:
-            section_outputs[BATTERY_SECTION_SOC_MAX] = battery_data[model_battery.BATTERY_SOC_MAX]
+            section_outputs[BATTERY_SECTION_SOC_MAX] = replace(
+                battery_data[model_battery.BATTERY_SOC_MAX],
+                name=BATTERY_SECTION_SOC_MAX,
+            )
         if model_battery.BATTERY_SOC_MIN in battery_data:
-            section_outputs[BATTERY_SECTION_SOC_MIN] = battery_data[model_battery.BATTERY_SOC_MIN]
+            section_outputs[BATTERY_SECTION_SOC_MIN] = replace(
+                battery_data[model_battery.BATTERY_SOC_MIN],
+                name=BATTERY_SECTION_SOC_MIN,
+            )
 
         return {BATTERY_SECTION_DEVICE: section_outputs}
 

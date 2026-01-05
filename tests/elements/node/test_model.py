@@ -53,12 +53,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "node_main",
         "model_outputs": {
             "node_main": {
-                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                NODE_POWER_BALANCE: OutputData(name=NODE_POWER_BALANCE, type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
         "outputs": {
             node_element.NODE_DEVICE_NODE: {
-                node_element.NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                node_element.NODE_POWER_BALANCE: OutputData(name=node_element.NODE_POWER_BALANCE, type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
     },

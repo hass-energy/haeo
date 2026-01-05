@@ -64,14 +64,14 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "pv_main",
         "model_outputs": {
             "pv_main:connection": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(name=power_connection.CONNECTION_POWER_SOURCE_TARGET, type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"),
+                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(name=power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET, type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
         "outputs": {
             solar_element.SOLAR_DEVICE_SOLAR: {
-                solar_element.SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="+"),
-                solar_element.SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                solar_element.SOLAR_POWER: OutputData(name=solar_element.SOLAR_POWER, type=OutputType.POWER, unit="kW", values=(2.0,), direction="+"),
+                solar_element.SOLAR_FORECAST_LIMIT: OutputData(name=solar_element.SOLAR_FORECAST_LIMIT, type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
         },
     },
@@ -80,14 +80,14 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "pv_with_price",
         "model_outputs": {
             "pv_with_price:connection": {
-                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(name=power_connection.CONNECTION_POWER_SOURCE_TARGET, type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"),
+                power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(name=power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET, type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
         "outputs": {
             solar_element.SOLAR_DEVICE_SOLAR: {
-                solar_element.SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.5,), direction="+"),
-                solar_element.SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                solar_element.SOLAR_POWER: OutputData(name=solar_element.SOLAR_POWER, type=OutputType.POWER, unit="kW", values=(1.5,), direction="+"),
+                solar_element.SOLAR_FORECAST_LIMIT: OutputData(name=solar_element.SOLAR_FORECAST_LIMIT, type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
             }
         },
     },

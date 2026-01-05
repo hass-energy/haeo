@@ -186,12 +186,17 @@ class GridAdapter:
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        grid_outputs[GRID_POWER_EXPORT] = replace(connection[CONNECTION_POWER_TARGET_SOURCE], type=OutputType.POWER)
-        grid_outputs[GRID_POWER_IMPORT] = replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OutputType.POWER)
+        grid_outputs[GRID_POWER_EXPORT] = replace(
+            connection[CONNECTION_POWER_TARGET_SOURCE], name=GRID_POWER_EXPORT, type=OutputType.POWER
+        )
+        grid_outputs[GRID_POWER_IMPORT] = replace(
+            connection[CONNECTION_POWER_SOURCE_TARGET], name=GRID_POWER_IMPORT, type=OutputType.POWER
+        )
 
         # Active grid power (export - import)
         grid_outputs[GRID_POWER_ACTIVE] = replace(
             connection[CONNECTION_POWER_TARGET_SOURCE],
+            name=GRID_POWER_ACTIVE,
             values=[
                 i - e
                 for i, e in zip(
@@ -211,13 +216,13 @@ class GridAdapter:
 
         if CONNECTION_COST_SOURCE_TARGET in connection:
             import_cost_data = connection[CONNECTION_COST_SOURCE_TARGET]
-            grid_outputs[GRID_COST_IMPORT] = replace(import_cost_data, direction="-")
+            grid_outputs[GRID_COST_IMPORT] = replace(import_cost_data, name=GRID_COST_IMPORT, direction="-")
 
         # Export cost: negative value = money earned (revenue)
         # The price_target_source is already negated in create_model_elements, so cost is negative
         if CONNECTION_COST_TARGET_SOURCE in connection:
             export_cost_data = connection[CONNECTION_COST_TARGET_SOURCE]
-            grid_outputs[GRID_COST_EXPORT] = replace(export_cost_data, direction="+")
+            grid_outputs[GRID_COST_EXPORT] = replace(export_cost_data, name=GRID_COST_EXPORT, direction="+")
 
         # Net cost = import cost + export cost (where export cost is negative = revenue)
         # Only output if at least one cost exists
@@ -226,18 +231,22 @@ class GridAdapter:
                 i + e for i, e in zip(import_cost_data.values, export_cost_data.values, strict=True)
             )
             grid_outputs[GRID_COST_NET] = OutputData(
-                type=OutputType.COST, unit="$", values=net_cost_values, direction=None
+                name=GRID_COST_NET, type=OutputType.COST, unit="$", values=net_cost_values, direction=None
             )
         elif import_cost_data is not None:
-            grid_outputs[GRID_COST_NET] = replace(import_cost_data, direction=None)
+            grid_outputs[GRID_COST_NET] = replace(import_cost_data, name=GRID_COST_NET, direction=None)
         elif export_cost_data is not None:
-            grid_outputs[GRID_COST_NET] = replace(export_cost_data, direction=None)
+            grid_outputs[GRID_COST_NET] = replace(export_cost_data, name=GRID_COST_NET, direction=None)
 
         # Output the given inputs if they exist
         if CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE in connection:
-            grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE]
+            grid_outputs[GRID_POWER_MAX_EXPORT_PRICE] = replace(
+                connection[CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE], name=GRID_POWER_MAX_EXPORT_PRICE
+            )
         if CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET in connection:
-            grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET]
+            grid_outputs[GRID_POWER_MAX_IMPORT_PRICE] = replace(
+                connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET], name=GRID_POWER_MAX_IMPORT_PRICE
+            )
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

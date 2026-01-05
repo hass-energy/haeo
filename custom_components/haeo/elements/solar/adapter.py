@@ -119,8 +119,15 @@ class SolarAdapter:
         connection = model_outputs[f"{name}:connection"]
 
         solar_outputs: dict[SolarOutputName, OutputData] = {
-            SOLAR_POWER: replace(connection[CONNECTION_POWER_SOURCE_TARGET], type=OutputType.POWER),
-            SOLAR_FORECAST_LIMIT: connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
+            SOLAR_POWER: replace(
+                connection[CONNECTION_POWER_SOURCE_TARGET],
+                name=SOLAR_POWER,
+                type=OutputType.POWER,
+            ),
+            SOLAR_FORECAST_LIMIT: replace(
+                connection[CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET],
+                name=SOLAR_FORECAST_LIMIT,
+            ),
         }
 
         return {SOLAR_DEVICE_SOLAR: solar_outputs}

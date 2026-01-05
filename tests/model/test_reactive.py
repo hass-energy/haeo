@@ -4,17 +4,24 @@ from collections.abc import Sequence
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import highs_cons, highs_linear_expression
+from highspy.highs import highs_linear_expression
 
+from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import (
     CachedConstraint,
     CachedCost,
     CachedKind,
-    ReactiveElement,
     TrackedParam,
     constraint,
     cost,
 )
+
+
+def create_test_element[T: Element[Any]](cls: type[T]) -> T:
+    """Create a test element instance with a fresh solver."""
+    solver = Highs()
+    solver.setOptionValue("output_flag", False)
+    return cls(name="test", periods=(1.0,), solver=solver)
 
 
 class TestTrackedParam:
@@ -23,10 +30,10 @@ class TestTrackedParam:
     def test_set_and_get_value(self) -> None:
         """Test basic value storage and retrieval."""
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             capacity = TrackedParam[float]()
 
-        elem = Element()
+        elem = create_test_element(TestElement)
         elem.capacity = 10.0
 
         assert elem.capacity == 10.0
@@ -34,10 +41,10 @@ class TestTrackedParam:
     def test_set_initial_value_does_not_invalidate(self) -> None:
         """Test that initial value set does not mark anything as invalidated."""
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             capacity = TrackedParam[float]()
 
-        elem = Element()
+        elem = create_test_element(TestElement)
         elem.capacity = 10.0
 
         # No constraints defined yet, but _invalidated should be empty for all kinds
@@ -47,7 +54,7 @@ class TestTrackedParam:
     def test_change_value_invalidates_dependents(self) -> None:
         """Test that changing a value invalidates dependent constraints."""
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             capacity = TrackedParam[float]()
 
             @constraint
@@ -55,7 +62,7 @@ class TestTrackedParam:
                 _ = self.capacity  # Access to establish dependency
                 return []
 
-        elem = Element()
+        elem = create_test_element(TestElement)
         elem.capacity = 10.0
 
         # Call constraint to establish dependency
@@ -72,7 +79,7 @@ class TestTrackedParam:
     def test_same_value_does_not_invalidate(self) -> None:
         """Test that setting the same value does not invalidate."""
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             capacity = TrackedParam[float]()
 
             @constraint
@@ -80,7 +87,7 @@ class TestTrackedParam:
                 _ = self.capacity
                 return []
 
-        elem = Element()
+        elem = create_test_element(TestElement)
         elem.capacity = 10.0
         elem.soc_constraint()
 
@@ -93,10 +100,10 @@ class TestTrackedParam:
     def test_class_access_returns_descriptor(self) -> None:
         """Test accessing TrackedParam on class returns the descriptor."""
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             capacity = TrackedParam[float]()
 
-        assert isinstance(Element.capacity, TrackedParam)
+        assert isinstance(TestElement.capacity, TrackedParam)
 
 
 class TestCachedConstraint:
@@ -106,14 +113,14 @@ class TestCachedConstraint:
         """Test that constraint result is cached."""
         call_count = 0
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             @constraint
             def my_constraint(self) -> list[int]:
                 nonlocal call_count
                 call_count += 1
                 return [1, 2, 3]
 
-        elem = Element()
+        elem = create_test_element(TestElement)
 
         # First call
         result1 = elem.my_constraint()
@@ -129,7 +136,7 @@ class TestCachedConstraint:
         """Test that constraint recomputes when invalidated."""
         call_count = 0
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             capacity = TrackedParam[float]()
 
             @constraint
@@ -138,7 +145,7 @@ class TestCachedConstraint:
                 call_count += 1
                 return [self.capacity * 2]
 
-        elem = Element()
+        elem = create_test_element(TestElement)
         elem.capacity = 5.0
 
         # First call
@@ -158,7 +165,7 @@ class TestCachedConstraint:
     def test_tracks_multiple_dependencies(self) -> None:
         """Test that multiple parameter dependencies are tracked."""
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             capacity = TrackedParam[float]()
             efficiency = TrackedParam[float]()
 
@@ -166,7 +173,7 @@ class TestCachedConstraint:
             def combined_constraint(self) -> list[float]:
                 return [self.capacity * self.efficiency]
 
-        elem = Element()
+        elem = create_test_element(TestElement)
         elem.capacity = 10.0
         elem.efficiency = 0.9
 
@@ -179,12 +186,12 @@ class TestCachedConstraint:
     def test_class_access_returns_descriptor(self) -> None:
         """Test accessing CachedConstraint on class returns the descriptor."""
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             @constraint
             def my_constraint(self) -> list[int]:
                 return []
 
-        assert isinstance(Element.my_constraint, CachedConstraint)
+        assert isinstance(TestElement.my_constraint, CachedConstraint)
 
 
 class TestCachedCost:
@@ -194,14 +201,14 @@ class TestCachedCost:
         """Test that cost result is cached."""
         call_count = 0
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             @cost
             def my_cost(self) -> Sequence[highs_linear_expression]:
                 nonlocal call_count
                 call_count += 1
                 return []
 
-        elem = Element()
+        elem = create_test_element(TestElement)
 
         # First call
         elem.my_cost()
@@ -215,7 +222,7 @@ class TestCachedCost:
         """Test that cost recomputes when invalidated."""
         call_count = 0
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             price = TrackedParam[float]()
 
             @cost
@@ -225,7 +232,7 @@ class TestCachedCost:
                 _ = self.price  # Access to establish dependency
                 return []
 
-        elem = Element()
+        elem = create_test_element(TestElement)
         elem.price = 0.25
 
         # First call
@@ -243,20 +250,20 @@ class TestCachedCost:
     def test_class_access_returns_descriptor(self) -> None:
         """Test accessing CachedCost on class returns the descriptor."""
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             @cost
             def my_cost(self) -> Sequence[highs_linear_expression]:
                 return []
 
-        assert isinstance(Element.my_cost, CachedCost)
+        assert isinstance(TestElement.my_cost, CachedCost)
 
 
 class TestReactiveElement:
-    """Tests for ReactiveElement base class."""
+    """Tests for Element reactive infrastructure."""
 
     def test_initialization(self) -> None:
-        """Test that ReactiveElement initializes all tracking structures."""
-        elem = ReactiveElement()
+        """Test that Element initializes all tracking structures."""
+        elem = create_test_element(Element)
 
         assert elem._invalidated[CachedKind.CONSTRAINT] == set()
         assert elem._invalidated[CachedKind.COST] == set()
@@ -269,7 +276,7 @@ class TestReactiveElement:
     def test_invalidate_dependents_constraints(self) -> None:
         """Test invalidate_dependents marks correct constraints."""
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             a = TrackedParam[float]()
             b = TrackedParam[float]()
 
@@ -289,7 +296,7 @@ class TestReactiveElement:
                 _ = self.b
                 return []
 
-        elem = Element()
+        elem = create_test_element(TestElement)
         elem.a = 1.0
         elem.b = 2.0
 
@@ -308,7 +315,7 @@ class TestReactiveElement:
     def test_invalidate_dependents_costs(self) -> None:
         """Test invalidate_dependents marks correct costs."""
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             price = TrackedParam[float]()
 
             @cost
@@ -316,7 +323,7 @@ class TestReactiveElement:
                 _ = self.price
                 return []
 
-        elem = Element()
+        elem = create_test_element(TestElement)
         elem.price = 0.25
 
         # Call cost to establish dependency
@@ -334,16 +341,16 @@ class TestApplyConstraints:
     def test_apply_constraints_adds_new_constraint(self) -> None:
         """Test that apply_constraints adds constraints to solver on first call."""
         solver = Highs()
+        solver.setOptionValue("output_flag", False)
         x = solver.addVariable(lb=0.0, ub=10.0)
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             @constraint
-            def my_constraint(self) -> list[highs_cons]:
-                # Constraint methods call addConstrs and return highs_cons
-                return solver.addConstrs([x <= 5.0])
+            def my_constraint(self) -> list[highs_linear_expression]:
+                # Constraint methods return expressions, apply_constraints calls addConstrs
+                return [x <= 5.0]
 
-        elem = Element()
-        elem._solver = solver  # type: ignore[attr-defined]
+        elem = TestElement(name="test", periods=(1.0,), solver=solver)
 
         elem.apply_constraints()
 
@@ -353,15 +360,14 @@ class TestApplyConstraints:
     def test_apply_constraints_skips_none_result(self) -> None:
         """Test that apply_constraints handles None result gracefully."""
         solver = Highs()
+        solver.setOptionValue("output_flag", False)
 
-        class Element(ReactiveElement):
+        class TestElement(Element[str]):
             @constraint
             def my_constraint(self) -> None:
                 return None
 
-        elem = Element()
-        solver = Highs()
-        elem._solver = solver  # type: ignore[attr-defined]
+        elem = TestElement(name="test", periods=(1.0,), solver=solver)
 
         elem.apply_constraints()
 
@@ -375,12 +381,17 @@ class TestIntegration:
     def test_reactive_workflow(self) -> None:
         """Test complete reactive workflow with parameter changes."""
 
-        class Battery(ReactiveElement):
+        class Battery(Element[str]):
             capacity = TrackedParam[float]()
             initial_charge = TrackedParam[float]()
 
-            def __init__(self, capacity: float, initial_charge: float) -> None:
-                super().__init__()
+            def __init__(
+                self,
+                capacity: float,
+                initial_charge: float,
+                **kwargs: object,
+            ) -> None:
+                super().__init__(**kwargs)  # type: ignore[arg-type]
                 self.capacity = capacity
                 self.initial_charge = initial_charge
                 self._soc_values: list[float] = []
@@ -391,7 +402,15 @@ class TestIntegration:
                 self._soc_values = [self.capacity * 0.9]
                 return self._soc_values
 
-        battery = Battery(capacity=10.0, initial_charge=5.0)
+        solver = Highs()
+        solver.setOptionValue("output_flag", False)
+        battery = Battery(
+            capacity=10.0,
+            initial_charge=5.0,
+            name="test",
+            periods=(1.0,),
+            solver=solver,
+        )
 
         # Initial constraint computation
         result1 = battery.soc_max_constraint()

@@ -61,14 +61,14 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "load_main",
         "model_outputs": {
             "load_main:connection": {
-                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"),
-                power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(name=power_connection.CONNECTION_POWER_TARGET_SOURCE, type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"),
+                power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(name=power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE, type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             }
         },
         "outputs": {
             load_element.LOAD_DEVICE_LOAD: {
-                load_element.LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="+"),
-                load_element.LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                load_element.LOAD_POWER: OutputData(name=load_element.LOAD_POWER, type=OutputType.POWER, unit="kW", values=(1.0,), direction="+"),
+                load_element.LOAD_FORECAST_LIMIT_PRICE: OutputData(name=load_element.LOAD_FORECAST_LIMIT_PRICE, type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
             }
         },
     },

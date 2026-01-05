@@ -102,6 +102,7 @@ def test_sum_output_data_raises_on_empty_list() -> None:
 def test_sum_output_data_sums_multiple_outputs() -> None:
     """sum_output_data correctly sums values from multiple OutputData objects."""
     output1 = OutputData(
+        name="test_output",
         type=OutputType.POWER,
         unit="kW",
         values=(1.0, 2.0, 3.0),
@@ -109,6 +110,7 @@ def test_sum_output_data_sums_multiple_outputs() -> None:
         advanced=False,
     )
     output2 = OutputData(
+        name="test_output",
         type=OutputType.POWER,
         unit="kW",
         values=(4.0, 5.0, 6.0),

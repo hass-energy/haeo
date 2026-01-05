@@ -1,17 +1,17 @@
 """Battery balance connection for energy redistribution between battery sections."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Final, Literal
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
+from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from .connection import Connection
 from .const import OutputType
 from .output_data import OutputData
-from .reactive import TrackedParam, constraint, cost
+from .reactive import TrackedParam, constraint, cost, output
 from .util import broadcast_to_sequence
 
 # Model element type for battery balance connections
@@ -139,7 +139,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         return self._power_down - self._power_up
 
     @constraint
-    def down_lower_bound_constraint(self) -> list[highs_cons]:
+    def down_lower_bound_constraint(self) -> list[highs_linear_expression]:
         """Constraint: energy_down >= demand - unmet_demand."""
         if self._lower_battery is None or self._upper_battery is None:
             msg = f"Battery references not set for {self.name}"
@@ -155,10 +155,10 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         # demand = room in lower section = capacity - current energy
         demand = capacity_lower[:-1] - lower_stored[:-1]
 
-        return self._solver.addConstrs(energy_down >= demand - unmet_demand_energy)
+        return list(energy_down >= demand - unmet_demand_energy)
 
     @constraint
-    def down_slack_bound_constraint(self) -> list[highs_cons]:
+    def down_slack_bound_constraint(self) -> list[highs_linear_expression]:
         """Constraint: unmet_demand >= demand - available."""
         if self._lower_battery is None or self._upper_battery is None:
             msg = f"Battery references not set for {self.name}"
@@ -176,10 +176,10 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         # available = energy in upper section
         available = upper_stored[:-1]
 
-        return self._solver.addConstrs(unmet_demand_energy >= demand - available)
+        return list(unmet_demand_energy >= demand - available)
 
     @constraint
-    def up_upper_bound_constraint(self) -> list[highs_cons]:
+    def up_upper_bound_constraint(self) -> list[highs_linear_expression]:
         """Constraint: energy_up <= excess + absorbed_excess."""
         if self._lower_battery is None or self._upper_battery is None:
             msg = f"Battery references not set for {self.name}"
@@ -195,10 +195,10 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         # excess = current energy - next capacity (positive when capacity shrinks)
         excess = lower_stored[:-1] - capacity_lower[1:]
 
-        return self._solver.addConstrs(energy_up <= excess + absorbed_excess_energy)
+        return list(energy_up <= excess + absorbed_excess_energy)
 
     @constraint
-    def up_slack_bound_constraint(self) -> list[highs_cons]:
+    def up_slack_bound_constraint(self) -> list[highs_linear_expression]:
         """Constraint: absorbed_excess >= -excess."""
         if self._lower_battery is None or self._upper_battery is None:
             msg = f"Battery references not set for {self.name}"
@@ -213,7 +213,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         # excess = current energy - next capacity (positive when capacity shrinks)
         excess = lower_stored[:-1] - capacity_lower[1:]
 
-        return self._solver.addConstrs(absorbed_excess_energy >= -excess)
+        return list(absorbed_excess_energy >= -excess)
 
     @cost
     def slack_penalty_cost(self) -> list[highs_linear_expression]:
@@ -236,46 +236,92 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
 
         return [*list(unmet_cost), *list(absorbed_cost)]
 
-    def outputs(self) -> Mapping[BatteryBalanceConnectionOutputName, OutputData]:
-        """Return output specifications for the balance connection."""
-        outputs: dict[BatteryBalanceConnectionOutputName, OutputData] = {
-            BALANCE_POWER_DOWN: OutputData(
-                type=OutputType.POWER_FLOW,
-                unit="kW",
-                values=self.extract_values(self._power_down),
-                direction="+",
-            ),
-            BALANCE_POWER_UP: OutputData(
-                type=OutputType.POWER_FLOW,
-                unit="kW",
-                values=self.extract_values(self._power_up),
-                direction="-",
-            ),
-            BALANCE_UNMET_DEMAND: OutputData(
-                type=OutputType.POWER_FLOW,
-                unit="kW",
-                values=self.extract_values(self.unmet_demand),
-            ),
-            BALANCE_ABSORBED_EXCESS: OutputData(
-                type=OutputType.POWER_FLOW,
-                unit="kW",
-                values=self.extract_values(self.absorbed_excess),
-            ),
-        }
+    @output
+    def output_power_down(self) -> OutputData:
+        """Power flow from upper to lower section."""
+        return OutputData(
+            name=BALANCE_POWER_DOWN,
+            type=OutputType.POWER_FLOW,
+            unit="kW",
+            values=self.extract_values(self._power_down),
+            direction="+",
+        )
 
-        constraint_mapping: dict[str, BatteryBalanceConnectionConstraintName] = {
-            "down_lower_bound_constraint": BALANCE_DOWN_LOWER_BOUND,
-            "down_slack_bound_constraint": BALANCE_DOWN_SLACK_BOUND,
-            "up_upper_bound_constraint": BALANCE_UP_UPPER_BOUND,
-            "up_slack_bound_constraint": BALANCE_UP_SLACK_BOUND,
-        }
+    @output
+    def output_power_up(self) -> OutputData:
+        """Power flow from lower to upper section."""
+        return OutputData(
+            name=BALANCE_POWER_UP,
+            type=OutputType.POWER_FLOW,
+            unit="kW",
+            values=self.extract_values(self._power_up),
+            direction="-",
+        )
 
-        for method_name, output_name in constraint_mapping.items():
-            if method_name in self._applied_constraints:
-                outputs[output_name] = OutputData(
-                    type=OutputType.POWER_FLOW,
-                    unit="$/kW",
-                    values=self.extract_values(self._applied_constraints[method_name]),
-                )
+    @output
+    def output_unmet_demand(self) -> OutputData:
+        """Unmet demand slack variable."""
+        return OutputData(
+            name=BALANCE_UNMET_DEMAND,
+            type=OutputType.POWER_FLOW,
+            unit="kW",
+            values=self.extract_values(self.unmet_demand),
+        )
 
-        return outputs
+    @output
+    def output_absorbed_excess(self) -> OutputData:
+        """Absorbed excess slack variable."""
+        return OutputData(
+            name=BALANCE_ABSORBED_EXCESS,
+            type=OutputType.POWER_FLOW,
+            unit="kW",
+            values=self.extract_values(self.absorbed_excess),
+        )
+
+    @output
+    def output_shadow_down_lower_bound(self) -> OutputData | None:
+        """Shadow price for down lower bound constraint."""
+        if "down_lower_bound_constraint" not in self._applied_constraints:
+            return None
+        return OutputData(
+            name=BALANCE_DOWN_LOWER_BOUND,
+            type=OutputType.SHADOW_PRICE,
+            unit="$/kW",
+            values=self.extract_values(self._applied_constraints["down_lower_bound_constraint"]),
+        )
+
+    @output
+    def output_shadow_down_slack_bound(self) -> OutputData | None:
+        """Shadow price for down slack bound constraint."""
+        if "down_slack_bound_constraint" not in self._applied_constraints:
+            return None
+        return OutputData(
+            name=BALANCE_DOWN_SLACK_BOUND,
+            type=OutputType.SHADOW_PRICE,
+            unit="$/kW",
+            values=self.extract_values(self._applied_constraints["down_slack_bound_constraint"]),
+        )
+
+    @output
+    def output_shadow_up_upper_bound(self) -> OutputData | None:
+        """Shadow price for up upper bound constraint."""
+        if "up_upper_bound_constraint" not in self._applied_constraints:
+            return None
+        return OutputData(
+            name=BALANCE_UP_UPPER_BOUND,
+            type=OutputType.SHADOW_PRICE,
+            unit="$/kW",
+            values=self.extract_values(self._applied_constraints["up_upper_bound_constraint"]),
+        )
+
+    @output
+    def output_shadow_up_slack_bound(self) -> OutputData | None:
+        """Shadow price for up slack bound constraint."""
+        if "up_slack_bound_constraint" not in self._applied_constraints:
+            return None
+        return OutputData(
+            name=BALANCE_UP_SLACK_BOUND,
+            type=OutputType.SHADOW_PRICE,
+            unit="$/kW",
+            values=self.extract_values(self._applied_constraints["up_slack_bound_constraint"]),
+        )

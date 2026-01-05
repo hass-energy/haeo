@@ -14,6 +14,7 @@ class OutputData:
     """Specification for an output exposed by a model element.
 
     Attributes:
+        name: The unique name identifying this output.
         type: The output type (power, energy, SOC, etc.).
         unit: The unit of measurement for the output values (e.g., "W", "Wh", "%").
         values: The sequence of output values.
@@ -25,6 +26,7 @@ class OutputData:
 
     """
 
+    name: str
     type: OutputType
     unit: str | None
     values: Sequence[Any]
@@ -33,6 +35,7 @@ class OutputData:
 
     def __init__(
         self,
+        name: str,
         type: OutputType,  # noqa: A002
         unit: str | None,
         values: Sequence[Any] | Any,
@@ -43,6 +46,7 @@ class OutputData:
         """Initialize OutputData.
 
         Args:
+            name: The unique name identifying this output.
             type: The output type (power, energy, SOC, etc.).
             unit: The unit of measurement for the output values.
             values: A single value or sequence of values (already extracted from HiGHS types).
@@ -50,6 +54,7 @@ class OutputData:
             advanced: Whether the output is intended for advanced diagnostics only.
 
         """
+        self.name = name
         self.type = type
         self.unit = unit
         self.direction = direction
