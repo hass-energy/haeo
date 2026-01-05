@@ -2,7 +2,6 @@
 
 from typing import Any
 
-# Valid AEMO sensor configurations
 VALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.aemo_forecast",
@@ -17,7 +16,8 @@ VALID: list[dict[str, Any]] = [
             ]
         },
         "expected_format": "aemo_nem",
-        "expected_count": 1,
+        "expected_unit": "$/kWh",
+        "expected_data": [(1759662000.0, 0.0748)],
         "description": "Single AEMO forecast entry",
     },
     {
@@ -38,7 +38,8 @@ VALID: list[dict[str, Any]] = [
             ]
         },
         "expected_format": "aemo_nem",
-        "expected_count": 2,
+        "expected_unit": "$/kWh",
+        "expected_data": [(1759662000.0, 0.0748), (1759663800.0, 0.0823)],
         "description": "Multiple AEMO forecast entries",
     },
 ]
