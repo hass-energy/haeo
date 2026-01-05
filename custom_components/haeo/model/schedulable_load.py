@@ -21,7 +21,6 @@ type SchedulableLoadConstraintName = Literal[
     "schedulable_load_overlap_min",
     "schedulable_load_overlap_max",
     "schedulable_load_total_overlap",
-    "schedulable_load_power_from_overlap",
     "schedulable_load_earliest_start",
     "schedulable_load_latest_start",
 ]
@@ -46,7 +45,6 @@ SCHEDULABLE_LOAD_CONSTRAINT_NAMES: Final[frozenset[SchedulableLoadConstraintName
         SCHEDULABLE_LOAD_OVERLAP_MIN := "schedulable_load_overlap_min",
         SCHEDULABLE_LOAD_OVERLAP_MAX := "schedulable_load_overlap_max",
         SCHEDULABLE_LOAD_TOTAL_OVERLAP := "schedulable_load_total_overlap",
-        SCHEDULABLE_LOAD_POWER_FROM_OVERLAP := "schedulable_load_power_from_overlap",
         SCHEDULABLE_LOAD_EARLIEST_START := "schedulable_load_earliest_start",
         SCHEDULABLE_LOAD_LATEST_START := "schedulable_load_latest_start",
     )
@@ -174,15 +172,6 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
             out_array=True,
         )
 
-        # Power consumption in each period (will be constrained to P * overlap / period)
-        self.power_consumption = solver.addVariables(
-            n_periods,
-            lb=0.0,
-            ub=power,
-            name_prefix=f"{name}_power_",
-            out_array=True,
-        )
-
     def build_constraints(self) -> None:
         """Build constraints for the schedulable load.
 
@@ -193,7 +182,7 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
         - right_edge[t] <= b_{t+1}, right_edge[t] <= s+d (models min(b_{t+1}, s+d))
         - overlap[t] >= right_edge[t] - left_edge[t] (active time in period)
         - sum(overlap) = duration (total active time must equal duration)
-        - power[t] * period[t] = P * overlap[t] (power from overlap)
+        - connection_power[t] * period[t] = -P * overlap[t] (power balance from overlap)
 
         The max/min relaxation works correctly because:
         - left_edge is minimized to achieve larger overlap
@@ -221,18 +210,14 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
         # Total overlap must equal duration (forces the load to run for exactly 'duration' hours)
         self._constraints[SCHEDULABLE_LOAD_TOTAL_OVERLAP] = h.addConstr(Highs.qsum(self.overlap) == self.duration)
 
-        # Power consumption is proportional to overlap within each period
-        self._constraints[SCHEDULABLE_LOAD_POWER_FROM_OVERLAP] = h.addConstrs(
-            self.power_consumption * self.periods == self.power * self.overlap
-        )
-
         # Start time bounds (explicit constraints for shadow price extraction)
         self._constraints[SCHEDULABLE_LOAD_EARLIEST_START] = h.addConstr(self.start_time_var >= self.earliest_start)
         self._constraints[SCHEDULABLE_LOAD_LATEST_START] = h.addConstr(self.start_time_var <= self.latest_start)
 
-        # Power balance: connection_power equals negative load power (load consumes power)
+        # Power balance: connection_power * period = -power * overlap
+        # Negative because load consumes power (power flows from connection into load)
         self._constraints[SCHEDULABLE_LOAD_POWER_BALANCE] = h.addConstrs(
-            self.connection_power() == -self.power_consumption
+            self.connection_power() * self.periods == -self.power * self.overlap
         )
 
     def cost(self) -> Sequence[highs_linear_expression]:
@@ -279,11 +264,15 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
 
     def outputs(self) -> Mapping[SchedulableLoadOutputName, OutputData]:
         """Return schedulable load output specifications."""
+        # Compute power consumption from overlap: power[t] = P * overlap[t] / period[t]
+        overlap_values = self.extract_values(self.overlap)
+        power_values = tuple(self.power * o / p for o, p in zip(overlap_values, self.periods, strict=True))
+
         outputs: dict[SchedulableLoadOutputName, OutputData] = {
             SCHEDULABLE_LOAD_POWER_CONSUMED: OutputData(
                 type=OutputType.POWER,
                 unit="kW",
-                values=self.extract_values(self.power_consumption),
+                values=power_values,
                 direction="-",
             ),
             SCHEDULABLE_LOAD_START_TIME: OutputData(

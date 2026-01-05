@@ -163,6 +163,7 @@ nav:
               - modeling/model-layer/elements/index.md
               - Battery: modeling/model-layer/elements/battery.md
               - Node: modeling/model-layer/elements/node.md
+              - Schedulable Load: modeling/model-layer/elements/schedulable-load.md
           - Connections:
               - modeling/model-layer/connections/index.md
               - Connection: modeling/model-layer/connections/connection.md

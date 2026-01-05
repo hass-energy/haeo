@@ -73,11 +73,6 @@ VALID_CASES: list[ElementTestCase] = [
                 "unit": "$/kWh",
                 "values": (0.0,),
             },
-            "schedulable_load_power_from_overlap": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
             "schedulable_load_earliest_start": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
@@ -157,11 +152,6 @@ VALID_CASES: list[ElementTestCase] = [
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0,),
-            },
-            "schedulable_load_power_from_overlap": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
             },
             "schedulable_load_earliest_start": {
                 "type": "shadow_price",
@@ -246,11 +236,6 @@ VALID_CASES: list[ElementTestCase] = [
                 "unit": "$/kWh",
                 "values": (0.0,),
             },
-            "schedulable_load_power_from_overlap": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
             "schedulable_load_earliest_start": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
@@ -334,11 +319,6 @@ VALID_CASES: list[ElementTestCase] = [
                 "unit": "$/kWh",
                 "values": (0.0,),
             },
-            "schedulable_load_power_from_overlap": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
             "schedulable_load_earliest_start": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
@@ -417,11 +397,6 @@ VALID_CASES: list[ElementTestCase] = [
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0,),
-            },
-            "schedulable_load_power_from_overlap": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0),
             },
             "schedulable_load_earliest_start": {
                 "type": "shadow_price",

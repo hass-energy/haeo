@@ -43,9 +43,14 @@ Using auxiliary variables to model the max and min operations, the formulation r
 | $L_t$          | $T$        | $[0, H]$                  | Left edge: where active region starts in period $t$        |
 | $R_t$          | $T$        | $[0, H + d]$              | Right edge: where active region ends in period $t$         |
 | $\omega_t$     | $T$        | $[0, \Delta t]$           | Overlap: duration the load is active in period $t$ (hours) |
-| $P_t$          | $T$        | $[0, P]$                  | Average power consumption in period $t$ (kW)               |
 
 Where $H = \sum \Delta t$ is the total horizon length.
+
+Power consumption is computed from overlap rather than stored as a decision variable:
+
+$$
+P_t = P \cdot \omega_t / \Delta t
+$$
 
 ### Constraints
 
@@ -54,10 +59,10 @@ Where $H = \sum \Delta t$ is the total horizon length.
 The left edge of the active region in period $t$ is $\max(b_t, s)$:
 
 $$
-L_t \geq b_t \quad \forall t \in [0, T-1]
-$$
-$$
-L_t \geq s \quad \forall t \in [0, T-1]
+\begin{aligned}
+L_t &\geq b_t \quad \forall t \in [0, T-1] \\
+L_t &\geq s \quad \forall t \in [0, T-1]
+\end{aligned}
 $$
 
 The LP relaxation naturally minimizes $L_t$ (to maximize overlap), pushing it to the larger of the two bounds.
@@ -67,10 +72,10 @@ The LP relaxation naturally minimizes $L_t$ (to maximize overlap), pushing it to
 The right edge of the active region in period $t$ is $\min(b_{t+1}, s + d)$:
 
 $$
-R_t \leq b_{t+1} \quad \forall t \in [0, T-1]
-$$
-$$
-R_t \leq s + d \quad \forall t \in [0, T-1]
+\begin{aligned}
+R_t &\leq b_{t+1} \quad \forall t \in [0, T-1] \\
+R_t &\leq s + d \quad \forall t \in [0, T-1]
+\end{aligned}
 $$
 
 The LP relaxation naturally maximizes $R_t$ (to maximize overlap), pushing it to the smaller of the two bounds.
@@ -80,10 +85,10 @@ The LP relaxation naturally maximizes $R_t$ (to maximize overlap), pushing it to
 The overlap in period $t$ is the difference between the right and left edges:
 
 $$
-\omega_t \geq R_t - L_t \quad \forall t \in [0, T-1]
-$$
-$$
-\omega_t \leq \Delta t \quad \forall t \in [0, T-1]
+\begin{aligned}
+\omega_t &\geq R_t - L_t \quad \forall t \in [0, T-1] \\
+\omega_t &\leq \Delta t \quad \forall t \in [0, T-1]
+\end{aligned}
 $$
 
 The first constraint ensures overlap captures the active time.
@@ -99,17 +104,7 @@ $$
 
 This constraint is crucial—it forces the optimizer to allocate exactly $d$ hours of activity across the periods, ensuring the full energy requirement is met.
 
-#### 5. Power from Overlap
-
-Power consumption in each period is proportional to the overlap:
-
-$$
-P_t \cdot \Delta t = P \cdot \omega_t \quad \forall t \in [0, T-1]
-$$
-
-This gives the average power over each period based on how much of the period the load is active.
-
-#### 6. Start Time Bounds
+#### 5. Start Time Bounds
 
 The start time must fall within the scheduling window:
 
@@ -117,31 +112,31 @@ $$
 s_{\min} \leq s \leq s_{\max}
 $$
 
-#### 7. Power Balance Constraint
+#### 6. Power Balance Constraint
 
-Load power consumption equals the power from network connections:
+Connection power is proportional to the overlap, linking the load to the network:
 
 $$
-P_{\text{connection}}(t) = -P_t \quad \forall t \in [0, T-1]
+P_{\text{connection}}(t) \cdot \Delta t = -P \cdot \omega_t \quad \forall t \in [0, T-1]
 $$
 
-The negative sign reflects that the load consumes power (power flows out of the network into the load).
+The negative sign reflects that the load consumes power (power flows from the network into the load).
+This constraint directly couples the overlap variables to the network power flow.
 
 ### Shadow Prices
 
 | Constraint          | Unit   | Interpretation                                               |
 | ------------------- | ------ | ------------------------------------------------------------ |
-| `left_edge_boundary`| $/kWh  | Value of relaxing period boundary constraint on left edge    |
-| `left_edge_start`   | $/kWh  | Value of relaxing start time constraint on left edge         |
-| `right_edge_boundary`| $/kWh | Value of relaxing period boundary constraint on right edge   |
-| `right_edge_end`    | $/kWh  | Value of relaxing end time constraint on right edge          |
-| `overlap_min`       | $/kWh  | Value of overlap exceeding right minus left edge             |
-| `overlap_max`       | $/kWh  | Value of overlap exceeding period duration                   |
-| `total_overlap`     | $/kWh  | Marginal value of total active duration                      |
-| `power_from_overlap`| $/kWh  | Value of power-overlap relationship                          |
-| `earliest_start`    | $/kWh  | Value of being able to start earlier                         |
-| `latest_start`      | $/kWh  | Value of being able to start later                           |
-| `power_balance`     | $/kW   | Marginal value of power at the load terminals                |
+| `left_edge_boundary`| \$/kWh | Value of relaxing period boundary constraint on left edge    |
+| `left_edge_start`   | \$/kWh | Value of relaxing start time constraint on left edge         |
+| `right_edge_boundary`| \$/kWh | Value of relaxing period boundary constraint on right edge   |
+| `right_edge_end`    | \$/kWh | Value of relaxing end time constraint on right edge          |
+| `overlap_min`       | \$/kWh | Value of overlap exceeding right minus left edge             |
+| `overlap_max`       | \$/kWh | Value of overlap exceeding period duration                   |
+| `total_overlap`     | \$/kWh | Marginal value of total active duration                      |
+| `earliest_start`    | \$/kWh | Value of being able to start earlier                         |
+| `latest_start`      | \$/kWh | Value of being able to start later                           |
+| `power_balance`     | \$/kW  | Marginal value of power at the load terminals                |
 
 ### Cost Contribution
 
@@ -157,18 +152,20 @@ This overlap determines the energy consumed in each period.
 
 Consider a 2 kW load running for 1.5 hours starting at hour 0.5:
 
+```mermaid
+xychart-beta
+    title "Overlap and Power by Period"
+    x-axis "Period" [0, 1, 2]
+    y-axis 0 --> 2.5
+    bar "Power (kW)" [1.0, 2.0, 0.0]
+    line "Overlap (h)" [0.5, 1.0, 0.0]
 ```
-Time:       0    0.5    1    1.5    2    2.5    3
-            |-----|-----|-----|-----|-----|-----|
-            Period 0  Period 1  Period 2  Period 3
 
-Load active:      [==========]
-                 0.5h      2.0h
-
-Period 0 (0-1): overlap = 0.5h → P = 1.0 kW
-Period 1 (1-2): overlap = 1.0h → P = 2.0 kW
-Period 2 (2-3): overlap = 0h   → P = 0.0 kW
-```
+| Period | Time  | Overlap | Power  |
+| ------ | ----- | ------- | ------ |
+| 0      | 0–1 h | 0.5 h   | 1.0 kW |
+| 1      | 1–2 h | 1.0 h   | 2.0 kW |
+| 2      | 2–3 h | 0 h     | 0.0 kW |
 
 ### Why the Relaxation Works
 
@@ -184,29 +181,29 @@ This formulation correctly handles all edge cases including loads that span mult
 
 ### Example: Optimal Scheduling
 
-Consider a 3 kW load running for 2 hours with periods $[1, 1, 1, 1]$ hours and connection costs $[0.30, 0.20, 0.10, 0.25]$ \$/kWh:
+Consider a 3 kW load running for 2 hours with periods of 1 hour each and connection costs of \$0.30, \$0.20, \$0.10, and \$0.25 per kWh respectively.
 
-The optimizer chooses $s = 2.0$ hours to run during the cheapest period (period 2 at \$0.10/kWh):
+The optimizer chooses start time $s = 2.0$ hours to run during the cheapest periods (periods 2 and 3):
 
-| Period $t$ | Interval      | Overlap (h) | Power (kW) | Energy (kWh) | Cost (\$) |
-| ---------- | ------------- | ----------- | ---------- | ------------ | --------- |
-| 0          | $[0, 1)$      | 0           | 0          | 0            | 0.00      |
-| 1          | $[1, 2)$      | 0           | 0          | 0            | 0.00      |
-| 2          | $[2, 3)$      | 1.0         | 3.0        | 3.0          | 0.30      |
-| 3          | $[3, 4)$      | 1.0         | 3.0        | 3.0          | 0.75      |
+| Period | Interval | Overlap (h) | Power (kW) | Energy (kWh) | Cost   |
+| ------ | -------- | ----------- | ---------- | ------------ | ------ |
+| 0      | 0–1 h    | 0           | 0          | 0            | \$0.00 |
+| 1      | 1–2 h    | 0           | 0          | 0            | \$0.00 |
+| 2      | 2–3 h    | 1.0         | 3.0        | 3.0          | \$0.30 |
+| 3      | 3–4 h    | 1.0         | 3.0        | 3.0          | \$0.75 |
 
-Total cost: $3.0 \times 0.10 + 3.0 \times 0.25 = 1.05$ \$
+Total cost: 3.0 × \$0.10 + 3.0 × \$0.25 = \$1.05
 
 If the earliest start were $s_{\min} = 0$, the optimizer would instead place the load in periods 1 and 2:
 
-| Period $t$ | Overlap (h) | Power (kW) | Cost (\$) |
-| ---------- | ----------- | ---------- | --------- |
-| 0          | 0           | 0          | 0.00      |
-| 1          | 1.0         | 3.0        | 0.60      |
-| 2          | 1.0         | 3.0        | 0.30      |
-| 3          | 0           | 0          | 0.00      |
+| Period | Overlap (h) | Power (kW) | Cost   |
+| ------ | ----------- | ---------- | ------ |
+| 0      | 0           | 0          | \$0.00 |
+| 1      | 1.0         | 3.0        | \$0.60 |
+| 2      | 1.0         | 3.0        | \$0.30 |
+| 3      | 0           | 0          | \$0.00 |
 
-Total cost: $3.0 \times 0.20 + 3.0 \times 0.10 = 0.90$ \$
+Total cost: 3.0 × \$0.20 + 3.0 × \$0.10 = \$0.90
 
 ### Model Assumptions
 
