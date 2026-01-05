@@ -16,6 +16,7 @@ from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
+from custom_components.haeo.flows.sentinels import async_setup_sentinel_entities, async_unload_sentinel_entities
 from custom_components.haeo.horizon import HorizonManager
 
 if TYPE_CHECKING:
@@ -211,6 +212,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager)
     entry.runtime_data = runtime_data
 
+    # Set up sentinel entities for config flows
+    await async_setup_sentinel_entities()
+
     # Start horizon manager's scheduled updates
     horizon_manager.start()
 
@@ -265,6 +269,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> boo
         if runtime_data is not None and runtime_data.coordinator is not None:
             runtime_data.coordinator.cleanup()
         entry.runtime_data = None
+
+        # Clean up sentinel entities if this is the last HAEO config entry
+        remaining_entries = [e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id]
+        if not remaining_entries:
+            async_unload_sentinel_entities()
 
     return unload_ok
 
