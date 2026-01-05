@@ -106,6 +106,99 @@ class TestTrackedParam:
         assert isinstance(TestElement.capacity, TrackedParam)
 
 
+class TestDictStyleAccess:
+    """Tests for __getitem__ and __setitem__ access to TrackedParams."""
+
+    def test_getitem_returns_tracked_param_value(self) -> None:
+        """Test that __getitem__ returns the current value of a TrackedParam."""
+
+        class TestElement(Element[str]):
+            capacity = TrackedParam[float]()
+
+        elem = create_test_element(TestElement)
+        elem.capacity = 42.0
+
+        assert elem["capacity"] == 42.0
+
+    def test_setitem_sets_tracked_param_value(self) -> None:
+        """Test that __setitem__ sets the value of a TrackedParam."""
+
+        class TestElement(Element[str]):
+            capacity = TrackedParam[float]()
+
+        elem = create_test_element(TestElement)
+        elem["capacity"] = 99.0
+
+        assert elem.capacity == 99.0
+
+    def test_setitem_triggers_invalidation(self) -> None:
+        """Test that __setitem__ triggers constraint invalidation like normal set."""
+
+        class TestElement(Element[str]):
+            capacity = TrackedParam[float]()
+
+            @constraint
+            def my_constraint(self) -> list[int]:
+                _ = self.capacity
+                return []
+
+        elem = create_test_element(TestElement)
+        elem["capacity"] = 10.0
+        elem.my_constraint()  # Establish dependency
+
+        # Set via __setitem__
+        elem["capacity"] = 20.0
+
+        # Constraint should be invalidated
+        assert "my_constraint" in elem._invalidated[CachedKind.CONSTRAINT]
+
+    def test_getitem_unknown_key_raises_keyerror(self) -> None:
+        """Test that __getitem__ raises KeyError for unknown keys."""
+
+        class TestElement(Element[str]):
+            capacity = TrackedParam[float]()
+
+        elem = create_test_element(TestElement)
+
+        try:
+            _ = elem["unknown_param"]
+            msg = "Expected KeyError"
+            raise AssertionError(msg)
+        except KeyError as e:
+            assert "unknown_param" in str(e)
+
+    def test_setitem_unknown_key_raises_keyerror(self) -> None:
+        """Test that __setitem__ raises KeyError for unknown keys."""
+
+        class TestElement(Element[str]):
+            capacity = TrackedParam[float]()
+
+        elem = create_test_element(TestElement)
+
+        try:
+            elem["unknown_param"] = 123
+            msg = "Expected KeyError"
+            raise AssertionError(msg)
+        except KeyError as e:
+            assert "unknown_param" in str(e)
+
+    def test_getitem_regular_attribute_raises_keyerror(self) -> None:
+        """Test that __getitem__ raises KeyError for non-TrackedParam attributes."""
+
+        class TestElement(Element[str]):
+            capacity = TrackedParam[float]()
+
+        elem = create_test_element(TestElement)
+
+        # 'name' is a regular attribute, not a TrackedParam
+        try:
+            _ = elem["name"]
+            msg = "Expected KeyError"
+            raise AssertionError(msg)
+        except KeyError as e:
+            assert "name" in str(e)
+
+
 class TestCachedConstraint:
     """Tests for constraint decorator."""
 

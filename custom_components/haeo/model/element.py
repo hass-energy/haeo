@@ -9,7 +9,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .output_data import OutputData
-from .reactive import CachedKind, CachedMethod, OutputMethod
+from .reactive import CachedKind, CachedMethod, OutputMethod, TrackedParam
 
 if TYPE_CHECKING:
     from .connection import Connection
@@ -60,6 +60,48 @@ class Element[OutputNameT: str]:
         }
         self._applied_constraints: dict[str, highs_cons | list[highs_cons]] = {}
         self._applied_costs: dict[str, highs_linear_expression | list[highs_linear_expression] | None] = {}
+
+    def __getitem__(self, key: str) -> Any:
+        """Get a TrackedParam value by name.
+
+        Args:
+            key: Name of the TrackedParam
+
+        Returns:
+            The current value of the parameter
+
+        Raises:
+            KeyError: If no TrackedParam with this name exists
+
+        """
+        # Look up the descriptor on the class
+        descriptor = getattr(type(self), key, None)
+        if not isinstance(descriptor, TrackedParam):
+            msg = f"{type(self).__name__!r} has no TrackedParam {key!r}"
+            raise KeyError(msg)
+        # Use normal attribute access to trigger the descriptor
+        return getattr(self, key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Set a TrackedParam value by name.
+
+        Setting a value triggers invalidation of dependent constraints/costs.
+
+        Args:
+            key: Name of the TrackedParam
+            value: New value to set
+
+        Raises:
+            KeyError: If no TrackedParam with this name exists
+
+        """
+        # Look up the descriptor on the class
+        descriptor = getattr(type(self), key, None)
+        if not isinstance(descriptor, TrackedParam):
+            msg = f"{type(self).__name__!r} has no TrackedParam {key!r}"
+            raise KeyError(msg)
+        # Use normal attribute access to trigger the descriptor
+        setattr(self, key, value)
 
     @property
     def n_periods(self) -> int:
