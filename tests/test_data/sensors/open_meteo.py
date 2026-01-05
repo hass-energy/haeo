@@ -2,10 +2,6 @@
 
 from typing import Any
 
-# Valid Open-Meteo sensor configurations
-# Open-Meteo returns power in W, converted to kW via device_class=POWER
-# Timestamps: 2025-10-06T06:45:00+11:00 = 2025-10-05T19:45:00Z = 1759693500
-#             2025-10-06T07:00:00+11:00 = 2025-10-05T20:00:00Z = 1759694400
 VALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.open_meteo_forecast",
@@ -17,13 +13,8 @@ VALID: list[dict[str, Any]] = [
             }
         },
         "expected_format": "open_meteo_solar_forecast",
-        "expected_count": 2,
         "expected_unit": "kW",
-        # 175 W = 0.175 kW, 200 W = 0.2 kW
-        "expected_data": [
-            (1759693500.0, 0.175),
-            (1759694400.0, 0.2),
-        ],
+        "expected_data": [(1759693500.0, 0.175), (1759694400.0, 0.2)],
         "description": "Open-Meteo forecast with watts dict",
     },
     {
@@ -36,18 +27,12 @@ VALID: list[dict[str, Any]] = [
             }
         },
         "expected_format": "open_meteo_solar_forecast",
-        "expected_count": 2,
         "expected_unit": "kW",
-        # 175 W = 0.175 kW, 200 W = 0.2 kW
-        "expected_data": [
-            (1759693500.0, 0.175),
-            (1759694400.0, 0.2),
-        ],
+        "expected_data": [(1759693500.0, 0.175), (1759694400.0, 0.2)],
         "description": "Multiple Open-Meteo forecast entries",
     },
 ]
 
-# Invalid Open-Meteo sensor configurations
 INVALID: list[dict[str, Any]] = [
     {
         "entity_id": "sensor.open_meteo_no_watts",
@@ -67,7 +52,7 @@ INVALID: list[dict[str, Any]] = [
         "entity_id": "sensor.open_meteo_bad_timestamp",
         "state": "0",
         "attributes": {"watts": {"not a timestamp": 100}},
-        "expected_format": None,  # Should fail detection due to invalid timestamp
+        "expected_format": None,
         "description": "Open-Meteo sensor with invalid timestamp",
     },
     {
@@ -80,7 +65,6 @@ INVALID: list[dict[str, Any]] = [
             }
         },
         "expected_format": None,
-        "expected_count": 0,
         "description": "Open-Meteo forecast containing both valid and invalid rows",
     },
     {
@@ -93,7 +77,6 @@ INVALID: list[dict[str, Any]] = [
             }
         },
         "expected_format": None,
-        "expected_count": 0,
         "description": "Open-Meteo forecast containing a non-string timestamp key",
     },
 ]
