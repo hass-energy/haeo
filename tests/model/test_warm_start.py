@@ -345,3 +345,59 @@ class TestNetworkWarmStart:
 
         # Price doubled, cost should double
         assert pytest.approx(cost2 / cost1, rel=1e-6) == 2.0
+
+    def test_solver_structure_unchanged_after_update(self) -> None:
+        """Test that updating parameters doesn't grow solver structure.
+
+        The number of constraints and variables should remain constant
+        across multiple optimizations with parameter updates.
+        """
+        network = Network(name="test", periods=[1.0, 1.0, 1.0])
+
+        network.add("battery", "battery", capacity=10.0, initial_charge=5.0)
+        network.add("node", "grid", is_source=True, is_sink=True)
+        network.add(
+            "connection",
+            "conn",
+            source="battery",
+            target="grid",
+            max_power_source_target=5.0,
+            max_power_target_source=5.0,
+            price_source_target=-0.10,
+            price_target_source=0.15,
+        )
+
+        # First optimization - establish baseline structure
+        network.optimize()
+        num_vars_1 = network._solver.numVariables
+        num_cons_1 = network._solver.numConstrs
+
+        # Update parameters and optimize again
+        battery = network.elements["battery"]
+        assert isinstance(battery, Battery)
+        battery.capacity = np.array([20.0, 20.0, 20.0, 20.0])
+        battery.initial_charge = 8.0
+
+        connection = network.elements["conn"]
+        assert isinstance(connection, PowerConnection)
+        connection.price_source_target = np.array([-0.20, -0.20, -0.20])
+
+        network.optimize()
+        num_vars_2 = network._solver.numVariables
+        num_cons_2 = network._solver.numConstrs
+
+        # Structure should be identical
+        assert num_vars_1 == num_vars_2, f"Variables grew from {num_vars_1} to {num_vars_2}"
+        assert num_cons_1 == num_cons_2, f"Constraints grew from {num_cons_1} to {num_cons_2}"
+
+        # Update again and optimize a third time
+        battery.capacity = np.array([15.0, 15.0, 15.0, 15.0])
+        connection.max_power_source_target = np.array([10.0, 10.0, 10.0])
+
+        network.optimize()
+        num_vars_3 = network._solver.numVariables
+        num_cons_3 = network._solver.numConstrs
+
+        # Structure should still be identical
+        assert num_vars_1 == num_vars_3, f"Variables grew from {num_vars_1} to {num_vars_3}"
+        assert num_cons_1 == num_cons_3, f"Constraints grew from {num_cons_1} to {num_cons_3}"

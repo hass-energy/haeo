@@ -119,6 +119,16 @@ class Highs:
 
     cbLogging: HighsCallback
 
+    @property
+    def numVariables(self) -> int:
+        """Return the number of variables in the model."""
+        ...
+
+    @property
+    def numConstrs(self) -> int:
+        """Return the number of constraints in the model."""
+        ...
+
     def __init__(self) -> None: ...
     def setOptionValue(self, option: str, value: bool | int | float | str) -> None: ...
     def getOptionValue(self, option: str) -> bool | int | float | str: ...
