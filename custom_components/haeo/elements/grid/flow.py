@@ -162,27 +162,28 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         self,
         entity_selections: dict[str, list[str]],
         configurable_values: dict[str, Any],
-    ) -> dict[str, Any]:
+    ) -> GridConfigSchema:
         """Build final config dict from step data."""
         name = self._step1_data.get(CONF_NAME)
         connection = self._step1_data.get(CONF_CONNECTION)
         config_dict = convert_entity_selections_to_config(entity_selections, configurable_values, INPUT_FIELDS)
-        return {
-            CONF_ELEMENT_TYPE: ELEMENT_TYPE,
-            CONF_NAME: name,
-            CONF_CONNECTION: connection,
-            **config_dict,
-        }
+        return cast(
+            "GridConfigSchema",
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                CONF_NAME: name,
+                CONF_CONNECTION: connection,
+                **config_dict,
+            },
+        )
 
-    def _finalize(self, config: dict[str, Any]) -> SubentryFlowResult:
+    def _finalize(self, config: GridConfigSchema) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
         name = str(self._step1_data.get(CONF_NAME))
         subentry = self._get_subentry()
         if subentry is not None:
-            return self.async_update_and_abort(
-                self._get_entry(), subentry, title=name, data=cast("GridConfigSchema", config)
-            )
-        return self.async_create_entry(title=name, data=cast("GridConfigSchema", config))
+            return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
+        return self.async_create_entry(title=name, data=config)
 
     def _get_subentry(self) -> ConfigSubentry | None:
         try:
