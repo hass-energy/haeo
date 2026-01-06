@@ -431,7 +431,7 @@ def build_entity_selector_with_configurable(
     # Include 'number' and 'switch' so HAEO input entities can be re-selected during reconfigure
     # The configurable sentinel is a sensor entity, so it's included via 'sensor' domain
     config_kwargs: dict[str, Any] = {
-        "domain": ["sensor", "input_number", "number", "switch"],
+        "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],
         "multiple": True,
         "exclude_entities": filtered_exclude,
     }

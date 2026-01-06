@@ -67,10 +67,6 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 1: name, connection, and entity selection."""
-        # Clear step 1 data at start to avoid stale state from incomplete flows
-        if user_input is None:
-            self._step1_data = {}
-
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -79,7 +75,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 # Validate entity selections
                 for field_info in INPUT_FIELDS:
                     field_name = field_info.field_name
-                    entities = user_input.get(field_name, [])
+                    entities = user_input[field_name)
                     is_optional = field_name in GridConfigSchema.__optional_keys__
 
                     # Required fields must have at least one selection
@@ -96,7 +92,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         translations = await async_get_translations(
             self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
         )
-        default_name = translations.get(f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title", "Grid")
+        default_name = translations[f"component.{DOMAIN}.config_subentries.{ELEMENT_TYPE}.flow_title"]
 
         entity_metadata = extract_entity_metadata(self.hass)
         exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
@@ -129,7 +125,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             # Validate that configurable values were provided where needed
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                is_configurable = has_configurable_selection(entity_selections.get(field_name, []))
+                is_configurable = has_configurable_selection(entity_selections[field_name])
                 is_missing = field_name not in user_input
                 is_required = field_name not in GridConfigSchema.__optional_keys__ or field_info.default is None
                 if is_configurable and is_missing and is_required:
@@ -159,10 +155,6 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle reconfigure step 1: name, connection, and entity selection."""
-        # Clear step 1 data at start to avoid stale state from incomplete flows
-        if user_input is None:
-            self._step1_data = {}
-
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
 
