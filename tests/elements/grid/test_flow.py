@@ -3,7 +3,7 @@
 from types import MappingProxyType
 from unittest.mock import Mock
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -36,7 +36,7 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form - should not error
@@ -231,7 +231,7 @@ async def test_reconfigure_empty_required_field_shows_error(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Submit with empty import_price (required field)
@@ -273,7 +273,7 @@ async def test_reconfigure_with_configurable_shows_values_form(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Step 1: change to configurable entities
@@ -314,7 +314,7 @@ async def test_reconfigure_values_step_updates_entry(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
@@ -368,7 +368,7 @@ async def test_reconfigure_values_step_missing_required_shows_error(
     hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-    flow.context = {"subentry_id": existing_subentry.subentry_id}
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Step 1: change to configurable entities

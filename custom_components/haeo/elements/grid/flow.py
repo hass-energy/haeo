@@ -2,7 +2,7 @@
 
 from typing import Any, ClassVar, cast
 
-from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
@@ -43,7 +43,7 @@ def _build_step1_schema(
     }
 
     for field_info in INPUT_FIELDS:
-        exclude_entities = exclusion_map.get(field_info.field_name, [])
+        exclude_entities = exclusion_map[field_info.field_name]
         marker, selector = build_entity_schema_entry(
             field_info,
             config_schema=GridConfigSchema,
@@ -63,7 +63,12 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Initialize the flow handler."""
         super().__init__()
         self._step1_data: dict[str, Any] = {}
-        self._is_reconfigure: bool = False
+
+    def _get_reconfigure_subentry(self) -> ConfigSubentry | None:  # type: ignore[override]
+        try:
+            return super()._get_reconfigure_subentry()
+        except (ValueError, UnknownSubEntry):
+            return None
 
     def _validate_entity_selections(self, user_input: dict[str, Any], errors: dict[str, str]) -> bool:
         """Validate that required entity fields have at least one selection."""
@@ -141,20 +146,18 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _finalize(self, config: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
         name = str(self._step1_data.get(CONF_NAME))
-        if self._is_reconfigure:
-            subentry = self._get_reconfigure_subentry()
+        subentry = self._get_reconfigure_subentry()
+        if subentry is not None:
             return self.async_update_and_abort(
                 self._get_entry(), subentry, title=name, data=cast("GridConfigSchema", config)
             )
         return self.async_create_entry(title=name, data=cast("GridConfigSchema", config))
 
-    async def _async_step1(
-        self,
-        user_input: dict[str, Any] | None,
-        subentry_data: dict[str, Any] | None = None,
-    ) -> SubentryFlowResult:
+    async def _async_step1(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
         """Shared logic for step 1: name, connection, and entity selection."""
         errors: dict[str, str] = {}
+        subentry = self._get_reconfigure_subentry()
+        subentry_data = dict(subentry.data) if subentry else None
 
         if user_input is not None:
             name = user_input.get(CONF_NAME)
@@ -183,18 +186,17 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 1: name, connection, and entity selection."""
-        self._is_reconfigure = False
         return await self._async_step1(user_input)
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle reconfigure step 1: name, connection, and entity selection."""
-        self._is_reconfigure = True
-        return await self._async_step1(user_input, dict(self._get_reconfigure_subentry().data))
+        return await self._async_step1(user_input)
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 2: configurable value entry."""
         errors: dict[str, str] = {}
-        current_data = dict(self._get_reconfigure_subentry().data) if self._is_reconfigure else None
+        subentry = self._get_reconfigure_subentry()
+        current_data = dict(subentry.data) if subentry else None
         entity_selections = extract_entity_selections(self._step1_data, _EXCLUDE_KEYS)
 
         if user_input is not None and self._validate_configurable_values(entity_selections, user_input, errors):
