@@ -26,34 +26,6 @@ from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, GridConfigSchem
 _EXCLUDE_KEYS = (CONF_NAME, CONF_CONNECTION)
 
 
-def _build_step1_schema(
-    participants: list[str],
-    exclusion_map: dict[str, list[str]],
-    current_connection: str | None = None,
-) -> vol.Schema:
-    """Build the schema for step 1: name, connection, and entity selections."""
-    schema_dict: dict[vol.Marker, Any] = {
-        vol.Required(CONF_NAME): vol.All(
-            vol.Coerce(str),
-            vol.Strip,
-            vol.Length(min=1, msg="Name cannot be empty"),
-            TextSelector(TextSelectorConfig()),
-        ),
-        vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
-    }
-
-    for field_info in INPUT_FIELDS:
-        exclude_entities = exclusion_map[field_info.field_name]
-        marker, selector = build_entity_schema_entry(
-            field_info,
-            config_schema=GridConfigSchema,
-            exclude_entities=exclude_entities,
-        )
-        schema_dict[marker] = selector
-
-    return vol.Schema(schema_dict)
-
-
 class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle grid element configuration flows."""
 
@@ -93,7 +65,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         entity_metadata = extract_entity_metadata(self.hass)
         exclusion_map = build_exclusion_map(INPUT_FIELDS, entity_metadata)
         participants = self._get_participant_names()
-        schema = _build_step1_schema(
+        schema = self._build_step1_schema(
             participants,
             exclusion_map,
             current_connection=current_connection if isinstance(current_connection, str) else None,
@@ -102,6 +74,36 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+
+
+    def _build_step1_schema(
+        self,
+        participants: list[str],
+        exclusion_map: dict[str, list[str]],
+        current_connection: str | None = None,
+    ) -> vol.Schema:
+        """Build the schema for step 1: name, connection, and entity selections."""
+        schema_dict: dict[vol.Marker, Any] = {
+            vol.Required(CONF_NAME): vol.All(
+                vol.Coerce(str),
+                vol.Strip,
+                vol.Length(min=1, msg="Name cannot be empty"),
+                TextSelector(TextSelectorConfig()),
+            ),
+            vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
+        }
+
+        for field_info in INPUT_FIELDS:
+            exclude_entities = exclusion_map[field_info.field_name]
+            marker, selector = build_entity_schema_entry(
+                field_info,
+                config_schema=GridConfigSchema,
+                exclude_entities=exclude_entities,
+            )
+            schema_dict[marker] = selector
+
+        return vol.Schema(schema_dict)
+
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 2: configurable value entry."""
