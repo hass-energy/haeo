@@ -66,7 +66,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         schema = self._build_step1_schema(
             participants,
             exclusion_map,
-            current_connection=current_connection if isinstance(current_connection, str) else None,
+            current_connection,
         )
         defaults = self._build_step1_defaults(default_name, subentry_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
