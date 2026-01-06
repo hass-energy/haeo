@@ -15,8 +15,8 @@ from custom_components.haeo.flows.field_schema import (
     build_entity_schema_entry,
     convert_entity_selections_to_config,
     extract_entity_selections,
+    get_configurable_entity_id,
     get_configurable_value_defaults,
-    get_entity_selection_defaults,
     has_configurable_selection,
 )
 
@@ -75,7 +75,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 # Validate entity selections
                 for field_info in INPUT_FIELDS:
                     field_name = field_info.field_name
-                    entities = user_input[field_name)
+                    entities = user_input.get(field_name, [])
                     is_optional = field_name in GridConfigSchema.__optional_keys__
 
                     # Required fields must have at least one selection
@@ -100,7 +100,10 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         schema = _build_step1_schema(participants, exclusion_map)
 
         # Apply default entity selections
-        defaults: dict[str, Any] = dict(get_entity_selection_defaults(INPUT_FIELDS, GridConfigSchema))
+        configurable_entity_id = get_configurable_entity_id()
+        defaults: dict[str, Any] = {
+            field.field_name: [] if field.default is None else [configurable_entity_id] for field in INPUT_FIELDS
+        }
         defaults[CONF_NAME] = default_name
         defaults[CONF_CONNECTION] = None
         schema = self.add_suggested_values_to_schema(schema, defaults)
@@ -125,7 +128,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             # Validate that configurable values were provided where needed
             for field_info in INPUT_FIELDS:
                 field_name = field_info.field_name
-                is_configurable = has_configurable_selection(entity_selections[field_name])
+                is_configurable = has_configurable_selection(entity_selections.get(field_name, []))
                 is_missing = field_name not in user_input
                 is_required = field_name not in GridConfigSchema.__optional_keys__ or field_info.default is None
                 if is_configurable and is_missing and is_required:
@@ -187,7 +190,17 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         # Apply current values plus inferred entity selections
         current_data = dict(subentry.data)
-        entity_defaults = get_entity_selection_defaults(INPUT_FIELDS, GridConfigSchema, current_data)
+        configurable_entity_id = get_configurable_entity_id()
+        entity_defaults = {
+            field.field_name: (
+                current_data[field.field_name]
+                if isinstance(current_data.get(field.field_name), list)
+                else [configurable_entity_id]
+                if field.field_name in current_data
+                else ([] if field.default is None else [configurable_entity_id])
+            )
+            for field in INPUT_FIELDS
+        }
         defaults = {
             CONF_NAME: subentry.data.get(CONF_NAME),
             CONF_CONNECTION: current_connection,

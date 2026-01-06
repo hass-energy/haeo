@@ -554,57 +554,6 @@ def build_configurable_value_schema(
     return vol.Schema(schema_dict)
 
 
-def get_entity_selection_defaults(
-    input_fields: tuple[InputFieldInfo[Any], ...],
-    config_schema: ConfigSchemaType,
-    current_data: dict[str, Any] | None = None,
-) -> dict[str, list[str]]:
-    """Get default entity selections for all fields.
-
-    Args:
-        input_fields: Tuple of input field metadata.
-        config_schema: TypedDict class to check which fields are optional.
-        current_data: Current configuration data (for reconfigure).
-
-    Returns:
-        Dict mapping field names to default entity selections.
-        Required fields and optional fields with defaults: default to configurable entity.
-        Optional fields without defaults: default to empty list (nothing selected).
-        For reconfigure, infers from stored values.
-
-    """
-    defaults: dict[str, list[str]] = {}
-    configurable_entity_id = get_configurable_entity_id()
-
-    for field_info in input_fields:
-        field_name = field_info.field_name
-
-        if current_data is not None and field_name in current_data:
-            # Infer from stored value
-            value = current_data[field_name]
-            if isinstance(value, list) and value:
-                # Entity links
-                defaults[field_name] = value
-            elif isinstance(value, (float, int, bool)):
-                # Configurable value - use configurable entity
-                defaults[field_name] = [configurable_entity_id]
-            else:
-                # Missing or invalid - use appropriate default based on field type
-                is_optional = field_name in config_schema.__optional_keys__
-                if is_optional and field_info.default is None:
-                    defaults[field_name] = []
-                else:
-                    defaults[field_name] = [configurable_entity_id]
-        elif field_info.default is None:
-            # New entry with no default: nothing selected (user must actively choose)
-            defaults[field_name] = []
-        else:
-            # New entry with default: use configurable entity
-            defaults[field_name] = [configurable_entity_id]
-
-    return defaults
-
-
 def get_configurable_value_defaults(
     input_fields: tuple[InputFieldInfo[Any], ...],
     entity_selections: dict[str, list[str]],
@@ -759,7 +708,6 @@ __all__ = [
     "extract_non_entity_fields",
     "get_configurable_entity_id",
     "get_configurable_value_defaults",
-    "get_entity_selection_defaults",
     "get_mode_defaults",
     "get_value_defaults",
     "has_configurable_selection",
