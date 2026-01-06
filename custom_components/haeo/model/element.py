@@ -231,7 +231,8 @@ class Element[OutputNameT: str]:
         """Apply a single constraint method to the solver.
 
         The constraint method returns a constraint expression (or list of expressions).
-        This method calls solver.addConstr() or solver.addConstrs() on the expression.
+        If the constraint already exists and is invalidated, updates it in-place.
+        Otherwise adds new constraints to the solver.
 
         Args:
             solver: The HiGHS solver instance
@@ -244,11 +245,6 @@ class Element[OutputNameT: str]:
         if existing is not None and not is_invalidated:
             return
 
-        # If invalidated and we have existing constraints, delete them before rebuilding
-        if existing is not None and is_invalidated:
-            self._delete_constraints(solver, existing)
-            del self._applied_constraints[constraint_name]
-
         # Get the constraint method and call it (returns expression(s))
         method = getattr(self, constraint_name)
         expr = method()
@@ -256,30 +252,17 @@ class Element[OutputNameT: str]:
         if expr is None:
             return
 
-        # Add constraint(s) to solver and store the result
+        # If invalidated and we have existing constraints, update them in-place
+        if existing is not None and is_invalidated:
+            self._update_constraint(solver, existing, expr)
+            self._invalidated[CachedKind.CONSTRAINT].discard(constraint_name)
+            return
+
+        # Add new constraint(s) to solver and store the result
         result = solver.addConstrs(expr) if isinstance(expr, list) else solver.addConstr(expr)
 
         self._applied_constraints[constraint_name] = result
         self._invalidated[CachedKind.CONSTRAINT].discard(constraint_name)
-
-    def _delete_constraints(
-        self,
-        solver: Highs,
-        constraints: highs_cons | list[highs_cons],
-    ) -> None:
-        """Delete constraint(s) from the solver.
-
-        Args:
-            solver: The HiGHS solver instance
-            constraints: The constraint(s) to delete
-
-        """
-        if isinstance(constraints, list):
-            indices = [cons.index for cons in constraints]
-            if indices:
-                solver.deleteRows(len(indices), indices)
-        else:
-            solver.deleteRows(1, [constraints.index])
 
     def _update_constraint(
         self,
