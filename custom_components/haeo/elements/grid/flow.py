@@ -47,14 +47,12 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     async def _async_step1(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
         """Shared logic for step 1: name, connection, and entity selection."""
         errors: dict[str, str] = {}
-        subentry = self.get_subentry()
+        subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
 
-        if user_input is not None:
-            name = user_input.get(CONF_NAME)
-            if self._validate_name(name, errors) and self._validate_entity_selections(user_input, errors):
-                self._step1_data = user_input
-                return await self.async_step_values()
+        if user_input is not None and self._validate_user_input(user_input, errors):
+            self._step1_data = user_input
+            return await self.async_step_values()
 
         translations = await async_get_translations(
             self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
@@ -74,7 +72,6 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
-
 
     def _build_step1_schema(
         self,
@@ -104,11 +101,15 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return vol.Schema(schema_dict)
 
+    def _validate_user_input(self, user_input: dict[str, Any], errors: dict[str, str]) -> bool:
+        return self._validate_name(user_input.get(CONF_NAME), errors) and self._validate_entity_selections(
+            user_input, errors
+        )
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 2: configurable value entry."""
         errors: dict[str, str] = {}
-        subentry = self.get_subentry()
+        subentry = self._get_subentry()
         current_data = dict(subentry.data) if subentry else None
         entity_selections = extract_entity_selections(self._step1_data, _EXCLUDE_KEYS)
 
@@ -176,14 +177,14 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _finalize(self, config: dict[str, Any]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
         name = str(self._step1_data.get(CONF_NAME))
-        subentry = self.get_subentry()
+        subentry = self._get_subentry()
         if subentry is not None:
             return self.async_update_and_abort(
                 self._get_entry(), subentry, title=name, data=cast("GridConfigSchema", config)
             )
         return self.async_create_entry(title=name, data=cast("GridConfigSchema", config))
 
-    def get_subentry(self) -> ConfigSubentry | None:
+    def _get_subentry(self) -> ConfigSubentry | None:
         try:
             return self._get_reconfigure_subentry()
         except (ValueError, UnknownSubEntry):
