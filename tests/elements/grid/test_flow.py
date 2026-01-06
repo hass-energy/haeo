@@ -43,7 +43,7 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
     result = await flow.async_step_reconfigure(user_input=None)
 
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure"
+    assert result.get("step_id") == "user"
 
 
 async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -245,7 +245,7 @@ async def test_reconfigure_empty_required_field_shows_error(
 
     # Should show reconfigure form again with error
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure"
+    assert result.get("step_id") == "user"
     assert CONF_IMPORT_PRICE in result.get("errors", {})
 
 
@@ -287,7 +287,7 @@ async def test_reconfigure_with_configurable_shows_values_form(
 
     # Should show values form (step 2)
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure_values"
+    assert result.get("step_id") == "values"
 
 
 async def test_reconfigure_values_step_updates_entry(
@@ -326,14 +326,14 @@ async def test_reconfigure_values_step_updates_entry(
         CONF_EXPORT_PRICE: [TEST_CONFIGURABLE_ENTITY_ID],
     }
     result = await flow.async_step_reconfigure(user_input=step1_input)
-    assert result.get("step_id") == "reconfigure_values"
+    assert result.get("step_id") == "values"
 
     # Step 2: provide constant values
     step2_input = {
         CONF_IMPORT_PRICE: 0.30,
         CONF_EXPORT_PRICE: 0.08,
     }
-    result = await flow.async_step_reconfigure_values(user_input=step2_input)
+    result = await flow.async_step_values(user_input=step2_input)
 
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
@@ -379,15 +379,15 @@ async def test_reconfigure_values_step_missing_required_shows_error(
         CONF_EXPORT_PRICE: [TEST_CONFIGURABLE_ENTITY_ID],
     }
     result = await flow.async_step_reconfigure(user_input=step1_input)
-    assert result.get("step_id") == "reconfigure_values"
+    assert result.get("step_id") == "values"
 
     # Step 2: submit without providing import_price (required configurable value)
     step2_input = {
         CONF_EXPORT_PRICE: 0.08,
     }
-    result = await flow.async_step_reconfigure_values(user_input=step2_input)
+    result = await flow.async_step_values(user_input=step2_input)
 
     # Should show reconfigure_values form again with error
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure_values"
+    assert result.get("step_id") == "values"
     assert CONF_IMPORT_PRICE in result.get("errors", {})

@@ -1,6 +1,5 @@
 """Grid element configuration flows."""
 
-from collections.abc import Awaitable, Callable
 from typing import Any, ClassVar, cast
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
@@ -64,6 +63,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Initialize the flow handler."""
         super().__init__()
         self._step1_data: dict[str, Any] = {}
+        self._is_reconfigure: bool = False
 
     def _validate_entity_selections(self, user_input: dict[str, Any], errors: dict[str, str]) -> bool:
         """Validate that required entity fields have at least one selection."""
@@ -138,11 +138,19 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             **config_dict,
         }
 
+    def _finalize(self, config: dict[str, Any]) -> SubentryFlowResult:
+        """Finalize the flow by creating or updating the entry."""
+        name = str(self._step1_data.get(CONF_NAME))
+        if self._is_reconfigure:
+            subentry = self._get_reconfigure_subentry()
+            return self.async_update_and_abort(
+                self._get_entry(), subentry, title=name, data=cast("GridConfigSchema", config)
+            )
+        return self.async_create_entry(title=name, data=cast("GridConfigSchema", config))
+
     async def _async_step1(
         self,
         user_input: dict[str, Any] | None,
-        step_id: str,
-        next_step: Callable[[], Awaitable[SubentryFlowResult]],
         subentry_data: dict[str, Any] | None = None,
     ) -> SubentryFlowResult:
         """Shared logic for step 1: name, connection, and entity selection."""
@@ -152,7 +160,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             name = user_input.get(CONF_NAME)
             if self._validate_name(name, errors) and self._validate_entity_selections(user_input, errors):
                 self._step1_data = user_input
-                return await next_step()
+                return await self.async_step_values()
 
         translations = await async_get_translations(
             self.hass, self.hass.config.language, "config_subentries", integrations=[DOMAIN]
@@ -171,22 +179,27 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         defaults = self._build_step1_defaults(default_name, subentry_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
-        return self.async_show_form(step_id=step_id, data_schema=schema, errors=errors)
+        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
-    async def _async_step2(
-        self,
-        user_input: dict[str, Any] | None,
-        step_id: str,
-        current_data: dict[str, Any] | None,
-        finalize: Callable[[dict[str, Any]], SubentryFlowResult],
-    ) -> SubentryFlowResult:
-        """Shared logic for step 2: configurable value entry."""
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Handle step 1: name, connection, and entity selection."""
+        self._is_reconfigure = False
+        return await self._async_step1(user_input)
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Handle reconfigure step 1: name, connection, and entity selection."""
+        self._is_reconfigure = True
+        return await self._async_step1(user_input, dict(self._get_reconfigure_subentry().data))
+
+    async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Handle step 2: configurable value entry."""
         errors: dict[str, str] = {}
+        current_data = dict(self._get_reconfigure_subentry().data) if self._is_reconfigure else None
         entity_selections = extract_entity_selections(self._step1_data, _EXCLUDE_KEYS)
 
         if user_input is not None and self._validate_configurable_values(entity_selections, user_input, errors):
             config = self._build_config(entity_selections, user_input)
-            return finalize(config)
+            return self._finalize(config)
 
         schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections, current_data)
 
@@ -194,42 +207,9 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if current_data is not None and not schema.schema:
             configurable_values = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
             config = self._build_config(entity_selections, configurable_values)
-            return finalize(config)
+            return self._finalize(config)
 
         defaults = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
-        return self.async_show_form(step_id=step_id, data_schema=schema, errors=errors)
-
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 1: name, connection, and entity selection."""
-        return await self._async_step1(user_input, "user", self.async_step_values)
-
-    async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 2: configurable value entry."""
-
-        def finalize(config: dict[str, Any]) -> SubentryFlowResult:
-            name = self._step1_data.get(CONF_NAME)
-            return self.async_create_entry(title=str(name), data=cast("GridConfigSchema", config))
-
-        return await self._async_step2(user_input, "values", None, finalize)
-
-    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle reconfigure step 1: name, connection, and entity selection."""
-        subentry = self._get_reconfigure_subentry()
-        return await self._async_step1(
-            user_input, "reconfigure", self.async_step_reconfigure_values, dict(subentry.data)
-        )
-
-    async def async_step_reconfigure_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle reconfigure step 2: configurable value entry."""
-        subentry = self._get_reconfigure_subentry()
-        current_data = dict(subentry.data)
-
-        def finalize(config: dict[str, Any]) -> SubentryFlowResult:
-            name = self._step1_data.get(CONF_NAME)
-            return self.async_update_and_abort(
-                self._get_entry(), subentry, title=str(name), data=cast("GridConfigSchema", config)
-            )
-
-        return await self._async_step2(user_input, "reconfigure_values", current_data, finalize)
+        return self.async_show_form(step_id="values", data_schema=schema, errors=errors)
