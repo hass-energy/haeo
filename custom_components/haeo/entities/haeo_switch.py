@@ -97,26 +97,17 @@ class HaeoInputSwitch(SwitchEntity):
         self._state_unsub: Callable[[], None] | None = None
         self._horizon_unsub: Callable[[], None] | None = None
 
-        # Track whether entity has been added to HA
-        self._added_to_hass = False
-
-        # Initialize forecast immediately for EDITABLE mode entities
-        # This ensures get_values() returns data before async_added_to_hass() is called
-        # DRIVEN mode entities load data in async_added_to_hass() - the coordinator
-        # waits for all input entities to be ready before running
-        if self._entity_mode == ConfigEntityMode.EDITABLE and self._attr_is_on is not None:
-            self._update_forecast()
-
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get forecast timestamps from horizon manager."""
         return self._horizon_manager.get_forecast_timestamps()
 
     async def async_added_to_hass(self) -> None:
-        """Set up state tracking."""
-        await super().async_added_to_hass()
+        """Set up state tracking and load initial data.
 
-        # Mark entity as added
-        self._added_to_hass = True
+        This method completes with the entity fully loaded, ensuring
+        it is ready for coordinator access immediately after setup.
+        """
+        await super().async_added_to_hass()
 
         # Subscribe to horizon manager for time window changes
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
@@ -211,14 +202,6 @@ class HaeoInputSwitch(SwitchEntity):
                 if isinstance(time_val, datetime):
                     return time_val.timestamp()
         return None
-
-    def is_ready(self) -> bool:
-        """Check if entity is ready for coordinator to read values.
-
-        Returns True when entity has been added and has loaded values.
-        Returns False while still loading data.
-        """
-        return self._added_to_hass and self.get_values() is not None
 
     def get_values(self) -> tuple[bool, ...] | None:
         """Return the forecast values as a tuple, or None if not loaded."""

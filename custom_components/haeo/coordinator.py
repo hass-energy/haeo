@@ -197,8 +197,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
-        # Runtime attributes exposed to other integration modules
-        self.network: Network | None = None
+        # Network will be created in async_initialize()
+        # Typed as Network (not optional) since it's guaranteed to exist after initialization
+        # For tests that set it manually, or for lazy initialization fallback
+        self.network: Network = None  # type: ignore[assignment]
 
         # Build participant configs and track subentry IDs
         self._participant_configs: dict[str, ElementConfigSchema] = {}
@@ -225,10 +227,34 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             always_update=False,
         )
 
-        # State change subscriptions - set up after first successful refresh
+        # State change subscriptions - set up in async_initialize()
         self._state_change_unsubs: list[Callable[[], None]] = []
-        # Track if subscriptions have been enabled after first successful refresh
-        self._subscriptions_enabled: bool = False
+
+    async def async_initialize(self) -> None:
+        """Initialize the network and set up subscriptions.
+
+        Must be called after the coordinator is created but before any optimizations.
+        This is called from async_setup_entry after all input entities are loaded.
+        """
+        # Create network with loaded configurations
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            msg = "Runtime data not available"
+            raise RuntimeError(msg)
+
+        periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
+        loaded_configs = self._load_from_input_entities()
+
+        _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
+
+        self.network = await network_module.create_network(
+            self.config_entry,
+            periods_seconds=periods_seconds,
+            participants=loaded_configs,
+        )
+
+        # Subscribe to input entity changes
+        self._subscribe_to_input_entities()
 
     def _get_config_entry(self) -> "HaeoConfigEntry":
         """Get the typed config entry."""
@@ -285,11 +311,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         Updates only that element's TrackedParams in the network, then triggers
         optimization with debouncing.
-        """
-        if self.network is None:
-            # Network not created yet - will be handled by initial creation
-            return
 
+        The network is guaranteed to exist because it's created in async_initialize()
+        before this handler is registered.
+        """
         # Load the updated config for just this element
         element_config = self._load_element_config(element_name)
         if element_config is None:
@@ -512,12 +537,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
 
             # Load element configurations from input entities
+            # All input entities are guaranteed to be fully loaded by the time we get here
             loaded_configs = self._load_from_input_entities()
 
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
 
-            # Create network on first run (subsequent updates handled by element callbacks)
-            if self.network is None:
+            # Network should have been created in async_initialize()
+            # or set manually in tests - create lazily if needed (for test compatibility)
+            if not self.network:  # type: ignore[truthy-bool]
                 network = await network_module.create_network(
                     self.config_entry,
                     periods_seconds=periods_seconds,
@@ -610,12 +637,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
                 if subentry_devices:
                     result[element_name] = subentry_devices
-
-            # Enable subscriptions after first successful refresh
-            # This prevents callbacks from triggering during initial setup
-            if not self._subscriptions_enabled:
-                self._subscriptions_enabled = True
-                self._subscribe_to_input_entities()
 
             return result
         finally:

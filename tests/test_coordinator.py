@@ -321,7 +321,7 @@ async def test_async_update_data_returns_outputs(
 
     # Patch coordinator to use mocked _load_from_input_entities
     with (
-        patch("custom_components.haeo.coordinator.network_module.create_network", new_callable=AsyncMock) as mock_load,
+        patch("custom_components.haeo.coordinator.network_module.create_network", new_callable=AsyncMock),
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.dt_util.utcnow", return_value=generated_at),
@@ -335,19 +335,14 @@ async def test_async_update_data_returns_outputs(
             },
         ),
     ):
-        mock_load.return_value = fake_network
         mock_executor.return_value = 123.45
         coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+        # Set network directly (it's created in async_initialize in production)
+        coordinator.network = fake_network
 
         # Mock the _load_from_input_entities method
         with patch.object(coordinator, "_load_from_input_entities", return_value=mock_loaded_configs):
             result = await coordinator._async_update_data()
-
-    mock_load.assert_awaited_once_with(
-        mock_hub_entry,
-        periods_seconds=[30 * 60, 30 * 60],  # Two 30-minute intervals
-        participants=mock_loaded_configs,
-    )
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
