@@ -204,7 +204,7 @@ async def test_unload_last_entry_cleans_up_sentinels(
     # Track if async_unload_sentinel_entities was called
     cleanup_called = False
 
-    def mock_cleanup() -> None:
+    def mock_cleanup(hass: HomeAssistant) -> None:
         nonlocal cleanup_called
         cleanup_called = True
 
@@ -246,7 +246,7 @@ async def test_unload_with_remaining_entries_skips_sentinel_cleanup(
     # Track if async_unload_sentinel_entities was called
     unload_called = False
 
-    def mock_unload() -> None:
+    def mock_unload(hass: HomeAssistant) -> None:
         nonlocal unload_called
         unload_called = True
 

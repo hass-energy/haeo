@@ -232,37 +232,15 @@
       "initiate_flow": { "user": "Grid", "reconfigure": "Grid" },
       "step": {
         "user": {
-          "title": "Add Grid",
-          "description": "Set up grid import/export parameters and pricing",
+          "title": "Grid Configuration",
+          "description": "Configure grid import/export parameters and pricing",
           "data": {
             "connection": "Connection",
-            "export_limit_mode": "Export Limit Source",
-            "export_price_mode": "Export Price Source",
-            "import_limit_mode": "Import Limit Source",
-            "import_price_mode": "Import Price Source",
-            "name": "Grid Name"
-          }
-        },
-        "reconfigure": {
-          "title": "Edit Grid",
-          "description": "Update grid configuration",
-          "data": {
-            "connection": "Connection",
-            "export_limit_mode": "Export Limit Source",
-            "export_price_mode": "Export Price Source",
-            "import_limit_mode": "Import Limit Source",
-            "import_price_mode": "Import Price Source",
-            "name": "Grid Name"
-          }
-        },
-        "reconfigure_values": {
-          "title": "Edit Grid Values",
-          "description": "Update values for the selected input sources",
-          "data": {
             "export_limit": "Export Limit",
             "export_price": "Export Price",
             "import_limit": "Import Limit",
-            "import_price": "Import Price"
+            "import_price": "Import Price",
+            "name": "Grid Name"
           }
         },
         "values": {
