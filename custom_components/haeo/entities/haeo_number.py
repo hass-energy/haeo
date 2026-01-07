@@ -183,11 +183,20 @@ class HaeoInputNumber(NumberEntity):
         forecast_timestamps = self._get_forecast_timestamps()
 
         try:
-            values = await self._loader.load(
-                hass=self._hass,
-                value=self._source_entity_ids,
-                forecast_times=list(forecast_timestamps),
-            )
+            if self._field_info.fence_posts:
+                # Fence post fields: n+1 values at time boundaries
+                values = await self._loader.load_fence_posts(
+                    hass=self._hass,
+                    value=self._source_entity_ids,
+                    forecast_times=list(forecast_timestamps),
+                )
+            else:
+                # Interval fields: n values for periods between boundaries
+                values = await self._loader.load_intervals(
+                    hass=self._hass,
+                    value=self._source_entity_ids,
+                    forecast_times=list(forecast_timestamps),
+                )
         except Exception:
             # If loading fails, don't update state
             return
@@ -196,13 +205,20 @@ class HaeoInputNumber(NumberEntity):
             return
 
         # Build forecast as list of ForecastPoint-style dicts.
-        # Values correspond to periods (fence post intervals), not fence posts.
-        # HorizonManager guarantees at least 2 timestamps, so [:-1] is always valid.
+        # Fence posts: n+1 values at each boundary timestamp
+        # Intervals: n values at period start timestamps (exclude last fence post)
         local_tz = dt_util.get_default_time_zone()
-        forecast = [
-            {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
-            for ts, val in zip(forecast_timestamps[:-1], values, strict=True)
-        ]
+        if self._field_info.fence_posts:
+            forecast = [
+                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
+                for ts, val in zip(forecast_timestamps, values, strict=True)
+            ]
+        else:
+            # HorizonManager guarantees at least 2 timestamps, so [:-1] is always valid.
+            forecast = [
+                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
+                for ts, val in zip(forecast_timestamps[:-1], values, strict=True)
+            ]
 
         # Build updated extra state attributes
         extra_attrs = dict(self._base_extra_attrs)
@@ -221,13 +237,20 @@ class HaeoInputNumber(NumberEntity):
 
         if self._attr_native_value is not None:
             # Build forecast as list of ForecastPoint-style dicts with constant value.
-            # Use period start times (exclude last fence post) to get n_periods values.
-            # HorizonManager guarantees at least 2 timestamps, so [:-1] is always valid.
             local_tz = dt_util.get_default_time_zone()
-            forecast = [
-                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_native_value}
-                for ts in forecast_timestamps[:-1]
-            ]
+            if self._field_info.fence_posts:
+                # Fence posts: n+1 values at each boundary timestamp
+                forecast = [
+                    {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_native_value}
+                    for ts in forecast_timestamps
+                ]
+            else:
+                # Intervals: use period start times (exclude last fence post) for n values.
+                # HorizonManager guarantees at least 2 timestamps, so [:-1] is always valid.
+                forecast = [
+                    {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_native_value}
+                    for ts in forecast_timestamps[:-1]
+                ]
             extra_attrs["forecast"] = forecast
 
         self._attr_extra_state_attributes = extra_attrs

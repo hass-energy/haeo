@@ -93,34 +93,20 @@ class GridAdapter:
     ) -> GridConfigData:
         """Load grid configuration values from sensors."""
         ts_loader = TimeSeriesLoader()
-        # forecast_times are fence posts, so n_periods = len(forecast_times) - 1
-        n_periods = max(0, len(forecast_times) - 1)
 
-        # Load import_price: entity list, constant, or use default
-        import_value = config.get("import_price")
-        if isinstance(import_value, list) and import_value:
-            import_price = await ts_loader.load(
-                hass=hass,
-                value=import_value,
-                forecast_times=forecast_times,
-            )
-        elif isinstance(import_value, (int, float)):
-            import_price = [float(import_value)] * n_periods
-        else:
-            import_price = [DEFAULT_IMPORT_PRICE] * n_periods
+        import_price = await ts_loader.load_intervals(
+            hass=hass,
+            value=config.get("import_price"),
+            forecast_times=forecast_times,
+            default=DEFAULT_IMPORT_PRICE,
+        )
 
-        # Load export_price: entity list, constant, or use default
-        export_value = config.get("export_price")
-        if isinstance(export_value, list) and export_value:
-            export_price = await ts_loader.load(
-                hass=hass,
-                value=export_value,
-                forecast_times=forecast_times,
-            )
-        elif isinstance(export_value, (int, float)):
-            export_price = [float(export_value)] * n_periods
-        else:
-            export_price = [DEFAULT_EXPORT_PRICE] * n_periods
+        export_price = await ts_loader.load_intervals(
+            hass=hass,
+            value=config.get("export_price"),
+            forecast_times=forecast_times,
+            default=DEFAULT_EXPORT_PRICE,
+        )
 
         data: GridConfigData = {
             "element_type": config["element_type"],
@@ -133,25 +119,19 @@ class GridAdapter:
         # Load optional power limit fields
         import_limit = config.get("import_limit")
         if import_limit is not None:
-            if isinstance(import_limit, list) and import_limit:
-                data["import_limit"] = await ts_loader.load(
-                    hass=hass,
-                    value=import_limit,
-                    forecast_times=forecast_times,
-                )
-            elif isinstance(import_limit, (int, float)):
-                data["import_limit"] = [float(import_limit)] * n_periods
+            data["import_limit"] = await ts_loader.load_intervals(
+                hass=hass,
+                value=import_limit,
+                forecast_times=forecast_times,
+            )
 
         export_limit = config.get("export_limit")
         if export_limit is not None:
-            if isinstance(export_limit, list) and export_limit:
-                data["export_limit"] = await ts_loader.load(
-                    hass=hass,
-                    value=export_limit,
-                    forecast_times=forecast_times,
-                )
-            elif isinstance(export_limit, (int, float)):
-                data["export_limit"] = [float(export_limit)] * n_periods
+            data["export_limit"] = await ts_loader.load_intervals(
+                hass=hass,
+                value=export_limit,
+                forecast_times=forecast_times,
+            )
 
         return data
 

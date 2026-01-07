@@ -72,7 +72,7 @@ class SolarAdapter:
         const_loader_float = ConstantLoader[float](float)
         const_loader_bool = ConstantLoader[bool](bool)
 
-        forecast = await ts_loader.load(
+        forecast = await ts_loader.load_intervals(
             hass=hass,
             value=config[CONF_FORECAST],
             forecast_times=forecast_times,

@@ -64,16 +64,14 @@ class LoadAdapter:
         forecast_times: Sequence[float],
     ) -> LoadConfigData:
         """Load load configuration values from sensors."""
-        # If no entities configured, use default from schema for all periods
-        if not config[CONF_FORECAST]:
-            forecast = [DEFAULT_FORECAST for _ in forecast_times]
-        else:
-            ts_loader = TimeSeriesLoader()
-            forecast = await ts_loader.load(
-                hass=hass,
-                value=config[CONF_FORECAST],
-                forecast_times=forecast_times,
-            )
+        ts_loader = TimeSeriesLoader()
+
+        forecast = await ts_loader.load_intervals(
+            hass=hass,
+            value=config.get(CONF_FORECAST),
+            forecast_times=forecast_times,
+            default=DEFAULT_FORECAST,
+        )
 
         return {
             "element_type": config["element_type"],

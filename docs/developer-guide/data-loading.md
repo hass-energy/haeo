@@ -29,7 +29,7 @@ The data loading pipeline consists of four stages:
 3. **Combination** ([`forecast_combiner.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_combiner.py)) - Merges multiple sensors into unified data
 4. **Fusion** ([`forecast_fuser.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_fuser.py)) - Aligns data to optimization horizon using interpolation
 
-Input entities call `TimeSeriesLoader.load()` when they need to refresh their data.
+Input entities call `TimeSeriesLoader.load_intervals()` when they need to refresh their data.
 The coordinator reads the already-loaded values from input entities.
 
 ```mermaid

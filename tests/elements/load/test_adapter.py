@@ -99,4 +99,5 @@ async def test_load_with_empty_forecast_uses_default(hass: HomeAssistant) -> Non
 
     assert result["element_type"] == "load"
     assert result["name"] == "test_load"
-    assert result["forecast"] == [DEFAULT_FORECAST, DEFAULT_FORECAST]
+    # FORECAST_TIMES has 2 fence posts = 1 interval
+    assert result["forecast"] == [DEFAULT_FORECAST]

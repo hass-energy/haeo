@@ -17,7 +17,7 @@ Tests use simple integer timestamps to avoid datetime complexity.
 import numpy as np
 import pytest
 
-from custom_components.haeo.data.util.forecast_fuser import fuse_to_horizon
+from custom_components.haeo.data.util.forecast_fuser import fuse_to_intervals
 
 
 @pytest.mark.parametrize(
@@ -141,13 +141,13 @@ from custom_components.haeo.data.util.forecast_fuser import fuse_to_horizon
         ),
     ],
 )
-def test_fuse_to_horizon(
+def test_fuse_to_intervals(
     present_value: float,
     forecast_series: list[tuple[int, float]],
     horizon_times: list[int],
     expected: list[float],
 ) -> None:
-    """Test fuse_to_horizon with various input configurations using fence post pattern.
+    """Test fuse_to_intervals with various input configurations.
 
     With n+1 boundary timestamps, returns n_periods values where:
     - Position 0: Present value (replaces first interval, not affecting future forecast)
@@ -159,18 +159,18 @@ def test_fuse_to_horizon(
     first interval result. All subsequent intervals use trapezoidal integration
     of the forecast data without any present_value influence.
     """
-    result = fuse_to_horizon(present_value, forecast_series, horizon_times)
+    result = fuse_to_intervals(present_value, forecast_series, horizon_times)
 
     assert result == pytest.approx(expected)
 
 
 def test_empty_horizon_times() -> None:
     """Test that empty horizon_times returns empty list."""
-    result = fuse_to_horizon(42.0, [(0, 100.0)], [])
+    result = fuse_to_intervals(42.0, [(0, 100.0)], [])
     assert result == []
 
 
 def test_neither_forecast_nor_present_value_raises_error() -> None:
     """Test that missing both forecast_series and present_value raises ValueError."""
     with pytest.raises(ValueError, match="Either forecast_series or present_value must be provided"):
-        fuse_to_horizon(None, [], [0, 1000, 2000])
+        fuse_to_intervals(None, [], [0, 1000, 2000])
