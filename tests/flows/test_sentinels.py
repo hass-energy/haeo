@@ -2,9 +2,15 @@
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+import pytest
 
 from custom_components.haeo.const import CONFIGURABLE_ENTITY_UNIQUE_ID, DOMAIN
 from custom_components.haeo.flows.sentinels import async_setup_sentinel_entities, async_unload_sentinel_entities
+
+
+@pytest.fixture(autouse=True)
+async def setup_sentinel_entities() -> None:
+    """Override the autouse fixture from conftest - these tests manage the entity directly."""
 
 
 async def test_setup_sentinel_entities_creates_entity(hass: HomeAssistant) -> None:
@@ -16,7 +22,7 @@ async def test_setup_sentinel_entities_creates_entity(hass: HomeAssistant) -> No
     assert entity_id is None
 
     # Create the entity
-    await async_setup_sentinel_entities()
+    await async_setup_sentinel_entities(hass)
 
     # Verify entity was created in registry
     entity_id = registry.async_get_entity_id(DOMAIN, DOMAIN, CONFIGURABLE_ENTITY_UNIQUE_ID)
@@ -42,8 +48,8 @@ async def test_setup_sentinel_entities_idempotent(hass: HomeAssistant) -> None:
     registry = er.async_get(hass)
 
     # Create the entity twice
-    await async_setup_sentinel_entities()
-    await async_setup_sentinel_entities()
+    await async_setup_sentinel_entities(hass)
+    await async_setup_sentinel_entities(hass)
 
     # Should still only have one entity
     entries = [e for e in registry.entities.values() if e.unique_id == CONFIGURABLE_ENTITY_UNIQUE_ID]
@@ -55,13 +61,13 @@ async def test_unload_sentinel_entities_removes_entity(hass: HomeAssistant) -> N
     registry = er.async_get(hass)
 
     # Create the entity first
-    await async_setup_sentinel_entities()
+    await async_setup_sentinel_entities(hass)
     entity_id = registry.async_get_entity_id(DOMAIN, DOMAIN, CONFIGURABLE_ENTITY_UNIQUE_ID)
     assert entity_id is not None
     assert hass.states.get(entity_id) is not None
 
     # Clean up
-    async_unload_sentinel_entities()
+    async_unload_sentinel_entities(hass)
 
     # Verify entity was removed from registry
     assert registry.async_get_entity_id(DOMAIN, DOMAIN, CONFIGURABLE_ENTITY_UNIQUE_ID) is None
@@ -73,4 +79,4 @@ async def test_unload_sentinel_entities_removes_entity(hass: HomeAssistant) -> N
 async def test_unload_sentinel_entities_noop_when_missing(hass: HomeAssistant) -> None:
     """Cleanup doesn't fail when entity doesn't exist."""
     # Should not raise
-    async_unload_sentinel_entities()
+    async_unload_sentinel_entities(hass)
