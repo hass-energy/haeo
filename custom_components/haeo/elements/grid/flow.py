@@ -47,11 +47,11 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     async def _async_step1(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
         """Shared logic for step 1: name, connection, and entity selection."""
-        errors: dict[str, str] = {}
+        errors = self._validate_user_input(user_input)
         subentry = self._get_subentry()
         subentry_data = dict(subentry.data) if subentry else None
 
-        if user_input is not None and self._validate_user_input(user_input, errors):
+        if user_input is not None and not errors:
             self._step1_data = user_input
             return await self.async_step_values()
 
@@ -102,10 +102,13 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return vol.Schema(schema_dict)
 
-    def _validate_user_input(self, user_input: dict[str, Any], errors: dict[str, str]) -> bool:
-        return self._validate_name(user_input.get(CONF_NAME), errors) and self._validate_entity_selections(
-            user_input, errors
-        )
+    def _validate_user_input(self, user_input: dict[str, Any] | None) -> dict[str, str] | None:
+        if user_input is None:
+            return None
+        errors: dict[str, str] = {}
+        self._validate_name(user_input.get(CONF_NAME), errors)
+        self._validate_entity_selections(user_input, errors)
+        return errors if errors else None
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle step 2: configurable value entry."""
