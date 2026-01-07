@@ -317,11 +317,7 @@
         "values": {
           "title": "Solar Values",
           "description": "Enter values for the selected input sources",
-          "data": {
-            "curtailment": "Allow Curtailment",
-            "forecast": "Forecast",
-            "price_production": "Production Price"
-          }
+          "data": { "curtailment": "Allow Curtailment", "forecast": "Forecast", "price_production": "Production Price" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
