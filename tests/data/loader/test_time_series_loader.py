@@ -224,3 +224,4 @@ async def test_load_fence_posts_empty_horizon_returns_empty(hass: HomeAssistant)
         forecast_times=[],
     )
 
+    assert result == []
