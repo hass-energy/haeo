@@ -26,6 +26,7 @@ def soc_upper_constraint(self) -> list[highs_cons]:
 ```
 
 This is wrong because:
+
 - The constraint is added to the solver immediately
 - When the constraint invalidates and rebuilds, we can't delete the old one properly
 - `apply_constraints()` stores the returned `highs_cons` but the constraint is already added
@@ -44,11 +45,13 @@ Since all elements are now reactive, this separation adds complexity without ben
 ### load_network Complexity
 
 The coordinator calls `load_network()` which:
+
 1. Iterates all participants
 2. Calls adapter `create_model_elements()` for each
 3. Passes `existing_network` for warm start
 
 This is complex because:
+
 - Network building and parameter loading are intertwined
 - Adapters return full element configs each time
 - Hard to do incremental updates
@@ -62,20 +65,20 @@ Merge ReactiveElement into Element:
 ```python
 class Element(Generic[OutputNameT]):
     """Base class for all model elements with reactive parameter tracking."""
-    
+
     # From ReactiveElement
     _cache: dict[CachedKind, dict[str, Any]]
     _deps: dict[CachedKind, dict[str, set[str]]]
     _invalidated: dict[CachedKind, set[str]]
     _applied_constraints: dict[str, highs_cons | list[highs_cons]]
     _applied_costs: dict[str, highs_linear_expression | list[highs_linear_expression] | None]
-    
+
     # Element-specific
     name: str
     periods: NDArray[np.float64]
     _solver: Highs
     _connections: list[tuple[Connection, Literal["source", "target"]]]
-    
+
     def __getitem__(self, key: str) -> Any: ...
     def __setitem__(self, key: str, value: Any) -> None: ...
 ```
@@ -89,9 +92,11 @@ Three decorators for element behavior:
 def soc_upper_constraint(self) -> highs_linear_expression | list[highs_linear_expression]:
     return (self.soc[t] <= self.capacity[t] for t in range(self.n_periods + 1))
 
+
 @cost  # Returns cost expression for objective
 def import_cost(self) -> highs_linear_expression:
     return Highs.qsum(self.power[t] * self.price[t] * self.periods[t] for t in range(self.n_periods))
+
 
 @output  # Returns OutputData, discovered by reflection
 def power_consumed(self) -> OutputData:
@@ -135,12 +140,14 @@ TrackedParams have `_UNSET` sentinel as default - constraints that depend on uns
 ### Coordinator Flow
 
 **First `_async_update_data`:**
+
 1. Create Network with horizon periods
 2. Create elements from config subentries via `network.add()`
 3. Full load: iterate all input entities, load values, set on elements
 4. Run optimization
 
 **Subsequent `_handle_input_state_change`:**
+
 1. Identify which element changed (by entity → element name mapping)
 2. Load new values from input entity
 3. Set on element via dict access (TrackedParam invalidates dependents)
