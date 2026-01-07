@@ -6,9 +6,7 @@ from unittest.mock import Mock
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import node
@@ -18,7 +16,6 @@ from custom_components.haeo.elements.battery import (
     CONF_INITIAL_CHARGE_PERCENTAGE,
     ELEMENT_TYPE,
 )
-from custom_components.haeo.flows.field_schema import MODE_SUFFIX, InputMode
 
 from ..conftest import add_participant, create_flow
 
@@ -46,10 +43,11 @@ async def test_reconfigure_with_deleted_connection_target(hass: HomeAssistant, h
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form - should not error
+    # Entity-first pattern uses step_id="user" for both new and reconfigure
     result = await flow.async_step_reconfigure(user_input=None)
 
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure"
+    assert result.get("step_id") == "user"
 
 
 async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -76,73 +74,11 @@ async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssis
     assert "Unknown" not in participants
 
 
-async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """_get_current_subentry_id should return None during user flow (not reconfigure)."""
+async def test_get_subentry_returns_none_for_user_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_get_subentry should return None during user flow (not reconfigure)."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     # During user flow, _get_reconfigure_subentry will raise
-    subentry_id = flow._get_current_subentry_id()
+    subentry = flow._get_subentry()
 
-    assert subentry_id is None
-
-
-async def test_schema_rejects_empty_capacity_list(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Step 2 schema validation should reject empty capacity entity list."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-
-    # Complete step 1 with ENTITY_LINK mode for capacity
-    step1_input = {
-        CONF_NAME: "Test Battery",
-        CONF_CONNECTION: "TestNode",
-        f"{CONF_CAPACITY}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
-        f"{CONF_INITIAL_CHARGE_PERCENTAGE}{MODE_SUFFIX}": InputMode.CONSTANT,
-    }
-    result = await flow.async_step_user(user_input=step1_input)
-
-    # Should proceed to values step
-    assert result.get("step_id") == "values"
-    schema = result.get("data_schema")
-
-    # Attempt to validate input with empty capacity list in step 2
-    with pytest.raises(vol.MultipleInvalid) as exc_info:
-        schema(
-            {
-                CONF_CAPACITY: [],
-                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
-            }
-        )
-
-    assert CONF_CAPACITY in str(exc_info.value)
-
-
-async def test_schema_rejects_empty_initial_charge_list(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """Step 2 schema validation should reject empty initial charge percentage entity list."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-
-    # Complete step 1 with ENTITY_LINK mode for initial_charge_percentage
-    step1_input = {
-        CONF_NAME: "Test Battery",
-        CONF_CONNECTION: "TestNode",
-        f"{CONF_CAPACITY}{MODE_SUFFIX}": InputMode.CONSTANT,
-        f"{CONF_INITIAL_CHARGE_PERCENTAGE}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
-    }
-    result = await flow.async_step_user(user_input=step1_input)
-
-    # Should proceed to values step
-    assert result.get("step_id") == "values"
-    schema = result.get("data_schema")
-
-    # Attempt to validate input with empty initial charge list in step 2
-    with pytest.raises(vol.MultipleInvalid) as exc_info:
-        schema(
-            {
-                CONF_CAPACITY: 10.0,
-                CONF_INITIAL_CHARGE_PERCENTAGE: [],
-            }
-        )
-
-    assert CONF_INITIAL_CHARGE_PERCENTAGE in str(exc_info.value)
+    assert subentry is None

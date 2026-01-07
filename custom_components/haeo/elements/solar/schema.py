@@ -66,17 +66,21 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
 class SolarConfigSchema(TypedDict):
     """Solar element configuration as stored in Home Assistant.
 
-    Schema mode contains entity IDs for forecast sensors.
+    Schema mode contains entity IDs and constant values from the config flow.
+    Values can be:
+    - list[str]: Entity IDs when linking to sensors
+    - float/bool: Constant value when using HAEO Configurable
+    - NotRequired: Field not present when using default
     """
 
     element_type: Literal["solar"]
     name: str
     connection: str  # Element name to connect to
-    forecast: list[str]  # Entity IDs for power forecast sensors
+    forecast: list[str] | float  # Entity IDs or constant kW
 
     # Optional fields
-    price_production: NotRequired[float]  # $/kWh production incentive
-    curtailment: NotRequired[bool]  # Whether solar can be curtailed
+    price_production: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
+    curtailment: NotRequired[list[str] | bool]  # Entity IDs or constant boolean
 
 
 class SolarConfigData(TypedDict):

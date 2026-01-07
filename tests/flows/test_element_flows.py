@@ -339,9 +339,9 @@ async def test_element_flow_reconfigure_success(
     element_test_data: dict[ElementType, ElementTestData],
 ) -> None:
     """Verify reconfigure submissions succeed for unchanged data."""
-    # Grid and inverter use entity-first pattern with different test approach
-    # See tests/elements/grid/test_flow.py and tests/elements/inverter/test_flow.py
-    if element_type in (grid.ELEMENT_TYPE, "inverter"):
+    # Entity-first elements use shared step 1 (step_id="user") for both new and reconfigure
+    # They are tested separately in tests/elements/*/test_flow.py
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
         pytest.skip("Entity-first flow pattern tested separately")
 
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)
@@ -389,9 +389,9 @@ async def test_element_flow_reconfigure_rename(
     element_test_data: dict[ElementType, ElementTestData],
 ) -> None:
     """Verify reconfigure handles renaming across element types."""
-    # Grid and inverter use entity-first pattern with different test approach
-    # See tests/elements/grid/test_flow.py and tests/elements/inverter/test_flow.py
-    if element_type in (grid.ELEMENT_TYPE, "inverter"):
+    # Entity-first elements use shared step 1 (step_id="user") for both new and reconfigure
+    # They are tested separately in tests/elements/*/test_flow.py
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
         pytest.skip("Entity-first flow pattern tested separately")
 
     existing_config = deepcopy(element_test_data[element_type].valid[0].config)
