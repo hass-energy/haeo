@@ -89,6 +89,63 @@ VALID_DATA = [
     },
 ]
 
-# INVALID_DATA cases are handled by test_element_flow_user_step_missing_name
-# in test_element_flows.py. Schema validation for constant values happens in step 2.
-INVALID_DATA: list[dict[str, object]] = []
+INVALID_DATA = [
+    {
+        "description": "Empty name should fail validation",
+        "mode_input": {
+            CONF_NAME: "",
+            CONF_CONNECTION: "main_bus",
+            CONF_CAPACITY: ["sensor.haeo_constant_energy"],
+            CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+            CONF_MIN_CHARGE_PERCENTAGE: [],
+            CONF_MAX_CHARGE_PERCENTAGE: [],
+            CONF_EFFICIENCY: [],
+            CONF_MAX_CHARGE_POWER: ["sensor.haeo_constant_power"],
+            CONF_MAX_DISCHARGE_POWER: ["sensor.haeo_constant_power"],
+            CONF_EARLY_CHARGE_INCENTIVE: [],
+            CONF_DISCHARGE_COST: [],
+            CONF_UNDERCHARGE_PERCENTAGE: [],
+            CONF_OVERCHARGE_PERCENTAGE: [],
+            CONF_UNDERCHARGE_COST: [],
+            CONF_OVERCHARGE_COST: [],
+        },
+        "config": {
+            CONF_NAME: "",
+            CONF_CONNECTION: "main_bus",
+            CONF_CAPACITY: 10.0,
+            CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+            CONF_MAX_CHARGE_POWER: 5.0,
+            CONF_MAX_DISCHARGE_POWER: 5.0,
+        },
+        "error": "cannot be empty",
+    },
+    {
+        "description": "Negative capacity should fail validation",
+        "mode_input": {
+            CONF_NAME: "Test Battery",
+            CONF_CONNECTION: "main_bus",
+            CONF_CAPACITY: ["sensor.haeo_constant_energy"],
+            CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+            CONF_MIN_CHARGE_PERCENTAGE: [],
+            CONF_MAX_CHARGE_PERCENTAGE: [],
+            CONF_EFFICIENCY: [],
+            CONF_MAX_CHARGE_POWER: ["sensor.haeo_constant_power"],
+            CONF_MAX_DISCHARGE_POWER: ["sensor.haeo_constant_power"],
+            CONF_EARLY_CHARGE_INCENTIVE: [],
+            CONF_DISCHARGE_COST: [],
+            CONF_UNDERCHARGE_PERCENTAGE: [],
+            CONF_OVERCHARGE_PERCENTAGE: [],
+            CONF_UNDERCHARGE_COST: [],
+            CONF_OVERCHARGE_COST: [],
+        },
+        "config": {
+            CONF_NAME: "Test Battery",
+            CONF_CONNECTION: "main_bus",
+            CONF_CAPACITY: -1000.0,
+            CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+            CONF_MAX_CHARGE_POWER: 5.0,
+            CONF_MAX_DISCHARGE_POWER: 5.0,
+        },
+        "error": "value must be positive",
+    },
+]
