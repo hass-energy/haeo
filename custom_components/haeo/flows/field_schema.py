@@ -426,6 +426,30 @@ def resolve_configurable_entity_id(
     return registry.async_get_entity_id("number", DOMAIN, unique_id)
 
 
+def is_haeo_input_entity(entity_id: str) -> bool:
+    """Check if an entity is a HAEO-created input entity.
+
+    HAEO input entities (number/switch) have unique_ids in the pattern:
+    {entry_id}_{subentry_id}_{field_name}
+
+    Args:
+        entity_id: Entity ID to check.
+
+    Returns:
+        True if the entity is a HAEO input entity.
+
+    """
+    hass = async_get_hass()
+    registry = er.async_get(hass)
+    entry = registry.async_get(entity_id)
+    if entry is None or entry.platform != DOMAIN:
+        return False
+    # HAEO input entities have unique_ids with the pattern: entry_id_subentry_id_field_name
+    # They have at least 2 underscores separating 3 parts (minimum for entry_id_subentry_id_field)
+    min_underscores = 2
+    return entry.unique_id.count("_") >= min_underscores
+
+
 def build_entity_selector_with_configurable(
     field_info: InputFieldInfo[Any],  # noqa: ARG001
     *,
@@ -661,6 +685,7 @@ def convert_entity_selections_to_config(
     entity_selections: dict[str, list[str]],
     configurable_values: dict[str, Any],
     input_fields: tuple[InputFieldInfo[Any], ...] | None = None,
+    current_data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Convert entity selections and configurable values to final config format.
 
@@ -669,11 +694,14 @@ def convert_entity_selections_to_config(
         configurable_values: Configurable values from step 2.
         input_fields: Optional tuple of input field metadata. If provided, applies
             defaults for optional fields with no selection.
+        current_data: Current stored config (for reconfigure). Used to preserve
+            scalar values when HAEO input entities are kept selected.
 
     Returns:
         Config dict with:
         - Fields with configurable entity: converted to float (from configurable_values)
-        - Fields with real entities: kept as list[str]
+        - Fields with HAEO input entity kept: preserved scalar value from current_data
+        - Fields with real external entities: kept as list[str]
         - Fields with empty selection but default: set to default value
         - Fields with empty selection and no default: omitted
 
@@ -696,12 +724,24 @@ def convert_entity_selections_to_config(
             continue
 
         if any(is_configurable_entity(entity_id) for entity_id in entities):
-            # Configurable value - get from configurable_values
+            # Configurable sentinel selected - get value from configurable_values
             if field_name in configurable_values:
                 config[field_name] = configurable_values[field_name]
             # If configurable entity is selected but no value provided, skip (validation should catch this)
+        elif any(is_haeo_input_entity(entity_id) for entity_id in entities):
+            # HAEO input entity kept selected - preserve original scalar value
+            if current_data is not None and field_name in current_data:
+                current_value = current_data[field_name]
+                if isinstance(current_value, (float, int, bool)):
+                    config[field_name] = current_value
+                else:
+                    # Unexpected: HAEO input entity but no scalar in current_data
+                    config[field_name] = entities
+            else:
+                # No current_data - shouldn't happen but fall back to entity list
+                config[field_name] = entities
         else:
-            # Real entities - keep as list
+            # Real external entities - keep as list
             config[field_name] = entities
 
     return config
@@ -729,6 +769,7 @@ __all__ = [
     "has_configurable_selection",
     "infer_mode_from_value",
     "is_configurable_entity",
+    "is_haeo_input_entity",
     "number_selector_from_field",
     "resolve_configurable_entity_id",
 ]

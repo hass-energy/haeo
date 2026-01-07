@@ -498,3 +498,65 @@ async def test_reconfigure_with_scalar_selecting_configurable_triggers_step2(
     # Should show values form (step 2) to enter new values
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "values"
+
+
+async def test_reconfigure_keeping_resolved_entity_preserves_scalar(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Keeping resolved entity selected should preserve original scalar value."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+
+    # Create existing entry with scalar values
+    existing_config = {
+        CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+        CONF_NAME: "Test Grid",
+        CONF_CONNECTION: "TestNode",
+        CONF_IMPORT_PRICE: 0.30,
+        CONF_EXPORT_PRICE: 0.08,
+    }
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(existing_config),
+        subentry_type=ELEMENT_TYPE,
+        title="Test Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    # Register HAEO number entities in entity registry
+    registry = er.async_get(hass)
+    import_price_entity = registry.async_get_or_create(
+        domain="number",
+        platform=DOMAIN,
+        unique_id=f"{hub_entry.entry_id}_{existing_subentry.subentry_id}_{CONF_IMPORT_PRICE}",
+        suggested_object_id="test_grid_import_price",
+    )
+    export_price_entity = registry.async_get_or_create(
+        domain="number",
+        platform=DOMAIN,
+        unique_id=f"{hub_entry.entry_id}_{existing_subentry.subentry_id}_{CONF_EXPORT_PRICE}",
+        suggested_object_id="test_grid_export_price",
+    )
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
+
+    # User keeps the resolved entities selected (no change)
+    step1_input = {
+        CONF_NAME: "Test Grid",
+        CONF_CONNECTION: "TestNode",
+        CONF_IMPORT_PRICE: [import_price_entity.entity_id],  # Keep resolved entity
+        CONF_EXPORT_PRICE: [export_price_entity.entity_id],  # Keep resolved entity
+    }
+    result = await flow.async_step_reconfigure(user_input=step1_input)
+
+    # Should skip step 2 and complete (no configurable entity selected)
+    assert result.get("type") == FlowResultType.ABORT
+    assert result.get("reason") == "reconfigure_successful"
+
+    # Verify the config preserves the original scalar values
+    update_kwargs = flow.async_update_and_abort.call_args.kwargs
+    assert update_kwargs["data"][CONF_IMPORT_PRICE] == 0.30  # Original scalar preserved
+    assert update_kwargs["data"][CONF_EXPORT_PRICE] == 0.08  # Original scalar preserved

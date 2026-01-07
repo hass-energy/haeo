@@ -115,7 +115,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         entity_selections = extract_entity_selections(self._step1_data, _EXCLUDE_KEYS)
 
         if user_input is not None and self._validate_configurable_values(entity_selections, user_input, errors):
-            config = self._build_config(entity_selections, user_input)
+            config = self._build_config(entity_selections, user_input, current_data)
             return self._finalize(config)
 
         schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections, current_data)
@@ -123,7 +123,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         # Skip step 2 if no configurable fields need input (reconfigure with existing values)
         if current_data is not None and not schema.schema:
             configurable_values = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
-            config = self._build_config(entity_selections, configurable_values)
+            config = self._build_config(entity_selections, configurable_values, current_data)
             return self._finalize(config)
 
         defaults = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
@@ -177,11 +177,14 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         self,
         entity_selections: dict[str, list[str]],
         configurable_values: dict[str, Any],
+        current_data: dict[str, Any] | None = None,
     ) -> GridConfigSchema:
         """Build final config dict from step data."""
         name = self._step1_data.get(CONF_NAME)
         connection = self._step1_data.get(CONF_CONNECTION)
-        config_dict = convert_entity_selections_to_config(entity_selections, configurable_values, INPUT_FIELDS)
+        config_dict = convert_entity_selections_to_config(
+            entity_selections, configurable_values, INPUT_FIELDS, current_data
+        )
         return cast(
             "GridConfigSchema",
             {
