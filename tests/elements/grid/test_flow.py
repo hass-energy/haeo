@@ -442,10 +442,6 @@ async def test_reconfigure_with_scalar_shows_resolved_entity(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    # Check suggested values contain the resolved entity IDs (not the configurable sentinel)
-    data_schema = result.get("data_schema")
-    suggested_values = data_schema.schema  # Get schema dict with suggested values applied
-
     # Find the suggested values for import_price and export_price
     # The schema keys are vol.Required/Optional markers, values are selectors
     # We need to check what _build_step1_defaults returned
