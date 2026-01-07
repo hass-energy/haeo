@@ -516,9 +516,6 @@ async def test_get_values_returns_forecast_values(
         horizon_manager=horizon_manager,
     )
 
-    # Simulate entity being added to HA (enables get_values to return data)
-    entity._added_to_hass = True
-
     # Update forecast
     entity._update_editable_forecast()
 
@@ -549,9 +546,6 @@ async def test_get_values_returns_none_without_forecast(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-
-    # Simulate entity being added to HA
-    entity._added_to_hass = True
 
     # Clear forecast
     entity._attr_extra_state_attributes = {}

@@ -115,24 +115,19 @@ class HaeoInputNumber(NumberEntity):
         self._state_unsub: Callable[[], None] | None = None
         self._horizon_unsub: Callable[[], None] | None = None
 
-        # Track whether entity has been added to HA
-        self._added_to_hass = False
-
-        # Initialize forecast immediately for EDITABLE mode entities
-        # This ensures get_values() returns data before async_added_to_hass() is called
-        if self._entity_mode == ConfigEntityMode.EDITABLE and self._attr_native_value is not None:
-            self._update_editable_forecast()
-
     def _get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get forecast timestamps from horizon manager."""
         return self._horizon_manager.get_forecast_timestamps()
 
     async def async_added_to_hass(self) -> None:
-        """Set up state tracking."""
-        await super().async_added_to_hass()
+        """Set up state tracking and load initial data.
 
-        # Mark entity as added
-        self._added_to_hass = True
+        For EDITABLE mode entities, this updates the forecast in memory
+        synchronously. For DRIVEN mode entities, this awaits data loading
+        from source sensors, ensuring the entity is ready for coordinator
+        access after async_block_till_done() completes.
+        """
+        await super().async_added_to_hass()
 
         # Subscribe to horizon manager for consistent time windows
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
@@ -150,8 +145,8 @@ class HaeoInputNumber(NumberEntity):
                 self._source_entity_ids,
                 self._handle_source_state_change,
             )
-            # Load initial data
-            self._hass.async_create_task(self._async_load_data())
+            # Load initial data - await ensures entity is ready when added_to_hass completes
+            await self._async_load_data()
 
     async def async_will_remove_from_hass(self) -> None:
         """Clean up state tracking."""
@@ -176,10 +171,25 @@ class HaeoInputNumber(NumberEntity):
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
-        self._hass.async_create_task(self._async_load_data())
+        self._hass.async_create_task(self._async_load_data_and_update())
+
+    async def _async_load_data_and_update(self) -> None:
+        """Load data and write state update."""
+        await self._async_load_data()
+        self.async_write_ha_state()
 
     async def _async_load_data(self) -> None:
-        """Load data from source entities and update state."""
+        """Load data from source entities and update attributes.
+
+        This method updates _attr_native_value and _attr_extra_state_attributes
+        but does NOT call async_write_ha_state().
+
+        During normal update flows (e.g., _async_load_data_and_update() or
+        tasks scheduled from horizon-change handlers), callers should call
+        async_write_ha_state() after this method returns to publish the new
+        state. Do not write state from async_added_to_hass(); Home Assistant
+        will handle initial state once the entity has been fully added.
+        """
         forecast_timestamps = self._get_forecast_timestamps()
 
         try:
@@ -211,7 +221,6 @@ class HaeoInputNumber(NumberEntity):
         # Update native value to current (first) value
         self._attr_native_value = values[0]
         self._attr_extra_state_attributes = extra_attrs
-        self.async_write_ha_state()
 
     def _update_editable_forecast(self) -> None:
         """Update forecast attribute for editable mode with constant value."""
@@ -248,14 +257,6 @@ class HaeoInputNumber(NumberEntity):
                 if isinstance(time_val, datetime):
                     return time_val.timestamp()
         return None
-
-    def is_ready(self) -> bool:
-        """Check if entity is ready for coordinator to read values.
-
-        Returns True when entity has been added and has loaded values.
-        Returns False while still loading data.
-        """
-        return self._added_to_hass and self.get_values() is not None
 
     def get_values(self) -> tuple[float, ...] | None:
         """Return the forecast values as a tuple, or None if not loaded."""
