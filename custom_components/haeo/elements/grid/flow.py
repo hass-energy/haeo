@@ -18,6 +18,7 @@ from custom_components.haeo.flows.field_schema import (
     get_configurable_entity_id,
     get_configurable_value_defaults,
     has_configurable_selection,
+    resolve_configurable_entity_id,
 )
 
 from .schema import CONF_CONNECTION, ELEMENT_TYPE, INPUT_FIELDS, GridConfigSchema
@@ -135,6 +136,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         configurable_entity_id = get_configurable_entity_id()
 
         if subentry_data is None:
+            # First setup: show configurable entity for fields with defaults, empty for required
             defaults: dict[str, Any] = {
                 field.field_name: [] if field.default is None else [configurable_entity_id] for field in INPUT_FIELDS
             }
@@ -142,16 +144,29 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             defaults[CONF_CONNECTION] = None
             return defaults
 
-        entity_defaults = {
-            field.field_name: (
-                subentry_data[field.field_name]
-                if isinstance(subentry_data.get(field.field_name), list)
-                else [configurable_entity_id]
-                if field.field_name in subentry_data
-                else ([] if field.default is None else [configurable_entity_id])
-            )
-            for field in INPUT_FIELDS
-        }
+        # Reconfigure: get entry/subentry IDs for resolving created entities
+        subentry = self._get_subentry()
+        entry = self._get_entry()
+        entry_id = entry.entry_id
+        subentry_id = subentry.subentry_id if subentry else ""
+
+        entity_defaults: dict[str, Any] = {}
+        for field in INPUT_FIELDS:
+            value = subentry_data.get(field.field_name)
+            if isinstance(value, list):
+                # Entity link: use stored entity IDs
+                entity_defaults[field.field_name] = value
+            elif field.field_name in subentry_data:
+                # Scalar value: resolve to the HAEO-created entity
+                resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
+                entity_defaults[field.field_name] = [resolved or configurable_entity_id]
+            elif field.default is None:
+                # Required field with no value: empty selection
+                entity_defaults[field.field_name] = []
+            else:
+                # Optional field with default: show configurable entity
+                entity_defaults[field.field_name] = [configurable_entity_id]
+
         return {
             CONF_NAME: subentry_data.get(CONF_NAME),
             CONF_CONNECTION: subentry_data.get(CONF_CONNECTION),

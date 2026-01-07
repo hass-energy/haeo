@@ -400,6 +400,32 @@ def get_configurable_entity_id() -> str:
     return entity_id
 
 
+def resolve_configurable_entity_id(
+    entry_id: str,
+    subentry_id: str,
+    field_name: str,
+) -> str | None:
+    """Resolve the HAEO-created entity for a configured field.
+
+    When a user configures a field with haeo.configurable_entity and enters
+    a value, HAEO creates an input entity (e.g., number.grid_export_limit).
+    This function looks up that resolved entity.
+
+    Args:
+        entry_id: The config entry ID.
+        subentry_id: The subentry ID for the element.
+        field_name: The field name (e.g., 'export_limit').
+
+    Returns:
+        The entity_id (e.g., 'number.grid_export_limit') or None if not found.
+
+    """
+    hass = async_get_hass()
+    registry = er.async_get(hass)
+    unique_id = f"{entry_id}_{subentry_id}_{field_name}"
+    return registry.async_get_entity_id("number", DOMAIN, unique_id)
+
+
 def build_entity_selector_with_configurable(
     field_info: InputFieldInfo[Any],  # noqa: ARG001
     *,
@@ -505,23 +531,25 @@ def build_configurable_value_schema_entry(
 def build_configurable_value_schema(
     input_fields: tuple[InputFieldInfo[Any], ...],
     entity_selections: dict[str, list[str]],
-    current_data: dict[str, Any] | None = None,
+    current_data: dict[str, Any] | None = None,  # noqa: ARG001
 ) -> vol.Schema:
     """Build schema for step 2 with configurable value inputs.
 
-    Only includes fields where HAEO Configurable is in the entity selection.
-    When current_data is provided (for reconfigure), fields that already have
-    stored configurable values are excluded from the schema.
+    Only includes fields where HAEO Configurable sentinel is in the entity selection.
+    When user selects the configurable sentinel, they always want to enter/change a value,
+    so the form is always shown regardless of any stored value.
+
+    Note: If user keeps a resolved HAEO entity selected (e.g., number.grid_import_price),
+    is_configurable_entity() returns False and the field won't be included, so step 2
+    is skipped automatically.
 
     Args:
         input_fields: Tuple of input field metadata.
         entity_selections: Entity selections from step 1 (field_name -> list of entity IDs).
-        current_data: Current configuration data (for reconfigure). Fields with
-            stored configurable values will be excluded from the schema.
+        current_data: Current configuration data (unused, kept for API compatibility).
 
     Returns:
-        Schema with configurable value inputs for fields with HAEO Configurable that
-        need user input.
+        Schema with configurable value inputs for fields with HAEO Configurable selected.
 
     """
     schema_dict: dict[vol.Marker, Any] = {}
@@ -530,24 +558,12 @@ def build_configurable_value_schema(
         field_name = field_info.field_name
         selected_entities = entity_selections.get(field_name, [])
 
-        # Skip fields without configurable selection
+        # Skip fields without configurable sentinel selection
+        # (resolved HAEO entities like number.grid_import_price return False here)
         if not any(is_configurable_entity(entity_id) for entity_id in selected_entities):
             continue
 
-        # For reconfigure, skip fields that already have stored configurable values
-        # But include fields where user is switching from entity to configurable (current_value is list)
-        if current_data is not None:
-            current_value = current_data.get(field_name)
-            # If current value is a scalar, we can reuse it
-            if isinstance(current_value, (float, int, bool)):
-                continue
-            # If current value is a list (entity IDs), user is switching TO configurable - need input
-            if isinstance(current_value, list):
-                pass  # Include in schema
-            # If field has a default and no prior value, use the default
-            elif field_info.default is not None:
-                continue
-
+        # User selected haeo.configurable_entity - always show form for value entry
         marker, selector = build_configurable_value_schema_entry(field_info)
         schema_dict[marker] = selector
 
@@ -714,4 +730,5 @@ __all__ = [
     "infer_mode_from_value",
     "is_configurable_entity",
     "number_selector_from_field",
+    "resolve_configurable_entity_id",
 ]
