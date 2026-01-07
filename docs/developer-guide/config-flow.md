@@ -146,14 +146,14 @@ Each flow defines element-specific schema fields, defaults, and validation logic
 ## Entity-First Two-Step Config Flow Pattern
 
 Most element types use a two-step configuration flow that provides a streamlined user experience.
-Users select entities or "HAEO Configurable" for each field, then enter constant values only where needed.
+Users select entities or "Configurable Entity" for each field, then enter constant values only where needed.
 
 ### Flow Steps
 
 **Step 1 (user)**: User enters the element name, connection target, and selects entities for each configurable field.
-Each entity selector includes a special "HAEO Configurable" option that signals a constant value will be entered.
+Each entity selector includes a special "Configurable Entity" option that signals a constant value will be entered.
 
-**Step 2 (values)**: Only shown if the user selected "HAEO Configurable" for any field.
+**Step 2 (values)**: Only shown if the user selected "Configurable Entity" for any field.
 The user enters constant values for those fields. Step 2 is skipped if no configurable fields were selected.
 
 ### Entity Selection Options
@@ -163,18 +163,18 @@ Each entity field supports three types of selections:
 | Selection Type       | Description                                         | Step 2 Behavior        |
 | -------------------- | --------------------------------------------------- | ---------------------- |
 | External Entity      | Value comes from Home Assistant sensors             | No input shown         |
-| HAEO Configurable    | User enters a constant value                        | Shows NumberSelector   |
+| Configurable Entity    | User enters a constant value                        | Shows NumberSelector   |
 | Empty (optional)     | Field is disabled (only for optional fields)        | No input shown         |
 
-Required fields must have at least one entity selected (either external or HAEO Configurable).
+Required fields must have at least one entity selected (either external or Configurable Entity).
 Optional fields can be left empty to use default values.
 
 ### Implementation Pattern
 
 The entity-first flow utilities are in `custom_components/haeo/flows/field_schema.py`:
 
-- `build_entity_schema_entry()`: Creates the entity selector for step 1 (includes HAEO Configurable)
-- `build_configurable_value_schema()`: Builds step 2 schema for fields with HAEO Configurable selected
+- `build_entity_schema_entry()`: Creates the entity selector for step 1 (includes Configurable Entity)
+- `build_configurable_value_schema()`: Builds step 2 schema for fields with Configurable Entity selected
 - `extract_entity_selections()`: Extracts entity selections from step 1 data
 - `convert_entity_selections_to_config()`: Converts selections to final config format
 - `get_configurable_value_defaults()`: Provides defaults for configurable value entry
@@ -184,7 +184,7 @@ The `has_configurable_selection()` helper checks if any field needs a constant v
 
 ### Entity Creation
 
-HAEO creates input entities (number/switch) for fields configured with "HAEO Configurable".
+HAEO creates input entities (number/switch) for fields configured with "Configurable Entity".
 These entities allow runtime adjustment of constant values without reconfiguring the element.
 Fields linked to external entities use those entities directly without creating HAEO input entities.
 

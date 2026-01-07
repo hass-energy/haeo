@@ -324,14 +324,14 @@ For values that don't change over time (fixed prices, baseline loads, power limi
 
 ### Direct constant entry
 
-During element configuration, select **Constant** mode for the field and enter your value directly.
+During element configuration, select **Configurable Entity** for the field and enter your value in step 2.
 This is the simplest approach for truly static values.
 
-| Step 1 Selection | Step 2 Entry | Use Case             |
-| ---------------- | ------------ | -------------------- |
-| Constant         | 0.25         | Fixed import price   |
-| Constant         | 15           | Static power limit   |
-| Constant         | 90           | Fixed SOC percentage |
+| Step 1 Selection   | Step 2 Entry | Use Case             |
+| ------------------ | ------------ | -------------------- |
+| Configurable Entity  | 0.25         | Fixed import price   |
+| Configurable Entity  | 15           | Static power limit   |
+| Configurable Entity  | 90           | Fixed SOC percentage |
 
 ### Input number helpers
 

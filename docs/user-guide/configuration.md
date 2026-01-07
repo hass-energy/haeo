@@ -104,13 +104,15 @@ After creating your hub, add elements to represent your devices through the Home
 
 Most elements use a two-step configuration process:
 
-**Step 1 - Settings and modes**: Enter the element name, select connection targets, and choose how each field receives its value—either a constant you enter, a sensor link, or not configured (for optional fields).
+**Step 1 - Entity selection**: Enter the element name, select connection targets, and choose entities for each field.
+Select "Configurable Entity" if you want to enter a constant value instead of linking to a sensor.
 
-**Step 2 - Values**: Enter the actual values or select sensors for each field based on your mode selections.
+**Step 2 - Configurable values**: Enter constant values for any fields where you selected "Configurable Entity".
+This step is skipped if all fields are linked to sensors.
 
 !!! tip "Optional fields"
 
-    For optional fields like power limits, select "Not Configured" if you don't need that constraint.
+    For optional fields like power limits, leave the field empty if you don't need that constraint.
     The optimization will run without that limit applied.
 
 !!! note "Network entry"
