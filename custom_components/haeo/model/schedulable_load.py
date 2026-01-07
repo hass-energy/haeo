@@ -18,9 +18,9 @@ class IntegerMode(Enum):
 
     Controls how candidate selection variables are treated in the optimization:
 
-    - NONE: All candidates are continuous [0,1]. Relies on total unimodularity
-      for integer solutions. Works for isolated loads but may give fractional
-      solutions when multiple loads compete for limited power.
+    - NONE: All candidates are continuous [0,1]. Fastest option but may give
+      fractional solutions when power limits or other constraints couple
+      decision variables.
 
     - FIRST: Only the first candidate is integer (binary). Ensures the immediate
       decision is crisp while leaving future decisions flexible. Default choice
@@ -84,14 +84,12 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
 
     Uses period-boundary selection: one candidate per period boundary within the
     scheduling window, with energy "smeared in time" into overlapping periods.
-    The constraint matrix is totally unimodular (consecutive-ones structure),
-    so the LP relaxation produces integer solutions for isolated loads.
+    LP often produces integer solutions for simple cases, but power limits, ramp
+    constraints, or multiple loads can cause fractional solutions.
 
-    When multiple schedulable loads compete for limited power, the coupling
-    constraints break total unimodularity and may produce fractional solutions.
     Use the `integer_mode` parameter to control integer variable behavior:
 
-    - NONE: Pure LP, relies on unimodularity (may be fractional with coupling)
+    - NONE: Pure LP (may be fractional with power limits or coupling)
     - FIRST: First candidate is binary, rest continuous (default, ~1x overhead)
     - ALL: All candidates binary (~10x overhead, guaranteed integer)
     """
@@ -119,7 +117,7 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
             earliest_start: Earliest allowed start time in hours from horizon start
             latest_start: Latest allowed start time in hours from horizon start
             integer_mode: How to treat candidate selection variables:
-                - NONE: All continuous (pure LP, relies on unimodularity)
+                - NONE: All continuous (pure LP, may be fractional)
                 - FIRST: First candidate binary, rest continuous (default)
                 - ALL: All candidates binary (full MILP)
 
@@ -158,7 +156,6 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
 
         # Generate candidate start times: period boundaries within the scheduling window
         # where the load can complete before the horizon ends.
-        # This creates a consecutive-ones matrix structure (totally unimodular).
         self.candidates = tuple(
             float(b) for b in self.boundaries if earliest_start <= b <= latest_start and b + duration <= self.horizon
         )
@@ -169,8 +166,8 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
         self.profiles: tuple[tuple[float, ...], ...] = tuple(self._compute_profile(s) for s in self.candidates)
 
         # Decision variables: selection weight for each candidate.
-        # Due to total unimodularity, exactly one will be 1.0 and the rest 0.0
-        # when constraints don't couple multiple schedulable loads.
+        # With favorable problem structure, exactly one will be 1.0 and the rest 0.0.
+        # Power limits or coupling can cause fractional solutions without integer mode.
         self.choice_weights = solver.addVariables(
             n_candidates,
             lb=0.0,
@@ -187,7 +184,7 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
         elif integer_mode == IntegerMode.FIRST and n_candidates > 0:
             # Only first candidate is binary (ensures immediate decision is crisp)
             solver.changeColIntegrality(self.choice_weights[0].index, HighsVarType.kInteger)
-        # NONE: all continuous, rely on unimodularity
+        # NONE: all continuous
 
         # Energy consumed in each period (determined by selection)
         max_energy_per_period = power * max(float(p) for p in self.periods)
@@ -231,8 +228,8 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
         2. Energy at each time is determined by selection: E_t = sum(w_k * profile_k[t])
 
         The constraint matrix has consecutive-ones structure (each candidate affects
-        a contiguous set of periods), making it totally unimodular. This guarantees
-        the LP relaxation always produces integer solutions.
+        a contiguous set of periods), which often produces integer LP solutions.
+        However, power limits or coupling constraints can cause fractional solutions.
         """
         h = self._solver
 

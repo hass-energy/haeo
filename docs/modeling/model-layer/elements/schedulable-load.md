@@ -23,7 +23,7 @@ The optimizer selects the optimal start time within a configurable window, allow
 
 The formulation uses period-boundary selection: one candidate start time per period boundary within the scheduling window.
 For each candidate, the energy "smears in time" into the periods it overlaps with.
-The constraint matrix has a consecutive-ones structure that is totally unimodular, guaranteeing the LP relaxation always produces integer solutions.
+The constraint matrix has a consecutive-ones structure that often produces integer solutions from LP, though this is not guaranteed when additional constraints are present.
 
 ### Parameters
 
@@ -76,20 +76,20 @@ The `integer_mode` parameter controls how $w_k$ variables are treated:
 
 | Mode    | Variables                     | Overhead | Use Case                                               |
 | ------- | ----------------------------- | -------- | ------------------------------------------------------ |
-| `NONE`  | All continuous                | 1×       | Single load (unimodularity guarantees integer)         |
+| `NONE`  | All continuous                | 1×       | Fastest, but may produce fractional solutions          |
 | `FIRST` | First binary, rest continuous | ~1×      | **Default**. Crisp immediate decision, flexible future |
-| `ALL`   | All binary                    | ~10×     | Guaranteed integer when coupling breaks unimodularity  |
+| `ALL`   | All binary                    | ~10×     | Guaranteed integer solutions in all cases              |
 
 **When to use each mode**:
 
-- **NONE**: Safe for isolated schedulable loads where total unimodularity holds.
-    Fastest option but may give fractional solutions if multiple loads compete for limited power.
+- **NONE**: Fastest option.
+    LP may produce integer solutions depending on problem structure, but fractional results are possible when power limits, ramp constraints, or multiple loads interact.
 
 - **FIRST** (default): Ensures the first candidate (current decision) is 0 or 1, while leaving future candidates continuous.
-    Adds negligible overhead (~1×) and handles most coupling scenarios correctly.
+    Adds negligible overhead and handles most scenarios correctly.
 
-- **ALL**: Use when multiple schedulable loads compete for tightly constrained resources and `FIRST` mode still produces unacceptable results.
-    ~10× slower but guaranteed integer solutions.
+- **ALL**: Guaranteed integer solutions for all candidates.
+    Slower but eliminates any possibility of fractional scheduling.
 
 See [Solver Philosophy](../../solver-philosophy.md) for background on LP vs MILP trade-offs.
 
@@ -121,19 +121,21 @@ $$
 
 The negative sign reflects that the load consumes power from the network.
 
-### Total Unimodularity
+### LP Solution Properties
 
 The constraint matrix has a consecutive-ones structure: each candidate $k$ affects a contiguous set of periods (those overlapping with $[s_k, s_k + d]$).
-Combined with the sum-to-one constraint on $w_k$, this forms a totally unimodular matrix.
 
-**Consequence for isolated loads**: The LP relaxation always produces integer solutions—exactly one $w_k = 1$ and all others $w_k = 0$.
-No binary variables or integer programming required.
+**In simple cases**: LP often produces integer solutions—exactly one $w_k = 1$ and all others $w_k = 0$.
 
-**When coupling breaks unimodularity**: If multiple schedulable loads share a power-limited connection (e.g., two 1 kW loads with only 1.5 kW available), the coupling constraints destroy total unimodularity.
-The LP may produce fractional solutions where each load is "half-scheduled" in overlapping windows.
+**When LP may give fractional solutions**: Additional constraints can cause LP to spread selections across multiple candidates:
 
-Use `integer_mode=FIRST` (default) to ensure crisp immediate decisions with minimal overhead.
-See [Solver Philosophy](../../solver-philosophy.md) for details.
+- Power limits on connections
+- Ramp rate constraints
+- Multiple loads sharing resources
+- Energy caps or other coupling constraints
+
+Use `integer_mode=FIRST` (default) to ensure crisp immediate decisions.
+See [Solver Philosophy](../../solver-philosophy.md) for background on LP vs MILP trade-offs.
 
 ### Shadow Prices
 
@@ -178,8 +180,7 @@ The formulation uses period boundaries as candidate start times because:
 2. **Sparse profiles**: Each candidate only affects a contiguous set of periods (those overlapping the load's active window).
     This creates a consecutive-ones matrix structure.
 
-3. **Total unimodularity**: The consecutive-ones structure combined with the sum-to-one constraint creates a totally unimodular constraint matrix.
-    LP vertices are integral, so no binary variables needed.
+3. **Favorable LP structure**: The consecutive-ones structure often leads to integer LP solutions, reducing the need for binary variables in many cases.
 
 ### Example: Optimal Scheduling
 

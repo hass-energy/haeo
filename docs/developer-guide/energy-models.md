@@ -48,7 +48,7 @@ See [Solver Philosophy](../modeling/solver-philosophy.md) for the theoretical ba
 
 **When MILP is unavoidable**:
 
-1. Start with zero integer variables—look for LP formulations (total unimodularity, penalty weights, auxiliary slack variables)
+1. Start with zero integer variables—look for LP formulations (penalty weights, auxiliary slack variables, clever constraint structures)
 2. If truly needed, add a single integer variable to capture the essential discrete decision
 3. Provide an `integer_mode` parameter so users can choose LP-only for faster (possibly approximate) solutions
 4. Document the performance trade-off: single integer ~1× overhead, full MILP ~10× overhead
