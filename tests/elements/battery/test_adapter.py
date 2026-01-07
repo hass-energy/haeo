@@ -89,7 +89,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
 
     assert result["element_type"] == "battery"
     assert result["name"] == "test_battery"
-    assert len(result["capacity"]) == 2  # 3 fence posts = 2 periods
+    assert len(result["capacity"]) == 3  # 3 fence posts for 2 periods
     assert result["capacity"][0] == 10.0
 
 
@@ -178,6 +178,8 @@ async def test_load_with_optional_scalar_fields(hass: HomeAssistant) -> None:
 
     assert result["element_type"] == "battery"
     # Scalar values are broadcast to time series
+    # Intervals (n values): early_charge_incentive
     assert result.get("early_charge_incentive") == [0.005, 0.005]
-    assert result.get("undercharge_percentage") == [10.0, 10.0]
-    assert result.get("overcharge_percentage") == [90.0, 90.0]
+    # Fence posts (n+1 values): undercharge/overcharge percentages (energy boundaries)
+    assert result.get("undercharge_percentage") == [10.0, 10.0, 10.0]
+    assert result.get("overcharge_percentage") == [90.0, 90.0, 90.0]

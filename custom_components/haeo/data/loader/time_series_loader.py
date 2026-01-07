@@ -6,7 +6,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
-from custom_components.haeo.data.util.forecast_fuser import fuse_to_horizon
+from custom_components.haeo.data.util.forecast_fuser import fuse_to_fence_posts, fuse_to_intervals
 
 from .sensor_loader import load_sensors, normalize_entity_ids
 
@@ -14,6 +14,13 @@ from .sensor_loader import load_sensors, normalize_entity_ids
 def _is_constant_value(value: Any) -> bool:
     """Return True when value is a constant (int or float) rather than entity IDs."""
     return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _is_missing(value: Any) -> bool:
+    """Return True when value is None or an empty list."""
+    if value is None:
+        return True
+    return isinstance(value, list) and not value
 
 
 def _collect_sensor_ids(value: Any) -> list[str]:
@@ -56,29 +63,43 @@ class TimeSeriesLoader:
 
         return len(payloads) == len(entity_ids)
 
-    async def load(
+    async def load_intervals(
         self,
         *,
         hass: HomeAssistant,
         value: Any,
         forecast_times: Sequence[float],
-        **_kwargs: Any,
+        default: float | None = None,
     ) -> list[float]:
-        """Load sensor values and forecasts, returning interpolated values for ``forecast_times``.
+        """Load a value as interval averages (n values for n+1 fence posts).
 
-        Constant values (int/float) are broadcast to all forecast times.
+        Args:
+            hass: Home Assistant instance
+            value: Entity ID(s), constant value, or None
+            forecast_times: Boundary timestamps (n+1 fence post times)
+            default: Default value when value is None or empty
 
-        When forecast_times is empty, returns an empty list without loading sensor data.
-        This allows structural validation and model element creation without requiring
-        actual sensor data to be available.
+        Returns:
+            n interval values (trapezoidal averages over each period)
+
+        Raises:
+            ValueError: If value is missing and no default provided
+
         """
         if not forecast_times:
             return []
 
-        # Handle constant values by broadcasting to all periods.
-        # forecast_times are fence posts, so there are len - 1 periods.
+        n_periods = max(0, len(forecast_times) - 1)
+
+        # Handle missing values with default
+        if _is_missing(value):
+            if default is not None:
+                return [default] * n_periods
+            msg = "Value must be provided - no default available"
+            raise ValueError(msg)
+
+        # Handle constant values by broadcasting to all periods
         if _is_constant_value(value):
-            n_periods = max(0, len(forecast_times) - 1)
             return [float(value)] * n_periods
 
         entity_ids = _collect_sensor_ids(value)
@@ -100,4 +121,87 @@ class TimeSeriesLoader:
 
         present_value, forecast_series = combine_sensor_payloads(payloads)
 
-        return fuse_to_horizon(present_value, forecast_series, forecast_times)
+        return fuse_to_intervals(present_value, forecast_series, forecast_times)
+
+    async def load_fence_posts(
+        self,
+        *,
+        hass: HomeAssistant,
+        value: Any,
+        forecast_times: Sequence[float],
+        default: float | None = None,
+    ) -> list[float]:
+        """Load a value as fence posts (n+1 point-in-time values at each boundary).
+
+        Args:
+            hass: Home Assistant instance
+            value: Entity ID(s), constant value, or None
+            forecast_times: Boundary timestamps (n+1 fence post times)
+            default: Default value when value is None or empty
+
+        Returns:
+            n+1 point-in-time values (one for each fence post)
+
+        Use this for energy values (capacity, percentage limits) which represent
+        states at specific points in time, not averages over intervals.
+
+        Raises:
+            ValueError: If value is missing and no default provided
+
+        """
+        if not forecast_times:
+            return []
+
+        n_fence_posts = len(forecast_times)
+
+        # Handle missing values with default
+        if _is_missing(value):
+            if default is not None:
+                return [default] * n_fence_posts
+            msg = "Value must be provided - no default available"
+            raise ValueError(msg)
+
+        # Handle constant values by broadcasting to all fence posts
+        if _is_constant_value(value):
+            return [float(value)] * n_fence_posts
+
+        entity_ids = _collect_sensor_ids(value)
+
+        if not entity_ids:
+            msg = "At least one sensor entity is required"
+            raise ValueError(msg)
+
+        payloads = load_sensors(hass, entity_ids)
+
+        if not payloads:
+            msg = "No time series data available"
+            raise ValueError(msg)
+
+        if len(payloads) < len(entity_ids):
+            missing = set(entity_ids) - set(payloads.keys())
+            msg = f"Sensors not found or unavailable: {', '.join(missing)}"
+            raise ValueError(msg)
+
+        present_value, forecast_series = combine_sensor_payloads(payloads)
+
+        return fuse_to_fence_posts(present_value, forecast_series, forecast_times)
+
+    async def load(
+        self,
+        *,
+        hass: HomeAssistant,
+        value: Any,
+        forecast_times: Sequence[float],
+        **_kwargs: Any,
+    ) -> list[float]:
+        """Load sensor values and forecasts, returning interpolated values for ``forecast_times``.
+
+        Deprecated: Use load_intervals() or load_fence_posts() instead.
+
+        Constant values (int/float) are broadcast to all forecast times.
+
+        When forecast_times is empty, returns an empty list without loading sensor data.
+        This allows structural validation and model element creation without requiring
+        actual sensor data to be available.
+        """
+        return await self.load_intervals(hass=hass, value=value, forecast_times=forecast_times)

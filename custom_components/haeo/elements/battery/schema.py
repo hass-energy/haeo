@@ -49,6 +49,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.ENERGY,
         time_series=True,
+        fence_posts=True,
     ),
     InputFieldInfo(
         field_name=CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -77,6 +78,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
+        fence_posts=True,
         default=0.0,
     ),
     InputFieldInfo(
@@ -92,6 +94,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
+        fence_posts=True,
         default=100.0,
     ),
     InputFieldInfo(
@@ -179,6 +182,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
+        fence_posts=True,
     ),
     InputFieldInfo(
         field_name=CONF_OVERCHARGE_PERCENTAGE,
@@ -193,6 +197,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
+        fence_posts=True,
     ),
     InputFieldInfo(
         field_name=CONF_UNDERCHARGE_COST,

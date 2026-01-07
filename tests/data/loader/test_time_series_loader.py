@@ -87,7 +87,7 @@ async def test_time_series_loader_requires_sensor_entities(hass: HomeAssistant) 
 
     assert loader.available(hass=hass, value=[]) is False
 
-    with pytest.raises(ValueError, match="At least one sensor entity is required"):
+    with pytest.raises(ValueError, match="Value must be provided - no default available"):
         await loader.load(hass=hass, value=[], forecast_times=[1])
 
 
