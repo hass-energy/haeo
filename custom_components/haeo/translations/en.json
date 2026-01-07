@@ -263,27 +263,25 @@
       "initiate_flow": { "user": "Inverter", "reconfigure": "Inverter" },
       "step": {
         "user": {
-          "title": "Add Inverter",
-          "description": "Set up a bidirectional inverter with DC bus for battery and solar connections",
+          "title": "Inverter Configuration",
+          "description": "Configure bidirectional inverter with DC bus for battery and solar connections",
           "data": {
             "connection": "AC Connection",
-            "efficiency_ac_to_dc": "AC to DC efficiency (Optional)",
-            "efficiency_dc_to_ac": "DC to AC efficiency (Optional)",
-            "max_power_ac_to_dc": "Max AC to DC power",
-            "max_power_dc_to_ac": "Max DC to AC power",
+            "efficiency_ac_to_dc": "AC to DC Efficiency",
+            "efficiency_dc_to_ac": "DC to AC Efficiency",
+            "max_power_ac_to_dc": "Max AC to DC Power",
+            "max_power_dc_to_ac": "Max DC to AC Power",
             "name": "Inverter Name"
           }
         },
-        "reconfigure": {
-          "title": "Edit Inverter",
-          "description": "Update inverter configuration",
+        "values": {
+          "title": "Inverter Values",
+          "description": "Enter values for the selected input sources",
           "data": {
-            "connection": "AC Connection",
-            "efficiency_ac_to_dc": "AC to DC efficiency (Optional)",
-            "efficiency_dc_to_ac": "DC to AC efficiency (Optional)",
-            "max_power_ac_to_dc": "Max AC to DC power",
-            "max_power_dc_to_ac": "Max DC to AC power",
-            "name": "Inverter Name"
+            "efficiency_ac_to_dc": "AC to DC Efficiency",
+            "efficiency_dc_to_ac": "DC to AC Efficiency",
+            "max_power_ac_to_dc": "Max AC to DC Power",
+            "max_power_dc_to_ac": "Max DC to AC Power"
           }
         }
       },

@@ -341,9 +341,9 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
     for element_type, flow_class in subentry_flows.items():
         base_key = f"component.{DOMAIN}.config_subentries.{element_type}"
 
-        # Grid uses consolidated translations without separate reconfigure step
+        # Grid and inverter use consolidated translations without separate reconfigure step
         suffixes_to_check = common_suffixes
-        if element_type == "grid":
+        if element_type in ("grid", "inverter"):
             suffixes_to_check = tuple(s for s in common_suffixes if not s.startswith("step.reconfigure"))
 
         for suffix in suffixes_to_check:
