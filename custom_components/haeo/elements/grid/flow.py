@@ -69,7 +69,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             exclusion_map,
             current_connection,
         )
-        defaults = self._build_step1_defaults(default_name, subentry_data)
+        defaults = user_input if user_input is not None else self._build_step1_defaults(default_name, subentry_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
