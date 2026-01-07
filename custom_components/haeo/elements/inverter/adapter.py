@@ -86,12 +86,12 @@ class InverterAdapter:
         ts_loader = TimeSeriesLoader()
         const_loader = ConstantLoader[float](float)
 
-        max_power_dc_to_ac = await ts_loader.load(
+        max_power_dc_to_ac = await ts_loader.load_intervals(
             hass=hass,
             value=config[CONF_MAX_POWER_DC_TO_AC],
             forecast_times=forecast_times,
         )
-        max_power_ac_to_dc = await ts_loader.load(
+        max_power_ac_to_dc = await ts_loader.load_intervals(
             hass=hass,
             value=config[CONF_MAX_POWER_AC_TO_DC],
             forecast_times=forecast_times,

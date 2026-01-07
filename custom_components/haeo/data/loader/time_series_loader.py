@@ -185,23 +185,3 @@ class TimeSeriesLoader:
         present_value, forecast_series = combine_sensor_payloads(payloads)
 
         return fuse_to_fence_posts(present_value, forecast_series, forecast_times)
-
-    async def load(
-        self,
-        *,
-        hass: HomeAssistant,
-        value: Any,
-        forecast_times: Sequence[float],
-        **_kwargs: Any,
-    ) -> list[float]:
-        """Load sensor values and forecasts, returning interpolated values for ``forecast_times``.
-
-        Deprecated: Use load_intervals() or load_fence_posts() instead.
-
-        Constant values (int/float) are broadcast to all forecast times.
-
-        When forecast_times is empty, returns an empty list without loading sensor data.
-        This allows structural validation and model element creation without requiring
-        actual sensor data to be available.
-        """
-        return await self.load_intervals(hass=hass, value=value, forecast_times=forecast_times)

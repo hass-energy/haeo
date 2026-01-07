@@ -99,7 +99,7 @@ class GridAdapter:
         # Load import_price: entity list, constant, or use default
         import_value = config.get("import_price")
         if isinstance(import_value, list) and import_value:
-            import_price = await ts_loader.load(
+            import_price = await ts_loader.load_intervals(
                 hass=hass,
                 value=import_value,
                 forecast_times=forecast_times,
@@ -112,7 +112,7 @@ class GridAdapter:
         # Load export_price: entity list, constant, or use default
         export_value = config.get("export_price")
         if isinstance(export_value, list) and export_value:
-            export_price = await ts_loader.load(
+            export_price = await ts_loader.load_intervals(
                 hass=hass,
                 value=export_value,
                 forecast_times=forecast_times,
@@ -134,7 +134,7 @@ class GridAdapter:
         import_limit = config.get("import_limit")
         if import_limit is not None:
             if isinstance(import_limit, list) and import_limit:
-                data["import_limit"] = await ts_loader.load(
+                data["import_limit"] = await ts_loader.load_intervals(
                     hass=hass,
                     value=import_limit,
                     forecast_times=forecast_times,
@@ -145,7 +145,7 @@ class GridAdapter:
         export_limit = config.get("export_limit")
         if export_limit is not None:
             if isinstance(export_limit, list) and export_limit:
-                data["export_limit"] = await ts_loader.load(
+                data["export_limit"] = await ts_loader.load_intervals(
                     hass=hass,
                     value=export_limit,
                     forecast_times=forecast_times,

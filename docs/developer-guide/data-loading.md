@@ -29,7 +29,7 @@ The data loading pipeline consists of four stages:
 3. **Combination** ([`forecast_combiner.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_combiner.py)) - Merges multiple sensors into unified data
 4. **Fusion** ([`forecast_fuser.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_fuser.py)) - Aligns data to optimization horizon using interpolation
 
-Input entities call `TimeSeriesLoader.load()` when they need to refresh their data.
+Input entities call `TimeSeriesLoader.load_intervals() or load_fence_posts()` when they need to refresh their data.
 The coordinator reads the already-loaded values from input entities.
 
 ```mermaid
@@ -92,7 +92,6 @@ The loader provides methods for two types of data loading:
 - `available()` - Checks if sensors exist without loading data (used during config validation)
 - `load_intervals()` - Returns n interval averages for n+1 fence post timestamps
 - `load_fence_posts()` - Returns n+1 point-in-time values at each fence post timestamp
-- `load()` - Deprecated alias for `load_intervals()`
 
 **Intervals vs Fence Posts**:
 Optimization horizons are defined by n+1 timestamps (fence posts) creating n periods (intervals).

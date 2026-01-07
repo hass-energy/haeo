@@ -81,8 +81,8 @@ class BatterySectionAdapter:
         """Load battery section configuration values from sensors."""
         ts_loader = TimeSeriesLoader()
 
-        capacity = await ts_loader.load(hass=hass, value=config[CONF_CAPACITY], forecast_times=forecast_times)
-        initial_charge = await ts_loader.load(
+        capacity = await ts_loader.load_intervals(hass=hass, value=config[CONF_CAPACITY], forecast_times=forecast_times)
+        initial_charge = await ts_loader.load_intervals(
             hass=hass, value=config[CONF_INITIAL_CHARGE], forecast_times=forecast_times
         )
 
