@@ -157,6 +157,7 @@ nav:
 
   - Mathematical Modeling:
       - modeling/index.md
+      - Solver Philosophy: modeling/solver-philosophy.md
       - Model Layer:
           - modeling/model-layer/index.md
           - Elements:

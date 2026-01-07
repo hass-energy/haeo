@@ -1,12 +1,12 @@
 """Test data and factories for SchedulableLoad element."""
 
-from custom_components.haeo.model.schedulable_load import SchedulableLoad
+from custom_components.haeo.model.schedulable_load import IntegerMode, SchedulableLoad
 
 from .element_types import ElementTestCase
 
 VALID_CASES: list[ElementTestCase] = [
     {
-        "description": "Schedulable load starting at beginning of horizon",
+        "description": "Schedulable load starting at beginning of horizon (FIRST mode)",
         "factory": SchedulableLoad,
         "data": {
             "name": "load_start",
@@ -15,6 +15,7 @@ VALID_CASES: list[ElementTestCase] = [
             "duration": 2.0,
             "earliest_start": 0.0,
             "latest_start": 0.0,  # Fixed at start
+            "integer_mode": IntegerMode.FIRST,
         },
         "inputs": {
             # Negative values = power flows INTO the load (load consumes)
@@ -46,7 +47,7 @@ VALID_CASES: list[ElementTestCase] = [
         },
     },
     {
-        "description": "Schedulable load starting at end of window",
+        "description": "Schedulable load starting at end of window (NONE mode)",
         "factory": SchedulableLoad,
         "data": {
             "name": "load_end",
@@ -55,6 +56,7 @@ VALID_CASES: list[ElementTestCase] = [
             "duration": 2.0,
             "earliest_start": 2.0,
             "latest_start": 2.0,  # Fixed at end
+            "integer_mode": IntegerMode.NONE,
         },
         "inputs": {
             # Negative values = power flows INTO the load (load consumes)
@@ -86,7 +88,7 @@ VALID_CASES: list[ElementTestCase] = [
         },
     },
     {
-        "description": "Schedulable load spanning partial periods",
+        "description": "Schedulable load spanning partial periods (ALL mode)",
         "factory": SchedulableLoad,
         "data": {
             "name": "load_partial",
@@ -95,6 +97,7 @@ VALID_CASES: list[ElementTestCase] = [
             "duration": 1.5,
             "earliest_start": 0.0,
             "latest_start": 0.0,  # Fixed start at period boundary 0
+            "integer_mode": IntegerMode.ALL,
         },
         "inputs": {
             # Start at 0, run until 1.5
@@ -137,6 +140,7 @@ VALID_CASES: list[ElementTestCase] = [
             "duration": 1.0,
             "earliest_start": 0.5,
             "latest_start": 0.5,  # Fixed to start at boundary 0.5
+            "integer_mode": IntegerMode.FIRST,
         },
         "inputs": {
             # Start at 0.5, run until 1.5
@@ -179,6 +183,7 @@ VALID_CASES: list[ElementTestCase] = [
             "duration": 0.0,
             "earliest_start": 0.0,
             "latest_start": 2.0,
+            "integer_mode": IntegerMode.NONE,
         },
         "inputs": {
             "power": [None, None],

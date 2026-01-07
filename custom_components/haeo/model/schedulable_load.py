@@ -1,15 +1,39 @@
 """Schedulable load element for electrical system modeling."""
 
 from collections.abc import Mapping, Sequence
+from enum import Enum
 from typing import Final, Literal
 
-from highspy import Highs
+from highspy import Highs, HighsVarType
 from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 
 from .const import OutputType
 from .element import Element
 from .output_data import OutputData
+
+
+class IntegerMode(Enum):
+    """Integer variable mode for schedulable load candidates.
+
+    Controls how candidate selection variables are treated in the optimization:
+
+    - NONE: All candidates are continuous [0,1]. Relies on total unimodularity
+      for integer solutions. Works for isolated loads but may give fractional
+      solutions when multiple loads compete for limited power.
+
+    - FIRST: Only the first candidate is integer (binary). Ensures the immediate
+      decision is crisp while leaving future decisions flexible. Default choice
+      with negligible performance overhead (~1x).
+
+    - ALL: All candidates are integer (binary). Full MILP formulation with
+      guaranteed integer solutions but ~10x solve time overhead.
+    """
+
+    NONE = "none"
+    FIRST = "first"
+    ALL = "all"
+
 
 # Type for schedulable load constraint names
 type SchedulableLoadConstraintName = Literal[
@@ -61,7 +85,15 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
     Uses period-boundary selection: one candidate per period boundary within the
     scheduling window, with energy "smeared in time" into overlapping periods.
     The constraint matrix is totally unimodular (consecutive-ones structure),
-    so the LP relaxation always produces integer solutions.
+    so the LP relaxation produces integer solutions for isolated loads.
+
+    When multiple schedulable loads compete for limited power, the coupling
+    constraints break total unimodularity and may produce fractional solutions.
+    Use the `integer_mode` parameter to control integer variable behavior:
+
+    - NONE: Pure LP, relies on unimodularity (may be fractional with coupling)
+    - FIRST: First candidate is binary, rest continuous (default, ~1x overhead)
+    - ALL: All candidates binary (~10x overhead, guaranteed integer)
     """
 
     def __init__(
@@ -74,6 +106,7 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
         duration: float,
         earliest_start: float,
         latest_start: float,
+        integer_mode: IntegerMode = IntegerMode.FIRST,
     ) -> None:
         """Initialize a schedulable load element.
 
@@ -85,6 +118,10 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
             duration: Load run duration in hours
             earliest_start: Earliest allowed start time in hours from horizon start
             latest_start: Latest allowed start time in hours from horizon start
+            integer_mode: How to treat candidate selection variables:
+                - NONE: All continuous (pure LP, relies on unimodularity)
+                - FIRST: First candidate binary, rest continuous (default)
+                - ALL: All candidates binary (full MILP)
 
         """
         super().__init__(name=name, periods=periods, solver=solver)
@@ -109,6 +146,7 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
         self.duration = duration
         self.earliest_start = earliest_start
         self.latest_start = latest_start
+        self.integer_mode = integer_mode
 
         # Total energy consumed by the load
         self.total_energy = power * duration
@@ -131,7 +169,8 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
         self.profiles: tuple[tuple[float, ...], ...] = tuple(self._compute_profile(s) for s in self.candidates)
 
         # Decision variables: selection weight for each candidate.
-        # Due to total unimodularity, exactly one will be 1.0 and the rest 0.0.
+        # Due to total unimodularity, exactly one will be 1.0 and the rest 0.0
+        # when constraints don't couple multiple schedulable loads.
         self.choice_weights = solver.addVariables(
             n_candidates,
             lb=0.0,
@@ -139,6 +178,16 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
             name_prefix=f"{name}_w_",
             out_array=True,
         )
+
+        # Apply integer constraints based on mode
+        if integer_mode == IntegerMode.ALL:
+            # All candidates are binary
+            for i in range(n_candidates):
+                solver.changeColIntegrality(self.choice_weights[i].index, HighsVarType.kInteger)
+        elif integer_mode == IntegerMode.FIRST and n_candidates > 0:
+            # Only first candidate is binary (ensures immediate decision is crisp)
+            solver.changeColIntegrality(self.choice_weights[0].index, HighsVarType.kInteger)
+        # NONE: all continuous, rely on unimodularity
 
         # Energy consumed in each period (determined by selection)
         max_energy_per_period = power * max(float(p) for p in self.periods)

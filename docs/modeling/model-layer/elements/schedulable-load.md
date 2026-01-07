@@ -27,14 +27,15 @@ The constraint matrix has a consecutive-ones structure that is totally unimodula
 
 ### Parameters
 
-| Parameter  | Dimensions | Source        | Description                                                                      |
-| ---------- | ---------- | ------------- | -------------------------------------------------------------------------------- |
-| $P$        | scalar     | Configuration | Load power consumption (kW)                                                      |
-| $d$        | scalar     | Configuration | Load run duration (hours)                                                        |
-| $s_{\min}$ | scalar     | Configuration | Earliest allowed start time (hours from horizon start)                           |
-| $s_{\max}$ | scalar     | Configuration | Latest allowed start time (hours from horizon start)                             |
-| $\Delta t$ | $T$        | Configuration | Time period durations (hours)                                                    |
-| $b_t$      | $T+1$      | Derived       | Cumulative time at each boundary: $b_0 = 0$, $b_t = \sum_{i=0}^{t-1} \Delta t_i$ |
+| Parameter      | Dimensions | Source        | Description                                                                      |
+| -------------- | ---------- | ------------- | -------------------------------------------------------------------------------- |
+| $P$            | scalar     | Configuration | Load power consumption (kW)                                                      |
+| $d$            | scalar     | Configuration | Load run duration (hours)                                                        |
+| $s_{\min}$     | scalar     | Configuration | Earliest allowed start time (hours from horizon start)                           |
+| $s_{\max}$     | scalar     | Configuration | Latest allowed start time (hours from horizon start)                             |
+| $\Delta t$     | $T$        | Configuration | Time period durations (hours)                                                    |
+| `integer_mode` | enum       | Configuration | How to treat candidate selection variables (see below)                           |
+| $b_t$          | $T+1$      | Derived       | Cumulative time at each boundary: $b_0 = 0$, $b_t = \sum_{i=0}^{t-1} \Delta t_i$ |
 
 ### Candidate Generation
 
@@ -58,16 +59,39 @@ This is the overlap between the load's active window $[s_k, s_k + d]$ and the pe
 
 ### Decision Variables
 
-| Variable | Dimensions    | Domain  | Description                              |
-| -------- | ------------- | ------- | ---------------------------------------- |
-| $w_k$    | $\|\mathcal{K}\|$ | $[0,1]$ | Selection weight for candidate $k$       |
-| $E_t$    | $T$           | $\geq 0$ | Energy consumed in period $t$ (kWh)      |
+| Variable | Dimensions        | Domain   | Description                         |
+| -------- | ----------------- | -------- | ----------------------------------- |
+| $w_k$    | $\|\mathcal{K}\|$ | $[0,1]$  | Selection weight for candidate $k$  |
+| $E_t$    | $T$               | $\geq 0$ | Energy consumed in period $t$ (kWh) |
 
 Power consumption is computed from energy:
 
 $$
 P_t = E_t / \Delta t
 $$
+
+#### Integer Mode
+
+The `integer_mode` parameter controls how $w_k$ variables are treated:
+
+| Mode    | Variables                     | Overhead | Use Case                                               |
+| ------- | ----------------------------- | -------- | ------------------------------------------------------ |
+| `NONE`  | All continuous                | 1×       | Single load (unimodularity guarantees integer)         |
+| `FIRST` | First binary, rest continuous | ~1×      | **Default**. Crisp immediate decision, flexible future |
+| `ALL`   | All binary                    | ~10×     | Guaranteed integer when coupling breaks unimodularity  |
+
+**When to use each mode**:
+
+- **NONE**: Safe for isolated schedulable loads where total unimodularity holds.
+    Fastest option but may give fractional solutions if multiple loads compete for limited power.
+
+- **FIRST** (default): Ensures the first candidate (current decision) is 0 or 1, while leaving future candidates continuous.
+    Adds negligible overhead (~1×) and handles most coupling scenarios correctly.
+
+- **ALL**: Use when multiple schedulable loads compete for tightly constrained resources and `FIRST` mode still produces unacceptable results.
+    ~10× slower but guaranteed integer solutions.
+
+See [Solver Philosophy](../../solver-philosophy.md) for background on LP vs MILP trade-offs.
 
 ### Constraints
 
@@ -102,15 +126,21 @@ The negative sign reflects that the load consumes power from the network.
 The constraint matrix has a consecutive-ones structure: each candidate $k$ affects a contiguous set of periods (those overlapping with $[s_k, s_k + d]$).
 Combined with the sum-to-one constraint on $w_k$, this forms a totally unimodular matrix.
 
-**Consequence**: The LP relaxation always produces integer solutions—exactly one $w_k = 1$ and all others $w_k = 0$.
+**Consequence for isolated loads**: The LP relaxation always produces integer solutions—exactly one $w_k = 1$ and all others $w_k = 0$.
 No binary variables or integer programming required.
+
+**When coupling breaks unimodularity**: If multiple schedulable loads share a power-limited connection (e.g., two 1 kW loads with only 1.5 kW available), the coupling constraints destroy total unimodularity.
+The LP may produce fractional solutions where each load is "half-scheduled" in overlapping windows.
+
+Use `integer_mode=FIRST` (default) to ensure crisp immediate decisions with minimal overhead.
+See [Solver Philosophy](../../solver-philosophy.md) for details.
 
 ### Shadow Prices
 
-| Constraint                     | Unit   | Interpretation                            |
-| ------------------------------ | ------ | ----------------------------------------- |
-| `schedulable_load_choice`      | \$/kWh | Marginal value of selection constraint    |
-| `schedulable_load_power_balance` | \$/kW  | Marginal value of power at each period  |
+| Constraint                       | Unit   | Interpretation                         |
+| -------------------------------- | ------ | -------------------------------------- |
+| `schedulable_load_choice`        | \$/kWh | Marginal value of selection constraint |
+| `schedulable_load_power_balance` | \$/kW  | Marginal value of power at each period |
 
 ### Cost Contribution
 
@@ -132,8 +162,8 @@ xychart-beta
     bar "Energy (kWh)" [1.0, 2.0, 0.0]
 ```
 
-| Period | Time  | Overlap | Energy |
-| ------ | ----- | ------- | ------ |
+| Period | Time  | Overlap | Energy  |
+| ------ | ----- | ------- | ------- |
 | 0      | 0–1 h | 0.5 h   | 1.0 kWh |
 | 1      | 1–2 h | 1.0 h   | 2.0 kWh |
 | 2      | 2–3 h | 0 h     | 0.0 kWh |
@@ -143,13 +173,13 @@ xychart-beta
 The formulation uses period boundaries as candidate start times because:
 
 1. **Piecewise linear cost**: The cost function cost(s) is piecewise linear in the start time.
-   Breakpoints occur at period boundaries where the energy profile changes.
+    Breakpoints occur at period boundaries where the energy profile changes.
 
 2. **Sparse profiles**: Each candidate only affects a contiguous set of periods (those overlapping the load's active window).
-   This creates a consecutive-ones matrix structure.
+    This creates a consecutive-ones matrix structure.
 
 3. **Total unimodularity**: The consecutive-ones structure combined with the sum-to-one constraint creates a totally unimodular constraint matrix.
-   LP vertices are integral, so no binary variables needed.
+    LP vertices are integral, so no binary variables needed.
 
 ### Example: Optimal Scheduling
 
@@ -177,7 +207,7 @@ Total cost: 3.0 × \$0.10 + 3.0 × \$0.25 = \$1.05
 ### Limitations
 
 - **Sub-period positioning**: Start times are restricted to period boundaries.
-  Use finer time resolution near the present if precise timing matters.
+    Use finer time resolution near the present if precise timing matters.
 - **Multi-phase loads**: Loads with variable power profiles during operation are not modeled (use multiple schedulable loads or forecast loads)
 - **Recurring schedules**: For loads that run multiple times, create multiple schedulable load elements
 - **Power ramping**: Instantaneous power transitions at start/end (physical ramp times not modeled)
@@ -194,13 +224,21 @@ Total cost: 3.0 × \$0.10 + 3.0 × \$0.25 = \$1.05
 
     [:material-arrow-right: Battery model](battery.md)
 
+- :material-speedometer:{ .lg .middle } **Solver philosophy**
+
+    ---
+
+    Understand LP vs MILP trade-offs and when to use integer variables.
+
+    [:material-arrow-right: Solver philosophy](../../solver-philosophy.md)
+
 - :material-network:{ .lg .middle } **Network optimization**
 
     ---
 
     Understand how elements interact in the optimization.
 
-    [:material-arrow-right: Network optimization overview](../index.md)
+    [:material-arrow-right: Network optimization overview](../../index.md)
 
 - :material-code-braces:{ .lg .middle } **Implementation**
 

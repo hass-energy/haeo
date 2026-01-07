@@ -18,6 +18,7 @@ from .power_connection import POWER_CONNECTION_OUTPUT_NAMES as POWER_CONNECTION_
 from .power_connection import PowerConnection as PowerConnection
 from .power_connection import PowerConnectionOutputName as PowerConnectionOutputName
 from .schedulable_load import SCHEDULABLE_LOAD_OUTPUT_NAMES as SCHEDULABLE_LOAD_OUTPUT_NAMES
+from .schedulable_load import IntegerMode as IntegerMode
 from .schedulable_load import SchedulableLoad as SchedulableLoad
 from .schedulable_load import SchedulableLoadOutputName as SchedulableLoadOutputName
 
@@ -34,6 +35,7 @@ __all__ = [
     "ConnectionConstraintName",
     "ConnectionOutputName",
     "Element",
+    "IntegerMode",
     "ModelOutputName",
     "Network",
     "OutputData",

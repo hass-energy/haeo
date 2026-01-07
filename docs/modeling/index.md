@@ -48,11 +48,11 @@ No quadratic terms ($x^2$), products ($xy$), or nonlinear functions ($\sin(x)$, 
 LP fits home energy systems because power balances, costs, and most device constraints are linear.
 It delivers a global optimum when a feasible solution exists and scales well as you extend the horizon or add elements.
 
-!!! info "Linear Programming Approximations"
+!!! info "LP-First Philosophy"
 
-    HAEO uses pure linear programming rather than Mixed-Integer Linear Programming (MILP).
-    While energy systems can include discrete decisions (binary on/off loads), HAEO models these using continuous LP approximations.
-    This keeps solve times fast, and forecast uncertainties typically dominate any approximation errors.
+    HAEO prioritizes pure Linear Programming (LP) wherever possible for predictable, fast solve times.
+    When discrete decisions are unavoidable, HAEO uses the minimum number of integer variables.
+    See [Solver Philosophy](solver-philosophy.md) for details on LP vs MILP vs QP trade-offs.
 
 ## Mathematical Model Structure
 
@@ -274,6 +274,14 @@ See [units documentation](../developer-guide/units.md) for details.
     How user-configured elements compose models.
 
     [:material-arrow-right: Device Layer elements](device-layer/index.md)
+
+- :material-speedometer:{ .lg .middle } **Solver Philosophy**
+
+    ---
+
+    LP vs MILP vs QP trade-offs and complexity.
+
+    [:material-arrow-right: Solver philosophy](solver-philosophy.md)
 
 - :material-currency-usd:{ .lg .middle } **Shadow Prices**
 

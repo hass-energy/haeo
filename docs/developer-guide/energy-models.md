@@ -40,11 +40,21 @@ Most new elements will be Device Layer elements that compose `node` and `connect
 
 ### Stay linear
 
-The solver uses pure linear programming, so every constraint and cost must be linear in the decision variables.
+The solver uses pure linear programming by default, so every constraint and cost must be linear in the decision variables.
 Approximate nonlinear behaviour with piecewise constants or external preprocessing when necessary.
-The default solvers also support mixed-integer linear programming, but treat binary or integer variables as a last resort because they increase solve time dramatically.
-Before you add discrete decisions, look for linear encodings such as mutually dependent constraints, large penalty weights, or auxiliary slack variables that approximate the choice without integer branching.
-If MILP is truly required, keep the integer variable count minimal and document the trade-offs so reviewers understand the performance impact.
+
+HAEO follows an LP-first philosophy: prefer pure LP wherever possible, resort to MILP only when necessary, and minimize integer variable count.
+See [Solver Philosophy](../modeling/solver-philosophy.md) for the theoretical background.
+
+**When MILP is unavoidable**:
+
+1. Start with zero integer variables—look for LP formulations (total unimodularity, penalty weights, auxiliary slack variables)
+2. If truly needed, add a single integer variable to capture the essential discrete decision
+3. Provide an `integer_mode` parameter so users can choose LP-only for faster (possibly approximate) solutions
+4. Document the performance trade-off: single integer ~1× overhead, full MILP ~10× overhead
+
+Example: The schedulable load uses `IntegerMode.FIRST` by default (first candidate binary, rest continuous).
+This ensures crisp immediate decisions with negligible overhead.
 
 ### Keep units consistent
 

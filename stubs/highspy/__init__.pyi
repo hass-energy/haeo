@@ -24,6 +24,10 @@ class HighspyArray(np.ndarray[Any, np.dtype[np.object_]]):
 
 class highs_var:
     """HiGHS variable type."""
+
+    index: int
+    """The column index of the variable in the model."""
+
     def __add__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
     def __radd__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
     def __sub__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
@@ -74,6 +78,14 @@ class HighsModelStatus(IntEnum):
     kIterationLimit = 14
     kUnknown = 15
     kSolutionLimit = 16
+
+class HighsVarType(IntEnum):
+    """HiGHS variable type enumeration."""
+
+    kContinuous = 0
+    kInteger = 1
+    kSemiContinuous = 2
+    kSemiInteger = 3
 
 class HighsCallback:
     """HiGHS callback type."""
@@ -145,6 +157,13 @@ class Highs:
         self,
         cons: Iterable[highs_cons] | NDArray[Any],
     ) -> NDArray[np.float64]: ...
+    def changeColIntegrality(
+        self,
+        col: int,
+        integrality: HighsVarType,
+    ) -> None:
+        """Change the integrality of a column (variable)."""
+        ...
     @staticmethod
     def qsum(
         items: Iterable[highs_var | highs_linear_expression | float | HighspyArray] | NDArray[np.object_],
