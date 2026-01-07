@@ -33,7 +33,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER,
         direction="+",
         time_series=True,
-        default=DEFAULT_FORECAST,
     ),
 )
 
