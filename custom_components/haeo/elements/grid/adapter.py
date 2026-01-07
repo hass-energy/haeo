@@ -93,7 +93,7 @@ class GridAdapter:
     ) -> GridConfigData:
         """Load grid configuration values from sensors."""
         ts_loader = TimeSeriesLoader()
-        # forecast_times are fence posts, so n_periods = len(forecast_times) - 1
+        # forecast_times are boundaries, so n_periods = len(forecast_times) - 1
         n_periods = max(0, len(forecast_times) - 1)
 
         # Load import_price: entity list, constant, or use default

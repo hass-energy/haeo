@@ -193,9 +193,9 @@ class HaeoInputNumber(NumberEntity):
         forecast_timestamps = self._get_forecast_timestamps()
 
         try:
-            if self._field_info.fence_posts:
+            if self._field_info.boundaries:
                 # Fence post fields: n+1 values at time boundaries
-                values = await self._loader.load_fence_posts(
+                values = await self._loader.load_boundaries(
                     hass=self._hass,
                     value=self._source_entity_ids,
                     forecast_times=list(forecast_timestamps),
@@ -215,10 +215,10 @@ class HaeoInputNumber(NumberEntity):
             return
 
         # Build forecast as list of ForecastPoint-style dicts.
-        # For fence posts: n+1 values at each timestamp
+        # For boundaries: n+1 values at each timestamp
         # For intervals: n values corresponding to periods (use timestamps[:-1])
         local_tz = dt_util.get_default_time_zone()
-        if self._field_info.fence_posts:
+        if self._field_info.boundaries:
             forecast = [
                 {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
                 for ts, val in zip(forecast_timestamps, values, strict=True)
@@ -245,10 +245,10 @@ class HaeoInputNumber(NumberEntity):
 
         if self._attr_native_value is not None:
             # Build forecast as list of ForecastPoint-style dicts with constant value.
-            # For fence posts: n+1 values at each timestamp
+            # For boundaries: n+1 values at each timestamp
             # For intervals: n values corresponding to periods (use timestamps[:-1])
             local_tz = dt_util.get_default_time_zone()
-            if self._field_info.fence_posts:
+            if self._field_info.boundaries:
                 forecast = [
                     {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_native_value}
                     for ts in forecast_timestamps

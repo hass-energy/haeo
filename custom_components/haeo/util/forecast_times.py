@@ -16,7 +16,7 @@ def tiers_to_periods_seconds(config: Mapping[str, int]) -> list[int]:
 
 
 def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: float | None = None) -> tuple[float, ...]:
-    """Generate forecast timestamps as fence posts (period boundaries).
+    """Generate forecast timestamps as period boundaries.
 
     Creates n_periods+1 timestamps representing the start of each period plus
     the end of the final period.
@@ -27,7 +27,7 @@ def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: flo
             time rounded down to the smallest period boundary.
 
     Returns:
-        Tuple of timestamps for each fence post.
+        Tuple of timestamps for each boundary.
 
     Example:
         >>> generate_forecast_timestamps([60, 60, 300], 0.0)
@@ -48,14 +48,14 @@ def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: flo
 def generate_forecast_timestamps_from_config(config: Mapping[str, int]) -> tuple[float, ...]:
     """Generate forecast timestamps from tier configuration.
 
-    Converts tier config to period durations and generates fence post timestamps
+    Converts tier config to period durations and generates boundary timestamps
     starting from the current time rounded to the smallest period boundary.
 
     Args:
         config: Tier configuration with tier_N_count and tier_N_duration keys.
 
     Returns:
-        Tuple of timestamps for each fence post.
+        Tuple of timestamps for each boundary.
 
     """
     periods_seconds = tiers_to_periods_seconds(config)

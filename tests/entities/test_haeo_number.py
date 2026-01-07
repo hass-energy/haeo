@@ -523,7 +523,7 @@ async def test_get_values_returns_forecast_values(
     assert values is not None
     # All values should be 10.5
     assert all(v == 10.5 for v in values)
-    # Should have 2 values (one per period, fence posts - 1)
+    # Should have 2 values (one per period, boundaries - 1)
     assert len(values) == 2
 
 

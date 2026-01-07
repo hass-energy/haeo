@@ -10,8 +10,8 @@ from custom_components.haeo.data.util.forecast_cycle import normalize_forecast_c
 
 from . import ForecastSeries
 
-# Need at least 2 fence posts (start and end) to define one interval
-MIN_FENCE_POSTS = 2
+# Need at least 2 boundaries (start and end) to define one interval
+MIN_BOUNDARIES = 2
 
 
 def _build_extended_block(
@@ -38,7 +38,7 @@ def _build_extended_block(
     return np.array(extended, dtype=[("timestamp", np.float64), ("value", np.float64)])
 
 
-def fuse_to_fence_posts(
+def fuse_to_boundaries(
     present_value: float | None,
     forecast_series: ForecastSeries,
     horizon_times: Sequence[float],
@@ -48,7 +48,7 @@ def fuse_to_fence_posts(
     Args:
         present_value: Current sensor value (actual current state)
         forecast_series: Time series forecast data
-        horizon_times: Boundary timestamps (n+1 fence post times)
+        horizon_times: Boundary timestamps (n+1 values defining n intervals)
 
     Returns:
         n+1 point-in-time values where:
@@ -64,13 +64,13 @@ def fuse_to_fence_posts(
         msg = "Either forecast_series or present_value must be provided."
         raise ValueError(msg)
 
-    # Just a present value, no forecast - return it for all fence posts
+    # Just a present value, no forecast - return it for all boundaries
     if not forecast_series and present_value is not None:
         return [present_value] * len(horizon_times)
 
     block_array = _build_extended_block(forecast_series, horizon_times[0], horizon_times[-1])
 
-    # Interpolate at fence post times
+    # Interpolate at boundary times
     values = np.interp(horizon_times, block_array["timestamp"], block_array["value"])
 
     # Replace position 0 with present_value if provided
@@ -90,7 +90,7 @@ def fuse_to_intervals(
     Args:
         present_value: Current sensor value (actual current state)
         forecast_series: Time series forecast data
-        horizon_times: Boundary timestamps (n+1 fence post times)
+        horizon_times: Boundary timestamps (n+1 values defining n intervals)
 
     Returns:
         n interval values where:
@@ -101,7 +101,7 @@ def fuse_to_intervals(
     not just the endpoint values.
 
     """
-    if not horizon_times or len(horizon_times) < MIN_FENCE_POSTS:
+    if not horizon_times or len(horizon_times) < MIN_BOUNDARIES:
         return []
 
     n_intervals = len(horizon_times) - 1

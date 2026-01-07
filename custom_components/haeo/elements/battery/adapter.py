@@ -135,16 +135,16 @@ class BatteryAdapter:
         """Load battery configuration values from sensors."""
         loader = TimeSeriesLoader()
 
-        # Load capacity as fence posts (energy value at each time boundary)
-        capacity = await loader.load_fence_posts(hass=hass, forecast_times=forecast_times, value=config.get("capacity"))
+        # Load capacity as boundaries (energy value at each time boundary)
+        capacity = await loader.load_boundaries(hass=hass, forecast_times=forecast_times, value=config.get("capacity"))
 
-        # Load percentage limits as fence posts (they define energy boundaries)
-        min_charge = await loader.load_fence_posts(
+        # Load percentage limits as boundaries (they define energy at each boundary)
+        min_charge = await loader.load_boundaries(
             hass=hass,
             forecast_times=forecast_times,
             value=config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]),
         )
-        max_charge = await loader.load_fence_posts(
+        max_charge = await loader.load_boundaries(
             hass=hass,
             forecast_times=forecast_times,
             value=config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE]),
@@ -199,16 +199,16 @@ class BatteryAdapter:
                 value=early_charge_incentive,
             )
 
-        # Load undercharge/overcharge percentages as fence posts (energy boundaries)
+        # Load undercharge/overcharge percentages as boundaries
         undercharge_percentage = config.get(CONF_UNDERCHARGE_PERCENTAGE)
         if undercharge_percentage is not None:
-            data["undercharge_percentage"] = await loader.load_fence_posts(
+            data["undercharge_percentage"] = await loader.load_boundaries(
                 hass=hass, forecast_times=forecast_times, value=undercharge_percentage
             )
 
         overcharge_percentage = config.get(CONF_OVERCHARGE_PERCENTAGE)
         if overcharge_percentage is not None:
-            data["overcharge_percentage"] = await loader.load_fence_posts(
+            data["overcharge_percentage"] = await loader.load_boundaries(
                 hass=hass, forecast_times=forecast_times, value=overcharge_percentage
             )
 
@@ -234,9 +234,9 @@ class BatteryAdapter:
         """
         name = config["name"]
         elements: list[dict[str, Any]] = []
-        # capacity is fence posts (n+1 values), so n_periods = len - 1
-        n_fence_posts = len(config["capacity"])
-        n_periods = n_fence_posts - 1
+        # capacity is boundaries (n+1 values), so n_periods = len - 1
+        n_boundaries = len(config["capacity"])
+        n_periods = n_boundaries - 1
 
         # Get capacity array and initial SOC from first period
         capacity_array = np.array(config["capacity"])
@@ -638,17 +638,17 @@ def sum_output_data(outputs: list[OutputData]) -> OutputData:
 
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate total energy stored including inaccessible energy below min SOC."""
-    # Capacity and percentage fields are already fence posts (n+1 values)
+    # Capacity and percentage fields are already boundaries (n+1 values)
     capacity = np.array(config["capacity"])
 
-    # Get time-varying min ratio (also fence posts)
+    # Get time-varying min ratio (also boundaries)
     min_ratio = np.array(config["min_charge_percentage"]) / 100.0
 
     undercharge_pct = config.get("undercharge_percentage")
     undercharge_ratio = np.array(undercharge_pct) / 100.0 if undercharge_pct else None
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
 
-    # Both energy values and capacity/ratios are now fence posts (n+1 values)
+    # Both energy values and capacity/ratios are now boundaries (n+1 values)
     inaccessible_energy = unusable_ratio * capacity
     total_values = np.array(aggregate_energy.values) + inaccessible_energy
 
@@ -661,7 +661,7 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
 
 def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate SOC percentage from aggregate energy and total capacity."""
-    # Capacity is already fence posts (n+1 values), same as energy
+    # Capacity is already boundaries (n+1 values), same as energy
     capacity = np.array(config["capacity"])
     soc_values = np.array(total_energy.values) / capacity * 100.0
 

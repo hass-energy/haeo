@@ -6,7 +6,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.data.util.forecast_combiner import combine_sensor_payloads
-from custom_components.haeo.data.util.forecast_fuser import fuse_to_fence_posts, fuse_to_intervals
+from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 
 from .sensor_loader import load_sensors, normalize_entity_ids
 
@@ -63,12 +63,12 @@ class TimeSeriesLoader:
         value: Any,
         forecast_times: Sequence[float],
     ) -> list[float]:
-        """Load a value as interval averages (n values for n+1 fence posts).
+        """Load a value as interval averages (n values for n+1 boundaries).
 
         Args:
             hass: Home Assistant instance
             value: Entity ID(s) or constant value (must not be None)
-            forecast_times: Boundary timestamps (n+1 fence post times)
+            forecast_times: Boundary timestamps (n+1 values defining n intervals)
 
         Returns:
             n interval values (trapezoidal averages over each period)
@@ -112,22 +112,22 @@ class TimeSeriesLoader:
 
         return fuse_to_intervals(present_value, forecast_series, forecast_times)
 
-    async def load_fence_posts(
+    async def load_boundaries(
         self,
         *,
         hass: HomeAssistant,
         value: Any,
         forecast_times: Sequence[float],
     ) -> list[float]:
-        """Load a value as fence posts (n+1 point-in-time values at each boundary).
+        """Load a value as boundaries (n+1 point-in-time values).
 
         Args:
             hass: Home Assistant instance
             value: Entity ID(s) or constant value (must not be None)
-            forecast_times: Boundary timestamps (n+1 fence post times)
+            forecast_times: Boundary timestamps (n+1 values defining n intervals)
 
         Returns:
-            n+1 point-in-time values (one for each fence post)
+            n+1 point-in-time values (one for each boundary)
 
         Use this for energy values (capacity, percentage limits) which represent
         states at specific points in time, not averages over intervals.
@@ -139,16 +139,16 @@ class TimeSeriesLoader:
         if not forecast_times:
             return []
 
-        n_fence_posts = len(forecast_times)
+        n_boundaries = len(forecast_times)
 
         # Reject missing values - caller must provide valid data
         if value is None:
             msg = "Value is required - received None"
             raise ValueError(msg)
 
-        # Handle constant values by broadcasting to all fence posts
+        # Handle constant values by broadcasting to all boundaries
         if _is_constant_value(value):
-            return [float(value)] * n_fence_posts
+            return [float(value)] * n_boundaries
 
         entity_ids = _collect_sensor_ids(value)
 
@@ -169,4 +169,4 @@ class TimeSeriesLoader:
 
         present_value, forecast_series = combine_sensor_payloads(payloads)
 
-        return fuse_to_fence_posts(present_value, forecast_series, forecast_times)
+        return fuse_to_boundaries(present_value, forecast_series, forecast_times)

@@ -1,7 +1,7 @@
 """Unit tests for forecast fusion logic.
 
 The fuser combines present values with forecast data to create horizon-aligned interval values using
-the fence post pattern where n+1 boundary timestamps produce n interval values:
+the boundary pattern where n+1 timestamps produce n interval values:
 - Position 0: Present value (actual current state at t0)
 - Position k (k≥1): Interval average over [horizon_times[k-1] → horizon_times[k]]
 
@@ -147,7 +147,7 @@ def test_fuse_to_horizon(
     horizon_times: list[int],
     expected: list[float],
 ) -> None:
-    """Test fuse_to_horizon with various input configurations using fence post pattern.
+    """Test fuse_to_horizon with various input configurations using boundary pattern.
 
     With n+1 boundary timestamps, returns n_periods values where:
     - Position 0: Present value (replaces first interval, not affecting future forecast)
