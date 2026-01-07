@@ -21,8 +21,9 @@ The optimizer selects the optimal start time within a configurable window, allow
 
 ## Model Formulation
 
-The key insight is that the overlap between the load's active window $[s, s+d]$ and each time period $[b_t, b_{t+1}]$ determines how much energy is consumed in that period.
-Using auxiliary variables to model the max and min operations, the formulation remains a pure LP without binary variables.
+The formulation uses period-boundary selection: one candidate start time per period boundary within the scheduling window.
+For each candidate, the energy "smears in time" into the periods it overlaps with.
+The constraint matrix has a consecutive-ones structure that is totally unimodular, guaranteeing the LP relaxation always produces integer solutions.
 
 ### Parameters
 
@@ -35,108 +36,81 @@ Using auxiliary variables to model the max and min operations, the formulation r
 | $\Delta t$ | $T$        | Configuration | Time period durations (hours)                                                    |
 | $b_t$      | $T+1$      | Derived       | Cumulative time at each boundary: $b_0 = 0$, $b_t = \sum_{i=0}^{t-1} \Delta t_i$ |
 
-### Decision Variables
+### Candidate Generation
 
-| Variable   | Dimensions | Domain                 | Description                                                |
-| ---------- | ---------- | ---------------------- | ---------------------------------------------------------- |
-| $s$        | scalar     | $[s_{\min}, s_{\max}]$ | Scheduled start time (hours from horizon start)            |
-| $L_t$      | $T$        | $[0, H]$               | Left edge: where active region starts in period $t$        |
-| $R_t$      | $T$        | $[0, H + d]$           | Right edge: where active region ends in period $t$         |
-| $\omega_t$ | $T$        | $[0, \Delta t]$        | Overlap: duration the load is active in period $t$ (hours) |
-
-Where $H = \sum \Delta t$ is the total horizon length.
-
-Power consumption is computed from overlap rather than stored as a decision variable:
+Candidates are period boundaries within the scheduling window where the load can complete before the horizon ends:
 
 $$
-P_t = P \cdot \omega_t / \Delta t
+\mathcal{K} = \{ b_t : s_{\min} \leq b_t \leq s_{\max} \text{ and } b_t + d \leq H \}
+$$
+
+where $H = \sum \Delta t$ is the total horizon length.
+
+### Energy Profiles
+
+For each candidate start time $s_k$, precompute the energy consumed in each period:
+
+$$
+E_{k,t} = P \cdot \max\left(0, \min(b_{t+1}, s_k + d) - \max(b_t, s_k)\right)
+$$
+
+This is the overlap between the load's active window $[s_k, s_k + d]$ and the period $[b_t, b_{t+1}]$, multiplied by the power.
+
+### Decision Variables
+
+| Variable | Dimensions    | Domain  | Description                              |
+| -------- | ------------- | ------- | ---------------------------------------- |
+| $w_k$    | $\|\mathcal{K}\|$ | $[0,1]$ | Selection weight for candidate $k$       |
+| $E_t$    | $T$           | $\geq 0$ | Energy consumed in period $t$ (kWh)      |
+
+Power consumption is computed from energy:
+
+$$
+P_t = E_t / \Delta t
 $$
 
 ### Constraints
 
-#### 1. Left Edge Constraints (models max)
+#### 1. Selection Constraint
 
-The left edge of the active region in period $t$ is $\max(b_t, s)$:
-
-$$
-\begin{aligned}
-L_t &\geq b_t \quad \forall t \in [0, T-1] \\
-L_t &\geq s \quad \forall t \in [0, T-1]
-\end{aligned}
-$$
-
-The LP relaxation naturally minimizes $L_t$ (to maximize overlap), pushing it to the larger of the two bounds.
-
-#### 2. Right Edge Constraints (models min)
-
-The right edge of the active region in period $t$ is $\min(b_{t+1}, s + d)$:
+Exactly one candidate must be selected:
 
 $$
-\begin{aligned}
-R_t &\leq b_{t+1} \quad \forall t \in [0, T-1] \\
-R_t &\leq s + d \quad \forall t \in [0, T-1]
-\end{aligned}
+\sum_{k \in \mathcal{K}} w_k = 1
 $$
 
-The LP relaxation naturally maximizes $R_t$ (to maximize overlap), pushing it to the smaller of the two bounds.
+#### 2. Energy Balance Constraints
 
-#### 3. Overlap Constraints
-
-The overlap in period $t$ is the difference between the right and left edges:
+Energy in each period is determined by the selected candidate:
 
 $$
-\begin{aligned}
-\omega_t &\geq R_t - L_t \quad \forall t \in [0, T-1] \\
-\omega_t &\leq \Delta t \quad \forall t \in [0, T-1]
-\end{aligned}
+E_t = \sum_{k \in \mathcal{K}} w_k \cdot E_{k,t} \quad \forall t \in [0, T-1]
 $$
 
-The first constraint ensures overlap captures the active time.
-The second constraint bounds overlap to at most the period duration.
+#### 3. Power Balance Constraint
 
-#### 4. Total Overlap Constraint
-
-The total overlap across all periods must equal the load duration:
+Connection power is proportional to energy, linking the load to the network:
 
 $$
-\sum_{t=0}^{T-1} \omega_t = d
+P_{\text{connection}}(t) \cdot \Delta t = -E_t \quad \forall t \in [0, T-1]
 $$
 
-This constraint is crucial—it forces the optimizer to allocate exactly $d$ hours of activity across the periods, ensuring the full energy requirement is met.
+The negative sign reflects that the load consumes power from the network.
 
-#### 5. Start Time Bounds
+### Total Unimodularity
 
-The start time must fall within the scheduling window:
+The constraint matrix has a consecutive-ones structure: each candidate $k$ affects a contiguous set of periods (those overlapping with $[s_k, s_k + d]$).
+Combined with the sum-to-one constraint on $w_k$, this forms a totally unimodular matrix.
 
-$$
-s_{\min} \leq s \leq s_{\max}
-$$
-
-#### 6. Power Balance Constraint
-
-Connection power is proportional to the overlap, linking the load to the network:
-
-$$
-P_{\text{connection}}(t) \cdot \Delta t = -P \cdot \omega_t \quad \forall t \in [0, T-1]
-$$
-
-The negative sign reflects that the load consumes power (power flows from the network into the load).
-This constraint directly couples the overlap variables to the network power flow.
+**Consequence**: The LP relaxation always produces integer solutions—exactly one $w_k = 1$ and all others $w_k = 0$.
+No binary variables or integer programming required.
 
 ### Shadow Prices
 
-| Constraint            | Unit   | Interpretation                                             |
-| --------------------- | ------ | ---------------------------------------------------------- |
-| `left_edge_boundary`  | \$/kWh | Value of relaxing period boundary constraint on left edge  |
-| `left_edge_start`     | \$/kWh | Value of relaxing start time constraint on left edge       |
-| `right_edge_boundary` | \$/kWh | Value of relaxing period boundary constraint on right edge |
-| `right_edge_end`      | \$/kWh | Value of relaxing end time constraint on right edge        |
-| `overlap_min`         | \$/kWh | Value of overlap exceeding right minus left edge           |
-| `overlap_max`         | \$/kWh | Value of overlap exceeding period duration                 |
-| `total_overlap`       | \$/kWh | Marginal value of total active duration                    |
-| `earliest_start`      | \$/kWh | Value of being able to start earlier                       |
-| `latest_start`        | \$/kWh | Value of being able to start later                         |
-| `power_balance`       | \$/kW  | Marginal value of power at the load terminals              |
+| Constraint                     | Unit   | Interpretation                            |
+| ------------------------------ | ------ | ----------------------------------------- |
+| `schedulable_load_choice`      | \$/kWh | Marginal value of selection constraint    |
+| `schedulable_load_power_balance` | \$/kW  | Marginal value of power at each period  |
 
 ### Cost Contribution
 
@@ -145,39 +119,37 @@ Costs are applied through the [Connection](../connections/index.md) elements lin
 
 ## Physical Interpretation
 
-### Overlap-Based Energy Calculation
+### Energy Distribution Across Periods
 
-The model calculates how much of each time period overlaps with the load's active window.
-This overlap determines the energy consumed in each period.
-
+When a load starts at a period boundary, its energy distributes across the periods it overlaps.
 Consider a 2 kW load running for 1.5 hours starting at hour 0.5:
 
 ```mermaid
 xychart-beta
-    title "Overlap and Power by Period"
+    title "Energy Distribution by Period"
     x-axis "Period" [0, 1, 2]
     y-axis 0 --> 2.5
-    bar "Power (kW)" [1.0, 2.0, 0.0]
-    line "Overlap (h)" [0.5, 1.0, 0.0]
+    bar "Energy (kWh)" [1.0, 2.0, 0.0]
 ```
 
-| Period | Time  | Overlap | Power  |
+| Period | Time  | Overlap | Energy |
 | ------ | ----- | ------- | ------ |
-| 0      | 0–1 h | 0.5 h   | 1.0 kW |
-| 1      | 1–2 h | 1.0 h   | 2.0 kW |
-| 2      | 2–3 h | 0 h     | 0.0 kW |
+| 0      | 0–1 h | 0.5 h   | 1.0 kWh |
+| 1      | 1–2 h | 1.0 h   | 2.0 kWh |
+| 2      | 2–3 h | 0 h     | 0.0 kWh |
 
-### Why the Relaxation Works
+### Why Period-Boundary Selection Works
 
-The max/min constraints use inequality bounds, but the LP relaxation finds the correct solution because:
+The formulation uses period boundaries as candidate start times because:
 
-1. **Left edge minimization**: The optimizer pushes $L_t$ down to maximize overlap, but it cannot go below $\max(b_t, s)$ due to the constraints.
+1. **Piecewise linear cost**: The cost function cost(s) is piecewise linear in the start time.
+   Breakpoints occur at period boundaries where the energy profile changes.
 
-2. **Right edge maximization**: The optimizer pushes $R_t$ up to maximize overlap, but it cannot exceed $\min(b_{t+1}, s+d)$ due to the constraints.
+2. **Sparse profiles**: Each candidate only affects a contiguous set of periods (those overlapping the load's active window).
+   This creates a consecutive-ones matrix structure.
 
-3. **Total overlap enforcement**: The constraint $\sum \omega_t = d$ forces exactly $d$ hours of activity, preventing the optimizer from "spreading" the load unrealistically.
-
-This formulation correctly handles all edge cases including loads that span multiple periods, partial period coverage, and variable period lengths.
+3. **Total unimodularity**: The consecutive-ones structure combined with the sum-to-one constraint creates a totally unimodular constraint matrix.
+   LP vertices are integral, so no binary variables needed.
 
 ### Example: Optimal Scheduling
 
@@ -185,36 +157,27 @@ Consider a 3 kW load running for 2 hours with periods of 1 hour each and connect
 
 The optimizer chooses start time $s = 2.0$ hours to run during the cheapest periods (periods 2 and 3):
 
-| Period | Interval | Overlap (h) | Power (kW) | Energy (kWh) | Cost   |
-| ------ | -------- | ----------- | ---------- | ------------ | ------ |
-| 0      | 0–1 h    | 0           | 0          | 0            | \$0.00 |
-| 1      | 1–2 h    | 0           | 0          | 0            | \$0.00 |
-| 2      | 2–3 h    | 1.0         | 3.0        | 3.0          | \$0.30 |
-| 3      | 3–4 h    | 1.0         | 3.0        | 3.0          | \$0.75 |
+| Period | Interval | Energy (kWh) | Cost   |
+| ------ | -------- | ------------ | ------ |
+| 0      | 0–1 h    | 0            | \$0.00 |
+| 1      | 1–2 h    | 0            | \$0.00 |
+| 2      | 2–3 h    | 3.0          | \$0.30 |
+| 3      | 3–4 h    | 3.0          | \$0.75 |
 
 Total cost: 3.0 × \$0.10 + 3.0 × \$0.25 = \$1.05
-
-If the earliest start were $s_{\min} = 0$, the optimizer would instead place the load in periods 1 and 2:
-
-| Period | Overlap (h) | Power (kW) | Cost   |
-| ------ | ----------- | ---------- | ------ |
-| 0      | 0           | 0          | \$0.00 |
-| 1      | 1.0         | 3.0        | \$0.60 |
-| 2      | 1.0         | 3.0        | \$0.30 |
-| 3      | 0           | 0          | \$0.00 |
-
-Total cost: 3.0 × \$0.20 + 3.0 × \$0.10 = \$0.90
 
 ### Model Assumptions
 
 - **Fixed power**: The load runs at constant power $P$ when active
 - **Fixed duration**: The load runs for exactly duration $d$ hours
-- **Continuous start time**: Start time $s$ is a continuous variable (not restricted to period boundaries)
+- **Period-aligned starts**: Start time is restricted to period boundaries within the scheduling window
 - **Single run**: The load runs once within the horizon (no repeated cycles)
 - **No interruption**: Once started, the load runs to completion
 
 ### Limitations
 
+- **Sub-period positioning**: Start times are restricted to period boundaries.
+  Use finer time resolution near the present if precise timing matters.
 - **Multi-phase loads**: Loads with variable power profiles during operation are not modeled (use multiple schedulable loads or forecast loads)
 - **Recurring schedules**: For loads that run multiple times, create multiple schedulable load elements
 - **Power ramping**: Instantaneous power transitions at start/end (physical ramp times not modeled)

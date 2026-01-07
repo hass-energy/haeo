@@ -38,47 +38,7 @@ VALID_CASES: list[ElementTestCase] = [
                 "unit": "$/kW",
                 "values": (0.0, 0.0, 0.0, 0.0),
             },
-            "schedulable_load_left_edge_boundary": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_left_edge_start": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_right_edge_boundary": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_right_edge_end": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_overlap_min": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_overlap_max": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_total_overlap": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0,),
-            },
-            "schedulable_load_earliest_start": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0,),
-            },
-            "schedulable_load_latest_start": {
+            "schedulable_load_choice": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0,),
@@ -118,47 +78,7 @@ VALID_CASES: list[ElementTestCase] = [
                 "unit": "$/kW",
                 "values": (0.0, 0.0, 0.0, 0.0),
             },
-            "schedulable_load_left_edge_boundary": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_left_edge_start": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_right_edge_boundary": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_right_edge_end": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_overlap_min": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_overlap_max": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_total_overlap": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0,),
-            },
-            "schedulable_load_earliest_start": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0,),
-            },
-            "schedulable_load_latest_start": {
+            "schedulable_load_choice": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0,),
@@ -166,22 +86,21 @@ VALID_CASES: list[ElementTestCase] = [
         },
     },
     {
-        "description": "Schedulable load with fractional period overlap",
+        "description": "Schedulable load spanning partial periods",
         "factory": SchedulableLoad,
         "data": {
-            "name": "load_fractional",
+            "name": "load_partial",
             "periods": [1.0, 1.0, 1.0, 1.0],
             "power": 2.0,
             "duration": 1.5,
-            "earliest_start": 0.5,
-            "latest_start": 0.5,  # Fixed start time
+            "earliest_start": 0.0,
+            "latest_start": 0.0,  # Fixed start at period boundary 0
         },
         "inputs": {
-            # Start fixed at 0.5, run until 2.0
-            # Period 0 (0-1): overlap 0.5h -> 1.0 kW average
-            # Period 1 (1-2): overlap 1.0h -> 2.0 kW average
-            # Negative values = power flows INTO the load
-            "power": [-1.0, -2.0, 0.0, 0.0],
+            # Start at 0, run until 1.5
+            # Period 0 (0-1): overlap 1.0h -> 2.0 kW
+            # Period 1 (1-2): overlap 0.5h -> 1.0 kW average
+            "power": [-2.0, -1.0, 0.0, 0.0],
             "input_cost": 0.0,
             "output_cost": 0.0,
         },
@@ -189,59 +108,19 @@ VALID_CASES: list[ElementTestCase] = [
             "schedulable_load_power_consumed": {
                 "type": "power",
                 "unit": "kW",
-                "values": (1.0, 2.0, 0.0, 0.0),
+                "values": (2.0, 1.0, 0.0, 0.0),
             },
             "schedulable_load_start_time": {
                 "type": "duration",
                 "unit": "h",
-                "values": (0.5,),
+                "values": (0.0,),
             },
             "schedulable_load_power_balance": {
                 "type": "shadow_price",
                 "unit": "$/kW",
                 "values": (0.0, 0.0, 0.0, 0.0),
             },
-            "schedulable_load_left_edge_boundary": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_left_edge_start": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_right_edge_boundary": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_right_edge_end": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_overlap_min": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_overlap_max": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_total_overlap": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0,),
-            },
-            "schedulable_load_earliest_start": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0,),
-            },
-            "schedulable_load_latest_start": {
+            "schedulable_load_choice": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0,),
@@ -257,13 +136,12 @@ VALID_CASES: list[ElementTestCase] = [
             "power": 3.0,
             "duration": 1.0,
             "earliest_start": 0.5,
-            "latest_start": 0.5,  # Fixed to start at 0.5
+            "latest_start": 0.5,  # Fixed to start at boundary 0.5
         },
         "inputs": {
             # Start at 0.5, run until 1.5
             # Period 0 (0-0.5): overlap 0h -> 0.0 kW
             # Period 1 (0.5-1.5): overlap 1.0h -> 3.0 kW
-            # Negative values = power flows INTO the load
             "power": [0.0, -3.0, 0.0, 0.0],
             "input_cost": 0.0,
             "output_cost": 0.0,
@@ -284,47 +162,7 @@ VALID_CASES: list[ElementTestCase] = [
                 "unit": "$/kW",
                 "values": (0.0, 0.0, 0.0, 0.0),
             },
-            "schedulable_load_left_edge_boundary": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_left_edge_start": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_right_edge_boundary": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_right_edge_end": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_overlap_min": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_overlap_max": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0, 0.0, 0.0),
-            },
-            "schedulable_load_total_overlap": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0,),
-            },
-            "schedulable_load_earliest_start": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0,),
-            },
-            "schedulable_load_latest_start": {
+            "schedulable_load_choice": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0,),
@@ -363,47 +201,7 @@ VALID_CASES: list[ElementTestCase] = [
                 "unit": "$/kW",
                 "values": (0.0, 0.0),
             },
-            "schedulable_load_left_edge_boundary": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0),
-            },
-            "schedulable_load_left_edge_start": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0),
-            },
-            "schedulable_load_right_edge_boundary": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0),
-            },
-            "schedulable_load_right_edge_end": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0),
-            },
-            "schedulable_load_overlap_min": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0),
-            },
-            "schedulable_load_overlap_max": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0, 0.0),
-            },
-            "schedulable_load_total_overlap": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0,),
-            },
-            "schedulable_load_earliest_start": {
-                "type": "shadow_price",
-                "unit": "$/kWh",
-                "values": (0.0,),
-            },
-            "schedulable_load_latest_start": {
+            "schedulable_load_choice": {
                 "type": "shadow_price",
                 "unit": "$/kWh",
                 "values": (0.0,),

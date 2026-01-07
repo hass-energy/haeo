@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import Final, Literal
 
 from highspy import Highs
-from highspy.highs import highs_linear_expression
+from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 
 from .const import OutputType
@@ -14,15 +14,7 @@ from .output_data import OutputData
 # Type for schedulable load constraint names
 type SchedulableLoadConstraintName = Literal[
     "schedulable_load_power_balance",
-    "schedulable_load_left_edge_boundary",
-    "schedulable_load_left_edge_start",
-    "schedulable_load_right_edge_boundary",
-    "schedulable_load_right_edge_end",
-    "schedulable_load_overlap_min",
-    "schedulable_load_overlap_max",
-    "schedulable_load_total_overlap",
-    "schedulable_load_earliest_start",
-    "schedulable_load_latest_start",
+    "schedulable_load_choice",
 ]
 
 # Type for all schedulable load output names
@@ -38,15 +30,7 @@ type SchedulableLoadOutputName = (
 SCHEDULABLE_LOAD_CONSTRAINT_NAMES: Final[frozenset[SchedulableLoadConstraintName]] = frozenset(
     (
         SCHEDULABLE_LOAD_POWER_BALANCE := "schedulable_load_power_balance",
-        SCHEDULABLE_LOAD_LEFT_EDGE_BOUNDARY := "schedulable_load_left_edge_boundary",
-        SCHEDULABLE_LOAD_LEFT_EDGE_START := "schedulable_load_left_edge_start",
-        SCHEDULABLE_LOAD_RIGHT_EDGE_BOUNDARY := "schedulable_load_right_edge_boundary",
-        SCHEDULABLE_LOAD_RIGHT_EDGE_END := "schedulable_load_right_edge_end",
-        SCHEDULABLE_LOAD_OVERLAP_MIN := "schedulable_load_overlap_min",
-        SCHEDULABLE_LOAD_OVERLAP_MAX := "schedulable_load_overlap_max",
-        SCHEDULABLE_LOAD_TOTAL_OVERLAP := "schedulable_load_total_overlap",
-        SCHEDULABLE_LOAD_EARLIEST_START := "schedulable_load_earliest_start",
-        SCHEDULABLE_LOAD_LATEST_START := "schedulable_load_latest_start",
+        SCHEDULABLE_LOAD_CHOICE := "schedulable_load_choice",
     )
 )
 
@@ -64,8 +48,8 @@ SCHEDULABLE_LOAD_OUTPUT_NAMES: Final[frozenset[SchedulableLoadOutputName]] = fro
     )
 )
 
-# Tolerance for detecting non-zero overlap values
-OVERLAP_TOLERANCE: Final[float] = 1e-9
+# Tolerance for detecting non-zero choice weights
+WEIGHT_TOLERANCE: Final[float] = 1e-6
 
 
 class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstraintName]):
@@ -74,14 +58,10 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
     Models a deferrable load that must run for a fixed duration at a fixed power,
     with the optimizer choosing the optimal start time within a scheduling window.
 
-    Uses an overlap-based formulation to model power consumption in each period:
-    - left_edge[t] = max(b_t, s) - where active region starts in period t
-    - right_edge[t] = min(b_{t+1}, s+d) - where active region ends in period t
-    - overlap[t] = right_edge[t] - left_edge[t] - active time in period t
-    - power[t] = P * overlap[t] / period[t] - average power in period t
-
-    The total overlap must equal the load duration, ensuring the full energy
-    requirement is met.
+    Uses period-boundary selection: one candidate per period boundary within the
+    scheduling window, with energy "smeared in time" into overlapping periods.
+    The constraint matrix is totally unimodular (consecutive-ones structure),
+    so the LP relaxation always produces integer solutions.
     """
 
     def __init__(
@@ -138,87 +118,90 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
         self.boundaries = np.concatenate([[0.0], np.cumsum(self.periods)])
         self.horizon = float(self.boundaries[-1])
 
-        # Decision variable: start time
-        self.start_time_var = solver.addVariable(
-            lb=earliest_start,
-            ub=latest_start,
-            name=f"{name}_start_time",
+        # Generate candidate start times: period boundaries within the scheduling window
+        # where the load can complete before the horizon ends.
+        # This creates a consecutive-ones matrix structure (totally unimodular).
+        self.candidates = tuple(
+            float(b) for b in self.boundaries if earliest_start <= b <= latest_start and b + duration <= self.horizon
         )
+        n_candidates = len(self.candidates)
 
-        # Auxiliary variables for overlap calculation
-        # left_edge[t] = max(b_t, s) - where active region starts in period t
-        self.left_edge = solver.addVariables(
-            n_periods,
+        # Precompute energy profiles for each candidate start time.
+        # profiles[k][t] = energy consumed in period t when starting at candidates[k]
+        self.profiles: tuple[tuple[float, ...], ...] = tuple(self._compute_profile(s) for s in self.candidates)
+
+        # Decision variables: selection weight for each candidate.
+        # Due to total unimodularity, exactly one will be 1.0 and the rest 0.0.
+        self.choice_weights = solver.addVariables(
+            n_candidates,
             lb=0.0,
-            ub=self.horizon,
-            name_prefix=f"{name}_left_edge_",
+            ub=1.0,
+            name_prefix=f"{name}_w_",
             out_array=True,
         )
 
-        # right_edge[t] = min(b_{t+1}, s+d) - where active region ends in period t
-        self.right_edge = solver.addVariables(
+        # Energy consumed in each period (determined by selection)
+        max_energy_per_period = power * max(float(p) for p in self.periods)
+        self.energy = solver.addVariables(
             n_periods,
             lb=0.0,
-            ub=self.horizon + duration,
-            name_prefix=f"{name}_right_edge_",
+            ub=max_energy_per_period,
+            name_prefix=f"{name}_energy_",
             out_array=True,
         )
 
-        # overlap[t] = time the load is active in period t
-        self.overlap = solver.addVariables(
-            n_periods,
-            lb=0.0,
-            name_prefix=f"{name}_overlap_",
-            out_array=True,
-        )
+    def _compute_profile(self, start_time: float) -> tuple[float, ...]:
+        """Compute energy profile for a given start time.
+
+        Args:
+            start_time: When the load starts (hours from horizon start)
+
+        Returns:
+            Tuple of energy consumed in each period (kWh)
+
+        """
+        end_time = start_time + self.duration
+        profile: list[float] = []
+
+        for t in range(self.n_periods):
+            b_start = float(self.boundaries[t])
+            b_end = float(self.boundaries[t + 1])
+
+            # Overlap between [start_time, end_time] and [b_start, b_end]
+            overlap = max(0.0, min(b_end, end_time) - max(b_start, start_time))
+            energy = self.power * overlap
+            profile.append(energy)
+
+        return tuple(profile)
 
     def build_constraints(self) -> None:
         """Build constraints for the schedulable load.
 
-        Models the overlap between the load's active window [s, s+d] and each
-        period's time interval [b_t, b_{t+1}] using auxiliary variables:
+        Constraints:
+        1. Exactly one candidate must be selected: sum(w_k) = 1
+        2. Energy at each time is determined by selection: E_t = sum(w_k * profile_k[t])
 
-        - left_edge[t] >= b_t, left_edge[t] >= s (models max(b_t, s))
-        - right_edge[t] <= b_{t+1}, right_edge[t] <= s+d (models min(b_{t+1}, s+d))
-        - overlap[t] >= right_edge[t] - left_edge[t] (active time in period)
-        - sum(overlap) = duration (total active time must equal duration)
-        - connection_power[t] * period[t] = -P * overlap[t] (power balance from overlap)
-
-        The max/min relaxation works correctly because:
-        - left_edge is minimized to achieve larger overlap
-        - right_edge is maximized to achieve larger overlap
-        - Total overlap constraint forces exactly 'duration' hours of activity
+        The constraint matrix has consecutive-ones structure (each candidate affects
+        a contiguous set of periods), making it totally unimodular. This guarantees
+        the LP relaxation always produces integer solutions.
         """
         h = self._solver
 
-        # Left edge is bounded below by both period start and start time
-        self._constraints[SCHEDULABLE_LOAD_LEFT_EDGE_BOUNDARY] = h.addConstrs(self.left_edge >= self.boundaries[:-1])
-        self._constraints[SCHEDULABLE_LOAD_LEFT_EDGE_START] = h.addConstrs(self.left_edge >= self.start_time_var)
+        # Exactly one start time selected
+        self._constraints[SCHEDULABLE_LOAD_CHOICE] = h.addConstr(Highs.qsum(self.choice_weights) == 1.0)
 
-        # Right edge is bounded above by both period end and start time + duration
-        self._constraints[SCHEDULABLE_LOAD_RIGHT_EDGE_BOUNDARY] = h.addConstrs(self.right_edge <= self.boundaries[1:])
-        self._constraints[SCHEDULABLE_LOAD_RIGHT_EDGE_END] = h.addConstrs(
-            self.right_edge <= self.start_time_var + self.duration
-        )
+        # Energy at each period equals sum of selected profile contributions
+        power_balance_constraints: list[highs_cons] = []
+        for t in range(self.n_periods):
+            expr = self.energy[t]
+            for k, profile in enumerate(self.profiles):
+                expr = expr - self.choice_weights[k] * profile[t]
+            power_balance_constraints.append(h.addConstr(expr == 0.0))
 
-        # Overlap is at least the difference between right and left edges
-        self._constraints[SCHEDULABLE_LOAD_OVERLAP_MIN] = h.addConstrs(self.overlap >= self.right_edge - self.left_edge)
+        self._constraints[SCHEDULABLE_LOAD_POWER_BALANCE] = power_balance_constraints
 
-        # Overlap cannot exceed period length
-        self._constraints[SCHEDULABLE_LOAD_OVERLAP_MAX] = h.addConstrs(self.overlap <= self.periods)
-
-        # Total overlap must equal duration (forces the load to run for exactly 'duration' hours)
-        self._constraints[SCHEDULABLE_LOAD_TOTAL_OVERLAP] = h.addConstr(Highs.qsum(self.overlap) == self.duration)
-
-        # Start time bounds (explicit constraints for shadow price extraction)
-        self._constraints[SCHEDULABLE_LOAD_EARLIEST_START] = h.addConstr(self.start_time_var >= self.earliest_start)
-        self._constraints[SCHEDULABLE_LOAD_LATEST_START] = h.addConstr(self.start_time_var <= self.latest_start)
-
-        # Power balance: connection_power * period = -power * overlap
-        # Negative because load consumes power (power flows from connection into load)
-        self._constraints[SCHEDULABLE_LOAD_POWER_BALANCE] = h.addConstrs(
-            self.connection_power() * self.periods == -self.power * self.overlap
-        )
+        # Connection power balance: power = energy / period_length
+        h.addConstrs(self.connection_power() * self.periods == -self.energy)
 
     def cost(self) -> Sequence[highs_linear_expression]:
         """Return the cost expressions of the schedulable load.
@@ -228,45 +211,31 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
         """
         return []
 
-    def _compute_effective_start_time(self) -> float:
-        """Compute effective start time from the power profile.
-
-        Since the LP relaxation may not perfectly tie start_time_var to the power
-        profile, we derive the effective start time from where power actually begins.
+    def _compute_selected_start_time(self) -> float:
+        """Compute the selected start time from choice weights.
 
         Returns:
-            The effective start time in hours.
+            The start time of the selected candidate in hours.
 
         """
-        overlap_values = self.extract_values(self.overlap)
-        boundaries = self.boundaries
+        weights = self.extract_values(self.choice_weights)
 
-        # Find the weighted center of mass of the active period
-        # This gives a meaningful "start time" interpretation
-        if self.duration == 0:
-            return float(self._solver.val(self.start_time_var))
+        # Find the candidate with the highest weight (should be ~1.0)
+        max_weight = 0.0
+        selected_start = self.earliest_start
 
-        # Find where activity begins (first period with positive overlap)
-        for t, overlap in enumerate(overlap_values):
-            if overlap > OVERLAP_TOLERANCE:
-                # Activity starts in this period
-                # Effective start = period start + (period_length - overlap)
-                # This accounts for partial overlap at the start
-                period_start = float(boundaries[t])
-                period_length = float(self.periods[t])
-                # If overlap < period_length, the load started partway through
-                # start_time = period_end - overlap = b_{t+1} - overlap
-                effective_start = period_start + (period_length - overlap)
-                return max(effective_start, self.earliest_start)
+        for k, w in enumerate(weights):
+            if w > max_weight:
+                max_weight = w
+                selected_start = self.candidates[k]
 
-        # No activity found, return the variable value
-        return float(self._solver.val(self.start_time_var))
+        return selected_start
 
     def outputs(self) -> Mapping[SchedulableLoadOutputName, OutputData]:
         """Return schedulable load output specifications."""
-        # Compute power consumption from overlap: power[t] = P * overlap[t] / period[t]
-        overlap_values = self.extract_values(self.overlap)
-        power_values = tuple(self.power * o / p for o, p in zip(overlap_values, self.periods, strict=True))
+        # Compute power consumption from energy: power[t] = energy[t] / period[t]
+        energy_values = self.extract_values(self.energy)
+        power_values = tuple(e / float(p) for e, p in zip(energy_values, self.periods, strict=True))
 
         outputs: dict[SchedulableLoadOutputName, OutputData] = {
             SCHEDULABLE_LOAD_POWER_CONSUMED: OutputData(
@@ -278,7 +247,7 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
             SCHEDULABLE_LOAD_START_TIME: OutputData(
                 type=OutputType.DURATION,
                 unit="h",
-                values=(self._compute_effective_start_time(),),
+                values=(self._compute_selected_start_time(),),
             ),
         }
 
