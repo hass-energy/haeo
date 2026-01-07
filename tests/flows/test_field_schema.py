@@ -5,12 +5,8 @@ from homeassistant.helpers.selector import BooleanSelector, NumberSelector
 import pytest
 
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.flows.field_schema import (
-    boolean_selector_from_field,
-    number_selector_from_field,
-)
+from custom_components.haeo.flows.field_schema import boolean_selector_from_field, number_selector_from_field
 from custom_components.haeo.model.const import OutputType
-
 
 # --- Fixtures ---
 

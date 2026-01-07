@@ -129,13 +129,13 @@ Select multiple sensors for time-varying pricing:
 
 Select "Configurable Entity" for fixed rates, or link to an input_number for adjustable rates:
 
-| Field            | Selection          | Value |
-| ---------------- | ------------------ | ----- |
-| **Name**         | -                  | Grid  |
-| **Import Price** | Configurable Entity  | 0.25  |
-| **Export Price** | Configurable Entity  | 0.08  |
-| **Import Limit** | Configurable Entity  | 20    |
-| **Export Limit** | Configurable Entity  | 5     |
+| Field            | Selection           | Value |
+| ---------------- | ------------------- | ----- |
+| **Name**         | -                   | Grid  |
+| **Import Price** | Configurable Entity | 0.25  |
+| **Export Price** | Configurable Entity | 0.08  |
+| **Import Limit** | Configurable Entity | 20    |
+| **Export Limit** | Configurable Entity | 5     |
 
 For more examples and sensor configuration, see the [Forecasts and Sensors guide](../forecasts-and-sensors.md).
 

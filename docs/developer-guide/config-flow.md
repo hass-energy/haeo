@@ -160,11 +160,11 @@ The user enters constant values for those fields. Step 2 is skipped if no config
 
 Each entity field supports three types of selections:
 
-| Selection Type       | Description                                         | Step 2 Behavior        |
-| -------------------- | --------------------------------------------------- | ---------------------- |
-| External Entity      | Value comes from Home Assistant sensors             | No input shown         |
-| Configurable Entity    | User enters a constant value                        | Shows NumberSelector   |
-| Empty (optional)     | Field is disabled (only for optional fields)        | No input shown         |
+| Selection Type      | Description                                  | Step 2 Behavior      |
+| ------------------- | -------------------------------------------- | -------------------- |
+| External Entity     | Value comes from Home Assistant sensors      | No input shown       |
+| Configurable Entity | User enters a constant value                 | Shows NumberSelector |
+| Empty (optional)    | Field is disabled (only for optional fields) | No input shown       |
 
 Required fields must have at least one entity selected (either external or Configurable Entity).
 Optional fields can be left empty to use default values.
