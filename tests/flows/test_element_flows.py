@@ -200,7 +200,7 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
         async def load(self, config: Any, **_kwargs: Any) -> Any:
             return config
 
-        def create_model_elements(self, config: Any) -> list[dict[str, Any]]:  # noqa: ARG002
+        def model_elements(self, config: Any) -> list[dict[str, Any]]:  # noqa: ARG002
             return []
 
         def outputs(

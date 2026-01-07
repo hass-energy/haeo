@@ -468,13 +468,16 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
 
-            # Build network with loaded configurations (reuse existing for warm start)
-            network = await data_module.load_network(
-                self.config_entry,
-                periods_seconds=periods_seconds,
-                participants=loaded_configs,
-                existing_network=self.network,
-            )
+            # Create network on first run, update on subsequent runs (warm start)
+            if self.network is None:
+                network = await data_module.create_network(
+                    self.config_entry,
+                    periods_seconds=periods_seconds,
+                    participants=loaded_configs,
+                )
+            else:
+                network = self.network
+                data_module.update_network(network, loaded_configs)
 
             # Perform the optimization
             cost = await self.hass.async_add_executor_job(network.optimize)

@@ -93,8 +93,8 @@ class SolarAdapter:
 
         return data
 
-    def create_model_elements(self, config: SolarConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Solar configuration."""
+    def model_elements(self, config: SolarConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Solar configuration."""
         return [
             {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": False},
             {

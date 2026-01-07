@@ -93,8 +93,8 @@ class BatterySectionAdapter:
             "initial_charge": initial_charge,
         }
 
-    def create_model_elements(self, config: BatterySectionConfigData) -> list[dict[str, Any]]:
-        """Create model elements for BatterySection configuration.
+    def model_elements(self, config: BatterySectionConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for BatterySection configuration.
 
         Direct pass-through to the model battery element.
         """

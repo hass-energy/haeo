@@ -8,7 +8,7 @@ Adapter Pattern:
     Configuration Element (with entity IDs) →
     Adapter.load() →
     Configuration Data (with loaded values) →
-    Adapter.create_model_elements() →
+    Adapter.model_elements() →
     Model Elements (pure optimization) →
     Model.optimize() →
     Model Outputs (element-agnostic) →
@@ -194,8 +194,8 @@ class ElementAdapter(Protocol):
         """Load configuration values from sensors."""
         ...
 
-    def create_model_elements(self, config: Any) -> list[dict[str, Any]]:
-        """Transform loaded config into model element parameters."""
+    def model_elements(self, config: Any) -> list[dict[str, Any]]:
+        """Return model element parameters for the loaded config."""
         ...
 
     def outputs(

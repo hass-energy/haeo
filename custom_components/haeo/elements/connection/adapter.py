@@ -120,8 +120,8 @@ class ConnectionAdapter:
 
         return data
 
-    def create_model_elements(self, config: ConnectionConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Connection configuration."""
+    def model_elements(self, config: ConnectionConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Connection configuration."""
         return [
             {
                 "element_type": "connection",

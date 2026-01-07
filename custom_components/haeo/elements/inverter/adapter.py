@@ -113,8 +113,8 @@ class InverterAdapter:
 
         return data
 
-    def create_model_elements(self, config: InverterConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Inverter configuration.
+    def model_elements(self, config: InverterConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Inverter configuration.
 
         Creates a DC bus (Node junction) and a connection to the AC side with
         efficiency and power limits for bidirectional power conversion.

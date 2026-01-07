@@ -321,7 +321,7 @@ async def test_async_update_data_returns_outputs(
 
     # Patch coordinator to use mocked _load_from_input_entities
     with (
-        patch("custom_components.haeo.coordinator.data_module.load_network", new_callable=AsyncMock) as mock_load,
+        patch("custom_components.haeo.coordinator.data_module.create_network", new_callable=AsyncMock) as mock_load,
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.dt_util.utcnow", return_value=generated_at),
@@ -347,7 +347,6 @@ async def test_async_update_data_returns_outputs(
         mock_hub_entry,
         periods_seconds=[30 * 60, 30 * 60],  # Two 30-minute intervals
         participants=mock_loaded_configs,
-        existing_network=None,  # First run has no existing network
     )
 
     mock_executor.assert_awaited_once_with(fake_network.optimize)
@@ -402,7 +401,7 @@ async def test_async_update_data_with_empty_input_entities(
             "_load_from_input_entities",
             return_value={},
         ),
-        patch("custom_components.haeo.coordinator.data_module.load_network") as mock_load,
+        patch("custom_components.haeo.coordinator.data_module.create_network") as mock_load,
     ):
         mock_load.side_effect = UpdateFailed("Missing required data")
         with pytest.raises(UpdateFailed, match="Missing required data"):
@@ -422,7 +421,10 @@ async def test_async_update_data_propagates_update_failed(
 
     with (
         patch.object(coordinator, "_load_from_input_entities", return_value={}),
-        patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=UpdateFailed("missing data")),
+        patch(
+            "custom_components.haeo.coordinator.data_module.create_network",
+            side_effect=UpdateFailed("missing data"),
+        ),
         pytest.raises(UpdateFailed, match="missing data"),
     ):
         await coordinator._async_update_data()
@@ -440,7 +442,10 @@ async def test_async_update_data_propagates_value_error(
 
     with (
         patch.object(coordinator, "_load_from_input_entities", return_value={}),
-        patch("custom_components.haeo.coordinator.data_module.load_network", side_effect=ValueError("invalid config")),
+        patch(
+            "custom_components.haeo.coordinator.data_module.create_network",
+            side_effect=ValueError("invalid config"),
+        ),
         pytest.raises(ValueError, match="invalid config"),
     ):
         await coordinator._async_update_data()
@@ -471,7 +476,7 @@ async def test_async_update_data_raises_on_missing_model_element(
         {**ELEMENT_TYPES, "battery": patched_entry},
     )
     monkeypatch.setattr(
-        "custom_components.haeo.coordinator.data_module.load_network",
+        "custom_components.haeo.coordinator.data_module.create_network",
         AsyncMock(return_value=fake_network),
     )
 

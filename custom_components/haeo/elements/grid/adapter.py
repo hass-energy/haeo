@@ -155,8 +155,8 @@ class GridAdapter:
 
         return data
 
-    def create_model_elements(self, config: GridConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Grid configuration."""
+    def model_elements(self, config: GridConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Grid configuration."""
         return [
             # Create Node for the grid (both source and sink - can import and export)
             {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": True},
@@ -214,7 +214,7 @@ class GridAdapter:
             grid_outputs[GRID_COST_IMPORT] = replace(import_cost_data, direction="-")
 
         # Export cost: negative value = money earned (revenue)
-        # The price_target_source is already negated in create_model_elements, so cost is negative
+        # The price_target_source is already negated in model_elements, so cost is negative
         if CONNECTION_COST_TARGET_SOURCE in connection:
             export_cost_data = connection[CONNECTION_COST_TARGET_SOURCE]
             grid_outputs[GRID_COST_EXPORT] = replace(export_cost_data, direction="+")

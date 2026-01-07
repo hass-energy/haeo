@@ -49,8 +49,8 @@ class NodeAdapter:
             "is_sink": await const_loader_bool.load(value=config.get("is_sink", DEFAULTS[CONF_IS_SINK])),
         }
 
-    def create_model_elements(self, config: NodeConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Node configuration."""
+    def model_elements(self, config: NodeConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Node configuration."""
         return [
             {
                 "element_type": "node",

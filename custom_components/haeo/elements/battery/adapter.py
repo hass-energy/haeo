@@ -209,8 +209,8 @@ class BatteryAdapter:
 
         return data
 
-    def create_model_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Battery configuration.
+    def model_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Battery configuration.
 
         Creates 1-3 battery sections, an internal node, connections from sections to node,
         and a connection from node to target.

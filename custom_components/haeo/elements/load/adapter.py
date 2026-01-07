@@ -82,8 +82,8 @@ class LoadAdapter:
             "forecast": forecast,
         }
 
-    def create_model_elements(self, config: LoadConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Load configuration."""
+    def model_elements(self, config: LoadConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Load configuration."""
         return [
             # Create Node for the load (sink only - consumes power)
             {"element_type": "node", "name": config["name"], "is_source": False, "is_sink": True},
