@@ -182,6 +182,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
+        fence_posts=True,
     ),
     InputFieldInfo(
         field_name=CONF_OVERCHARGE_PERCENTAGE,
@@ -196,6 +197,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
+        fence_posts=True,
     ),
     InputFieldInfo(
         field_name=CONF_UNDERCHARGE_COST,
