@@ -47,7 +47,7 @@ Custom template sensors that match these formats will also work.
 
 - [HAFO](https://hafo.haeo.io)
 - [Amber Electric](https://www.home-assistant.io/integrations/amberelectric/) (electricity pricing)
-- [AEMO NEM](https://www.home-assistant.io/integrations/aemo/) (Australian electricity pricing)
+- [AEMO NEM](https://github.com/cabberley/HA_AemoNemData) (Australian electricity pricing)
 - [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar) (solar generation)
 - [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) (solar generation)
 - HAEO sensors (chain HAEO outputs as inputs to other elements)
