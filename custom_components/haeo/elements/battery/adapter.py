@@ -142,14 +142,12 @@ class BatteryAdapter:
         min_charge = await loader.load_fence_posts(
             hass=hass,
             forecast_times=forecast_times,
-            value=config.get(CONF_MIN_CHARGE_PERCENTAGE),
-            default=DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE],
+            value=config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]),
         )
         max_charge = await loader.load_fence_posts(
             hass=hass,
             forecast_times=forecast_times,
-            value=config.get(CONF_MAX_CHARGE_PERCENTAGE),
-            default=DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE],
+            value=config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE]),
         )
 
         # Load interval-based values (power, rates)
@@ -159,8 +157,7 @@ class BatteryAdapter:
         efficiency = await loader.load_intervals(
             hass=hass,
             forecast_times=forecast_times,
-            value=config.get(CONF_EFFICIENCY),
-            default=DEFAULTS[CONF_EFFICIENCY],
+            value=config.get(CONF_EFFICIENCY, DEFAULTS[CONF_EFFICIENCY]),
         )
 
         # Build data with defaults applied
@@ -200,7 +197,6 @@ class BatteryAdapter:
                 hass=hass,
                 forecast_times=forecast_times,
                 value=early_charge_incentive,
-                default=DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE],
             )
 
         # Load undercharge/overcharge percentages as fence posts (energy boundaries)

@@ -87,7 +87,7 @@ async def test_time_series_loader_requires_sensor_entities(hass: HomeAssistant) 
 
     assert loader.available(hass=hass, value=[]) is False
 
-    with pytest.raises(ValueError, match="Value must be provided - no default available"):
+    with pytest.raises(ValueError, match="At least one sensor entity is required"):
         await loader.load_intervals(hass=hass, value=[], forecast_times=[1])
 
 
@@ -201,29 +201,12 @@ async def test_load_fence_posts_broadcasts_constant_value(hass: HomeAssistant) -
     assert result == [13.5, 13.5, 13.5, 13.5]
 
 
-async def test_load_fence_posts_uses_default_when_value_none(hass: HomeAssistant) -> None:
-    """load_fence_posts uses default parameter when value is None."""
-    loader = TimeSeriesLoader()
-    ts_values = [1000.0, 2000.0, 3000.0]  # 3 fence posts
-
-    result = await loader.load_fence_posts(
-        hass=hass,
-        value=None,
-        forecast_times=ts_values,
-        default=100.0,
-    )
-
-    # Returns n+1 values using the default
-    assert len(result) == 3
-    assert result == [100.0, 100.0, 100.0]
-
-
-async def test_load_fence_posts_raises_without_value_or_default(hass: HomeAssistant) -> None:
-    """load_fence_posts raises ValueError when value is None and no default provided."""
+async def test_load_fence_posts_raises_when_value_is_none(hass: HomeAssistant) -> None:
+    """load_fence_posts raises ValueError when value is None."""
     loader = TimeSeriesLoader()
     ts_values = [1000.0, 2000.0, 3000.0]
 
-    with pytest.raises(ValueError, match="Value must be provided - no default available"):
+    with pytest.raises(ValueError, match="Value is required - received None"):
         await loader.load_fence_posts(
             hass=hass,
             value=None,
@@ -241,4 +224,3 @@ async def test_load_fence_posts_empty_horizon_returns_empty(hass: HomeAssistant)
         forecast_times=[],
     )
 
-    assert result == []

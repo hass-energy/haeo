@@ -16,13 +16,6 @@ def _is_constant_value(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def _is_missing(value: Any) -> bool:
-    """Return True when value is None or an empty list."""
-    if value is None:
-        return True
-    return isinstance(value, list) and not value
-
-
 def _collect_sensor_ids(value: Any) -> list[str]:
     """Return all sensor entity IDs referenced by *value*.
 
@@ -69,21 +62,19 @@ class TimeSeriesLoader:
         hass: HomeAssistant,
         value: Any,
         forecast_times: Sequence[float],
-        default: float | None = None,
     ) -> list[float]:
         """Load a value as interval averages (n values for n+1 fence posts).
 
         Args:
             hass: Home Assistant instance
-            value: Entity ID(s), constant value, or None
+            value: Entity ID(s) or constant value (must not be None)
             forecast_times: Boundary timestamps (n+1 fence post times)
-            default: Default value when value is None or empty
 
         Returns:
             n interval values (trapezoidal averages over each period)
 
         Raises:
-            ValueError: If value is missing and no default provided
+            ValueError: If value is None, empty, or sensors unavailable
 
         """
         if not forecast_times:
@@ -91,11 +82,9 @@ class TimeSeriesLoader:
 
         n_periods = max(0, len(forecast_times) - 1)
 
-        # Handle missing values with default
-        if _is_missing(value):
-            if default is not None:
-                return [default] * n_periods
-            msg = "Value must be provided - no default available"
+        # Reject missing values - caller must provide valid data
+        if value is None:
+            msg = "Value is required - received None"
             raise ValueError(msg)
 
         # Handle constant values by broadcasting to all periods
@@ -129,15 +118,13 @@ class TimeSeriesLoader:
         hass: HomeAssistant,
         value: Any,
         forecast_times: Sequence[float],
-        default: float | None = None,
     ) -> list[float]:
         """Load a value as fence posts (n+1 point-in-time values at each boundary).
 
         Args:
             hass: Home Assistant instance
-            value: Entity ID(s), constant value, or None
+            value: Entity ID(s) or constant value (must not be None)
             forecast_times: Boundary timestamps (n+1 fence post times)
-            default: Default value when value is None or empty
 
         Returns:
             n+1 point-in-time values (one for each fence post)
@@ -146,7 +133,7 @@ class TimeSeriesLoader:
         states at specific points in time, not averages over intervals.
 
         Raises:
-            ValueError: If value is missing and no default provided
+            ValueError: If value is None, empty, or sensors unavailable
 
         """
         if not forecast_times:
@@ -154,11 +141,9 @@ class TimeSeriesLoader:
 
         n_fence_posts = len(forecast_times)
 
-        # Handle missing values with default
-        if _is_missing(value):
-            if default is not None:
-                return [default] * n_fence_posts
-            msg = "Value must be provided - no default available"
+        # Reject missing values - caller must provide valid data
+        if value is None:
+            msg = "Value is required - received None"
             raise ValueError(msg)
 
         # Handle constant values by broadcasting to all fence posts
