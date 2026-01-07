@@ -313,10 +313,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             _LOGGER.debug("Inputs not aligned, skipping optimization")
             return
 
-        # Mark as in progress BEFORE creating the task to prevent race conditions
-        # The flag will be cleared in _async_update_data's finally block
-        self._optimization_in_progress = True
-
         # Use create_task to run the async refresh
         self.hass.async_create_task(self.async_refresh())
 

@@ -739,7 +739,6 @@ def test_maybe_trigger_refresh_creates_task_when_aligned(
                 coro.close()
 
     mock_task.assert_called_once()
-    assert coordinator._optimization_in_progress is True
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
