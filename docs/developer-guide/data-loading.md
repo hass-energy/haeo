@@ -87,16 +87,32 @@ The [`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_co
 
 ### Interface Design
 
-The loader has two methods:
+The loader provides methods for two types of data loading:
 
 - `available()` - Checks if sensors exist without loading data (used during config validation)
-- `load()` - Performs full pipeline and returns horizon-aligned values
+- `load_intervals()` - Returns n interval averages for n+1 fence post timestamps
+- `load_fence_posts()` - Returns n+1 point-in-time values at each fence post timestamp
+- `load()` - Deprecated alias for `load_intervals()`
 
-Both methods accept flexible `value` parameters (single sensor string or list) to support different configuration field types.
+**Intervals vs Fence Posts**:
+Optimization horizons are defined by n+1 timestamps (fence posts) creating n periods (intervals).
+Different physical quantities require different loading approaches:
+
+- **Interval values** (n values): Power, efficiency, costs - values that represent averages over time periods
+- **Fence post values** (n+1 values): Capacity, SOC limits - values that represent states at specific points in time
+
+All methods accept flexible `value` parameters (single sensor string, list, or constant) to support different configuration field types.
 
 ### Return Behavior
 
-The `load()` method always returns a list of floats matching the requested horizon length.
+The loading methods return lists of floats:
+
+- `load_intervals()` returns n values (one per optimization period)
+- `load_fence_posts()` returns n+1 values (one per fence post timestamp)
+
+Both handle constant values by broadcasting to the appropriate length.
+Both support a `default` parameter for optional fields with fallback values.
+
 Values use HAEO base units: kilowatts (kW) for power, kilowatt-hours (kWh) for energy, \$/kWh for prices.
 See [Units documentation](units.md) for conversion details.
 
@@ -194,14 +210,30 @@ The combination then proceeds as pure forecast series merging.
 
 The [`forecast_fuser.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/util/forecast_fuser.py) module aligns combined forecasts to optimization horizons.
 
-### Fusion Strategy
+### Fusion Functions
 
-The fusion process produces values for each horizon timestamp:
+The fuser provides two functions for different data types:
 
-- **Position 0**: Present value at horizon start
-- **Subsequent positions**: Average value over each optimization period
+- `fuse_to_intervals()` - Produces n interval averages using trapezoidal integration
+- `fuse_to_fence_posts()` - Produces n+1 point-in-time values via interpolation
 
-This matches optimization requirements: linear programming needs interval averages, not point samples.
+### Interval Fusion Strategy
+
+The `fuse_to_intervals()` function produces values for each optimization period:
+
+- Uses trapezoidal integration to compute accurate period averages
+- Accounts for value changes within periods
+
+This matches optimization requirements: linear programming operates on energy quantities (power × time), not instantaneous values.
+
+### Fence Post Fusion Strategy
+
+The `fuse_to_fence_posts()` function produces values at each timestamp boundary:
+
+- Uses linear interpolation to get values at exact fence post times
+- Preserves point-in-time nature of quantities like capacity and SOC limits
+
+This is appropriate for energy storage values that represent states at specific moments, not averages over periods.
 
 ### Interval Averaging
 
