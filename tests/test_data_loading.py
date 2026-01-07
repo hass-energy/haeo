@@ -1,4 +1,4 @@
-"""Tests for data loading module."""
+"""Tests for network building."""
 
 from typing import cast
 
@@ -7,18 +7,11 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
-from custom_components.haeo.data import create_network, load_element_configs
-from custom_components.haeo.elements import ElementConfigData, ElementConfigSchema
-from custom_components.haeo.elements.battery import (
-    CONF_CAPACITY,
-    CONF_EFFICIENCY,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MIN_CHARGE_PERCENTAGE,
-)
+from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
-from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST
+from custom_components.haeo.elements.load import CONF_CONNECTION
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
+from custom_components.haeo.network import create_network
 
 
 async def test_create_network_successful_loads_load_participant(hass: HomeAssistant) -> None:
@@ -27,34 +20,23 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
     entry = MockConfigEntry(domain=DOMAIN, entry_id="loaded_entry")
     entry.add_to_hass(hass)
 
-    # Set up test sensor
-    hass.states.async_set("sensor.baseload", "2.5", {"unit_of_measurement": "kW"})
-
-    participant_schemas = cast(
-        "dict[str, ElementConfigSchema]",
+    # Provide already-loaded config data (not schemas needing sensor loading)
+    loaded_configs = cast(
+        "dict[str, ElementConfigData]",
         {
-            "node": {
+            "main_bus": {
                 CONF_ELEMENT_TYPE: "node",
                 CONF_NAME: "main_bus",
                 CONF_IS_SOURCE: False,
                 CONF_IS_SINK: False,
             },
-            "load": {
+            "Baseload": {
                 CONF_ELEMENT_TYPE: "load",
                 CONF_NAME: "Baseload",
                 CONF_CONNECTION: "main_bus",
-                CONF_FORECAST: ["sensor.baseload"],
+                "forecast": [2.5, 2.5, 2.5, 2.5],  # Pre-loaded values in kW
             },
         },
-    )
-
-    forecast_times = [0, 1800, 3600, 5400, 7200]
-
-    # Load configs first
-    loaded_configs = await load_element_configs(
-        hass,
-        participant_schemas,
-        forecast_times,
     )
 
     result = await create_network(
@@ -65,67 +47,6 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
 
     assert result.periods == [0.5] * 4  # 1800 seconds = 0.5 hours
     assert "Baseload" in result.elements
-
-
-async def test_create_network_with_missing_sensors(hass: HomeAssistant) -> None:
-    """Test load_element_configs raises ValueError when sensors are unavailable."""
-    # Create a config with a sensor that doesn't exist
-    participants = cast(
-        "dict[str, ElementConfigSchema]",
-        {
-            "battery": {
-                CONF_ELEMENT_TYPE: "battery",
-                CONF_NAME: "battery",
-                CONF_CAPACITY: ["sensor.missing_battery_capacity"],  # This sensor doesn't exist
-                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.missing_battery_soc"],  # This sensor doesn't exist
-                CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 80.0,
-                CONF_EFFICIENCY: 95.0,
-            }
-        },
-    )
-
-    forecast_times = [0, 1800, 3600]
-
-    # Should raise ValueError because sensor is missing
-    with pytest.raises(ValueError, match="No time series data available"):
-        await load_element_configs(
-            hass,
-            participants,
-            forecast_times,
-        )
-
-
-async def test_create_network_with_unavailable_sensor_state(hass: HomeAssistant) -> None:
-    """Test create_network raises UpdateFailed when sensor state is unavailable."""
-    # Create sensors with unavailable state
-    hass.states.async_set("sensor.unavailable_capacity", "unavailable")
-    hass.states.async_set("sensor.unavailable_soc", "unavailable")
-
-    participants = cast(
-        "dict[str, ElementConfigSchema]",
-        {
-            "battery": {
-                CONF_ELEMENT_TYPE: "battery",
-                CONF_NAME: "battery",
-                CONF_CAPACITY: ["sensor.unavailable_capacity"],
-                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.unavailable_soc"],
-                CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 80.0,
-                CONF_EFFICIENCY: 95.0,
-            }
-        },
-    )
-
-    forecast_times = [0, 1800, 3600]
-
-    # Should raise ValueError because sensor state is unavailable
-    with pytest.raises(ValueError, match="No time series data available"):
-        await load_element_configs(
-            hass,
-            participants,
-            forecast_times,
-        )
 
 
 async def test_create_network_without_participants_returns_empty_network(hass: HomeAssistant) -> None:
@@ -203,7 +124,7 @@ async def test_create_network_add_failure_is_wrapped(hass: HomeAssistant, monkey
         err = RuntimeError("boom")
         raise err
 
-    monkeypatch.setattr("custom_components.haeo.data.Network.add", _raise)
+    monkeypatch.setattr("custom_components.haeo.network.Network.add", _raise)
 
     with pytest.raises(ValueError, match="Failed to add model element 'node'"):
         await create_network(

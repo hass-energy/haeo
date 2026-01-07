@@ -17,7 +17,7 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from . import data as data_module
+from . import network as network_module
 from .const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
@@ -225,8 +225,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             always_update=False,
         )
 
-        # State change subscription - starts as None, set up after first successful refresh
-        self._state_change_unsub: Callable[[], None] | None = None
+        # State change subscriptions - set up after first successful refresh
+        self._state_change_unsubs: list[Callable[[], None]] = []
         # Track if subscriptions have been enabled after first successful refresh
         self._subscriptions_enabled: bool = False
 
@@ -240,42 +240,76 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         return getattr(config_entry, "runtime_data", None)
 
     def _subscribe_to_input_entities(self) -> None:
-        """Subscribe to state changes from input entities."""
+        """Subscribe to state changes from input entities.
+
+        Sets up per-element callbacks so each input entity only updates
+        its specific element's TrackedParams when it changes.
+        """
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
             return
 
-        input_entity_ids = [entity.entity_id for entity in runtime_data.input_entities.values()]
-
-        # Subscribe to horizon manager changes (direct callback, not via HA state tracking)
+        # Subscribe to horizon manager changes (requires full re-optimization)
         runtime_data.horizon_manager.subscribe(self._handle_horizon_change)
 
-        if input_entity_ids:
-            self._state_change_unsub = async_track_state_change_event(
-                self.hass,
-                input_entity_ids,
-                self._handle_input_state_change,
+        # Group input entities by element name
+        entities_by_element: dict[str, list[str]] = {}
+        for (element_name, _field_name), entity in runtime_data.input_entities.items():
+            if element_name not in entities_by_element:
+                entities_by_element[element_name] = []
+            entities_by_element[element_name].append(entity.entity_id)
+
+        # Subscribe each element's entities to update only that element
+        for element_name, entity_ids in entities_by_element.items():
+            self._state_change_unsubs.append(
+                async_track_state_change_event(
+                    self.hass,
+                    entity_ids,
+                    self._create_element_update_callback(element_name),
+                )
             )
 
+    def _create_element_update_callback(self, element_name: str) -> Callable[[Event[EventStateChangedData]], None]:
+        """Create a callback that updates a specific element when its inputs change."""
+
+        @callback
+        def element_update_callback(_event: Event[EventStateChangedData]) -> None:
+            """Handle state change for a specific element's inputs."""
+            self._handle_element_update(element_name)
+
+        return element_update_callback
+
     @callback
-    def _handle_input_state_change(self, _event: Event[EventStateChangedData]) -> None:
-        """Handle state change events from input entities."""
+    def _handle_element_update(self, element_name: str) -> None:
+        """Handle an update to a specific element's input entities.
+
+        Updates only that element's TrackedParams in the network, then triggers
+        optimization with debouncing.
+        """
+        if self.network is None:
+            # Network not created yet - will be handled by initial creation
+            return
+
+        # Load the updated config for just this element
+        element_config = self._load_element_config(element_name)
+        if element_config is None:
+            return
+
+        # Update just this element's TrackedParams
+        network_module.update_element(self.network, element_config)
+
+        # Trigger optimization (with debouncing)
         self._trigger_optimization()
 
     @callback
     def _handle_horizon_change(self) -> None:
         """Handle horizon manager changes."""
+        # Just trigger optimization - _are_inputs_aligned will gate until all elements update
         self._trigger_optimization()
 
     @callback
     def _trigger_optimization(self) -> None:
-        """Trigger optimization with debouncing logic.
-
-        - If optimization is already in progress, mark pending and return
-        - If inputs are aligned and no recent optimization, optimize immediately
-        - If within cooldown period, mark pending and wait for timer
-        - When timer fires, optimize if pending updates exist
-        """
+        """Trigger optimization with debouncing."""
         # If optimization is in progress, just mark pending
         if self._optimization_in_progress:
             self._pending_refresh = True
@@ -343,6 +377,69 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         return True
 
+    def _load_element_config(self, element_name: str) -> ElementConfigData | None:
+        """Load configuration for a single element from its input entities.
+
+        Args:
+            element_name: Name of the element to load
+
+        Returns:
+            Loaded configuration, or None if element not found or data unavailable
+
+        """
+        if element_name not in self._participant_configs:
+            return None
+
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            return None
+
+        element_config = self._participant_configs[element_name]
+        element_type = element_config[CONF_ELEMENT_TYPE]
+
+        if not is_element_type(element_type):
+            return None
+
+        # Start with the base config (element_type, name)
+        loaded_data: dict[str, Any] = {
+            CONF_ELEMENT_TYPE: element_type,
+            CONF_NAME: element_name,
+        }
+
+        # Get input field definitions for this element type
+        input_field_infos = get_input_fields(element_type)
+        input_field_map = {f.field_name: f for f in input_field_infos}
+        input_field_names = set(input_field_map.keys())
+
+        # Process non-input fields from config first
+        for field_name in element_config:
+            if field_name in (CONF_ELEMENT_TYPE, CONF_NAME):
+                continue
+            if field_name in input_field_names:
+                continue
+            loaded_data[field_name] = element_config[field_name]
+
+        # Load values from input entities
+        for field_info in input_field_infos:
+            field_name = field_info.field_name
+            key = (element_name, field_name)
+
+            if key not in runtime_data.input_entities:
+                continue
+
+            entity = runtime_data.input_entities[key]
+            values = entity.get_values()
+
+            if values is None:
+                continue
+
+            if field_info.time_series:
+                loaded_data[field_name] = list(values)
+            else:
+                loaded_data[field_name] = values[0] if values else None
+
+        return loaded_data  # type: ignore[return-value]
+
     def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
         """Load element configurations from input entities.
 
@@ -360,67 +457,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         loaded_configs: dict[str, ElementConfigData] = {}
 
-        for element_name, element_config in self._participant_configs.items():
-            element_type = element_config[CONF_ELEMENT_TYPE]
-            if not is_element_type(element_type):
-                msg = f"Invalid element type {element_type} for {element_name}"
-                raise RuntimeError(msg)
-
-            # Start with the base config (element_type, name)
-            loaded_data: dict[str, Any] = {
-                CONF_ELEMENT_TYPE: element_type,
-                CONF_NAME: element_name,
-            }
-
-            # Get input field definitions for this element type
-            input_field_infos = get_input_fields(element_type)
-            input_field_map = {f.field_name: f for f in input_field_infos}
-            input_field_names = set(input_field_map.keys())
-
-            # Process non-input fields from config first
-            for field_name in element_config:
-                if field_name in (CONF_ELEMENT_TYPE, CONF_NAME):
-                    continue
-                if field_name in input_field_names:
-                    # Input fields are handled separately below
-                    continue
-                # Not an input field - copy directly from config
-                # This handles participant references (e.g., connection: "Switchboard")
-                loaded_data[field_name] = element_config[field_name]
-
-            # Load values from input entities
-            for field_info in input_field_infos:
-                field_name = field_info.field_name
-                key = (element_name, field_name)
-
-                if key not in runtime_data.input_entities:
-                    # No entity - field not in INPUT_FIELDS registry
-                    continue
-
-                entity = runtime_data.input_entities[key]
-                values = entity.get_values()
-
-                if values is None:
-                    # Entity disabled or not ready - skip this field
-                    continue
-
-                # Check if field is time_series or scalar
-                if field_info.time_series:
-                    # Return as list for time series fields
-                    loaded_data[field_name] = list(values)
-                else:
-                    # Return first value for scalar fields
-                    loaded_data[field_name] = values[0] if values else None
-
-            loaded_configs[element_name] = loaded_data  # type: ignore[assignment]
+        for element_name in self._participant_configs:
+            element_config = self._load_element_config(element_name)
+            if element_config is not None:
+                loaded_configs[element_name] = element_config
 
         return loaded_configs
 
     def cleanup(self) -> None:
         """Clean up coordinator resources when unloading."""
-        if self._state_change_unsub is not None:
-            self._state_change_unsub()
-            self._state_change_unsub = None
+        for unsub in self._state_change_unsubs:
+            unsub()
+        self._state_change_unsubs.clear()
 
         if self._debounce_timer is not None:
             self._debounce_timer()
@@ -468,16 +516,16 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
 
-            # Create network on first run, update on subsequent runs (warm start)
+            # Create network on first run (subsequent updates handled by element callbacks)
             if self.network is None:
-                network = await data_module.create_network(
+                network = await network_module.create_network(
                     self.config_entry,
                     periods_seconds=periods_seconds,
                     participants=loaded_configs,
                 )
+                self.network = network
             else:
                 network = self.network
-                data_module.update_network(network, loaded_configs)
 
             # Perform the optimization
             cost = await self.hass.async_add_executor_job(network.optimize)
@@ -490,9 +538,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
             dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
-
-            # Persist runtime state for diagnostics and system health
-            self.network = network
 
             network_output_data: dict[NetworkOutputName, OutputData] = {
                 OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
