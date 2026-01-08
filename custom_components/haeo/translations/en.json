@@ -224,8 +224,8 @@
           "description": "Configure bidirectional inverter with DC bus for battery and solar connections",
           "data": {
             "connection": "AC Connection",
-            "efficiency_ac_to_dc": "AC to DC Efficiency",
-            "efficiency_dc_to_ac": "DC to AC Efficiency",
+            "efficiency_ac_to_dc": "AC to DC Efficiency (Optional)",
+            "efficiency_dc_to_ac": "DC to AC Efficiency (Optional)",
             "max_power_ac_to_dc": "Max AC to DC Power",
             "max_power_dc_to_ac": "Max DC to AC Power",
             "name": "Inverter Name"
@@ -277,17 +277,8 @@
       "initiate_flow": { "user": "Node", "reconfigure": "Node" },
       "step": {
         "user": {
-          "title": "Add Node",
+          "title": "Node Configuration",
           "description": "Add a node for power balance calculations or to source/sink unlimited power.",
-          "data": {
-            "is_sink": "Can consume unlimited power (Sink)",
-            "is_source": "Can produce unlimited power (Source)",
-            "name": "Node Name"
-          }
-        },
-        "reconfigure": {
-          "title": "Edit Node",
-          "description": "Update node configuration",
           "data": {
             "is_sink": "Can consume unlimited power (Sink)",
             "is_source": "Can produce unlimited power (Source)",

@@ -59,7 +59,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=0.1,
         ),
         output_type=OutputType.EFFICIENCY,
-        defaults=InputFieldDefaults(mode="value", value=100.0),
+        defaults=InputFieldDefaults(mode=None, value=100.0),
     ),
     InputFieldInfo(
         field_name=CONF_EFFICIENCY_AC_TO_DC,
@@ -73,7 +73,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
             native_step=0.1,
         ),
         output_type=OutputType.EFFICIENCY,
-        defaults=InputFieldDefaults(mode="value", value=100.0),
+        defaults=InputFieldDefaults(mode=None, value=100.0),
     ),
 )
 
