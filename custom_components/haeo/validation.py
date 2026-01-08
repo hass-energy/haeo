@@ -34,11 +34,6 @@ async def _build_adjacency(
 
     This uses the adapter layer to convert configuration elements into model elements,
     which includes both explicit connection elements and implicit connections.
-
-    Note: This validation path is used during config flow (before the coordinator
-    and input entities are set up). During normal operation, the coordinator reads
-    from pre-loaded input entities which also use adapter.load() methods that
-    respect InputFieldInfo.fence_posts metadata for consistency.
     """
     adjacency: dict[str, set[str]] = {}
 
@@ -48,7 +43,6 @@ async def _build_adjacency(
         entry = ELEMENT_TYPES[element_type]
 
         # Load config with actual forecast times to get real sensor data
-        # adapter.load() uses InputFieldInfo.fence_posts to determine fence_posts vs intervals
         loaded = await entry.load(config, hass=hass, forecast_times=forecast_times)
 
         # Get model elements including implicit connections

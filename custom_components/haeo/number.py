@@ -23,9 +23,6 @@ async def async_setup_entry(
 
     Creates number entities for each numeric input field in element subentries.
     These entities serve as configurable inputs for the optimization model.
-
-    This function waits for all input entities to load their data before returning,
-    ensuring the coordinator can rely on pre-loaded data during setup.
     """
     # Runtime data must be set by __init__.py before platforms are set up
     if config_entry.runtime_data is None:
