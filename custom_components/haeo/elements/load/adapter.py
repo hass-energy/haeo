@@ -17,7 +17,7 @@ from custom_components.haeo.model.elements.power_connection import (
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import LoadSubentryFlowHandler
-from .schema import CONF_CONNECTION, CONF_FORECAST, DEFAULT_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
 # Load output names
 type LoadOutputName = Literal[
@@ -50,9 +50,6 @@ class LoadAdapter:
 
     def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if load configuration can be loaded."""
-        # Empty forecast list is valid - uses default from schema
-        if not config[CONF_FORECAST]:
-            return True
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
@@ -64,18 +61,12 @@ class LoadAdapter:
         forecast_times: Sequence[float],
     ) -> LoadConfigData:
         """Load load configuration values from sensors."""
-        # If no entities configured, use default from schema for all periods
-        # forecast_times has n+1 boundary times, so intervals have n values
-        n_intervals = len(forecast_times) - 1 if forecast_times else 0
-        if not config[CONF_FORECAST]:
-            forecast = [DEFAULT_FORECAST] * n_intervals
-        else:
-            ts_loader = TimeSeriesLoader()
-            forecast = await ts_loader.load_intervals(
-                hass=hass,
-                value=config[CONF_FORECAST],
-                forecast_times=forecast_times,
-            )
+        ts_loader = TimeSeriesLoader()
+        forecast = await ts_loader.load_intervals(
+            hass=hass,
+            value=config[CONF_FORECAST],
+            forecast_times=forecast_times,
+        )
 
         return {
             "element_type": config["element_type"],
