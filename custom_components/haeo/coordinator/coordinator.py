@@ -608,7 +608,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 # outputs function returns {device_name: {output_name: OutputData}}
                 # May return multiple devices per config element (e.g., battery regions)
                 try:
-                    adapter_outputs: Mapping[ElementDeviceName, Mapping[Any, OutputData]] = outputs_fn(
+                    adapter_outputs: Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]] = outputs_fn(
                         element_name, model_outputs, loaded_configs[element_name]
                     )
                 except KeyError:
