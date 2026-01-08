@@ -448,7 +448,6 @@
       "battery_state_of_charge": { "name": "State of charge" },
       "connection_cost_source_target": { "name": "{source} to {target} cost" },
       "connection_cost_target_source": { "name": "{target} to {source} cost" },
-      "connection_power_active": { "name": "{source} to {target} active power" },
       "connection_power_source_target": { "name": "{source} to {target} power" },
       "connection_power_target_source": { "name": "{target} to {source} power" },
       "connection_shadow_power_max_source_target": { "name": "Max {source} to {target} power shadow price" },

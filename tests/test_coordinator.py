@@ -417,7 +417,7 @@ async def test_async_update_data_propagates_update_failed(
     with (
         patch.object(coordinator, "_load_from_input_entities", return_value={}),
         patch(
-            "custom_components.haeo.coordinator.network_module.create_network",
+            "custom_components.haeo.coordinator.coordinator.network_module.create_network",
             side_effect=UpdateFailed("missing data"),
         ),
         pytest.raises(UpdateFailed, match="missing data"),
@@ -438,7 +438,7 @@ async def test_async_update_data_propagates_value_error(
     with (
         patch.object(coordinator, "_load_from_input_entities", return_value={}),
         patch(
-            "custom_components.haeo.coordinator.network_module.create_network",
+            "custom_components.haeo.coordinator.coordinator.network_module.create_network",
             side_effect=ValueError("invalid config"),
         ),
         pytest.raises(ValueError, match="invalid config"),
@@ -467,11 +467,11 @@ async def test_async_update_data_raises_on_missing_model_element(
     patched_entry = MagicMock(outputs=broken_outputs)
 
     monkeypatch.setattr(
-        "custom_components.haeo.coordinator.ELEMENT_TYPES",
+        "custom_components.haeo.coordinator.coordinator.ELEMENT_TYPES",
         {**ELEMENT_TYPES, "battery": patched_entry},
     )
     monkeypatch.setattr(
-        "custom_components.haeo.coordinator.network_module.create_network",
+        "custom_components.haeo.coordinator.coordinator.network_module.create_network",
         AsyncMock(return_value=fake_network),
     )
 
