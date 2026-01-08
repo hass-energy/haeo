@@ -208,7 +208,7 @@ class Element[OutputNameT: str]:
         """
         # Get this method's name from the decorator to avoid hardcoding
         this_method_name = type(self).cost._name  # type: ignore[attr-defined]
-        
+
         # Collect all cost expressions from @cost methods (excluding this one)
         costs: list[Any] = []
         for name in dir(type(self)):
@@ -218,7 +218,7 @@ class Element[OutputNameT: str]:
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
                 continue
-                
+
             # Call the cost method - this establishes dependency tracking
             method = getattr(self, name)
             if (cost_value := method()) is not None:

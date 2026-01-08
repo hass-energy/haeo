@@ -12,10 +12,8 @@ The pattern is inspired by reactive frameworks like MobX:
 
 from .decorators import OutputMethod, ReactiveConstraint, ReactiveCost, ReactiveMethod, constraint, cost, output
 from .tracked_param import TrackedParam
-from .types import UNSET, is_set
 
 __all__ = [
-    "UNSET",
     "OutputMethod",
     "ReactiveConstraint",
     "ReactiveCost",
@@ -23,6 +21,5 @@ __all__ = [
     "TrackedParam",
     "constraint",
     "cost",
-    "is_set",
     "output",
 ]

@@ -1,9 +1,10 @@
-"""Tests for reactive type helpers (UNSET sentinel and is_set function)."""
+"""Tests for TrackedParam behavior with unset values."""
 
+import pytest
 from highspy import Highs
 
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.reactive import UNSET, TrackedParam, is_set
+from custom_components.haeo.model.reactive import TrackedParam
 
 
 def create_test_element[T: Element[str]](cls: type[T]) -> T:
@@ -13,17 +14,20 @@ def create_test_element[T: Element[str]](cls: type[T]) -> T:
     return cls(name="test", periods=(1.0,), solver=solver)
 
 
-def test_unset_sentinel_returns_unset() -> None:
-    """Test that accessing an unset TrackedParam returns UNSET sentinel."""
+def test_unset_raises_attribute_error() -> None:
+    """Test that accessing an unset TrackedParam raises AttributeError."""
 
     class TestElement(Element[str]):
         capacity = TrackedParam[float]()
 
     elem = create_test_element(TestElement)
 
-    # Never set, should return UNSET
-    assert elem.capacity is UNSET
-    assert not is_set(elem.capacity)
+    # Never set, should raise AttributeError
+    with pytest.raises(AttributeError):
+        _ = elem.capacity
+        
+    # is_set should return False
+    assert not TestElement.capacity.is_set(elem)
 
 
 def test_is_set_returns_true_after_setting() -> None:
@@ -33,20 +37,22 @@ def test_is_set_returns_true_after_setting() -> None:
         capacity = TrackedParam[float]()
 
     elem = create_test_element(TestElement)
-    assert not is_set(elem.capacity)
+    assert not TestElement.capacity.is_set(elem)
 
     elem.capacity = 10.0
-    assert is_set(elem.capacity)
+    assert TestElement.capacity.is_set(elem)
+    assert elem.capacity == 10.0
 
 
-def test_getitem_returns_unset_for_unset_param() -> None:
-    """Test that __getitem__ returns UNSET for unset TrackedParams."""
+def test_getitem_raises_for_unset_param() -> None:
+    """Test that __getitem__ raises AttributeError for unset TrackedParams."""
 
     class TestElement(Element[str]):
         capacity = TrackedParam[float]()
 
     elem = create_test_element(TestElement)
 
-    # Accessing via __getitem__ should also return UNSET
-    assert elem["capacity"] is UNSET
-    assert not is_set(elem["capacity"])
+    # Accessing via __getitem__ should also raise AttributeError
+    with pytest.raises(AttributeError):
+        _ = elem["capacity"]
+    assert not TestElement.capacity.is_set(elem)

@@ -3,10 +3,10 @@
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, overload
 
-from .types import UNSET, values_equal
+import numpy as np
 
 if TYPE_CHECKING:
-    from haeo.model.element import Element
+    from custom_components.haeo.model.element import Element
 
 # Context for tracking parameter access during constraint computation
 tracking_context: ContextVar[set[str] | None] = ContextVar("tracking", default=None)
@@ -51,17 +51,70 @@ class TrackedParam[T]:
         tracking = tracking_context.get()
         if tracking is not None:
             tracking.add(self._name)
-        # Return UNSET if the parameter has never been set
-        return getattr(obj, self._private, UNSET)  # type: ignore[return-value]
+        # Raise AttributeError if never set (standard Python behavior)
+        return getattr(obj, self._private)  # type: ignore[return-value]
 
     def __set__(self, obj: "Element[Any]", value: T) -> None:
         """Set the parameter value and invalidate dependent decorators."""
-        old = getattr(obj, self._private, UNSET)
+        # Check if this is the first time setting (no invalidation needed)
+        if not hasattr(obj, self._private):
+            setattr(obj, self._private, value)
+            return
+
+        # Get old value and compare
+        old = getattr(obj, self._private)
         setattr(obj, self._private, value)
-        # Only invalidate if value actually changed and is not initial set
-        if old is not UNSET and not values_equal(old, value):
+
+        # Only invalidate if value actually changed
+        if not _values_equal(old, value):
             # Invalidate all reactive decorators that depend on this parameter
             _invalidate_param_dependents(obj, self._name)
+
+    def is_set(self, obj: "Element[Any]") -> bool:
+        """Check if this parameter has been set on the given object.
+
+        Args:
+            obj: The element instance to check
+
+        Returns:
+            True if the parameter has been set, False otherwise
+
+        Example:
+            class MyElement(Element):
+                capacity = TrackedParam[float]()
+
+                @constraint
+                def my_constraint(self) -> highs_linear_expression | None:
+                    if not self.capacity.is_set(self):
+                        return None  # Skip constraint until capacity is set
+                    return self.energy <= self.capacity
+
+        """
+        return hasattr(obj, self._private)
+
+
+def _values_equal(a: object, b: object) -> bool:
+    """Compare two values for equality, handling numpy arrays.
+
+    Args:
+        a: First value
+        b: Second value
+
+    Returns:
+        True if values are equal, False otherwise
+
+    """
+    # Handle numpy array comparisons
+    if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        try:
+            return bool(np.array_equal(a, b))  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return False
+    # Standard equality for other types
+    try:
+        return bool(a == b)
+    except (TypeError, ValueError):
+        return False
 
 
 def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> None:
@@ -166,7 +219,6 @@ def ensure_decorator_state(element: "Element[Any]", method_name: str) -> dict[st
 # Re-export tracking context for use by decorators
 __all__ = [
     "TrackedParam",
-    "UNSET",
     "ensure_decorator_state",
     "get_decorator_state",
     "tracking_context",
