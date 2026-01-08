@@ -74,11 +74,11 @@ def test_connection_power_with_source_end(solver: Highs) -> None:
     assert h.val(result[1]) == pytest.approx(-2.0)
 
 
-def test_apply_constraints_populates_applied_constraints(solver: Highs) -> None:
-    """Test that apply_constraints() applies constraints via @constraint decorators.
+def test_constraints_populates_constraint_state(solver: Highs) -> None:
+    """Test that constraints() applies constraints via @constraint decorators.
 
     With the reactive pattern, constraints are discovered via @constraint decorators
-    and applied to the solver when apply_constraints() is called.
+    and applied to the solver when constraints() is called.
     """
     h = solver
 
@@ -86,10 +86,10 @@ def test_apply_constraints_populates_applied_constraints(solver: Highs) -> None:
     # Use is_sink=False so the node_power_balance actually creates constraints
     element = Node(name="test_node", periods=[1.0] * 3, solver=h, is_source=True, is_sink=False)
 
-    # Apply constraints
-    element.apply_constraints()
+    # Call constraints to trigger decorator lifecycle
+    element.constraints()
 
-    # After applying, constraint state should exist
+    # After calling, constraint state should exist
     # Node has node_power_balance (returns constraints when is_source=True, is_sink=False)
     constraint = element.get_constraint("node_power_balance")
     assert constraint is not None

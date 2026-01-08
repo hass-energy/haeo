@@ -1,8 +1,9 @@
 """Tests for reactive type helpers (UNSET sentinel and is_set function)."""
 
+from highspy import Highs
+
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import UNSET, TrackedParam, is_set
-from highspy import Highs
 
 
 def create_test_element[T: Element[str]](cls: type[T]) -> T:

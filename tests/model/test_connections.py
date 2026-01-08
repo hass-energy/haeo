@@ -30,8 +30,8 @@ def _solve_connection_scenario(
     # Use the element's solver instance (set in constructor)
     h = element._solver
 
-    # Always call apply_constraints to set up constraints (variables already exist)
-    element.apply_constraints()
+    # Always call constraints to set up constraints (variables already exist)
+    element.constraints()
 
     if inputs is None:
         # No optimization - just solve with no objective and get outputs directly
@@ -79,7 +79,7 @@ def _solve_connection_scenario(
         h.addConstr(target_vars[i] == element.power_source_target[i] - element.power_target_source[i])
 
     # Apply constraints via reactive pattern
-    element.apply_constraints()
+    element.constraints()
 
     # Objective function - collect costs from @cost decorated methods
     cost_terms: list[highs_linear_expression] = []

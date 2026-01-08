@@ -305,7 +305,7 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     lower.build_power_balance(scenario.periods)
 
     # Apply balance connection constraints
-    connection.apply_constraints()
+    connection.constraints()
 
     # Collect costs for objective (required for min/max constraint behavior)
     costs: list[Any] = []
@@ -356,7 +356,7 @@ def test_battery_balance_connection_missing_references(solver: Highs) -> None:
     )
 
     with pytest.raises(ValueError, match="Battery references not set"):
-        connection.apply_constraints()
+        connection.constraints()
 
 
 def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
@@ -374,7 +374,7 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
     )
     # MockBattery provides the same interface as Battery but isn't a subtype
     connection.set_battery_references(upper, lower)  # type: ignore[arg-type]
-    connection.apply_constraints()
+    connection.constraints()
 
     # Run solver
     solver.run()

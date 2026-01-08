@@ -229,15 +229,15 @@ def test_network_constraint_generation_error() -> None:
     # Add a regular battery
     network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge=5000)  # 50% of 10000
 
-    # Mock an element to raise an exception during apply_constraints
+    # Mock an element to raise an exception during constraints
     mock_element = Mock(spec=Element)
     mock_element.name = "failing_element"
     mock_element.build = Mock()
     mock_element.power_balance_constraints = {}
     mock_element.power_consumption = None
     mock_element.power_production = None
-    mock_element.apply_costs = Mock()
-    mock_element.apply_constraints.side_effect = RuntimeError("Constraint generation failed")
+    mock_element.cost = Mock(return_value=[])
+    mock_element.constraints.side_effect = RuntimeError("Constraint generation failed")
     network.elements["failing_element"] = mock_element
 
     # Should wrap the error with context about which element failed
@@ -265,8 +265,8 @@ def test_network_optimize_validates_before_running() -> None:
         network.optimize()
 
 
-def test_network_optimize_apply_constraints_error() -> None:
-    """Test that optimize() catches and wraps apply_constraints errors."""
+def test_network_optimize_constraints_error() -> None:
+    """Test that optimize() catches and wraps constraints errors."""
     network = Network(
         name="test_network",
         periods=[1.0] * 3,
@@ -275,9 +275,10 @@ def test_network_optimize_apply_constraints_error() -> None:
     # Add a regular element
     network.add(ELEMENT_TYPE_NODE, "node1", is_sink=True, is_source=True)
 
-    # Mock an element that raises an exception during apply_constraints
+    # Mock an element that raises an exception during constraints
     mock_element = Mock(spec=Element)
-    mock_element.apply_constraints.side_effect = RuntimeError("Build failed")
+    mock_element.constraints.side_effect = RuntimeError("Build failed")
+    mock_element.cost = Mock(return_value=[])
     network.elements["failing_element"] = mock_element
 
     # Should wrap the error with context about which element failed
@@ -315,10 +316,10 @@ def test_network_optimize_raises_on_solver_failure(
     network.add(ELEMENT_TYPE_NODE, "node", is_sink=True, is_source=True)
 
     def mock_optimize() -> float:
-        # Call apply_constraints to set up the model
+        # Call constraints to set up the model
         network.validate()
         for element in network.elements.values():
-            element.apply_constraints()
+            element.constraints()
         # Mock the model status to indicate failure
         monkeypatch.setattr(network._solver, "getModelStatus", lambda: HighsModelStatus.kUnbounded)
         network._solver.run()

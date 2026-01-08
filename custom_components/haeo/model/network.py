@@ -120,9 +120,10 @@ class Network:
 
         After optimization, access optimized values directly from elements and connections.
 
-        Applies constraints and costs from all elements. On first call, this builds all
-        constraints. On subsequent calls, only invalidated constraints are rebuilt
-        (those whose TrackedParam dependencies have changed).
+        Collects constraints and costs from all elements. Calling element.constraints()
+        automatically triggers constraint creation/updating via decorators. On first call,
+        this builds all constraints. On subsequent calls, only invalidated constraints are
+        rebuilt (those whose TrackedParam dependencies have changed).
 
         Returns:
             The total optimization cost
@@ -133,11 +134,10 @@ class Network:
 
         h = self._solver
 
-        # Apply constraints for all elements (reactive - only rebuilds if invalidated)
-        # Constraints are applied automatically by decorators when called
+        # Collect constraints from all elements (reactive - calling triggers decorator lifecycle)
         for element_name, element in self.elements.items():
             try:
-                element.apply_constraints()
+                element.constraints()
             except Exception as e:
                 msg = f"Failed to apply constraints for element '{element_name}'"
                 raise ValueError(msg) from e

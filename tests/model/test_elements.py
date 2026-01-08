@@ -57,8 +57,8 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
 
         element.connection_power = mock_connection_power
 
-        # Call apply_constraints() to set up power balance with mocked connection_power
-        element.apply_constraints()
+        # Call constraints() to set up power balance with mocked connection_power
+        element.constraints()
 
         # Collect all cost terms from @cost decorated methods
         element_costs: list[Any] = []

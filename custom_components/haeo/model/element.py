@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 
 from .const import OutputType
 from .output_data import OutputData
-from .reactive import CachedConstraint, CachedCost, CachedMethod, OutputMethod, TrackedParam
+from .reactive import CachedConstraint, CachedCost, OutputMethod, TrackedParam
 
 if TYPE_CHECKING:
     from .elements.connection import Connection
@@ -199,24 +199,11 @@ class Element[OutputNameT: str]:
                     result[name] = output_data  # type: ignore[literal-required]
         return result
 
-    def apply_constraints(self) -> None:
-        """Apply constraints to the solver.
-
-        Constraints are applied automatically by decorators when called.
-        This method ensures all constraint methods are called to trigger their application.
-        """
-        # Find all constraint methods on this class
-        for name in dir(type(self)):
-            attr = getattr(type(self), name, None)
-            if isinstance(attr, CachedMethod) and isinstance(attr, CachedConstraint):
-                # Call the constraint method to trigger application
-                method = getattr(self, name)
-                method()
-
     def constraints(self) -> list[highs_cons | list[highs_cons]]:
         """Return all constraints from this element.
 
-        Discovers and calls all @constraint decorated methods, collecting their results.
+        Discovers and calls all @constraint decorated methods. Calling the methods
+        triggers automatic constraint creation/updating in the solver via decorators.
 
         Returns:
             List of constraint objects (individual constraints or lists of constraints)
@@ -226,7 +213,11 @@ class Element[OutputNameT: str]:
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if isinstance(attr, CachedConstraint):
-                # Get the state for this constraint
+                # Call the constraint method to trigger decorator lifecycle
+                method = getattr(self, name)
+                method()
+
+                # Get the state after calling to collect constraints
                 state_attr = f"_reactive_state_{name}"
                 state = getattr(self, state_attr, None)
                 if state is not None and "constraint" in state:

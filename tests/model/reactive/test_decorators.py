@@ -1,7 +1,6 @@
 """Tests for reactive decorators (constraint, cost, output) and integration tests."""
 
 from collections.abc import Sequence
-from typing import Any
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
@@ -281,11 +280,11 @@ def test_element_reactive_invalidate_dependents_costs() -> None:
     assert state["invalidated"]
 
 
-# Apply constraints tests
+# Constraint collection tests
 
 
-def test_apply_constraints_adds_new_constraint() -> None:
-    """Test that apply_constraints adds constraints to solver on first call."""
+def test_constraints_adds_new_constraint() -> None:
+    """Test that constraints() adds constraints to solver on first call."""
     solver = Highs()
     solver.setOptionValue("output_flag", False)
     x = solver.addVariable(lb=0.0, ub=10.0)
@@ -298,7 +297,7 @@ def test_apply_constraints_adds_new_constraint() -> None:
 
     elem = TestElement(name="test", periods=(1.0,), solver=solver)
 
-    elem.apply_constraints()
+    elem.constraints()
 
     # Constraint should be applied (state should exist with constraint)
     state = getattr(elem, "_reactive_state_my_constraint", None)
@@ -306,8 +305,8 @@ def test_apply_constraints_adds_new_constraint() -> None:
     assert "constraint" in state
 
 
-def test_apply_constraints_skips_none_result() -> None:
-    """Test that apply_constraints handles None result gracefully."""
+def test_constraints_skips_none_result() -> None:
+    """Test that constraints() handles None result gracefully."""
     solver = Highs()
     solver.setOptionValue("output_flag", False)
 
@@ -318,7 +317,7 @@ def test_apply_constraints_skips_none_result() -> None:
 
     elem = TestElement(name="test", periods=(1.0,), solver=solver)
 
-    elem.apply_constraints()
+    elem.constraints()
 
     # State should exist but no constraint should be added
     state = getattr(elem, "_reactive_state_my_constraint", None)

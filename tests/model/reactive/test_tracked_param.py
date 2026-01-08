@@ -2,8 +2,8 @@
 
 from typing import Any
 
-import pytest
 from highspy import Highs
+import pytest
 
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import TrackedParam, constraint
