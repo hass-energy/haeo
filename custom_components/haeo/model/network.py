@@ -129,12 +129,8 @@ class Network:
         # Collect costs from all elements
         costs: list[highs_linear_expression] = []
         for element_name, element in self.elements.items():
-            try:
-                if (element_cost := element.cost()) is not None:
-                    costs.append(element_cost)
-            except Exception as e:
-                msg = f"Failed to collect costs for element '{element_name}'"
-                raise ValueError(msg) from e
+            if (element_cost := element.cost()) is not None:
+                costs.append(element_cost)
 
         # Aggregate into a single expression
         if not costs:
@@ -213,10 +209,6 @@ class Network:
         """
         result: dict[str, dict[str, highs_cons | list[highs_cons]]] = {}
         for element_name, element in self.elements.items():
-            try:
-                if element_constraints := element.constraints():
-                    result[element_name] = element_constraints
-            except Exception as e:
-                msg = f"Failed to get constraints for element '{element_name}'"
-                raise ValueError(msg) from e
+            if element_constraints := element.constraints():
+                result[element_name] = element_constraints
         return result

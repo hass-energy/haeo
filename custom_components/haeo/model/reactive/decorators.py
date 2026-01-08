@@ -202,15 +202,13 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
 
         """
         if isinstance(existing, list):
-            if not isinstance(expr, list):
-                msg = "Expression type mismatch: expected list"
-                raise TypeError(msg)
+            # Both existing and expr are lists - update element-wise
+            assert isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101
             for cons, exp in zip(existing, expr, strict=True):
                 self._update_single_constraint(solver, cons, exp)
         else:
-            if isinstance(expr, list):
-                msg = "Expression type mismatch: expected single expression"
-                raise TypeError(msg)
+            # Both existing and expr are single values
+            assert not isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101
             self._update_single_constraint(solver, existing, expr)
 
     def _update_single_constraint(
