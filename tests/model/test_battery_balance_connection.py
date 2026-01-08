@@ -378,3 +378,31 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
     assert outputs["balance_power_up"].unit == "kW"
     assert outputs["balance_power_down"].direction == "+"
     assert outputs["balance_power_up"].direction == "-"
+
+
+def test_battery_balance_connection_raises_without_battery_references() -> None:
+    """Test that constraint methods raise ValueError when battery references not set."""
+    h = Highs()
+    h.setOptionValue("output_flag", False)
+
+    # Create connection without setting battery references
+    conn = BatteryBalanceConnection(
+        name="balance",
+        periods=[1.0, 1.0],
+        solver=h,
+        upper="upper",
+        lower="lower",
+    )
+
+    # Calling constraints without setting battery references should raise
+    with pytest.raises(ValueError, match="Battery references not set"):
+        conn.balance_down_lower_bound()
+
+    with pytest.raises(ValueError, match="Battery references not set"):
+        conn.balance_down_slack_bound()
+
+    with pytest.raises(ValueError, match="Battery references not set"):
+        conn.balance_up_upper_bound()
+
+    with pytest.raises(ValueError, match="Battery references not set"):
+        conn.balance_up_slack_bound()

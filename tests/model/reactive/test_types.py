@@ -1,10 +1,12 @@
 """Tests for TrackedParam behavior with unset values."""
 
 from highspy import Highs
+import numpy as np
 import pytest
 
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import TrackedParam
+from custom_components.haeo.model.reactive.tracked_param import _values_equal
 
 
 def create_test_element[T: Element[str]](cls: type[T]) -> T:
@@ -56,3 +58,39 @@ def test_getitem_raises_for_unset_param() -> None:
     with pytest.raises(AttributeError):
         _ = elem["capacity"]
     assert not TestElement.capacity.is_set(elem)
+
+
+def test_values_equal_handles_comparison_errors() -> None:
+    """Test _values_equal handles TypeError and ValueError in comparisons."""
+    # Test numpy array comparison that raises TypeError
+    # (e.g., arrays with incompatible shapes for certain operations)
+    class BadArray:
+        """Mock array that raises TypeError on comparison."""
+
+        def __eq__(self, other: object) -> bool:
+            msg = "Incompatible types"
+            raise TypeError(msg)
+
+        def __hash__(self) -> int:
+            return id(self)
+
+    assert not _values_equal(BadArray(), BadArray())
+
+    # Test standard equality that raises ValueError
+    class BadValue:
+        """Mock value that raises ValueError on comparison."""
+
+        def __eq__(self, other: object) -> bool:
+            msg = "Invalid comparison"
+            raise ValueError(msg)
+
+        def __hash__(self) -> int:
+            return id(self)
+
+    assert not _values_equal(BadValue(), BadValue())
+
+    # Test numpy array comparison that raises ValueError
+    # Arrays with object dtype that can't be compared
+    a = np.array([BadValue()], dtype=object)
+    b = np.array([BadValue()], dtype=object)
+    assert not _values_equal(a, b)
