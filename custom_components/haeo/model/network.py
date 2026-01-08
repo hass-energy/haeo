@@ -1,6 +1,6 @@
 """Network class for electrical system modeling and optimization."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 import logging
 from typing import Any
@@ -9,11 +9,10 @@ from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
 
 from .element import Element
+from .elements import ELEMENTS
 from .elements.battery import Battery
 from .elements.battery_balance_connection import BatteryBalanceConnection
 from .elements.connection import Connection
-from .elements.node import Node
-from .elements.power_connection import PowerConnection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,16 +72,9 @@ class Network:
             The created element
 
         """
-        # Create new element
-        factories: dict[str, Callable[..., Element[Any]]] = {
-            "battery": Battery,
-            "battery_balance_connection": BatteryBalanceConnection,
-            "connection": PowerConnection,
-            "node": Node,
-        }
-
-        factory = factories[element_type.lower()]
-        element = factory(name=name, periods=self.periods, solver=self._solver, **kwargs)
+        # Create new element using registry
+        element_spec = ELEMENTS[element_type.lower()]
+        element = element_spec.factory(name=name, periods=self.periods, solver=self._solver, **kwargs)
         self.elements[name] = element
 
         # Register connections immediately when adding Connection elements

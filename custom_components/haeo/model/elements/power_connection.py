@@ -34,7 +34,6 @@ type PowerConnectionOutputName = (
     Literal[
         "connection_power_source_target",
         "connection_power_target_source",
-        "connection_power_active",
         "connection_cost_source_target",
         "connection_cost_target_source",
     ]
@@ -43,7 +42,6 @@ type PowerConnectionOutputName = (
 
 POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = frozenset(
     (
-        CONNECTION_POWER_ACTIVE := "connection_power_active",
         # Cost outputs
         CONNECTION_COST_SOURCE_TARGET := "connection_cost_source_target",
         CONNECTION_COST_TARGET_SOURCE := "connection_cost_target_source",

@@ -14,15 +14,13 @@ from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import TrackedParam, constraint, output
 from custom_components.haeo.model.util import broadcast_to_sequence
 
-# Type for battery constraint names
+# Type for battery constraint names (shadow prices exposed as outputs)
 type BatteryConstraintName = Literal[
     "battery_power_balance",
     "battery_energy_in_flow",
     "battery_energy_out_flow",
     "battery_soc_max",
     "battery_soc_min",
-    "battery_initial_charge",
-    "battery_initial_discharge",
 ]
 
 # Type for all battery output names (union of base outputs and constraints)
@@ -35,7 +33,7 @@ type BatteryOutputName = (
     | BatteryConstraintName
 )
 
-# Battery constraint names
+# Battery constraint names (exposed as shadow price outputs)
 BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
     (
         BATTERY_POWER_BALANCE := "battery_power_balance",
@@ -43,8 +41,6 @@ BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
         BATTERY_ENERGY_OUT_FLOW := "battery_energy_out_flow",
         BATTERY_SOC_MAX := "battery_soc_max",
         BATTERY_SOC_MIN := "battery_soc_min",
-        BATTERY_INITIAL_CHARGE := "battery_initial_charge",
-        BATTERY_INITIAL_DISCHARGE := "battery_initial_discharge",
     )
 )
 

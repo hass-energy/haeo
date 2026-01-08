@@ -2,7 +2,6 @@
 
 # Re-export power connection output names from model
 from custom_components.haeo.model.elements.power_connection import (
-    CONNECTION_POWER_ACTIVE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
@@ -15,6 +14,7 @@ from .adapter import (
     CONNECTION_DEVICE_CONNECTION,
     CONNECTION_DEVICE_NAMES,
     CONNECTION_OUTPUT_NAMES,
+    CONNECTION_POWER_ACTIVE,
     ConnectionAdapter,
     ConnectionDeviceName,
     adapter,

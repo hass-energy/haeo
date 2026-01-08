@@ -11,7 +11,6 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements.power_connection import (
-    CONNECTION_POWER_ACTIVE,
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
@@ -37,7 +36,10 @@ from .schema import (
     ConnectionConfigSchema,
 )
 
-# Re-export power connection output names
+# Adapter-synthesized output name (computed from model outputs)
+CONNECTION_POWER_ACTIVE: Final = "connection_power_active"
+
+# Re-export power connection output names from model layer
 CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = POWER_CONNECTION_OUTPUT_NAMES
 
 type ConnectionDeviceName = Literal["connection"]
