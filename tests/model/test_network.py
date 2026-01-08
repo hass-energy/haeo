@@ -380,7 +380,6 @@ def test_add_battery_balance_connection() -> None:
         "balance",
         upper="upper_section",
         lower="lower_section",
-        capacity_lower=10.0,
     )
 
     assert balance is not None
@@ -402,7 +401,6 @@ def test_add_battery_balance_connection_upper_not_battery() -> None:
             "balance",
             upper="not_a_battery",
             lower="lower_section",
-            capacity_lower=10.0,
         )
 
 
@@ -420,5 +418,4 @@ def test_add_battery_balance_connection_lower_not_battery() -> None:
             "balance",
             upper="upper_section",
             lower="not_a_battery",
-            capacity_lower=10.0,
         )

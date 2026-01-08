@@ -6,12 +6,10 @@ from typing import TYPE_CHECKING, Final, Literal
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
-from numpy.typing import NDArray
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.reactive import TrackedParam, constraint, cost, output
-from custom_components.haeo.model.util import broadcast_to_sequence
+from custom_components.haeo.model.reactive import constraint, cost, output
 
 from .connection import Connection
 
@@ -71,9 +69,6 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
     # Must be larger than any reasonable energy price to ensure slacks are minimized
     DEFAULT_SLACK_PENALTY: Final[float] = 100.0
 
-    # Parameters
-    capacity_lower: TrackedParam[NDArray[np.float64]] = TrackedParam()
-
     def __init__(
         self,
         name: str,
@@ -82,7 +77,6 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         solver: Highs,
         upper: str,
         lower: str,
-        capacity_lower: Sequence[float] | float,
         slack_penalty: float | None = None,
     ) -> None:
         """Initialize a battery balance connection.
@@ -93,7 +87,6 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
             solver: HiGHS solver instance
             upper: Name of upper battery section (receives upward transfer)
             lower: Name of lower battery section (receives downward transfer)
-            capacity_lower: Lower section capacity in kWh (T+1 boundary values)
             slack_penalty: Penalty in $/kWh for slack variables (default: 1.0).
                 Must be larger than typical energy prices to ensure min/max
                 constraints are enforced correctly.
@@ -103,7 +96,6 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         n_periods = self.n_periods
         h = solver
 
-        self.capacity_lower = broadcast_to_sequence(capacity_lower, n_periods + 1)
         self._slack_penalty = slack_penalty if slack_penalty is not None else self.DEFAULT_SLACK_PENALTY
 
         self._power_down = h.addVariables(n_periods, lb=0, name_prefix=f"{name}_power_down_", out_array=True)
@@ -147,7 +139,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
             raise ValueError(msg)
 
         lower_stored = self._lower_battery.stored_energy
-        capacity_lower = np.array(self.capacity_lower)
+        capacity_lower = np.array(self._lower_battery.capacity)
         periods = self.periods
 
         energy_down = self._power_down * periods
@@ -167,7 +159,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
 
         lower_stored = self._lower_battery.stored_energy
         upper_stored = self._upper_battery.stored_energy
-        capacity_lower = np.array(self.capacity_lower)
+        capacity_lower = np.array(self._lower_battery.capacity)
         periods = self.periods
 
         unmet_demand_energy = self.unmet_demand * periods
@@ -187,7 +179,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
             raise ValueError(msg)
 
         lower_stored = self._lower_battery.stored_energy
-        capacity_lower = np.array(self.capacity_lower)
+        capacity_lower = np.array(self._lower_battery.capacity)
         periods = self.periods
 
         energy_up = self._power_up * periods
@@ -206,7 +198,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
             raise ValueError(msg)
 
         lower_stored = self._lower_battery.stored_energy
-        capacity_lower = np.array(self.capacity_lower)
+        capacity_lower = np.array(self._lower_battery.capacity)
         periods = self.periods
 
         absorbed_excess_energy = self.absorbed_excess * periods

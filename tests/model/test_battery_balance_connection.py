@@ -291,7 +291,6 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
         solver=solver,
         upper="upper",
         lower="lower",
-        capacity_lower=scenario.lower_capacity,
     )
 
     # Set battery references and build constraints
@@ -335,7 +334,6 @@ def test_battery_balance_connection_missing_references(solver: Highs) -> None:
         solver=solver,
         upper="upper",
         lower="lower",
-        capacity_lower=10.0,
     )
 
     with pytest.raises(ValueError, match="Battery references not set"):
@@ -353,7 +351,6 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
         solver=solver,
         upper="upper",
         lower="lower",
-        capacity_lower=10.0,
     )
     # MockBattery provides the same interface as Battery but isn't a subtype
     connection.set_battery_references(upper, lower)  # type: ignore[arg-type]

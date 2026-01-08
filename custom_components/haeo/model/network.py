@@ -73,7 +73,8 @@ class Network:
 
         """
         # Create new element using registry
-        element_spec = ELEMENTS[element_type.lower()]
+        # Cast to ModelElementType - validated by ELEMENTS dict lookup
+        element_spec = ELEMENTS[element_type.lower()]  # type: ignore[index]
         element = element_spec.factory(name=name, periods=self.periods, solver=self._solver, **kwargs)
         self.elements[name] = element
 
