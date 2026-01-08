@@ -39,8 +39,10 @@ from .schema import (
 # Adapter-synthesized output name (computed from model outputs)
 CONNECTION_POWER_ACTIVE: Final = "connection_power_active"
 
-# Re-export power connection output names from model layer
-CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = POWER_CONNECTION_OUTPUT_NAMES
+# Connection output names include both model outputs and adapter-synthesized outputs
+CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName | Literal["connection_power_active"]]] = (
+    POWER_CONNECTION_OUTPUT_NAMES | frozenset([CONNECTION_POWER_ACTIVE])
+)
 
 type ConnectionDeviceName = Literal["connection"]
 
