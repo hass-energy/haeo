@@ -116,7 +116,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
 
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
     """Handle options update or subentry changes."""
-    from .network import evaluate_network_connectivity  # noqa: PLC0415
+    from .coordinator import evaluate_network_connectivity  # noqa: PLC0415
 
     # Check if this is a value-only update from an input entity
     runtime_data = entry.runtime_data

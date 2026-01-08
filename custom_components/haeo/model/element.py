@@ -206,22 +206,34 @@ class Element[OutputNameT: str]:
             Single aggregated cost expression (highs_linear_expression) or None if no costs
 
         """
+        # Get this method's name from the decorator to avoid hardcoding
+        this_method_name = type(self).cost._name  # type: ignore[attr-defined]
+        
         # Collect all cost expressions from @cost methods (excluding this one)
         costs: list[Any] = []
         for name in dir(type(self)):
             # Skip self to avoid infinite recursion
-            if name == "cost":
+            if name == this_method_name:
                 continue
             attr = getattr(type(self), name, None)
-            if isinstance(attr, ReactiveCost):
-                # Call the cost method - this establishes dependency tracking
-                method = getattr(self, name)
-                cost_value = method()
-                if cost_value is not None:
-                    if isinstance(cost_value, list):
-                        costs.extend(cost_value)
-                    else:
-                        costs.append(cost_value)
+            if not isinstance(attr, ReactiveCost):
+                continue
+                
+            # Call the cost method - this establishes dependency tracking
+            method = getattr(self, name)
+            if (cost_value := method()) is not None:
+                if isinstance(cost_value, list):
+                    costs.extend(cost_value)
+                else:
+                    costs.append(cost_value)
+
+        # Aggregate costs into a single expression
+        if not costs:
+            return None
+        if len(costs) == 1:
+            return costs[0]
+        # Sum all cost expressions
+        return sum(costs[1:], costs[0])
 
         # Aggregate costs into a single expression
         if not costs:

@@ -486,7 +486,7 @@ async def test_async_update_listener(
         connectivity_called = True
 
     monkeypatch.setattr(
-        "custom_components.haeo.network.evaluate_network_connectivity",
+        "custom_components.haeo.coordinator.network.evaluate_network_connectivity",
         mock_evaluate,
     )
 

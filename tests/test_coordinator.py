@@ -182,7 +182,7 @@ def mock_connection_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntr
 def patch_state_change_listener() -> Generator[MagicMock]:
     """Patch state change listener registration for tests."""
     with patch(
-        "custom_components.haeo.coordinator.async_track_state_change_event", return_value=lambda: None
+        "custom_components.haeo.coordinator.coordinator.async_track_state_change_event", return_value=lambda: None
     ) as mock_track:
         yield mock_track
 
@@ -321,7 +321,7 @@ async def test_async_update_data_returns_outputs(
 
     # Patch coordinator to use mocked _load_from_input_entities
     with (
-        patch("custom_components.haeo.coordinator.network_module.create_network", new_callable=AsyncMock),
+        patch("custom_components.haeo.coordinator.coordinator.network_module.create_network", new_callable=AsyncMock),
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
         patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.dt_util.utcnow", return_value=generated_at),
@@ -396,7 +396,7 @@ async def test_async_update_data_with_empty_input_entities(
             "_load_from_input_entities",
             return_value={},
         ),
-        patch("custom_components.haeo.coordinator.network_module.create_network") as mock_load,
+        patch("custom_components.haeo.coordinator.coordinator.network_module.create_network") as mock_load,
     ):
         mock_load.side_effect = UpdateFailed("Missing required data")
         with pytest.raises(UpdateFailed, match="Missing required data"):
@@ -584,7 +584,7 @@ def test_element_state_change_triggers_update_and_optimization(
     with (
         patch.object(coordinator, "_load_element_config") as load_mock,
         patch.object(coordinator, "_trigger_optimization") as trigger_mock,
-        patch("custom_components.haeo.coordinator.network_module.update_element") as update_mock,
+        patch("custom_components.haeo.coordinator.coordinator.network_module.update_element") as update_mock,
     ):
         load_mock.return_value = {"element_type": "battery", "name": "Test Battery"}
         # Set network so update path is taken
