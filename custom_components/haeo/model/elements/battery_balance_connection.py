@@ -133,8 +133,8 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
         """
         return self._power_down - self._power_up
 
-    @constraint
-    def down_lower_bound_constraint(self) -> list[highs_linear_expression]:
+    @constraint(output=True, unit="$/kW")
+    def balance_down_lower_bound(self) -> list[highs_linear_expression]:
         """Constraint: energy_down >= demand - unmet_demand."""
         if self._lower_battery is None or self._upper_battery is None:
             msg = f"Battery references not set for {self.name}"
@@ -152,8 +152,8 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
 
         return list(energy_down >= demand - unmet_demand_energy)
 
-    @constraint
-    def down_slack_bound_constraint(self) -> list[highs_linear_expression]:
+    @constraint(output=True, unit="$/kW")
+    def balance_down_slack_bound(self) -> list[highs_linear_expression]:
         """Constraint: unmet_demand >= demand - available."""
         if self._lower_battery is None or self._upper_battery is None:
             msg = f"Battery references not set for {self.name}"
@@ -173,8 +173,8 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
 
         return list(unmet_demand_energy >= demand - available)
 
-    @constraint
-    def up_upper_bound_constraint(self) -> list[highs_linear_expression]:
+    @constraint(output=True, unit="$/kW")
+    def balance_up_upper_bound(self) -> list[highs_linear_expression]:
         """Constraint: energy_up <= excess + absorbed_excess."""
         if self._lower_battery is None or self._upper_battery is None:
             msg = f"Battery references not set for {self.name}"
@@ -192,8 +192,8 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
 
         return list(energy_up <= excess + absorbed_excess_energy)
 
-    @constraint
-    def up_slack_bound_constraint(self) -> list[highs_linear_expression]:
+    @constraint(output=True, unit="$/kW")
+    def balance_up_slack_bound(self) -> list[highs_linear_expression]:
         """Constraint: absorbed_excess >= -excess."""
         if self._lower_battery is None or self._upper_battery is None:
             msg = f"Battery references not set for {self.name}"
@@ -254,51 +254,3 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
     def balance_absorbed_excess(self) -> OutputData:
         """Absorbed excess slack variable."""
         return OutputData(type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self.absorbed_excess))
-
-    @output
-    def balance_down_lower_bound(self) -> OutputData | None:
-        """Shadow price for down lower bound constraint."""
-        constraint = self.get_constraint("down_lower_bound_constraint")
-        if constraint is None:
-            return None
-        return OutputData(
-            type=OutputType.SHADOW_PRICE,
-            unit="$/kW",
-            values=self.extract_values(constraint),
-        )
-
-    @output
-    def balance_down_slack_bound(self) -> OutputData | None:
-        """Shadow price for down slack bound constraint."""
-        constraint = self.get_constraint("down_slack_bound_constraint")
-        if constraint is None:
-            return None
-        return OutputData(
-            type=OutputType.SHADOW_PRICE,
-            unit="$/kW",
-            values=self.extract_values(constraint),
-        )
-
-    @output
-    def balance_up_upper_bound(self) -> OutputData | None:
-        """Shadow price for up upper bound constraint."""
-        constraint = self.get_constraint("up_upper_bound_constraint")
-        if constraint is None:
-            return None
-        return OutputData(
-            type=OutputType.SHADOW_PRICE,
-            unit="$/kW",
-            values=self.extract_values(constraint),
-        )
-
-    @output
-    def balance_up_slack_bound(self) -> OutputData | None:
-        """Shadow price for up slack bound constraint."""
-        constraint = self.get_constraint("up_slack_bound_constraint")
-        if constraint is None:
-            return None
-        return OutputData(
-            type=OutputType.SHADOW_PRICE,
-            unit="$/kW",
-            values=self.extract_values(constraint),
-        )

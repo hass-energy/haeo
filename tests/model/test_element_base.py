@@ -87,12 +87,12 @@ def test_constraints_populates_constraint_state(solver: Highs) -> None:
     element = Node(name="test_node", periods=[1.0] * 3, solver=h, is_source=True, is_sink=False)
 
     # Call constraints to trigger decorator lifecycle
-    element.constraints()
+    constraints_dict = element.constraints()
 
     # After calling, constraint state should exist
     # Node has node_power_balance (returns constraints when is_source=True, is_sink=False)
-    constraint = element.get_constraint("node_power_balance")
-    assert constraint is not None
+    assert "node_power_balance" in constraints_dict
+    assert constraints_dict["node_power_balance"] is not None
 
 
 def test_connection_power_with_multiple_connections(solver: Highs) -> None:

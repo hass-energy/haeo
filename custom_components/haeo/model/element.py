@@ -151,22 +151,6 @@ class Element[OutputNameT: str]:
         # Default: use batch value extraction (handles highs_var and highs_linear_expression)
         return tuple(self._solver.vals(arr).flat)
 
-    def get_constraint(self, constraint_name: str) -> highs_cons | list[highs_cons] | None:
-        """Get the applied constraint by name.
-
-        Args:
-            constraint_name: The constraint method name
-
-        Returns:
-            The constraint object(s) or None if not applied
-
-        """
-        state_attr = f"_reactive_state_{constraint_name}"
-        state = getattr(self, state_attr, None)
-        if state is None or "constraint" not in state:
-            return None
-        return state["constraint"]
-
     def outputs(self) -> Mapping[OutputNameT, OutputData]:
         """Return output specifications for the element.
 
