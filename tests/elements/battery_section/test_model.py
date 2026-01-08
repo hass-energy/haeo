@@ -9,13 +9,13 @@ from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import battery_section as battery_section_element
 from custom_components.haeo.elements.battery_section import BatterySectionConfigData
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model import battery as battery_model
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import battery as battery_model
 from custom_components.haeo.model.output_data import OutputData
 
 
 class CreateCase(TypedDict):
-    """Test case for create_model_elements."""
+    """Test case for model_elements."""
 
     description: str
     data: BatterySectionConfigData
@@ -105,10 +105,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 
 
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
-def test_create_model_elements(case: CreateCase) -> None:
+def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["battery_section"]
-    result = entry.create_model_elements(case["data"])
+    result = entry.model_elements(case["data"])
     assert result == case["model"]
 
 

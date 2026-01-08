@@ -17,7 +17,7 @@ from custom_components.haeo.model.output_data import OutputData
 
 
 class CreateCase(TypedDict):
-    """Test case for create_model_elements."""
+    """Test case for model_elements."""
 
     description: str
     data: BatteryConfigData
@@ -41,17 +41,17 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="battery",
             name="battery_main",
             connection="network",
-            capacity=[10.0],
+            capacity=[10.0, 10.0],
             initial_charge_percentage=[50.0],
-            min_charge_percentage=[10.0],
-            max_charge_percentage=[90.0],
+            min_charge_percentage=[10.0, 10.0],
+            max_charge_percentage=[90.0, 90.0],
             efficiency=[95.0],
             max_charge_power=[5.0],
             max_discharge_power=[5.0],
             early_charge_incentive=[0.01],
             discharge_cost=[0.02],
-            undercharge_percentage=[5.0],
-            overcharge_percentage=[95.0],
+            undercharge_percentage=[5.0, 5.0],
+            overcharge_percentage=[95.0, 95.0],
             undercharge_cost=[0.03],
             overcharge_cost=[0.04],
         ),
@@ -59,19 +59,19 @@ CREATE_CASES: Sequence[CreateCase] = [
             {
                 "element_type": "battery",
                 "name": "battery_main:undercharge",
-                "capacity": [0.5],
+                "capacity": [0.5, 0.5],
                 "initial_charge": 0.5,
             },
             {
                 "element_type": "battery",
                 "name": "battery_main:normal",
-                "capacity": [8.0],
+                "capacity": [8.0, 8.0],
                 "initial_charge": 4.0,
             },
             {
                 "element_type": "battery",
                 "name": "battery_main:overcharge",
-                "capacity": [0.49999999999999933],
+                "capacity": [0.49999999999999933, 0.49999999999999933],
                 "initial_charge": 0.0,
             },
             {
@@ -110,7 +110,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:balance:undercharge:normal",
                 "upper": "battery_main:normal",
                 "lower": "battery_main:undercharge",
-                "capacity_lower": [0.5],
+                "capacity_lower": [0.5, 0.5],
             },
             # Balance connection: normal -> overcharge
             {
@@ -118,7 +118,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "battery_main:balance:normal:overcharge",
                 "upper": "battery_main:overcharge",
                 "lower": "battery_main:normal",
-                "capacity_lower": [8.0],
+                "capacity_lower": [8.0, 8.0],
             },
             # Main connection to network
             {
@@ -141,10 +141,10 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="battery",
             name="battery_normal",
             connection="network",
-            capacity=[10.0],
+            capacity=[10.0, 10.0],
             initial_charge_percentage=[50.0],
-            min_charge_percentage=[0.0],
-            max_charge_percentage=[100.0],
+            min_charge_percentage=[0.0, 0.0],
+            max_charge_percentage=[100.0, 100.0],
             efficiency=[95.0],
             max_charge_power=[5.0],
             max_discharge_power=[5.0],
@@ -155,7 +155,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             {
                 "element_type": "battery",
                 "name": "battery_normal:normal",
-                "capacity": [10.0],
+                "capacity": [10.0, 10.0],
                 "initial_charge": 5.0,
             },
             {
@@ -198,10 +198,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             element_type="battery",
             name="battery_no_balance",
             connection="network",
-            capacity=[10.0],
+            capacity=[10.0, 10.0],
             initial_charge_percentage=[50.0],
-            min_charge_percentage=[0.0],
-            max_charge_percentage=[100.0],
+            min_charge_percentage=[0.0, 0.0],
+            max_charge_percentage=[100.0, 100.0],
             efficiency=[95.0],
             max_charge_power=[5.0],
             max_discharge_power=[5.0],
@@ -250,17 +250,17 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             element_type="battery",
             name="battery_all_sections",
             connection="network",
-            capacity=[10.0],
+            capacity=[10.0, 10.0],
             initial_charge_percentage=[50.0],
-            min_charge_percentage=[10.0],
-            max_charge_percentage=[90.0],
+            min_charge_percentage=[10.0, 10.0],
+            max_charge_percentage=[90.0, 90.0],
             efficiency=[95.0],
             max_charge_power=[5.0],
             max_discharge_power=[5.0],
             early_charge_incentive=[0.001],
             discharge_cost=[0.002],
-            undercharge_percentage=[5.0],
-            overcharge_percentage=[95.0],
+            undercharge_percentage=[5.0, 5.0],
+            overcharge_percentage=[95.0, 95.0],
             undercharge_cost=[0.03],
             overcharge_cost=[0.04],
         ),
@@ -383,10 +383,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 
 
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
-def test_create_model_elements(case: CreateCase) -> None:
+def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["battery"]
-    result = entry.create_model_elements(case["data"])
+    result = entry.model_elements(case["data"])
     assert result == case["model"]
 
 

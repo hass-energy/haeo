@@ -10,14 +10,14 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.node import NODE_POWER_BALANCE
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.power_connection import (
+from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
+from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import InverterSubentryFlowHandler
 from .schema import (
@@ -86,12 +86,12 @@ class InverterAdapter:
         ts_loader = TimeSeriesLoader()
         const_loader = ConstantLoader[float](float)
 
-        max_power_dc_to_ac = await ts_loader.load(
+        max_power_dc_to_ac = await ts_loader.load_intervals(
             hass=hass,
             value=config[CONF_MAX_POWER_DC_TO_AC],
             forecast_times=forecast_times,
         )
-        max_power_ac_to_dc = await ts_loader.load(
+        max_power_ac_to_dc = await ts_loader.load_intervals(
             hass=hass,
             value=config[CONF_MAX_POWER_AC_TO_DC],
             forecast_times=forecast_times,
@@ -113,8 +113,8 @@ class InverterAdapter:
 
         return data
 
-    def create_model_elements(self, config: InverterConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Inverter configuration.
+    def model_elements(self, config: InverterConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Inverter configuration.
 
         Creates a DC bus (Node junction) and a connection to the AC side with
         efficiency and power limits for bidirectional power conversion.

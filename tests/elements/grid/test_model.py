@@ -8,13 +8,14 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import grid as grid_element
 from custom_components.haeo.elements.grid import GridConfigData
-from custom_components.haeo.model import ModelOutputName, power_connection
+from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
 
 
 class CreateCase(TypedDict):
-    """Test case for create_model_elements."""
+    """Test case for model_elements."""
 
     description: str
     data: GridConfigData
@@ -61,12 +62,14 @@ CREATE_CASES: Sequence[CreateCase] = [
 
 OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
-        "description": "Grid with import and export",
+        "description": "Grid with import and export costs",
         "name": "grid_main",
         "model_outputs": {
             "grid_main:connection": {
                 power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(7.0,), direction="-"),
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"),
+                power_connection.CONNECTION_COST_SOURCE_TARGET: OutputData(type=OutputType.COST, unit="$", values=(0.5,), direction="+"),
+                power_connection.CONNECTION_COST_TARGET_SOURCE: OutputData(type=OutputType.COST, unit="$", values=(-0.25,), direction="-"),
                 power_connection.CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
                 power_connection.CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
             }
@@ -76,8 +79,74 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 grid_element.GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(7.0,), direction="-"),
                 grid_element.GRID_POWER_IMPORT: OutputData(type=OutputType.POWER, unit="kW", values=(5.0,), direction="+"),
                 grid_element.GRID_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(-2.0,), direction=None),
+                grid_element.GRID_COST_IMPORT: OutputData(type=OutputType.COST, unit="$", values=(0.5,), direction="-"),
+                grid_element.GRID_COST_EXPORT: OutputData(type=OutputType.COST, unit="$", values=(-0.25,), direction="+"),
+                grid_element.GRID_COST_NET: OutputData(type=OutputType.COST, unit="$", values=(0.25,), direction=None),
                 grid_element.GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
                 grid_element.GRID_POWER_MAX_IMPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+            }
+        },
+    },
+    {
+        "description": "Grid without costs (no pricing configured)",
+        "name": "grid_no_price",
+        "model_outputs": {
+            "grid_no_price:connection": {
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"),
+                # No cost outputs - no pricing was configured
+            }
+        },
+        "outputs": {
+            grid_element.GRID_DEVICE_GRID: {
+                grid_element.GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(3.0,), direction="-"),
+                grid_element.GRID_POWER_IMPORT: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="+"),
+                grid_element.GRID_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(-1.0,), direction=None),
+                # No cost outputs - no pricing was configured
+            }
+        },
+    },
+    {
+        "description": "Grid with import cost only",
+        "name": "grid_import_only",
+        "model_outputs": {
+            "grid_import_only:connection": {
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.0,), direction="-"),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(4.0,), direction="+"),
+                power_connection.CONNECTION_COST_SOURCE_TARGET: OutputData(type=OutputType.COST, unit="$", values=(0.4,), direction="+"),
+                # No export cost - no export pricing was configured
+            }
+        },
+        "outputs": {
+            grid_element.GRID_DEVICE_GRID: {
+                grid_element.GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(0.0,), direction="-"),
+                grid_element.GRID_POWER_IMPORT: OutputData(type=OutputType.POWER, unit="kW", values=(4.0,), direction="+"),
+                grid_element.GRID_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(4.0,), direction=None),
+                grid_element.GRID_COST_IMPORT: OutputData(type=OutputType.COST, unit="$", values=(0.4,), direction="-"),
+                grid_element.GRID_COST_NET: OutputData(type=OutputType.COST, unit="$", values=(0.4,), direction=None),
+                # No export cost - no export pricing was configured
+            }
+        },
+    },
+    {
+        "description": "Grid with export cost only",
+        "name": "grid_export_only",
+        "model_outputs": {
+            "grid_export_only:connection": {
+                power_connection.CONNECTION_POWER_TARGET_SOURCE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(6.0,), direction="-"),
+                power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.0,), direction="+"),
+                power_connection.CONNECTION_COST_TARGET_SOURCE: OutputData(type=OutputType.COST, unit="$", values=(-0.6,), direction="-"),
+                # No import cost - no import pricing was configured
+            }
+        },
+        "outputs": {
+            grid_element.GRID_DEVICE_GRID: {
+                grid_element.GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(6.0,), direction="-"),
+                grid_element.GRID_POWER_IMPORT: OutputData(type=OutputType.POWER, unit="kW", values=(0.0,), direction="+"),
+                grid_element.GRID_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(-6.0,), direction=None),
+                grid_element.GRID_COST_EXPORT: OutputData(type=OutputType.COST, unit="$", values=(-0.6,), direction="+"),
+                grid_element.GRID_COST_NET: OutputData(type=OutputType.COST, unit="$", values=(-0.6,), direction=None),
+                # No import cost - no import pricing was configured
             }
         },
     },
@@ -85,10 +154,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 
 
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
-def test_create_model_elements(case: CreateCase) -> None:
+def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["grid"]
-    result = entry.create_model_elements(case["data"])
+    result = entry.model_elements(case["data"])
     assert result == case["model"]
 
 

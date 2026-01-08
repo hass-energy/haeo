@@ -8,9 +8,9 @@ from highspy import Highs, HighsVarType
 from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 
-from .const import OutputType
-from .element import Element
-from .output_data import OutputData
+from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.element import Element
+from custom_components.haeo.model.output_data import OutputData
 
 
 class IntegerMode(Enum):

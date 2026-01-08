@@ -10,7 +10,10 @@ from typing import Final, Literal
 from highspy import Highs
 from highspy.highs import HighspyArray
 
-from .element import Element
+from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.element import Element
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.reactive import output
 
 # Base connection output names - extended by subclasses
 type ConnectionOutputName = Literal[
@@ -29,7 +32,7 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
 CONNECTION_TIME_SLICE: Final = "connection_time_slice"
 
 
-class Connection[OutputNameT: str, ConstraintNameT: str](Element[OutputNameT, ConstraintNameT]):
+class Connection[OutputNameT: str](Element[OutputNameT]):
     """Lossless bidirectional connection between elements.
 
     Provides basic power flow variables and the interface for elements to
@@ -52,6 +55,7 @@ class Connection[OutputNameT: str, ConstraintNameT: str](Element[OutputNameT, Co
         solver: Highs,
         source: str,
         target: str,
+        output_names: frozenset[OutputNameT] = CONNECTION_OUTPUT_NAMES,  # type: ignore[assignment]  # Subclasses override with extended sets
     ) -> None:
         """Initialize a lossless connection between two elements.
 
@@ -61,9 +65,10 @@ class Connection[OutputNameT: str, ConstraintNameT: str](Element[OutputNameT, Co
             solver: The HiGHS solver instance for creating variables and constraints
             source: Name of the source element
             target: Name of the target element
+            output_names: Frozenset of valid output names (subclasses can extend)
 
         """
-        super().__init__(name=name, periods=periods, solver=solver)
+        super().__init__(name=name, periods=periods, solver=solver, output_names=output_names)  # type: ignore[arg-type]  # Parent accepts concrete subclass output names
         n_periods = self.n_periods
         h = solver
 
@@ -110,3 +115,17 @@ class Connection[OutputNameT: str, ConstraintNameT: str](Element[OutputNameT, Co
         For lossless connections: power_source_target - power_target_source
         """
         return self._power_source_target - self._power_target_source
+
+    @output
+    def connection_power_source_target(self) -> OutputData:
+        """Power flow from source to target."""
+        return OutputData(
+            type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self.power_source_target), direction="+"
+        )
+
+    @output
+    def connection_power_target_source(self) -> OutputData:
+        """Power flow from target to source."""
+        return OutputData(
+            type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self.power_target_source), direction="-"
+        )

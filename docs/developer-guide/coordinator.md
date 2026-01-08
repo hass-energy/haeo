@@ -5,7 +5,8 @@ The coordinator manages optimization cycles and result distribution using an eve
 ## Purpose
 
 HAEO's coordinator implements Home Assistant's [DataUpdateCoordinator pattern](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities) to orchestrate optimization cycles.
-The implementation is in `custom_components/haeo/coordinator.py`.
+The implementation is in `custom_components/haeo/coordinator/coordinator.py`.
+Network building functions are in `custom_components/haeo/coordinator/network.py`.
 
 The coordinator performs these core responsibilities:
 
@@ -13,6 +14,7 @@ The coordinator performs these core responsibilities:
 - Validates input alignment before optimization
 - Builds network model from configuration and loaded data
 - Runs LP solver in executor thread (non-blocking)
+- Updates network parameters for warm start optimization
 - Distributes results to sensors
 - Triggers re-optimization on input changes or horizon boundaries
 - Handles errors gracefully with [UpdateFailed](https://developers.home-assistant.io/docs/integration_fetching_data/) exceptions
@@ -47,8 +49,13 @@ sequenceDiagram
     alt Inputs not aligned
         C-->>Trigger: Skip (wait for alignment)
     else Inputs aligned
-        C->>N: Build network from inputs
-        N-->>C: LP problem
+        alt First optimization
+            C->>N: create_network() from inputs
+            N-->>C: New network
+        else Subsequent optimization
+            C->>N: update_element() with new parameters
+            Note over N: Only invalidated constraints rebuilt
+        end
         C->>LP: Optimize (executor)
         LP-->>C: Optimal solution
         C->>C: Extract results
@@ -75,6 +82,21 @@ See [Input Entities](inputs.md) for details on how data loading works.
 The network optimization runs in an executor thread via `hass.async_add_executor_job()` to avoid blocking the event loop.
 The coordinator extracts the solver name from configuration and passes it to `network.optimize()`.
 This blocking operation is tracked for diagnostics timing.
+
+**Network building and warm start**:
+
+On the first optimization cycle, the coordinator calls `create_network()` from `coordinator/network.py` to build the complete network from configuration.
+On subsequent cycles, it calls `update_element()` to update element parameters without recreating the network.
+
+The warm start pattern works by:
+
+1. Elements declare parameters using `TrackedParam` descriptors
+2. `update_element()` modifies these parameters directly
+3. Changed parameters automatically invalidate dependent constraints
+4. Only invalidated constraints are rebuilt during optimization
+5. Unchanged constraints are reused from the previous solve
+
+This selective rebuilding is more efficient than recreating the entire problem, particularly when only forecasts change between cycles.
 
 **4. Result extraction**
 

@@ -1,6 +1,6 @@
 """Test data and factories for SchedulableLoad element."""
 
-from custom_components.haeo.model.schedulable_load import IntegerMode, SchedulableLoad
+from custom_components.haeo.model.elements.schedulable_load import IntegerMode, SchedulableLoad
 
 from .element_types import ElementTestCase
 

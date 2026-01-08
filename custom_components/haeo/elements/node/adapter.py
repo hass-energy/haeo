@@ -6,7 +6,7 @@ from typing import Any, Final, Literal
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model.node import NODE_POWER_BALANCE
+from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import NodeSubentryFlowHandler
@@ -49,8 +49,8 @@ class NodeAdapter:
             "is_sink": await const_loader_bool.load(value=config.get("is_sink", DEFAULTS[CONF_IS_SINK])),
         }
 
-    def create_model_elements(self, config: NodeConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Node configuration."""
+    def model_elements(self, config: NodeConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Node configuration."""
         return [
             {
                 "element_type": "node",

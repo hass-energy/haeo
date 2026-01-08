@@ -8,10 +8,14 @@ from typing import Any
 
 import pytest
 
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.elements import ELEMENT_TYPES
 
 # Enable custom component for testing
 pytest_plugins = ["pytest_homeassistant_custom_component"]
+
+# Entity ID for the configurable sentinel entity (domain.suggested_object_id)
+TEST_CONFIGURABLE_ENTITY_ID = f"{DOMAIN}.configurable_entity"
 
 
 @dataclass(frozen=True, slots=True)

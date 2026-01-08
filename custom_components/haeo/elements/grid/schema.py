@@ -17,9 +17,11 @@ CONF_IMPORT_LIMIT: Final = "import_limit"
 CONF_EXPORT_LIMIT: Final = "export_limit"
 CONF_CONNECTION: Final = "connection"
 
-# Default values for optional fields ($/kWh)
+# Default values for optional fields ($/kWh for prices, kW for limits)
 DEFAULT_IMPORT_PRICE: Final[float] = 0.1
 DEFAULT_EXPORT_PRICE: Final[float] = 0.01
+DEFAULT_IMPORT_LIMIT: Final[float] = 30.0
+DEFAULT_EXPORT_LIMIT: Final[float] = 30.0
 
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
@@ -35,7 +37,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         time_series=True,
         direction="-",  # Import = consuming from grid = cost
-        default=DEFAULT_IMPORT_PRICE,
     ),
     InputFieldInfo(
         field_name=CONF_EXPORT_PRICE,
@@ -49,7 +50,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         time_series=True,
         direction="+",  # Export = producing to grid = revenue
-        default=DEFAULT_EXPORT_PRICE,
     ),
     InputFieldInfo(
         field_name=CONF_IMPORT_LIMIT,
@@ -65,6 +65,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="+",
+        default=DEFAULT_IMPORT_LIMIT,
     ),
     InputFieldInfo(
         field_name=CONF_EXPORT_LIMIT,
@@ -80,6 +81,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="-",
+        default=DEFAULT_EXPORT_LIMIT,
     ),
 )
 
@@ -98,9 +100,9 @@ class GridConfigSchema(TypedDict):
     name: str
     connection: str  # Element name to connect to
 
-    # Price fields: entity links or constants (have defaults so can be NONE)
-    import_price: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
-    export_price: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
+    # Price fields: required (user must select an entity or enter a value)
+    import_price: list[str] | float  # Entity IDs or constant $/kWh
+    export_price: list[str] | float  # Entity IDs or constant $/kWh
 
     # Power limit fields (optional)
     import_limit: NotRequired[list[str] | float]  # Entity IDs or constant kW

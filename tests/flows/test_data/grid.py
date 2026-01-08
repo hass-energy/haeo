@@ -1,4 +1,4 @@
-"""Test data and validation for grid flow configuration."""
+"""Test grid config flow data for entity-first approach."""
 
 from custom_components.haeo.const import CONF_NAME
 from custom_components.haeo.elements.grid import (
@@ -8,67 +8,30 @@ from custom_components.haeo.elements.grid import (
     CONF_IMPORT_LIMIT,
     CONF_IMPORT_PRICE,
 )
-from custom_components.haeo.flows.field_schema import MODE_SUFFIX, InputMode
 
-# Test data for grid flow
+# Test data for grid flow - entity-first approach
+# Step 1 (mode_input): Select entities (including constant entities) for each field
+# Step 2 (config): Enter constant values for fields with constant entities selected
 VALID_DATA = [
     {
-        "description": "Basic grid configuration",
+        "description": "Basic grid with all constant values",
         "mode_input": {
             CONF_NAME: "Test Grid",
             CONF_CONNECTION: "main_bus",
-            f"{CONF_IMPORT_PRICE}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
-            f"{CONF_EXPORT_PRICE}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
-            f"{CONF_IMPORT_LIMIT}{MODE_SUFFIX}": InputMode.CONSTANT,
-            f"{CONF_EXPORT_LIMIT}{MODE_SUFFIX}": InputMode.CONSTANT,
+            CONF_IMPORT_PRICE: ["sensor.haeo_constant_monetary"],
+            CONF_EXPORT_PRICE: ["sensor.haeo_constant_monetary"],
+            CONF_IMPORT_LIMIT: ["sensor.haeo_constant_power"],
+            CONF_EXPORT_LIMIT: ["sensor.haeo_constant_power"],
         },
         "config": {
             CONF_NAME: "Test Grid",
-            CONF_IMPORT_LIMIT: 5000,
-            CONF_EXPORT_LIMIT: 3000,
-            CONF_IMPORT_PRICE: ["sensor.grid_import_price"],
-            CONF_EXPORT_PRICE: ["sensor.grid_export_price"],
-        },
-    },
-    {
-        "description": "Grid with sensor-based pricing",
-        "mode_input": {
-            CONF_NAME: "Smart Grid",
             CONF_CONNECTION: "main_bus",
-            f"{CONF_IMPORT_PRICE}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
-            f"{CONF_EXPORT_PRICE}{MODE_SUFFIX}": InputMode.ENTITY_LINK,
-            f"{CONF_IMPORT_LIMIT}{MODE_SUFFIX}": InputMode.CONSTANT,
-            f"{CONF_EXPORT_LIMIT}{MODE_SUFFIX}": InputMode.CONSTANT,
-        },
-        "config": {
-            CONF_NAME: "Smart Grid",
-            CONF_IMPORT_LIMIT: 8000,
-            CONF_EXPORT_LIMIT: 5000,
-            CONF_IMPORT_PRICE: ["sensor.smart_grid_import_price"],
-            CONF_EXPORT_PRICE: ["sensor.smart_grid_export_price"],
+            CONF_IMPORT_PRICE: 0.30,
+            CONF_EXPORT_PRICE: 0.05,
+            CONF_IMPORT_LIMIT: 10.0,
+            CONF_EXPORT_LIMIT: 10.0,
         },
     },
 ]
 
-INVALID_DATA = [
-    {
-        "description": "Empty name should fail validation",
-        "config": {
-            CONF_NAME: "",
-            CONF_IMPORT_LIMIT: 5000,
-            CONF_IMPORT_PRICE: ["sensor.grid_import_price"],
-            CONF_EXPORT_PRICE: ["sensor.grid_export_price"],
-        },
-        "error": "cannot be empty",
-    },
-    {
-        "description": "Negative import limit should fail validation",
-        "config": {
-            CONF_NAME: "Test Grid",
-            CONF_IMPORT_LIMIT: -1000,
-            CONF_IMPORT_PRICE: ["sensor.grid_import_price"],
-            CONF_EXPORT_PRICE: ["sensor.grid_export_price"],
-        },
-        "error": "value must be positive",
-    },
-]
+INVALID_DATA: list[dict[str, object]] = []
