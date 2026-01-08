@@ -55,6 +55,7 @@ class Connection[OutputNameT: str](Element[OutputNameT]):
         solver: Highs,
         source: str,
         target: str,
+        output_names: frozenset[OutputNameT] = CONNECTION_OUTPUT_NAMES,  # type: ignore[assignment]  # Subclasses override with extended sets
     ) -> None:
         """Initialize a lossless connection between two elements.
 
@@ -64,9 +65,10 @@ class Connection[OutputNameT: str](Element[OutputNameT]):
             solver: The HiGHS solver instance for creating variables and constraints
             source: Name of the source element
             target: Name of the target element
+            output_names: Frozenset of valid output names (subclasses can extend)
 
         """
-        super().__init__(name=name, periods=periods, solver=solver, output_names=CONNECTION_OUTPUT_NAMES)  # type: ignore[arg-type]  # Parent Element[OutputNameT] accepts concrete ConnectionOutputName
+        super().__init__(name=name, periods=periods, solver=solver, output_names=output_names)  # type: ignore[arg-type]  # Parent accepts concrete subclass output names
         n_periods = self.n_periods
         h = solver
 
