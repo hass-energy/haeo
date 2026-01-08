@@ -191,9 +191,20 @@ def build_entity_selector_with_configurable(
         EntitySelector configured for sensor/input_number/haeo domains.
 
     """
-    # Remove configurable entity from exclude list (it has unit_of_measurement=None
-    # which fails unit filtering, but we always want it available)
-    filtered_exclude = [entity_id for entity_id in (exclude_entities or []) if not is_configurable_entity(entity_id)]
+    # Remove HAEO-created entities from exclude list:
+    # - Configurable entity has unit_of_measurement=None which fails unit filtering
+    # - HAEO number/switch entities may not have units set, but should always be selectable
+    hass = async_get_hass()
+    entity_registry = er.async_get(hass)
+
+    def is_haeo_entity(entity_id: str) -> bool:
+        """Check if entity belongs to the HAEO integration."""
+        if is_configurable_entity(entity_id):
+            return True
+        entry = entity_registry.async_get(entity_id)
+        return entry is not None and entry.platform == DOMAIN
+
+    filtered_exclude = [entity_id for entity_id in (exclude_entities or []) if not is_haeo_entity(entity_id)]
 
     # Build config - no device_class filter, rely on unit-based exclusion
     # Include 'number' and 'switch' so HAEO input entities can be re-selected during reconfigure

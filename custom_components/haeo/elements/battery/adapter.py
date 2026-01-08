@@ -223,8 +223,11 @@ class BatteryAdapter:
         initial_soc = config["initial_charge_percentage"][0]
 
         # Convert percentages to ratio arrays for time-varying limits
-        min_ratio_array = np.array(config["min_charge_percentage"]) / 100.0
-        max_ratio_array = np.array(config["max_charge_percentage"]) / 100.0
+        # Use defaults if not configured
+        min_pct = config.get("min_charge_percentage", [DEFAULT_MIN_CHARGE_PERCENTAGE] * n_periods)
+        max_pct = config.get("max_charge_percentage", [DEFAULT_MAX_CHARGE_PERCENTAGE] * n_periods)
+        min_ratio_array = np.array(min_pct) / 100.0
+        max_ratio_array = np.array(max_pct) / 100.0
         min_ratio_first = min_ratio_array[0]
 
         # Get optional percentage arrays (if present)
@@ -390,14 +393,17 @@ class BatteryAdapter:
             early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
         ]
 
+        # Get efficiency with default (100% = no loss)
+        efficiency = config.get("efficiency", [DEFAULT_EFFICIENCY] * n_periods)
+
         elements.append(
             {
                 "element_type": "connection",
                 "name": f"{name}:connection",
                 "source": node_name,
                 "target": config["connection"],
-                "efficiency_source_target": config["efficiency"],  # Node to network (discharge)
-                "efficiency_target_source": config["efficiency"],  # Network to node (charge)
+                "efficiency_source_target": efficiency,  # Node to network (discharge)
+                "efficiency_target_source": efficiency,  # Network to node (charge)
                 "max_power_source_target": config.get("max_discharge_power"),
                 "max_power_target_source": config.get("max_charge_power"),
                 "price_target_source": charge_early_incentive,  # Charge early incentive
@@ -618,9 +624,11 @@ def sum_output_data(outputs: list[OutputData]) -> OutputData:
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate total energy stored including inaccessible energy below min SOC."""
     capacity = np.array(config["capacity"])
+    n_periods = len(capacity)
 
-    # Get time-varying min ratio
-    min_ratio = np.array(config["min_charge_percentage"]) / 100.0
+    # Get time-varying min ratio (use default if not configured)
+    min_pct = config.get("min_charge_percentage", [DEFAULT_MIN_CHARGE_PERCENTAGE] * n_periods)
+    min_ratio = np.array(min_pct) / 100.0
 
     undercharge_pct = config.get("undercharge_percentage")
     undercharge_ratio = np.array(undercharge_pct) / 100.0 if undercharge_pct else None

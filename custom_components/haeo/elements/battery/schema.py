@@ -68,21 +68,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         time_series=True,
     ),
     InputFieldInfo(
-        field_name=CONF_EFFICIENCY,
-        entity_description=NumberEntityDescription(
-            key=CONF_EFFICIENCY,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY}",
-            native_unit_of_measurement=PERCENTAGE,
-            device_class=NumberDeviceClass.POWER_FACTOR,
-            native_min_value=50.0,
-            native_max_value=100.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.EFFICIENCY,
-        time_series=True,
-        defaults=InputFieldDefaults(mode="value", value=99.0),
-    ),
-    InputFieldInfo(
         field_name=CONF_MAX_CHARGE_POWER,
         entity_description=NumberEntityDescription(
             key=CONF_MAX_CHARGE_POWER,
@@ -111,6 +96,21 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER,
         direction="-",
         time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_EFFICIENCY,
+        entity_description=NumberEntityDescription(
+            key=CONF_EFFICIENCY,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY}",
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.POWER_FACTOR,
+            native_min_value=50.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.EFFICIENCY,
+        time_series=True,
+        defaults=InputFieldDefaults(mode=None, value=99.0),
     ),
     InputFieldInfo(
         field_name=CONF_MIN_CHARGE_PERCENTAGE,
@@ -143,6 +143,19 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         defaults=InputFieldDefaults(mode=None, value=100.0),
     ),
     InputFieldInfo(
+        field_name=CONF_DISCHARGE_COST,
+        entity_description=NumberEntityDescription(
+            key=CONF_DISCHARGE_COST,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_DISCHARGE_COST}",
+            native_min_value=0.0,
+            native_max_value=1.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        direction="-",
+        time_series=True,
+    ),
+    InputFieldInfo(
         field_name=CONF_EARLY_CHARGE_INCENTIVE,
         entity_description=NumberEntityDescription(
             key=CONF_EARLY_CHARGE_INCENTIVE,
@@ -155,19 +168,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         direction="-",
         time_series=True,
         defaults=InputFieldDefaults(mode="value", value=0.001),
-    ),
-    InputFieldInfo(
-        field_name=CONF_DISCHARGE_COST,
-        entity_description=NumberEntityDescription(
-            key=CONF_DISCHARGE_COST,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_DISCHARGE_COST}",
-            native_min_value=0.0,
-            native_max_value=1.0,
-            native_step=0.001,
-        ),
-        output_type=OutputType.PRICE,
-        direction="-",
-        time_series=True,
     ),
 )
 
