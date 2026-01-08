@@ -194,7 +194,7 @@ class HaeoInputNumber(NumberEntity):
 
         try:
             if self._field_info.boundaries:
-                # Fence post fields: n+1 values at time boundaries
+                # Boundary fields: n+1 values at time boundaries
                 values = await self._loader.load_boundaries(
                     hass=self._hass,
                     value=self._source_entity_ids,
