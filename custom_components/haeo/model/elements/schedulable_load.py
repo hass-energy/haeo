@@ -1,16 +1,17 @@
 """Schedulable load element for electrical system modeling."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from enum import Enum
 from typing import Final, Literal
 
 from highspy import Highs, HighsVarType
-from highspy.highs import highs_cons, highs_linear_expression
+from highspy.highs import highs_linear_expression
 import numpy as np
 
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.reactive import constraint, output
 
 
 class IntegerMode(Enum):
@@ -76,7 +77,7 @@ SCHEDULABLE_LOAD_OUTPUT_NAMES: Final[frozenset[SchedulableLoadOutputName]] = fro
 WEIGHT_TOLERANCE: Final[float] = 1e-6
 
 
-class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstraintName]):
+class SchedulableLoad(Element[SchedulableLoadOutputName]):
     """Schedulable load element for electrical system modeling.
 
     Models a deferrable load that must run for a fixed duration at a fixed power,
@@ -122,7 +123,7 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
                 - ALL: All candidates binary (full MILP)
 
         """
-        super().__init__(name=name, periods=periods, solver=solver)
+        super().__init__(name=name, periods=periods, solver=solver, output_names=SCHEDULABLE_LOAD_OUTPUT_NAMES)
         n_periods = self.n_periods
 
         # Validate parameters
@@ -220,42 +221,44 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
 
         return tuple(profile)
 
-    def build_constraints(self) -> None:
-        """Build constraints for the schedulable load.
+    @constraint(output=True, unit="$/kWh")
+    def schedulable_load_choice(self) -> highs_linear_expression:
+        """Constraint: Exactly one candidate must be selected.
 
-        Constraints:
-        1. Exactly one candidate must be selected: sum(w_k) = 1
-        2. Energy at each time is determined by selection: E_t = sum(w_k * profile_k[t])
-
-        The constraint matrix has consecutive-ones structure (each candidate affects
-        a contiguous set of periods), which often produces integer LP solutions.
-        However, power limits or coupling constraints can cause fractional solutions.
+        Output: shadow price indicating marginal value of the selection constraint.
         """
-        h = self._solver
+        return Highs.qsum(self.choice_weights) == 1.0
 
-        # Exactly one start time selected
-        self._constraints[SCHEDULABLE_LOAD_CHOICE] = h.addConstr(Highs.qsum(self.choice_weights) == 1.0)
+    @constraint(output=True, unit="$/kW")
+    def schedulable_load_power_balance(self) -> list[highs_linear_expression]:
+        """Constraint: Energy at each period equals sum of selected profile contributions.
 
-        # Energy at each period equals sum of selected profile contributions
-        power_balance_constraints: list[highs_cons] = []
+        Output: shadow price indicating marginal value of power balance constraints.
+        """
+        constraints: list[highs_linear_expression] = []
         for t in range(self.n_periods):
             expr = self.energy[t]
             for k, profile in enumerate(self.profiles):
                 expr = expr - self.choice_weights[k] * profile[t]
-            power_balance_constraints.append(h.addConstr(expr == 0.0))
+            constraints.append(expr == 0.0)
+        return constraints
 
-        self._constraints[SCHEDULABLE_LOAD_POWER_BALANCE] = power_balance_constraints
+    @constraint
+    def schedulable_load_connection_balance(self) -> list[highs_linear_expression]:
+        """Constraint: Connection power balance - power = energy / period_length."""
+        return list(self.connection_power() * self.periods == -self.energy)
 
-        # Connection power balance: power = energy / period_length
-        h.addConstrs(self.connection_power() * self.periods == -self.energy)
+    @output
+    def schedulable_load_power_consumed(self) -> OutputData:
+        """Output: Power consumption in each period."""
+        energy_values = self.extract_values(self.energy)
+        power_values = tuple(e / float(p) for e, p in zip(energy_values, self.periods, strict=True))
+        return OutputData(type=OutputType.POWER, unit="kW", values=power_values, direction="-")
 
-    def cost(self) -> Sequence[highs_linear_expression]:
-        """Return the cost expressions of the schedulable load.
-
-        The schedulable load has no inherent cost - costs are applied through
-        connections linking the load to the network.
-        """
-        return []
+    @output
+    def schedulable_load_start_time(self) -> OutputData:
+        """Output: Selected start time for the load."""
+        return OutputData(type=OutputType.DURATION, unit="h", values=(self._compute_selected_start_time(),))
 
     def _compute_selected_start_time(self) -> float:
         """Compute the selected start time from choice weights.
@@ -276,34 +279,3 @@ class SchedulableLoad(Element[SchedulableLoadOutputName, SchedulableLoadConstrai
                 selected_start = self.candidates[k]
 
         return selected_start
-
-    def outputs(self) -> Mapping[SchedulableLoadOutputName, OutputData]:
-        """Return schedulable load output specifications."""
-        # Compute power consumption from energy: power[t] = energy[t] / period[t]
-        energy_values = self.extract_values(self.energy)
-        power_values = tuple(e / float(p) for e, p in zip(energy_values, self.periods, strict=True))
-
-        outputs: dict[SchedulableLoadOutputName, OutputData] = {
-            SCHEDULABLE_LOAD_POWER_CONSUMED: OutputData(
-                type=OutputType.POWER,
-                unit="kW",
-                values=power_values,
-                direction="-",
-            ),
-            SCHEDULABLE_LOAD_START_TIME: OutputData(
-                type=OutputType.DURATION,
-                unit="h",
-                values=(self._compute_selected_start_time(),),
-            ),
-        }
-
-        # Add constraint shadow prices
-        for constraint_name in self._constraints:
-            unit = "$/kW" if constraint_name in SCHEDULABLE_LOAD_POWER_CONSTRAINTS else "$/kWh"
-            outputs[constraint_name] = OutputData(
-                type=OutputType.SHADOW_PRICE,
-                unit=unit,
-                values=self.extract_values(self._constraints[constraint_name]),
-            )
-
-        return outputs
