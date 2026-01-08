@@ -1,202 +1,20 @@
-"""Reactive parameter and constraint caching infrastructure for warm start optimization.
-
-This module provides automatic dependency tracking for model elements, enabling
-efficient warm start optimization where only changed constraints are updated.
-
-The pattern is inspired by reactive frameworks like MobX:
-- Parameters are declared as TrackedParam descriptors
-- Constraint methods are decorated with @constraint
-- Dependencies are tracked automatically during first execution
-- Parameter changes invalidate only dependent constraints
-"""
+"""Decorator classes for reactive caching of constraints and costs."""
 
 from collections.abc import Callable
-from contextvars import ContextVar
-from enum import Enum, auto
 from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
-import numpy as np
+from .tracked_param import _ensure_decorator_state, _tracking_context
+from .types import CachedKind
 
 if TYPE_CHECKING:
     from highspy import Highs
     from highspy.highs import highs_cons, highs_linear_expression
 
-    from .element import Element
+    from haeo.model.element import Element
 
 # Type variable for generic return types
 R = TypeVar("R")
-
-# Context for tracking parameter access during constraint computation
-_tracking_context: ContextVar[set[str] | None] = ContextVar("tracking", default=None)
-
-
-class CachedKind(Enum):
-    """Kind of cached method for reflection-based discovery."""
-
-    CONSTRAINT = auto()
-    COST = auto()
-
-
-class TrackedParam[T]:
-    """Descriptor that tracks access for automatic dependency detection.
-
-    When a constraint method accesses this parameter, the access is recorded.
-    When the parameter value changes, dependent constraints are invalidated.
-
-    Usage:
-        class Battery(Element):
-            capacity = TrackedParam[Sequence[float]]()
-
-            @constraint
-            def soc_max_constraint(self) -> list[highs_linear_expression]:
-                # Accessing self.capacity records dependency
-                return [self.stored_energy[i] <= self.capacity[i] for i in range(self.n_periods)]
-
-    """
-
-    _name: str
-    _private: str
-
-    def __set_name__(self, owner: type, name: str) -> None:
-        """Store the attribute name for storage lookup."""
-        self._name = name
-        self._private = f"_param_{name}"
-
-    @overload
-    def __get__(self, obj: None, objtype: type) -> "TrackedParam[T]": ...
-
-    @overload
-    def __get__(self, obj: "Element[Any]", objtype: type) -> T: ...
-
-    def __get__(self, obj: "Element[Any] | None", objtype: type) -> "TrackedParam[T] | T":
-        """Get the parameter value and record access if tracking is active."""
-        if obj is None:
-            return self
-        # Record access if tracking is active
-        tracking = _tracking_context.get()
-        if tracking is not None:
-            tracking.add(self._name)
-        # Return UNSET if the parameter has never been set
-        return getattr(obj, self._private, _UNSET)  # type: ignore[return-value]
-
-    def __set__(self, obj: "Element[Any]", value: T) -> None:
-        """Set the parameter value and invalidate dependent decorators."""
-        old = getattr(obj, self._private, _UNSET)
-        setattr(obj, self._private, value)
-        # Only invalidate if value actually changed and is not initial set
-        if old is not _UNSET and not _values_equal(old, value):
-            # Invalidate all reactive decorators that depend on this parameter
-            _invalidate_param_dependents(obj, self._name)
-
-
-def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> None:
-    """Invalidate all reactive decorators on an element that depend on a parameter.
-
-    Args:
-        element: The element instance
-        param_name: The parameter name that changed
-
-    """
-    # Get all CachedMethod descriptors on the element's class
-    for attr_name in dir(type(element)):
-        descriptor = getattr(type(element), attr_name, None)
-        if isinstance(descriptor, CachedMethod):
-            # Get the state for this decorator on this element instance
-            state = _get_decorator_state(element, attr_name)
-            if state is not None and param_name in state.get("deps", set()):
-                state["invalidated"] = True
-
-
-def _get_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any] | None:
-    """Get the state dictionary for a decorator method on an element.
-
-    Args:
-        element: The element instance
-        method_name: The method name
-
-    Returns:
-        State dictionary or None if not yet initialized
-
-    """
-    state_attr = f"_reactive_state_{method_name}"
-    return getattr(element, state_attr, None)
-
-
-def _ensure_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any]:
-    """Ensure a state dictionary exists for a decorator method on an element.
-
-    Args:
-        element: The element instance
-        method_name: The method name
-
-    Returns:
-        State dictionary (created if needed)
-
-    """
-    state_attr = f"_reactive_state_{method_name}"
-    if not hasattr(element, state_attr):
-        setattr(element, state_attr, {"invalidated": True, "deps": set(), "result": None})
-    return getattr(element, state_attr)
-
-
-def _values_equal(a: object, b: object) -> bool:
-    """Compare two values for equality, handling numpy arrays."""
-    # Handle numpy array comparisons
-    if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
-        try:
-            # Cast to ArrayLike to satisfy type checker
-            return bool(np.array_equal(a, b))  # type: ignore[arg-type]
-        except (TypeError, ValueError):
-            return False
-    # Standard equality for other types
-    try:
-        return bool(a == b)
-    except (TypeError, ValueError):
-        return False
-
-
-# Sentinel for unset values
-class _UnsetType:
-    """Sentinel type for unset parameter values."""
-
-    __slots__ = ()
-
-    def __repr__(self) -> str:
-        return "<UNSET>"
-
-
-_UNSET = _UnsetType()
-
-# Public alias for use in type hints and checks
-UNSET: _UnsetType = _UNSET
-"""Sentinel value indicating a TrackedParam has not been set.
-
-Use `is_set()` to check if a parameter value has been set.
-"""
-
-
-def is_set(value: object) -> bool:
-    """Check if a TrackedParam value has been set.
-
-    Args:
-        value: The value to check (from a TrackedParam access)
-
-    Returns:
-        True if the value is set (not UNSET), False otherwise
-
-    Example:
-        class MyElement(Element):
-            capacity = TrackedParam[float]()
-
-            @constraint
-            def my_constraint(self) -> highs_linear_expression | None:
-                if not is_set(self.capacity):
-                    return None  # Skip constraint until capacity is set
-                return self.energy <= self.capacity
-
-    """
-    return value is not _UNSET
 
 
 class CachedMethod[R]:
@@ -435,7 +253,6 @@ class OutputMethod[R]:
         return partial(self._fn, obj)
 
 
-
 # Decorator shortcuts for cleaner syntax
 @overload
 def constraint[R](fn: Callable[..., R], /) -> CachedConstraint[R]: ...
@@ -472,3 +289,4 @@ def constraint[R](
 
 cost = CachedCost
 output = OutputMethod
+
