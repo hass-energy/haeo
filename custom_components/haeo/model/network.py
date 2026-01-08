@@ -13,7 +13,6 @@ from .elements import ELEMENTS
 from .elements.battery import Battery
 from .elements.battery_balance_connection import BatteryBalanceConnection
 from .elements.connection import Connection
-from .reactive import CachedConstraint
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -146,7 +145,9 @@ class Network:
         costs: list[highs_linear_expression] = []
         for element_name, element in self.elements.items():
             try:
-                costs.extend(element.cost())
+                cost = element.cost()
+                if cost is not None:
+                    costs.append(cost)
             except Exception as e:
                 msg = f"Failed to collect costs for element '{element_name}'"
                 raise ValueError(msg) from e
@@ -183,29 +184,20 @@ class Network:
                     msg = f"Target element '{element.target}' is a connection"
                     raise ValueError(msg)  # noqa: TRY004 value error is appropriate here
 
-    def constraints(self) -> list[highs_cons]:
+    def constraints(self) -> dict[str, dict[str, highs_cons | list[highs_cons]]]:
         """Return all constraints from all elements in the network.
 
         Returns:
-            A flat list of all constraints from all elements.
+            Dictionary mapping element names to their constraint dictionaries.
+            Each constraint dictionary maps constraint method names to constraint objects.
 
         """
-        result: list[highs_cons] = []
+        result: dict[str, dict[str, highs_cons | list[highs_cons]]] = {}
         for element_name, element in self.elements.items():
             try:
-                # Find all constraint methods on this element
-                for attr_name in dir(type(element)):
-                    attr = getattr(type(element), attr_name, None)
-                    if isinstance(attr, CachedConstraint):
-                        # Get the state for this constraint
-                        state_attr = f"_reactive_state_{attr_name}"
-                        state = getattr(element, state_attr, None)
-                        if state is not None and "constraint" in state:
-                            cons_value = state["constraint"]
-                            if isinstance(cons_value, list):
-                                result.extend(cons_value)
-                            else:
-                                result.append(cons_value)
+                element_constraints = element.constraints()
+                if element_constraints:
+                    result[element_name] = element_constraints
             except Exception as e:
                 msg = f"Failed to get constraints for element '{element_name}'"
                 raise ValueError(msg) from e

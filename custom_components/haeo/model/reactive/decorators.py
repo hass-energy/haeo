@@ -4,7 +4,10 @@ from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
-from .tracked_param import _ensure_decorator_state, _tracking_context
+from .tracked_param import (
+    _ensure_decorator_state,  # noqa: PLC2701 (tightly coupled reactive infrastructure)
+    _tracking_context,  # noqa: PLC2701 (tightly coupled reactive infrastructure)
+)
 from .types import CachedKind
 
 if TYPE_CHECKING:
@@ -135,8 +138,8 @@ class CachedConstraint[R](CachedMethod[R]):
         if expr is None:
             return expr  # type: ignore[return-value]
 
-        # Get solver from element
-        solver: Highs = obj._solver  # noqa: SLF001
+                # Get solver from element
+                solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure)
 
         # First call: create constraint(s) in solver
         if is_first_call:

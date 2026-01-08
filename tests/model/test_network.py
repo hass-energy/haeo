@@ -213,10 +213,10 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
 
 
 def test_constraints_returns_empty_when_no_elements() -> None:
-    """Constraints should return empty list when network has no elements."""
+    """Constraints should return empty dict when network has no elements."""
     net = Network(name="net", periods=[1.0] * 1)
 
-    assert net.constraints() == []
+    assert net.constraints() == {}
 
 
 def test_network_constraint_generation_error() -> None:

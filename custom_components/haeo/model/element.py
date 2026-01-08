@@ -46,6 +46,10 @@ class Element[OutputNameT: str]:
         # Track connections for power balance
         self._connections: list[tuple[Connection[Any], Literal["source", "target"]]] = []
 
+        # Cache for aggregated cost expression
+        self._cost_cache: Any = None
+        self._cost_cache_valid = False
+
     def __getitem__(self, key: str) -> Any:
         """Get a TrackedParam value by name.
 
@@ -199,17 +203,17 @@ class Element[OutputNameT: str]:
                     result[name] = output_data  # type: ignore[literal-required]
         return result
 
-    def constraints(self) -> list[highs_cons | list[highs_cons]]:
+    def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
         """Return all constraints from this element.
 
         Discovers and calls all @constraint decorated methods. Calling the methods
         triggers automatic constraint creation/updating in the solver via decorators.
 
         Returns:
-            List of constraint objects (individual constraints or lists of constraints)
+            Dictionary mapping constraint method names to constraint objects
 
         """
-        result: list[highs_cons | list[highs_cons]] = []
+        result: dict[str, highs_cons | list[highs_cons]] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if isinstance(attr, CachedConstraint):
@@ -222,19 +226,26 @@ class Element[OutputNameT: str]:
                 state = getattr(self, state_attr, None)
                 if state is not None and "constraint" in state:
                     cons = state["constraint"]
-                    result.append(cons)
+                    result[name] = cons
         return result
 
-    def cost(self) -> list[Any]:
-        """Return all cost expressions from this element.
+    def cost(self) -> Any:
+        """Return aggregated cost expression from this element.
 
-        Discovers and calls all @cost decorated methods, collecting their results.
+        Discovers and calls all @cost decorated methods, summing their results into
+        a single expression. The result is cached and only recomputed if any
+        underlying @cost method was invalidated.
 
         Returns:
-            List of cost expressions (highs_linear_expression objects)
+            Single aggregated cost expression (highs_linear_expression) or None if no costs
 
         """
-        result: list[Any] = []
+        # Check if cache is still valid
+        if self._cost_cache_valid:
+            return self._cost_cache
+
+        # Collect all cost expressions
+        costs: list[Any] = []
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if isinstance(attr, CachedCost):
@@ -243,7 +254,21 @@ class Element[OutputNameT: str]:
                 cost_value = method()
                 if cost_value is not None:
                     if isinstance(cost_value, list):
-                        result.extend(cost_value)
+                        costs.extend(cost_value)
                     else:
-                        result.append(cost_value)
-        return result
+                        costs.append(cost_value)
+
+        # Aggregate costs into a single expression
+        if not costs:
+            aggregated = None
+        elif len(costs) == 1:
+            aggregated = costs[0]
+        else:
+            # Sum all cost expressions
+            aggregated = sum(costs[1:], costs[0])
+
+        # Cache the result
+        self._cost_cache = aggregated
+        self._cost_cache_valid = True
+
+        return aggregated
