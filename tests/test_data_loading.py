@@ -7,11 +7,11 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
+from custom_components.haeo.coordinator import create_network
 from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.load import CONF_CONNECTION
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
-from custom_components.haeo.coordinator import create_network
 
 
 async def test_create_network_successful_loads_load_participant(hass: HomeAssistant) -> None:
@@ -124,7 +124,7 @@ async def test_create_network_add_failure_is_wrapped(hass: HomeAssistant, monkey
         err = RuntimeError("boom")
         raise err
 
-    monkeypatch.setattr("custom_components.haeo.network.Network.add", _raise)
+    monkeypatch.setattr("custom_components.haeo.model.Network.add", _raise)
 
     with pytest.raises(ValueError, match="Failed to add model element 'node'"):
         await create_network(

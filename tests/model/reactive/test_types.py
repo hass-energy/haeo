@@ -1,7 +1,7 @@
 """Tests for TrackedParam behavior with unset values."""
 
-import pytest
 from highspy import Highs
+import pytest
 
 from custom_components.haeo.model.element import Element
 from custom_components.haeo.model.reactive import TrackedParam
@@ -25,7 +25,7 @@ def test_unset_raises_attribute_error() -> None:
     # Never set, should raise AttributeError
     with pytest.raises(AttributeError):
         _ = elem.capacity
-        
+
     # is_set should return False
     assert not TestElement.capacity.is_set(elem)
 

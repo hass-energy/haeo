@@ -207,7 +207,7 @@ class Element[OutputNameT: str]:
 
         """
         # Get this method's name from the decorator to avoid hardcoding
-        this_method_name = type(self).cost._name  # type: ignore[attr-defined]
+        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (intentional access to decorator's name)
 
         # Collect all cost expressions from @cost methods (excluding this one)
         costs: list[Any] = []

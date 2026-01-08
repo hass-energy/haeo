@@ -8,11 +8,20 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from ..const import CONF_ELEMENT_TYPE
-from ..elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPES, ElementConfigData, ElementConfigSchema
-from ..model import Network
-from ..repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
-from ..validation import collect_participant_configs, format_component_summary, validate_network_topology
+from custom_components.haeo.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.elements import (
+    ELEMENT_TYPE_CONNECTION,
+    ELEMENT_TYPES,
+    ElementConfigData,
+    ElementConfigSchema,
+)
+from custom_components.haeo.model import Network
+from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
+from custom_components.haeo.validation import (
+    collect_participant_configs,
+    format_component_summary,
+    validate_network_topology,
+)
 
 _LOGGER = logging.getLogger(__name__)
 

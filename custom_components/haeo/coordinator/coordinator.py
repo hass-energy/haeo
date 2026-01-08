@@ -17,8 +17,7 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from . import network as network_module
-from ..const import (
+from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
     CONF_NAME,
@@ -33,7 +32,7 @@ from ..const import (
     OUTPUT_NAME_OPTIMIZATION_STATUS,
     NetworkOutputName,
 )
-from ..elements import (
+from custom_components.haeo.elements import (
     ELEMENT_TYPES,
     ElementConfigData,
     ElementConfigSchema,
@@ -43,9 +42,11 @@ from ..elements import (
     get_input_fields,
     is_element_type,
 )
-from ..model import ModelOutputName, Network, OutputData, OutputType
-from ..repairs import dismiss_optimization_failure_issue
-from ..util.forecast_times import tiers_to_periods_seconds
+from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.repairs import dismiss_optimization_failure_issue
+from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
+
+from . import network as network_module
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData

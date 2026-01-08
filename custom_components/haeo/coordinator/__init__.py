@@ -1,19 +1,19 @@
 """Coordinator module for HAEO integration."""
 
 from .coordinator import (
+    STATUS_OPTIONS,
     CoordinatorOutput,
     ForecastPoint,
     HaeoDataUpdateCoordinator,
-    STATUS_OPTIONS,
-    _build_coordinator_output,
+    _build_coordinator_output,  # pyright: ignore[reportPrivateUsage] (exported for testing)
 )
 from .network import create_network, evaluate_network_connectivity, update_element
 
 __all__ = [
+    "STATUS_OPTIONS",
     "CoordinatorOutput",
     "ForecastPoint",
     "HaeoDataUpdateCoordinator",
-    "STATUS_OPTIONS",
     "_build_coordinator_output",
     "create_network",
     "evaluate_network_connectivity",

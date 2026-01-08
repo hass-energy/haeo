@@ -21,10 +21,10 @@ from custom_components.haeo.const import (
     CONF_TIER_4_DURATION,
     DOMAIN,
 )
+from custom_components.haeo.coordinator import evaluate_network_connectivity
 from custom_components.haeo.elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPE_NODE
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
-from custom_components.haeo.coordinator import evaluate_network_connectivity
 
 
 @pytest.fixture

@@ -115,7 +115,9 @@ type ElementOutputName = (
     | NetworkOutputName
 )
 
-ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
+# Pyright doesn't understand that adapter-synthesized outputs like connection_power_active
+# are valid members of ElementOutputName union, so we add type: ignore
+ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(  # type: ignore[assignment]
     inverter.INVERTER_OUTPUT_NAMES
     | battery.BATTERY_OUTPUT_NAMES
     | battery_section.BATTERY_SECTION_OUTPUT_NAMES

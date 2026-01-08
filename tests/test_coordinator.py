@@ -323,9 +323,9 @@ async def test_async_update_data_returns_outputs(
     with (
         patch("custom_components.haeo.coordinator.coordinator.network_module.create_network", new_callable=AsyncMock),
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
-        patch("custom_components.haeo.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
-        patch("custom_components.haeo.coordinator.dt_util.utcnow", return_value=generated_at),
-        patch("custom_components.haeo.coordinator.async_get_translations", mock_translations),
+        patch("custom_components.haeo.coordinator.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
+        patch("custom_components.haeo.coordinator.coordinator.dt_util.utcnow", return_value=generated_at),
+        patch("custom_components.haeo.coordinator.coordinator.async_get_translations", mock_translations),
         patch.dict(
             ELEMENT_TYPES,
             {
@@ -505,7 +505,7 @@ def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.M
         def fromtimestamp(*_args: Any, **_kwargs: Any) -> None:
             raise ValueError
 
-    monkeypatch.setattr("custom_components.haeo.coordinator.datetime", _ErrorDatetime)
+    monkeypatch.setattr("custom_components.haeo.coordinator.coordinator.datetime", _ErrorDatetime)
 
     output = _build_coordinator_output(
         SOLAR_POWER,
@@ -640,7 +640,7 @@ def test_trigger_optimization_schedules_timer_in_cooldown(
     coordinator._last_optimization_time = time.time() - 0.5  # 0.5 seconds ago
     coordinator._debounce_seconds = 5.0  # 5 second cooldown
 
-    with patch("custom_components.haeo.coordinator.async_call_later") as mock_timer:
+    with patch("custom_components.haeo.coordinator.coordinator.async_call_later") as mock_timer:
         mock_timer.return_value = MagicMock()  # Return unsubscribe callback
         coordinator._trigger_optimization()
 
@@ -665,7 +665,7 @@ def test_trigger_optimization_reuses_existing_timer(
     existing_timer = MagicMock()
     coordinator._debounce_timer = existing_timer
 
-    with patch("custom_components.haeo.coordinator.async_call_later") as mock_timer:
+    with patch("custom_components.haeo.coordinator.coordinator.async_call_later") as mock_timer:
         coordinator._trigger_optimization()
 
     # Should not schedule new timer since one exists

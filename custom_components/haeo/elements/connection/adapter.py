@@ -40,8 +40,9 @@ from .schema import (
 CONNECTION_POWER_ACTIVE: Final = "connection_power_active"
 
 # Connection output names include both model outputs and adapter-synthesized outputs
-CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName | Literal["connection_power_active"]]] = (
-    POWER_CONNECTION_OUTPUT_NAMES | frozenset([CONNECTION_POWER_ACTIVE])
+# Use type: ignore because pyright doesn't understand that the union of frozensets is valid
+CONNECTION_OUTPUT_NAMES: Final = (
+    POWER_CONNECTION_OUTPUT_NAMES | frozenset([CONNECTION_POWER_ACTIVE])  # type: ignore[assignment]
 )
 
 type ConnectionDeviceName = Literal["connection"]
@@ -146,11 +147,16 @@ class ConnectionAdapter:
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         _config: ConnectionConfigData,
-    ) -> Mapping[ConnectionDeviceName, Mapping[PowerConnectionOutputName, OutputData]]:
+    ) -> Mapping[
+        ConnectionDeviceName,
+        Mapping[PowerConnectionOutputName | Literal["connection_power_active"], OutputData],
+    ]:
         """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]
 
-        connection_outputs: dict[PowerConnectionOutputName, OutputData] = {
+        connection_outputs: dict[
+            PowerConnectionOutputName | Literal["connection_power_active"], OutputData
+        ] = {
             CONNECTION_POWER_SOURCE_TARGET: connection[CONNECTION_POWER_SOURCE_TARGET],
             CONNECTION_POWER_TARGET_SOURCE: connection[CONNECTION_POWER_TARGET_SOURCE],
         }
