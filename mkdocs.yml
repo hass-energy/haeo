@@ -140,7 +140,7 @@ nav:
       - Elements:
           - user-guide/elements/index.md
           - Battery: user-guide/elements/battery.md
-          - Battery Section: user-guide/elements/battery_section.md
+          - Energy Storage: user-guide/elements/energy_storage.md
           - Grid: user-guide/elements/grid.md
           - Inverter: user-guide/elements/inverter.md
           - Load: user-guide/elements/load.md
@@ -161,17 +161,17 @@ nav:
           - modeling/model-layer/index.md
           - Elements:
               - modeling/model-layer/elements/index.md
-              - Battery: modeling/model-layer/elements/battery.md
+              - Energy Storage: modeling/model-layer/elements/energy-storage.md
               - Node: modeling/model-layer/elements/node.md
           - Connections:
               - modeling/model-layer/connections/index.md
               - Connection: modeling/model-layer/connections/connection.md
               - Power Connection: modeling/model-layer/connections/power-connection.md
-              - Battery Balance Connection: modeling/model-layer/battery-balance-connection.md
+              - Energy Balance Connection: modeling/model-layer/energy-balance-connection.md
       - Device Layer:
           - modeling/device-layer/index.md
           - Battery: modeling/device-layer/battery.md
-          - Battery Section: modeling/device-layer/battery_section.md
+          - Energy Storage: modeling/device-layer/energy_storage.md
           - Grid: modeling/device-layer/grid.md
           - Inverter: modeling/device-layer/inverter.md
           - Solar: modeling/device-layer/solar.md

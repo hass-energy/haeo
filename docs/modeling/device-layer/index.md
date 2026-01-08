@@ -78,12 +78,12 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Load modeling](loads.md)
 
-- :material-battery-charging:{ .lg .middle } **Battery Section**
+- :material-battery-charging:{ .lg .middle } **Energy Storage**
 
     ---
 
-    Direct access to model layer Battery element.
+    Direct access to model layer Energy Storage element.
 
-    [:material-arrow-right: Battery Section modeling](battery_section.md)
+    [:material-arrow-right: Energy Storage modeling](energy_storage.md)
 
 </div>

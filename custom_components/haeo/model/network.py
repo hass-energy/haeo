@@ -10,9 +10,9 @@ from highspy.highs import highs_cons, highs_linear_expression
 
 from .element import Element
 from .elements import ELEMENTS
-from .elements.battery import Battery
-from .elements.battery_balance_connection import BatteryBalanceConnection
 from .elements.connection import Connection
+from .elements.energy_balance_connection import EnergyBalanceConnection
+from .elements.energy_storage import EnergyStorage
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,6 +72,28 @@ class Network:
             The created element
 
         """
+        # For energy balance connections, validate partitions and auto-derive capacity_lower if not provided
+        if element_type.lower() == "energy_balance_connection":
+            # Pre-validate upper and lower elements before trying to create the connection
+            upper_name = kwargs.get("upper")
+            lower_name = kwargs.get("lower")
+
+            if isinstance(upper_name, str):
+                upper_element = self.elements.get(upper_name)
+                if not isinstance(upper_element, EnergyStorage):
+                    msg = f"Upper element '{upper_name}' is not an energy storage partition"
+                    raise TypeError(msg)
+
+            if isinstance(lower_name, str):
+                lower_element = self.elements.get(lower_name)
+                if not isinstance(lower_element, EnergyStorage):
+                    msg = f"Lower element '{lower_name}' is not an energy storage partition"
+                    raise TypeError(msg)
+
+                # Auto-derive capacity_lower from lower element if not provided
+                if "capacity_lower" not in kwargs:
+                    kwargs = {**kwargs, "capacity_lower": lower_element.capacity}
+
         # Create new element using registry
         # Cast to ModelElementType - validated by ELEMENTS dict lookup
         element_spec = ELEMENTS[element_type.lower()]  # type: ignore[index]
@@ -79,8 +101,8 @@ class Network:
         self.elements[name] = element
 
         # Register connections immediately when adding Connection elements
-        # (but not BatteryBalanceConnection - those register themselves via set_battery_references)
-        if isinstance(element, Connection) and not isinstance(element, BatteryBalanceConnection):
+        # (but not EnergyBalanceConnection - those register themselves via set_partition_references)
+        if isinstance(element, Connection) and not isinstance(element, EnergyBalanceConnection):
             # Get source and target elements
             source_element = self.elements.get(element.source)
             target_element = self.elements.get(element.target)
@@ -97,21 +119,18 @@ class Network:
                 msg = f"Failed to register connection {name} with target {element.target}: Not found or invalid"
                 raise ValueError(msg)
 
-        # Register battery balance connections with their battery sections
-        if isinstance(element, BatteryBalanceConnection):
-            # BatteryBalanceConnection uses source=upper, target=lower
+        # Register energy balance connections with their energy storage partitions
+        # (type validation already done before element creation)
+        if isinstance(element, EnergyBalanceConnection):
+            # EnergyBalanceConnection uses source=upper, target=lower
             upper_element = self.elements.get(element.source)
             lower_element = self.elements.get(element.target)
 
-            if not isinstance(upper_element, Battery):
-                msg = f"Upper element '{element.source}' is not a battery"
-                raise TypeError(msg)
+            # Type assertions - validation already done before element creation
+            assert isinstance(upper_element, EnergyStorage)  # noqa: S101
+            assert isinstance(lower_element, EnergyStorage)  # noqa: S101
 
-            if not isinstance(lower_element, Battery):
-                msg = f"Lower element '{element.target}' is not a battery"
-                raise TypeError(msg)
-
-            element.set_battery_references(upper_element, lower_element)
+            element.set_partition_references(upper_element, lower_element)
 
         return element
 

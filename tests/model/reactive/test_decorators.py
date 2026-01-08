@@ -6,7 +6,7 @@ from highspy import Highs
 from highspy.highs import highs_linear_expression
 
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.elements.battery import Battery
+from custom_components.haeo.model.elements.energy_storage import EnergyStorage
 from custom_components.haeo.model.reactive import ReactiveConstraint, ReactiveCost, TrackedParam, constraint, cost
 
 
@@ -388,8 +388,8 @@ def test_constraint_without_output_flag() -> None:
     h = Highs()
     h.setOptionValue("output_flag", False)
 
-    # Use 2 periods since battery constraints use slices [1:]
-    battery = Battery(
+    # Use 2 periods since energy storage constraints use slices [1:]
+    storage = EnergyStorage(
         name="test",
         periods=[1.0, 1.0],
         solver=h,
@@ -398,15 +398,15 @@ def test_constraint_without_output_flag() -> None:
     )
 
     # Trigger constraint creation
-    battery.constraints()
+    storage.constraints()
 
     # Get outputs - should not include constraints without output=True
-    outputs = battery.outputs()
+    outputs = storage.outputs()
 
-    # Battery has @constraint decorators without output=False (energy_balance)
+    # EnergyStorage has @constraint decorators without output=False (energy_balance)
     # These should not appear in outputs because output=False
     assert "energy_balance" not in outputs
 
     # But should include constraints with output=True
-    assert "battery_soc_max" in outputs
-    assert "battery_soc_min" in outputs
+    assert "energy_storage_soc_max" in outputs
+    assert "energy_storage_soc_min" in outputs

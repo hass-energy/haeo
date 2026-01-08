@@ -39,6 +39,11 @@ from .schema import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_OVERCHARGE_COST,
     CONF_OVERCHARGE_PERCENTAGE,
+    CONF_PARTITION_CAPACITY,
+    CONF_PARTITION_CHARGE_COST,
+    CONF_PARTITION_DISCHARGE_COST,
+    CONF_PARTITION_NAME,
+    CONF_PARTITIONS,
     CONF_UNDERCHARGE_COST,
     CONF_UNDERCHARGE_PERCENTAGE,
     DEFAULTS,
@@ -46,6 +51,8 @@ from .schema import (
     INPUT_FIELDS,
     BatteryConfigData,
     BatteryConfigSchema,
+    PartitionConfigData,
+    PartitionConfigSchema,
 )
 
 __all__ = [
@@ -81,6 +88,11 @@ __all__ = [
     "CONF_MIN_CHARGE_PERCENTAGE",
     "CONF_OVERCHARGE_COST",
     "CONF_OVERCHARGE_PERCENTAGE",
+    "CONF_PARTITIONS",
+    "CONF_PARTITION_CAPACITY",
+    "CONF_PARTITION_CHARGE_COST",
+    "CONF_PARTITION_DISCHARGE_COST",
+    "CONF_PARTITION_NAME",
     "CONF_UNDERCHARGE_COST",
     "CONF_UNDERCHARGE_PERCENTAGE",
     "DEFAULTS",
@@ -93,6 +105,8 @@ __all__ = [
     "BatteryOutputName",
     # Flow
     "BatterySubentryFlowHandler",
+    "PartitionConfigData",
+    "PartitionConfigSchema",
     "adapter",
     "sum_output_data",
 ]

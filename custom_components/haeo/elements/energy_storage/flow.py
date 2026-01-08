@@ -1,4 +1,4 @@
-"""Battery section element configuration flows."""
+"""Energy storage element configuration flows."""
 
 from typing import Any, cast
 
@@ -11,7 +11,7 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.data.loader.extractors import EntityMetadata, extract_entity_metadata
 from custom_components.haeo.schema.util import UnitSpec
 
-from .schema import CONF_CAPACITY, CONF_INITIAL_CHARGE, ELEMENT_TYPE, BatterySectionConfigSchema
+from .schema import CONF_CAPACITY, CONF_INITIAL_CHARGE, ELEMENT_TYPE, EnergyStorageConfigSchema
 
 # Unit specifications
 ENERGY_UNITS: UnitSpec = UnitOfEnergy
@@ -26,7 +26,7 @@ def _filter_incompatible_entities(
 
 
 def _build_schema(entity_metadata: list[EntityMetadata]) -> vol.Schema:
-    """Build the voluptuous schema for battery section configuration."""
+    """Build the voluptuous schema for energy storage configuration."""
     incompatible_energy = _filter_incompatible_entities(entity_metadata, ENERGY_UNITS)
 
     return vol.Schema(
@@ -55,11 +55,11 @@ def _build_schema(entity_metadata: list[EntityMetadata]) -> vol.Schema:
     )
 
 
-class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
-    """Handle battery section element configuration flows."""
+class EnergyStorageSubentryFlowHandler(ConfigSubentryFlow):
+    """Handle energy storage element configuration flows."""
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle adding a new battery section element."""
+        """Handle adding a new energy storage element."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -70,7 +70,7 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
                 errors[CONF_NAME] = "name_exists"
 
             if not errors:
-                config = cast("BatterySectionConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
+                config = cast("EnergyStorageConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
                 return self.async_create_entry(title=name, data=config)
 
         entity_metadata = extract_entity_metadata(self.hass)
@@ -83,7 +83,7 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
         )
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle reconfiguring an existing battery section element."""
+        """Handle reconfiguring an existing energy storage element."""
         errors: dict[str, str] = {}
         subentry = self._get_reconfigure_subentry()
 
@@ -95,7 +95,7 @@ class BatterySectionSubentryFlowHandler(ConfigSubentryFlow):
                 errors[CONF_NAME] = "name_exists"
 
             if not errors:
-                config = cast("BatterySectionConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
+                config = cast("EnergyStorageConfigSchema", {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **user_input})
                 return self.async_update_and_abort(
                     self._get_entry(),
                     subentry,

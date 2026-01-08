@@ -8,23 +8,23 @@ import numpy as np
 import pytest
 
 from custom_components.haeo.model import Network
-from custom_components.haeo.model.elements.battery import Battery
+from custom_components.haeo.model.elements.energy_storage import EnergyStorage
 from custom_components.haeo.model.elements.power_connection import PowerConnection
 
-# Battery reactive update tests
+# EnergyStorage reactive update tests
 
 
-def test_battery_update_capacity_modifies_soc_constraints() -> None:
+def test_storage_update_capacity_modifies_soc_constraints() -> None:
     """Test that setting capacity directly invalidates and rebuilds SOC constraints."""
     network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
-    # Add battery and run initial optimization
-    network.add("battery", "battery", capacity=10.0, initial_charge=5.0)
+    # Add storage and run initial optimization
+    network.add("energy_storage", "storage", capacity=10.0, initial_charge=5.0)
     network.add("node", "grid", is_source=True, is_sink=True)
     network.add(
         "connection",
-        "battery_grid",
-        source="battery",
+        "storage_grid",
+        source="storage",
         target="grid",
         max_power_source_target=5.0,
         max_power_target_source=5.0,
@@ -35,16 +35,16 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
     # First optimization
     cost1 = network.optimize()
 
-    # Update battery capacity via TrackedParam (must be sequence for T+1 boundaries)
-    battery = network.elements["battery"]
-    assert isinstance(battery, Battery)
-    battery.capacity = np.array([20.0, 20.0, 20.0, 20.0])
+    # Update storage capacity via TrackedParam (must be sequence for T+1 boundaries)
+    storage = network.elements["storage"]
+    assert isinstance(storage, EnergyStorage)
+    storage.capacity = np.array([20.0, 20.0, 20.0, 20.0])
 
     # Second optimization should use updated capacity
     cost2 = network.optimize()
 
-    # Verify battery capacity was updated
-    assert np.all(np.array(battery.capacity) == 20.0)
+    # Verify storage capacity was updated
+    assert np.all(np.array(storage.capacity) == 20.0)
 
     # Cost should be different with larger capacity (more flexibility)
     # Both optimizations should succeed
@@ -52,16 +52,16 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
     assert cost2 is not None
 
 
-def test_battery_update_initial_charge_modifies_constraint() -> None:
+def test_storage_update_initial_charge_modifies_constraint() -> None:
     """Test that setting initial_charge invalidates the initial state constraint."""
     network = Network(name="test", periods=[1.0])
 
-    network.add("battery", "battery", capacity=10.0, initial_charge=2.0)
+    network.add("energy_storage", "storage", capacity=10.0, initial_charge=2.0)
     network.add("node", "grid", is_source=True, is_sink=True)
     network.add(
         "connection",
-        "battery_grid",
-        source="battery",
+        "storage_grid",
+        source="storage",
         target="grid",
         max_power_source_target=10.0,
         price_source_target=-0.10,
@@ -71,14 +71,14 @@ def test_battery_update_initial_charge_modifies_constraint() -> None:
     cost1 = network.optimize()
 
     # Update initial charge via TrackedParam
-    battery = network.elements["battery"]
-    assert isinstance(battery, Battery)
-    old_initial_charge = battery.initial_charge
-    battery.initial_charge = 8.0
+    storage = network.elements["storage"]
+    assert isinstance(storage, EnergyStorage)
+    old_initial_charge = storage.initial_charge
+    storage.initial_charge = 8.0
 
     # Verify initial charge was updated in the element
-    assert battery.initial_charge == 8.0
-    assert battery.initial_charge != old_initial_charge
+    assert storage.initial_charge == 8.0
+    assert storage.initial_charge != old_initial_charge
 
     # Second optimization should work with updated initial charge
     cost2 = network.optimize()
@@ -88,21 +88,21 @@ def test_battery_update_initial_charge_modifies_constraint() -> None:
     assert cost2 is not None
 
 
-def test_battery_update_with_sequence_capacity() -> None:
+def test_storage_update_with_sequence_capacity() -> None:
     """Test setting capacity with a sequence value."""
     network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
-    network.add("battery", "battery", capacity=10.0, initial_charge=5.0)
+    network.add("energy_storage", "storage", capacity=10.0, initial_charge=5.0)
     network.optimize()
 
-    battery = network.elements["battery"]
-    assert isinstance(battery, Battery)
+    storage = network.elements["storage"]
+    assert isinstance(storage, EnergyStorage)
 
     # Update with sequence (varying capacity per period boundary)
-    battery.capacity = np.array([8.0, 9.0, 10.0, 11.0])  # 4 values for 3 periods + 1
+    storage.capacity = np.array([8.0, 9.0, 10.0, 11.0])  # 4 values for 3 periods + 1
 
-    assert len(battery.capacity) == 4
-    np.testing.assert_array_equal(battery.capacity, [8.0, 9.0, 10.0, 11.0])
+    assert len(storage.capacity) == 4
+    np.testing.assert_array_equal(storage.capacity, [8.0, 9.0, 10.0, 11.0])
 
 
 # PowerConnection reactive update tests
@@ -200,18 +200,18 @@ def test_connection_update_price_target_source() -> None:
     """Test setting price_target_source invalidates objective coefficients."""
     network = Network(name="test", periods=[1.0])
 
-    # Battery starts empty, needs to charge from grid
-    network.add("battery", "battery", capacity=10.0, initial_charge=0.0)
+    # Storage starts empty, needs to charge from grid
+    network.add("energy_storage", "storage", capacity=10.0, initial_charge=0.0)
     network.add("node", "grid", is_source=True, is_sink=True)
     network.add(
         "connection",
         "conn",
-        source="battery",
+        source="storage",
         target="grid",
         max_power_source_target=5.0,
         max_power_target_source=5.0,
         price_source_target=0.0,
-        price_target_source=0.15,  # Cost to import from grid to battery
+        price_target_source=0.15,  # Cost to import from grid to storage
     )
 
     # With no incentive to charge and a cost to charge, optimizer won't charge
@@ -265,12 +265,12 @@ def test_warm_start_produces_same_result() -> None:
     """Test that warm start optimization produces same result as cold start."""
     # Create first network (cold start)
     network1 = Network(name="test1", periods=[1.0, 1.0, 1.0])
-    network1.add("battery", "battery", capacity=10.0, initial_charge=5.0)
+    network1.add("energy_storage", "storage", capacity=10.0, initial_charge=5.0)
     network1.add("node", "grid", is_source=True, is_sink=True)
     network1.add(
         "connection",
         "conn",
-        source="battery",
+        source="storage",
         target="grid",
         max_power_source_target=5.0,
         max_power_target_source=5.0,
@@ -282,12 +282,12 @@ def test_warm_start_produces_same_result() -> None:
     # Create second network (warm start simulation)
     network2 = Network(name="test2", periods=[1.0, 1.0, 1.0])
     # First add with initial parameters
-    network2.add("battery", "battery", capacity=5.0, initial_charge=2.0)
+    network2.add("energy_storage", "storage", capacity=5.0, initial_charge=2.0)
     network2.add("node", "grid", is_source=True, is_sink=True)
     network2.add(
         "connection",
         "conn",
-        source="battery",
+        source="storage",
         target="grid",
         max_power_source_target=2.0,
         max_power_target_source=2.0,
@@ -299,10 +299,10 @@ def test_warm_start_produces_same_result() -> None:
 
     # Update to same parameters as network1 via TrackedParam
     # (capacity must be sequence for T+1 boundaries)
-    battery = network2.elements["battery"]
-    assert isinstance(battery, Battery)
-    battery.capacity = np.array([10.0, 10.0, 10.0, 10.0])
-    battery.initial_charge = 5.0
+    storage = network2.elements["storage"]
+    assert isinstance(storage, EnergyStorage)
+    storage.capacity = np.array([10.0, 10.0, 10.0, 10.0])
+    storage.initial_charge = 5.0
 
     connection = network2.elements["conn"]
     assert isinstance(connection, PowerConnection)
@@ -361,12 +361,12 @@ def test_solver_structure_unchanged_after_update() -> None:
     """
     network = Network(name="test", periods=[1.0, 1.0, 1.0])
 
-    network.add("battery", "battery", capacity=10.0, initial_charge=5.0)
+    network.add("energy_storage", "storage", capacity=10.0, initial_charge=5.0)
     network.add("node", "grid", is_source=True, is_sink=True)
     network.add(
         "connection",
         "conn",
-        source="battery",
+        source="storage",
         target="grid",
         max_power_source_target=5.0,
         max_power_target_source=5.0,
@@ -380,10 +380,10 @@ def test_solver_structure_unchanged_after_update() -> None:
     num_cons_1 = network._solver.numConstrs
 
     # Update parameters and optimize again
-    battery = network.elements["battery"]
-    assert isinstance(battery, Battery)
-    battery.capacity = np.array([20.0, 20.0, 20.0, 20.0])
-    battery.initial_charge = 8.0
+    storage = network.elements["storage"]
+    assert isinstance(storage, EnergyStorage)
+    storage.capacity = np.array([20.0, 20.0, 20.0, 20.0])
+    storage.initial_charge = 8.0
 
     connection = network.elements["conn"]
     assert isinstance(connection, PowerConnection)
@@ -398,7 +398,7 @@ def test_solver_structure_unchanged_after_update() -> None:
     assert num_cons_1 == num_cons_2, f"Constraints grew from {num_cons_1} to {num_cons_2}"
 
     # Update again and optimize a third time
-    battery.capacity = np.array([15.0, 15.0, 15.0, 15.0])
+    storage.capacity = np.array([15.0, 15.0, 15.0, 15.0])
     connection.max_power_source_target = np.array([10.0, 10.0, 10.0])
 
     network.optimize()

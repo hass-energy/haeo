@@ -8,7 +8,7 @@ Adapter Pattern:
     Configuration Element (with entity IDs) →
     Adapter.load() →
     Configuration Data (with loaded values) →
-    Adapter.model_elements() →
+    Adapter.create_model_elements() →
     Model Elements (pure optimization) →
     Model.optimize() →
     Model Outputs (element-agnostic) →
@@ -55,14 +55,14 @@ from custom_components.haeo.const import (
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.output_data import OutputData
 
-from . import battery, battery_section, connection, grid, inverter, load, node, solar
+from . import battery, connection, energy_storage, grid, inverter, load, node, solar
 from .input_fields import InputFieldInfo
 
 _LOGGER = logging.getLogger(__name__)
 
 type ElementType = Literal[
     "battery",
-    "battery_section",
+    "energy_storage",
     "connection",
     "solar",
     "grid",
@@ -73,7 +73,7 @@ type ElementType = Literal[
 
 ELEMENT_TYPE_INVERTER: Final = inverter.ELEMENT_TYPE
 ELEMENT_TYPE_BATTERY: Final = battery.ELEMENT_TYPE
-ELEMENT_TYPE_BATTERY_SECTION: Final = battery_section.ELEMENT_TYPE
+ELEMENT_TYPE_ENERGY_STORAGE: Final = energy_storage.ELEMENT_TYPE
 ELEMENT_TYPE_CONNECTION: Final = connection.ELEMENT_TYPE
 ELEMENT_TYPE_SOLAR: Final = solar.ELEMENT_TYPE
 ELEMENT_TYPE_GRID: Final = grid.ELEMENT_TYPE
@@ -83,7 +83,7 @@ ELEMENT_TYPE_NODE: Final = node.ELEMENT_TYPE
 ElementConfigSchema = (
     inverter.InverterConfigSchema
     | battery.BatteryConfigSchema
-    | battery_section.BatterySectionConfigSchema
+    | energy_storage.EnergyStorageConfigSchema
     | grid.GridConfigSchema
     | load.LoadConfigSchema
     | solar.SolarConfigSchema
@@ -94,7 +94,7 @@ ElementConfigSchema = (
 ElementConfigData = (
     inverter.InverterConfigData
     | battery.BatteryConfigData
-    | battery_section.BatterySectionConfigData
+    | energy_storage.EnergyStorageConfigData
     | grid.GridConfigData
     | load.LoadConfigData
     | solar.SolarConfigData
@@ -106,8 +106,8 @@ ElementConfigData = (
 type ElementOutputName = (
     inverter.InverterOutputName
     | battery.BatteryOutputName
-    | battery_section.BatterySectionOutputName
-    | connection.ConnectionOutputName
+    | energy_storage.EnergyStorageOutputName
+    | connection.PowerConnectionOutputName
     | grid.GridOutputName
     | load.LoadOutputName
     | node.NodeOutputName
@@ -115,10 +115,10 @@ type ElementOutputName = (
     | NetworkOutputName
 )
 
-ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
+ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(  # type: ignore[assignment]  # frozenset union doesn't narrow to ElementOutputName
     inverter.INVERTER_OUTPUT_NAMES
     | battery.BATTERY_OUTPUT_NAMES
-    | battery_section.BATTERY_SECTION_OUTPUT_NAMES
+    | energy_storage.ENERGY_STORAGE_OUTPUT_NAMES
     | connection.CONNECTION_OUTPUT_NAMES
     | grid.GRID_OUTPUT_NAMES
     | load.LOAD_OUTPUT_NAMES
@@ -132,7 +132,7 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
 type ElementDeviceName = (
     inverter.InverterDeviceName
     | battery.BatteryDeviceName
-    | battery_section.BatterySectionDeviceName
+    | energy_storage.EnergyStorageDeviceName
     | connection.ConnectionDeviceName
     | grid.GridDeviceName
     | load.LoadDeviceName
@@ -146,7 +146,7 @@ NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(("network"
 ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     inverter.INVERTER_DEVICE_NAMES
     | battery.BATTERY_DEVICE_NAMES
-    | battery_section.BATTERY_SECTION_DEVICE_NAMES
+    | energy_storage.ENERGY_STORAGE_DEVICE_NAMES
     | connection.CONNECTION_DEVICE_NAMES
     | grid.GRID_DEVICE_NAMES
     | load.LOAD_DEVICE_NAMES
@@ -195,7 +195,7 @@ class ElementAdapter(Protocol):
         ...
 
     def model_elements(self, config: Any) -> list[dict[str, Any]]:
-        """Return model element parameters for the loaded config."""
+        """Transform loaded config into model element parameters."""
         ...
 
     def outputs(
@@ -216,7 +216,7 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     battery.ELEMENT_TYPE: battery.adapter,
     connection.ELEMENT_TYPE: connection.adapter,
     node.ELEMENT_TYPE: node.adapter,
-    battery_section.ELEMENT_TYPE: battery_section.adapter,
+    energy_storage.ELEMENT_TYPE: energy_storage.adapter,
 }
 
 
@@ -233,7 +233,7 @@ class ValidatedElementSubentry(NamedTuple):
 # Typed with ElementType keys to enable type-safe indexing after is_element_type check
 ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
     "battery": battery.BatteryConfigSchema,
-    "battery_section": battery_section.BatterySectionConfigSchema,
+    "energy_storage": energy_storage.EnergyStorageConfigSchema,
     "connection": connection.ConnectionConfigSchema,
     "grid": grid.GridConfigSchema,
     "inverter": inverter.InverterConfigSchema,
@@ -377,8 +377,8 @@ __all__ = [
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_TYPES",
     "ELEMENT_TYPE_BATTERY",
-    "ELEMENT_TYPE_BATTERY_SECTION",
     "ELEMENT_TYPE_CONNECTION",
+    "ELEMENT_TYPE_ENERGY_STORAGE",
     "ELEMENT_TYPE_GRID",
     "ELEMENT_TYPE_INVERTER",
     "ELEMENT_TYPE_LOAD",

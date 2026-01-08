@@ -19,8 +19,8 @@ DEFAULT_PERIODS = 24
 CONNECTION_PERIODS = 3
 
 # Model element type strings
-ELEMENT_TYPE_BATTERY = "battery"
-ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION = "battery_balance_connection"
+ELEMENT_TYPE_ENERGY_STORAGE = "energy_storage"
+ELEMENT_TYPE_ENERGY_BALANCE_CONNECTION = "energy_balance_connection"
 ELEMENT_TYPE_CONNECTION = "connection"
 ELEMENT_TYPE_NODE = "node"
 
@@ -45,12 +45,14 @@ def test_network_add_duplicate_element() -> None:
         periods=[1.0] * 3,
     )
 
-    # Add first battery
-    battery1 = network.add(ELEMENT_TYPE_BATTERY, "test_battery", capacity=10000, initial_charge=5000)  # 50% of 10000
+    # Add first energy storage
+    battery1 = network.add(
+        ELEMENT_TYPE_ENERGY_STORAGE, "test_battery", capacity=10000, initial_charge=5000
+    )  # 50% of 10000
     assert battery1 is not None
 
     # Try to add another element with same name
-    network.add(ELEMENT_TYPE_BATTERY, "test_battery", capacity=15000, initial_charge=11250)  # 75% of 15000
+    network.add(ELEMENT_TYPE_ENERGY_STORAGE, "test_battery", capacity=15000, initial_charge=11250)  # 75% of 15000
 
     # Network handles duplicates
     assert "test_battery" in network.elements
@@ -64,7 +66,7 @@ def test_connect_entities() -> None:
     )
 
     # Add entities
-    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
+    network.add(ELEMENT_TYPE_ENERGY_STORAGE, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
     network.add(ELEMENT_TYPE_NODE, "grid1", is_sink=False, is_source=True)
 
     # Connect them
@@ -110,7 +112,7 @@ def test_connect_nonexistent_target_entity() -> None:
         periods=[1.0] * 3,
     )
     # Add only source entity
-    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
+    network.add(ELEMENT_TYPE_ENERGY_STORAGE, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
     # Try to connect to nonexistent target
     with pytest.raises(ValueError, match="Failed to register connection bad_connection with target nonexistent"):
         network.add(ELEMENT_TYPE_CONNECTION, "bad_connection", source="battery1", target="nonexistent")
@@ -123,7 +125,7 @@ def test_connect_source_is_connection() -> None:
         periods=[1.0] * 3,
     )
     # Add entities and a connection
-    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
+    network.add(ELEMENT_TYPE_ENERGY_STORAGE, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
     network.add(ELEMENT_TYPE_NODE, "grid1", is_sink=False, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="battery1", target="grid1")
 
@@ -141,7 +143,7 @@ def test_connect_target_is_connection() -> None:
         periods=[1.0] * 3,
     )
     # Add entities and a connection
-    network.add(ELEMENT_TYPE_BATTERY, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
+    network.add(ELEMENT_TYPE_ENERGY_STORAGE, "battery1", capacity=10000, initial_charge=5000)  # 50% of 10000
     network.add(ELEMENT_TYPE_NODE, "grid1", is_sink=False, is_source=True)
     network.add(ELEMENT_TYPE_CONNECTION, "conn1", source="battery1", target="grid1")
 
@@ -227,7 +229,7 @@ def test_network_constraint_generation_error() -> None:
     )
 
     # Add a regular battery
-    network.add(ELEMENT_TYPE_BATTERY, "battery", capacity=10000, initial_charge=5000)  # 50% of 10000
+    network.add(ELEMENT_TYPE_ENERGY_STORAGE, "battery", capacity=10000, initial_charge=5000)  # 50% of 10000
 
     # Mock an element to raise an exception during constraints
     mock_element = Mock(spec=Element)
@@ -366,17 +368,17 @@ def test_network_optimize_raises_on_infeasible_network(
         network.optimize()
 
 
-def test_add_battery_balance_connection() -> None:
-    """Test adding a battery balance connection via Network.add()."""
+def test_add_energy_balance_connection() -> None:
+    """Test adding an energy balance connection via Network.add()."""
     network = Network(name="test_network", periods=[1.0] * 3)
 
-    # Add two battery sections
-    network.add(ELEMENT_TYPE_BATTERY, "upper_section", capacity=10.0, initial_charge=5.0)
-    network.add(ELEMENT_TYPE_BATTERY, "lower_section", capacity=10.0, initial_charge=5.0)
+    # Add two energy storage partitions
+    network.add(ELEMENT_TYPE_ENERGY_STORAGE, "upper_section", capacity=10.0, initial_charge=5.0)
+    network.add(ELEMENT_TYPE_ENERGY_STORAGE, "lower_section", capacity=10.0, initial_charge=5.0)
 
-    # Add battery balance connection
+    # Add energy balance connection
     balance = network.add(
-        ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+        ELEMENT_TYPE_ENERGY_BALANCE_CONNECTION,
         "balance",
         upper="upper_section",
         lower="lower_section",
@@ -387,34 +389,34 @@ def test_add_battery_balance_connection() -> None:
     assert "balance" in network.elements
 
 
-def test_add_battery_balance_connection_upper_not_battery() -> None:
-    """Test battery balance connection raises TypeError when upper is not a battery."""
+def test_add_energy_balance_connection_upper_not_energy_storage() -> None:
+    """Test energy balance connection raises TypeError when upper is not an energy storage partition."""
     network = Network(name="test_network", periods=[1.0] * 3)
 
-    # Add a node (not a battery) as upper
+    # Add a node (not an energy storage) as upper
     network.add(ELEMENT_TYPE_NODE, "not_a_battery", is_sink=True, is_source=True)
-    network.add(ELEMENT_TYPE_BATTERY, "lower_section", capacity=10.0, initial_charge=5.0)
+    network.add(ELEMENT_TYPE_ENERGY_STORAGE, "lower_section", capacity=10.0, initial_charge=5.0)
 
-    with pytest.raises(TypeError, match="Upper element 'not_a_battery' is not a battery"):
+    with pytest.raises(TypeError, match="Upper element 'not_a_battery' is not an energy storage partition"):
         network.add(
-            ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+            ELEMENT_TYPE_ENERGY_BALANCE_CONNECTION,
             "balance",
             upper="not_a_battery",
             lower="lower_section",
         )
 
 
-def test_add_battery_balance_connection_lower_not_battery() -> None:
-    """Test battery balance connection raises TypeError when lower is not a battery."""
+def test_add_energy_balance_connection_lower_not_energy_storage() -> None:
+    """Test energy balance connection raises TypeError when lower is not an energy storage partition."""
     network = Network(name="test_network", periods=[1.0] * 3)
 
-    # Add battery as upper, node as lower
-    network.add(ELEMENT_TYPE_BATTERY, "upper_section", capacity=10.0, initial_charge=5.0)
+    # Add energy storage as upper, node as lower
+    network.add(ELEMENT_TYPE_ENERGY_STORAGE, "upper_section", capacity=10.0, initial_charge=5.0)
     network.add(ELEMENT_TYPE_NODE, "not_a_battery", is_sink=True, is_source=True)
 
-    with pytest.raises(TypeError, match="Lower element 'not_a_battery' is not a battery"):
+    with pytest.raises(TypeError, match="Lower element 'not_a_battery' is not an energy storage partition"):
         network.add(
-            ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION,
+            ELEMENT_TYPE_ENERGY_BALANCE_CONNECTION,
             "balance",
             upper="upper_section",
             lower="not_a_battery",

@@ -7,10 +7,10 @@ import pytest
 
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import battery as battery_element
-from custom_components.haeo.elements.battery import BatteryConfigData
+from custom_components.haeo.elements.battery import BatteryConfigData, PartitionConfigData
 from custom_components.haeo.model import ModelOutputName, power_connection
-from custom_components.haeo.model import battery as battery_model
-from custom_components.haeo.model import battery_balance_connection as balance_model
+from custom_components.haeo.model import energy_storage as energy_storage_model
+from custom_components.haeo.model import energy_balance_connection as balance_model
 from custom_components.haeo.model import node as node_model
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
@@ -57,19 +57,19 @@ CREATE_CASES: Sequence[CreateCase] = [
         ),
         "model": [
             {
-                "element_type": "battery",
+                "element_type": "energy_storage",
                 "name": "battery_main:undercharge",
                 "capacity": [0.5, 0.5],
                 "initial_charge": 0.5,
             },
             {
-                "element_type": "battery",
+                "element_type": "energy_storage",
                 "name": "battery_main:normal",
                 "capacity": [8.0, 8.0],
                 "initial_charge": 4.0,
             },
             {
-                "element_type": "battery",
+                "element_type": "energy_storage",
                 "name": "battery_main:overcharge",
                 "capacity": [0.49999999999999933, 0.49999999999999933],
                 "initial_charge": 0.0,
@@ -106,7 +106,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             # Balance connection: undercharge -> normal
             {
-                "element_type": "battery_balance_connection",
+                "element_type": "energy_balance_connection",
                 "name": "battery_main:balance:undercharge:normal",
                 "upper": "battery_main:normal",
                 "lower": "battery_main:undercharge",
@@ -114,7 +114,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             # Balance connection: normal -> overcharge
             {
-                "element_type": "battery_balance_connection",
+                "element_type": "energy_balance_connection",
                 "name": "battery_main:balance:normal:overcharge",
                 "upper": "battery_main:overcharge",
                 "lower": "battery_main:normal",
@@ -153,7 +153,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         ),
         "model": [
             {
-                "element_type": "battery",
+                "element_type": "energy_storage",
                 "name": "battery_normal:normal",
                 "capacity": [10.0, 10.0],
                 "initial_charge": 5.0,
@@ -187,6 +187,107 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
         ],
     },
+    {
+        "description": "Battery with partition-based configuration",
+        "data": BatteryConfigData(
+            element_type="battery",
+            name="battery_partitions",
+            connection="network",
+            capacity=[10.0],  # Total capacity for reference
+            initial_charge_percentage=[50.0],
+            efficiency=[95.0],
+            max_charge_power=[5.0],
+            max_discharge_power=[5.0],
+            partitions=[
+                PartitionConfigData(name="reserve", capacity=[2.0], charge_cost=[0.0], discharge_cost=[0.05]),
+                PartitionConfigData(name="normal", capacity=[6.0]),
+                PartitionConfigData(name="overflow", capacity=[2.0], charge_cost=[0.03]),
+            ],
+        ),
+        "model": [
+            # First partition: reserve (bottom)
+            {
+                "element_type": "energy_storage",
+                "name": "battery_partitions:reserve",
+                "capacity": [2.0],
+                "initial_charge": 2.0,  # Greedy: fill from bottom, 5kWh total, 2kWh fits here
+            },
+            # Second partition: normal (middle)
+            {
+                "element_type": "energy_storage",
+                "name": "battery_partitions:normal",
+                "capacity": [6.0],
+                "initial_charge": 3.0,  # Remaining 3kWh after reserve is filled
+            },
+            # Third partition: overflow (top)
+            {
+                "element_type": "energy_storage",
+                "name": "battery_partitions:overflow",
+                "capacity": [2.0],
+                "initial_charge": 0.0,  # No energy left after normal is partially filled
+            },
+            # Internal node
+            {
+                "element_type": "node",
+                "name": "battery_partitions:node",
+                "is_source": False,
+                "is_sink": False,
+            },
+            # Reserve connection with charge_cost and discharge_cost
+            {
+                "element_type": "connection",
+                "name": "battery_partitions:reserve:to_node",
+                "source": "battery_partitions:reserve",
+                "target": "battery_partitions:node",
+                "price_target_source": [0.0],  # charge_cost
+                "price_source_target": [0.05],  # discharge_cost
+            },
+            # Normal connection: no penalty
+            {
+                "element_type": "connection",
+                "name": "battery_partitions:normal:to_node",
+                "source": "battery_partitions:normal",
+                "target": "battery_partitions:node",
+            },
+            # Overflow connection with charge cost
+            {
+                "element_type": "connection",
+                "name": "battery_partitions:overflow:to_node",
+                "source": "battery_partitions:overflow",
+                "target": "battery_partitions:node",
+                "price_target_source": [0.03],
+            },
+            # Balance connection: reserve -> normal
+            {
+                "element_type": "energy_balance_connection",
+                "name": "battery_partitions:balance:reserve:normal",
+                "upper": "battery_partitions:normal",
+                "lower": "battery_partitions:reserve",
+                "capacity_lower": [2.0],
+            },
+            # Balance connection: normal -> overflow
+            {
+                "element_type": "energy_balance_connection",
+                "name": "battery_partitions:balance:normal:overflow",
+                "upper": "battery_partitions:overflow",
+                "lower": "battery_partitions:normal",
+                "capacity_lower": [6.0],
+            },
+            # Main connection to network (with default early_charge_incentive)
+            {
+                "element_type": "connection",
+                "name": "battery_partitions:connection",
+                "source": "battery_partitions:node",
+                "target": "network",
+                "efficiency_source_target": [95.0],
+                "efficiency_target_source": [95.0],
+                "max_power_source_target": [5.0],
+                "max_power_target_source": [5.0],
+                "price_target_source": [-0.001],  # Negative early_charge_incentive (default)
+                "price_source_target": [0.001],  # early_charge_incentive (default)
+            },
+        ],
+    },
 ]
 
 
@@ -210,13 +311,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         ),
         "model_outputs": {
             "battery_no_balance:normal": {
-                battery_model.BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
-                battery_model.BATTERY_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(4.0, 4.0)),
-                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
+                energy_storage_model.ENERGY_STORAGE_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(4.0, 4.0)),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_no_balance:node": {},
             "battery_no_balance:normal:to_node": {
@@ -267,13 +368,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "model_outputs": {
             # Undercharge section
             "battery_all_sections:undercharge": {
-                battery_model.BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.2,), direction="-"),
-                battery_model.BATTERY_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.1,), direction="+"),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(0.3, 0.4)),
-                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.2,), direction="-"),
+                energy_storage_model.ENERGY_STORAGE_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.1,), direction="+"),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(0.3, 0.4)),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_all_sections:undercharge:to_node": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.1,), direction="+"),
@@ -281,13 +382,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             # Normal section
             "battery_all_sections:normal": {
-                battery_model.BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="-"),
-                battery_model.BATTERY_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.3,), direction="+"),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(3.0, 3.0)),
-                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="-"),
+                energy_storage_model.ENERGY_STORAGE_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.3,), direction="+"),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(3.0, 3.0)),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_all_sections:normal:to_node": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.3,), direction="+"),
@@ -295,13 +396,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             # Overcharge section
             "battery_all_sections:overcharge": {
-                battery_model.BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.3,), direction="-"),
-                battery_model.BATTERY_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.1,), direction="+"),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(0.2, 0.1)),
-                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.3,), direction="-"),
+                energy_storage_model.ENERGY_STORAGE_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.1,), direction="+"),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(0.2, 0.1)),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_IN_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_ENERGY_OUT_FLOW: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
             "battery_all_sections:overcharge:to_node": {
                 power_connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(0.1,), direction="+"),

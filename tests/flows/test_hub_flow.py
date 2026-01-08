@@ -286,7 +286,7 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
         data={
             "integration_type": INTEGRATION_TYPE_HUB,
             CONF_NAME: "Test Hub",
-            CONF_ADVANCED_MODE: True,  # Required for connection, node, battery_section flows
+            CONF_ADVANCED_MODE: True,  # Required for connection, node, energy_storage flows
             CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
             CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
             CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,

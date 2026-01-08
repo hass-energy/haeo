@@ -7,7 +7,7 @@ They represent physical devices that produce, consume, store, or route power.
 
 HAEO provides two element types that serve different roles in the network:
 
-**[Battery](battery.md)**:
+**[Energy Storage](energy-storage.md)**:
 Energy storage with state of charge tracking.
 Models capacity, charge/discharge flows, and SOC constraints.
 
@@ -46,7 +46,7 @@ This selective rebuilding enables efficient re-optimization when forecasts updat
 ## Design philosophy
 
 Elements are intentionally simple mathematical primitives.
-Complex device behavior (multi-section batteries, cost incentives, efficiency losses) is achieved by:
+Complex device behavior (multi-partition storage, cost incentives, efficiency losses) is achieved by:
 
 1. Composing multiple elements together
 2. Configuring [Connections](../connections/index.md) with appropriate parameters
@@ -58,13 +58,13 @@ This separation keeps the Model Layer focused on optimization mathematics while 
 
 <div class="grid cards" markdown>
 
-- :material-battery-charging:{ .lg .middle } **Battery model**
+- :material-battery-charging:{ .lg .middle } **Energy Storage model**
 
     ---
 
     Energy storage with SOC tracking and capacity constraints.
 
-    [:material-arrow-right: Battery formulation](battery.md)
+    [:material-arrow-right: Energy Storage formulation](energy-storage.md)
 
 - :material-power-plug:{ .lg .middle } **Node model**
 

@@ -10,7 +10,7 @@ HAEO provides a hierarchy of connection types with increasing functionality:
 ```mermaid
 classDiagram
     Connection <|-- PowerConnection
-    Connection <|-- BatteryBalanceConnection
+    Connection <|-- EnergyBalanceConnection
 
     class Connection {
         +source: str
@@ -30,7 +30,7 @@ classDiagram
         +price_target_source
     }
 
-    class BatteryBalanceConnection {
+    class EnergyBalanceConnection {
         +energy redistribution
     }
 ```
@@ -46,9 +46,9 @@ Use when no efficiency, limits, or pricing are needed.
 Adds optional power limits, efficiency losses, and transfer costs.
 This is the primary connection type for most user-configured connections.
 
-**BatteryBalanceConnection**:
-Specialized lossless energy redistribution between battery sections.
-Used internally by the Battery device to balance energy across SOC sections.
+**[EnergyBalanceConnection](../energy-balance-connection.md)**:
+Specialized lossless energy redistribution between storage partitions.
+Used internally by the Battery device to balance energy across SOC partitions.
 Not typically used directly.
 
 ## Common interface

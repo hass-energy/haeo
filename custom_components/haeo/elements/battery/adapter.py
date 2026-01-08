@@ -10,8 +10,8 @@ import numpy as np
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
-from custom_components.haeo.model import battery as model_battery
-from custom_components.haeo.model import battery_balance_connection as model_balance
+from custom_components.haeo.model import energy_balance_connection as model_balance
+from custom_components.haeo.model import energy_storage as model_storage
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
@@ -28,12 +28,14 @@ from .schema import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_OVERCHARGE_COST,
     CONF_OVERCHARGE_PERCENTAGE,
+    CONF_PARTITIONS,
     CONF_UNDERCHARGE_COST,
     CONF_UNDERCHARGE_PERCENTAGE,
     DEFAULTS,
     ELEMENT_TYPE,
     BatteryConfigData,
     BatteryConfigSchema,
+    PartitionConfigData,
 )
 
 type BatteryOutputName = Literal[
@@ -224,14 +226,188 @@ class BatteryAdapter:
                 hass=hass, forecast_times=forecast_times, value=overcharge_cost
             )
 
+        # Load new partition-based configuration if present
+        partitions = config.get(CONF_PARTITIONS)
+        if partitions is not None:
+            loaded_partitions: list[PartitionConfigData] = []
+            for partition in partitions:
+                partition_data: PartitionConfigData = {
+                    "name": partition["name"],
+                    "capacity": await loader.load_boundaries(
+                        hass=hass, forecast_times=forecast_times, value=partition["capacity"]
+                    ),
+                }
+                # Load optional partition costs
+                if "charge_cost" in partition:
+                    partition_data["charge_cost"] = await loader.load_intervals(
+                        hass=hass, forecast_times=forecast_times, value=partition["charge_cost"]
+                    )
+                if "discharge_cost" in partition:
+                    partition_data["discharge_cost"] = await loader.load_intervals(
+                        hass=hass, forecast_times=forecast_times, value=partition["discharge_cost"]
+                    )
+                loaded_partitions.append(partition_data)
+            data["partitions"] = loaded_partitions
+
         return data
 
     def model_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
         """Create model elements for Battery configuration.
 
-        Creates 1-3 battery sections, an internal node, connections from sections to node,
+        Creates 1-N storage partitions, an internal node, connections from partitions to node,
         and a connection from node to target.
+
+        Supports both:
+        - New partition-based config: Uses `partitions` field with per-partition capacities
+        - Legacy percentage-based config: Uses percentage bounds to define partitions
         """
+        # Check for new partition-based config
+        if "partitions" in config:
+            return self._create_partition_based_elements(config)
+
+        # Legacy percentage-based configuration
+        return self._create_legacy_elements(config)
+
+    def _create_partition_based_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
+        """Create model elements using new partition-based configuration.
+
+        Each partition has its own capacity (kWh) from a sensor, plus optional
+        charge/discharge costs. Partitions are ordered bottom-to-top with greedy
+        initial charge allocation.
+        """
+        name = config["name"]
+        elements: list[dict[str, Any]] = []
+
+        # We only call this method after checking "partitions" in config
+        partitions = config.get("partitions")
+        if partitions is None:
+            msg = "Partition-based config requires 'partitions' field"
+            raise ValueError(msg)
+
+        n_periods = len(partitions[0]["capacity"])
+
+        # Get initial SOC from first period
+        initial_soc = config["initial_charge_percentage"][0]
+        initial_soc_ratio = initial_soc / 100.0
+
+        # Calculate early charge/discharge incentives (use first period if present)
+        early_charge_list = config.get("early_charge_incentive")
+        early_charge_incentive = early_charge_list[0] if early_charge_list else DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
+
+        # Calculate total capacity across all partitions (for initial charge calc)
+        total_capacity_first = sum(p["capacity"][0] for p in partitions)
+
+        # Calculate initial charge in kWh based on total capacity
+        initial_charge = initial_soc_ratio * total_capacity_first
+
+        # Track partition names and capacities for balance connections
+        partition_names: list[str] = []
+        partition_capacities: dict[str, list[float]] = {}
+
+        # 1. Create energy storage elements for each partition (greedy bottom-up allocation)
+        for partition in partitions:
+            partition_name = f"{name}:{partition['name']}"
+            partition_names.append(partition_name)
+            partition_capacity = partition["capacity"]
+            partition_capacities[partition_name] = partition_capacity
+
+            # Greedy allocation: fill this partition up to its capacity
+            partition_capacity_first = partition_capacity[0]
+            partition_initial_charge = min(initial_charge, partition_capacity_first)
+
+            elements.append(
+                {
+                    "element_type": "energy_storage",
+                    "name": partition_name,
+                    "capacity": partition_capacity,
+                    "initial_charge": partition_initial_charge,
+                }
+            )
+
+            # Subtract allocated charge from remaining
+            initial_charge = max(initial_charge - partition_initial_charge, 0.0)
+
+        # 2. Create internal node
+        node_name = f"{name}:node"
+        elements.append(
+            {
+                "element_type": "node",
+                "name": node_name,
+                "is_source": False,
+                "is_sink": False,
+            }
+        )
+
+        # 3. Create connections from partitions to internal node
+        for i, partition in enumerate(partitions):
+            partition_name = partition_names[i]
+            charge_cost = partition.get("charge_cost")
+            discharge_cost = partition.get("discharge_cost")
+
+            connection_spec: dict[str, Any] = {
+                "element_type": "connection",
+                "name": f"{partition_name}:to_node",
+                "source": partition_name,
+                "target": node_name,
+            }
+
+            # Add costs if configured
+            if charge_cost is not None:
+                connection_spec["price_target_source"] = charge_cost  # Charge penalty
+            if discharge_cost is not None:
+                connection_spec["price_source_target"] = discharge_cost  # Discharge penalty
+
+            elements.append(connection_spec)
+
+        # 4. Create balance connections between adjacent partitions (enforces fill ordering)
+        # Lower partitions fill before upper partitions
+        for i in range(len(partition_names) - 1):
+            lower_partition = partition_names[i]
+            upper_partition = partition_names[i + 1]
+            lower_capacity = partition_capacities[lower_partition]
+
+            # Extract short names for balance connection naming
+            lower_short = lower_partition.split(":")[-1]
+            upper_short = upper_partition.split(":")[-1]
+
+            elements.append(
+                {
+                    "element_type": "energy_balance_connection",
+                    "name": f"{name}:balance:{lower_short}:{upper_short}",
+                    "upper": upper_partition,
+                    "lower": lower_partition,
+                    "capacity_lower": lower_capacity,
+                }
+            )
+
+        # 5. Create connection from internal node to target
+        # Time-varying early charge incentive applied here (charge earlier in horizon)
+        charge_early_incentive = [
+            -early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+        ]
+        discharge_early_incentive = [
+            early_charge_incentive + (early_charge_incentive * i / max(n_periods - 1, 1)) for i in range(n_periods)
+        ]
+
+        elements.append(
+            {
+                "element_type": "connection",
+                "name": f"{name}:connection",
+                "source": node_name,
+                "target": config["connection"],
+                "efficiency_source_target": config["efficiency"],  # Node to network (discharge)
+                "efficiency_target_source": config["efficiency"],  # Network to node (charge)
+                "max_power_source_target": config.get("max_discharge_power"),
+                "max_power_target_source": config.get("max_charge_power"),
+                "price_target_source": charge_early_incentive,  # Charge early incentive
+                "price_source_target": discharge_early_incentive,  # Discharge early disincentive
+            }
+        )
+
+        return elements
+
+    def _create_legacy_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
+        """Create model elements using legacy percentage-based configuration."""
         name = config["name"]
         elements: list[dict[str, Any]] = []
         # capacity is boundaries (n+1 values), so n_periods = len - 1
@@ -244,8 +420,11 @@ class BatteryAdapter:
         initial_soc = config["initial_charge_percentage"][0]
 
         # Convert percentages to ratio arrays for time-varying limits
-        min_ratio_array = np.array(config["min_charge_percentage"]) / 100.0
-        max_ratio_array = np.array(config["max_charge_percentage"]) / 100.0
+        # Use defaults if not provided (for backward compatibility)
+        min_pct = config.get("min_charge_percentage", [DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]] * n_periods)
+        max_pct = config.get("max_charge_percentage", [DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE]] * n_periods)
+        min_ratio_array = np.array(min_pct) / 100.0
+        max_ratio_array = np.array(max_pct) / 100.0
         min_ratio_first = min_ratio_array[0]
 
         # Get optional percentage arrays (if present)
@@ -285,7 +464,7 @@ class BatteryAdapter:
 
             elements.append(
                 {
-                    "element_type": "battery",
+                    "element_type": "energy_storage",
                     "name": section_name,
                     "capacity": undercharge_capacity.tolist(),
                     "initial_charge": section_initial_charge,
@@ -305,7 +484,7 @@ class BatteryAdapter:
 
         elements.append(
             {
-                "element_type": "battery",
+                "element_type": "energy_storage",
                 "name": section_name,
                 "capacity": normal_capacity.tolist(),
                 "initial_charge": section_initial_charge,
@@ -326,7 +505,7 @@ class BatteryAdapter:
 
             elements.append(
                 {
-                    "element_type": "battery",
+                    "element_type": "energy_storage",
                     "name": section_name,
                     "capacity": overcharge_capacity.tolist(),
                     "initial_charge": section_initial_charge,
@@ -394,7 +573,7 @@ class BatteryAdapter:
 
             elements.append(
                 {
-                    "element_type": "battery_balance_connection",
+                    "element_type": "energy_balance_connection",
                     "name": f"{name}:balance:{lower_section.split(':')[-1]}:{upper_section.split(':')[-1]}",
                     "upper": upper_section,
                     "lower": lower_section,
@@ -471,11 +650,15 @@ class BatteryAdapter:
 
         # Calculate aggregate outputs
         # Sum power charge/discharge across all sections
-        all_power_charge = [section[model_battery.BATTERY_POWER_CHARGE] for section in section_outputs.values()]
-        all_power_discharge = [section[model_battery.BATTERY_POWER_DISCHARGE] for section in section_outputs.values()]
+        all_power_charge = [section[model_storage.ENERGY_STORAGE_POWER_CHARGE] for section in section_outputs.values()]
+        all_power_discharge = [
+            section[model_storage.ENERGY_STORAGE_POWER_DISCHARGE] for section in section_outputs.values()
+        ]
 
         # Sum energy stored across all sections
-        all_energy_stored = [section[model_battery.BATTERY_ENERGY_STORED] for section in section_outputs.values()]
+        all_energy_stored = [
+            section[model_storage.ENERGY_STORAGE_ENERGY_STORED] for section in section_outputs.values()
+        ]
 
         # Aggregate power values
         aggregate_power_charge = sum_output_data(all_power_charge)
@@ -524,13 +707,19 @@ class BatteryAdapter:
             section_data = section_outputs[section_key]
 
             section_device_outputs: dict[BatteryOutputName, OutputData] = {
-                BATTERY_ENERGY_STORED: replace(section_data[model_battery.BATTERY_ENERGY_STORED], advanced=True),
-                BATTERY_POWER_CHARGE: replace(section_data[model_battery.BATTERY_POWER_CHARGE], advanced=True),
-                BATTERY_POWER_DISCHARGE: replace(section_data[model_battery.BATTERY_POWER_DISCHARGE], advanced=True),
-                BATTERY_ENERGY_IN_FLOW: replace(section_data[model_battery.BATTERY_ENERGY_IN_FLOW], advanced=True),
-                BATTERY_ENERGY_OUT_FLOW: replace(section_data[model_battery.BATTERY_ENERGY_OUT_FLOW], advanced=True),
-                BATTERY_SOC_MAX: replace(section_data[model_battery.BATTERY_SOC_MAX], advanced=True),
-                BATTERY_SOC_MIN: replace(section_data[model_battery.BATTERY_SOC_MIN], advanced=True),
+                BATTERY_ENERGY_STORED: replace(section_data[model_storage.ENERGY_STORAGE_ENERGY_STORED], advanced=True),
+                BATTERY_POWER_CHARGE: replace(section_data[model_storage.ENERGY_STORAGE_POWER_CHARGE], advanced=True),
+                BATTERY_POWER_DISCHARGE: replace(
+                    section_data[model_storage.ENERGY_STORAGE_POWER_DISCHARGE], advanced=True
+                ),
+                BATTERY_ENERGY_IN_FLOW: replace(
+                    section_data[model_storage.ENERGY_STORAGE_ENERGY_IN_FLOW], advanced=True
+                ),
+                BATTERY_ENERGY_OUT_FLOW: replace(
+                    section_data[model_storage.ENERGY_STORAGE_ENERGY_OUT_FLOW], advanced=True
+                ),
+                BATTERY_SOC_MAX: replace(section_data[model_storage.ENERGY_STORAGE_SOC_MAX], advanced=True),
+                BATTERY_SOC_MIN: replace(section_data[model_storage.ENERGY_STORAGE_SOC_MIN], advanced=True),
             }
 
             # Map to device name
@@ -640,9 +829,11 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
     """Calculate total energy stored including inaccessible energy below min SOC."""
     # Capacity and percentage fields are already boundaries (n+1 values)
     capacity = np.array(config["capacity"])
+    n_periods = len(capacity)
 
-    # Get time-varying min ratio (also boundaries)
-    min_ratio = np.array(config["min_charge_percentage"]) / 100.0
+    # Get time-varying min ratio (use default if not provided)
+    min_pct = config.get("min_charge_percentage", [DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]] * n_periods)
+    min_ratio = np.array(min_pct) / 100.0
 
     undercharge_pct = config.get("undercharge_percentage")
     undercharge_ratio = np.array(undercharge_pct) / 100.0 if undercharge_pct else None

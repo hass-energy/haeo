@@ -216,13 +216,13 @@ If the element interacts with external tariffs or degradation models, expose the
 
     [:material-arrow-right: Data loading guide](data-loading.md)
 
-- :material-battery-charging:{ .lg .middle } **Battery Model**
+- :material-battery-charging:{ .lg .middle } **Energy Storage Model**
 
     ---
 
     Example of a storage formulation.
 
-    [:material-arrow-right: Battery modeling](../modeling/model-layer/elements/battery.md)
+    [:material-arrow-right: Energy Storage modeling](../modeling/model-layer/elements/energy-storage.md)
 
 - :material-test-tube:{ .lg .middle } **Testing**
 
