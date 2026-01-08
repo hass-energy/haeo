@@ -8,7 +8,6 @@ from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
-from .const import OutputType
 from .output_data import OutputData
 from .reactive import CachedConstraint, CachedCost, OutputMethod, TrackedParam, cost
 
@@ -171,31 +170,17 @@ class Element[OutputNameT: str]:
     def outputs(self) -> Mapping[OutputNameT, OutputData]:
         """Return output specifications for the element.
 
-        Discovers all @output decorated methods via reflection and calls them.
+        Discovers all @output and @constraint(output=True) decorated methods via
+        reflection and calls their get_output() method to retrieve OutputData.
         The method name is used as the output name (dictionary key).
         """
         result: dict[OutputNameT, OutputData] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
-            if isinstance(attr, OutputMethod):
-                method = getattr(self, name)
-                output_data = method()
+            # Check for decorators that support get_output()
+            if isinstance(attr, (OutputMethod, CachedConstraint)):
+                output_data = attr.get_output(self)
                 if output_data is not None:
-                    result[name] = output_data  # type: ignore[literal-required]
-            # Also include @constraint(output=True) decorated methods as shadow price outputs
-            elif isinstance(attr, CachedConstraint) and attr.output:
-                # Get the state for this constraint
-                state_attr = f"_reactive_state_{name}"
-                state = getattr(self, state_attr, None)
-                if state is not None and "constraint" in state:
-                    # Extract shadow prices from the constraint
-                    cons = state["constraint"]
-
-                    output_data = OutputData(
-                        type=OutputType.SHADOW_PRICE,
-                        unit=attr.unit,
-                        values=self.extract_values(cons),
-                    )
                     result[name] = output_data  # type: ignore[literal-required]
         return result
 

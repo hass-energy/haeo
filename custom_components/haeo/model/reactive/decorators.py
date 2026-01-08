@@ -11,7 +11,8 @@ if TYPE_CHECKING:
     from highspy import Highs
     from highspy.highs import highs_cons, highs_linear_expression
 
-    from haeo.model.element import Element
+    from custom_components.haeo.model.element import Element
+    from custom_components.haeo.model.output_data import OutputData
 
 # Type variable for generic return types
 R = TypeVar("R")
@@ -116,6 +117,37 @@ class CachedConstraint[R](CachedMethod[R]):
         super().__init__(fn)
         self.output = output
         self.unit = unit
+
+    def get_output(self, obj: "Element[Any]") -> "OutputData | None":
+        """Get output data for this constraint (shadow prices if output=True).
+
+        Args:
+            obj: The element instance
+
+        Returns:
+            OutputData with shadow prices, or None if output=False or constraint not yet applied
+
+        """
+        if not self.output:
+            return None
+
+        # Import here to avoid circular dependency
+        from custom_components.haeo.model.const import OutputType  # noqa: PLC0415
+        from custom_components.haeo.model.output_data import OutputData  # noqa: PLC0415
+
+        # Get the state for this constraint
+        state_attr = f"_reactive_state_{self._name}"
+        state = getattr(obj, state_attr, None)
+        if state is None or "constraint" not in state:
+            return None
+
+        # Extract shadow prices from the constraint
+        cons = state["constraint"]
+        return OutputData(
+            type=OutputType.SHADOW_PRICE,
+            unit=self.unit,
+            values=obj.extract_values(cons),
+        )
 
     def _call(self, obj: "Element[Any]") -> R:
         """Execute with caching, dependency tracking, and solver lifecycle management."""
@@ -273,6 +305,19 @@ class OutputMethod[R]:
         if obj is None:
             return self
         return partial(self._fn, obj)
+
+    def get_output(self, obj: "Element[Any]") -> "OutputData | None":
+        """Get output data for this output method.
+
+        Args:
+            obj: The element instance
+
+        Returns:
+            OutputData from calling the method, or None if method returns None
+
+        """
+        method = getattr(obj, self._name)
+        return method()
 
 
 # Decorator shortcuts for cleaner syntax
