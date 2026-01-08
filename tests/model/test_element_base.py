@@ -5,9 +5,9 @@ from unittest.mock import Mock
 from highspy import Highs
 import pytest
 
-from custom_components.haeo.model.connection import Connection
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.node import Node
+from custom_components.haeo.model.elements.connection import Connection
+from custom_components.haeo.model.elements.node import Node
 
 
 def test_connection_power_with_target_end(solver: Highs) -> None:
@@ -74,36 +74,25 @@ def test_connection_power_with_source_end(solver: Highs) -> None:
     assert h.val(result[1]) == pytest.approx(-2.0)
 
 
-def test_constraints_with_single_constraint(solver: Highs) -> None:
-    """Test constraints() method when a single constraint (not a sequence) is stored.
+def test_constraints_populates_constraint_state(solver: Highs) -> None:
+    """Test that constraints() applies constraints via @constraint decorators.
 
-    This tests the else branch (line 106 in element.py).
+    With the reactive pattern, constraints are discovered via @constraint decorators
+    and applied to the solver when constraints() is called.
     """
     h = solver
 
-    # Create a simple element
-    element = Node(name="test_node", periods=[1.0] * 3, solver=h)
+    # Create a simple element that has constraint methods
+    # Use is_sink=False so the node_power_balance actually creates constraints
+    element = Node(name="test_node", periods=[1.0] * 3, solver=h, is_source=True, is_sink=False)
 
-    # Create variables for constraints
-    x = h.addVariable(lb=0, name="x")
-    y = h.addVariable(lb=0, name="y")
+    # Call constraints to trigger decorator lifecycle
+    constraints_dict = element.constraints()
 
-    # Manually add a single constraint (not a list) for testing
-    single_constraint = h.addConstr(x <= 10)
-    element._constraints["single"] = single_constraint  # type: ignore[index]
-
-    # Also add a list of constraints
-    list_constraints = h.addConstrs([x <= 5, y <= 5])
-    element._constraints["list"] = list_constraints  # type: ignore[index]
-
-    # Get all constraints
-    result = element.constraints()
-
-    # Should have 3 constraints total: 1 single + 2 from list
-    assert len(result) == 3
-    assert single_constraint in result
-    assert list_constraints[0] in result
-    assert list_constraints[1] in result
+    # After calling, constraint state should exist
+    # Node has node_power_balance (returns constraints when is_source=True, is_sink=False)
+    assert "node_power_balance" in constraints_dict
+    assert constraints_dict["node_power_balance"] is not None
 
 
 def test_connection_power_with_multiple_connections(solver: Highs) -> None:
@@ -151,8 +140,8 @@ def test_element_default_outputs(solver: Highs) -> None:
     """Test Element base class default outputs() returns empty dict."""
 
     # Create a minimal Element subclass that doesn't override outputs()
-    class MinimalElement(Element[str, str]):
+    class MinimalElement(Element[str]):
         pass
 
-    element = MinimalElement("test", [1.0], solver=solver)
+    element = MinimalElement("test", [1.0], solver=solver, output_names=frozenset())
     assert element.outputs() == {}

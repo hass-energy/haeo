@@ -10,9 +10,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_ACTIVE,
+from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
@@ -21,6 +19,7 @@ from custom_components.haeo.model.power_connection import (
     POWER_CONNECTION_OUTPUT_NAMES,
     PowerConnectionOutputName,
 )
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import ConnectionSubentryFlowHandler
 from .schema import (
@@ -37,8 +36,18 @@ from .schema import (
     ConnectionConfigSchema,
 )
 
-# Re-export power connection output names
-CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = POWER_CONNECTION_OUTPUT_NAMES
+# Adapter-synthesized output name (computed from model outputs)
+CONNECTION_POWER_ACTIVE: Final = "connection_power_active"
+
+# Connection adapter output names include model outputs + adapter-synthesized outputs
+type ConnectionOutputName = PowerConnectionOutputName | Literal["connection_power_active"]
+
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
+    (
+        *POWER_CONNECTION_OUTPUT_NAMES,
+        CONNECTION_POWER_ACTIVE,
+    )
+)
 
 type ConnectionDeviceName = Literal["connection"]
 
@@ -120,8 +129,8 @@ class ConnectionAdapter:
 
         return data
 
-    def create_model_elements(self, config: ConnectionConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Connection configuration."""
+    def model_elements(self, config: ConnectionConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Connection configuration."""
         return [
             {
                 "element_type": "connection",
@@ -142,11 +151,11 @@ class ConnectionAdapter:
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         _config: ConnectionConfigData,
-    ) -> Mapping[ConnectionDeviceName, Mapping[PowerConnectionOutputName, OutputData]]:
+    ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]
 
-        connection_outputs: dict[PowerConnectionOutputName, OutputData] = {
+        connection_outputs: dict[ConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: connection[CONNECTION_POWER_SOURCE_TARGET],
             CONNECTION_POWER_TARGET_SOURCE: connection[CONNECTION_POWER_TARGET_SOURCE],
         }

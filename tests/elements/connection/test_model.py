@@ -8,13 +8,14 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import connection as connection_element
 from custom_components.haeo.elements.connection import ConnectionConfigData
-from custom_components.haeo.model import ModelOutputName, power_connection
+from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
 
 
 class CreateCase(TypedDict):
-    """Test case for create_model_elements."""
+    """Test case for model_elements."""
 
     description: str
     data: ConnectionConfigData
@@ -131,10 +132,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 
 
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
-def test_create_model_elements(case: CreateCase) -> None:
+def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["connection"]
-    result = entry.create_model_elements(case["data"])
+    result = entry.model_elements(case["data"])
     assert result == case["model"]
 
 

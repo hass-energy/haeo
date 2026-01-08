@@ -13,7 +13,7 @@ from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.node import NODE_POWER_BALANCE
+from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import BatterySubentryFlowHandler
@@ -226,7 +226,7 @@ class BatteryAdapter:
 
         return data
 
-    def create_model_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
+    def model_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
         """Create model elements for Battery configuration.
 
         Creates 1-3 battery sections, an internal node, connections from sections to node,

@@ -10,14 +10,14 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.power_connection import (
+from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import LoadSubentryFlowHandler
-from .schema import CONF_CONNECTION, CONF_FORECAST, DEFAULT_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
 
 # Load output names
 type LoadOutputName = Literal[
@@ -50,9 +50,6 @@ class LoadAdapter:
 
     def available(self, config: LoadConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if load configuration can be loaded."""
-        # Empty forecast list is valid - uses default from schema
-        if not config[CONF_FORECAST]:
-            return True
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
@@ -64,16 +61,12 @@ class LoadAdapter:
         forecast_times: Sequence[float],
     ) -> LoadConfigData:
         """Load load configuration values from sensors."""
-        # If no entities configured, use default from schema for all periods
-        if not config[CONF_FORECAST]:
-            forecast = [DEFAULT_FORECAST for _ in forecast_times]
-        else:
-            ts_loader = TimeSeriesLoader()
-            forecast = await ts_loader.load_intervals(
-                hass=hass,
-                value=config[CONF_FORECAST],
-                forecast_times=forecast_times,
-            )
+        ts_loader = TimeSeriesLoader()
+        forecast = await ts_loader.load_intervals(
+            hass=hass,
+            value=config[CONF_FORECAST],
+            forecast_times=forecast_times,
+        )
 
         return {
             "element_type": config["element_type"],
@@ -82,7 +75,7 @@ class LoadAdapter:
             "forecast": forecast,
         }
 
-    def create_model_elements(self, config: LoadConfigData) -> list[dict[str, Any]]:
+    def model_elements(self, config: LoadConfigData) -> list[dict[str, Any]]:
         """Create model elements for Load configuration."""
         return [
             # Create Node for the load (sink only - consumes power)

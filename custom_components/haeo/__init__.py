@@ -116,7 +116,7 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
 
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
     """Handle options update or subentry changes."""
-    from .network import evaluate_network_connectivity  # noqa: PLC0415
+    from .coordinator import evaluate_network_connectivity  # noqa: PLC0415
 
     # Check if this is a value-only update from an input entity
     runtime_data = entry.runtime_data
@@ -176,16 +176,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     entry.async_on_unload(horizon_manager.stop)
 
     # Set up input platforms first - they populate runtime_data.input_entities
-    # async_add_entities() returns immediately; async_added_to_hass() runs asynchronously
+    # Input entities register themselves synchronously and load their data asynchronously
+    # The platform setup functions wait for all data to load before returning
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
 
-    # Wait for async_added_to_hass() to complete on all input entities
-    # This ensures DRIVEN mode entities have loaded data before coordinator starts
-    await hass.async_block_till_done()
-
     # Create coordinator after input entities are fully loaded - it reads from them
+    # All input entity data is now guaranteed to be loaded
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
     runtime_data.coordinator = coordinator
+
+    # Initialize the network and set up subscriptions
+    # This must happen before the first refresh
+    await coordinator.async_initialize()
 
     # Trigger initial optimization before output platform setup
     # This populates coordinator.data so sensor platform can create output entities

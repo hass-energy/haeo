@@ -1,6 +1,6 @@
 """Test data and factories for Node element."""
 
-from custom_components.haeo.model.node import Node
+from custom_components.haeo.model.elements.node import Node
 
 from .element_types import ElementTestCase
 

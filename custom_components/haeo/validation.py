@@ -46,7 +46,7 @@ async def _build_adjacency(
         loaded = await entry.load(config, hass=hass, forecast_times=forecast_times)
 
         # Get model elements including implicit connections
-        model_elements = entry.create_model_elements(loaded)
+        model_elements = entry.model_elements(loaded)
 
         # Add non-connection elements as nodes (skip balance connections - internal bookkeeping)
         for elem in model_elements:
