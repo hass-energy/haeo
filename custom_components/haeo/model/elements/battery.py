@@ -105,23 +105,29 @@ class Battery(Element[BatteryOutputName]):
         self.stored_energy = self.energy_in - self.energy_out
 
     @constraint
-    def initial_charge_constraint(self) -> highs_linear_expression:
+    def battery_initial_charge(self) -> highs_linear_expression:
         """Constraint: energy_in[0] == initial_charge."""
         return self.energy_in[0] == self.initial_charge
 
     @constraint
-    def initial_discharge_constraint(self) -> highs_linear_expression:
+    def battery_initial_discharge(self) -> highs_linear_expression:
         """Constraint: energy_out[0] == 0."""
         return self.energy_out[0] == 0.0
 
-    @constraint
-    def energy_in_flow_constraint(self) -> list[highs_linear_expression]:
-        """Constraint: cumulative energy in can only increase."""
+    @constraint(output=True, unit="$/kWh")
+    def battery_energy_in_flow(self) -> list[highs_linear_expression]:
+        """Constraint: cumulative energy in can only increase.
+        
+        Output: shadow price indicating the marginal value of energy flow constraints.
+        """
         return list(self.energy_in[1:] >= self.energy_in[:-1])
 
-    @constraint
-    def energy_out_flow_constraint(self) -> list[highs_linear_expression]:
-        """Constraint: cumulative energy out can only increase."""
+    @constraint(output=True, unit="$/kWh")
+    def battery_energy_out_flow(self) -> list[highs_linear_expression]:
+        """Constraint: cumulative energy out can only increase.
+        
+        Output: shadow price indicating the marginal value of energy flow constraints.
+        """
         return list(self.energy_out[1:] >= self.energy_out[:-1])
 
     @constraint(output=True, unit="$/kWh")
@@ -132,14 +138,20 @@ class Battery(Element[BatteryOutputName]):
         """
         return list(self.stored_energy[1:] <= self.capacity[1:])
 
-    @constraint
-    def soc_min_constraint(self) -> list[highs_linear_expression]:
-        """Constraint: stored energy cannot be negative."""
+    @constraint(output=True, unit="$/kWh")
+    def battery_soc_min(self) -> list[highs_linear_expression]:
+        """Constraint: stored energy cannot be negative.
+        
+        Output: shadow price indicating the marginal cost of minimum SOC constraint.
+        """
         return list(self.stored_energy[1:] >= 0)
 
-    @constraint
-    def power_balance_constraint(self) -> list[highs_linear_expression]:
-        """Constraint: connection_power equals net battery power."""
+    @constraint(output=True, unit="$/kW")
+    def battery_power_balance(self) -> list[highs_linear_expression]:
+        """Constraint: connection_power equals net battery power.
+        
+        Output: shadow price indicating the marginal value of power balance constraint.
+        """
         return list(self.connection_power() == self.power_consumption - self.power_production)
 
     # Output methods
@@ -162,51 +174,3 @@ class Battery(Element[BatteryOutputName]):
     def battery_energy_stored(self) -> OutputData:
         """Output: energy currently stored in the battery."""
         return OutputData(type=OutputType.ENERGY, unit="kWh", values=self.extract_values(self.stored_energy))
-
-    @output
-    def battery_power_balance(self) -> OutputData | None:
-        """Output: shadow price for power balance constraint."""
-        constraint = self.get_constraint("power_balance_constraint")
-        if constraint is None:
-            return None
-        return OutputData(
-            type=OutputType.SHADOW_PRICE,
-            unit="$/kW",
-            values=self.extract_values(constraint),
-        )
-
-    @output
-    def battery_energy_in_flow(self) -> OutputData | None:
-        """Output: shadow price for energy in flow constraint."""
-        constraint = self.get_constraint("energy_in_flow_constraint")
-        if constraint is None:
-            return None
-        return OutputData(
-            type=OutputType.SHADOW_PRICE,
-            unit="$/kWh",
-            values=self.extract_values(constraint),
-        )
-
-    @output
-    def battery_energy_out_flow(self) -> OutputData | None:
-        """Output: shadow price for energy out flow constraint."""
-        constraint = self.get_constraint("energy_out_flow_constraint")
-        if constraint is None:
-            return None
-        return OutputData(
-            type=OutputType.SHADOW_PRICE,
-            unit="$/kWh",
-            values=self.extract_values(constraint),
-        )
-
-    @output
-    def battery_soc_min(self) -> OutputData | None:
-        """Output: shadow price for SOC min constraint."""
-        constraint = self.get_constraint("soc_min_constraint")
-        if constraint is None:
-            return None
-        return OutputData(
-            type=OutputType.SHADOW_PRICE,
-            unit="$/kWh",
-            values=self.extract_values(constraint),
-        )

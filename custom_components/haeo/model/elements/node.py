@@ -58,9 +58,12 @@ class Node(Element[NodeOutputName]):
         self.is_source = is_source
         self.is_sink = is_sink
 
-    @constraint
-    def power_balance_constraint(self) -> list[highs_linear_expression] | None:
-        """Bound the connection power based on source/sink behavior."""
+    @constraint(output=True, unit="$/kW")
+    def node_power_balance(self) -> list[highs_linear_expression] | None:
+        """Bound the connection power based on source/sink behavior.
+        
+        Output: shadow price indicating the marginal cost/value of power at this node.
+        """
         # We don't need power variables explicitly defined here, a source is a lack of upper bound on power out,
         # and a sink is a lack of upper bound on power in. We just need to enforce power balance with connection power.
 
@@ -77,18 +80,3 @@ class Node(Element[NodeOutputName]):
             return list(conn_power >= 0)
         # Can both produce and consume power so there are no bounds
         return None
-
-    @output
-    def node_power_balance(self) -> OutputData | None:
-        """Output: shadow price for power balance constraint.
-
-        Adapter layer maps this to element-specific names (grid_power_imported, load_power_consumed, etc.)
-        """
-        constraint = self.get_constraint("power_balance_constraint")
-        if constraint is None:
-            return None
-        return OutputData(
-            type=OutputType.SHADOW_PRICE,
-            unit="$/kW",
-            values=self.extract_values(constraint),
-        )

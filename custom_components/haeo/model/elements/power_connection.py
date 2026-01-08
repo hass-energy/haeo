@@ -145,9 +145,12 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
         """
         return self._power_source_target * self._efficiency_source_target - self._power_target_source
 
-    @constraint
-    def power_max_source_target_constraint(self) -> list[highs_linear_expression] | None:
-        """Constraint: limit power flow from source to target."""
+    @constraint(output=True, unit="$/kW")
+    def connection_shadow_power_max_source_target(self) -> list[highs_linear_expression] | None:
+        """Constraint: limit power flow from source to target.
+        
+        Output: shadow price indicating the marginal value of additional power capacity.
+        """
         if self.max_power_source_target is None:
             return None
 
@@ -155,9 +158,12 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
             return list(self.power_source_target == self.max_power_source_target)
         return list(self.power_source_target <= self.max_power_source_target)
 
-    @constraint
-    def power_max_target_source_constraint(self) -> list[highs_linear_expression] | None:
-        """Constraint: limit power flow from target to source."""
+    @constraint(output=True, unit="$/kW")
+    def connection_shadow_power_max_target_source(self) -> list[highs_linear_expression] | None:
+        """Constraint: limit power flow from target to source.
+        
+        Output: shadow price indicating the marginal value of additional power capacity.
+        """
         if self.max_power_target_source is None:
             return None
 
@@ -165,9 +171,12 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
             return list(self.power_target_source == self.max_power_target_source)
         return list(self.power_target_source <= self.max_power_target_source)
 
-    @constraint
-    def time_slice_constraint(self) -> list[highs_linear_expression] | None:
-        """Constraint: prevent simultaneous full bidirectional power flow."""
+    @constraint(output=True, unit="$/kW")
+    def connection_time_slice(self) -> list[highs_linear_expression] | None:
+        """Constraint: prevent simultaneous full bidirectional power flow.
+        
+        Output: shadow price for time slice constraint.
+        """
         if self.max_power_source_target is None or self.max_power_target_source is None:
             return None
 
@@ -236,30 +245,6 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
         power_ts = self.extract_values(self.power_target_source)
         cost_ts = tuple(p * pw * t for p, pw, t in zip(self.price_target_source, power_ts, self.periods, strict=True))
         return OutputData(type=OutputType.COST, unit="$", values=cost_ts, direction="-")
-
-    @output
-    def connection_shadow_power_max_source_target(self) -> OutputData | None:
-        """Shadow price for maximum power from source to target."""
-        constraint = self.get_constraint("power_max_source_target_constraint")
-        if constraint is None:
-            return None
-        return OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=self.extract_values(constraint))
-
-    @output
-    def connection_shadow_power_max_target_source(self) -> OutputData | None:
-        """Shadow price for maximum power from target to source."""
-        constraint = self.get_constraint("power_max_target_source_constraint")
-        if constraint is None:
-            return None
-        return OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=self.extract_values(constraint))
-
-    @output
-    def connection_time_slice(self) -> OutputData | None:
-        """Shadow price for time slice constraint."""
-        constraint = self.get_constraint("time_slice_constraint")
-        if constraint is None:
-            return None
-        return OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=self.extract_values(constraint))
 
 
 # Re-export connection constants for consumers that import from power_connection

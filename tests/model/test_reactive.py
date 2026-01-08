@@ -585,7 +585,7 @@ def test_reactive_workflow() -> None:
             self._soc_values: list[float] = []
 
         @constraint
-        def soc_max_constraint(self) -> None:
+        def test_constraint(self) -> None:
             # Simulated constraint that depends on capacity
             # Return None to skip solver application
             self._soc_values = [self.capacity * 0.9]
@@ -602,12 +602,12 @@ def test_reactive_workflow() -> None:
     )
 
     # Initial constraint computation
-    result1 = battery.soc_max_constraint()
+    result1 = battery.test_constraint()
     assert result1 is None
     assert battery._soc_values == [9.0]
 
     # Cached access
-    result2 = battery.soc_max_constraint()
+    result2 = battery.test_constraint()
     assert result2 is None
     assert battery._soc_values == [9.0]
 
@@ -615,6 +615,6 @@ def test_reactive_workflow() -> None:
     battery.capacity = 20.0
 
     # Recomputed
-    result3 = battery.soc_max_constraint()
+    result3 = battery.test_constraint()
     assert result3 is None
     assert battery._soc_values == [18.0]

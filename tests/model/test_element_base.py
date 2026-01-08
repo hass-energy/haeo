@@ -83,15 +83,15 @@ def test_apply_constraints_populates_applied_constraints(solver: Highs) -> None:
     h = solver
 
     # Create a simple element that has constraint methods
-    # Use is_sink=False so the power_balance_constraint actually creates constraints
+    # Use is_sink=False so the node_power_balance actually creates constraints
     element = Node(name="test_node", periods=[1.0] * 3, solver=h, is_source=True, is_sink=False)
 
     # Apply constraints
     element.apply_constraints()
 
     # After applying, constraint state should exist
-    # Node has power_balance_constraint (returns constraints when is_source=True, is_sink=False)
-    constraint = element.get_constraint("power_balance_constraint")
+    # Node has node_power_balance (returns constraints when is_source=True, is_sink=False)
+    constraint = element.get_constraint("node_power_balance")
     assert constraint is not None
 
 
