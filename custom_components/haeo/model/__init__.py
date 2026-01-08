@@ -8,7 +8,6 @@ from .elements import battery_balance_connection as battery_balance_connection
 from .elements import connection as connection
 from .elements import node as node
 from .elements import power_connection as power_connection
-from .elements.battery import BATTERY_CONSTRAINT_NAMES as BATTERY_CONSTRAINT_NAMES
 from .elements.battery import BATTERY_OUTPUT_NAMES as BATTERY_OUTPUT_NAMES
 from .elements.battery import BATTERY_POWER_CONSTRAINTS as BATTERY_POWER_CONSTRAINTS
 from .elements.battery import Battery as Battery
@@ -33,7 +32,6 @@ from .output_data import OutputData
 from .output_names import ModelOutputName
 
 __all__ = [
-    "BATTERY_CONSTRAINT_NAMES",
     "BATTERY_OUTPUT_NAMES",
     "BATTERY_POWER_CONSTRAINTS",
     "CONNECTION_OUTPUT_NAMES",

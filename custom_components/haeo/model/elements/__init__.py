@@ -6,7 +6,6 @@ This module re-exports all element classes for convenient imports.
 from dataclasses import dataclass
 from typing import Final, Literal
 
-from .battery import BATTERY_CONSTRAINT_NAMES as BATTERY_CONSTRAINT_NAMES
 from .battery import BATTERY_OUTPUT_NAMES as BATTERY_OUTPUT_NAMES
 from .battery import BATTERY_POWER_CONSTRAINTS as BATTERY_POWER_CONSTRAINTS
 from .battery import Battery as Battery
@@ -74,7 +73,6 @@ ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
 }
 
 __all__ = [
-    "BATTERY_CONSTRAINT_NAMES",
     "BATTERY_OUTPUT_NAMES",
     "BATTERY_POWER_CONSTRAINTS",
     "CONNECTION_OUTPUT_NAMES",

@@ -33,9 +33,14 @@ type BatteryOutputName = (
     | BatteryConstraintName
 )
 
-# Battery constraint names (exposed as shadow price outputs)
-BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
+# All battery output names (includes constraint shadow prices)
+BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
     (
+        # Base outputs
+        BATTERY_POWER_CHARGE := "battery_power_charge",
+        BATTERY_POWER_DISCHARGE := "battery_power_discharge",
+        BATTERY_ENERGY_STORED := "battery_energy_stored",
+        # Constraint shadow prices
         BATTERY_POWER_BALANCE := "battery_power_balance",
         BATTERY_ENERGY_IN_FLOW := "battery_energy_in_flow",
         BATTERY_ENERGY_OUT_FLOW := "battery_energy_out_flow",
@@ -44,18 +49,8 @@ BATTERY_CONSTRAINT_NAMES: Final[frozenset[BatteryConstraintName]] = frozenset(
     )
 )
 
-# Battery power constraints
+# Battery power constraints (subset of outputs that relate to power balance)
 BATTERY_POWER_CONSTRAINTS: Final[frozenset[BatteryConstraintName]] = frozenset((BATTERY_POWER_BALANCE,))
-
-# Battery output names
-BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
-    (
-        BATTERY_POWER_CHARGE := "battery_power_charge",
-        BATTERY_POWER_DISCHARGE := "battery_power_discharge",
-        BATTERY_ENERGY_STORED := "battery_energy_stored",
-        *BATTERY_CONSTRAINT_NAMES,
-    )
-)
 
 
 class Battery(Element[BatteryOutputName]):
