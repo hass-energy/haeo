@@ -11,6 +11,7 @@ from custom_components.haeo.elements.connection import (
 )
 from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.model.elements.power_connection import PowerConnection
 
 
 def test_update_element_updates_tracked_params() -> None:
@@ -28,8 +29,12 @@ def test_update_element_updates_tracked_params() -> None:
         max_power_target_source=5.0,
     )
 
-    # Verify initial state
+    # Verify initial state with type narrowing
     conn = network.elements["conn"]
+    assert isinstance(conn, PowerConnection)
+    # Check initial TrackedParam values
+    assert conn.max_power_source_target is not None
+    assert conn.max_power_target_source is not None
     assert conn.max_power_source_target[0] == 10.0
     assert conn.max_power_target_source[0] == 5.0
 
@@ -47,4 +52,3 @@ def test_update_element_updates_tracked_params() -> None:
     # Verify updated state - TrackedParams should be updated
     assert conn.max_power_source_target[0] == 20.0
     assert conn.max_power_target_source[0] == 15.0
-
