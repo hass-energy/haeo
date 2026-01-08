@@ -27,7 +27,9 @@ from .adapter import (
 )
 from .flow import BatterySubentryFlowHandler
 from .schema import (
+    ALL_INPUT_FIELDS,
     CONF_CAPACITY,
+    CONF_CONFIGURE_PARTITIONS,
     CONF_CONNECTION,
     CONF_DISCHARGE_COST,
     CONF_EARLY_CHARGE_INCENTIVE,
@@ -43,6 +45,8 @@ from .schema import (
     CONF_UNDERCHARGE_PERCENTAGE,
     ELEMENT_TYPE,
     INPUT_FIELDS,
+    PARTITION_FIELD_NAMES,
+    PARTITION_FIELDS,
     BatteryConfigData,
     BatteryConfigSchema,
 )
@@ -68,7 +72,9 @@ __all__ = [
     "BATTERY_SOC_MIN",
     "BATTERY_STATE_OF_CHARGE",
     # Schema
+    "ALL_INPUT_FIELDS",
     "CONF_CAPACITY",
+    "CONF_CONFIGURE_PARTITIONS",
     "CONF_CONNECTION",
     "CONF_DISCHARGE_COST",
     "CONF_EARLY_CHARGE_INCENTIVE",
@@ -84,6 +90,8 @@ __all__ = [
     "CONF_UNDERCHARGE_PERCENTAGE",
     "ELEMENT_TYPE",
     "INPUT_FIELDS",
+    "PARTITION_FIELD_NAMES",
+    "PARTITION_FIELDS",
     "BatteryAdapter",
     "BatteryConfigData",
     "BatteryConfigSchema",

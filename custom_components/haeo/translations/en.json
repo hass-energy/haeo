@@ -82,6 +82,7 @@
           "description": "Configure battery parameters for energy optimization",
           "data": {
             "capacity": "Capacity",
+            "configure_partitions": "Configure battery partitions",
             "connection": "Connection",
             "discharge_cost": "Discharge Cost",
             "early_charge_incentive": "Early Charge Incentive",
@@ -91,11 +92,7 @@
             "max_charge_power": "Max Charging Power",
             "max_discharge_power": "Max Discharging Power",
             "min_charge_percentage": "Min Charge Level",
-            "name": "Battery Name",
-            "overcharge_cost": "Overcharge Cost",
-            "overcharge_percentage": "Overcharge Percentage",
-            "undercharge_cost": "Undercharge Cost",
-            "undercharge_percentage": "Undercharge Percentage"
+            "name": "Battery Name"
           }
         },
         "values": {
@@ -110,7 +107,13 @@
             "max_charge_percentage": "Max Charge Level",
             "max_charge_power": "Max Charging Power",
             "max_discharge_power": "Max Discharging Power",
-            "min_charge_percentage": "Min Charge Level",
+            "min_charge_percentage": "Min Charge Level"
+          }
+        },
+        "partitions": {
+          "title": "Battery Partitions",
+          "description": "Configure undercharge and overcharge regions for the battery",
+          "data": {
             "overcharge_cost": "Overcharge Cost",
             "overcharge_percentage": "Overcharge Percentage",
             "undercharge_cost": "Undercharge Cost",
