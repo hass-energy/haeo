@@ -52,15 +52,22 @@ Parameters that can change between optimizations (forecasts, capacities, prices)
 ```python
 from custom_components.haeo.model.reactive import TrackedParam
 
+
 class Battery(Element[BatteryOutputName]):
     # Declare parameters as TrackedParam descriptors
     capacity: TrackedParam[NDArray[np.float64]] = TrackedParam()
     initial_charge: TrackedParam[float] = TrackedParam()
 
-    def __init__(self, name: str, periods: Sequence[float], *, solver: Highs,
-                 capacity: Sequence[float] | float, initial_charge: float):
-        super().__init__(name=name, periods=periods, solver=solver,
-                        output_names=BATTERY_OUTPUT_NAMES)
+    def __init__(
+        self,
+        name: str,
+        periods: Sequence[float],
+        *,
+        solver: Highs,
+        capacity: Sequence[float] | float,
+        initial_charge: float,
+    ):
+        super().__init__(name=name, periods=periods, solver=solver, output_names=BATTERY_OUTPUT_NAMES)
 
         # Set parameter values
         self.capacity = broadcast_to_sequence(capacity, self.n_periods + 1)
@@ -77,6 +84,7 @@ The decorator caches expressions and manages the solver lifecycle:
 ```python
 from custom_components.haeo.model.reactive import constraint
 
+
 @constraint(output=True, unit="$/kWh")
 def battery_soc_max(self) -> list[highs_linear_expression]:
     """Constraint: stored energy cannot exceed capacity.
@@ -87,6 +95,7 @@ def battery_soc_max(self) -> list[highs_linear_expression]:
 ```
 
 Parameters:
+
 - `output=True`: Expose constraint shadow prices as outputs (default `False`)
 - `unit`: Unit for shadow price outputs (default `"$/kW"`)
 
@@ -96,6 +105,7 @@ Use `@cost` to declare cost contribution methods:
 
 ```python
 from custom_components.haeo.model.reactive import cost
+
 
 @cost
 def cost_source_target(self) -> highs_linear_expression | None:
@@ -116,14 +126,12 @@ from custom_components.haeo.model.reactive import output
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.const import OutputType
 
+
 @output
 def battery_power_charge(self) -> OutputData:
     """Output: power being consumed to charge the battery."""
     return OutputData(
-        type=OutputType.POWER,
-        unit="kW",
-        values=self.extract_values(self.power_consumption),
-        direction="-"
+        type=OutputType.POWER, unit="kW", values=self.extract_values(self.power_consumption), direction="-"
     )
 ```
 
@@ -155,6 +163,7 @@ Each element uses the `@output` decorator to mark methods that extract optimizat
 The network discovers these methods via reflection and calls them to populate sensor data.
 
 Return `OutputData` objects with:
+
 - `type`: Output type (POWER, ENERGY, STATE_OF_CHARGE, COST, PRICE, SHADOW_PRICE, etc.)
 - `unit`: Unit string (kW, kWh, $, $/kWh, etc.)
 - `values`: Tuple of floats for the time series

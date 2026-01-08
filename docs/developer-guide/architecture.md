@@ -181,8 +181,8 @@ Rather than documenting every file, focus on how the major areas collaborate:
 - **Input layer (`inputs/`)**: HorizonManager, Number platform, Switch platform, and InputFieldInfo for intermediate input entities.
 - **Data layer (`data/`)**: Loader modules turn Home Assistant sensors and forecasts into normalized time series. Called by input entities.
 - **Model (`model/`)**: Pure Python optimization layer with declarative constraints and costs.
-  - `model/elements/`: Model element implementations (Battery, Node, Connection types)
-  - `model/reactive/`: Parameter tracking and constraint caching infrastructure
+    - `model/elements/`: Model element implementations (Battery, Node, Connection types)
+    - `model/reactive/`: Parameter tracking and constraint caching infrastructure
 - **Metadata (`elements/` and `schema/`)**: Describe configuration defaults, validation, INPUT_FIELDS registry, and runtime metadata for every element type.
 - **Presentation (`sensors/`)**: Builds sensor platforms that publish optimization results back to Home Assistant.
 - **Translations (`translations/`)**: Provides user-facing strings for config flows and entity names.
