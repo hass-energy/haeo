@@ -4,7 +4,7 @@ This module re-exports all element classes for convenient imports.
 """
 
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, Literal
 
 from .battery import BATTERY_CONSTRAINT_NAMES as BATTERY_CONSTRAINT_NAMES
 from .battery import BATTERY_OUTPUT_NAMES as BATTERY_OUTPUT_NAMES
@@ -29,6 +29,20 @@ from .power_connection import POWER_CONNECTION_OUTPUT_NAMES as POWER_CONNECTION_
 from .power_connection import PowerConnection as PowerConnection
 from .power_connection import PowerConnectionOutputName as PowerConnectionOutputName
 
+# Element type constants for model layer
+MODEL_ELEMENT_TYPE_BATTERY: Final = "battery"
+MODEL_ELEMENT_TYPE_NODE: Final = "node"
+MODEL_ELEMENT_TYPE_CONNECTION: Final = "connection"
+MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION: Final = "battery_balance_connection"
+
+# Type for all model element types
+ModelElementType = Literal[
+    "battery",
+    "node",
+    "connection",
+    "battery_balance_connection",
+]
+
 
 @dataclass(frozen=True, slots=True)
 class ElementSpec:
@@ -40,20 +54,20 @@ class ElementSpec:
 
 # Registry of all model element types.
 # Keys are element type strings used by Network.add().
-ELEMENTS: Final[dict[str, ElementSpec]] = {
-    "battery": ElementSpec(
+ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
+    MODEL_ELEMENT_TYPE_BATTERY: ElementSpec(
         factory=Battery,
         output_names=BATTERY_OUTPUT_NAMES,
     ),
-    "node": ElementSpec(
+    MODEL_ELEMENT_TYPE_NODE: ElementSpec(
         factory=Node,
         output_names=NODE_OUTPUT_NAMES,
     ),
-    "connection": ElementSpec(
+    MODEL_ELEMENT_TYPE_CONNECTION: ElementSpec(
         factory=PowerConnection,
         output_names=POWER_CONNECTION_OUTPUT_NAMES,
     ),
-    "battery_balance_connection": ElementSpec(
+    MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION: ElementSpec(
         factory=BatteryBalanceConnection,
         output_names=BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES,
     ),
@@ -69,6 +83,10 @@ __all__ = [
     "CONNECTION_TIME_SLICE",
     "ELEMENTS",
     "MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION",
+    "MODEL_ELEMENT_TYPE_BATTERY",
+    "MODEL_ELEMENT_TYPE_BATTERY_BALANCE_CONNECTION",
+    "MODEL_ELEMENT_TYPE_CONNECTION",
+    "MODEL_ELEMENT_TYPE_NODE",
     "POWER_CONNECTION_OUTPUT_NAMES",
     "Battery",
     "BatteryBalanceConnection",
@@ -78,6 +96,7 @@ __all__ = [
     "ConnectionConstraintName",
     "ConnectionOutputName",
     "ElementSpec",
+    "ModelElementType",
     "Node",
     "NodeOutputName",
     "PowerConnection",
