@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from .tracked_param import (
     _ensure_decorator_state,  # noqa: PLC2701 (tightly coupled reactive infrastructure)
+    _get_decorator_state,  # noqa: PLC2701 (tightly coupled reactive infrastructure)
     _tracking_context,  # noqa: PLC2701 (tightly coupled reactive infrastructure)
 )
 from .types import CachedKind
@@ -138,8 +139,8 @@ class CachedConstraint[R](CachedMethod[R]):
         if expr is None:
             return expr  # type: ignore[return-value]
 
-                # Get solver from element
-                solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure)
+        # Get solver from element
+        solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure)
 
         # First call: create constraint(s) in solver
         if is_first_call:
@@ -218,6 +219,47 @@ class CachedCost[R](CachedMethod[R]):
     """
 
     kind = CachedKind.COST
+
+
+class CachedAggregateCost[R](CachedMethod[R]):
+    """Decorator that aggregates and caches all @cost decorated methods on an element.
+
+    This is used for Element.cost() which collects all individual cost expressions
+    and sums them into a single expression. The result is cached and only recomputed
+    when any underlying @cost method is invalidated.
+
+    The decorator tracks dependencies on all @cost methods by checking if any of them
+    are invalidated.
+    """
+
+    kind = CachedKind.COST  # Mark as cost-related for invalidation tracking
+
+    def _call(self, obj: "Element[Any]") -> R:
+        """Execute with caching, checking if any @cost method was invalidated."""
+        state = _ensure_decorator_state(obj, self._name)
+
+        # Check if any @cost decorator is invalidated
+        needs_recompute = False
+        for attr_name in dir(type(obj)):
+            attr = getattr(type(obj), attr_name, None)
+            if isinstance(attr, CachedCost):
+                cost_state = _get_decorator_state(obj, attr_name)
+                if cost_state is None or cost_state.get("invalidated", True):
+                    needs_recompute = True
+                    break
+
+        # Return cached if not invalidated
+        if not needs_recompute and not state["invalidated"] and state["result"] is not None:
+            return state["result"]  # type: ignore[return-value]
+
+        # Recompute by calling the aggregation function
+        result = self._fn(obj)
+
+        # Store result and mark as valid
+        state["result"] = result
+        state["invalidated"] = False
+
+        return result
 
 
 class OutputMethod[R]:

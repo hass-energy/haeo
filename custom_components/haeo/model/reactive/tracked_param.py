@@ -67,18 +67,13 @@ class TrackedParam[T]:
 def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> None:
     """Invalidate all reactive decorators on an element that depend on a parameter.
 
-    Also invalidates the element's aggregated cost cache if any @cost decorator
-    depends on this parameter.
-
     Args:
         element: The element instance
         param_name: The parameter name that changed
 
     """
     # Import here to avoid circular dependency at module load
-    from .decorators import CachedCost, CachedMethod  # noqa: PLC0415
-
-    cost_invalidated = False
+    from .decorators import CachedMethod  # noqa: PLC0415
 
     # Iterate through all attributes on the element's class
     for attr_name in dir(type(element)):
@@ -89,13 +84,6 @@ def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> No
             state = _get_decorator_state(element, attr_name)
             if state is not None and param_name in state.get("deps", set()):
                 state["invalidated"] = True
-                # Track if any @cost decorator was invalidated
-                if isinstance(descriptor, CachedCost):
-                    cost_invalidated = True
-
-    # If any cost was invalidated, invalidate the element's aggregated cost cache
-    if cost_invalidated and hasattr(element, "_cost_cache_valid"):
-        element._cost_cache_valid = False  # noqa: SLF001 (tightly coupled reactive infrastructure)
 
 
 def _get_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any] | None:

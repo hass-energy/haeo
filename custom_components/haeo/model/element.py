@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 
 from .const import OutputType
 from .output_data import OutputData
-from .reactive import CachedConstraint, CachedCost, OutputMethod, TrackedParam
+from .reactive import CachedAggregateCost, CachedConstraint, CachedCost, OutputMethod, TrackedParam
 
 if TYPE_CHECKING:
     from .elements.connection import Connection
@@ -45,10 +45,6 @@ class Element[OutputNameT: str]:
 
         # Track connections for power balance
         self._connections: list[tuple[Connection[Any], Literal["source", "target"]]] = []
-
-        # Cache for aggregated cost expression
-        self._cost_cache: Any = None
-        self._cost_cache_valid = False
 
     def __getitem__(self, key: str) -> Any:
         """Get a TrackedParam value by name.
@@ -229,21 +225,18 @@ class Element[OutputNameT: str]:
                     result[name] = cons
         return result
 
+    @CachedAggregateCost
     def cost(self) -> Any:
         """Return aggregated cost expression from this element.
 
         Discovers and calls all @cost decorated methods, summing their results into
-        a single expression. The result is cached and only recomputed if any
-        underlying @cost method was invalidated.
+        a single expression. The result is cached by the @CachedAggregateCost decorator
+        and only recomputed if any underlying @cost method was invalidated.
 
         Returns:
             Single aggregated cost expression (highs_linear_expression) or None if no costs
 
         """
-        # Check if cache is still valid
-        if self._cost_cache_valid:
-            return self._cost_cache
-
         # Collect all cost expressions
         costs: list[Any] = []
         for name in dir(type(self)):
@@ -260,15 +253,8 @@ class Element[OutputNameT: str]:
 
         # Aggregate costs into a single expression
         if not costs:
-            aggregated = None
-        elif len(costs) == 1:
-            aggregated = costs[0]
-        else:
-            # Sum all cost expressions
-            aggregated = sum(costs[1:], costs[0])
-
-        # Cache the result
-        self._cost_cache = aggregated
-        self._cost_cache_valid = True
-
-        return aggregated
+            return None
+        if len(costs) == 1:
+            return costs[0]
+        # Sum all cost expressions
+        return sum(costs[1:], costs[0])

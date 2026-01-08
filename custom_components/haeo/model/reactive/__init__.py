@@ -10,12 +10,22 @@ The pattern is inspired by reactive frameworks like MobX:
 - Parameter changes invalidate only dependent constraints
 """
 
-from .decorators import CachedConstraint, CachedCost, CachedMethod, OutputMethod, constraint, cost, output
+from .decorators import (
+    CachedAggregateCost,
+    CachedConstraint,
+    CachedCost,
+    CachedMethod,
+    OutputMethod,
+    constraint,
+    cost,
+    output,
+)
 from .tracked_param import TrackedParam
 from .types import UNSET, CachedKind, is_set
 
 __all__ = [
     "UNSET",
+    "CachedAggregateCost",
     "CachedConstraint",
     "CachedCost",
     "CachedKind",
