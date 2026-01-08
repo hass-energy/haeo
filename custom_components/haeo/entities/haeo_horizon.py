@@ -26,7 +26,7 @@ class HaeoHorizonEntity(SensorEntity):
     - Provides user visibility into the current forecast window
 
     The entity state shows the current period start time, and the forecast
-    attribute contains all fence-post timestamps for the horizon.
+    attribute contains all boundary timestamps for the horizon.
     """
 
     _attr_should_poll = False

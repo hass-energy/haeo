@@ -133,32 +133,32 @@ class BatteryAdapter:
         forecast_times: Sequence[float],
     ) -> BatteryConfigData:
         """Load battery configuration values from sensors."""
-        ts_loader = TimeSeriesLoader()
-        # forecast_times are fence posts, periods = n-1
-        n_periods = max(0, len(forecast_times) - 1)
+        loader = TimeSeriesLoader()
 
-        async def load_value(
-            value: list[str] | float | None,
-            default: float | None = None,
-        ) -> list[float]:
-            """Load a union value into a time series."""
-            if isinstance(value, list) and value:
-                return await ts_loader.load(hass=hass, value=value, forecast_times=forecast_times)
-            if isinstance(value, (int, float)):
-                return [float(value)] * n_periods
-            if default is not None:
-                return [default] * n_periods
-            msg = "Value must be provided - no default available"
-            raise ValueError(msg)
+        # Load capacity as boundaries (energy value at each time boundary)
+        capacity = await loader.load_boundaries(hass=hass, forecast_times=forecast_times, value=config.get("capacity"))
 
-        # Load required time series
-        capacity = await load_value(config.get("capacity"))
-        initial_charge = await load_value(config.get("initial_charge_percentage"))
+        # Load percentage limits as boundaries (they define energy at each boundary)
+        min_charge = await loader.load_boundaries(
+            hass=hass,
+            forecast_times=forecast_times,
+            value=config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]),
+        )
+        max_charge = await loader.load_boundaries(
+            hass=hass,
+            forecast_times=forecast_times,
+            value=config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE]),
+        )
 
-        # Load optional fields with defaults
-        min_charge = await load_value(config.get(CONF_MIN_CHARGE_PERCENTAGE), DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
-        max_charge = await load_value(config.get(CONF_MAX_CHARGE_PERCENTAGE), DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
-        efficiency = await load_value(config.get(CONF_EFFICIENCY), DEFAULTS[CONF_EFFICIENCY])
+        # Load interval-based values (power, rates)
+        initial_charge = await loader.load_intervals(
+            hass=hass, forecast_times=forecast_times, value=config.get("initial_charge_percentage")
+        )
+        efficiency = await loader.load_intervals(
+            hass=hass,
+            forecast_times=forecast_times,
+            value=config.get(CONF_EFFICIENCY, DEFAULTS[CONF_EFFICIENCY]),
+        )
 
         # Build data with defaults applied
         data: BatteryConfigData = {
@@ -175,37 +175,54 @@ class BatteryAdapter:
         # Load optional time series fields (no defaults)
         max_charge_power = config.get(CONF_MAX_CHARGE_POWER)
         if max_charge_power is not None:
-            data["max_charge_power"] = await load_value(max_charge_power)
+            data["max_charge_power"] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=max_charge_power
+            )
 
         max_discharge_power = config.get(CONF_MAX_DISCHARGE_POWER)
         if max_discharge_power is not None:
-            data["max_discharge_power"] = await load_value(max_discharge_power)
+            data["max_discharge_power"] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=max_discharge_power
+            )
 
         discharge_cost = config.get(CONF_DISCHARGE_COST)
         if discharge_cost is not None:
-            data["discharge_cost"] = await load_value(discharge_cost)
+            data["discharge_cost"] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=discharge_cost
+            )
 
         early_charge_incentive = config.get(CONF_EARLY_CHARGE_INCENTIVE)
         if early_charge_incentive is not None:
-            data["early_charge_incentive"] = await load_value(
-                early_charge_incentive, DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
+            data["early_charge_incentive"] = await loader.load_intervals(
+                hass=hass,
+                forecast_times=forecast_times,
+                value=early_charge_incentive,
             )
 
+        # Load undercharge/overcharge percentages as boundaries
         undercharge_percentage = config.get(CONF_UNDERCHARGE_PERCENTAGE)
         if undercharge_percentage is not None:
-            data["undercharge_percentage"] = await load_value(undercharge_percentage)
+            data["undercharge_percentage"] = await loader.load_boundaries(
+                hass=hass, forecast_times=forecast_times, value=undercharge_percentage
+            )
 
         overcharge_percentage = config.get(CONF_OVERCHARGE_PERCENTAGE)
         if overcharge_percentage is not None:
-            data["overcharge_percentage"] = await load_value(overcharge_percentage)
+            data["overcharge_percentage"] = await loader.load_boundaries(
+                hass=hass, forecast_times=forecast_times, value=overcharge_percentage
+            )
 
         undercharge_cost = config.get(CONF_UNDERCHARGE_COST)
         if undercharge_cost is not None:
-            data["undercharge_cost"] = await load_value(undercharge_cost)
+            data["undercharge_cost"] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=undercharge_cost
+            )
 
         overcharge_cost = config.get(CONF_OVERCHARGE_COST)
         if overcharge_cost is not None:
-            data["overcharge_cost"] = await load_value(overcharge_cost)
+            data["overcharge_cost"] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=overcharge_cost
+            )
 
         return data
 
@@ -217,7 +234,9 @@ class BatteryAdapter:
         """
         name = config["name"]
         elements: list[dict[str, Any]] = []
-        n_periods = len(config["capacity"])
+        # capacity is boundaries (n+1 values), so n_periods = len - 1
+        n_boundaries = len(config["capacity"])
+        n_periods = n_boundaries - 1
 
         # Get capacity array and initial SOC from first period
         capacity_array = np.array(config["capacity"])
@@ -619,20 +638,18 @@ def sum_output_data(outputs: list[OutputData]) -> OutputData:
 
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate total energy stored including inaccessible energy below min SOC."""
+    # Capacity and percentage fields are already boundaries (n+1 values)
     capacity = np.array(config["capacity"])
 
-    # Get time-varying min ratio
+    # Get time-varying min ratio (also boundaries)
     min_ratio = np.array(config["min_charge_percentage"]) / 100.0
 
     undercharge_pct = config.get("undercharge_percentage")
     undercharge_ratio = np.array(undercharge_pct) / 100.0 if undercharge_pct else None
     unusable_ratio = undercharge_ratio if undercharge_ratio is not None else min_ratio
 
-    # Fence-post: energy has n+1 values, capacity/ratios have n periods
-    # Use preceding values for each energy point (first uses first values)
-    fence_post_capacity = np.concatenate([[capacity[0]], capacity])
-    fence_post_unusable_ratio = np.concatenate([[unusable_ratio[0]], unusable_ratio])
-    inaccessible_energy = fence_post_unusable_ratio * fence_post_capacity
+    # Both energy values and capacity/ratios are now boundaries (n+1 values)
+    inaccessible_energy = unusable_ratio * capacity
     total_values = np.array(aggregate_energy.values) + inaccessible_energy
 
     return OutputData(
@@ -644,12 +661,9 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
 
 def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate SOC percentage from aggregate energy and total capacity."""
+    # Capacity is already boundaries (n+1 values), same as energy
     capacity = np.array(config["capacity"])
-
-    # Fence-post: energy has n+1 values, capacity has n periods
-    # Use preceding capacity for each SOC point (first uses first capacity)
-    fence_post_capacity = np.concatenate([[capacity[0]], capacity])
-    soc_values = np.array(total_energy.values) / fence_post_capacity * 100.0
+    soc_values = np.array(total_energy.values) / capacity * 100.0
 
     return OutputData(
         type=OutputType.STATE_OF_CHARGE,

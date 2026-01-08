@@ -306,7 +306,7 @@ def plot_price_series(ax: Any, forecast_data: Sequence[tuple[str, str, Sequence[
 def plot_soc(ax: Any, forecast_data: Sequence[tuple[str, Sequence[tuple[float, float]]]]) -> None:
     """Plot state of charge (SOC) data on a secondary y-axis.
 
-    SOC represents instantaneous battery state at time boundaries (fence posts),
+    SOC represents instantaneous battery state at time boundaries,
     not average values over intervals. Uses linear interpolation between points
     to show continuous state transitions.
     """

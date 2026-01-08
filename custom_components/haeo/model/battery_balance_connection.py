@@ -87,7 +87,7 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName, Ba
             solver: HiGHS solver instance
             upper: Name of upper battery section (receives upward transfer)
             lower: Name of lower battery section (receives downward transfer)
-            capacity_lower: Lower section capacity in kWh (T+1 fence-posted values)
+            capacity_lower: Lower section capacity in kWh (T+1 boundary values)
             slack_penalty: Penalty in $/kWh for slack variables (default: 1.0).
                 Must be larger than typical energy prices to ensure min/max
                 constraints are enforced correctly.

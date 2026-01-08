@@ -94,27 +94,27 @@ class ConnectionAdapter:
 
         # Load optional time series fields
         if CONF_MAX_POWER_SOURCE_TARGET in config:
-            data["max_power_source_target"] = await ts_loader.load(
+            data["max_power_source_target"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_MAX_POWER_SOURCE_TARGET], forecast_times=forecast_times
             )
         if CONF_MAX_POWER_TARGET_SOURCE in config:
-            data["max_power_target_source"] = await ts_loader.load(
+            data["max_power_target_source"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_MAX_POWER_TARGET_SOURCE], forecast_times=forecast_times
             )
         if CONF_EFFICIENCY_SOURCE_TARGET in config:
-            data["efficiency_source_target"] = await ts_loader.load(
+            data["efficiency_source_target"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_EFFICIENCY_SOURCE_TARGET], forecast_times=forecast_times
             )
         if CONF_EFFICIENCY_TARGET_SOURCE in config:
-            data["efficiency_target_source"] = await ts_loader.load(
+            data["efficiency_target_source"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_EFFICIENCY_TARGET_SOURCE], forecast_times=forecast_times
             )
         if CONF_PRICE_SOURCE_TARGET in config:
-            data["price_source_target"] = await ts_loader.load(
+            data["price_source_target"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_PRICE_SOURCE_TARGET], forecast_times=forecast_times
             )
         if CONF_PRICE_TARGET_SOURCE in config:
-            data["price_target_source"] = await ts_loader.load(
+            data["price_target_source"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_PRICE_TARGET_SOURCE], forecast_times=forecast_times
             )
 

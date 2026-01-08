@@ -57,7 +57,7 @@ class MockBattery:
         solver: Highs,
     ) -> Self:
         """Create a mock battery with SOC constraints."""
-        # Broadcast capacity to T+1 fence posts
+        # Broadcast capacity to T+1 boundaries
         cap = tuple([float(capacity)] * (n_periods + 1)) if isinstance(capacity, float | int) else capacity
 
         # Create cumulative energy variables (T+1 values)

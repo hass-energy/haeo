@@ -100,25 +100,25 @@ class TimestampTestCase(TypedDict):
 
 TIMESTAMP_TEST_CASES: dict[str, TimestampTestCase] = {
     "single_period": {
-        "description": "single period generates two fence posts",
+        "description": "single period generates two boundaries",
         "periods_seconds": [60],
         "start_time": 0.0,
         "expected": (0.0, 60.0),
     },
     "multiple_periods": {
-        "description": "multiple periods generate n+1 fence posts",
+        "description": "multiple periods generate n+1 boundaries",
         "periods_seconds": [60, 60, 300],
         "start_time": 0.0,
         "expected": (0.0, 60.0, 120.0, 420.0),
     },
     "empty_periods": {
-        "description": "empty periods generate single fence post at start",
+        "description": "empty periods generate single boundary at start",
         "periods_seconds": [],
         "start_time": 100.0,
         "expected": (100.0,),
     },
     "nonzero_start": {
-        "description": "fence posts are relative to start time",
+        "description": "boundaries are relative to start time",
         "periods_seconds": [60, 120],
         "start_time": 1000.0,
         "expected": (1000.0, 1060.0, 1180.0),
@@ -152,7 +152,7 @@ def test_generate_forecast_timestamps_default_start_time() -> None:
         result = generate_forecast_timestamps(periods_seconds)
 
     assert result[0] == expected_start
-    assert len(result) == 3  # 2 periods + 1 = 3 fence posts
+    assert len(result) == 3  # 2 periods + 1 = 3 boundaries
     assert result[1] == expected_start + 60.0
     assert result[2] == expected_start + 120.0
 
@@ -178,6 +178,6 @@ def test_generate_forecast_timestamps_from_config() -> None:
         result = generate_forecast_timestamps_from_config(config)
 
     assert result[0] == expected_start
-    assert len(result) == 3  # 2 periods + 1 = 3 fence posts
+    assert len(result) == 3  # 2 periods + 1 = 3 boundaries
     assert result[1] == expected_start + 60.0
     assert result[2] == expected_start + 120.0

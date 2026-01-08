@@ -69,7 +69,7 @@ class LoadAdapter:
             forecast = [DEFAULT_FORECAST for _ in forecast_times]
         else:
             ts_loader = TimeSeriesLoader()
-            forecast = await ts_loader.load(
+            forecast = await ts_loader.load_intervals(
                 hass=hass,
                 value=config[CONF_FORECAST],
                 forecast_times=forecast_times,
