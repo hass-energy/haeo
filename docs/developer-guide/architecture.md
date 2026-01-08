@@ -84,10 +84,15 @@ Operate in two modes: EDITABLE (user-configurable constants) or DRIVEN (values f
 
 See the [Input Entities guide](inputs.md) for details.
 
-### Coordinator (`coordinator.py`)
+### Coordinator (`coordinator/`)
 
 Event-driven manager that reads pre-loaded data from input entities, builds the network, runs optimization, and distributes results.
 Each hub entry creates one coordinator instance.
+
+The coordinator is organized as a module in `coordinator/`:
+
+- `coordinator/coordinator.py`: Main coordinator class and optimization cycle
+- `coordinator/network.py`: Network building functions (`create_network()`, `update_element()`)
 
 See the [DataUpdateCoordinator documentation](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities) for the base pattern.
 HAEO's coordinator reads from `runtime_data.inputs`, assembles the optimization network, runs the optimizer in an executor, and pushes the results back to sensor entities.
@@ -115,21 +120,23 @@ Creates optimization model from config:
 
 ### Network Model (`model/`)
 
-LP representation using HiGHS:
+LP representation using HiGHS solver:
 
-- **Element**: Base class for all model elements with power/energy variables
-- **Battery**: Storage with charge/discharge power, SOC constraints
-- **Grid**: Import/export with optional limits and pricing
-- **Solar**: Solar generation with optional curtailment
-- **ConstantLoad, ForecastLoad**: Consumption elements
-- **Node**: Virtual balance point enforcing Kirchhoff's law
-- **Connection**: Power flow path with optional min/max limits
-- **Network**: Container with `build()`, `optimize()`, and `cost()` methods
+- **Element**: Base class with declarative constraint and cost specification
+- **Network**: Container that aggregates element contributions and runs optimization
+
+Model elements are organized in `model/elements/` subdirectory.
+Elements declare their constraints and costs using decorators, and the network automatically aggregates them.
+
+See [Modeling Documentation](../modeling/index.md) for mathematical formulations and element types.
 
 ### Optimization
 
 Uses the HiGHS linear programming solver directly via the `highspy` Python bindings to solve the energy optimization problem.
 Minimizes cost while respecting all constraints, returning optimal cost and decision variable values.
+
+Elements use decorators to declare constraints and costs, which the network automatically aggregates.
+When parameters update (like forecast changes), only affected constraints are rebuilt (warm start optimization).
 
 ### Sensors (`sensors/`)
 
@@ -150,28 +157,32 @@ Separate subsystem implementing the optimization model:
 **Design principles**:
 
 - Pure Python linear programming using HiGHS via `highspy`
-- Elements generate their own variables and constraints
-- Network assembles elements and runs optimization
+- Declarative constraint and cost specification using decorators
+- Elements declare their requirements; network aggregates automatically
+- Parameter updates trigger selective constraint rebuilding (warm start)
 - No Home Assistant dependencies in model layer
 
 **Key components**:
 
-- `Element`: Base class with power/energy variable patterns
-- Entity classes: Battery, Grid, Solar, Loads, Node
-- `Connection`: Base class for power flow between elements
-- `PowerConnection`: Connection with limits, efficiency, and pricing
-- `Network`: Container with `optimize()` method
+- `Element`: Base class with declarative pattern
+- `model/elements/`: Element implementations
+- `model/reactive/`: Infrastructure for parameter tracking and constraint caching
+- `Network`: Aggregates element contributions and runs optimization
+
+See [Energy Models guide](energy-models.md) for implementing new elements and [Modeling Documentation](../modeling/index.md) for mathematical details.
 
 ## Code Organization
 
 The integration lives under `custom_components/haeo/` and follows Home Assistant layout conventions.
 Rather than documenting every file, focus on how the major areas collaborate:
 
-- **Entry points**: `__init__.py`, `config_flow.py`, and `coordinator.py` bootstrap the integration, collect user input, and run optimizations.
+- **Entry points**: `__init__.py`, `config_flow.py`, and `coordinator/` bootstrap the integration, collect user input, and run optimizations.
 - **Flows (`flows/`)**: Houses hub, element, and options flows; each submodule owns the UI schema for a related group of entries.
 - **Input layer (`inputs/`)**: HorizonManager, Number platform, Switch platform, and InputFieldInfo for intermediate input entities.
 - **Data layer (`data/`)**: Loader modules turn Home Assistant sensors and forecasts into normalized time series. Called by input entities.
-- **Model (`model/`)**: Pure Python optimization layer composed of elements, connections, and network orchestration.
+- **Model (`model/`)**: Pure Python optimization layer with declarative constraints and costs.
+  - `model/elements/`: Model element implementations (Battery, Node, Connection types)
+  - `model/reactive/`: Parameter tracking and constraint caching infrastructure
 - **Metadata (`elements/` and `schema/`)**: Describe configuration defaults, validation, INPUT_FIELDS registry, and runtime metadata for every element type.
 - **Presentation (`sensors/`)**: Builds sensor platforms that publish optimization results back to Home Assistant.
 - **Translations (`translations/`)**: Provides user-facing strings for config flows and entity names.

@@ -112,9 +112,10 @@ See existing element modules in [`custom_components/haeo/elements/`](https://git
 
 The adapter layer integrates at two points in HAEO's execution:
 
-**Network construction**: [`data/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/data/__init__.py) calls `create_model_elements()` for each configured element to build the optimization network.
+**Network construction**: [`coordinator/network.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/network.py) calls `create_model_elements()` for each configured element to build the optimization network.
+The `create_network()` function assembles all element specifications and adds them to the network.
 
-**Output processing**: [`coordinator.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator.py) calls `outputs()` after optimization to transform results into device sensor values.
+**Output processing**: [`coordinator/coordinator.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/coordinator/coordinator.py) calls `outputs()` after optimization to transform results into device sensor values.
 
 ## Future: Composite Elements
 

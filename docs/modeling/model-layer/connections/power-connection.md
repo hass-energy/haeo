@@ -192,6 +192,6 @@ fixed_power: true  # consumption equals forecast exactly
 
     View the source code.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/power_connection.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/power_connection.py)
 
 </div>
