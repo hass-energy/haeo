@@ -27,6 +27,7 @@ from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.model.elements.battery_balance_connection import BatteryBalanceConnection
+from custom_components.haeo.model.reactive import CachedCost
 
 
 @dataclass
@@ -310,8 +311,6 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     costs: list[Any] = []
 
     # Collect costs from @cost decorated methods
-    from custom_components.haeo.model.reactive import CachedCost
-
     for attr_name in dir(type(connection)):
         attr = getattr(type(connection), attr_name, None)
         if isinstance(attr, CachedCost):
@@ -323,7 +322,7 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
                     costs.extend(cost_value)
                 else:
                     costs.append(cost_value)
-    
+
     if len(costs) > 0:
         # Use reduce to avoid sum() returning Literal[0] when sequence is empty
         solver.minimize(reduce(lambda a, b: a + b, costs))

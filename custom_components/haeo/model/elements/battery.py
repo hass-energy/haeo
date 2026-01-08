@@ -117,7 +117,7 @@ class Battery(Element[BatteryOutputName]):
     @constraint(output=True, unit="$/kWh")
     def battery_energy_in_flow(self) -> list[highs_linear_expression]:
         """Constraint: cumulative energy in can only increase.
-        
+
         Output: shadow price indicating the marginal value of energy flow constraints.
         """
         return list(self.energy_in[1:] >= self.energy_in[:-1])
@@ -125,7 +125,7 @@ class Battery(Element[BatteryOutputName]):
     @constraint(output=True, unit="$/kWh")
     def battery_energy_out_flow(self) -> list[highs_linear_expression]:
         """Constraint: cumulative energy out can only increase.
-        
+
         Output: shadow price indicating the marginal value of energy flow constraints.
         """
         return list(self.energy_out[1:] >= self.energy_out[:-1])
@@ -133,7 +133,7 @@ class Battery(Element[BatteryOutputName]):
     @constraint(output=True, unit="$/kWh")
     def battery_soc_max(self) -> list[highs_linear_expression]:
         """Constraint: stored energy cannot exceed capacity.
-        
+
         Output: shadow price indicating the marginal value of additional capacity.
         """
         return list(self.stored_energy[1:] <= self.capacity[1:])
@@ -141,7 +141,7 @@ class Battery(Element[BatteryOutputName]):
     @constraint(output=True, unit="$/kWh")
     def battery_soc_min(self) -> list[highs_linear_expression]:
         """Constraint: stored energy cannot be negative.
-        
+
         Output: shadow price indicating the marginal cost of minimum SOC constraint.
         """
         return list(self.stored_energy[1:] >= 0)
@@ -149,7 +149,7 @@ class Battery(Element[BatteryOutputName]):
     @constraint(output=True, unit="$/kW")
     def battery_power_balance(self) -> list[highs_linear_expression]:
         """Constraint: connection_power equals net battery power.
-        
+
         Output: shadow price indicating the marginal value of power balance constraint.
         """
         return list(self.connection_power() == self.power_consumption - self.power_production)

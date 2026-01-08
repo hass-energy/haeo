@@ -12,7 +12,6 @@ from custom_components.haeo.model.reactive import (
     UNSET,
     CachedConstraint,
     CachedCost,
-    CachedKind,
     TrackedParam,
     constraint,
     cost,
@@ -72,7 +71,7 @@ def test_tracked_param_change_value_invalidates_dependents() -> None:
 
     # Call constraint to establish dependency
     elem.soc_constraint()
-    
+
     # Check state was created and dependency tracked
     state = getattr(elem, "_reactive_state_soc_constraint", None)
     assert state is not None
@@ -264,7 +263,6 @@ def test_cached_constraint_caches_result() -> None:
             # Return None to skip solver application
             nonlocal call_count
             call_count += 1
-            return None
 
     elem = create_test_element(TestElement)
 
@@ -297,7 +295,6 @@ def test_cached_constraint_recomputes_when_invalidated() -> None:
             nonlocal call_count
             call_count += 1
             _ = self.capacity  # Access to establish dependency
-            return None
 
     elem = create_test_element(TestElement)
     elem.capacity = 5.0
@@ -309,7 +306,7 @@ def test_cached_constraint_recomputes_when_invalidated() -> None:
 
     # Change capacity (invalidates constraint)
     elem.capacity = 10.0
-    
+
     # Check state was invalidated
     state = getattr(elem, "_reactive_state_my_constraint", None)
     assert state is not None
@@ -333,7 +330,6 @@ def test_cached_constraint_tracks_multiple_dependencies() -> None:
             # Access both parameters to establish dependencies
             _ = self.capacity
             _ = self.efficiency
-            return None
 
     elem = create_test_element(TestElement)
     elem.capacity = 10.0
@@ -407,7 +403,7 @@ def test_cached_cost_recomputes_when_invalidated() -> None:
 
     # Change price (invalidates cost)
     elem.price = 0.50
-    
+
     # Check state was invalidated
     state = getattr(elem, "_reactive_state_my_cost", None)
     assert state is not None
@@ -589,7 +585,6 @@ def test_reactive_workflow() -> None:
             # Simulated constraint that depends on capacity
             # Return None to skip solver application
             self._soc_values = [self.capacity * 0.9]
-            return None
 
     solver = Highs()
     solver.setOptionValue("output_flag", False)

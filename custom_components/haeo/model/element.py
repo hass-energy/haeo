@@ -8,8 +8,9 @@ from highspy.highs import HighspyArray, highs_cons
 import numpy as np
 from numpy.typing import NDArray
 
+from .const import OutputType
 from .output_data import OutputData
-from .reactive import CachedConstraint, CachedMethod, OutputMethod, TrackedParam
+from .reactive import CachedConstraint, CachedCost, CachedMethod, OutputMethod, TrackedParam
 
 if TYPE_CHECKING:
     from .elements.connection import Connection
@@ -189,7 +190,6 @@ class Element[OutputNameT: str]:
                 if state is not None and "constraint" in state:
                     # Extract shadow prices from the constraint
                     cons = state["constraint"]
-                    from .const import OutputType
 
                     output_data = OutputData(
                         type=OutputType.SHADOW_PRICE,
@@ -222,8 +222,6 @@ class Element[OutputNameT: str]:
             List of constraint objects (individual constraints or lists of constraints)
 
         """
-        from .reactive import CachedConstraint
-
         result: list[highs_cons | list[highs_cons]] = []
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
@@ -245,8 +243,6 @@ class Element[OutputNameT: str]:
             List of cost expressions (highs_linear_expression objects)
 
         """
-        from .reactive import CachedCost
-
         result: list[Any] = []
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)

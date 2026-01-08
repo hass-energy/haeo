@@ -148,7 +148,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
     @constraint(output=True, unit="$/kW")
     def connection_shadow_power_max_source_target(self) -> list[highs_linear_expression] | None:
         """Constraint: limit power flow from source to target.
-        
+
         Output: shadow price indicating the marginal value of additional power capacity.
         """
         if self.max_power_source_target is None:
@@ -161,7 +161,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
     @constraint(output=True, unit="$/kW")
     def connection_shadow_power_max_target_source(self) -> list[highs_linear_expression] | None:
         """Constraint: limit power flow from target to source.
-        
+
         Output: shadow price indicating the marginal value of additional power capacity.
         """
         if self.max_power_target_source is None:
@@ -174,7 +174,7 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
     @constraint(output=True, unit="$/kW")
     def connection_time_slice(self) -> list[highs_linear_expression] | None:
         """Constraint: prevent simultaneous full bidirectional power flow.
-        
+
         Output: shadow price for time slice constraint.
         """
         if self.max_power_source_target is None or self.max_power_target_source is None:

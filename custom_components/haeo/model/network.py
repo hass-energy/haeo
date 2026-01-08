@@ -13,6 +13,7 @@ from .elements import ELEMENTS
 from .elements.battery import Battery
 from .elements.battery_balance_connection import BatteryBalanceConnection
 from .elements.connection import Connection
+from .reactive import CachedConstraint
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -193,8 +194,6 @@ class Network:
         for element_name, element in self.elements.items():
             try:
                 # Find all constraint methods on this element
-                from .reactive import CachedConstraint
-
                 for attr_name in dir(type(element)):
                     attr = getattr(type(element), attr_name, None)
                     if isinstance(attr, CachedConstraint):

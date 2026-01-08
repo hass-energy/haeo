@@ -6,10 +6,8 @@ from typing import Final, Literal
 from highspy import Highs
 from highspy.highs import highs_linear_expression
 
-from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.reactive import constraint, output
+from custom_components.haeo.model.reactive import constraint
 
 type NodeConstraintName = Literal["node_power_balance"]
 
@@ -61,7 +59,7 @@ class Node(Element[NodeOutputName]):
     @constraint(output=True, unit="$/kW")
     def node_power_balance(self) -> list[highs_linear_expression] | None:
         """Bound the connection power based on source/sink behavior.
-        
+
         Output: shadow price indicating the marginal cost/value of power at this node.
         """
         # We don't need power variables explicitly defined here, a source is a lack of upper bound on power out,

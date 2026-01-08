@@ -8,6 +8,7 @@ import pytest
 
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.power_connection import PowerConnection
+from custom_components.haeo.model.reactive import CachedCost
 
 from . import test_data
 from .test_data.connection_types import ConnectionTestCase, ConnectionTestCaseInputs
@@ -82,7 +83,6 @@ def _solve_connection_scenario(
 
     # Objective function - collect costs from @cost decorated methods
     cost_terms: list[highs_linear_expression] = []
-    from custom_components.haeo.model.reactive import CachedCost
 
     for attr_name in dir(type(element)):
         attr = getattr(type(element), attr_name, None)

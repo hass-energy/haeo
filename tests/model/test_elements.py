@@ -7,6 +7,7 @@ from highspy.highs import HighspyArray
 import pytest
 
 from custom_components.haeo.model.elements.node import Node
+from custom_components.haeo.model.reactive import CachedCost
 from custom_components.haeo.model.util import broadcast_to_sequence
 
 from . import test_data
@@ -61,7 +62,6 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
 
         # Collect all cost terms from @cost decorated methods
         element_costs: list[Any] = []
-        from custom_components.haeo.model.reactive import CachedCost
 
         for attr_name in dir(type(element)):
             attr = getattr(type(element), attr_name, None)

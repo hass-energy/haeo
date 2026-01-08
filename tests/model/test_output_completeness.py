@@ -19,10 +19,7 @@ def get_output_methods(cls: type) -> set[str]:
     for name in dir(cls):
         attr = getattr(cls, name, None)
         # Check for @output decorated methods
-        if isinstance(attr, OutputMethod):
-            output_names.add(name)
-        # Check for @constraint(output=True) decorated methods
-        elif isinstance(attr, CachedConstraint) and attr.output:
+        if isinstance(attr, OutputMethod) or (isinstance(attr, CachedConstraint) and attr.output):
             output_names.add(name)
     return output_names
 

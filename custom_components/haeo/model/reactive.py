@@ -322,13 +322,7 @@ class CachedConstraint[R](CachedMethod[R]):
 
         # First call: create constraint(s) in solver
         if is_first_call:
-            from highspy.highs import highs_cons
-
-            # Import here to avoid circular dependency
-            if isinstance(expr, list):
-                cons = solver.addConstrs(expr)
-            else:
-                cons = solver.addConstr(expr)  # type: ignore[arg-type]
+            cons = solver.addConstrs(expr) if isinstance(expr, list) else solver.addConstr(expr)  # type: ignore[arg-type]
             state["constraint"] = cons
         else:
             # Subsequent call with invalidation: update constraint(s)
@@ -444,17 +438,17 @@ class OutputMethod[R]:
 
 # Decorator shortcuts for cleaner syntax
 @overload
-def constraint(fn: Callable[..., R], /) -> CachedConstraint[R]: ...
+def constraint[R](fn: Callable[..., R], /) -> CachedConstraint[R]: ...
 
 
 @overload
 def constraint(*, output: bool = False, unit: str = "$/kW") -> Callable[[Callable[..., R]], CachedConstraint[R]]: ...
 
 
-def constraint(
+def constraint[R](
     fn: Callable[..., R] | None = None, /, *, output: bool = False, unit: str = "$/kW"
 ) -> CachedConstraint[R] | Callable[[Callable[..., R]], CachedConstraint[R]]:
-    """Decorator for constraint methods with automatic caching and dependency tracking.
+    """Decorate constraint methods with automatic caching and dependency tracking.
 
     Can be used with or without arguments:
     - @constraint - basic constraint

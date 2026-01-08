@@ -11,7 +11,6 @@ from custom_components.haeo.model import Network
 from custom_components.haeo.model.elements.battery import Battery
 from custom_components.haeo.model.elements.power_connection import PowerConnection
 
-
 # Battery reactive update tests
 
 
