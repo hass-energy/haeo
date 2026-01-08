@@ -5,7 +5,6 @@ from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from .tracked_param import _ensure_decorator_state, _tracking_context
-from .types import CachedKind
 
 if TYPE_CHECKING:
     from highspy import Highs
@@ -23,11 +22,7 @@ class ReactiveMethod[R]:
 
     On first call, tracks which TrackedParam values are accessed and caches the result.
     Subsequent calls return cached result unless the method was invalidated.
-
-    Subclasses set `kind` to distinguish constraints from costs for reflection-based discovery.
     """
-
-    kind: CachedKind  # Set by subclasses
 
     def __init__(self, fn: Callable[..., R]) -> None:
         """Initialize with the method."""
@@ -102,8 +97,6 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
                 return [self.stored_energy[i] <= self.capacity[i] for i in ...]
 
     """
-
-    kind = CachedKind.CONSTRAINT
 
     def __init__(self, fn: Callable[..., R], *, output: bool = False, unit: str = "$/kW") -> None:
         """Initialize constraint decorator.
@@ -234,17 +227,27 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             expr: The new expression
 
         """
-        # Update bounds if present
-        if expr.bounds is not None:
-            solver.changeRowBounds(cons.index, expr.bounds[0], expr.bounds[1])
+        # Update bounds (handle both addition and removal of bounds)
+        # Get old bounds from the constraint
+        old_expr = solver.getExpr(cons)
+        old_bounds = old_expr.bounds
+        new_bounds = expr.bounds
+        
+        # Update bounds if they changed
+        if old_bounds != new_bounds:
+            if new_bounds is not None:
+                solver.changeRowBounds(cons.index, new_bounds[0], new_bounds[1])
+            elif old_bounds is not None:
+                # Bounds were removed - set to unconstrained (-inf, inf)
+                solver.changeRowBounds(cons.index, float('-inf'), float('inf'))
 
         # Update coefficients
         # Get existing expression to compare
-        old_expr = solver.getExpr(cons)
         old_coeffs = dict(zip(old_expr.idxs, old_expr.vals, strict=True))
         new_coeffs = dict(zip(expr.idxs, expr.vals, strict=True))
 
-        # Apply coefficient changes
+        # Apply coefficient changes for all variables (old, new, and removed)
+        # Variables not in new_coeffs get coefficient 0.0 (effectively removed)
         all_vars = set(old_coeffs) | set(new_coeffs)
         for var_idx in all_vars:
             old_val = old_coeffs.get(var_idx, 0.0)
@@ -259,8 +262,6 @@ class ReactiveCost[R](ReactiveMethod[R]):
     Tracks dependencies on both TrackedParam values and other cached methods.
     When called by another cached method, records access to establish dependency.
     """
-
-    kind = CachedKind.COST
 
     def _call(self, obj: "Element[Any]") -> R:
         """Execute with caching and dependency tracking."""

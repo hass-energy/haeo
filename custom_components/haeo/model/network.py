@@ -171,9 +171,7 @@ class Network:
                 raise ValueError(msg) from e
 
         # Get aggregated cost from network (reactive - only rebuilds if any element cost invalidated)
-        total_cost = self.cost()
-
-        if total_cost is not None:
+        if (total_cost := self.cost()) is not None:
             h.minimize(total_cost)
         else:
             # No cost terms - just run to check feasibility

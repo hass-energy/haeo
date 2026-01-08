@@ -1,15 +1,6 @@
 """Type definitions and helpers for reactive infrastructure."""
 
-from enum import Enum, auto
-
 import numpy as np
-
-
-class CachedKind(Enum):
-    """Kind of cached method for reflection-based discovery."""
-
-    CONSTRAINT = auto()
-    COST = auto()
 
 
 # Sentinel for unset values
@@ -22,10 +13,8 @@ class _UnsetType:
         return "<UNSET>"
 
 
-_UNSET = _UnsetType()
-
-# Public alias for use in type hints and checks
-UNSET: _UnsetType = _UNSET
+# Single instance - compare using `is`, not `==`
+UNSET = _UnsetType()
 """Sentinel value indicating a TrackedParam has not been set.
 
 Use `is_set()` to check if a parameter value has been set.
@@ -52,15 +41,23 @@ def is_set(value: object) -> bool:
                 return self.energy <= self.capacity
 
     """
-    return value is not _UNSET
+    return value is not UNSET
 
 
-def _values_equal(a: object, b: object) -> bool:
-    """Compare two values for equality, handling numpy arrays."""
+def values_equal(a: object, b: object) -> bool:
+    """Compare two values for equality, handling numpy arrays.
+    
+    Args:
+        a: First value
+        b: Second value
+        
+    Returns:
+        True if values are equal, False otherwise
+    
+    """
     # Handle numpy array comparisons
     if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
         try:
-            # Cast to ArrayLike to satisfy type checker
             return bool(np.array_equal(a, b))  # type: ignore[arg-type]
         except (TypeError, ValueError):
             return False

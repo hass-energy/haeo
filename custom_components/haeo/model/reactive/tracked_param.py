@@ -3,7 +3,7 @@
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, overload
 
-from .types import _UNSET, UNSET, _values_equal
+from .types import UNSET, values_equal
 
 if TYPE_CHECKING:
     from haeo.model.element import Element
@@ -52,14 +52,14 @@ class TrackedParam[T]:
         if tracking is not None:
             tracking.add(self._name)
         # Return UNSET if the parameter has never been set
-        return getattr(obj, self._private, _UNSET)  # type: ignore[return-value]
+        return getattr(obj, self._private, UNSET)  # type: ignore[return-value]
 
     def __set__(self, obj: "Element[Any]", value: T) -> None:
         """Set the parameter value and invalidate dependent decorators."""
-        old = getattr(obj, self._private, _UNSET)
+        old = getattr(obj, self._private, UNSET)
         setattr(obj, self._private, value)
         # Only invalidate if value actually changed and is not initial set
-        if old is not _UNSET and not _values_equal(old, value):
+        if old is not UNSET and not values_equal(old, value):
             # Invalidate all reactive decorators that depend on this parameter
             _invalidate_param_dependents(obj, self._name)
 
