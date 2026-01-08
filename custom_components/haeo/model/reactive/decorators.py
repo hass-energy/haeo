@@ -61,7 +61,7 @@ class CachedMethod[R]:
         if not state["invalidated"] and state["result"] is not None:
             return state["result"]  # type: ignore[return-value]
 
-        # Track parameter access during computation
+        # Track parameter and method access during computation
         tracking: set[str] = set()
         token = _tracking_context.set(tracking)
         try:
@@ -75,6 +75,16 @@ class CachedMethod[R]:
         state["invalidated"] = False
 
         return result
+
+    def _record_access(self, obj: "Element[Any]") -> None:
+        """Record this method's access in the current tracking context.
+
+        When another cached method calls this one, this establishes a dependency.
+        """
+        tracking = _tracking_context.get()
+        if tracking is not None:
+            # Record as "method:name" to distinguish from param names
+            tracking.add(f"method:{self._name}")
 
 
 class CachedConstraint[R](CachedMethod[R]):
@@ -113,6 +123,9 @@ class CachedConstraint[R](CachedMethod[R]):
 
     def _call(self, obj: "Element[Any]") -> R:
         """Execute with caching, dependency tracking, and solver lifecycle management."""
+        # Record access if being tracked by another method
+        self._record_access(obj)
+        
         state = _ensure_decorator_state(obj, self._name)
 
         # Check if we need to recompute
@@ -122,7 +135,7 @@ class CachedConstraint[R](CachedMethod[R]):
         if not needs_recompute:
             return state["result"]  # type: ignore[return-value]
 
-        # Track parameter access during computation
+        # Track parameter and method access during computation
         tracking: set[str] = set()
         token = _tracking_context.set(tracking)
         try:
@@ -215,51 +228,19 @@ class CachedConstraint[R](CachedMethod[R]):
 class CachedCost[R](CachedMethod[R]):
     """Decorator that caches cost expressions with automatic dependency tracking.
 
-    Only handles caching - the objective is rebuilt each optimization via Network.optimize().
+    Tracks dependencies on both TrackedParam values and other cached methods.
+    When called by another cached method, records access to establish dependency.
     """
 
     kind = CachedKind.COST
 
-
-class CachedAggregateCost[R](CachedMethod[R]):
-    """Decorator that aggregates and caches all @cost decorated methods on an element.
-
-    This is used for Element.cost() which collects all individual cost expressions
-    and sums them into a single expression. The result is cached and only recomputed
-    when any underlying @cost method is invalidated.
-
-    The decorator tracks dependencies on all @cost methods by checking if any of them
-    are invalidated.
-    """
-
-    kind = CachedKind.COST  # Mark as cost-related for invalidation tracking
-
     def _call(self, obj: "Element[Any]") -> R:
-        """Execute with caching, checking if any @cost method was invalidated."""
-        state = _ensure_decorator_state(obj, self._name)
-
-        # Check if any @cost decorator is invalidated
-        needs_recompute = False
-        for attr_name in dir(type(obj)):
-            attr = getattr(type(obj), attr_name, None)
-            if isinstance(attr, CachedCost):
-                cost_state = _get_decorator_state(obj, attr_name)
-                if cost_state is None or cost_state.get("invalidated", True):
-                    needs_recompute = True
-                    break
-
-        # Return cached if not invalidated
-        if not needs_recompute and not state["invalidated"] and state["result"] is not None:
-            return state["result"]  # type: ignore[return-value]
-
-        # Recompute by calling the aggregation function
-        result = self._fn(obj)
-
-        # Store result and mark as valid
-        state["result"] = result
-        state["invalidated"] = False
-
-        return result
+        """Execute with caching and dependency tracking."""
+        # Record access if being tracked by another method
+        self._record_access(obj)
+        
+        # Use base class caching with dependency tracking
+        return super()._call(obj)
 
 
 class OutputMethod[R]:

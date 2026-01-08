@@ -7,7 +7,6 @@ from highspy.highs import HighspyArray
 import pytest
 
 from custom_components.haeo.model.elements.node import Node
-from custom_components.haeo.model.reactive import CachedCost
 from custom_components.haeo.model.util import broadcast_to_sequence
 
 from . import test_data
@@ -60,19 +59,11 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         # Call constraints() to set up power balance with mocked connection_power
         element.constraints()
 
-        # Collect all cost terms from @cost decorated methods
+        # Collect cost from element (aggregates all @cost methods)
+        element_cost = element.cost()
         element_costs: list[Any] = []
-
-        for attr_name in dir(type(element)):
-            attr = getattr(type(element), attr_name, None)
-            if isinstance(attr, CachedCost):
-                method = getattr(element, attr_name)
-                cost_value = method()
-                if cost_value is not None:
-                    if isinstance(cost_value, list):
-                        element_costs.extend(cost_value)
-                    else:
-                        element_costs.append(cost_value)
+        if element_cost is not None:
+            element_costs.append(element_cost)
 
         input_cost = broadcast_to_sequence(inputs.get("input_cost", 0.0), n_periods)
         output_cost = broadcast_to_sequence(inputs.get("output_cost", 0.0), n_periods)

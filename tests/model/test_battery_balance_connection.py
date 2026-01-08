@@ -27,7 +27,6 @@ from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.model.elements.battery_balance_connection import BatteryBalanceConnection
-from custom_components.haeo.model.reactive import CachedCost
 
 
 @dataclass
@@ -307,25 +306,10 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     # Apply balance connection constraints
     connection.constraints()
 
-    # Collect costs for objective (required for min/max constraint behavior)
-    costs: list[Any] = []
-
-    # Collect costs from @cost decorated methods
-    for attr_name in dir(type(connection)):
-        attr = getattr(type(connection), attr_name, None)
-        if isinstance(attr, CachedCost):
-            # Call the cost method (uses cache if valid)
-            method = getattr(connection, attr_name)
-            cost_value = method()
-            if cost_value is not None:
-                if isinstance(cost_value, list):
-                    costs.extend(cost_value)
-                else:
-                    costs.append(cost_value)
-
-    if len(costs) > 0:
-        # Use reduce to avoid sum() returning Literal[0] when sequence is empty
-        solver.minimize(reduce(lambda a, b: a + b, costs))
+    # Collect cost from element (aggregates all @cost methods)
+    connection_cost = connection.cost()
+    if connection_cost is not None:
+        solver.minimize(connection_cost)
 
     # Solve
     solver.run()

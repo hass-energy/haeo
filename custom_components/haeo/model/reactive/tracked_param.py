@@ -75,6 +75,9 @@ def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> No
     # Import here to avoid circular dependency at module load
     from .decorators import CachedMethod  # noqa: PLC0415
 
+    # Track which methods were invalidated
+    invalidated_methods: set[str] = set()
+
     # Iterate through all attributes on the element's class
     for attr_name in dir(type(element)):
         # Get the descriptor from the class
@@ -84,6 +87,48 @@ def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> No
             state = _get_decorator_state(element, attr_name)
             if state is not None and param_name in state.get("deps", set()):
                 state["invalidated"] = True
+                invalidated_methods.add(attr_name)
+
+    # Propagate invalidation to methods that depend on invalidated methods
+    if invalidated_methods:
+        _propagate_method_invalidation(element, invalidated_methods)
+
+
+def _propagate_method_invalidation(element: "Element[Any]", invalidated_methods: set[str]) -> None:
+    """Propagate invalidation to methods that depend on invalidated methods.
+
+    Args:
+        element: The element instance
+        invalidated_methods: Set of method names that were invalidated
+
+    """
+    # Import here to avoid circular dependency at module load
+    from .decorators import CachedMethod  # noqa: PLC0415
+
+    # Keep propagating until no new invalidations occur
+    newly_invalidated = invalidated_methods.copy()
+    while newly_invalidated:
+        next_round: set[str] = set()
+        
+        for attr_name in dir(type(element)):
+            descriptor = getattr(type(element), attr_name, None)
+            if isinstance(descriptor, CachedMethod):
+                state = _get_decorator_state(element, attr_name)
+                # Skip if already invalidated
+                if state is None or state.get("invalidated", True):
+                    continue
+                    
+                # Check if this method depends on any newly invalidated methods
+                deps = state.get("deps", set())
+                for dep in deps:
+                    if dep.startswith("method:"):
+                        method_name = dep[7:]  # Remove "method:" prefix
+                        if method_name in newly_invalidated:
+                            state["invalidated"] = True
+                            next_round.add(attr_name)
+                            break
+        
+        newly_invalidated = next_round
 
 
 def _get_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any] | None:

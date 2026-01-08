@@ -8,7 +8,6 @@ import pytest
 
 from custom_components.haeo.model.elements.connection import Connection
 from custom_components.haeo.model.elements.power_connection import PowerConnection
-from custom_components.haeo.model.reactive import CachedCost
 
 from . import test_data
 from .test_data.connection_types import ConnectionTestCase, ConnectionTestCaseInputs
@@ -81,19 +80,12 @@ def _solve_connection_scenario(
     # Apply constraints via reactive pattern
     element.constraints()
 
-    # Objective function - collect costs from @cost decorated methods
+    # Collect cost from element (aggregates all @cost methods)
+    element_cost = element.cost()
     cost_terms: list[highs_linear_expression] = []
-
-    for attr_name in dir(type(element)):
-        attr = getattr(type(element), attr_name, None)
-        if isinstance(attr, CachedCost):
-            method = getattr(element, attr_name)
-            cost_value = method()
-            if cost_value is not None:
-                if isinstance(cost_value, list):
-                    cost_terms.extend(cost_value)
-                else:
-                    cost_terms.append(cost_value)
+    if element_cost is not None:
+        cost_terms.append(element_cost)
+        
     if source_cost != 0.0:
         cost_terms.append(Highs.qsum(source_vars[i] * source_cost * periods[i] for i in range(n_periods)))
     if target_cost != 0.0:

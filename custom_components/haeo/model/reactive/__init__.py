@@ -11,7 +11,6 @@ The pattern is inspired by reactive frameworks like MobX:
 """
 
 from .decorators import (
-    CachedAggregateCost,
     CachedConstraint,
     CachedCost,
     CachedMethod,
@@ -25,7 +24,6 @@ from .types import UNSET, CachedKind, is_set
 
 __all__ = [
     "UNSET",
-    "CachedAggregateCost",
     "CachedConstraint",
     "CachedCost",
     "CachedKind",

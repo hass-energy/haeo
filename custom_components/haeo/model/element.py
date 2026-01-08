@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 
 from .const import OutputType
 from .output_data import OutputData
-from .reactive import CachedAggregateCost, CachedConstraint, CachedCost, OutputMethod, TrackedParam
+from .reactive import CachedConstraint, CachedCost, OutputMethod, TrackedParam, cost
 
 if TYPE_CHECKING:
     from .elements.connection import Connection
@@ -225,24 +225,27 @@ class Element[OutputNameT: str]:
                     result[name] = cons
         return result
 
-    @CachedAggregateCost
+    @cost
     def cost(self) -> Any:
         """Return aggregated cost expression from this element.
 
         Discovers and calls all @cost decorated methods, summing their results into
-        a single expression. The result is cached by the @CachedAggregateCost decorator
-        and only recomputed if any underlying @cost method was invalidated.
+        a single expression. The result is cached by the @cost decorator, which
+        automatically tracks dependencies on all underlying @cost methods.
 
         Returns:
             Single aggregated cost expression (highs_linear_expression) or None if no costs
 
         """
-        # Collect all cost expressions
+        # Collect all cost expressions from @cost methods (excluding this one)
         costs: list[Any] = []
         for name in dir(type(self)):
+            # Skip self to avoid infinite recursion
+            if name == "cost":
+                continue
             attr = getattr(type(self), name, None)
             if isinstance(attr, CachedCost):
-                # Call the cost method (uses cache if valid)
+                # Call the cost method - this establishes dependency tracking
                 method = getattr(self, name)
                 cost_value = method()
                 if cost_value is not None:
