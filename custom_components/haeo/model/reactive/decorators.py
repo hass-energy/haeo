@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 R = TypeVar("R")
 
 
-class CachedMethod[R]:
+class ReactiveMethod[R]:
     """Base descriptor/decorator that caches method results with automatic dependency tracking.
 
     On first call, tracks which TrackedParam values are accessed and caches the result.
@@ -39,12 +39,12 @@ class CachedMethod[R]:
         self._name = name
 
     @overload
-    def __get__(self, obj: None, objtype: type) -> "CachedMethod[R]": ...
+    def __get__(self, obj: None, objtype: type) -> "ReactiveMethod[R]": ...
 
     @overload
     def __get__(self, obj: "Element[Any]", objtype: type) -> Callable[[], R]: ...
 
-    def __get__(self, obj: "Element[Any] | None", objtype: type) -> "CachedMethod[R] | Callable[[], R]":
+    def __get__(self, obj: "Element[Any] | None", objtype: type) -> "ReactiveMethod[R] | Callable[[], R]":
         """Return bound method that uses caching."""
         if obj is None:
             return self
@@ -84,7 +84,7 @@ class CachedMethod[R]:
             tracking.add(f"method:{self._name}")
 
 
-class CachedConstraint[R](CachedMethod[R]):
+class ReactiveConstraint[R](ReactiveMethod[R]):
     """Decorator that caches constraint expressions with automatic dependency tracking.
 
     Handles the full constraint lifecycle:
@@ -253,7 +253,7 @@ class CachedConstraint[R](CachedMethod[R]):
                 solver.changeCoeff(cons.index, var_idx, new_val)
 
 
-class CachedCost[R](CachedMethod[R]):
+class ReactiveCost[R](ReactiveMethod[R]):
     """Decorator that caches cost expressions with automatic dependency tracking.
 
     Tracks dependencies on both TrackedParam values and other cached methods.
@@ -322,16 +322,16 @@ class OutputMethod[R]:
 
 # Decorator shortcuts for cleaner syntax
 @overload
-def constraint[R](fn: Callable[..., R], /) -> CachedConstraint[R]: ...
+def constraint[R](fn: Callable[..., R], /) -> ReactiveConstraint[R]: ...
 
 
 @overload
-def constraint(*, output: bool = False, unit: str = "$/kW") -> Callable[[Callable[..., R]], CachedConstraint[R]]: ...
+def constraint(*, output: bool = False, unit: str = "$/kW") -> Callable[[Callable[..., R]], ReactiveConstraint[R]]: ...
 
 
 def constraint[R](
     fn: Callable[..., R] | None = None, /, *, output: bool = False, unit: str = "$/kW"
-) -> CachedConstraint[R] | Callable[[Callable[..., R]], CachedConstraint[R]]:
+) -> ReactiveConstraint[R] | Callable[[Callable[..., R]], ReactiveConstraint[R]]:
     """Decorate constraint methods with automatic caching and dependency tracking.
 
     Can be used with or without arguments:
@@ -349,10 +349,10 @@ def constraint[R](
     """
     if fn is not None:
         # Called without arguments: @constraint
-        return CachedConstraint(fn, output=output, unit=unit)
+        return ReactiveConstraint(fn, output=output, unit=unit)
     # Called with arguments: @constraint(output=True, unit="$/kWh")
-    return lambda f: CachedConstraint(f, output=output, unit=unit)
+    return lambda f: ReactiveConstraint(f, output=output, unit=unit)
 
 
-cost = CachedCost
+cost = ReactiveCost
 output = OutputMethod

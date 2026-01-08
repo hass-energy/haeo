@@ -6,7 +6,7 @@ from highspy import Highs
 from highspy.highs import highs_linear_expression
 
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.reactive import CachedConstraint, CachedCost, TrackedParam, constraint, cost
+from custom_components.haeo.model.reactive import ReactiveConstraint, ReactiveCost, TrackedParam, constraint, cost
 
 
 def create_test_element[T: Element[str]](cls: type[T]) -> T:
@@ -16,7 +16,7 @@ def create_test_element[T: Element[str]](cls: type[T]) -> T:
     return cls(name="test", periods=(1.0,), solver=solver)
 
 
-# CachedConstraint tests
+# ReactiveConstraint tests
 
 
 def test_cached_constraint_caches_result() -> None:
@@ -111,17 +111,17 @@ def test_cached_constraint_tracks_multiple_dependencies() -> None:
 
 
 def test_cached_constraint_class_access_returns_descriptor() -> None:
-    """Test accessing CachedConstraint on class returns the descriptor."""
+    """Test accessing ReactiveConstraint on class returns the descriptor."""
 
     class TestElement(Element[str]):
         @constraint
         def my_constraint(self) -> list[int]:
             return []
 
-    assert isinstance(TestElement.my_constraint, CachedConstraint)
+    assert isinstance(TestElement.my_constraint, ReactiveConstraint)
 
 
-# CachedCost tests
+# ReactiveCost tests
 
 
 def test_cached_cost_caches_result() -> None:
@@ -181,14 +181,14 @@ def test_cached_cost_recomputes_when_invalidated() -> None:
 
 
 def test_cached_cost_class_access_returns_descriptor() -> None:
-    """Test accessing CachedCost on class returns the descriptor."""
+    """Test accessing ReactiveCost on class returns the descriptor."""
 
     class TestElement(Element[str]):
         @cost
         def my_cost(self) -> Sequence[highs_linear_expression]:
             return []
 
-    assert isinstance(TestElement.my_cost, CachedCost)
+    assert isinstance(TestElement.my_cost, ReactiveCost)
 
 
 # Element reactive infrastructure tests

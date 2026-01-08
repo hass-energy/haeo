@@ -73,7 +73,7 @@ def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> No
 
     """
     # Import here to avoid circular dependency at module load
-    from .decorators import CachedMethod  # noqa: PLC0415
+    from .decorators import ReactiveMethod  # noqa: PLC0415
 
     # Track which methods were invalidated
     invalidated_methods: set[str] = set()
@@ -82,7 +82,7 @@ def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> No
     for attr_name in dir(type(element)):
         # Get the descriptor from the class
         descriptor = getattr(type(element), attr_name, None)
-        if isinstance(descriptor, CachedMethod):
+        if isinstance(descriptor, ReactiveMethod):
             # Get the state for this decorator on this element instance
             state = _get_decorator_state(element, attr_name)
             if state is not None and param_name in state.get("deps", set()):
@@ -103,7 +103,7 @@ def _propagate_method_invalidation(element: "Element[Any]", invalidated_methods:
 
     """
     # Import here to avoid circular dependency at module load
-    from .decorators import CachedMethod  # noqa: PLC0415
+    from .decorators import ReactiveMethod  # noqa: PLC0415
 
     # Keep propagating until no new invalidations occur
     newly_invalidated = invalidated_methods.copy()
@@ -112,7 +112,7 @@ def _propagate_method_invalidation(element: "Element[Any]", invalidated_methods:
 
         for attr_name in dir(type(element)):
             descriptor = getattr(type(element), attr_name, None)
-            if isinstance(descriptor, CachedMethod):
+            if isinstance(descriptor, ReactiveMethod):
                 state = _get_decorator_state(element, attr_name)
                 # Skip if already invalidated
                 if state is None or state.get("invalidated", True):

@@ -9,7 +9,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .output_data import OutputData
-from .reactive import CachedConstraint, CachedCost, OutputMethod, TrackedParam, cost
+from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, cost
 
 if TYPE_CHECKING:
     from .elements.connection import Connection
@@ -178,7 +178,7 @@ class Element[OutputNameT: str]:
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             # Check for decorators that support get_output()
-            if isinstance(attr, (OutputMethod, CachedConstraint)):
+            if isinstance(attr, (OutputMethod, ReactiveConstraint)):
                 output_data = attr.get_output(self)
                 if output_data is not None:
                     result[name] = output_data  # type: ignore[literal-required]
@@ -197,7 +197,7 @@ class Element[OutputNameT: str]:
         result: dict[str, highs_cons | list[highs_cons]] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
-            if isinstance(attr, CachedConstraint):
+            if isinstance(attr, ReactiveConstraint):
                 # Call the constraint method to trigger decorator lifecycle
                 method = getattr(self, name)
                 method()
@@ -229,7 +229,7 @@ class Element[OutputNameT: str]:
             if name == "cost":
                 continue
             attr = getattr(type(self), name, None)
-            if isinstance(attr, CachedCost):
+            if isinstance(attr, ReactiveCost):
                 # Call the cost method - this establishes dependency tracking
                 method = getattr(self, name)
                 cost_value = method()

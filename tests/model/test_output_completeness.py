@@ -10,7 +10,7 @@ This prevents drift between declared outputs and implemented methods.
 import pytest
 
 from custom_components.haeo.model.elements import ELEMENTS, ElementSpec
-from custom_components.haeo.model.reactive import CachedConstraint, OutputMethod
+from custom_components.haeo.model.reactive import OutputMethod, ReactiveConstraint
 
 
 def get_output_methods(cls: type) -> set[str]:
@@ -19,7 +19,7 @@ def get_output_methods(cls: type) -> set[str]:
     for name in dir(cls):
         attr = getattr(cls, name, None)
         # Check for @output decorated methods
-        if isinstance(attr, OutputMethod) or (isinstance(attr, CachedConstraint) and attr.output):
+        if isinstance(attr, OutputMethod) or (isinstance(attr, ReactiveConstraint) and attr.output):
             output_names.add(name)
     return output_names
 
