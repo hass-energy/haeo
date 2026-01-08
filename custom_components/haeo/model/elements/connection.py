@@ -66,7 +66,7 @@ class Connection[OutputNameT: str](Element[OutputNameT]):
             target: Name of the target element
 
         """
-        super().__init__(name=name, periods=periods, solver=solver)
+        super().__init__(name=name, periods=periods, solver=solver, output_names=CONNECTION_OUTPUT_NAMES)  # type: ignore[arg-type]  # Parent Element[OutputNameT] accepts concrete ConnectionOutputName
         n_periods = self.n_periods
         h = solver
 

@@ -29,18 +29,27 @@ class Element[OutputNameT: str]:
     Dependency tracking is automatic.
     """
 
-    def __init__(self, name: str, periods: Sequence[float], *, solver: Highs) -> None:
+    def __init__(
+        self,
+        name: str,
+        periods: Sequence[float],
+        *,
+        solver: Highs,
+        output_names: frozenset[OutputNameT],
+    ) -> None:
         """Initialize an element.
 
         Args:
             name: Name of the entity
             periods: Sequence of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
+            output_names: Frozenset of valid output names for this element type (used for type narrowing)
 
         """
         self.name = name
         self.periods = np.asarray(periods)
         self._solver = solver
+        self._output_names = output_names
 
         # Track connections for power balance
         self._connections: list[tuple[Connection[Any], Literal["source", "target"]]] = []
@@ -164,8 +173,8 @@ class Element[OutputNameT: str]:
             # Check for decorators that support get_output()
             if isinstance(attr, (OutputMethod, ReactiveConstraint)):
                 output_data = attr.get_output(self)
-                if output_data is not None:
-                    result[name] = output_data  # type: ignore[literal-required]
+                if output_data is not None and name in self._output_names:
+                    result[name] = output_data  # type: ignore[assignment]  # name validated by `in` check at runtime
         return result
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:

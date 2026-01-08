@@ -143,5 +143,5 @@ def test_element_default_outputs(solver: Highs) -> None:
     class MinimalElement(Element[str]):
         pass
 
-    element = MinimalElement("test", [1.0], solver=solver)
+    element = MinimalElement("test", [1.0], solver=solver, output_names=frozenset())
     assert element.outputs() == {}

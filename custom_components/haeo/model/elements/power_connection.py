@@ -107,6 +107,8 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
         """
         # Initialize base Connection class (creates power variables and stores source/target)
         super().__init__(name=name, periods=periods, solver=solver, source=source, target=target)
+        # Override output_names with PowerConnection's extended output set
+        self._output_names = POWER_CONNECTION_OUTPUT_NAMES
         n_periods = self.n_periods
 
         # Set tracked parameters via broadcast

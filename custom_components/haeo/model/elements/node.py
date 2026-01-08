@@ -50,7 +50,7 @@ class Node(Element[NodeOutputName]):
             is_sink: Whether this element can consume power (sink behavior)
 
         """
-        super().__init__(name=name, periods=periods, solver=solver)
+        super().__init__(name=name, periods=periods, solver=solver, output_names=NODE_OUTPUT_NAMES)
 
         # Store if we are a source and/or sink
         self.is_source = is_source

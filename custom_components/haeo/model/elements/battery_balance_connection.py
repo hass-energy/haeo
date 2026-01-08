@@ -95,6 +95,8 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
 
         """
         super().__init__(name=name, periods=periods, solver=solver, source=upper, target=lower)
+        # Override output_names with BatteryBalanceConnection's extended output set
+        self._output_names = BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES
         n_periods = self.n_periods
         h = solver
 

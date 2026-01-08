@@ -13,7 +13,7 @@ def create_test_element[T: Element[str]](cls: type[T]) -> T:
     """Create a test element instance with a fresh solver."""
     solver = Highs()
     solver.setOptionValue("output_flag", False)
-    return cls(name="test", periods=(1.0,), solver=solver)
+    return cls(name="test", periods=(1.0,), solver=solver, output_names=frozenset())
 
 
 # ReactiveConstraint tests
@@ -295,7 +295,7 @@ def test_constraints_adds_new_constraint() -> None:
             # Constraint methods return expressions, decorator applies to solver
             return [x <= 5.0]
 
-    elem = TestElement(name="test", periods=(1.0,), solver=solver)
+    elem = TestElement(name="test", periods=(1.0,), solver=solver, output_names=frozenset())
 
     elem.constraints()
 
@@ -315,7 +315,7 @@ def test_constraints_skips_none_result() -> None:
         def my_constraint(self) -> None:
             return None
 
-    elem = TestElement(name="test", periods=(1.0,), solver=solver)
+    elem = TestElement(name="test", periods=(1.0,), solver=solver, output_names=frozenset())
 
     elem.constraints()
 
@@ -360,6 +360,7 @@ def test_reactive_workflow() -> None:
         name="test",
         periods=(1.0,),
         solver=solver,
+        output_names=frozenset(),
     )
 
     # Initial constraint computation

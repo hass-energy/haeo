@@ -13,7 +13,7 @@ def create_test_element[T: Element[str]](cls: type[T]) -> T:
     """Create a test element instance with a fresh solver."""
     solver = Highs()
     solver.setOptionValue("output_flag", False)
-    return cls(name="test", periods=(1.0,), solver=solver)
+    return cls(name="test", periods=(1.0,), solver=solver, output_names=frozenset())
 
 
 # Basic TrackedParam tests

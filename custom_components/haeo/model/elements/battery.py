@@ -83,7 +83,7 @@ class Battery(Element[BatteryOutputName]):
             initial_charge: Initial charge in kWh
 
         """
-        super().__init__(name=name, periods=periods, solver=solver)
+        super().__init__(name=name, periods=periods, solver=solver, output_names=BATTERY_OUTPUT_NAMES)
         n_periods = self.n_periods
 
         # Set tracked parameters (broadcasts capacity to n_periods + 1)
