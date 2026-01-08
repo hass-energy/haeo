@@ -20,6 +20,7 @@ from .connection import (
     CONNECTION_TIME_SLICE,
     Connection,
     ConnectionConstraintName,
+    ConnectionOutputName,
 )
 
 type PowerConnectionConstraintName = (
@@ -32,12 +33,11 @@ type PowerConnectionConstraintName = (
 
 type PowerConnectionOutputName = (
     Literal[
-        "connection_power_source_target",
-        "connection_power_target_source",
         "connection_cost_source_target",
         "connection_cost_target_source",
     ]
     | PowerConnectionConstraintName
+    | ConnectionOutputName
 )
 
 POWER_CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = frozenset(
@@ -213,20 +213,6 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
             return None
         # Multiply power array by price tuple and period tuple
         return Highs.qsum(self.power_target_source * self.price_target_source * self.periods)
-
-    @output
-    def connection_power_source_target(self) -> OutputData:
-        """Power flow from source to target."""
-        return OutputData(
-            type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self.power_source_target), direction="+"
-        )
-
-    @output
-    def connection_power_target_source(self) -> OutputData:
-        """Power flow from target to source."""
-        return OutputData(
-            type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self.power_target_source), direction="-"
-        )
 
     @output
     def connection_cost_source_target(self) -> OutputData | None:

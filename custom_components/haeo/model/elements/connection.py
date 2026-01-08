@@ -10,7 +10,10 @@ from typing import Final, Literal
 from highspy import Highs
 from highspy.highs import HighspyArray
 
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.element import Element
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.reactive import output
 
 # Base connection output names - extended by subclasses
 type ConnectionOutputName = Literal[
@@ -110,3 +113,17 @@ class Connection[OutputNameT: str](Element[OutputNameT]):
         For lossless connections: power_source_target - power_target_source
         """
         return self._power_source_target - self._power_target_source
+
+    @output
+    def connection_power_source_target(self) -> OutputData:
+        """Power flow from source to target."""
+        return OutputData(
+            type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self.power_source_target), direction="+"
+        )
+
+    @output
+    def connection_power_target_source(self) -> OutputData:
+        """Power flow from target to source."""
+        return OutputData(
+            type=OutputType.POWER_FLOW, unit="kW", values=self.extract_values(self.power_target_source), direction="-"
+        )

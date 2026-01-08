@@ -11,7 +11,7 @@ from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.output_data import OutputData
 from custom_components.haeo.model.reactive import constraint, cost, output
 
-from .connection import Connection
+from .connection import CONNECTION_OUTPUT_NAMES, Connection, ConnectionOutputName
 
 # Model element type for battery balance connections
 ELEMENT_TYPE: Final = "battery_balance_connection"
@@ -34,6 +34,7 @@ type BatteryBalanceConnectionOutputName = (
         "balance_absorbed_excess",
     ]
     | BatteryBalanceConnectionConstraintName
+    | ConnectionOutputName
 )
 
 BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES: Final[frozenset[BatteryBalanceConnectionOutputName]] = frozenset(
@@ -46,6 +47,7 @@ BATTERY_BALANCE_CONNECTION_OUTPUT_NAMES: Final[frozenset[BatteryBalanceConnectio
         BALANCE_DOWN_SLACK_BOUND := "balance_down_slack_bound",
         BALANCE_UP_UPPER_BOUND := "balance_up_upper_bound",
         BALANCE_UP_SLACK_BOUND := "balance_up_slack_bound",
+        *CONNECTION_OUTPUT_NAMES,
     )
 )
 
