@@ -115,6 +115,34 @@ class Network:
 
         return element
 
+    def cost(self) -> highs_linear_expression | None:
+        """Return aggregated cost expression from all elements in the network.
+
+        Discovers and calls all element cost() methods, summing their results into
+        a single expression. Element costs are cached individually, so this aggregation
+        is inexpensive.
+
+        Returns:
+            Single aggregated cost expression or None if no costs
+
+        """
+        # Collect costs from all elements
+        costs: list[highs_linear_expression] = []
+        for element_name, element in self.elements.items():
+            try:
+                if (element_cost := element.cost()) is not None:
+                    costs.append(element_cost)
+            except Exception as e:
+                msg = f"Failed to collect costs for element '{element_name}'"
+                raise ValueError(msg) from e
+
+        # Aggregate into a single expression
+        if not costs:
+            return None
+        if len(costs) == 1:
+            return costs[0]
+        return Highs.qsum(costs)
+
     def optimize(self) -> float:
         """Solve the optimization problem and return the cost.
 
@@ -142,18 +170,11 @@ class Network:
                 msg = f"Failed to apply constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
-        # Collect costs from all elements (reactive - only rebuilds if invalidated)
-        costs: list[highs_linear_expression] = []
-        for element_name, element in self.elements.items():
-            try:
-                if (cost := element.cost()) is not None:
-                    costs.append(cost)
-            except Exception as e:
-                msg = f"Failed to collect costs for element '{element_name}'"
-                raise ValueError(msg) from e
+        # Get aggregated cost from network (reactive - only rebuilds if any element cost invalidated)
+        total_cost = self.cost()
 
-        if costs:
-            h.minimize(Highs.qsum(costs))
+        if total_cost is not None:
+            h.minimize(total_cost)
         else:
             # No cost terms - just run to check feasibility
             h.run()
