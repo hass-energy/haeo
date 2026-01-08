@@ -133,6 +133,7 @@ class Network:
         h = self._solver
 
         # Apply constraints for all elements (reactive - only rebuilds if invalidated)
+        # Constraints are applied automatically by decorators when called
         for element_name, element in self.elements.items():
             try:
                 element.apply_constraints()
@@ -140,20 +141,26 @@ class Network:
                 msg = f"Failed to apply constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
-        # Apply costs for all elements (reactive - only rebuilds if invalidated)
+        # Collect costs from all elements (reactive - only rebuilds if invalidated)
         costs: list[highs_linear_expression] = []
         for element_name, element in self.elements.items():
             try:
-                element.apply_costs()
-                # Collect costs from applied_costs dict
-                for cost_value in element._applied_costs.values():  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
-                    if cost_value is not None:
-                        if isinstance(cost_value, list):
-                            costs.extend(cost_value)
-                        else:
-                            costs.append(cost_value)
+                # Find all cost methods on this element
+                from .reactive import CachedCost
+
+                for attr_name in dir(type(element)):
+                    attr = getattr(type(element), attr_name, None)
+                    if isinstance(attr, CachedCost):
+                        # Call the cost method (uses cache if valid)
+                        method = getattr(element, attr_name)
+                        cost_value = method()
+                        if cost_value is not None:
+                            if isinstance(cost_value, list):
+                                costs.extend(cost_value)
+                            else:
+                                costs.append(cost_value)
             except Exception as e:
-                msg = f"Failed to apply costs for element '{element_name}'"
+                msg = f"Failed to collect costs for element '{element_name}'"
                 raise ValueError(msg) from e
 
         if costs:
@@ -198,12 +205,21 @@ class Network:
         result: list[highs_cons] = []
         for element_name, element in self.elements.items():
             try:
-                # Collect constraints from applied_constraints dict
-                for cons_value in element._applied_constraints.values():  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
-                    if isinstance(cons_value, list):
-                        result.extend(cons_value)
-                    else:
-                        result.append(cons_value)
+                # Find all constraint methods on this element
+                from .reactive import CachedConstraint
+
+                for attr_name in dir(type(element)):
+                    attr = getattr(type(element), attr_name, None)
+                    if isinstance(attr, CachedConstraint):
+                        # Get the state for this constraint
+                        state_attr = f"_reactive_state_{attr_name}"
+                        state = getattr(element, state_attr, None)
+                        if state is not None and "constraint" in state:
+                            cons_value = state["constraint"]
+                            if isinstance(cons_value, list):
+                                result.extend(cons_value)
+                            else:
+                                result.append(cons_value)
             except Exception as e:
                 msg = f"Failed to get constraints for element '{element_name}'"
                 raise ValueError(msg) from e

@@ -19,6 +19,9 @@ from typing import TYPE_CHECKING, Any, overload
 import numpy as np
 
 if TYPE_CHECKING:
+    from highspy import Highs
+    from highspy.highs import highs_cons, highs_linear_expression
+
     from .element import Element
 
 # Context for tracking parameter access during constraint computation
@@ -39,7 +42,7 @@ class TrackedParam[T]:
     When the parameter value changes, dependent constraints are invalidated.
 
     Usage:
-        class Battery(ReactiveElement):
+        class Battery(Element):
             capacity = TrackedParam[Sequence[float]]()
 
             @constraint
@@ -75,12 +78,63 @@ class TrackedParam[T]:
         return getattr(obj, self._private, _UNSET)  # type: ignore[return-value]
 
     def __set__(self, obj: "Element[Any]", value: T) -> None:
-        """Set the parameter value and invalidate dependent constraints."""
+        """Set the parameter value and invalidate dependent decorators."""
         old = getattr(obj, self._private, _UNSET)
         setattr(obj, self._private, value)
         # Only invalidate if value actually changed and is not initial set
         if old is not _UNSET and not _values_equal(old, value):
-            obj.invalidate_dependents(self._name)
+            # Invalidate all reactive decorators that depend on this parameter
+            _invalidate_param_dependents(obj, self._name)
+
+
+def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> None:
+    """Invalidate all reactive decorators on an element that depend on a parameter.
+
+    Args:
+        element: The element instance
+        param_name: The parameter name that changed
+
+    """
+    # Get all CachedMethod descriptors on the element's class
+    for attr_name in dir(type(element)):
+        descriptor = getattr(type(element), attr_name, None)
+        if isinstance(descriptor, CachedMethod):
+            # Get the state for this decorator on this element instance
+            state = _get_decorator_state(element, attr_name)
+            if state is not None and param_name in state.get("deps", set()):
+                state["invalidated"] = True
+
+
+def _get_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any] | None:
+    """Get the state dictionary for a decorator method on an element.
+
+    Args:
+        element: The element instance
+        method_name: The method name
+
+    Returns:
+        State dictionary or None if not yet initialized
+
+    """
+    state_attr = f"_reactive_state_{method_name}"
+    return getattr(element, state_attr, None)
+
+
+def _ensure_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any]:
+    """Ensure a state dictionary exists for a decorator method on an element.
+
+    Args:
+        element: The element instance
+        method_name: The method name
+
+    Returns:
+        State dictionary (created if needed)
+
+    """
+    state_attr = f"_reactive_state_{method_name}"
+    if not hasattr(element, state_attr):
+        setattr(element, state_attr, {"invalidated": True, "deps": set(), "result": None})
+    return getattr(element, state_attr)
 
 
 def _values_equal(a: object, b: object) -> bool:
@@ -176,9 +230,11 @@ class CachedMethod[R]:
 
     def _call(self, obj: "Element[Any]") -> R:
         """Execute with caching and dependency tracking."""
+        state = _ensure_decorator_state(obj, self._name)
+
         # Return cached if not invalidated
-        if obj.has_cached(self.kind, self._name) and not obj.is_invalidated(self.kind, self._name):
-            return obj.get_cached(self.kind, self._name)  # type: ignore[return-value]
+        if not state["invalidated"] and state["result"] is not None:
+            return state["result"]  # type: ignore[return-value]
 
         # Track parameter access during computation
         tracking: set[str] = set()
@@ -189,7 +245,9 @@ class CachedMethod[R]:
             _tracking_context.reset(token)
 
         # Store result and dependencies
-        obj.set_cached(self.kind, self._name, result, tracking)
+        state["result"] = result
+        state["deps"] = tracking
+        state["invalidated"] = False
 
         return result
 
@@ -197,8 +255,14 @@ class CachedMethod[R]:
 class CachedConstraint[R](CachedMethod[R]):
     """Decorator that caches constraint expressions with automatic dependency tracking.
 
+    Handles the full constraint lifecycle:
+    1. Computes expressions
+    2. Creates constraints in solver (first call)
+    3. Updates constraints in solver (when invalidated)
+    4. Tracks dependencies for invalidation
+
     Usage:
-        class Battery(ReactiveElement):
+        class Battery(Element):
             capacity = TrackedParam[Sequence[float]]()
 
             @constraint
@@ -209,9 +273,129 @@ class CachedConstraint[R](CachedMethod[R]):
 
     kind = CachedKind.CONSTRAINT
 
+    def __init__(self, fn: Callable[..., R], *, output: bool = False) -> None:
+        """Initialize constraint decorator.
+
+        Args:
+            fn: The constraint function
+            output: If True, expose as shadow price output (default False)
+
+        """
+        super().__init__(fn)
+        self.output = output
+
+    def _call(self, obj: "Element[Any]") -> R:
+        """Execute with caching, dependency tracking, and solver lifecycle management."""
+        state = _ensure_decorator_state(obj, self._name)
+
+        # Check if we need to recompute
+        needs_recompute = state["invalidated"] or "result" not in state
+        is_first_call = "constraint" not in state
+
+        if not needs_recompute:
+            return state["result"]  # type: ignore[return-value]
+
+        # Track parameter access during computation
+        tracking: set[str] = set()
+        token = _tracking_context.set(tracking)
+        try:
+            expr = self._fn(obj)
+        finally:
+            _tracking_context.reset(token)
+
+        # Store result and dependencies
+        state["result"] = expr
+        state["deps"] = tracking
+        state["invalidated"] = False
+
+        # Handle None result (constraint not applicable)
+        if expr is None:
+            return expr  # type: ignore[return-value]
+
+        # Get solver from element
+        solver: Highs = obj._solver  # noqa: SLF001
+
+        # First call: create constraint(s) in solver
+        if is_first_call:
+            from highspy.highs import highs_cons
+
+            # Import here to avoid circular dependency
+            if isinstance(expr, list):
+                cons = solver.addConstrs(expr)
+            else:
+                cons = solver.addConstr(expr)  # type: ignore[arg-type]
+            state["constraint"] = cons
+        else:
+            # Subsequent call with invalidation: update constraint(s)
+            existing = state["constraint"]
+            self._update_constraint(solver, existing, expr)  # type: ignore[arg-type]
+
+        return expr  # type: ignore[return-value]
+
+    def _update_constraint(
+        self,
+        solver: "Highs",
+        existing: "highs_cons | list[highs_cons]",
+        expr: "highs_linear_expression | list[highs_linear_expression]",
+    ) -> None:
+        """Update existing constraint(s) with new expression(s).
+
+        Args:
+            solver: The HiGHS solver instance
+            existing: The existing constraint(s) to update
+            expr: The new expression(s)
+
+        """
+        if isinstance(existing, list):
+            if not isinstance(expr, list):
+                msg = "Expression type mismatch: expected list"
+                raise TypeError(msg)
+            for cons, exp in zip(existing, expr, strict=True):
+                self._update_single_constraint(solver, cons, exp)
+        else:
+            if isinstance(expr, list):
+                msg = "Expression type mismatch: expected single expression"
+                raise TypeError(msg)
+            self._update_single_constraint(solver, existing, expr)
+
+    def _update_single_constraint(
+        self,
+        solver: "Highs",
+        cons: "highs_cons",
+        expr: "highs_linear_expression",
+    ) -> None:
+        """Update a single constraint with new expression.
+
+        Args:
+            solver: The HiGHS solver instance
+            cons: The existing constraint to update
+            expr: The new expression
+
+        """
+        # Update bounds if present
+        if expr.bounds is not None:
+            solver.changeRowBounds(cons.index, expr.bounds[0], expr.bounds[1])
+
+        # Update coefficients
+        # Get existing expression to compare
+        old_expr = solver.getExpr(cons)
+        old_coeffs = dict(zip(old_expr.idxs, old_expr.vals, strict=True))
+        new_coeffs = dict(zip(expr.idxs, expr.vals, strict=True))
+
+        # Apply coefficient changes
+        all_vars = set(old_coeffs) | set(new_coeffs)
+        for var_idx in all_vars:
+            old_val = old_coeffs.get(var_idx, 0.0)
+            new_val = new_coeffs.get(var_idx, 0.0)
+            if old_val != new_val:
+                solver.changeCoeff(cons.index, var_idx, new_val)
+
 
 class CachedCost[R](CachedMethod[R]):
-    """Decorator that caches cost expressions with automatic dependency tracking."""
+    """Decorator that caches cost expressions with automatic dependency tracking.
+
+    Only handles caching - the objective is rebuilt each optimization via Network.optimize().
+    """
 
     kind = CachedKind.COST
 

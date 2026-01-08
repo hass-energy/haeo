@@ -51,9 +51,9 @@ def test_tracked_param_set_initial_value_does_not_invalidate() -> None:
     elem = create_test_element(TestElement)
     elem.capacity = 10.0
 
-    # No constraints defined yet, but _invalidated should be empty for all kinds
-    assert len(elem._invalidated[CachedKind.CONSTRAINT]) == 0
-    assert len(elem._invalidated[CachedKind.COST]) == 0
+    # No constraints defined yet, no reactive state should exist
+    # This just verifies initial set doesn't cause issues
+    assert elem.capacity == 10.0
 
 
 def test_tracked_param_change_value_invalidates_dependents() -> None:
@@ -72,14 +72,17 @@ def test_tracked_param_change_value_invalidates_dependents() -> None:
 
     # Call constraint to establish dependency
     elem.soc_constraint()
-    assert "soc_constraint" in elem._deps[CachedKind.CONSTRAINT]
-    assert "capacity" in elem._deps[CachedKind.CONSTRAINT]["soc_constraint"]
+    
+    # Check state was created and dependency tracked
+    state = getattr(elem, "_reactive_state_soc_constraint", None)
+    assert state is not None
+    assert "capacity" in state["deps"]
 
     # Change value
     elem.capacity = 20.0
 
     # Constraint should be invalidated
-    assert "soc_constraint" in elem._invalidated[CachedKind.CONSTRAINT]
+    assert state["invalidated"]
 
 
 def test_tracked_param_same_value_does_not_invalidate() -> None:
@@ -97,11 +100,16 @@ def test_tracked_param_same_value_does_not_invalidate() -> None:
     elem.capacity = 10.0
     elem.soc_constraint()
 
+    # Get the state
+    state = getattr(elem, "_reactive_state_soc_constraint", None)
+    assert state is not None
+    assert not state["invalidated"]
+
     # Set same value
     elem.capacity = 10.0
 
     # Should not be invalidated
-    assert "soc_constraint" not in elem._invalidated[CachedKind.CONSTRAINT]
+    assert not state["invalidated"]
 
 
 def test_tracked_param_class_access_returns_descriptor() -> None:
@@ -194,11 +202,16 @@ def test_dict_access_setitem_triggers_invalidation() -> None:
     elem["capacity"] = 10.0
     elem.my_constraint()  # Establish dependency
 
+    # Get the state
+    state = getattr(elem, "_reactive_state_my_constraint", None)
+    assert state is not None
+    assert not state["invalidated"]
+
     # Set via __setitem__
     elem["capacity"] = 20.0
 
     # Constraint should be invalidated
-    assert "my_constraint" in elem._invalidated[CachedKind.CONSTRAINT]
+    assert state["invalidated"]
 
 
 def test_dict_access_getitem_unknown_key_raises_keyerror() -> None:
@@ -247,21 +260,27 @@ def test_cached_constraint_caches_result() -> None:
 
     class TestElement(Element[str]):
         @constraint
-        def my_constraint(self) -> list[int]:
+        def my_constraint(self) -> None:
+            # Return None to skip solver application
             nonlocal call_count
             call_count += 1
-            return [1, 2, 3]
+            return None
 
     elem = create_test_element(TestElement)
 
     # First call
     result1 = elem.my_constraint()
-    assert result1 == [1, 2, 3]
+    assert result1 is None
     assert call_count == 1
+
+    # Get the state
+    state = getattr(elem, "_reactive_state_my_constraint", None)
+    assert state is not None
+    assert not state["invalidated"]
 
     # Second call should use cache
     result2 = elem.my_constraint()
-    assert result2 == [1, 2, 3]
+    assert result2 is None
     assert call_count == 1  # Not incremented
 
 
@@ -273,26 +292,32 @@ def test_cached_constraint_recomputes_when_invalidated() -> None:
         capacity = TrackedParam[float]()
 
         @constraint
-        def my_constraint(self) -> list[float]:
+        def my_constraint(self) -> None:
+            # Return None to skip solver application
             nonlocal call_count
             call_count += 1
-            return [self.capacity * 2]
+            _ = self.capacity  # Access to establish dependency
+            return None
 
     elem = create_test_element(TestElement)
     elem.capacity = 5.0
 
     # First call
     result1 = elem.my_constraint()
-    assert result1 == [10.0]
+    assert result1 is None
     assert call_count == 1
 
     # Change capacity (invalidates constraint)
     elem.capacity = 10.0
-    assert "my_constraint" in elem._invalidated[CachedKind.CONSTRAINT]
+    
+    # Check state was invalidated
+    state = getattr(elem, "_reactive_state_my_constraint", None)
+    assert state is not None
+    assert state["invalidated"]
 
     # Next call should recompute
     result2 = elem.my_constraint()
-    assert result2 == [20.0]
+    assert result2 is None
     assert call_count == 2
 
 
@@ -304,8 +329,11 @@ def test_cached_constraint_tracks_multiple_dependencies() -> None:
         efficiency = TrackedParam[float]()
 
         @constraint
-        def combined_constraint(self) -> list[float]:
-            return [self.capacity * self.efficiency]
+        def combined_constraint(self) -> None:
+            # Access both parameters to establish dependencies
+            _ = self.capacity
+            _ = self.efficiency
+            return None
 
     elem = create_test_element(TestElement)
     elem.capacity = 10.0
@@ -313,9 +341,11 @@ def test_cached_constraint_tracks_multiple_dependencies() -> None:
 
     elem.combined_constraint()
 
-    deps = elem._deps[CachedKind.CONSTRAINT]["combined_constraint"]
-    assert "capacity" in deps
-    assert "efficiency" in deps
+    # Check state was created and dependencies tracked
+    state = getattr(elem, "_reactive_state_combined_constraint", None)
+    assert state is not None
+    assert "capacity" in state["deps"]
+    assert "efficiency" in state["deps"]
 
 
 def test_cached_constraint_class_access_returns_descriptor() -> None:
@@ -377,7 +407,11 @@ def test_cached_cost_recomputes_when_invalidated() -> None:
 
     # Change price (invalidates cost)
     elem.price = 0.50
-    assert "my_cost" in elem._invalidated[CachedKind.COST]
+    
+    # Check state was invalidated
+    state = getattr(elem, "_reactive_state_my_cost", None)
+    assert state is not None
+    assert state["invalidated"]
 
     # Next call should recompute
     elem.my_cost()
@@ -399,16 +433,13 @@ def test_cached_cost_class_access_returns_descriptor() -> None:
 
 
 def test_element_reactive_initialization() -> None:
-    """Test that Element initializes all tracking structures."""
+    """Test that Element initializes properly."""
     elem = create_test_element(Element)
 
-    assert elem._invalidated[CachedKind.CONSTRAINT] == set()
-    assert elem._invalidated[CachedKind.COST] == set()
-    assert elem._cache[CachedKind.CONSTRAINT] == {}
-    assert elem._cache[CachedKind.COST] == {}
-    assert elem._deps[CachedKind.CONSTRAINT] == {}
-    assert elem._deps[CachedKind.COST] == {}
-    assert elem._applied_constraints == {}
+    # Element should initialize without errors
+    # No reactive state exists until decorators are called
+    assert elem.name == "test"
+    assert len(elem.periods) == 1
 
 
 def test_element_reactive_invalidate_dependents_constraints() -> None:
@@ -443,12 +474,20 @@ def test_element_reactive_invalidate_dependents_constraints() -> None:
     elem.uses_b()
     elem.uses_both()
 
+    # Get states
+    state_a = getattr(elem, "_reactive_state_uses_a", None)
+    state_b = getattr(elem, "_reactive_state_uses_b", None)
+    state_both = getattr(elem, "_reactive_state_uses_both", None)
+    assert state_a is not None
+    assert state_b is not None
+    assert state_both is not None
+
     # Change 'a' - should invalidate uses_a and uses_both but not uses_b
     elem.a = 10.0
 
-    assert "uses_a" in elem._invalidated[CachedKind.CONSTRAINT]
-    assert "uses_both" in elem._invalidated[CachedKind.CONSTRAINT]
-    assert "uses_b" not in elem._invalidated[CachedKind.CONSTRAINT]
+    assert state_a["invalidated"]
+    assert state_both["invalidated"]
+    assert not state_b["invalidated"]
 
 
 def test_element_reactive_invalidate_dependents_costs() -> None:
@@ -468,10 +507,15 @@ def test_element_reactive_invalidate_dependents_costs() -> None:
     # Call cost to establish dependency
     elem.price_cost()
 
+    # Get state
+    state = getattr(elem, "_reactive_state_price_cost", None)
+    assert state is not None
+    assert not state["invalidated"]
+
     # Change price
     elem.price = 0.50
 
-    assert "price_cost" in elem._invalidated[CachedKind.COST]
+    assert state["invalidated"]
 
 
 # Apply constraints tests
@@ -486,15 +530,17 @@ def test_apply_constraints_adds_new_constraint() -> None:
     class TestElement(Element[str]):
         @constraint
         def my_constraint(self) -> list[highs_linear_expression]:
-            # Constraint methods return expressions, apply_constraints calls addConstrs
+            # Constraint methods return expressions, decorator applies to solver
             return [x <= 5.0]
 
     elem = TestElement(name="test", periods=(1.0,), solver=solver)
 
     elem.apply_constraints()
 
-    # Constraint should be tracked in _applied_constraints
-    assert "my_constraint" in elem._applied_constraints
+    # Constraint should be applied (state should exist with constraint)
+    state = getattr(elem, "_reactive_state_my_constraint", None)
+    assert state is not None
+    assert "constraint" in state
 
 
 def test_apply_constraints_skips_none_result() -> None:
@@ -511,8 +557,10 @@ def test_apply_constraints_skips_none_result() -> None:
 
     elem.apply_constraints()
 
-    # No constraint should be added
-    assert "my_constraint" not in elem._applied_constraints
+    # State should exist but no constraint should be added
+    state = getattr(elem, "_reactive_state_my_constraint", None)
+    assert state is not None
+    assert "constraint" not in state
 
 
 # Integration tests
@@ -537,10 +585,11 @@ def test_reactive_workflow() -> None:
             self._soc_values: list[float] = []
 
         @constraint
-        def soc_max_constraint(self) -> list[float]:
+        def soc_max_constraint(self) -> None:
             # Simulated constraint that depends on capacity
+            # Return None to skip solver application
             self._soc_values = [self.capacity * 0.9]
-            return self._soc_values
+            return None
 
     solver = Highs()
     solver.setOptionValue("output_flag", False)
@@ -554,17 +603,18 @@ def test_reactive_workflow() -> None:
 
     # Initial constraint computation
     result1 = battery.soc_max_constraint()
-    assert result1 == [9.0]
+    assert result1 is None
+    assert battery._soc_values == [9.0]
 
     # Cached access
     result2 = battery.soc_max_constraint()
-    assert result2 == [9.0]
-    assert result1 is result2  # Same object, no recomputation
+    assert result2 is None
+    assert battery._soc_values == [9.0]
 
     # Change capacity
     battery.capacity = 20.0
 
     # Recomputed
     result3 = battery.soc_max_constraint()
-    assert result3 == [18.0]
-    assert result3 is not result1  # New object
+    assert result3 is None
+    assert battery._soc_values == [18.0]
