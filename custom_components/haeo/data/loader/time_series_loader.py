@@ -82,11 +82,6 @@ class TimeSeriesLoader:
 
         n_periods = max(0, len(forecast_times) - 1)
 
-        # Reject missing values - caller must provide valid data
-        if value is None:
-            msg = "Value is required - received None"
-            raise ValueError(msg)
-
         # Handle constant values by broadcasting to all periods
         if _is_constant_value(value):
             return [float(value)] * n_periods
@@ -140,11 +135,6 @@ class TimeSeriesLoader:
             return []
 
         n_boundaries = len(forecast_times)
-
-        # Reject missing values - caller must provide valid data
-        if value is None:
-            msg = "Value is required - received None"
-            raise ValueError(msg)
 
         # Handle constant values by broadcasting to all boundaries
         if _is_constant_value(value):

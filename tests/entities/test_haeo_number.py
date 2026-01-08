@@ -2,7 +2,7 @@
 
 from types import MappingProxyType
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
@@ -97,6 +97,25 @@ def scalar_field_info() -> InputFieldInfo[NumberEntityDescription]:
         ),
         output_type=OutputType.ENERGY,
         time_series=False,
+    )
+
+
+@pytest.fixture
+def boundary_field_info() -> InputFieldInfo[NumberEntityDescription]:
+    """Return a sample InputFieldInfo for a boundary field (energy state at time points)."""
+    return InputFieldInfo(
+        field_name="soc",
+        entity_description=NumberEntityDescription(
+            key="soc",
+            translation_key="soc",
+            native_unit_of_measurement="%",
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=1.0,
+        ),
+        output_type=OutputType.ENERGY,
+        time_series=True,
+        boundaries=True,
     )
 
 
@@ -788,3 +807,182 @@ async def test_async_load_data_handles_empty_values(
 
     # State should not have changed
     assert entity.native_value is None
+
+
+# --- Tests for boundaries mode ---
+
+
+async def test_editable_mode_with_boundaries_field(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    boundary_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Number entity with boundaries=True field builds correct forecast."""
+    subentry = _create_subentry("Test Battery", {"soc": 50.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=boundary_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Update forecast
+    entity._update_editable_forecast()
+
+    # With boundaries=True and 3 timestamps, should have 3 values (n+1 values for n+1 boundaries)
+    values = entity.get_values()
+    assert values is not None
+    assert len(values) == 3  # All 3 boundary timestamps
+    assert all(v == 50.0 for v in values)
+
+
+async def test_async_load_data_with_boundaries_field(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    boundary_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_async_load_data uses load_boundaries for boundaries=True fields."""
+    subentry = _create_subentry("Test Battery", {"soc": ["sensor.soc"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=boundary_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock loader to return boundary values (n+1 values)
+    # Use AsyncMock to properly mock the async method
+    entity._loader.load_boundaries = AsyncMock(return_value=[10.0, 20.0, 30.0])
+    entity._loader.load_intervals = AsyncMock()
+
+    await entity._async_load_data()
+
+    # Should call load_boundaries, not load_intervals
+    entity._loader.load_boundaries.assert_called_once()
+    entity._loader.load_intervals.assert_not_called()
+
+    # Should have 3 values
+    assert entity.native_value == 10.0
+    values = entity.get_values()
+    assert values == (10.0, 20.0, 30.0)
+
+
+async def test_editable_mode_uses_default_when_no_config_value(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """Number entity uses field default when no config value provided."""
+    # Create field with default value
+    field_info = InputFieldInfo(
+        field_name="power_limit",
+        entity_description=NumberEntityDescription(
+            key="power_limit",
+            translation_key="power_limit",
+            native_unit_of_measurement="kW",
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.POWER,
+        time_series=True,
+        default=25.0,
+    )
+
+    # Config has no value for this field
+    subentry = _create_subentry("Test Battery", {})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    await entity.async_added_to_hass()
+
+    # Should use default value
+    assert entity.native_value == 25.0
+
+
+async def test_entity_mode_property(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """entity_mode property returns the entity's mode."""
+    # Test EDITABLE mode
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    assert entity.entity_mode == ConfigEntityMode.EDITABLE
+
+    # Test DRIVEN mode
+    subentry_driven = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    entity_driven = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry_driven,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    assert entity_driven.entity_mode == ConfigEntityMode.DRIVEN
+
+
+async def test_async_load_data_with_empty_values_list(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """_async_load_data returns early when loader returns empty list."""
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        hass=hass,
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # Mock loader to return empty list (not an exception, just empty result)
+    entity._loader.load_intervals = AsyncMock(return_value=[])
+
+    initial_value = entity.native_value
+    await entity._async_load_data()
+
+    # State should not have changed
+    assert entity.native_value == initial_value

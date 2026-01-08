@@ -201,19 +201,6 @@ async def test_load_boundaries_broadcasts_constant_value(hass: HomeAssistant) ->
     assert result == [13.5, 13.5, 13.5, 13.5]
 
 
-async def test_load_boundaries_raises_when_value_is_none(hass: HomeAssistant) -> None:
-    """load_boundaries raises ValueError when value is None."""
-    loader = TimeSeriesLoader()
-    ts_values = [1000.0, 2000.0, 3000.0]
-
-    with pytest.raises(ValueError, match="Value is required - received None"):
-        await loader.load_boundaries(
-            hass=hass,
-            value=None,
-            forecast_times=ts_values,
-        )
-
-
 async def test_load_boundaries_empty_horizon_returns_empty(hass: HomeAssistant) -> None:
     """load_boundaries returns empty list for empty horizon."""
     loader = TimeSeriesLoader()

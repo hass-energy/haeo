@@ -214,7 +214,7 @@ The [`forecast_fuser.py`](https://github.com/hass-energy/haeo/blob/main/custom_c
 The fuser provides two functions for different data types:
 
 - `fuse_to_intervals()` - Produces n interval averages using trapezoidal integration
-- `fuse_to_fence_posts()` - Produces n+1 point-in-time values via interpolation
+- `fuse_to_boundaries()` - Produces n+1 point-in-time values via interpolation
 
 ### Interval Fusion Strategy
 
@@ -227,7 +227,7 @@ This matches optimization requirements: linear programming operates on energy qu
 
 ### Fence Post Fusion Strategy
 
-The `fuse_to_fence_posts()` function produces values at each timestamp boundary:
+The `fuse_to_boundaries()` function produces values at each timestamp boundary:
 
 - Uses linear interpolation to get values at exact fence post times
 - Preserves point-in-time nature of quantities like capacity and SOC limits

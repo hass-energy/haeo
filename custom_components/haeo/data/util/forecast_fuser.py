@@ -144,7 +144,3 @@ def fuse_to_intervals(
         result[0] = present_value
 
     return result
-
-
-# Keep fuse_to_horizon as an alias for backward compatibility during transition
-fuse_to_horizon = fuse_to_intervals
