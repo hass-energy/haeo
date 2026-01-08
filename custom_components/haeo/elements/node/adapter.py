@@ -10,7 +10,11 @@ from custom_components.haeo.model.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import NodeSubentryFlowHandler
-from .schema import CONF_IS_SINK, CONF_IS_SOURCE, DEFAULTS, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
+from .schema import ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
+
+# Defaults for absent optional fields (no-op values: pure junction behavior)
+DEFAULT_IS_SOURCE: Final[bool] = False
+DEFAULT_IS_SINK: Final[bool] = False
 
 # Node output names
 type NodeOutputName = Literal["node_power_balance"]
@@ -45,8 +49,8 @@ class NodeAdapter:
         return {
             "element_type": config["element_type"],
             "name": config["name"],
-            "is_source": await const_loader_bool.load(value=config.get("is_source", DEFAULTS[CONF_IS_SOURCE])),
-            "is_sink": await const_loader_bool.load(value=config.get("is_sink", DEFAULTS[CONF_IS_SINK])),
+            "is_source": await const_loader_bool.load(value=config.get("is_source", DEFAULT_IS_SOURCE)),
+            "is_sink": await const_loader_bool.load(value=config.get("is_sink", DEFAULT_IS_SINK)),
         }
 
     def create_model_elements(self, config: NodeConfigData) -> list[dict[str, Any]]:
@@ -55,8 +59,8 @@ class NodeAdapter:
             {
                 "element_type": "node",
                 "name": config["name"],
-                "is_source": config.get("is_source", DEFAULTS[CONF_IS_SOURCE]),
-                "is_sink": config.get("is_sink", DEFAULTS[CONF_IS_SINK]),
+                "is_source": config["is_source"],
+                "is_sink": config["is_sink"],
             }
         ]
 

@@ -26,14 +26,6 @@ CONF_UNDERCHARGE_COST: Final = "undercharge_cost"
 CONF_OVERCHARGE_COST: Final = "overcharge_cost"
 CONF_CONNECTION: Final = "connection"
 
-# Default values for optional fields
-DEFAULTS: Final[dict[str, float]] = {
-    CONF_MIN_CHARGE_PERCENTAGE: 0.0,
-    CONF_MAX_CHARGE_PERCENTAGE: 100.0,
-    CONF_EFFICIENCY: 99.0,
-    CONF_EARLY_CHARGE_INCENTIVE: 0.001,
-}
-
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
     InputFieldInfo(
@@ -151,7 +143,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
-        defaults=InputFieldDefaults(mode="value", value=0.001),
     ),
     InputFieldInfo(
         field_name=CONF_DISCHARGE_COST,
@@ -237,14 +228,14 @@ class BatteryConfigSchema(TypedDict):
     capacity: list[str] | float  # Energy sensor entity IDs or constant value (kWh)
     initial_charge_percentage: list[str] | float  # SOC sensor entity IDs or constant value (%)
 
+    # Required power limits - can be entity links or constants
+    max_charge_power: list[str] | float  # Power sensor entity IDs or constant value (kW)
+    max_discharge_power: list[str] | float  # Power sensor entity IDs or constant value (kW)
+
     # Optional fields - can be entity links, constants, or missing (uses default)
     min_charge_percentage: NotRequired[list[str] | float]
     max_charge_percentage: NotRequired[list[str] | float]
     efficiency: NotRequired[list[str] | float]
-
-    # Optional power limits - can be entity links or constants
-    max_charge_power: NotRequired[list[str] | float]  # Power sensor entity IDs or constant value (kW)
-    max_discharge_power: NotRequired[list[str] | float]  # Power sensor entity IDs or constant value (kW)
 
     # Optional price fields - can be entity links or constants
     early_charge_incentive: NotRequired[list[str] | float]
@@ -271,14 +262,14 @@ class BatteryConfigData(TypedDict):
     capacity: list[float]  # kWh per period
     initial_charge_percentage: list[float]  # % per period (uses first value)
 
+    # Required power limits
+    max_charge_power: list[float]  # kW per period
+    max_discharge_power: list[float]  # kW per period
+
     # Time series with defaults applied
     min_charge_percentage: list[float]  # % per period
     max_charge_percentage: list[float]  # % per period
     efficiency: list[float]  # % per period
-
-    # Optional loaded values
-    max_charge_power: NotRequired[list[float]]  # kW per period
-    max_discharge_power: NotRequired[list[float]]  # kW per period
 
     # Optional prices (time series)
     early_charge_incentive: NotRequired[list[float]]  # $/kWh per period

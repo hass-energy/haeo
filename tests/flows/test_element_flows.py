@@ -298,12 +298,18 @@ async def test_element_flow_user_step_missing_name(
     """Ensure missing names are rejected for all element types."""
 
     flow = _create_flow(hass, hub_entry, element_type)
-    base_config = deepcopy(element_test_data[element_type].valid[0].config)
-    base_config[CONF_NAME] = ""
+    # Two-step flows use mode_input for step 1, one-step flows use config
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        mode_input = element_test_data[element_type].valid[0].mode_input
+        assert mode_input is not None
+        base_input = deepcopy(mode_input)
+    else:
+        base_input = deepcopy(element_test_data[element_type].valid[0].config)
+    base_input[CONF_NAME] = ""
 
-    _prepare_flow_context(hass, hub_entry, element_type, base_config)
+    _prepare_flow_context(hass, hub_entry, element_type, base_input)
 
-    result = await flow.async_step_user(user_input=base_config)
+    result = await flow.async_step_user(user_input=base_input)
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_NAME: "missing_name"}
 
@@ -326,7 +332,13 @@ async def test_element_flow_user_step_duplicate_name(
 
     flow = _create_flow(hass, hub_entry, element_type)
 
-    result = await flow.async_step_user(user_input=existing_config)
+    # Two-step flows use mode_input for step 1, one-step flows use config
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        mode_input = element_test_data[element_type].valid[0].mode_input
+        assert mode_input is not None
+        result = await flow.async_step_user(user_input=mode_input)
+    else:
+        result = await flow.async_step_user(user_input=existing_config)
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_NAME: "name_exists"}
 
@@ -450,7 +462,13 @@ async def test_element_flow_reconfigure_missing_name(
     flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    invalid_input = deepcopy(existing_config)
+    # Two-step flows use mode_input for step 1, one-step flows use config
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        mode_input = element_test_data[element_type].valid[0].mode_input
+        assert mode_input is not None
+        invalid_input = deepcopy(mode_input)
+    else:
+        invalid_input = deepcopy(existing_config)
     invalid_input[CONF_NAME] = ""
 
     result = await flow.async_step_reconfigure(user_input=invalid_input)
@@ -489,7 +507,16 @@ async def test_element_flow_reconfigure_duplicate_name(
     flow.context = {"subentry_id": secondary_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=secondary_subentry)
 
-    duplicate_input = deepcopy(secondary_config)
+    # Two-step flows use mode_input for step 1, one-step flows use config
+    if element_type in TWO_STEP_FLOW_ELEMENTS:
+        # Get mode_input for secondary and set name to duplicate
+        secondary_mode_input = element_test_data[element_type].valid[0].mode_input
+        if len(element_test_data[element_type].valid) > 1:
+            secondary_mode_input = element_test_data[element_type].valid[1].mode_input
+        assert secondary_mode_input is not None
+        duplicate_input = deepcopy(secondary_mode_input)
+    else:
+        duplicate_input = deepcopy(secondary_config)
     duplicate_input[CONF_NAME] = primary_config[CONF_NAME]
 
     result = await flow.async_step_reconfigure(user_input=duplicate_input)

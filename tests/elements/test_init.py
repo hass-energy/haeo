@@ -104,6 +104,8 @@ def test_is_element_config_schema_valid_battery() -> None:
         "connection": "main_bus",
         "capacity": ["sensor.capacity"],
         "initial_charge_percentage": ["sensor.soc"],
+        "max_charge_power": 5.0,
+        "max_discharge_power": 5.0,
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -161,6 +163,7 @@ def test_is_element_config_schema_valid_solar() -> None:
         "name": "test_solar",
         "connection": "main_bus",
         "forecast": ["sensor.solar_forecast"],
+        "curtailment": True,
     }
     assert is_element_config_schema(valid_config) is True
 

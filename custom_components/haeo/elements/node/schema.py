@@ -13,12 +13,6 @@ ELEMENT_TYPE: Final = "node"
 CONF_IS_SOURCE: Final = "is_source"
 CONF_IS_SINK: Final = "is_sink"
 
-# Default values for optional fields
-DEFAULTS: Final[dict[str, bool]] = {
-    CONF_IS_SOURCE: False,
-    CONF_IS_SINK: False,
-}
-
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[SwitchEntityDescription], ...]] = (
     InputFieldInfo(

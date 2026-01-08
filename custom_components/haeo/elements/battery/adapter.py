@@ -30,11 +30,15 @@ from .schema import (
     CONF_OVERCHARGE_PERCENTAGE,
     CONF_UNDERCHARGE_COST,
     CONF_UNDERCHARGE_PERCENTAGE,
-    DEFAULTS,
     ELEMENT_TYPE,
     BatteryConfigData,
     BatteryConfigSchema,
 )
+
+# Defaults for absent optional fields (no-op values)
+DEFAULT_MIN_CHARGE_PERCENTAGE: Final[float] = 0.0  # No minimum constraint
+DEFAULT_MAX_CHARGE_PERCENTAGE: Final[float] = 100.0  # No maximum constraint
+DEFAULT_EFFICIENCY: Final[float] = 100.0  # No cycle loss (was 99.0 before)
 
 type BatteryOutputName = Literal[
     "battery_power_charge",
@@ -154,11 +158,13 @@ class BatteryAdapter:
         # Load required time series
         capacity = await load_value(config.get("capacity"))
         initial_charge = await load_value(config.get("initial_charge_percentage"))
+        max_charge_power = await load_value(config[CONF_MAX_CHARGE_POWER])
+        max_discharge_power = await load_value(config[CONF_MAX_DISCHARGE_POWER])
 
         # Load optional fields with defaults
-        min_charge = await load_value(config.get(CONF_MIN_CHARGE_PERCENTAGE), DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
-        max_charge = await load_value(config.get(CONF_MAX_CHARGE_PERCENTAGE), DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
-        efficiency = await load_value(config.get(CONF_EFFICIENCY), DEFAULTS[CONF_EFFICIENCY])
+        min_charge = await load_value(config.get(CONF_MIN_CHARGE_PERCENTAGE), DEFAULT_MIN_CHARGE_PERCENTAGE)
+        max_charge = await load_value(config.get(CONF_MAX_CHARGE_PERCENTAGE), DEFAULT_MAX_CHARGE_PERCENTAGE)
+        efficiency = await load_value(config.get(CONF_EFFICIENCY), DEFAULT_EFFICIENCY)
 
         # Build data with defaults applied
         data: BatteryConfigData = {
@@ -167,29 +173,21 @@ class BatteryAdapter:
             "connection": config[CONF_CONNECTION],
             "capacity": capacity,
             "initial_charge_percentage": initial_charge,
+            "max_charge_power": max_charge_power,
+            "max_discharge_power": max_discharge_power,
             "min_charge_percentage": min_charge,
             "max_charge_percentage": max_charge,
             "efficiency": efficiency,
         }
 
-        # Load optional time series fields (no defaults)
-        max_charge_power = config.get(CONF_MAX_CHARGE_POWER)
-        if max_charge_power is not None:
-            data["max_charge_power"] = await load_value(max_charge_power)
-
-        max_discharge_power = config.get(CONF_MAX_DISCHARGE_POWER)
-        if max_discharge_power is not None:
-            data["max_discharge_power"] = await load_value(max_discharge_power)
-
+        # Load optional time series fields (no defaults - truly absent)
         discharge_cost = config.get(CONF_DISCHARGE_COST)
         if discharge_cost is not None:
             data["discharge_cost"] = await load_value(discharge_cost)
 
         early_charge_incentive = config.get(CONF_EARLY_CHARGE_INCENTIVE)
         if early_charge_incentive is not None:
-            data["early_charge_incentive"] = await load_value(
-                early_charge_incentive, DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
-            )
+            data["early_charge_incentive"] = await load_value(early_charge_incentive)
 
         undercharge_percentage = config.get(CONF_UNDERCHARGE_PERCENTAGE)
         if undercharge_percentage is not None:
@@ -239,9 +237,9 @@ class BatteryAdapter:
 
         initial_soc_ratio = initial_soc / 100.0
 
-        # Calculate early charge/discharge incentives (use first period if present)
+        # Calculate early charge/discharge incentives (use first period if present, else 0 = no incentive)
         early_charge_list = config.get("early_charge_incentive")
-        early_charge_incentive = early_charge_list[0] if early_charge_list else DEFAULTS[CONF_EARLY_CHARGE_INCENTIVE]
+        early_charge_incentive = early_charge_list[0] if early_charge_list else 0.0
 
         # Determine unusable ratio for initial charge calculation
         unusable_ratio_first = undercharge_ratio_first if undercharge_ratio_first is not None else min_ratio_first

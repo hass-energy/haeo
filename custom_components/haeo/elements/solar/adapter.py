@@ -22,11 +22,13 @@ from .schema import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
-    DEFAULTS,
     ELEMENT_TYPE,
     SolarConfigData,
     SolarConfigSchema,
 )
+
+# Defaults for absent optional fields (no-op values)
+DEFAULT_PRICE_PRODUCTION: Final[float] = 0.0  # No production incentive
 
 # Solar output names
 type SolarOutputName = Literal[
@@ -78,20 +80,21 @@ class SolarAdapter:
             forecast_times=forecast_times,
         )
 
-        data: SolarConfigData = {
+        # Load required curtailment field
+        curtailment = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
+
+        # Load optional price_production with default
+        price_production_value = config.get(CONF_PRICE_PRODUCTION, DEFAULT_PRICE_PRODUCTION)
+        price_production = await const_loader_float.load(value=price_production_value)
+
+        return {
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
             "forecast": forecast,
+            "curtailment": curtailment,
+            "price_production": price_production,
         }
-
-        # Load optional fields
-        if CONF_PRICE_PRODUCTION in config:
-            data["price_production"] = await const_loader_float.load(value=config[CONF_PRICE_PRODUCTION])
-        if CONF_CURTAILMENT in config:
-            data["curtailment"] = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
-
-        return data
 
     def create_model_elements(self, config: SolarConfigData) -> list[dict[str, Any]]:
         """Create model elements for Solar configuration."""
@@ -104,8 +107,8 @@ class SolarAdapter:
                 "target": config["connection"],
                 "max_power_source_target": config["forecast"],
                 "max_power_target_source": 0.0,
-                "fixed_power": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
-                "price_source_target": config.get("price_production"),
+                "fixed_power": not config["curtailment"],
+                "price_source_target": config["price_production"],
             },
         ]
 

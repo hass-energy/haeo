@@ -31,6 +31,10 @@ from .schema import (
     InverterConfigSchema,
 )
 
+# Defaults for absent optional fields (no-op values: no conversion loss)
+DEFAULT_EFFICIENCY_DC_TO_AC: Final[float] = 100.0
+DEFAULT_EFFICIENCY_AC_TO_DC: Final[float] = 100.0
+
 # Inverter output names
 type InverterOutputName = Literal[
     "inverter_power_dc_to_ac",
@@ -97,21 +101,21 @@ class InverterAdapter:
             forecast_times=forecast_times,
         )
 
-        data: InverterConfigData = {
+        # Load optional efficiency fields with defaults (100% = no loss)
+        efficiency_dc_to_ac_value = config.get(CONF_EFFICIENCY_DC_TO_AC, DEFAULT_EFFICIENCY_DC_TO_AC)
+        efficiency_ac_to_dc_value = config.get(CONF_EFFICIENCY_AC_TO_DC, DEFAULT_EFFICIENCY_AC_TO_DC)
+        efficiency_dc_to_ac = await const_loader.load(value=efficiency_dc_to_ac_value)
+        efficiency_ac_to_dc = await const_loader.load(value=efficiency_ac_to_dc_value)
+
+        return {
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
             "max_power_dc_to_ac": max_power_dc_to_ac,
             "max_power_ac_to_dc": max_power_ac_to_dc,
+            "efficiency_dc_to_ac": efficiency_dc_to_ac,
+            "efficiency_ac_to_dc": efficiency_ac_to_dc,
         }
-
-        # Load optional fields
-        if CONF_EFFICIENCY_DC_TO_AC in config:
-            data["efficiency_dc_to_ac"] = await const_loader.load(value=config[CONF_EFFICIENCY_DC_TO_AC])
-        if CONF_EFFICIENCY_AC_TO_DC in config:
-            data["efficiency_ac_to_dc"] = await const_loader.load(value=config[CONF_EFFICIENCY_AC_TO_DC])
-
-        return data
 
     def create_model_elements(self, config: InverterConfigData) -> list[dict[str, Any]]:
         """Create model elements for Inverter configuration.
@@ -134,8 +138,8 @@ class InverterAdapter:
                 "target": config["connection"],
                 "max_power_source_target": config["max_power_dc_to_ac"],
                 "max_power_target_source": config["max_power_ac_to_dc"],
-                "efficiency_source_target": config.get("efficiency_dc_to_ac"),
-                "efficiency_target_source": config.get("efficiency_ac_to_dc"),
+                "efficiency_source_target": config["efficiency_dc_to_ac"],
+                "efficiency_target_source": config["efficiency_ac_to_dc"],
             },
         ]
 

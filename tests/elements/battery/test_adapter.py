@@ -23,6 +23,8 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
     """Battery available() should return True when required sensors exist."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
     _set_sensor(hass, "sensor.initial", "50.0", "%")
+    _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
+    _set_sensor(hass, "sensor.max_discharge", "5.0", "kW")
 
     config: battery.BatteryConfigSchema = {
         "element_type": "battery",
@@ -30,17 +32,20 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         "connection": "main_bus",
         "capacity": ["sensor.capacity"],
         "initial_charge_percentage": ["sensor.initial"],
+        "max_charge_power": ["sensor.max_charge"],
+        "max_discharge_power": ["sensor.max_discharge"],
     }
 
     result = battery.adapter.available(config, hass=hass)
     assert result is True
 
 
-async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAssistant) -> None:
-    """Battery available() should return False when a configured optional sensor is missing."""
+async def test_available_returns_false_when_required_power_sensor_missing(hass: HomeAssistant) -> None:
+    """Battery available() should return False when a required power sensor is missing."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
     _set_sensor(hass, "sensor.initial", "50.0", "%")
-    # max_charge_power sensor configured but missing
+    _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
+    # max_discharge_power sensor is missing
 
     config: battery.BatteryConfigSchema = {
         "element_type": "battery",
@@ -48,7 +53,8 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
         "connection": "main_bus",
         "capacity": ["sensor.capacity"],
         "initial_charge_percentage": ["sensor.initial"],
-        "max_charge_power": ["sensor.missing"],
+        "max_charge_power": ["sensor.max_charge"],
+        "max_discharge_power": ["sensor.missing"],
     }
 
     result = battery.adapter.available(config, hass=hass)
@@ -58,6 +64,8 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
 async def test_available_returns_false_when_required_sensor_missing(hass: HomeAssistant) -> None:
     """Battery available() should return False when a required sensor is missing."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
+    _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
+    _set_sensor(hass, "sensor.max_discharge", "5.0", "kW")
     # initial_charge_percentage sensor is missing
 
     config: battery.BatteryConfigSchema = {
@@ -66,6 +74,8 @@ async def test_available_returns_false_when_required_sensor_missing(hass: HomeAs
         "connection": "main_bus",
         "capacity": ["sensor.capacity"],
         "initial_charge_percentage": ["sensor.missing"],
+        "max_charge_power": ["sensor.max_charge"],
+        "max_discharge_power": ["sensor.max_discharge"],
     }
 
     result = battery.adapter.available(config, hass=hass)
@@ -76,6 +86,8 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
     """Battery load() should return ConfigData with loaded values."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
     _set_sensor(hass, "sensor.initial", "50.0", "%")
+    _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
+    _set_sensor(hass, "sensor.max_discharge", "5.0", "kW")
 
     config: battery.BatteryConfigSchema = {
         "element_type": "battery",
@@ -83,6 +95,8 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "connection": "main_bus",
         "capacity": ["sensor.capacity"],
         "initial_charge_percentage": ["sensor.initial"],
+        "max_charge_power": ["sensor.max_charge"],
+        "max_discharge_power": ["sensor.max_discharge"],
     }
 
     result = await battery.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
@@ -91,6 +105,8 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
     assert result["name"] == "test_battery"
     assert len(result["capacity"]) == 2  # 3 fence posts = 2 periods
     assert result["capacity"][0] == 10.0
+    assert result["max_charge_power"][0] == 5.0
+    assert result["max_discharge_power"][0] == 5.0
 
 
 def test_sum_output_data_raises_on_empty_list() -> None:
@@ -169,6 +185,8 @@ async def test_load_with_optional_scalar_fields(hass: HomeAssistant) -> None:
         "connection": "main_bus",
         "capacity": ["sensor.capacity"],
         "initial_charge_percentage": ["sensor.initial"],
+        "max_charge_power": 5.0,
+        "max_discharge_power": 5.0,
         "early_charge_incentive": 0.005,
         "undercharge_percentage": 10.0,
         "overcharge_percentage": 90.0,

@@ -6,7 +6,7 @@ from homeassistant.components.number import NumberDeviceClass, NumberEntityDescr
 from homeassistant.components.switch import SwitchEntityDescription
 from homeassistant.const import UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "solar"
@@ -16,11 +16,6 @@ CONF_FORECAST: Final = "forecast"
 CONF_PRICE_PRODUCTION: Final = "price_production"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
-
-# Default values for optional fields
-DEFAULTS: Final[dict[str, bool]] = {
-    CONF_CURTAILMENT: True,
-}
 
 # Input field definitions for creating input entities (mix of Number and Switch)
 INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
@@ -58,7 +53,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
             translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
         ),
         output_type=OutputType.STATUS,
-        defaults=InputFieldDefaults(mode="value", value=True),
     ),
 )
 
@@ -78,9 +72,11 @@ class SolarConfigSchema(TypedDict):
     connection: str  # Element name to connect to
     forecast: list[str] | float  # Entity IDs or constant kW
 
+    # Required fields
+    curtailment: list[str] | bool  # Entity IDs or constant boolean
+
     # Optional fields
     price_production: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
-    curtailment: NotRequired[list[str] | bool]  # Entity IDs or constant boolean
 
 
 class SolarConfigData(TypedDict):
@@ -93,7 +89,5 @@ class SolarConfigData(TypedDict):
     name: str
     connection: str  # Element name to connect to
     forecast: list[float]  # Loaded power values per period (kW)
-
-    # Optional fields
-    price_production: NotRequired[float]  # $/kWh production incentive
-    curtailment: NotRequired[bool]  # Whether solar can be curtailed
+    curtailment: bool  # Whether solar can be curtailed
+    price_production: float  # $/kWh production incentive (0.0 if not configured)

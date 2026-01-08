@@ -9,7 +9,13 @@ import voluptuous as vol
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
 
-from .schema import CONF_IS_SINK, CONF_IS_SOURCE, DEFAULTS, ELEMENT_TYPE, NodeConfigSchema
+from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigSchema
+
+# Suggested values for first setup (pure junction: no source or sink)
+_SUGGESTED_DEFAULTS = {
+    CONF_IS_SOURCE: False,
+    CONF_IS_SINK: False,
+}
 
 
 def _build_schema() -> vol.Schema:
@@ -48,7 +54,7 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 return self.async_create_entry(title=name, data=config)
 
         schema = _build_schema()
-        schema = self.add_suggested_values_to_schema(schema, DEFAULTS)
+        schema = self.add_suggested_values_to_schema(schema, _SUGGESTED_DEFAULTS)
 
         return self.async_show_form(
             step_id="user",
