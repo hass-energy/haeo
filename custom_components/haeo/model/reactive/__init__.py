@@ -15,12 +15,12 @@ from .tracked_param import TrackedParam
 from .types import UNSET, is_set
 
 __all__ = [
+    "UNSET",
     "OutputMethod",
     "ReactiveConstraint",
     "ReactiveCost",
     "ReactiveMethod",
     "TrackedParam",
-    "UNSET",
     "constraint",
     "cost",
     "is_set",

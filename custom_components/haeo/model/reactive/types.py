@@ -46,14 +46,14 @@ def is_set(value: object) -> bool:
 
 def values_equal(a: object, b: object) -> bool:
     """Compare two values for equality, handling numpy arrays.
-    
+
     Args:
         a: First value
         b: Second value
-        
+
     Returns:
         True if values are equal, False otherwise
-    
+
     """
     # Handle numpy array comparisons
     if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):

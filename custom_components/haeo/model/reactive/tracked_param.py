@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from haeo.model.element import Element
 
 # Context for tracking parameter access during constraint computation
-_tracking_context: ContextVar[set[str] | None] = ContextVar("tracking", default=None)
+tracking_context: ContextVar[set[str] | None] = ContextVar("tracking", default=None)
 
 
 class TrackedParam[T]:
@@ -48,7 +48,7 @@ class TrackedParam[T]:
         if obj is None:
             return self
         # Record access if tracking is active
-        tracking = _tracking_context.get()
+        tracking = tracking_context.get()
         if tracking is not None:
             tracking.add(self._name)
         # Return UNSET if the parameter has never been set
@@ -84,7 +84,7 @@ def _invalidate_param_dependents(element: "Element[Any]", param_name: str) -> No
         descriptor = getattr(type(element), attr_name, None)
         if isinstance(descriptor, ReactiveMethod):
             # Get the state for this decorator on this element instance
-            state = _get_decorator_state(element, attr_name)
+            state = get_decorator_state(element, attr_name)
             if state is not None and param_name in state.get("deps", set()):
                 state["invalidated"] = True
                 invalidated_methods.add(attr_name)
@@ -113,7 +113,7 @@ def _propagate_method_invalidation(element: "Element[Any]", invalidated_methods:
         for attr_name in dir(type(element)):
             descriptor = getattr(type(element), attr_name, None)
             if isinstance(descriptor, ReactiveMethod):
-                state = _get_decorator_state(element, attr_name)
+                state = get_decorator_state(element, attr_name)
                 # Skip if already invalidated
                 if state is None or state.get("invalidated", True):
                     continue
@@ -131,7 +131,7 @@ def _propagate_method_invalidation(element: "Element[Any]", invalidated_methods:
         newly_invalidated = next_round
 
 
-def _get_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any] | None:
+def get_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any] | None:
     """Get the state dictionary for a decorator method on an element.
 
     Args:
@@ -146,7 +146,7 @@ def _get_decorator_state(element: "Element[Any]", method_name: str) -> dict[str,
     return getattr(element, state_attr, None)
 
 
-def _ensure_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any]:
+def ensure_decorator_state(element: "Element[Any]", method_name: str) -> dict[str, Any]:
     """Ensure a state dictionary exists for a decorator method on an element.
 
     Args:
@@ -165,9 +165,9 @@ def _ensure_decorator_state(element: "Element[Any]", method_name: str) -> dict[s
 
 # Re-export tracking context for use by decorators
 __all__ = [
-    "UNSET",
     "TrackedParam",
-    "_ensure_decorator_state",
-    "_get_decorator_state",
-    "_tracking_context",
+    "UNSET",
+    "ensure_decorator_state",
+    "get_decorator_state",
+    "tracking_context",
 ]

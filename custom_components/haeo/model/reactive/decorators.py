@@ -4,7 +4,7 @@ from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
-from .tracked_param import _ensure_decorator_state, _tracking_context
+from .tracked_param import ensure_decorator_state, tracking_context
 
 if TYPE_CHECKING:
     from highspy import Highs
@@ -47,7 +47,7 @@ class ReactiveMethod[R]:
 
     def _call(self, obj: "Element[Any]") -> R:
         """Execute with caching and dependency tracking."""
-        state = _ensure_decorator_state(obj, self._name)
+        state = ensure_decorator_state(obj, self._name)
 
         # Return cached if not invalidated
         if not state["invalidated"] and state["result"] is not None:
@@ -55,11 +55,11 @@ class ReactiveMethod[R]:
 
         # Track parameter and method access during computation
         tracking: set[str] = set()
-        token = _tracking_context.set(tracking)
+        token = tracking_context.set(tracking)
         try:
             result = self._fn(obj)
         finally:
-            _tracking_context.reset(token)
+            tracking_context.reset(token)
 
         # Store result and dependencies
         state["result"] = result
@@ -73,7 +73,7 @@ class ReactiveMethod[R]:
 
         When another cached method calls this one, this establishes a dependency.
         """
-        tracking = _tracking_context.get()
+        tracking = tracking_context.get()
         if tracking is not None:
             # Record as "method:name" to distinguish from param names
             tracking.add(f"method:{self._name}")
@@ -147,7 +147,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         # Record access if being tracked by another method
         self._record_access(obj)
 
-        state = _ensure_decorator_state(obj, self._name)
+        state = ensure_decorator_state(obj, self._name)
 
         # Check if we need to recompute
         needs_recompute = state["invalidated"] or "result" not in state
@@ -158,11 +158,11 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
 
         # Track parameter and method access during computation
         tracking: set[str] = set()
-        token = _tracking_context.set(tracking)
+        token = tracking_context.set(tracking)
         try:
             expr = self._fn(obj)
         finally:
-            _tracking_context.reset(token)
+            tracking_context.reset(token)
 
         # Store result and dependencies
         state["result"] = expr
@@ -174,7 +174,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             return expr  # type: ignore[return-value]
 
         # Get solver from element
-        solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure)
+        solver: Highs = obj._solver  # noqa: SLF001 # pyright: ignore[reportPrivateUsage] (tightly coupled reactive infrastructure)
 
         # First call: create constraint(s) in solver
         if is_first_call:
@@ -232,14 +232,14 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         old_expr = solver.getExpr(cons)
         old_bounds = old_expr.bounds
         new_bounds = expr.bounds
-        
+
         # Update bounds if they changed
         if old_bounds != new_bounds:
             if new_bounds is not None:
                 solver.changeRowBounds(cons.index, new_bounds[0], new_bounds[1])
             elif old_bounds is not None:
                 # Bounds were removed - set to unconstrained (-inf, inf)
-                solver.changeRowBounds(cons.index, float('-inf'), float('inf'))
+                solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
 
         # Update coefficients
         # Get existing expression to compare
