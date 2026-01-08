@@ -64,14 +64,18 @@ class LoadAdapter:
         forecast_times: Sequence[float],
     ) -> LoadConfigData:
         """Load load configuration values from sensors."""
-        ts_loader = TimeSeriesLoader()
-
-        forecast = await ts_loader.load_intervals(
-            hass=hass,
-            value=config.get(CONF_FORECAST),
-            forecast_times=forecast_times,
-            default=DEFAULT_FORECAST,
-        )
+        # If no entities configured, use default from schema for all periods
+        # forecast_times has n+1 boundary times, so intervals have n values
+        n_intervals = len(forecast_times) - 1 if forecast_times else 0
+        if not config[CONF_FORECAST]:
+            forecast = [DEFAULT_FORECAST] * n_intervals
+        else:
+            ts_loader = TimeSeriesLoader()
+            forecast = await ts_loader.load_intervals(
+                hass=hass,
+                value=config[CONF_FORECAST],
+                forecast_times=forecast_times,
+            )
 
         return {
             "element_type": config["element_type"],
@@ -81,7 +85,7 @@ class LoadAdapter:
         }
 
     def model_elements(self, config: LoadConfigData) -> list[dict[str, Any]]:
-        """Return model element parameters for Load configuration."""
+        """Create model elements for Load configuration."""
         return [
             # Create Node for the load (sink only - consumes power)
             {"element_type": "node", "name": config["name"], "is_source": False, "is_sink": True},

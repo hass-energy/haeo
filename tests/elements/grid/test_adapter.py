@@ -16,7 +16,7 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
 
 
-FORECAST_TIMES: Sequence[float] = [0.0, 1800.0, 3600.0]  # 3 fence posts = 2 periods
+FORECAST_TIMES: Sequence[float] = [0.0, 1800.0, 3600.0]  # 3 boundaries = 2 periods
 
 
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
@@ -85,7 +85,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
 
     assert result["element_type"] == "grid"
     assert result["name"] == "test_grid"
-    assert len(result["import_price"]) == 2  # 3 fence posts = 2 periods
+    assert len(result["import_price"]) == 2  # 3 boundaries = 2 periods
     assert result["import_price"][0] == 0.30
 
 

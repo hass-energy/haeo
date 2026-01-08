@@ -1,7 +1,7 @@
 """Unit tests for forecast fusion logic.
 
 The fuser combines present values with forecast data to create horizon-aligned interval values using
-the fence post pattern where n+1 boundary timestamps produce n interval values:
+the boundary pattern where n+1 timestamps produce n interval values:
 - Position 0: Present value (actual current state at t0)
 - Position k (k≥1): Interval average over [horizon_times[k-1] → horizon_times[k]]
 
@@ -17,7 +17,7 @@ Tests use simple integer timestamps to avoid datetime complexity.
 import numpy as np
 import pytest
 
-from custom_components.haeo.data.util.forecast_fuser import fuse_to_intervals
+from custom_components.haeo.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 
 
 @pytest.mark.parametrize(
@@ -147,7 +147,7 @@ def test_fuse_to_intervals(
     horizon_times: list[int],
     expected: list[float],
 ) -> None:
-    """Test fuse_to_intervals with various input configurations.
+    """Test fuse_to_intervals with various input configurations using boundary pattern.
 
     With n+1 boundary timestamps, returns n_periods values where:
     - Position 0: Present value (replaces first interval, not affecting future forecast)
@@ -174,3 +174,81 @@ def test_neither_forecast_nor_present_value_raises_error() -> None:
     """Test that missing both forecast_series and present_value raises ValueError."""
     with pytest.raises(ValueError, match="Either forecast_series or present_value must be provided"):
         fuse_to_intervals(None, [], [0, 1000, 2000])
+
+
+# --- Tests for fuse_to_boundaries ---
+
+
+@pytest.mark.parametrize(
+    ("present_value", "forecast_series", "horizon_times", "expected"),
+    [
+        pytest.param(
+            100.0,
+            [(1000, 150.0), (2000, 200.0), (3000, 250.0), (4000, 300.0)],
+            [0, 1000, 2000, 3000, 4000],
+            [100.0, 150.0, 200.0, 250.0, 300.0],
+            id="present_overrides_first_boundary",
+        ),
+        pytest.param(
+            0.0,
+            [(1000, 150.0), (2000, 200.0), (3000, 250.0), (4000, 300.0)],
+            [0, 1000, 2000, 3000, 4000],
+            [0.0, 150.0, 200.0, 250.0, 300.0],
+            id="zero_present_value",
+        ),
+        pytest.param(
+            100.0,
+            [],
+            [0, 1000, 2000, 3000, 4000],
+            [100.0, 100.0, 100.0, 100.0, 100.0],
+            id="only_present_value_no_forecast",
+        ),
+        pytest.param(
+            50.0,
+            [(0, 100.0), (1000, 150.0), (2000, 200.0)],
+            [0, 500, 1000, 1500, 2000],
+            [50.0, 125.0, 150.0, 175.0, 200.0],
+            id="interpolation_with_present_override",
+        ),
+        pytest.param(
+            None,
+            [(0, 100.0), (1000, 150.0), (2000, 200.0), (3000, 250.0)],
+            [0, 1000, 2000, 3000],
+            [100.0, 150.0, 200.0, 250.0],
+            id="no_present_value_uses_forecast",
+        ),
+    ],
+)
+def test_fuse_to_boundaries(
+    present_value: float | None,
+    forecast_series: list[tuple[int, float]],
+    horizon_times: list[int],
+    expected: list[float],
+) -> None:
+    """Test fuse_to_boundaries returns n+1 point-in-time values.
+
+    With n+1 boundary timestamps, returns n+1 values where:
+    - Position 0: Present value if provided, else interpolated from forecast
+    - Positions 1 to n: Interpolated values at each boundary timestamp
+    """
+    result = fuse_to_boundaries(present_value, forecast_series, horizon_times)
+
+    assert result == pytest.approx(expected)
+
+
+def test_fuse_to_boundaries_empty_horizon() -> None:
+    """Test that empty horizon_times returns empty list."""
+    result = fuse_to_boundaries(42.0, [(0, 100.0)], [])
+    assert result == []
+
+
+def test_fuse_to_boundaries_present_only() -> None:
+    """Test boundaries with only present value (no forecast)."""
+    result = fuse_to_boundaries(50.0, [], [0, 1000, 2000, 3000])
+    assert result == [50.0, 50.0, 50.0, 50.0]
+
+
+def test_fuse_to_boundaries_raises_when_no_data() -> None:
+    """Test that missing both forecast_series and present_value raises ValueError."""
+    with pytest.raises(ValueError, match="Either forecast_series or present_value must be provided"):
+        fuse_to_boundaries(None, [], [0, 1000, 2000])

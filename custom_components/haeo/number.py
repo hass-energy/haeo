@@ -1,6 +1,5 @@
 """Number platform for HAEO input entities."""
 
-import asyncio
 import logging
 
 from homeassistant.core import HomeAssistant

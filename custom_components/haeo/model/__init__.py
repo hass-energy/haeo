@@ -1,7 +1,13 @@
 """HAEO energy modeling components."""
 
+# Re-export submodules for backwards compatibility with adapters
 from .const import OutputType
 from .element import Element as Element
+from .elements import battery as battery
+from .elements import battery_balance_connection as battery_balance_connection
+from .elements import connection as connection
+from .elements import node as node
+from .elements import power_connection as power_connection
 from .elements.battery import BATTERY_CONSTRAINT_NAMES as BATTERY_CONSTRAINT_NAMES
 from .elements.battery import BATTERY_OUTPUT_NAMES as BATTERY_OUTPUT_NAMES
 from .elements.battery import BATTERY_POWER_CONSTRAINTS as BATTERY_POWER_CONSTRAINTS

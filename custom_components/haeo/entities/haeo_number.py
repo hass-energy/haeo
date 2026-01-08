@@ -122,8 +122,10 @@ class HaeoInputNumber(NumberEntity):
     async def async_added_to_hass(self) -> None:
         """Set up state tracking and load initial data.
 
-        This method completes only after initial data is loaded, ensuring
-        the entity is ready for coordinator access immediately after setup.
+        For EDITABLE mode entities, this updates the forecast in memory
+        synchronously. For DRIVEN mode entities, this awaits data loading
+        from source sensors, ensuring the entity is ready for coordinator
+        access after async_block_till_done() completes.
         """
         await super().async_added_to_hass()
 
@@ -164,7 +166,7 @@ class HaeoInputNumber(NumberEntity):
             self.async_write_ha_state()
         else:
             # Re-load data for driven mode
-            self._hass.async_create_task(self._async_load_data_and_update())
+            self._hass.async_create_task(self._async_load_data())
 
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
@@ -180,15 +182,20 @@ class HaeoInputNumber(NumberEntity):
         """Load data from source entities and update attributes.
 
         This method updates _attr_native_value and _attr_extra_state_attributes
-        but does NOT call async_write_ha_state(). Callers should write state
-        after this method returns if appropriate.
+        but does NOT call async_write_ha_state().
+
+        During normal update flows (e.g., _async_load_data_and_update() or
+        tasks scheduled from horizon-change handlers), callers should call
+        async_write_ha_state() after this method returns to publish the new
+        state. Do not write state from async_added_to_hass(); Home Assistant
+        will handle initial state once the entity has been fully added.
         """
         forecast_timestamps = self._get_forecast_timestamps()
 
         try:
-            if self._field_info.fence_posts:
-                # Fence post fields: n+1 values at time boundaries
-                values = await self._loader.load_fence_posts(
+            if self._field_info.boundaries:
+                # Boundary fields: n+1 values at time boundaries
+                values = await self._loader.load_boundaries(
                     hass=self._hass,
                     value=self._source_entity_ids,
                     forecast_times=list(forecast_timestamps),
@@ -208,16 +215,15 @@ class HaeoInputNumber(NumberEntity):
             return
 
         # Build forecast as list of ForecastPoint-style dicts.
-        # Fence posts: n+1 values at each boundary timestamp
-        # Intervals: n values at period start timestamps (exclude last fence post)
+        # For boundaries: n+1 values at each timestamp
+        # For intervals: n values corresponding to periods (use timestamps[:-1])
         local_tz = dt_util.get_default_time_zone()
-        if self._field_info.fence_posts:
+        if self._field_info.boundaries:
             forecast = [
                 {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
                 for ts, val in zip(forecast_timestamps, values, strict=True)
             ]
         else:
-            # HorizonManager guarantees at least 2 timestamps, so [:-1] is always valid.
             forecast = [
                 {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
                 for ts, val in zip(forecast_timestamps[:-1], values, strict=True)
@@ -239,16 +245,15 @@ class HaeoInputNumber(NumberEntity):
 
         if self._attr_native_value is not None:
             # Build forecast as list of ForecastPoint-style dicts with constant value.
+            # For boundaries: n+1 values at each timestamp
+            # For intervals: n values corresponding to periods (use timestamps[:-1])
             local_tz = dt_util.get_default_time_zone()
-            if self._field_info.fence_posts:
-                # Fence posts: n+1 values at each boundary timestamp
+            if self._field_info.boundaries:
                 forecast = [
                     {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_native_value}
                     for ts in forecast_timestamps
                 ]
             else:
-                # Intervals: use period start times (exclude last fence post) for n values.
-                # HorizonManager guarantees at least 2 timestamps, so [:-1] is always valid.
                 forecast = [
                     {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_native_value}
                     for ts in forecast_timestamps[:-1]

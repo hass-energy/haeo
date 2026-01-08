@@ -16,7 +16,7 @@ def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
 
 
-FORECAST_TIMES: Sequence[float] = [0.0, 1800.0, 3600.0]  # 3 fence posts = 2 periods
+FORECAST_TIMES: Sequence[float] = [0.0, 1800.0, 3600.0]  # 3 boundaries = 2 periods
 
 
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
@@ -89,7 +89,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
 
     assert result["element_type"] == "battery"
     assert result["name"] == "test_battery"
-    assert len(result["capacity"]) == 3  # 3 fence posts (energy values at each boundary)
+    assert len(result["capacity"]) == 3  # 3 boundaries for 2 periods
     assert result["capacity"][0] == 10.0
 
 
@@ -101,8 +101,20 @@ def test_sum_output_data_raises_on_empty_list() -> None:
 
 def test_sum_output_data_sums_multiple_outputs() -> None:
     """sum_output_data correctly sums values from multiple OutputData objects."""
-    output1 = OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0, 3.0), direction="+", advanced=False)
-    output2 = OutputData(type=OutputType.POWER, unit="kW", values=(4.0, 5.0, 6.0), direction="+", advanced=False)
+    output1 = OutputData(
+        type=OutputType.POWER,
+        unit="kW",
+        values=(1.0, 2.0, 3.0),
+        direction="+",
+        advanced=False,
+    )
+    output2 = OutputData(
+        type=OutputType.POWER,
+        unit="kW",
+        values=(4.0, 5.0, 6.0),
+        direction="+",
+        advanced=False,
+    )
 
     result = sum_output_data([output1, output2])
 

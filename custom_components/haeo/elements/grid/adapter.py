@@ -93,20 +93,34 @@ class GridAdapter:
     ) -> GridConfigData:
         """Load grid configuration values from sensors."""
         ts_loader = TimeSeriesLoader()
+        # forecast_times are boundaries, so n_periods = len(forecast_times) - 1
+        n_periods = max(0, len(forecast_times) - 1)
 
-        import_price = await ts_loader.load_intervals(
-            hass=hass,
-            value=config.get("import_price"),
-            forecast_times=forecast_times,
-            default=DEFAULT_IMPORT_PRICE,
-        )
+        # Load import_price: entity list, constant, or use default
+        import_value = config.get("import_price")
+        if isinstance(import_value, list) and import_value:
+            import_price = await ts_loader.load_intervals(
+                hass=hass,
+                value=import_value,
+                forecast_times=forecast_times,
+            )
+        elif isinstance(import_value, (int, float)):
+            import_price = [float(import_value)] * n_periods
+        else:
+            import_price = [DEFAULT_IMPORT_PRICE] * n_periods
 
-        export_price = await ts_loader.load_intervals(
-            hass=hass,
-            value=config.get("export_price"),
-            forecast_times=forecast_times,
-            default=DEFAULT_EXPORT_PRICE,
-        )
+        # Load export_price: entity list, constant, or use default
+        export_value = config.get("export_price")
+        if isinstance(export_value, list) and export_value:
+            export_price = await ts_loader.load_intervals(
+                hass=hass,
+                value=export_value,
+                forecast_times=forecast_times,
+            )
+        elif isinstance(export_value, (int, float)):
+            export_price = [float(export_value)] * n_periods
+        else:
+            export_price = [DEFAULT_EXPORT_PRICE] * n_periods
 
         data: GridConfigData = {
             "element_type": config["element_type"],
@@ -119,24 +133,30 @@ class GridAdapter:
         # Load optional power limit fields
         import_limit = config.get("import_limit")
         if import_limit is not None:
-            data["import_limit"] = await ts_loader.load_intervals(
-                hass=hass,
-                value=import_limit,
-                forecast_times=forecast_times,
-            )
+            if isinstance(import_limit, list) and import_limit:
+                data["import_limit"] = await ts_loader.load_intervals(
+                    hass=hass,
+                    value=import_limit,
+                    forecast_times=forecast_times,
+                )
+            elif isinstance(import_limit, (int, float)):
+                data["import_limit"] = [float(import_limit)] * n_periods
 
         export_limit = config.get("export_limit")
         if export_limit is not None:
-            data["export_limit"] = await ts_loader.load_intervals(
-                hass=hass,
-                value=export_limit,
-                forecast_times=forecast_times,
-            )
+            if isinstance(export_limit, list) and export_limit:
+                data["export_limit"] = await ts_loader.load_intervals(
+                    hass=hass,
+                    value=export_limit,
+                    forecast_times=forecast_times,
+                )
+            elif isinstance(export_limit, (int, float)):
+                data["export_limit"] = [float(export_limit)] * n_periods
 
         return data
 
     def model_elements(self, config: GridConfigData) -> list[dict[str, Any]]:
-        """Return model element parameters for Grid configuration."""
+        """Create model elements for Grid configuration."""
         return [
             # Create Node for the grid (both source and sink - can import and export)
             {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": True},
@@ -194,7 +214,7 @@ class GridAdapter:
             grid_outputs[GRID_COST_IMPORT] = replace(import_cost_data, direction="-")
 
         # Export cost: negative value = money earned (revenue)
-        # The price_target_source is already negated in model_elements, so cost is negative
+        # The price_target_source is already negated in create_model_elements, so cost is negative
         if CONNECTION_COST_TARGET_SOURCE in connection:
             export_cost_data = connection[CONNECTION_COST_TARGET_SOURCE]
             grid_outputs[GRID_COST_EXPORT] = replace(export_cost_data, direction="+")

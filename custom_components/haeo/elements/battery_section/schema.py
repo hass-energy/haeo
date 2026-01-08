@@ -33,5 +33,5 @@ class BatterySectionConfigData(TypedDict):
 
     element_type: Literal["battery_section"]
     name: str
-    capacity: list[float]  # kWh per period (uses first value)
+    capacity: list[float]  # kWh at each time boundary (n+1 values)
     initial_charge: list[float]  # kWh per period (uses first value)

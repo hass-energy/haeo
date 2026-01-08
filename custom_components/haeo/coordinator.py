@@ -122,22 +122,22 @@ def _build_coordinator_output(
 ) -> CoordinatorOutput:
     """Convert model output values into coordinator state and forecast.
 
-    This function handles the "fence post problem" where different output types require
-    different numbers of timestamps:
+    This function handles the boundary alignment problem where different output types
+    require different numbers of timestamps:
 
     - **Interval values** (power, prices): Average values over time periods.
-      These have n_periods values, each representing the average from the start
-      of that period to its end. Use the first n_periods timestamps (fence posts).
+      These have n values, each representing the average from the start
+      of that period to its end. Use the first n timestamps.
 
     - **Boundary values** (energy, SOC): Instantaneous state at specific points in time.
-      These have n_periods+1 values (one more than intervals) representing the state
-      at each fence post. Use all n_periods+1 timestamps.
+      These have n+1 values representing the state at each time boundary.
+      Use all n+1 timestamps.
 
-    The forecast_times tuple contains n_periods+1 timestamps (all fence posts).
+    The forecast_times tuple contains n+1 timestamps (all boundaries).
     Each output type zips its values with however many timestamps it needs.
 
     Example with 3 periods of 300 seconds starting at t=0:
-      - forecast_times: [0, 300, 600, 900] (n_periods+1 = 4 fence posts)
+      - forecast_times: [0, 300, 600, 900] (n+1 = 4 boundaries)
       - Interval values (n=3): zip with [0, 300, 600]
       - Boundary values (n=4): zip with [0, 300, 600, 900]
     """

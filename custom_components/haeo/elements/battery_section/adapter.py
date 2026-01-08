@@ -9,8 +9,8 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import battery as model_battery
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import BatterySectionSubentryFlowHandler
@@ -81,7 +81,9 @@ class BatterySectionAdapter:
         """Load battery section configuration values from sensors."""
         ts_loader = TimeSeriesLoader()
 
-        capacity = await ts_loader.load_intervals(hass=hass, value=config[CONF_CAPACITY], forecast_times=forecast_times)
+        capacity = await ts_loader.load_boundaries(
+            hass=hass, value=config[CONF_CAPACITY], forecast_times=forecast_times
+        )
         initial_charge = await ts_loader.load_intervals(
             hass=hass, value=config[CONF_INITIAL_CHARGE], forecast_times=forecast_times
         )
@@ -94,7 +96,7 @@ class BatterySectionAdapter:
         }
 
     def model_elements(self, config: BatterySectionConfigData) -> list[dict[str, Any]]:
-        """Return model element parameters for BatterySection configuration.
+        """Create model elements for BatterySection configuration.
 
         Direct pass-through to the model battery element.
         """

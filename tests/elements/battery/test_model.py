@@ -8,12 +8,11 @@ import pytest
 from custom_components.haeo.elements import ELEMENT_TYPES
 from custom_components.haeo.elements import battery as battery_element
 from custom_components.haeo.elements.battery import BatteryConfigData
-from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model import ModelOutputName, power_connection
+from custom_components.haeo.model import battery as battery_model
+from custom_components.haeo.model import battery_balance_connection as balance_model
+from custom_components.haeo.model import node as node_model
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.elements import battery as battery_model
-from custom_components.haeo.model.elements import battery_balance_connection as balance_model
-from custom_components.haeo.model.elements import node as node_model
-from custom_components.haeo.model.elements import power_connection
 from custom_components.haeo.model.output_data import OutputData
 
 
@@ -42,19 +41,17 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="battery",
             name="battery_main",
             connection="network",
-            # Fence posts (n+1 values for n periods) - 2 values for 1 period
             capacity=[10.0, 10.0],
+            initial_charge_percentage=[50.0],
             min_charge_percentage=[10.0, 10.0],
             max_charge_percentage=[90.0, 90.0],
-            undercharge_percentage=[5.0, 5.0],
-            overcharge_percentage=[95.0, 95.0],
-            # Interval values (n values for n periods) - 1 value for 1 period
-            initial_charge_percentage=[50.0],
             efficiency=[95.0],
             max_charge_power=[5.0],
             max_discharge_power=[5.0],
             early_charge_incentive=[0.01],
             discharge_cost=[0.02],
+            undercharge_percentage=[5.0, 5.0],
+            overcharge_percentage=[95.0, 95.0],
             undercharge_cost=[0.03],
             overcharge_cost=[0.04],
         ),
@@ -144,12 +141,10 @@ CREATE_CASES: Sequence[CreateCase] = [
             element_type="battery",
             name="battery_normal",
             connection="network",
-            # Fence posts (n+1 values for n periods) - 2 values for 1 period
             capacity=[10.0, 10.0],
+            initial_charge_percentage=[50.0],
             min_charge_percentage=[0.0, 0.0],
             max_charge_percentage=[100.0, 100.0],
-            # Interval values (n values for n periods) - 1 value for 1 period
-            initial_charge_percentage=[50.0],
             efficiency=[95.0],
             max_charge_power=[5.0],
             max_discharge_power=[5.0],
@@ -203,12 +198,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             element_type="battery",
             name="battery_no_balance",
             connection="network",
-            # Fence posts (n+1 values for n periods) - 2 values for 1 period
             capacity=[10.0, 10.0],
+            initial_charge_percentage=[50.0],
             min_charge_percentage=[0.0, 0.0],
             max_charge_percentage=[100.0, 100.0],
-            # Interval values (n values for n periods) - 1 value for 1 period
-            initial_charge_percentage=[50.0],
             efficiency=[95.0],
             max_charge_power=[5.0],
             max_discharge_power=[5.0],
@@ -257,19 +250,17 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             element_type="battery",
             name="battery_all_sections",
             connection="network",
-            # Fence posts (n+1 values for n periods) - 2 values for 1 period
             capacity=[10.0, 10.0],
+            initial_charge_percentage=[50.0],
             min_charge_percentage=[10.0, 10.0],
             max_charge_percentage=[90.0, 90.0],
-            undercharge_percentage=[5.0, 5.0],
-            overcharge_percentage=[95.0, 95.0],
-            # Interval values (n values for n periods) - 1 value for 1 period
-            initial_charge_percentage=[50.0],
             efficiency=[95.0],
             max_charge_power=[5.0],
             max_discharge_power=[5.0],
             early_charge_incentive=[0.001],
             discharge_cost=[0.002],
+            undercharge_percentage=[5.0, 5.0],
+            overcharge_percentage=[95.0, 95.0],
             undercharge_cost=[0.03],
             overcharge_cost=[0.04],
         ),
