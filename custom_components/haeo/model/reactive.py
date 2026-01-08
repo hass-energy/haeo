@@ -14,7 +14,7 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from enum import Enum, auto
 from functools import partial
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import numpy as np
 
@@ -23,6 +23,9 @@ if TYPE_CHECKING:
     from highspy.highs import highs_cons, highs_linear_expression
 
     from .element import Element
+
+# Type variable for generic return types
+R = TypeVar("R")
 
 # Context for tracking parameter access during constraint computation
 _tracking_context: ContextVar[set[str] | None] = ContextVar("tracking", default=None)
@@ -265,24 +268,26 @@ class CachedConstraint[R](CachedMethod[R]):
         class Battery(Element):
             capacity = TrackedParam[Sequence[float]]()
 
-            @constraint
-            def soc_max_constraint(self) -> list[highs_linear_expression]:
+            @constraint(output=True, unit="$/kWh")
+            def battery_soc_max(self) -> list[highs_linear_expression]:
                 return [self.stored_energy[i] <= self.capacity[i] for i in ...]
 
     """
 
     kind = CachedKind.CONSTRAINT
 
-    def __init__(self, fn: Callable[..., R], *, output: bool = False) -> None:
+    def __init__(self, fn: Callable[..., R], *, output: bool = False, unit: str = "$/kW") -> None:
         """Initialize constraint decorator.
 
         Args:
             fn: The constraint function
             output: If True, expose as shadow price output (default False)
+            unit: Unit for shadow price output (default "$/kW")
 
         """
         super().__init__(fn)
         self.output = output
+        self.unit = unit
 
     def _call(self, obj: "Element[Any]") -> R:
         """Execute with caching, dependency tracking, and solver lifecycle management."""
@@ -436,7 +441,40 @@ class OutputMethod[R]:
         return partial(self._fn, obj)
 
 
-# Convenient decorator aliases
-constraint = CachedConstraint
+
+# Decorator shortcuts for cleaner syntax
+@overload
+def constraint(fn: Callable[..., R], /) -> CachedConstraint[R]: ...
+
+
+@overload
+def constraint(*, output: bool = False, unit: str = "$/kW") -> Callable[[Callable[..., R]], CachedConstraint[R]]: ...
+
+
+def constraint(
+    fn: Callable[..., R] | None = None, /, *, output: bool = False, unit: str = "$/kW"
+) -> CachedConstraint[R] | Callable[[Callable[..., R]], CachedConstraint[R]]:
+    """Decorator for constraint methods with automatic caching and dependency tracking.
+
+    Can be used with or without arguments:
+    - @constraint - basic constraint
+    - @constraint(output=True, unit="$/kWh") - constraint that generates shadow price output
+
+    Args:
+        fn: The function to decorate (when used without arguments)
+        output: If True, expose as shadow price output (default False)
+        unit: Unit for shadow price output (default "$/kW")
+
+    Returns:
+        Decorated function or decorator factory
+
+    """
+    if fn is not None:
+        # Called without arguments: @constraint
+        return CachedConstraint(fn, output=output, unit=unit)
+    # Called with arguments: @constraint(output=True, unit="$/kWh")
+    return lambda f: CachedConstraint(f, output=output, unit=unit)
+
+
 cost = CachedCost
 output = OutputMethod

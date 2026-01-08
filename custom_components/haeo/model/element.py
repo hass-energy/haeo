@@ -193,7 +193,7 @@ class Element[OutputNameT: str]:
 
                     output_data = OutputData(
                         type=OutputType.SHADOW_PRICE,
-                        unit="$/kW",  # Default unit for shadow prices
+                        unit=attr.unit,
                         values=self.extract_values(cons),
                     )
                     result[name] = output_data  # type: ignore[literal-required]

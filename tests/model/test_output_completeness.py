@@ -1,8 +1,8 @@
 """Test that model element output methods match OUTPUT_NAMES declarations.
 
 This ensures that:
-1. Every name in *_OUTPUT_NAMES has a corresponding @output method
-2. Every @output method has its name in *_OUTPUT_NAMES
+1. Every name in *_OUTPUT_NAMES has a corresponding @output or @constraint(output=True) method
+2. Every @output/@constraint(output=True) method has its name in *_OUTPUT_NAMES
 
 This prevents drift between declared outputs and implemented methods.
 """
@@ -10,12 +10,21 @@ This prevents drift between declared outputs and implemented methods.
 import pytest
 
 from custom_components.haeo.model.elements import ELEMENTS, ElementSpec
-from custom_components.haeo.model.reactive import OutputMethod
+from custom_components.haeo.model.reactive import CachedConstraint, OutputMethod
 
 
 def get_output_methods(cls: type) -> set[str]:
-    """Get all @output method names from a class."""
-    return {name for name in dir(cls) if isinstance(getattr(cls, name, None), OutputMethod)}
+    """Get all @output method names and @constraint(output=True) names from a class."""
+    output_names = set()
+    for name in dir(cls):
+        attr = getattr(cls, name, None)
+        # Check for @output decorated methods
+        if isinstance(attr, OutputMethod):
+            output_names.add(name)
+        # Check for @constraint(output=True) decorated methods
+        elif isinstance(attr, CachedConstraint) and attr.output:
+            output_names.add(name)
+    return output_names
 
 
 @pytest.mark.parametrize(

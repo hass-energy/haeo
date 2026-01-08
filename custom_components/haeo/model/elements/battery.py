@@ -124,9 +124,12 @@ class Battery(Element[BatteryOutputName]):
         """Constraint: cumulative energy out can only increase."""
         return list(self.energy_out[1:] >= self.energy_out[:-1])
 
-    @constraint
-    def soc_max_constraint(self) -> list[highs_linear_expression]:
-        """Constraint: stored energy cannot exceed capacity."""
+    @constraint(output=True, unit="$/kWh")
+    def battery_soc_max(self) -> list[highs_linear_expression]:
+        """Constraint: stored energy cannot exceed capacity.
+        
+        Output: shadow price indicating the marginal value of additional capacity.
+        """
         return list(self.stored_energy[1:] <= self.capacity[1:])
 
     @constraint
@@ -188,18 +191,6 @@ class Battery(Element[BatteryOutputName]):
     def battery_energy_out_flow(self) -> OutputData | None:
         """Output: shadow price for energy out flow constraint."""
         constraint = self.get_constraint("energy_out_flow_constraint")
-        if constraint is None:
-            return None
-        return OutputData(
-            type=OutputType.SHADOW_PRICE,
-            unit="$/kWh",
-            values=self.extract_values(constraint),
-        )
-
-    @output
-    def battery_soc_max(self) -> OutputData | None:
-        """Output: shadow price for SOC max constraint."""
-        constraint = self.get_constraint("soc_max_constraint")
         if constraint is None:
             return None
         return OutputData(
