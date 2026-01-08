@@ -84,10 +84,11 @@ class Node(Element[NodeOutputName]):
 
         Adapter layer maps this to element-specific names (grid_power_imported, load_power_consumed, etc.)
         """
-        if "power_balance_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("power_balance_constraint")
+        if constraint is None:
             return None
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
-            values=self.extract_values(self._applied_constraints["power_balance_constraint"]),
+            values=self.extract_values(constraint),
         )

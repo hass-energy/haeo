@@ -81,14 +81,20 @@ def _solve_connection_scenario(
     element.apply_constraints()
     element.apply_costs()
 
-    # Objective function - collect costs from _applied_costs (flatten lists)
+    # Objective function - collect costs from @cost decorated methods
     cost_terms: list[highs_linear_expression] = []
-    for cost_value in element._applied_costs.values():
-        if cost_value is not None:
-            if isinstance(cost_value, list):
-                cost_terms.extend(cost_value)
-            else:
-                cost_terms.append(cost_value)
+    from custom_components.haeo.model.reactive import CachedCost
+
+    for attr_name in dir(type(element)):
+        attr = getattr(type(element), attr_name, None)
+        if isinstance(attr, CachedCost):
+            method = getattr(element, attr_name)
+            cost_value = method()
+            if cost_value is not None:
+                if isinstance(cost_value, list):
+                    cost_terms.extend(cost_value)
+                else:
+                    cost_terms.append(cost_value)
     if source_cost != 0.0:
         cost_terms.append(Highs.qsum(source_vars[i] * source_cost * periods[i] for i in range(n_periods)))
     if target_cost != 0.0:

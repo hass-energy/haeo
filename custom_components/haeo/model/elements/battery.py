@@ -163,54 +163,59 @@ class Battery(Element[BatteryOutputName]):
     @output
     def battery_power_balance(self) -> OutputData | None:
         """Output: shadow price for power balance constraint."""
-        if "power_balance_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("power_balance_constraint")
+        if constraint is None:
             return None
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
-            values=self.extract_values(self._applied_constraints["power_balance_constraint"]),
+            values=self.extract_values(constraint),
         )
 
     @output
     def battery_energy_in_flow(self) -> OutputData | None:
         """Output: shadow price for energy in flow constraint."""
-        if "energy_in_flow_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("energy_in_flow_constraint")
+        if constraint is None:
             return None
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit="$/kWh",
-            values=self.extract_values(self._applied_constraints["energy_in_flow_constraint"]),
+            values=self.extract_values(constraint),
         )
 
     @output
     def battery_energy_out_flow(self) -> OutputData | None:
         """Output: shadow price for energy out flow constraint."""
-        if "energy_out_flow_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("energy_out_flow_constraint")
+        if constraint is None:
             return None
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit="$/kWh",
-            values=self.extract_values(self._applied_constraints["energy_out_flow_constraint"]),
+            values=self.extract_values(constraint),
         )
 
     @output
     def battery_soc_max(self) -> OutputData | None:
         """Output: shadow price for SOC max constraint."""
-        if "soc_max_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("soc_max_constraint")
+        if constraint is None:
             return None
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit="$/kWh",
-            values=self.extract_values(self._applied_constraints["soc_max_constraint"]),
+            values=self.extract_values(constraint),
         )
 
     @output
     def battery_soc_min(self) -> OutputData | None:
         """Output: shadow price for SOC min constraint."""
-        if "soc_min_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("soc_min_constraint")
+        if constraint is None:
             return None
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit="$/kWh",
-            values=self.extract_values(self._applied_constraints["soc_min_constraint"]),
+            values=self.extract_values(constraint),
         )

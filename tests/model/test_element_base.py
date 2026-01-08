@@ -75,10 +75,10 @@ def test_connection_power_with_source_end(solver: Highs) -> None:
 
 
 def test_apply_constraints_populates_applied_constraints(solver: Highs) -> None:
-    """Test that apply_constraints() populates _applied_constraints from @constraint methods.
+    """Test that apply_constraints() applies constraints via @constraint decorators.
 
     With the reactive pattern, constraints are discovered via @constraint decorators
-    and stored in _applied_constraints after calling apply_constraints().
+    and applied to the solver when apply_constraints() is called.
     """
     h = solver
 
@@ -86,16 +86,13 @@ def test_apply_constraints_populates_applied_constraints(solver: Highs) -> None:
     # Use is_sink=False so the power_balance_constraint actually creates constraints
     element = Node(name="test_node", periods=[1.0] * 3, solver=h, is_source=True, is_sink=False)
 
-    # Before applying, _applied_constraints should be empty
-    assert len(element._applied_constraints) == 0
-
     # Apply constraints
     element.apply_constraints()
 
-    # After applying, _applied_constraints should have entries from @constraint methods
+    # After applying, constraint state should exist
     # Node has power_balance_constraint (returns constraints when is_source=True, is_sink=False)
-    assert len(element._applied_constraints) > 0
-    assert "power_balance_constraint" in element._applied_constraints
+    constraint = element.get_constraint("power_balance_constraint")
+    assert constraint is not None
 
 
 def test_connection_power_with_multiple_connections(solver: Highs) -> None:

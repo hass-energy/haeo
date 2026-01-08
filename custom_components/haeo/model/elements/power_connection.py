@@ -240,26 +240,26 @@ class PowerConnection(Connection[PowerConnectionOutputName]):
     @output
     def connection_shadow_power_max_source_target(self) -> OutputData | None:
         """Shadow price for maximum power from source to target."""
-        if "power_max_source_target_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("power_max_source_target_constraint")
+        if constraint is None:
             return None
-        constraint_value = self._applied_constraints["power_max_source_target_constraint"]
-        return OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=self.extract_values(constraint_value))
+        return OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=self.extract_values(constraint))
 
     @output
     def connection_shadow_power_max_target_source(self) -> OutputData | None:
         """Shadow price for maximum power from target to source."""
-        if "power_max_target_source_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("power_max_target_source_constraint")
+        if constraint is None:
             return None
-        constraint_value = self._applied_constraints["power_max_target_source_constraint"]
-        return OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=self.extract_values(constraint_value))
+        return OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=self.extract_values(constraint))
 
     @output
     def connection_time_slice(self) -> OutputData | None:
         """Shadow price for time slice constraint."""
-        if "time_slice_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("time_slice_constraint")
+        if constraint is None:
             return None
-        constraint_value = self._applied_constraints["time_slice_constraint"]
-        return OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=self.extract_values(constraint_value))
+        return OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=self.extract_values(constraint))
 
 
 # Re-export connection constants for consumers that import from power_connection

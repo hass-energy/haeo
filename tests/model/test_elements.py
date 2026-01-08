@@ -62,14 +62,20 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         # Apply costs to collect cost terms from the element
         element.apply_costs()
 
-        # Collect all cost terms from applied costs
+        # Collect all cost terms from @cost decorated methods
         element_costs: list[Any] = []
-        for cost_value in element._applied_costs.values():
-            if cost_value is not None:
-                if isinstance(cost_value, list):
-                    element_costs.extend(cost_value)
-                else:
-                    element_costs.append(cost_value)
+        from custom_components.haeo.model.reactive import CachedCost
+
+        for attr_name in dir(type(element)):
+            attr = getattr(type(element), attr_name, None)
+            if isinstance(attr, CachedCost):
+                method = getattr(element, attr_name)
+                cost_value = method()
+                if cost_value is not None:
+                    if isinstance(cost_value, list):
+                        element_costs.extend(cost_value)
+                    else:
+                        element_costs.append(cost_value)
 
         input_cost = broadcast_to_sequence(inputs.get("input_cost", 0.0), n_periods)
         output_cost = broadcast_to_sequence(inputs.get("output_cost", 0.0), n_periods)

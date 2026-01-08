@@ -236,7 +236,6 @@ def test_network_constraint_generation_error() -> None:
     mock_element.power_balance_constraints = {}
     mock_element.power_consumption = None
     mock_element.power_production = None
-    mock_element._applied_costs = {}
     mock_element.apply_costs = Mock()
     mock_element.apply_constraints.side_effect = RuntimeError("Constraint generation failed")
     network.elements["failing_element"] = mock_element
@@ -279,8 +278,6 @@ def test_network_optimize_apply_constraints_error() -> None:
     # Mock an element that raises an exception during apply_constraints
     mock_element = Mock(spec=Element)
     mock_element.apply_constraints.side_effect = RuntimeError("Build failed")
-    mock_element._applied_constraints = {}
-    mock_element._applied_costs = {}
     network.elements["failing_element"] = mock_element
 
     # Should wrap the error with context about which element failed

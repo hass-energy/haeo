@@ -306,15 +306,25 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     # Apply balance connection constraints
     connection.apply_constraints()
 
-    # Apply costs and add slack penalties to objective (required for min/max constraint behavior)
+    # Apply costs and collect them for objective (required for min/max constraint behavior)
     connection.apply_costs()
     costs: list[Any] = []
-    for cost_value in connection._applied_costs.values():
-        if cost_value is not None:
-            if isinstance(cost_value, list):
-                costs.extend(cost_value)
-            else:
-                costs.append(cost_value)
+    
+    # Collect costs from @cost decorated methods
+    from custom_components.haeo.model.reactive import CachedCost
+
+    for attr_name in dir(type(connection)):
+        attr = getattr(type(connection), attr_name, None)
+        if isinstance(attr, CachedCost):
+            # Call the cost method (uses cache if valid)
+            method = getattr(connection, attr_name)
+            cost_value = method()
+            if cost_value is not None:
+                if isinstance(cost_value, list):
+                    costs.extend(cost_value)
+                else:
+                    costs.append(cost_value)
+    
     if len(costs) > 0:
         # Use reduce to avoid sum() returning Literal[0] when sequence is empty
         solver.minimize(reduce(lambda a, b: a + b, costs))

@@ -264,43 +264,47 @@ class BatteryBalanceConnection(Connection[BatteryBalanceConnectionOutputName]):
     @output
     def balance_down_lower_bound(self) -> OutputData | None:
         """Shadow price for down lower bound constraint."""
-        if "down_lower_bound_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("down_lower_bound_constraint")
+        if constraint is None:
             return None
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
-            values=self.extract_values(self._applied_constraints["down_lower_bound_constraint"]),
+            values=self.extract_values(constraint),
         )
 
     @output
     def balance_down_slack_bound(self) -> OutputData | None:
         """Shadow price for down slack bound constraint."""
-        if "down_slack_bound_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("down_slack_bound_constraint")
+        if constraint is None:
             return None
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
-            values=self.extract_values(self._applied_constraints["down_slack_bound_constraint"]),
+            values=self.extract_values(constraint),
         )
 
     @output
     def balance_up_upper_bound(self) -> OutputData | None:
         """Shadow price for up upper bound constraint."""
-        if "up_upper_bound_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("up_upper_bound_constraint")
+        if constraint is None:
             return None
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
-            values=self.extract_values(self._applied_constraints["up_upper_bound_constraint"]),
+            values=self.extract_values(constraint),
         )
 
     @output
     def balance_up_slack_bound(self) -> OutputData | None:
         """Shadow price for up slack bound constraint."""
-        if "up_slack_bound_constraint" not in self._applied_constraints:
+        constraint = self.get_constraint("up_slack_bound_constraint")
+        if constraint is None:
             return None
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit="$/kW",
-            values=self.extract_values(self._applied_constraints["up_slack_bound_constraint"]),
+            values=self.extract_values(constraint),
         )
