@@ -260,4 +260,3 @@ class Element[OutputNameT: str]:
                     else:
                         result.append(cost_value)
         return result
-

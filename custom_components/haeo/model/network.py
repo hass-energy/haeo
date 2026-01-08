@@ -145,20 +145,7 @@ class Network:
         costs: list[highs_linear_expression] = []
         for element_name, element in self.elements.items():
             try:
-                # Find all cost methods on this element
-                from .reactive import CachedCost
-
-                for attr_name in dir(type(element)):
-                    attr = getattr(type(element), attr_name, None)
-                    if isinstance(attr, CachedCost):
-                        # Call the cost method (uses cache if valid)
-                        method = getattr(element, attr_name)
-                        cost_value = method()
-                        if cost_value is not None:
-                            if isinstance(cost_value, list):
-                                costs.extend(cost_value)
-                            else:
-                                costs.append(cost_value)
+                costs.extend(element.cost())
             except Exception as e:
                 msg = f"Failed to collect costs for element '{element_name}'"
                 raise ValueError(msg) from e
