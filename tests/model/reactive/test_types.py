@@ -62,6 +62,7 @@ def test_getitem_raises_for_unset_param() -> None:
 
 def test_values_equal_handles_comparison_errors() -> None:
     """Test _values_equal handles TypeError and ValueError in comparisons."""
+
     # Test numpy array comparison that raises TypeError
     # (e.g., arrays with incompatible shapes for certain operations)
     class BadArray:
