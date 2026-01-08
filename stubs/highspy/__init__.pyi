@@ -8,8 +8,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 class HighspyArray(np.ndarray[Any, np.dtype[np.object_]]):
-    """HiGHS array type - numpy array subclass containing highs_var objects."""
-
     def __mul__(self, other: float | NDArray[Any] | tuple[float, ...]) -> HighspyArray: ...
     def __rmul__(self, other: float | NDArray[Any] | tuple[float, ...]) -> HighspyArray: ...
     def __add__(
@@ -31,12 +29,8 @@ class HighspyArray(np.ndarray[Any, np.dtype[np.object_]]):
     def __getitem__(self, key: slice | NDArray[Any]) -> HighspyArray: ...
 
 class highs_var:
-    """HiGHS variable type."""
-
     @property
-    def index(self) -> int:
-        """Return the index of this variable in the solver model."""
-        ...
+    def index(self) -> int: ...
     def __add__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
     def __radd__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
     def __sub__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
@@ -49,33 +43,18 @@ class highs_var:
     def __eq__(self, other: object) -> highs_linear_expression: ...  # type: ignore[override]
 
 class highs_cons:
-    """HiGHS constraint type."""
-
     @property
-    def index(self) -> int:
-        """Return the index of this constraint in the solver model."""
-        ...
+    def index(self) -> int: ...
 
 class highs_linear_expression:
-    """HiGHS linear expression type."""
-
-    # Internal state for coefficient extraction
     @property
-    def idxs(self) -> list[int]:
-        """Variable indices in this expression."""
-        ...
+    def idxs(self) -> list[int]: ...
     @property
-    def vals(self) -> list[float]:
-        """Coefficients for each variable index."""
-        ...
+    def vals(self) -> list[float]: ...
     @property
-    def bounds(self) -> tuple[float, float] | None:
-        """Lower and upper bounds if constraint-like, else None."""
-        ...
+    def bounds(self) -> tuple[float, float] | None: ...
     @property
-    def constant(self) -> float | None:
-        """Constant term in expression, if any."""
-        ...
+    def constant(self) -> float | None: ...
 
     def __init__(self, value: float = ...) -> None: ...
     def __add__(self, other: highs_var | highs_linear_expression | float) -> highs_linear_expression: ...
@@ -90,8 +69,6 @@ class highs_linear_expression:
     def __eq__(self, other: object) -> highs_linear_expression: ...  # type: ignore[override]
 
 class HighsModelStatus(IntEnum):
-    """HiGHS model status enumeration."""
-
     kNotset = 0
     kLoadError = 1
     kModelError = 2
@@ -111,23 +88,16 @@ class HighsModelStatus(IntEnum):
     kSolutionLimit = 16
 
 class HighsCallback:
-    """HiGHS callback type."""
     def __iadd__(self, callback: Callable[[int, str], None]) -> HighsCallback: ...
 
 class Highs:
-    """HiGHS solver class."""
-
     cbLogging: HighsCallback
 
     @property
-    def numVariables(self) -> int:
-        """Return the number of variables in the model."""
-        ...
+    def numVariables(self) -> int: ...
 
     @property
-    def numConstrs(self) -> int:
-        """Return the number of constraints in the model."""
-        ...
+    def numConstrs(self) -> int: ...
 
     def __init__(self) -> None: ...
     def setOptionValue(self, option: str, value: bool | int | float | str) -> None: ...
@@ -190,65 +160,12 @@ class Highs:
         self,
         cons: Iterable[highs_cons] | NDArray[Any],
     ) -> NDArray[np.float64]: ...
-    def changeRowBounds(self, row: int, lower: float, upper: float) -> None:
-        """Change bounds for a constraint row.
-
-        Args:
-            row: Index of the constraint row
-            lower: New lower bound
-            upper: New upper bound
-
-        """
-        ...
-    def changeColCost(self, col: int, cost: float) -> None:
-        """Change objective coefficient for a variable column.
-
-        Args:
-            col: Index of the variable column
-            cost: New objective coefficient
-
-        """
-        ...
-    def changeColBounds(self, col: int, lower: float, upper: float) -> None:
-        """Change bounds for a variable column.
-
-        Args:
-            col: Index of the variable column
-            lower: New lower bound
-            upper: New upper bound
-
-        """
-        ...
-    def changeCoeff(self, row: int, col: int, value: float) -> None:
-        """Change a coefficient in the constraint matrix.
-
-        Args:
-            row: Index of the constraint row
-            col: Index of the variable column
-            value: New coefficient value
-
-        """
-        ...
-    def deleteRows(self, num_rows: int, row_indices: list[int]) -> None:
-        """Delete constraint rows from the model.
-
-        Args:
-            num_rows: Number of rows to delete
-            row_indices: Indices of the constraint rows to delete
-
-        """
-        ...
-    def getExpr(self, cons: highs_cons) -> highs_linear_expression:
-        """Get the linear expression for an existing constraint.
-
-        Args:
-            cons: The constraint to get the expression for
-
-        Returns:
-            The linear expression representing the constraint's left-hand side
-
-        """
-        ...
+    def changeRowBounds(self, row: int, lower: float, upper: float) -> None: ...
+    def changeColCost(self, col: int, cost: float) -> None: ...
+    def changeColBounds(self, col: int, lower: float, upper: float) -> None: ...
+    def changeCoeff(self, row: int, col: int, value: float) -> None: ...
+    def deleteRows(self, num_rows: int, row_indices: list[int]) -> None: ...
+    def getExpr(self, cons: highs_cons) -> highs_linear_expression: ...
     @staticmethod
     def qsum(
         items: Iterable[highs_var | highs_linear_expression | float | HighspyArray] | NDArray[np.object_],
