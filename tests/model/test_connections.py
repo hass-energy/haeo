@@ -77,9 +77,8 @@ def _solve_connection_scenario(
         h.addConstr(source_vars[i] == element.power_source_target[i] - element.power_target_source[i])
         h.addConstr(target_vars[i] == element.power_source_target[i] - element.power_target_source[i])
 
-    # Apply constraints and costs via reactive pattern
+    # Apply constraints via reactive pattern
     element.apply_constraints()
-    element.apply_costs()
 
     # Objective function - collect costs from @cost decorated methods
     cost_terms: list[highs_linear_expression] = []

@@ -440,15 +440,3 @@ class OutputMethod[R]:
 constraint = CachedConstraint
 cost = CachedCost
 output = OutputMethod
-
-
-# Backward compatibility alias - ReactiveElement is now Element
-# Import at runtime to avoid circular imports during module load
-def __getattr__(name: str) -> Any:
-    """Provide backward compatibility for ReactiveElement import."""
-    if name == "ReactiveElement":
-        from .element import Element  # noqa: PLC0415
-
-        return Element
-    msg = f"module {__name__!r} has no attribute {name!r}"
-    raise AttributeError(msg)

@@ -213,17 +213,3 @@ class Element[OutputNameT: str]:
                 method = getattr(self, name)
                 method()
 
-    def apply_costs(self) -> None:
-        """Evaluate all cost methods to ensure they're cached.
-
-        This method exists for compatibility but costs are collected directly
-        by Network.optimize(). It just ensures cost methods are evaluated.
-        """
-        from .reactive import CachedCost
-
-        # Find all cost methods on this class and call them
-        for name in dir(type(self)):
-            attr = getattr(type(self), name, None)
-            if isinstance(attr, CachedCost):
-                method = getattr(self, name)
-                method()

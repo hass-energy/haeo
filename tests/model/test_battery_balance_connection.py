@@ -306,10 +306,9 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     # Apply balance connection constraints
     connection.apply_constraints()
 
-    # Apply costs and collect them for objective (required for min/max constraint behavior)
-    connection.apply_costs()
+    # Collect costs for objective (required for min/max constraint behavior)
     costs: list[Any] = []
-    
+
     # Collect costs from @cost decorated methods
     from custom_components.haeo.model.reactive import CachedCost
 

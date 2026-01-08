@@ -59,9 +59,6 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         # Call apply_constraints() to set up power balance with mocked connection_power
         element.apply_constraints()
 
-        # Apply costs to collect cost terms from the element
-        element.apply_costs()
-
         # Collect all cost terms from @cost decorated methods
         element_costs: list[Any] = []
         from custom_components.haeo.model.reactive import CachedCost
