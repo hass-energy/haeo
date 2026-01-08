@@ -127,11 +127,7 @@ class Network:
 
         """
         # Collect costs from all elements
-        costs = [
-            element_cost
-            for element in self.elements.values()
-            if (element_cost := element.cost()) is not None
-        ]
+        costs = [element_cost for element in self.elements.values() if (element_cost := element.cost()) is not None]
 
         # Aggregate into a single expression
         if not costs:

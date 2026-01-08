@@ -419,3 +419,55 @@ def test_add_battery_balance_connection_lower_not_battery() -> None:
             upper="upper_section",
             lower="not_a_battery",
         )
+
+
+def test_network_cost_with_multiple_elements() -> None:
+    """Test Network.cost() aggregates costs from multiple elements using Highs.qsum."""
+    network = Network(name="test", periods=[1.0, 1.0])
+
+    # Add two nodes
+    network.add(ELEMENT_TYPE_NODE, "source", is_source=True, is_sink=False)
+    network.add(ELEMENT_TYPE_NODE, "target", is_source=False, is_sink=True)
+
+    # Add two connections with pricing (each creates costs)
+    network.add(
+        ELEMENT_TYPE_CONNECTION,
+        "conn1",
+        source="source",
+        target="target",
+        price_source_target=[10.0, 20.0],
+    )
+    network.add(
+        ELEMENT_TYPE_CONNECTION,
+        "conn2",
+        source="target",
+        target="source",
+        price_source_target=[5.0, 10.0],
+    )
+
+    # Get aggregated cost - should use Highs.qsum for multiple costs
+    cost = network.cost()
+
+    # Should return a single expression
+    assert cost is not None
+
+
+def test_network_cost_returns_none_when_no_costs() -> None:
+    """Test Network.cost() returns None when network has no cost terms."""
+    network = Network(name="test", periods=[1.0])
+
+    # Add a node (has no costs)
+    network.add(ELEMENT_TYPE_NODE, "node", is_source=True, is_sink=True)
+
+    # Should return None when no costs
+    cost = network.cost()
+    assert cost is None
+
+
+def test_network_constraints_empty_when_no_elements() -> None:
+    """Test Network.constraints() returns empty dict with no elements."""
+    network = Network(name="test", periods=[1.0])
+
+    # No elements added - should return empty dict
+    constraints = network.constraints()
+    assert constraints == {}
