@@ -30,11 +30,112 @@ Most new elements will be Device Layer elements that compose `node` and `connect
 ### Adding a Model Layer element
 
 1. Design the mathematical behavior: variables, constraints, cost contributions
-2. Implement the model class in `custom_components/haeo/model/` deriving from `Element`
-3. Implement `outputs()` returning raw optimization results
-4. Register with the network builder
-5. Update Device Layer elements to use the new model
-6. Write model tests and integration tests
+2. Implement the model class in `custom_components/haeo/model/elements/` deriving from `Element`
+3. Use `TrackedParam` for parameters that can change between optimizations
+4. Use `@constraint` decorator for constraint methods
+5. Use `@cost` decorator for cost contribution methods
+6. Use `@output` decorator for output extraction methods
+7. Register in the `ELEMENTS` registry in `model/elements/__init__.py`
+8. Update Device Layer elements to use the new model
+9. Write model tests and integration tests
+
+## Implementing Model Elements
+
+### Element structure
+
+Model elements derive from the `Element` base class and use decorators to declare their constraints, costs, and outputs.
+
+### TrackedParam for parameters
+
+Parameters that can change between optimizations (forecasts, capacities, prices) should use `TrackedParam`:
+
+```python
+from custom_components.haeo.model.reactive import TrackedParam
+
+
+class Battery(Element[BatteryOutputName]):
+    # Declare parameters as TrackedParam descriptors
+    capacity: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    initial_charge: TrackedParam[float] = TrackedParam()
+
+    def __init__(
+        self,
+        name: str,
+        periods: Sequence[float],
+        *,
+        solver: Highs,
+        capacity: Sequence[float] | float,
+        initial_charge: float,
+    ):
+        super().__init__(name=name, periods=periods, solver=solver, output_names=BATTERY_OUTPUT_NAMES)
+
+        # Set parameter values
+        self.capacity = broadcast_to_sequence(capacity, self.n_periods + 1)
+        self.initial_charge = initial_charge
+```
+
+When a `TrackedParam` value changes, the system automatically invalidates dependent constraints for rebuilding.
+
+### @constraint decorator
+
+Use `@constraint` to declare constraint methods.
+The decorator caches expressions and manages the solver lifecycle:
+
+```python
+from custom_components.haeo.model.reactive import constraint
+
+
+@constraint(output=True, unit="$/kWh")
+def battery_soc_max(self) -> list[highs_linear_expression]:
+    """Constraint: stored energy cannot exceed capacity.
+
+    Output: shadow price indicating the marginal value of additional capacity.
+    """
+    return list(self.stored_energy[1:] <= self.capacity[1:])
+```
+
+Parameters:
+
+- `output=True`: Expose constraint shadow prices as outputs (default `False`)
+- `unit`: Unit for shadow price outputs (default `"$/kW"`)
+
+### @cost decorator
+
+Use `@cost` to declare cost contribution methods:
+
+```python
+from custom_components.haeo.model.reactive import cost
+
+
+@cost
+def cost_source_target(self) -> highs_linear_expression | None:
+    """Cost for power flow from source to target."""
+    if self.price_source_target is None:
+        return None
+    return Highs.qsum(self.power_source_target * self.price_source_target * self.periods)
+```
+
+The network automatically sums all `@cost` methods across all elements.
+
+### @output decorator
+
+Use `@output` to declare output extraction methods:
+
+```python
+from custom_components.haeo.model.reactive import output
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.const import OutputType
+
+
+@output
+def battery_power_charge(self) -> OutputData:
+    """Output: power being consumed to charge the battery."""
+    return OutputData(
+        type=OutputType.POWER, unit="kW", values=self.extract_values(self.power_consumption), direction="-"
+    )
+```
+
+The network discovers outputs via reflection on `@output` and `@constraint(output=True)` decorated methods.
 
 ## Modeling guidelines
 
@@ -58,35 +159,37 @@ This reduces the number of explicit constraints you need and improves solver per
 
 ### Expose element outputs
 
-Each element must implement `outputs()` so the Home Assistant integration can discover the sensor data automatically.
-Return a tuple of `ElementOutput` dataclasses where `values` is the full time series as floats.
-Extract the solution values from the HiGHS model and provide copies of any underlying lists so callers cannot mutate internal state.
+Each element uses the `@output` decorator to mark methods that extract optimization results.
+The network discovers these methods via reflection and calls them to populate sensor data.
 
-The base `Element` implementation already reports net power in kilowatts.
-Override the method when you need to expose extra information such as stored energy, state of charge, or forecast capacity.
+Return `OutputData` objects with:
+
+- `type`: Output type (POWER, ENERGY, STATE_OF_CHARGE, COST, PRICE, SHADOW_PRICE, etc.)
+- `unit`: Unit string (kW, kWh, $, $/kWh, etc.)
+- `values`: Tuple of floats for the time series
+- `direction`: Optional "+" (production) or "-" (consumption)
+
+Extract solution values from HiGHS variables using `self.extract_values()`.
 
 **Expected outputs by element type:**
 
-- **Battery models**: `power`, `energy`, and `soc`
-- **Solar models**: `power` and `available_power` (based on forecast limits)
-- **Load models**: `power` only
-- **Grid models**: `power` and `cost`
+- **Battery models**: `power_charge`, `power_discharge`, `energy_stored`
+- **Connection models**: `power_source_target`, `power_target_source`, costs, shadow prices
+- **Node models**: `power_in`, `power_out` (if applicable)
 
 Keeping the output contract consistent means new model components immediately surface in Home Assistant without changes to the sensor platform.
-See existing implementations in `custom_components/haeo/model/` for examples:
+See existing implementations in `custom_components/haeo/model/elements/` for examples:
 
 - `battery.py` - Energy storage with SOC tracking
-- `solar.py` - Solar generation with forecast limits
-- `grid.py` - Grid import/export with pricing
-- `constant_load.py` - Fixed power consumption
-- `forecast_load.py` - Time-varying consumption
+- `power_connection.py` - Power flow with limits and pricing
+- `node.py` - Power balance points
 
 ## Connections and nodes
 
 Connections remain responsible for enforcing flow limits and tying elements together through node balance constraints.
 When introducing a new element, ensure it connects through existing nodes or provide a clear reason to add a specialised node variant.
 
-The current implementations are in `custom_components/haeo/model/connection.py` and `custom_components/haeo/model/node.py`.
+The current implementations are in `custom_components/haeo/model/elements/connection.py`, `custom_components/haeo/model/elements/power_connection.py`, and `custom_components/haeo/model/elements/node.py`.
 
 ## Cost modelling
 

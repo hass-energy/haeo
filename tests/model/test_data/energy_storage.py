@@ -1,6 +1,6 @@
 """Test data and factories for EnergyStorage element."""
 
-from custom_components.haeo.model.energy_storage import EnergyStorage
+from custom_components.haeo.model.elements.energy_storage import EnergyStorage
 
 from .element_types import ElementTestCase
 

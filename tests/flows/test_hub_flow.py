@@ -341,7 +341,12 @@ async def test_subentry_translations_exist(hass: HomeAssistant) -> None:
     for element_type, flow_class in subentry_flows.items():
         base_key = f"component.{DOMAIN}.config_subentries.{element_type}"
 
-        for suffix in common_suffixes:
+        # Grid uses consolidated translations without separate reconfigure step
+        suffixes_to_check = common_suffixes
+        if element_type == "grid":
+            suffixes_to_check = tuple(s for s in common_suffixes if not s.startswith("step.reconfigure"))
+
+        for suffix in suffixes_to_check:
             assert f"{base_key}.{suffix}" in translations, f"Missing translation key {base_key}.{suffix}"
 
         flow: Any = flow_class()

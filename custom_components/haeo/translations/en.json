@@ -274,37 +274,15 @@
       "initiate_flow": { "user": "Grid", "reconfigure": "Grid" },
       "step": {
         "user": {
-          "title": "Add Grid",
-          "description": "Set up grid import/export parameters and pricing",
+          "title": "Grid Configuration",
+          "description": "Configure grid import/export parameters and pricing",
           "data": {
             "connection": "Connection",
-            "export_limit_mode": "Export Limit Source",
-            "export_price_mode": "Export Price Source",
-            "import_limit_mode": "Import Limit Source",
-            "import_price_mode": "Import Price Source",
-            "name": "Grid Name"
-          }
-        },
-        "reconfigure": {
-          "title": "Edit Grid",
-          "description": "Update grid configuration",
-          "data": {
-            "connection": "Connection",
-            "export_limit_mode": "Export Limit Source",
-            "export_price_mode": "Export Price Source",
-            "import_limit_mode": "Import Limit Source",
-            "import_price_mode": "Import Price Source",
-            "name": "Grid Name"
-          }
-        },
-        "reconfigure_values": {
-          "title": "Edit Grid Values",
-          "description": "Update values for the selected input sources",
-          "data": {
             "export_limit": "Export Limit",
             "export_price": "Export Price",
             "import_limit": "Import Limit",
-            "import_price": "Import Price"
+            "import_price": "Import Price",
+            "name": "Grid Name"
           }
         },
         "values": {
@@ -455,6 +433,7 @@
     "solar": { "name": "{name}" }
   },
   "entity": {
+    "haeo": { "configurable_entity": { "name": "Configurable Entity" } },
     "number": {
       "battery_capacity": { "name": "Capacity" },
       "battery_discharge_cost": { "name": "Discharge cost" },
@@ -500,6 +479,8 @@
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },
+      "connection_cost_source_target": { "name": "{source} to {target} cost" },
+      "connection_cost_target_source": { "name": "{target} to {source} cost" },
       "connection_power_active": { "name": "{source} to {target} active power" },
       "connection_power_source_target": { "name": "{source} to {target} power" },
       "connection_power_target_source": { "name": "{target} to {source} power" },
@@ -515,6 +496,9 @@
       "energy_storage_power_discharge": { "name": "Discharge power" },
       "energy_storage_soc_max": { "name": "SOC max shadow price" },
       "energy_storage_soc_min": { "name": "SOC min shadow price" },
+      "grid_cost_export": { "name": "Export cost" },
+      "grid_cost_import": { "name": "Import cost" },
+      "grid_cost_net": { "name": "Net cost" },
       "grid_power_active": { "name": "Active power" },
       "grid_power_export": { "name": "Export power" },
       "grid_power_import": { "name": "Import power" },

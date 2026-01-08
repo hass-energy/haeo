@@ -22,6 +22,10 @@ from .flow import EnergyStorageSubentryFlowHandler
 from .schema import CONF_CAPACITY, CONF_INITIAL_CHARGE, ELEMENT_TYPE, EnergyStorageConfigData, EnergyStorageConfigSchema
 
 __all__ = [
+    # Schema
+    "CONF_CAPACITY",
+    "CONF_INITIAL_CHARGE",
+    "ELEMENT_TYPE",
     # Adapter
     "ENERGY_STORAGE_DEVICE",
     "ENERGY_STORAGE_DEVICE_NAMES",
@@ -35,10 +39,6 @@ __all__ = [
     "ENERGY_STORAGE_POWER_DISCHARGE",
     "ENERGY_STORAGE_SOC_MAX",
     "ENERGY_STORAGE_SOC_MIN",
-    # Schema
-    "CONF_CAPACITY",
-    "CONF_INITIAL_CHARGE",
-    "ELEMENT_TYPE",
     "EnergyStorageAdapter",
     "EnergyStorageConfigData",
     "EnergyStorageConfigSchema",

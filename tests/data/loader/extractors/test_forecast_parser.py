@@ -41,17 +41,16 @@ def test_extract_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_dat
 
     result = extractors.extract(state)
 
-    expected_count = sensor_data["expected_count"]
     assert result is not None, f"Expected data for {parser_type}"
     assert isinstance(result.data, list), "Valid forecasts should return a list of time series entries"
-    assert len(result.data) >= 1
-    if expected_count > 0:
-        assert len(result.data) == expected_count
-        # Verify chronological order (only check if multiple entries)
-        if len(result.data) > 1:
-            assert result.data[0][0] < result.data[-1][0], "Timestamps should be in chronological order"
 
-    assert result.unit is not None, f"Expected unit for {parser_type}"
+    expected_data: list[tuple[float, float]] = sensor_data["expected_data"]
+    assert len(result.data) == len(expected_data)
+    for actual, expected in zip(result.data, expected_data, strict=True):
+        assert actual == pytest.approx(expected, rel=1e-9)
+
+    expected_unit: str = sensor_data["expected_unit"]
+    assert result.unit == expected_unit
 
 
 @pytest.mark.parametrize(

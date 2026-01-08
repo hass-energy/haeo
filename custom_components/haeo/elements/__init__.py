@@ -115,7 +115,7 @@ type ElementOutputName = (
     | NetworkOutputName
 )
 
-ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
+ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(  # type: ignore[assignment]  # frozenset union doesn't narrow to ElementOutputName
     inverter.INVERTER_OUTPUT_NAMES
     | battery.BATTERY_OUTPUT_NAMES
     | energy_storage.ENERGY_STORAGE_OUTPUT_NAMES
@@ -194,7 +194,7 @@ class ElementAdapter(Protocol):
         """Load configuration values from sensors."""
         ...
 
-    def create_model_elements(self, config: Any) -> list[dict[str, Any]]:
+    def model_elements(self, config: Any) -> list[dict[str, Any]]:
         """Transform loaded config into model element parameters."""
         ...
 

@@ -17,7 +17,6 @@ constraints (E >= 0, E <= C) fully bind the solution to exact values.
 """
 
 from dataclasses import dataclass
-from functools import reduce
 from typing import Self
 
 from highspy import Highs
@@ -26,7 +25,7 @@ import numpy as np
 from numpy.typing import NDArray
 import pytest
 
-from custom_components.haeo.model.energy_balance_connection import EnergyBalanceConnection
+from custom_components.haeo.model.elements.energy_balance_connection import EnergyBalanceConnection
 
 
 @dataclass
@@ -303,14 +302,13 @@ def test_energy_balance_connection(scenario: BalanceTestScenario, solver: Highs)
     upper.build_power_balance(scenario.periods)
     lower.build_power_balance(scenario.periods)
 
-    # Build balance connection constraints
-    connection.build_constraints()
+    # Build balance connection constraints (triggers reactive constraint building)
+    connection.constraints()
 
-    # Add slack penalties to objective (required for min/max constraint behavior)
-    costs = connection.cost()
-    if len(costs) > 0:
-        # Use reduce to avoid sum() returning Literal[0] when sequence is empty
-        solver.minimize(reduce(lambda a, b: a + b, costs))
+    # Add cost to objective (required for min/max constraint behavior via slack penalties)
+    cost_expr = connection.cost()
+    if cost_expr is not None:
+        solver.minimize(cost_expr)
 
     # Solve
     solver.run()
@@ -341,7 +339,7 @@ def test_energy_balance_connection_missing_references(solver: Highs) -> None:
     )
 
     with pytest.raises(ValueError, match="Partition references not set"):
-        connection.build_constraints()
+        connection.constraints()
 
 
 def test_energy_balance_connection_outputs_structure(solver: Highs) -> None:
@@ -359,7 +357,7 @@ def test_energy_balance_connection_outputs_structure(solver: Highs) -> None:
     )
     # MockPartition provides the same interface as EnergyStorage but isn't a subtype
     connection.set_partition_references(upper, lower)  # type: ignore[arg-type]
-    connection.build_constraints()
+    connection.constraints()
 
     # Run solver
     solver.run()

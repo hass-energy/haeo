@@ -190,6 +190,78 @@ async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     assert mock_hub_entry.runtime_data is None
 
 
+async def test_unload_last_entry_cleans_up_sentinels(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unloading the last HAEO entry cleans up sentinel entities."""
+    # Set up mock runtime data
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
+
+    # Track if async_unload_sentinel_entities was called
+    cleanup_called = False
+
+    def mock_cleanup(hass: HomeAssistant) -> None:
+        nonlocal cleanup_called
+        cleanup_called = True
+
+    monkeypatch.setattr(
+        "custom_components.haeo.async_unload_sentinel_entities",
+        mock_cleanup,
+    )
+
+    # This is the only entry, so unloading should trigger cleanup
+    result = await async_unload_entry(hass, mock_hub_entry)
+
+    assert result is True
+    assert cleanup_called, "async_unload_sentinel_entities should be called for last entry"
+
+
+async def test_unload_with_remaining_entries_skips_sentinel_cleanup(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unloading with other HAEO entries remaining does not clean up sentinels."""
+    # Create a second HAEO entry that will remain
+    other_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Other Network",
+        },
+        entry_id="other_entry_id",
+        title="Other HAEO Integration",
+    )
+    other_entry.add_to_hass(hass)
+
+    # Set up mock runtime data for the entry being unloaded
+    mock_coordinator = Mock()
+    mock_coordinator.cleanup = Mock()
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
+
+    # Track if async_unload_sentinel_entities was called
+    unload_called = False
+
+    def mock_unload(hass: HomeAssistant) -> None:
+        nonlocal unload_called
+        unload_called = True
+
+    monkeypatch.setattr(
+        "custom_components.haeo.async_unload_sentinel_entities",
+        mock_unload,
+    )
+
+    # Unload mock_hub_entry - other_entry still remains
+    result = await async_unload_entry(hass, mock_hub_entry)
+
+    assert result is True
+    assert not unload_called, "async_unload_sentinel_entities should NOT be called when other entries remain"
+
+
 async def test_async_setup_entry_initializes_coordinator(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -202,6 +274,7 @@ async def test_async_setup_entry_initializes_coordinator(
             super().__init__()
             self.hass = hass_param
             self.config_entry = entry_param
+            self.async_initialize = AsyncMock()
             self.async_refresh = AsyncMock()
             self.cleanup = Mock()
 
@@ -225,6 +298,7 @@ async def test_async_setup_entry_initializes_coordinator(
     runtime_data = mock_hub_entry.runtime_data
     assert runtime_data is not None
     assert runtime_data.coordinator is coordinator
+    coordinator.async_initialize.assert_awaited_once()
     coordinator.async_refresh.assert_awaited_once()
     # forward_mock is called twice: once for INPUT_PLATFORMS, once for OUTPUT_PLATFORMS
     assert forward_mock.await_count == 2
@@ -412,7 +486,7 @@ async def test_async_update_listener(
         connectivity_called = True
 
     monkeypatch.setattr(
-        "custom_components.haeo.network.evaluate_network_connectivity",
+        "custom_components.haeo.coordinator.evaluate_network_connectivity",
         mock_evaluate,
     )
 

@@ -1,16 +1,19 @@
 """Energy balance connection for energy redistribution between energy storage partitions."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Final, Literal
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
+from numpy.typing import NDArray
+
+from custom_components.haeo.model.const import OutputType
+from custom_components.haeo.model.output_data import OutputData
+from custom_components.haeo.model.reactive import TrackedParam, constraint, cost, output
+from custom_components.haeo.model.util import broadcast_to_sequence
 
 from .connection import Connection
-from .const import OutputType
-from .output_data import OutputData
-from .util import broadcast_to_sequence
 
 # Model element type for energy balance connections
 ELEMENT_TYPE: Final = "energy_balance_connection"
@@ -49,7 +52,7 @@ ENERGY_BALANCE_CONNECTION_OUTPUT_NAMES: Final[frozenset[EnergyBalanceConnectionO
 )
 
 
-class EnergyBalanceConnection(Connection[EnergyBalanceConnectionOutputName, EnergyBalanceConnectionConstraintName]):
+class EnergyBalanceConnection(Connection[EnergyBalanceConnectionOutputName]):
     """Lossless energy redistribution between adjacent energy storage partitions.
 
     Enforces ordering (lower fills before upper) and handles capacity changes
@@ -62,11 +65,16 @@ class EnergyBalanceConnection(Connection[EnergyBalanceConnectionOutputName, Ener
     Where:
         demand = C_lower - E_lower (room in lower partition)
         excess = E_lower - C_new (energy above new capacity)
+
+    Uses TrackedParam for parameters that can change between optimizations.
     """
 
     # Default penalty for slack variables in $/kWh
     # Must be larger than any reasonable energy price to ensure slacks are minimized
     DEFAULT_SLACK_PENALTY: Final[float] = 100.0
+
+    # Parameters
+    capacity_lower: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
@@ -93,7 +101,14 @@ class EnergyBalanceConnection(Connection[EnergyBalanceConnectionOutputName, Ener
                 constraints are enforced correctly.
 
         """
-        super().__init__(name=name, periods=periods, solver=solver, source=upper, target=lower)
+        super().__init__(
+            name=name,
+            periods=periods,
+            solver=solver,
+            source=upper,
+            target=lower,
+            output_names=ENERGY_BALANCE_CONNECTION_OUTPUT_NAMES,
+        )
         n_periods = self.n_periods
         h = solver
 
@@ -133,39 +148,16 @@ class EnergyBalanceConnection(Connection[EnergyBalanceConnectionOutputName, Ener
         """
         return self._power_down - self._power_up
 
-    def build_constraints(self) -> None:
-        """Build constraints for the energy balance connection.
+    def _get_flow_expressions(self) -> tuple[HighspyArray, HighspyArray, HighspyArray, HighspyArray]:
+        """Calculate flow expressions for constraints.
 
-        Downward flow implements energy_down >= min(demand, available):
-            energy_down >= demand - unmet_demand
-            unmet_demand >= demand - available
-            unmet_demand >= 0 (variable bound)
-            energy_down >= 0 (variable bound)
+        Returns:
+            Tuple of (demand, available, excess, -excess) for constraint building.
 
-        When demand <= available: unmet_demand lower bound is negative (demand - available < 0),
-        so unmet_demand = 0 and energy_down >= demand.
-        When demand > available: unmet_demand >= demand - available,
-        so energy_down >= available.
+        Raises:
+            ValueError: If partition references are not set.
 
-        The min() behavior requires the cost() penalty on unmet_demand to push it
-        to its minimum value; without an objective term, the solver could set
-        unmet_demand arbitrarily high.
-
-        Upward flow implements 0 <= energy_up <= max(0, excess):
-            energy_up <= excess + absorbed_excess
-            absorbed_excess >= -excess
-            absorbed_excess >= 0 (variable bound)
-            energy_up >= 0 (variable bound)
-
-        When excess <= 0: absorbed_excess >= -excess (positive) absorbs the negative,
-        so energy_up <= 0, combined with energy_up >= 0 gives energy_up = 0.
-        When excess > 0: absorbed_excess = 0, so energy_up <= excess.
-
-        The max() behavior requires the cost() penalty on absorbed_excess to push
-        it to its minimum value.
         """
-        h = self._solver
-
         if self._lower_partition is None or self._upper_partition is None:
             msg = f"Partition references not set for {self.name}"
             raise ValueError(msg)
@@ -173,12 +165,6 @@ class EnergyBalanceConnection(Connection[EnergyBalanceConnectionOutputName, Ener
         lower_stored = self._lower_partition.stored_energy
         upper_stored = self._upper_partition.stored_energy
         capacity_lower = np.array(self.capacity_lower)
-        periods = self.periods
-
-        energy_down = self._power_down * periods
-        energy_up = self._power_up * periods
-        unmet_demand_energy = self.unmet_demand * periods
-        absorbed_excess_energy = self.absorbed_excess * periods
 
         # demand = room in lower partition = capacity - current energy
         demand = capacity_lower[:-1] - lower_stored[:-1]
@@ -187,18 +173,53 @@ class EnergyBalanceConnection(Connection[EnergyBalanceConnectionOutputName, Ener
         # excess = current energy - next capacity (positive when capacity shrinks)
         excess = lower_stored[:-1] - capacity_lower[1:]
 
-        # Downward flow constraint: energy_down >= min(demand, available)
-        # Lower bound constraint - SOC constraints provide upper bound
-        self._constraints[BALANCE_DOWN_LOWER_BOUND] = h.addConstrs(energy_down >= demand - unmet_demand_energy)
-        self._constraints[BALANCE_DOWN_SLACK_BOUND] = h.addConstrs(unmet_demand_energy >= demand - available)
+        return demand, available, excess, -excess
 
-        # Upward flow constraint: 0 <= energy_up <= max(0, excess)
-        # Upper bound constraint - SOC constraints force equality when excess > 0
-        self._constraints[BALANCE_UP_UPPER_BOUND] = h.addConstrs(energy_up <= excess + absorbed_excess_energy)
-        self._constraints[BALANCE_UP_SLACK_BOUND] = h.addConstrs(absorbed_excess_energy >= -excess)
+    @constraint(output=True, unit="$/kWh")
+    def balance_down_lower_bound(self) -> list[highs_linear_expression]:
+        """Constraint: energy_down >= demand - unmet_demand.
 
-    def cost(self) -> Sequence[highs_linear_expression]:
-        """Return cost expressions penalizing slack variables.
+        Output: shadow price indicating marginal value of downward transfer limit.
+        """
+        demand, _, _, _ = self._get_flow_expressions()
+        energy_down = self._power_down * self.periods
+        unmet_demand_energy = self.unmet_demand * self.periods
+        return list(energy_down >= demand - unmet_demand_energy)
+
+    @constraint(output=True, unit="$/kWh")
+    def balance_down_slack_bound(self) -> list[highs_linear_expression]:
+        """Constraint: unmet_demand_energy >= demand - available.
+
+        Output: shadow price indicating marginal value of slack bound.
+        """
+        demand, available, _, _ = self._get_flow_expressions()
+        unmet_demand_energy = self.unmet_demand * self.periods
+        return list(unmet_demand_energy >= demand - available)
+
+    @constraint(output=True, unit="$/kWh")
+    def balance_up_upper_bound(self) -> list[highs_linear_expression]:
+        """Constraint: energy_up <= excess + absorbed_excess.
+
+        Output: shadow price indicating marginal value of upward transfer limit.
+        """
+        _, _, excess, _ = self._get_flow_expressions()
+        energy_up = self._power_up * self.periods
+        absorbed_excess_energy = self.absorbed_excess * self.periods
+        return list(energy_up <= excess + absorbed_excess_energy)
+
+    @constraint(output=True, unit="$/kWh")
+    def balance_up_slack_bound(self) -> list[highs_linear_expression]:
+        """Constraint: absorbed_excess_energy >= -excess.
+
+        Output: shadow price indicating marginal value of excess absorption.
+        """
+        _, _, _, neg_excess = self._get_flow_expressions()
+        absorbed_excess_energy = self.absorbed_excess * self.periods
+        return list(absorbed_excess_energy >= neg_excess)
+
+    @cost
+    def balance_slack_cost(self) -> list[highs_linear_expression]:
+        """Cost function penalizing slack variables.
 
         The slack variables allow min/max constraints to be implemented in LP form.
         Without penalties, the solver could set slack arbitrarily, breaking the
@@ -212,43 +233,55 @@ class EnergyBalanceConnection(Connection[EnergyBalanceConnectionOutputName, Ener
         periods = self.periods
 
         # Penalize both slack variables
-        unmet_cost = self.unmet_demand * periods * self._slack_penalty
-        absorbed_cost = self.absorbed_excess * periods * self._slack_penalty
+        unmet_cost = list(self.unmet_demand * periods * self._slack_penalty)
+        absorbed_cost = list(self.absorbed_excess * periods * self._slack_penalty)
 
-        return [*list(unmet_cost), *list(absorbed_cost)]
+        return [*unmet_cost, *absorbed_cost]
 
-    def outputs(self) -> Mapping[EnergyBalanceConnectionOutputName, OutputData]:
-        """Return output specifications for the balance connection."""
-        outputs: dict[EnergyBalanceConnectionOutputName, OutputData] = {
-            BALANCE_POWER_DOWN: OutputData(
-                type=OutputType.POWER_FLOW,
-                unit="kW",
-                values=self.extract_values(self._power_down),
-                direction="+",
-            ),
-            BALANCE_POWER_UP: OutputData(
-                type=OutputType.POWER_FLOW,
-                unit="kW",
-                values=self.extract_values(self._power_up),
-                direction="-",
-            ),
-            BALANCE_UNMET_DEMAND: OutputData(
-                type=OutputType.POWER_FLOW,
-                unit="kW",
-                values=self.extract_values(self.unmet_demand),
-            ),
-            BALANCE_ABSORBED_EXCESS: OutputData(
-                type=OutputType.POWER_FLOW,
-                unit="kW",
-                values=self.extract_values(self.absorbed_excess),
-            ),
-        }
+    @output
+    def balance_power_down(self) -> OutputData:
+        """Power flowing downward from upper to lower partition."""
+        return OutputData(
+            type=OutputType.POWER_FLOW,
+            unit="kW",
+            values=self.extract_values(self._power_down),
+            direction="+",
+        )
 
-        for constraint_name in self._constraints:
-            outputs[constraint_name] = OutputData(
-                type=OutputType.POWER_FLOW,
-                unit="$/kW",
-                values=self.extract_values(self._constraints[constraint_name]),
-            )
+    @output
+    def balance_power_up(self) -> OutputData:
+        """Power flowing upward from lower to upper partition."""
+        return OutputData(
+            type=OutputType.POWER_FLOW,
+            unit="kW",
+            values=self.extract_values(self._power_up),
+            direction="-",
+        )
 
-        return outputs
+    @output
+    def balance_unmet_demand(self) -> OutputData:
+        """Unmet demand slack variable (indicates capacity constraint)."""
+        return OutputData(
+            type=OutputType.POWER_FLOW,
+            unit="kW",
+            values=self.extract_values(self.unmet_demand),
+        )
+
+    @output
+    def balance_absorbed_excess(self) -> OutputData:
+        """Absorbed excess slack variable (indicates excess was absorbed)."""
+        return OutputData(
+            type=OutputType.POWER_FLOW,
+            unit="kW",
+            values=self.extract_values(self.absorbed_excess),
+        )
+
+    # Override parent's @output methods since they don't apply to energy balance connections.
+    # EnergyBalanceConnection uses _power_down/_power_up instead of the parent's
+    # _power_source_target/_power_target_source variables.
+
+    def connection_power_source_target(self) -> None:  # type: ignore[override]
+        """Disabled - energy balance uses balance_power_down/up instead."""
+
+    def connection_power_target_source(self) -> None:  # type: ignore[override]
+        """Disabled - energy balance uses balance_power_down/up instead."""

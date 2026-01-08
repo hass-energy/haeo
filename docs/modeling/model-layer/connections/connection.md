@@ -118,6 +118,6 @@ Use [PowerConnection](power-connection.md) instead when you need:
 
     View the source code.
 
-    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/connection.py)
+    [:material-arrow-right: Source code](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/model/elements/connection.py)
 
 </div>

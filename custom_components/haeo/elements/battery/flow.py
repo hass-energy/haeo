@@ -108,14 +108,20 @@ def _build_step2_schema(
             schema_dict[vol.Required(f"{partition_prefix}name")] = TextSelector(TextSelectorConfig())
             # Partition capacity (kWh)
             schema_dict[vol.Required(f"{partition_prefix}capacity")] = NumberSelector(
-                NumberSelectorConfig(min=0.1, max=1000, step=0.1, mode=NumberSelectorMode.BOX, unit_of_measurement="kWh")
+                NumberSelectorConfig(
+                    min=0.1, max=1000, step=0.1, mode=NumberSelectorMode.BOX, unit_of_measurement="kWh"
+                )
             )
             # Optional partition costs ($/kWh)
             schema_dict[vol.Optional(f"{partition_prefix}charge_cost")] = NumberSelector(
-                NumberSelectorConfig(min=0, max=10, step=0.001, mode=NumberSelectorMode.BOX, unit_of_measurement="$/kWh")
+                NumberSelectorConfig(
+                    min=0, max=10, step=0.001, mode=NumberSelectorMode.BOX, unit_of_measurement="$/kWh"
+                )
             )
             schema_dict[vol.Optional(f"{partition_prefix}discharge_cost")] = NumberSelector(
-                NumberSelectorConfig(min=0, max=10, step=0.001, mode=NumberSelectorMode.BOX, unit_of_measurement="$/kWh")
+                NumberSelectorConfig(
+                    min=0, max=10, step=0.001, mode=NumberSelectorMode.BOX, unit_of_measurement="$/kWh"
+                )
             )
 
     return vol.Schema(schema_dict)
@@ -175,12 +181,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
                 CONF_CONNECTION: connection,
+                **{
+                    k: v
+                    for k, v in user_input.items()
+                    if not k.endswith(MODE_SUFFIX) and not k.startswith("partition_")
+                },
             }
-
-            # Add non-mode, non-partition values
-            for k, v in user_input.items():
-                if not k.endswith(MODE_SUFFIX) and not k.startswith("partition_"):
-                    config[k] = v
 
             # Extract partition data if partition mode is enabled
             if partition_count > 0:
@@ -277,12 +283,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                 CONF_NAME: name,
                 CONF_CONNECTION: connection,
+                **{
+                    k: v
+                    for k, v in user_input.items()
+                    if not k.endswith(MODE_SUFFIX) and not k.startswith("partition_")
+                },
             }
-
-            # Add non-mode, non-partition values
-            for k, v in user_input.items():
-                if not k.endswith(MODE_SUFFIX) and not k.startswith("partition_"):
-                    config[k] = v
 
             # Extract partition data if partition mode is enabled
             if partition_count > 0:

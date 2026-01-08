@@ -105,10 +105,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
 
 
 @pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
-def test_create_model_elements(case: CreateCase) -> None:
+def test_model_elements(case: CreateCase) -> None:
     """Verify adapter transforms ConfigData into expected model elements."""
     entry = ELEMENT_TYPES["energy_storage"]
-    result = entry.create_model_elements(case["data"])
+    result = entry.model_elements(case["data"])
     assert result == case["model"]
 
 

@@ -44,6 +44,42 @@ The complete constraint set is the union of all element constraints plus network
 Each element may contribute cost terms.
 The total objective is the sum of all element cost contributions.
 
+## Declarative constraint aggregation
+
+HAEO uses a declarative approach to problem construction where elements declare their constraints and costs, and the network automatically aggregates them into a complete optimization problem.
+
+### Mathematical structure
+
+The complete optimization problem is constructed by aggregating contributions from all elements in the network:
+
+$$
+\mathcal{C} = \bigcup_{e \in \text{Elements}} \mathcal{C}_e
+$$
+
+where $\mathcal{C}$ is the total constraint set and $\mathcal{C}_e$ is the constraint set contributed by element $e$.
+
+The objective function aggregates cost contributions:
+
+$$
+\text{Cost} = \sum_{e \in \text{Elements}} \text{Cost}_e
+$$
+
+where $\text{Cost}_e$ is the cost contribution from element $e$ (which may be zero if the element has no cost terms).
+
+### Parameter updates and warm start
+
+Elements have parameters that define their behavior (capacities, power limits, prices, forecasts).
+When forecasts update or configuration changes, these parameters are modified and the optimization re-runs.
+
+The declarative system tracks which constraints depend on which parameters.
+When a parameter changes, only the constraints that depend on that parameter are rebuilt:
+
+$$
+\text{If } p \in P_e \text{ changes, rebuild only } \{ c \in \mathcal{C}_e \mid c \text{ depends on } p \}
+$$
+
+This selective rebuilding (warm start optimization) is more efficient than reconstructing the entire problem, particularly when only a subset of forecasts or parameters change between optimization cycles.
+
 ## Next Steps
 
 <div class="grid cards" markdown>

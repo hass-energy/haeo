@@ -121,11 +121,13 @@ def test_is_element_config_schema_valid_grid() -> None:
 
 
 def test_is_element_config_schema_valid_grid_minimal() -> None:
-    """Test is_element_config_schema with minimal valid grid config (prices optional)."""
+    """Test is_element_config_schema with minimal valid grid config (prices required)."""
     valid_config = {
         "element_type": "grid",
         "name": "test_grid",
         "connection": "main_bus",
+        "import_price": 0.25,
+        "export_price": 0.05,
     }
     assert is_element_config_schema(valid_config) is True
 

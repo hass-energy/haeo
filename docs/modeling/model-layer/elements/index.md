@@ -19,11 +19,29 @@ Enforces power balance (Kirchhoff's law) at connection points.
 
 All elements share these properties:
 
-- **Power variables**: Track power flows at each time step
+- **Decision variables**: Track power flows at each time step
+- **Parameters**: Define element behavior (capacities, limits, prices)
 - **Constraints**: Define operational limits and physical laws
+- **Cost contributions**: Optional terms added to the objective function
 - **Outputs**: Provide optimization results for sensors
 
 Elements connect to each other through [Connection](../connections/index.md) objects, which handle power transfer between elements.
+
+### Constraint and cost aggregation
+
+Each element declares the constraints it requires and any costs it contributes.
+The network collects these declarations from all elements to form the complete optimization problem:
+
+- **Constraint set**: $\mathcal{C}_e$ for element $e$
+- **Cost contribution**: $\text{Cost}_e$ for element $e$
+
+The network aggregates these into the complete problem (see [Model Layer overview](../index.md#declarative-constraint-aggregation)).
+
+### Parameter updates
+
+Element parameters can be updated between optimization runs without reconstructing the entire network.
+When a parameter changes (such as an updated forecast or modified capacity), only the constraints that depend on that parameter are rebuilt.
+This selective rebuilding enables efficient re-optimization when forecasts update frequently.
 
 ## Design philosophy
 

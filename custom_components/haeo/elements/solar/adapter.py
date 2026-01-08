@@ -10,11 +10,11 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.power_connection import (
+from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import SolarSubentryFlowHandler
 from .schema import (
@@ -72,7 +72,7 @@ class SolarAdapter:
         const_loader_float = ConstantLoader[float](float)
         const_loader_bool = ConstantLoader[bool](bool)
 
-        forecast = await ts_loader.load(
+        forecast = await ts_loader.load_intervals(
             hass=hass,
             value=config[CONF_FORECAST],
             forecast_times=forecast_times,
@@ -93,8 +93,8 @@ class SolarAdapter:
 
         return data
 
-    def create_model_elements(self, config: SolarConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Solar configuration."""
+    def model_elements(self, config: SolarConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Solar configuration."""
         return [
             {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": False},
             {

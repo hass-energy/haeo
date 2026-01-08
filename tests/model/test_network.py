@@ -10,8 +10,8 @@ import pytest
 from custom_components.haeo.model import Network
 from custom_components.haeo.model import network as network_module
 from custom_components.haeo.model.element import Element
-from custom_components.haeo.model.node import Node
-from custom_components.haeo.model.power_connection import PowerConnection
+from custom_components.haeo.model.elements.node import Node
+from custom_components.haeo.model.elements.power_connection import PowerConnection
 
 # Test constants
 HOURS_PER_DAY = 24
@@ -215,10 +215,10 @@ def test_validate_raises_when_endpoints_are_connections() -> None:
 
 
 def test_constraints_returns_empty_when_no_elements() -> None:
-    """Constraints should return empty list when network has no elements."""
+    """Constraints should return empty dict when network has no elements."""
     net = Network(name="net", periods=[1.0] * 1)
 
-    assert net.constraints() == []
+    assert net.constraints() == {}
 
 
 def test_network_constraint_generation_error() -> None:
@@ -231,20 +231,20 @@ def test_network_constraint_generation_error() -> None:
     # Add a regular battery
     network.add(ELEMENT_TYPE_ENERGY_STORAGE, "battery", capacity=10000, initial_charge=5000)  # 50% of 10000
 
-    # Mock an element to raise an exception during constraint generation
+    # Mock an element to raise an exception during constraints
     mock_element = Mock(spec=Element)
     mock_element.name = "failing_element"
     mock_element.build = Mock()
     mock_element.power_balance_constraints = {}
     mock_element.power_consumption = None
     mock_element.power_production = None
-    mock_element.cost = Mock(return_value=0)
+    mock_element.cost = Mock(return_value=[])
     mock_element.constraints.side_effect = RuntimeError("Constraint generation failed")
     network.elements["failing_element"] = mock_element
 
     # Should wrap the error with context about which element failed
-    with pytest.raises(ValueError, match="Failed to get constraints for element 'failing_element'"):
-        network.constraints()
+    with pytest.raises(ValueError, match="Failed to apply constraints for element 'failing_element'"):
+        network.optimize()
 
 
 def test_network_optimize_validates_before_running() -> None:
@@ -267,8 +267,8 @@ def test_network_optimize_validates_before_running() -> None:
         network.optimize()
 
 
-def test_network_optimize_build_constraints_error() -> None:
-    """Test that optimize() catches and wraps build_constraints errors."""
+def test_network_optimize_constraints_error() -> None:
+    """Test that optimize() catches and wraps constraints errors."""
     network = Network(
         name="test_network",
         periods=[1.0] * 3,
@@ -277,15 +277,14 @@ def test_network_optimize_build_constraints_error() -> None:
     # Add a regular element
     network.add(ELEMENT_TYPE_NODE, "node1", is_sink=True, is_source=True)
 
-    # Mock an element that raises an exception during build_constraints
+    # Mock an element that raises an exception during constraints
     mock_element = Mock(spec=Element)
-    mock_element.build_constraints.side_effect = RuntimeError("Build failed")
-    mock_element.constraints.return_value = []
-    mock_element.cost.return_value = []
+    mock_element.constraints.side_effect = RuntimeError("Build failed")
+    mock_element.cost = Mock(return_value=[])
     network.elements["failing_element"] = mock_element
 
     # Should wrap the error with context about which element failed
-    with pytest.raises(ValueError, match="Failed to build constraints for element 'failing_element'"):
+    with pytest.raises(ValueError, match="Failed to apply constraints for element 'failing_element'"):
         network.optimize()
 
 
@@ -319,10 +318,10 @@ def test_network_optimize_raises_on_solver_failure(
     network.add(ELEMENT_TYPE_NODE, "node", is_sink=True, is_source=True)
 
     def mock_optimize() -> float:
-        # Call build_constraints to set up the model
+        # Call constraints to set up the model
         network.validate()
         for element in network.elements.values():
-            element.build_constraints()
+            element.constraints()
         # Mock the model status to indicate failure
         monkeypatch.setattr(network._solver, "getModelStatus", lambda: HighsModelStatus.kUnbounded)
         network._solver.run()
@@ -383,7 +382,6 @@ def test_add_energy_balance_connection() -> None:
         "balance",
         upper="upper_section",
         lower="lower_section",
-        capacity_lower=10.0,
     )
 
     assert balance is not None
@@ -405,7 +403,6 @@ def test_add_energy_balance_connection_upper_not_energy_storage() -> None:
             "balance",
             upper="not_a_battery",
             lower="lower_section",
-            capacity_lower=10.0,
         )
 
 
@@ -423,5 +420,56 @@ def test_add_energy_balance_connection_lower_not_energy_storage() -> None:
             "balance",
             upper="upper_section",
             lower="not_a_battery",
-            capacity_lower=10.0,
         )
+
+
+def test_network_cost_with_multiple_elements() -> None:
+    """Test Network.cost() aggregates costs from multiple elements using Highs.qsum."""
+    network = Network(name="test", periods=[1.0, 1.0])
+
+    # Add two nodes
+    network.add(ELEMENT_TYPE_NODE, "source", is_source=True, is_sink=False)
+    network.add(ELEMENT_TYPE_NODE, "target", is_source=False, is_sink=True)
+
+    # Add two connections with pricing (each creates costs)
+    network.add(
+        ELEMENT_TYPE_CONNECTION,
+        "conn1",
+        source="source",
+        target="target",
+        price_source_target=[10.0, 20.0],
+    )
+    network.add(
+        ELEMENT_TYPE_CONNECTION,
+        "conn2",
+        source="target",
+        target="source",
+        price_source_target=[5.0, 10.0],
+    )
+
+    # Get aggregated cost - should use Highs.qsum for multiple costs
+    cost = network.cost()
+
+    # Should return a single expression
+    assert cost is not None
+
+
+def test_network_cost_returns_none_when_no_costs() -> None:
+    """Test Network.cost() returns None when network has no cost terms."""
+    network = Network(name="test", periods=[1.0])
+
+    # Add a node (has no costs)
+    network.add(ELEMENT_TYPE_NODE, "node", is_source=True, is_sink=True)
+
+    # Should return None when no costs
+    cost = network.cost()
+    assert cost is None
+
+
+def test_network_constraints_empty_when_no_elements() -> None:
+    """Test Network.constraints() returns empty dict with no elements."""
+    network = Network(name="test", periods=[1.0])
+
+    # No elements added - should return empty dict
+    constraints = network.constraints()
+    assert constraints == {}

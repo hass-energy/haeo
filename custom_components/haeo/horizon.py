@@ -127,7 +127,7 @@ class HorizonManager:
     def get_forecast_timestamps(self) -> tuple[float, ...]:
         """Get the current forecast timestamps as epoch values.
 
-        Returns fence-post timestamps for the horizon (n_periods + 1 values).
+        Returns boundary timestamps for the horizon (n_periods + 1 values).
         """
         return self._forecast_timestamps
 
