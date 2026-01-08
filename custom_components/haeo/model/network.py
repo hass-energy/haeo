@@ -127,10 +127,11 @@ class Network:
 
         """
         # Collect costs from all elements
-        costs: list[highs_linear_expression] = []
-        for element_name, element in self.elements.items():
-            if (element_cost := element.cost()) is not None:
-                costs.append(element_cost)
+        costs = [
+            element_cost
+            for element in self.elements.values()
+            if (element_cost := element.cost()) is not None
+        ]
 
         # Aggregate into a single expression
         if not costs:
