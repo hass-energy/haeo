@@ -14,14 +14,12 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from enum import Enum, auto
 from functools import partial
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
 
 if TYPE_CHECKING:
     from .element import Element
-
-T = TypeVar("T")
 
 # Context for tracking parameter access during constraint computation
 _tracking_context: ContextVar[set[str] | None] = ContextVar("tracking", default=None)
@@ -144,7 +142,7 @@ def is_set(value: object) -> bool:
     return value is not _UNSET
 
 
-class CachedMethod:
+class CachedMethod[R]:
     """Base descriptor/decorator that caches method results with automatic dependency tracking.
 
     On first call, tracks which TrackedParam values are accessed and caches the result.
@@ -155,7 +153,7 @@ class CachedMethod:
 
     kind: CachedKind  # Set by subclasses
 
-    def __init__(self, fn: Callable[..., Any]) -> None:
+    def __init__(self, fn: Callable[..., R]) -> None:
         """Initialize with the method."""
         self._fn = fn
         self._name: str = fn.__name__
@@ -165,22 +163,22 @@ class CachedMethod:
         self._name = name
 
     @overload
-    def __get__(self, obj: None, objtype: type) -> "CachedMethod": ...
+    def __get__(self, obj: None, objtype: type) -> "CachedMethod[R]": ...
 
     @overload
-    def __get__(self, obj: "Element[Any]", objtype: type) -> Callable[[], Any]: ...
+    def __get__(self, obj: "Element[Any]", objtype: type) -> Callable[[], R]: ...
 
-    def __get__(self, obj: "Element[Any] | None", objtype: type) -> "CachedMethod | Callable[[], Any]":
+    def __get__(self, obj: "Element[Any] | None", objtype: type) -> "CachedMethod[R] | Callable[[], R]":
         """Return bound method that uses caching."""
         if obj is None:
             return self
         return partial(self._call, obj)
 
-    def _call(self, obj: "Element[Any]") -> Any:
+    def _call(self, obj: "Element[Any]") -> R:
         """Execute with caching and dependency tracking."""
         # Return cached if not invalidated
         if obj.has_cached(self.kind, self._name) and not obj.is_invalidated(self.kind, self._name):
-            return obj.get_cached(self.kind, self._name)
+            return obj.get_cached(self.kind, self._name)  # type: ignore[return-value]
 
         # Track parameter access during computation
         tracking: set[str] = set()
@@ -196,7 +194,7 @@ class CachedMethod:
         return result
 
 
-class CachedConstraint(CachedMethod):
+class CachedConstraint[R](CachedMethod[R]):
     """Decorator that caches constraint expressions with automatic dependency tracking.
 
     Usage:
@@ -212,13 +210,13 @@ class CachedConstraint(CachedMethod):
     kind = CachedKind.CONSTRAINT
 
 
-class CachedCost(CachedMethod):
+class CachedCost[R](CachedMethod[R]):
     """Decorator that caches cost expressions with automatic dependency tracking."""
 
     kind = CachedKind.COST
 
 
-class OutputMethod:
+class OutputMethod[R]:
     """Decorator that marks a method as an output for reflection-based discovery.
 
     Unlike @constraint and @cost, output methods are not cached - they extract
@@ -232,7 +230,7 @@ class OutputMethod:
                 return OutputData(type=OutputType.POWER, unit="kW", ...)
     """
 
-    def __init__(self, fn: Callable[..., Any]) -> None:
+    def __init__(self, fn: Callable[..., R]) -> None:
         """Initialize with the method."""
         self._fn = fn
         self._name: str = fn.__name__
@@ -242,12 +240,12 @@ class OutputMethod:
         self._name = name
 
     @overload
-    def __get__(self, obj: None, objtype: type) -> "OutputMethod": ...
+    def __get__(self, obj: None, objtype: type) -> "OutputMethod[R]": ...
 
     @overload
-    def __get__(self, obj: "Element[Any]", objtype: type) -> Callable[[], Any]: ...
+    def __get__(self, obj: "Element[Any]", objtype: type) -> Callable[[], R]: ...
 
-    def __get__(self, obj: "Element[Any] | None", objtype: type) -> "OutputMethod | Callable[[], Any]":
+    def __get__(self, obj: "Element[Any] | None", objtype: type) -> "OutputMethod[R] | Callable[[], R]":
         """Return bound method."""
         if obj is None:
             return self
