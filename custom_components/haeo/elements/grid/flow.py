@@ -123,8 +123,8 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         schema = build_configurable_value_schema(INPUT_FIELDS, entity_selections, current_data)
 
-        # Skip step 2 if no configurable fields need input (reconfigure with existing values)
-        if current_data is not None and not schema.schema:
+        # Skip step 2 if no configurable fields need input
+        if not schema.schema:
             configurable_values = get_configurable_value_defaults(INPUT_FIELDS, entity_selections, current_data)
             config = self._build_config(entity_selections, configurable_values, current_data)
             return self._finalize(config)

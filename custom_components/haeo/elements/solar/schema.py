@@ -72,10 +72,8 @@ class SolarConfigSchema(TypedDict):
     connection: str  # Element name to connect to
     forecast: list[str] | float  # Entity IDs or constant kW
 
-    # Required fields
-    curtailment: list[str] | bool  # Entity IDs or constant boolean
-
-    # Optional fields
+    # Optional fields (with sensible defaults)
+    curtailment: NotRequired[list[str] | bool]  # Entity IDs or constant boolean (default: True)
     price_production: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
 
 

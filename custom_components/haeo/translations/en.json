@@ -299,10 +299,10 @@
           "description": "Configure solar forecasting and parameters",
           "data": {
             "connection": "Connection",
-            "curtailment": "Allow Curtailment",
+            "curtailment": "Allow Curtailment (Default: On)",
             "forecast": "Forecast",
             "name": "Solar Name",
-            "price_production": "Production Price"
+            "price_production": "Production Price (Default: 0)"
           }
         },
         "values": {

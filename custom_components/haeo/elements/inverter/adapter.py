@@ -138,8 +138,8 @@ class InverterAdapter:
                 "target": config["connection"],
                 "max_power_source_target": config["max_power_dc_to_ac"],
                 "max_power_target_source": config["max_power_ac_to_dc"],
-                "efficiency_source_target": config["efficiency_dc_to_ac"],
-                "efficiency_target_source": config["efficiency_ac_to_dc"],
+                "efficiency_source_target": config.get("efficiency_dc_to_ac", DEFAULT_EFFICIENCY_DC_TO_AC),
+                "efficiency_target_source": config.get("efficiency_ac_to_dc", DEFAULT_EFFICIENCY_AC_TO_DC),
             },
         ]
 

@@ -28,6 +28,7 @@ from .schema import (
 )
 
 # Defaults for absent optional fields (no-op values)
+DEFAULT_CURTAILMENT: Final[bool] = True  # Allow curtailment by default
 DEFAULT_PRICE_PRODUCTION: Final[float] = 0.0  # No production incentive
 
 # Solar output names
@@ -80,8 +81,9 @@ class SolarAdapter:
             forecast_times=forecast_times,
         )
 
-        # Load required curtailment field
-        curtailment = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
+        # Load optional curtailment with default (allow curtailment)
+        curtailment_value = config.get(CONF_CURTAILMENT, DEFAULT_CURTAILMENT)
+        curtailment = await const_loader_bool.load(value=curtailment_value)
 
         # Load optional price_production with default
         price_production_value = config.get(CONF_PRICE_PRODUCTION, DEFAULT_PRICE_PRODUCTION)
@@ -107,8 +109,8 @@ class SolarAdapter:
                 "target": config["connection"],
                 "max_power_source_target": config["forecast"],
                 "max_power_target_source": 0.0,
-                "fixed_power": not config["curtailment"],
-                "price_source_target": config["price_production"],
+                "fixed_power": not config.get("curtailment", DEFAULT_CURTAILMENT),
+                "price_source_target": config.get("price_production", DEFAULT_PRICE_PRODUCTION),
             },
         ]
 
