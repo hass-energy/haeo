@@ -234,11 +234,3 @@ class Element[OutputNameT: str]:
             return costs[0]
         # Sum all cost expressions
         return sum(costs[1:], costs[0])
-
-        # Aggregate costs into a single expression
-        if not costs:
-            return None
-        if len(costs) == 1:
-            return costs[0]
-        # Sum all cost expressions
-        return sum(costs[1:], costs[0])

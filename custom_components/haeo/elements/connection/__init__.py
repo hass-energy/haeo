@@ -17,6 +17,7 @@ from .adapter import (
     CONNECTION_POWER_ACTIVE,
     ConnectionAdapter,
     ConnectionDeviceName,
+    ConnectionOutputName,
     adapter,
 )
 from .flow import ConnectionSubentryFlowHandler
@@ -61,6 +62,7 @@ __all__ = [
     "ConnectionConfigData",
     "ConnectionConfigSchema",
     "ConnectionDeviceName",
+    "ConnectionOutputName",
     # Flow
     "ConnectionSubentryFlowHandler",
     "PowerConnectionOutputName",
