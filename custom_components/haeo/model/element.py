@@ -213,3 +213,51 @@ class Element[OutputNameT: str]:
                 method = getattr(self, name)
                 method()
 
+    def constraints(self) -> list[highs_cons | list[highs_cons]]:
+        """Return all constraints from this element.
+
+        Discovers and calls all @constraint decorated methods, collecting their results.
+
+        Returns:
+            List of constraint objects (individual constraints or lists of constraints)
+
+        """
+        from .reactive import CachedConstraint
+
+        result: list[highs_cons | list[highs_cons]] = []
+        for name in dir(type(self)):
+            attr = getattr(type(self), name, None)
+            if isinstance(attr, CachedConstraint):
+                # Get the state for this constraint
+                state_attr = f"_reactive_state_{name}"
+                state = getattr(self, state_attr, None)
+                if state is not None and "constraint" in state:
+                    cons = state["constraint"]
+                    result.append(cons)
+        return result
+
+    def cost(self) -> list[Any]:
+        """Return all cost expressions from this element.
+
+        Discovers and calls all @cost decorated methods, collecting their results.
+
+        Returns:
+            List of cost expressions (highs_linear_expression objects)
+
+        """
+        from .reactive import CachedCost
+
+        result: list[Any] = []
+        for name in dir(type(self)):
+            attr = getattr(type(self), name, None)
+            if isinstance(attr, CachedCost):
+                # Call the cost method (uses cache if valid)
+                method = getattr(self, name)
+                cost_value = method()
+                if cost_value is not None:
+                    if isinstance(cost_value, list):
+                        result.extend(cost_value)
+                    else:
+                        result.append(cost_value)
+        return result
+
