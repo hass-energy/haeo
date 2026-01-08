@@ -247,15 +247,17 @@ def build_configurable_value_schema_entry(
 ) -> tuple[vol.Marker, Any]:
     """Build a schema entry for configurable value input (step 2).
 
+    Step 2 fields are always Required. The defaults.value is only used
+    for pre-filling the form, not as a fallback.
+
     Args:
         field_info: Input field metadata.
 
     Returns:
-        Tuple of (vol.Required/Optional marker, Selector) for configurable value input.
+        Tuple of (vol.Required marker, Selector) for configurable value input.
 
     """
     field_name = field_info.field_name
-    has_default = field_info.default is not None
 
     # Build appropriate selector based on entity description type
     # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
@@ -264,9 +266,7 @@ def build_configurable_value_schema_entry(
     else:
         selector = number_selector_from_field(field_info)  # type: ignore[arg-type]
 
-    # Optional if has default, required otherwise
-    if has_default:
-        return vol.Optional(field_name), selector
+    # Always required - user must provide a value when configurable is selected
     return vol.Required(field_name), selector
 
 
@@ -319,37 +319,42 @@ def get_configurable_value_defaults(
 ) -> dict[str, Any]:
     """Get default configurable values for step 2.
 
+    These values are used to pre-fill the form, not as fallbacks.
+    Step 2 fields are always Required.
+
     Args:
         input_fields: Tuple of input field metadata.
         entity_selections: Entity selections from step 1.
         current_data: Current configuration data (for reconfigure).
 
     Returns:
-        Dict mapping field names to default configurable values.
+        Dict mapping field names to suggested values for pre-filling.
         Only includes fields where HAEO Configurable is selected.
 
     """
-    defaults: dict[str, Any] = {}
+    suggested: dict[str, Any] = {}
 
     for field_info in input_fields:
         field_name = field_info.field_name
         selected_entities = entity_selections.get(field_name, [])
 
-        # Only provide defaults for fields with configurable entity
+        # Only provide suggestions for fields with configurable entity
         if not any(is_configurable_entity(entity_id) for entity_id in selected_entities):
             continue
 
+        # Priority: current stored value > defaults.value
         if current_data is not None and field_name in current_data:
             current_value = current_data[field_name]
             # If current value is a scalar (float/int/bool), use it
             if isinstance(current_value, (float, int, bool)):
-                defaults[field_name] = current_value
-            elif field_info.default is not None:
-                defaults[field_name] = field_info.default
-        elif field_info.default is not None:
-            defaults[field_name] = field_info.default
+                suggested[field_name] = current_value
+                continue
 
-    return defaults
+        # Use defaults.value if available
+        if field_info.defaults is not None and field_info.defaults.value is not None:
+            suggested[field_name] = field_info.defaults.value
+
+    return suggested
 
 
 def has_configurable_selection(entity_selection: list[str]) -> bool:
@@ -402,7 +407,7 @@ def extract_non_entity_fields(
 def convert_entity_selections_to_config(
     entity_selections: dict[str, list[str]],
     configurable_values: dict[str, Any],
-    input_fields: tuple[InputFieldInfo[Any], ...] | None = None,
+    input_fields: tuple[InputFieldInfo[Any], ...] | None = None,  # noqa: ARG001
     current_data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Convert entity selections and configurable values to final config format.
@@ -410,8 +415,7 @@ def convert_entity_selections_to_config(
     Args:
         entity_selections: Entity selections from step 1.
         configurable_values: Configurable values from step 2.
-        input_fields: Optional tuple of input field metadata. If provided, applies
-            defaults for optional fields with no selection.
+        input_fields: Unused, kept for API compatibility.
         current_data: Current stored config (for reconfigure). Used to preserve
             scalar values when HAEO input entities are kept selected.
 
@@ -420,25 +424,15 @@ def convert_entity_selections_to_config(
         - Fields with configurable entity: converted to float (from configurable_values)
         - Fields with HAEO input entity kept: preserved scalar value from current_data
         - Fields with real external entities: kept as list[str]
-        - Fields with empty selection but default: set to default value
-        - Fields with empty selection and no default: omitted
+        - Fields with empty selection: omitted (no default fallback)
 
     """
     config: dict[str, Any] = {}
 
-    # Build a map of field defaults
-    field_defaults: dict[str, Any] = {}
-    if input_fields:
-        for field_info in input_fields:
-            if field_info.default is not None:
-                field_defaults[field_info.field_name] = field_info.default
-
     for field_name, entities in entity_selections.items():
         if not entities:
-            # Empty selection - apply default if available
-            if field_name in field_defaults:
-                config[field_name] = field_defaults[field_name]
-            # Otherwise omit from config (truly optional with no default)
+            # Empty selection - always omit from config
+            # Requiredness is enforced by schema validation, not here
             continue
 
         if any(is_configurable_entity(entity_id) for entity_id in entities):

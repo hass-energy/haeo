@@ -5,11 +5,41 @@ and their associated metadata like output type, direction, and time series behav
 """
 
 from dataclasses import dataclass
+from typing import Literal
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 
 from custom_components.haeo.model.const import OutputType
+
+
+@dataclass(frozen=True, slots=True)
+class InputFieldDefaults:
+    """Default pre-selection behavior for config flow fields.
+
+    Attributes:
+        mode: Controls what is pre-selected in step 1:
+            - 'entity': Pre-select the entity specified in `entity`
+            - 'value': Pre-select the HAEO Configurable sentinel entity
+            - None: No pre-selection (empty)
+        entity: Entity ID to pre-select when mode='entity'
+        value: Value to pre-fill in step 2 when mode='value'
+        empty: Value to use internally when field is absent from config.
+            Use this for "no-op" values (e.g., 100% efficiency = no loss).
+            If None, the field is truly absent and no default is applied.
+
+    Note:
+        When mode='value', step 2 is always Required. The value is only
+        used for pre-filling the form, not as a fallback. If the user
+        clears step 1 selection, the field is omitted from config but
+        HAEO may use `empty` as an internal default if specified.
+
+    """
+
+    mode: Literal["entity", "value"] | None = None
+    entity: str | None = None
+    value: float | bool | None = None
+    empty: float | bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,7 +52,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         output_type: OutputType enum value for categorization and unit spec lookup
         direction: "+" or "-" for power direction attributes
         time_series: Whether this field is time series (list) or scalar
-        default: Default value for editable entities when no restored state exists
+        defaults: Pre-selection behavior for config flow
 
     Note:
         Whether a field is optional (can be disabled in config flow) is determined
@@ -36,9 +66,10 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     output_type: OutputType
     direction: str | None = None
     time_series: bool = False
-    default: float | bool | None = None
+    defaults: InputFieldDefaults | None = None
 
 
 __all__ = [
+    "InputFieldDefaults",
     "InputFieldInfo",
 ]

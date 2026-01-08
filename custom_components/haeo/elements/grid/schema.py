@@ -5,7 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "grid"
@@ -65,7 +65,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="+",
-        default=DEFAULT_IMPORT_LIMIT,
+        defaults=InputFieldDefaults(mode="value", value=DEFAULT_IMPORT_LIMIT),
     ),
     InputFieldInfo(
         field_name=CONF_EXPORT_LIMIT,
@@ -81,7 +81,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="-",
-        default=DEFAULT_EXPORT_LIMIT,
+        defaults=InputFieldDefaults(mode="value", value=DEFAULT_EXPORT_LIMIT),
     ),
 )
 

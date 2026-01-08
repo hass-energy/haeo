@@ -4,7 +4,7 @@ from homeassistant.components.number import NumberEntityDescription
 from homeassistant.helpers.selector import BooleanSelector, NumberSelector
 import pytest
 
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.flows.field_schema import boolean_selector_from_field, number_selector_from_field
 from custom_components.haeo.model.const import OutputType
 
@@ -25,7 +25,7 @@ def number_field() -> InputFieldInfo[NumberEntityDescription]:
             native_unit_of_measurement="kW",
         ),
         output_type=OutputType.POWER,
-        default=50.0,
+        defaults=InputFieldDefaults(mode="value", value=50.0),
     )
 
 

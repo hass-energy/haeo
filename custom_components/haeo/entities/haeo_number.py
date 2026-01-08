@@ -138,9 +138,10 @@ class HaeoInputNumber(NumberEntity):
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Use field default if no config value
-            if self._attr_native_value is None and self._field_info.default is not None:
-                self._attr_native_value = float(self._field_info.default)
+            # Use defaults.value if no config value
+            defaults = self._field_info.defaults
+            if self._attr_native_value is None and defaults is not None and defaults.value is not None:
+                self._attr_native_value = float(defaults.value)
             # Update forecast for initial value
             self._update_editable_forecast()
         else:

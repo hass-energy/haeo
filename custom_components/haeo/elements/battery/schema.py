@@ -5,7 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "battery"
@@ -77,7 +77,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
-        default=0.0,
+        defaults=InputFieldDefaults(mode="value", value=0.0),
     ),
     InputFieldInfo(
         field_name=CONF_MAX_CHARGE_PERCENTAGE,
@@ -92,7 +92,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
-        default=100.0,
+        defaults=InputFieldDefaults(mode="value", value=100.0),
     ),
     InputFieldInfo(
         field_name=CONF_EFFICIENCY,
@@ -107,7 +107,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.EFFICIENCY,
         time_series=True,
-        default=99.0,
+        defaults=InputFieldDefaults(mode="value", value=99.0),
     ),
     InputFieldInfo(
         field_name=CONF_MAX_CHARGE_POWER,
@@ -151,7 +151,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
-        default=0.001,
+        defaults=InputFieldDefaults(mode="value", value=0.001),
     ),
     InputFieldInfo(
         field_name=CONF_DISCHARGE_COST,
