@@ -3,7 +3,7 @@
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, overload
 
-from .types import UNSET, _UNSET, _values_equal  # noqa: PLC2701
+from .types import _UNSET, UNSET, _values_equal
 
 if TYPE_CHECKING:
     from haeo.model.element import Element
@@ -109,7 +109,7 @@ def _propagate_method_invalidation(element: "Element[Any]", invalidated_methods:
     newly_invalidated = invalidated_methods.copy()
     while newly_invalidated:
         next_round: set[str] = set()
-        
+
         for attr_name in dir(type(element)):
             descriptor = getattr(type(element), attr_name, None)
             if isinstance(descriptor, CachedMethod):
@@ -117,7 +117,7 @@ def _propagate_method_invalidation(element: "Element[Any]", invalidated_methods:
                 # Skip if already invalidated
                 if state is None or state.get("invalidated", True):
                     continue
-                    
+
                 # Check if this method depends on any newly invalidated methods
                 deps = state.get("deps", set())
                 for dep in deps:
@@ -127,7 +127,7 @@ def _propagate_method_invalidation(element: "Element[Any]", invalidated_methods:
                             state["invalidated"] = True
                             next_round.add(attr_name)
                             break
-        
+
         newly_invalidated = next_round
 
 
@@ -171,4 +171,3 @@ __all__ = [
     "_get_decorator_state",
     "_tracking_context",
 ]
-

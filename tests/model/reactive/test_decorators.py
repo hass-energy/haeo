@@ -379,4 +379,3 @@ def test_reactive_workflow() -> None:
     result3 = battery.test_constraint()
     assert result3 is None
     assert battery._soc_values == [18.0]
-

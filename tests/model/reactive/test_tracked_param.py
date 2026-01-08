@@ -199,4 +199,3 @@ def test_dict_access_getitem_regular_attribute_raises_keyerror() -> None:
     # 'name' is a regular attribute, not a TrackedParam
     with pytest.raises(KeyError, match="name"):
         _ = elem["name"]
-

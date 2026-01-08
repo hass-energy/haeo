@@ -69,4 +69,3 @@ def _values_equal(a: object, b: object) -> bool:
         return bool(a == b)
     except (TypeError, ValueError):
         return False
-

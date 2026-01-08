@@ -4,11 +4,7 @@ from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
-from .tracked_param import (
-    _ensure_decorator_state,  # noqa: PLC2701 (tightly coupled reactive infrastructure)
-    _get_decorator_state,  # noqa: PLC2701 (tightly coupled reactive infrastructure)
-    _tracking_context,  # noqa: PLC2701 (tightly coupled reactive infrastructure)
-)
+from .tracked_param import _ensure_decorator_state, _tracking_context
 from .types import CachedKind
 
 if TYPE_CHECKING:
@@ -76,7 +72,7 @@ class CachedMethod[R]:
 
         return result
 
-    def _record_access(self, obj: "Element[Any]") -> None:
+    def _record_access(self, obj: "Element[Any]") -> None:  # noqa: ARG002 (obj not used but part of method signature)
         """Record this method's access in the current tracking context.
 
         When another cached method calls this one, this establishes a dependency.
@@ -125,7 +121,7 @@ class CachedConstraint[R](CachedMethod[R]):
         """Execute with caching, dependency tracking, and solver lifecycle management."""
         # Record access if being tracked by another method
         self._record_access(obj)
-        
+
         state = _ensure_decorator_state(obj, self._name)
 
         # Check if we need to recompute
@@ -238,7 +234,7 @@ class CachedCost[R](CachedMethod[R]):
         """Execute with caching and dependency tracking."""
         # Record access if being tracked by another method
         self._record_access(obj)
-        
+
         # Use base class caching with dependency tracking
         return super()._call(obj)
 
@@ -315,4 +311,3 @@ def constraint[R](
 
 cost = CachedCost
 output = OutputMethod
-

@@ -85,7 +85,7 @@ def _solve_connection_scenario(
     cost_terms: list[highs_linear_expression] = []
     if element_cost is not None:
         cost_terms.append(element_cost)
-        
+
     if source_cost != 0.0:
         cost_terms.append(Highs.qsum(source_vars[i] * source_cost * periods[i] for i in range(n_periods)))
     if target_cost != 0.0:

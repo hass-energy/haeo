@@ -17,8 +17,7 @@ constraints (E >= 0, E <= C) fully bind the solution to exact values.
 """
 
 from dataclasses import dataclass
-from functools import reduce
-from typing import Any, Self
+from typing import Self
 
 from highspy import Highs
 from highspy.highs import HighspyArray

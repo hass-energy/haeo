@@ -50,4 +50,3 @@ def test_getitem_returns_unset_for_unset_param() -> None:
     # Accessing via __getitem__ should also return UNSET
     assert elem["capacity"] is UNSET
     assert not is_set(elem["capacity"])
-
