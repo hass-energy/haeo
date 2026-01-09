@@ -17,6 +17,12 @@ CONF_PRICE_PRODUCTION: Final = "price_production"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
 
+# Default values for optional fields
+DEFAULTS: Final[dict[str, bool | float]] = {
+    CONF_CURTAILMENT: True,  # Allow curtailment by default
+    CONF_PRICE_PRODUCTION: 0.0,  # No production incentive
+}
+
 # Input field definitions for creating input entities (mix of Number and Switch)
 INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
     InputFieldInfo(
@@ -87,5 +93,5 @@ class SolarConfigData(TypedDict):
     name: str
     connection: str  # Element name to connect to
     forecast: list[float]  # Loaded power values per period (kW)
-    curtailment: bool  # Whether solar can be curtailed
-    price_production: float  # $/kWh production incentive (0.0 if not configured)
+    curtailment: NotRequired[bool]  # Whether solar can be curtailed (default: True)
+    price_production: NotRequired[float]  # $/kWh production incentive (default: 0.0)

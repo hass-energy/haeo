@@ -18,10 +18,10 @@ VALID_DATA = [
         "mode_input": {
             CONF_NAME: "Test Inverter",
             CONF_CONNECTION: "main_bus",
-            CONF_MAX_POWER_DC_TO_AC: ["sensor.haeo_constant_power"],
-            CONF_MAX_POWER_AC_TO_DC: ["sensor.haeo_constant_power"],
-            CONF_EFFICIENCY_DC_TO_AC: ["sensor.haeo_constant_percentage"],
-            CONF_EFFICIENCY_AC_TO_DC: ["sensor.haeo_constant_percentage"],
+            CONF_MAX_POWER_DC_TO_AC: ["haeo.configurable_entity"],
+            CONF_MAX_POWER_AC_TO_DC: ["haeo.configurable_entity"],
+            CONF_EFFICIENCY_DC_TO_AC: ["haeo.configurable_entity"],
+            CONF_EFFICIENCY_AC_TO_DC: ["haeo.configurable_entity"],
         },
         "config": {
             CONF_NAME: "Test Inverter",

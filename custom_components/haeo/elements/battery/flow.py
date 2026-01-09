@@ -101,7 +101,10 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             vol.Required(CONF_CONNECTION): build_participant_selector(participants, current_connection),
         }
 
+        # Only include main input fields (not partition fields) in step 1
         for field_info in INPUT_FIELDS:
+            if field_info.field_name in PARTITION_FIELD_NAMES:
+                continue
             exclude_entities = exclusion_map.get(field_info.field_name, [])
             marker, selector = build_entity_schema_entry(
                 field_info,
@@ -240,9 +243,11 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         configurable_entity_id = get_configurable_entity_id()
 
         if subentry_data is None:
-            # First setup: pre-select based on defaults.mode
+            # First setup: pre-select based on defaults.mode (exclude partition fields)
             defaults: dict[str, Any] = {}
             for field in INPUT_FIELDS:
+                if field.field_name in PARTITION_FIELD_NAMES:
+                    continue
                 if field.defaults is not None and field.defaults.mode == "value":
                     defaults[field.field_name] = [configurable_entity_id]
                 elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
@@ -260,8 +265,11 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         entry_id = entry.entry_id
         subentry_id = subentry.subentry_id if subentry else ""
 
+        # Exclude partition fields from step 1 defaults
         entity_defaults: dict[str, Any] = {}
         for field in INPUT_FIELDS:
+            if field.field_name in PARTITION_FIELD_NAMES:
+                continue
             value = subentry_data.get(field.field_name)
             if isinstance(value, list):
                 # Entity link: use stored entity IDs

@@ -18,10 +18,10 @@ VALID_DATA = [
         "mode_input": {
             CONF_NAME: "Test Grid",
             CONF_CONNECTION: "main_bus",
-            CONF_IMPORT_PRICE: ["sensor.haeo_constant_monetary"],
-            CONF_EXPORT_PRICE: ["sensor.haeo_constant_monetary"],
-            CONF_IMPORT_LIMIT: ["sensor.haeo_constant_power"],
-            CONF_EXPORT_LIMIT: ["sensor.haeo_constant_power"],
+            CONF_IMPORT_PRICE: ["haeo.configurable_entity"],
+            CONF_EXPORT_PRICE: ["haeo.configurable_entity"],
+            CONF_IMPORT_LIMIT: ["haeo.configurable_entity"],
+            CONF_EXPORT_LIMIT: ["haeo.configurable_entity"],
         },
         "config": {
             CONF_NAME: "Test Grid",

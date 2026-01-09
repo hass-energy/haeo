@@ -25,7 +25,7 @@ VALID_DATA = [
         "mode_input": {
             CONF_NAME: "Constant Load",
             CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: ["sensor.haeo_constant_power"],
+            CONF_FORECAST: ["haeo.configurable_entity"],
         },
         "config": {
             CONF_NAME: "Constant Load",

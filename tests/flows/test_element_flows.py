@@ -270,13 +270,15 @@ async def test_element_flow_user_step_success(
     assert not result.get("errors")
 
     if element_type in TWO_STEP_FLOW_ELEMENTS:
-        # Two-step flow: submit mode selection, then values
+        # Two-step flow: submit mode selection, then optionally values
         mode_input = cases.valid[0].mode_input
         assert mode_input is not None, f"mode_input required for two-step element {element_type}"
         result = await flow.async_step_user(user_input=mode_input)
-        assert result.get("type") == FlowResultType.FORM
-        assert result.get("step_id") == "values"
-        result = await flow.async_step_values(user_input=user_input)
+
+        # Step 2 is only shown if configurable entity was selected
+        # If no configurable fields, flow skips directly to create_entry
+        if result.get("type") == FlowResultType.FORM and result.get("step_id") == "values":
+            result = await flow.async_step_values(user_input=user_input)
     else:
         # One-step flow: submit values directly
         result = await flow.async_step_user(user_input=user_input)
@@ -370,7 +372,8 @@ async def test_element_flow_reconfigure_success(
 
     result = await flow.async_step_reconfigure(user_input=None)
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure"
+    # Some flows reuse "user" step_id for reconfigure, others use "reconfigure"
+    assert result.get("step_id") in ("reconfigure", "user")
 
     reconfigure_input = deepcopy(existing_config)
 

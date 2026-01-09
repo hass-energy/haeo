@@ -24,8 +24,8 @@ VALID_DATA = [
         "description": "Battery section with constant values",
         "mode_input": {
             CONF_NAME: "Constant Section",
-            CONF_CAPACITY: ["sensor.haeo_constant_energy"],
-            CONF_INITIAL_CHARGE: ["sensor.haeo_constant_energy"],
+            CONF_CAPACITY: ["haeo.configurable_entity"],
+            CONF_INITIAL_CHARGE: ["haeo.configurable_entity"],
         },
         "config": {
             CONF_NAME: "Constant Section",

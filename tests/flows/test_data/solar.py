@@ -17,9 +17,9 @@ VALID_DATA = [
         "mode_input": {
             CONF_NAME: "Test Solar",
             CONF_CONNECTION: "main_bus",
-            CONF_FORECAST: ["sensor.haeo_constant_power"],
+            CONF_FORECAST: ["haeo.configurable_entity"],
             CONF_PRICE_PRODUCTION: [],
-            CONF_CURTAILMENT: ["sensor.haeo_constant_status"],
+            CONF_CURTAILMENT: ["haeo.configurable_entity"],
         },
         "config": {
             CONF_NAME: "Test Solar",
@@ -34,8 +34,8 @@ VALID_DATA = [
             CONF_NAME: "Rooftop Solar",
             CONF_CONNECTION: "main_bus",
             CONF_FORECAST: ["sensor.solar_power"],
-            CONF_PRICE_PRODUCTION: ["sensor.haeo_constant_monetary"],
-            CONF_CURTAILMENT: ["sensor.haeo_constant_status"],
+            CONF_PRICE_PRODUCTION: ["haeo.configurable_entity"],
+            CONF_CURTAILMENT: ["haeo.configurable_entity"],
         },
         "config": {
             CONF_NAME: "Rooftop Solar",
