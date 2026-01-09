@@ -62,6 +62,8 @@ from custom_components.haeo.elements.battery import (
     CONF_EFFICIENCY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_POWER,
+    CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.elements.connection import (
@@ -122,6 +124,8 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                 CONF_CAPACITY: ["sensor.battery_capacity"],
                 CONF_CONNECTION: "DC Bus",
                 CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+                CONF_MAX_CHARGE_POWER: 5.0,
+                CONF_MAX_DISCHARGE_POWER: 5.0,
                 CONF_MIN_CHARGE_PERCENTAGE: 20.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 80.0,
                 CONF_EFFICIENCY: 95.0,
@@ -967,25 +971,21 @@ def test_trigger_optimization_optimizes_immediately_outside_cooldown(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_from_input_entities_skips_missing_input_entity(
+def test_load_from_input_entities_skips_element_when_required_input_missing(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading skips fields when input entity is missing."""
+    """Loading skips element entirely when required input entities are missing."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # runtime_data exists but input_entities is empty
     mock_runtime_data.input_entities = {}
 
-    # Should not raise - just returns config without input field values
+    # Should not raise - element is skipped when required fields are missing
     result = coordinator._load_from_input_entities()
-    assert "Test Battery" in result
-    # Base fields are still present
-    assert result["Test Battery"]["element_type"] == "battery"
-    assert result["Test Battery"]["name"] == "Test Battery"
-    # But input fields are missing
-    assert "capacity" not in result["Test Battery"]
+    # Element should not be in result since required fields (like capacity) are missing
+    assert "Test Battery" not in result
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
@@ -1015,24 +1015,23 @@ def test_load_from_input_entities_loads_time_series_fields(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_from_input_entities_skips_fields_when_values_none(
+def test_load_from_input_entities_skips_element_when_required_field_returns_none(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading skips fields when input entity returns None values."""
+    """Loading skips element when required input entity returns None values."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # Create mock input entity that returns None for values (disabled entity)
+    # Create mock input entity that returns None for required field (capacity)
     mock_entity = MagicMock()
     mock_entity.get_values.return_value = None
     mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
 
-    # Should not raise - just skips the field
+    # Should not raise - element is skipped since required field returned None
     result = coordinator._load_from_input_entities()
-    assert "Test Battery" in result
-    # Capacity should not be in result since entity returned None
-    assert "capacity" not in result["Test Battery"]
+    # Element should not be in result since required field (capacity) returned None
+    assert "Test Battery" not in result
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")

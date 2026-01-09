@@ -10,7 +10,11 @@ from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import NodeSubentryFlowHandler
-from .schema import CONF_IS_SINK, CONF_IS_SOURCE, DEFAULTS, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
+from .schema import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, NodeConfigData, NodeConfigSchema
+
+# Defaults for absent optional fields (no-op values: pure junction behavior)
+DEFAULT_IS_SOURCE: Final[bool] = False
+DEFAULT_IS_SINK: Final[bool] = False
 
 # Node output names
 type NodeOutputName = Literal["node_power_balance"]
@@ -38,16 +42,46 @@ class NodeAdapter:
         _ = config  # Unused but required by protocol
         return True
 
-    async def load(self, config: NodeConfigSchema, **_kwargs: Any) -> NodeConfigData:
-        """Load node configuration values."""
-        const_loader_bool = ConstantLoader[bool](bool)
+    def build_config_data(
+        self,
+        loaded_values: Mapping[str, Any],
+        config: NodeConfigSchema,
+    ) -> NodeConfigData:
+        """Build ConfigData from pre-loaded values.
 
+        This is the single source of truth for ConfigData construction.
+        Both load() and the coordinator use this method.
+
+        Args:
+            loaded_values: Dict of field names to loaded values (from input entities or ConstantLoader)
+            config: Original ConfigSchema for non-input fields (element_type, name)
+
+        Returns:
+            NodeConfigData with all fields populated and defaults applied
+
+        """
         return {
             "element_type": config["element_type"],
             "name": config["name"],
-            "is_source": await const_loader_bool.load(value=config.get("is_source", DEFAULTS[CONF_IS_SOURCE])),
-            "is_sink": await const_loader_bool.load(value=config.get("is_sink", DEFAULTS[CONF_IS_SINK])),
+            "is_source": bool(loaded_values.get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE)),
+            "is_sink": bool(loaded_values.get(CONF_IS_SINK, DEFAULT_IS_SINK)),
         }
+
+    async def load(self, config: NodeConfigSchema, **_kwargs: Any) -> NodeConfigData:
+        """Load node configuration values.
+
+        Uses ConstantLoader for boolean fields, then delegates to build_config_data().
+        """
+        const_loader_bool = ConstantLoader[bool](bool)
+        loaded_values: dict[str, bool] = {}
+
+        # Load boolean fields with defaults
+        if CONF_IS_SOURCE in config:
+            loaded_values[CONF_IS_SOURCE] = await const_loader_bool.load(value=config[CONF_IS_SOURCE])
+        if CONF_IS_SINK in config:
+            loaded_values[CONF_IS_SINK] = await const_loader_bool.load(value=config[CONF_IS_SINK])
+
+        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: NodeConfigData) -> list[dict[str, Any]]:
         """Return model element parameters for Node configuration."""
@@ -55,8 +89,8 @@ class NodeAdapter:
             {
                 "element_type": "node",
                 "name": config["name"],
-                "is_source": config.get("is_source", DEFAULTS[CONF_IS_SOURCE]),
-                "is_sink": config.get("is_sink", DEFAULTS[CONF_IS_SINK]),
+                "is_source": config["is_source"],
+                "is_sink": config["is_sink"],
             }
         ]
 

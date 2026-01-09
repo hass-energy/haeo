@@ -20,7 +20,6 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
-    CONF_NAME,
     DEFAULT_DEBOUNCE_SECONDS,
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
@@ -406,6 +405,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _load_element_config(self, element_name: str) -> ElementConfigData | None:
         """Load configuration for a single element from its input entities.
 
+        Collects loaded values from input entities and delegates to the adapter's
+        build_config_data() method - the single source of truth for ConfigData construction.
+
         Args:
             element_name: Name of the element to load
 
@@ -426,26 +428,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         if not is_element_type(element_type):
             return None
 
-        # Start with the base config (element_type, name)
-        loaded_data: dict[str, Any] = {
-            CONF_ELEMENT_TYPE: element_type,
-            CONF_NAME: element_name,
-        }
-
         # Get input field definitions for this element type
         input_field_infos = get_input_fields(element_type)
-        input_field_map = {f.field_name: f for f in input_field_infos}
-        input_field_names = set(input_field_map.keys())
 
-        # Process non-input fields from config first
-        for field_name in element_config:
-            if field_name in (CONF_ELEMENT_TYPE, CONF_NAME):
-                continue
-            if field_name in input_field_names:
-                continue
-            loaded_data[field_name] = element_config[field_name]
-
-        # Load values from input entities
+        # Collect loaded values from input entities
+        loaded_values: dict[str, Any] = {}
         for field_info in input_field_infos:
             field_name = field_info.field_name
             key = (element_name, field_name)
@@ -460,11 +447,23 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 continue
 
             if field_info.time_series:
-                loaded_data[field_name] = list(values)
+                loaded_values[field_name] = list(values)
             else:
-                loaded_data[field_name] = values[0] if values else None
+                loaded_values[field_name] = values[0] if values else None
 
-        return loaded_data  # type: ignore[return-value]
+        # Delegate to adapter's build_config_data() - single source of truth
+        # If required fields are missing, build_config_data will raise KeyError
+        # In that case, we return None to skip this element
+        adapter = ELEMENT_TYPES[element_type]
+        try:
+            return adapter.build_config_data(loaded_values, element_config)
+        except KeyError as e:
+            _LOGGER.warning(
+                "Missing required field %s for element '%s' - skipping",
+                e.args[0] if e.args else "unknown",
+                element_name,
+            )
+            return None
 
     def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
         """Load element configurations from input entities.

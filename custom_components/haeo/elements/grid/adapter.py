@@ -21,14 +21,7 @@ from custom_components.haeo.model.elements.power_connection import (
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import GridSubentryFlowHandler
-from .schema import (
-    CONF_CONNECTION,
-    DEFAULT_EXPORT_PRICE,
-    DEFAULT_IMPORT_PRICE,
-    ELEMENT_TYPE,
-    GridConfigData,
-    GridConfigSchema,
-)
+from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigData, GridConfigSchema
 
 # Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[
@@ -84,6 +77,42 @@ class GridAdapter:
 
         return entities_available(config.get("import_price")) and entities_available(config.get("export_price"))
 
+    def build_config_data(
+        self,
+        loaded_values: Mapping[str, Any],
+        config: GridConfigSchema,
+    ) -> GridConfigData:
+        """Build ConfigData from pre-loaded values.
+
+        This is the single source of truth for ConfigData construction.
+        Both load() and the coordinator use this method.
+
+        Args:
+            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            config: Original ConfigSchema for non-input fields (element_type, name, connection)
+
+        Returns:
+            GridConfigData with all fields populated and defaults applied
+
+        """
+        # Build data with required fields (prices must be present in loaded_values)
+        data: GridConfigData = {
+            "element_type": config["element_type"],
+            "name": config["name"],
+            "connection": config[CONF_CONNECTION],
+            "import_price": list(loaded_values["import_price"]),
+            "export_price": list(loaded_values["export_price"]),
+        }
+
+        # Optional limit fields - only include if present
+        if "import_limit" in loaded_values:
+            data["import_limit"] = list(loaded_values["import_limit"])
+
+        if "export_limit" in loaded_values:
+            data["export_limit"] = list(loaded_values["export_limit"])
+
+        return data
+
     async def load(
         self,
         config: GridConfigSchema,
@@ -91,69 +120,52 @@ class GridAdapter:
         hass: HomeAssistant,
         forecast_times: Sequence[float],
     ) -> GridConfigData:
-        """Load grid configuration values from sensors."""
+        """Load grid configuration values from sensors.
+
+        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
+        """
         ts_loader = TimeSeriesLoader()
-        # forecast_times are boundaries, so n_periods = len(forecast_times) - 1
         n_periods = max(0, len(forecast_times) - 1)
+        loaded_values: dict[str, list[float]] = {}
 
-        # Load import_price: entity list, constant, or use default
-        import_value = config.get("import_price")
-        if isinstance(import_value, list) and import_value:
-            import_price = await ts_loader.load_intervals(
-                hass=hass,
-                value=import_value,
-                forecast_times=forecast_times,
+        # Load import_price: entity list or constant (required field)
+        import_value = config["import_price"]
+        if isinstance(import_value, list):
+            loaded_values["import_price"] = await ts_loader.load_intervals(
+                hass=hass, value=import_value, forecast_times=forecast_times
             )
-        elif isinstance(import_value, (int, float)):
-            import_price = [float(import_value)] * n_periods
         else:
-            import_price = [DEFAULT_IMPORT_PRICE] * n_periods
+            loaded_values["import_price"] = [float(import_value)] * n_periods
 
-        # Load export_price: entity list, constant, or use default
-        export_value = config.get("export_price")
-        if isinstance(export_value, list) and export_value:
-            export_price = await ts_loader.load_intervals(
-                hass=hass,
-                value=export_value,
-                forecast_times=forecast_times,
+        # Load export_price: entity list or constant (required field)
+        export_value = config["export_price"]
+        if isinstance(export_value, list):
+            loaded_values["export_price"] = await ts_loader.load_intervals(
+                hass=hass, value=export_value, forecast_times=forecast_times
             )
-        elif isinstance(export_value, (int, float)):
-            export_price = [float(export_value)] * n_periods
         else:
-            export_price = [DEFAULT_EXPORT_PRICE] * n_periods
+            loaded_values["export_price"] = [float(export_value)] * n_periods
 
-        data: GridConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "import_price": import_price,
-            "export_price": export_price,
-        }
-
-        # Load optional power limit fields
+        # Load optional limit fields
         import_limit = config.get("import_limit")
         if import_limit is not None:
             if isinstance(import_limit, list) and import_limit:
-                data["import_limit"] = await ts_loader.load_intervals(
-                    hass=hass,
-                    value=import_limit,
-                    forecast_times=forecast_times,
+                loaded_values["import_limit"] = await ts_loader.load_intervals(
+                    hass=hass, value=import_limit, forecast_times=forecast_times
                 )
-            elif isinstance(import_limit, (int, float)):
-                data["import_limit"] = [float(import_limit)] * n_periods
+            elif isinstance(import_limit, int | float):
+                loaded_values["import_limit"] = [float(import_limit)] * n_periods
 
         export_limit = config.get("export_limit")
         if export_limit is not None:
             if isinstance(export_limit, list) and export_limit:
-                data["export_limit"] = await ts_loader.load_intervals(
-                    hass=hass,
-                    value=export_limit,
-                    forecast_times=forecast_times,
+                loaded_values["export_limit"] = await ts_loader.load_intervals(
+                    hass=hass, value=export_limit, forecast_times=forecast_times
                 )
-            elif isinstance(export_limit, (int, float)):
-                data["export_limit"] = [float(export_limit)] * n_periods
+            elif isinstance(export_limit, int | float):
+                loaded_values["export_limit"] = [float(export_limit)] * n_periods
 
-        return data
+        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: GridConfigData) -> list[dict[str, Any]]:
         """Create model elements for Grid configuration."""

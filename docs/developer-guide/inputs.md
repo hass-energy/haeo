@@ -51,16 +51,18 @@ See the element adapter modules for specific registrations.
 
 ## Entity Creation
 
-Input entities are only created for fields that are actually configured.
-When a user selects "Not Configured" (mode `NONE`) for an optional field during element setup, no entity is created for that field.
+Input entities are only created for fields configured with "Configurable Entity" during element setup.
+When a user links to external sensors or leaves optional fields empty, no HAEO input entity is created for that field.
 This keeps the entity list focused on functionality the user has enabled.
 
-**Configured fields**: An entity is created in either EDITABLE or DRIVEN mode depending on the input type.
+**Configurable Entity fields**: An entity is created in either EDITABLE or DRIVEN mode depending on the input type.
+
+**Sensor-linked fields**: The external sensor is used directly; no HAEO input entity is created.
 
 **Unconfigured fields**: No entity is created.
 The field uses its default value in the optimization model without exposing an entity.
 
-This behavior is controlled by the two-step config flow pattern documented in [Config Flow Development](config-flow.md#two-step-config-flow-pattern).
+This behavior is controlled by the entity-first config flow pattern documented in [Config Flow Development](config-flow.md#entity-first-two-step-config-flow-pattern).
 
 ## Entity Types
 

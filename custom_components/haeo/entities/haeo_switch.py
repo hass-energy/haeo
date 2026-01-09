@@ -125,9 +125,10 @@ class HaeoInputSwitch(SwitchEntity):
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Use field default if no config value
-            if self._attr_is_on is None and self._field_info.default is not None:
-                self._attr_is_on = bool(self._field_info.default)
+            # Use defaults.value if no config value
+            defaults = self._field_info.defaults
+            if self._attr_is_on is None and defaults is not None and defaults.value is not None:
+                self._attr_is_on = bool(defaults.value)
             # Update forecast for initial value
             self._update_forecast()
         else:

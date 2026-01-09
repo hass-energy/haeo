@@ -194,6 +194,26 @@ class ElementAdapter(Protocol):
         """Load configuration values from sensors."""
         ...
 
+    def build_config_data(
+        self,
+        loaded_values: Mapping[str, Any],
+        config: Any,
+    ) -> Any:
+        """Build ConfigData from pre-loaded values.
+
+        This is the single source of truth for ConfigData construction.
+        Both load() and the coordinator use this method.
+
+        Args:
+            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            config: Original ConfigSchema for non-input fields (e.g., connection)
+
+        Returns:
+            ConfigData with all fields populated and defaults applied
+
+        """
+        ...
+
     def model_elements(self, config: Any) -> list[dict[str, Any]]:
         """Return model element parameters for the loaded config."""
         ...
@@ -348,7 +368,7 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
 
 # Registry mapping element types to their input field definitions
 _INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo[Any], ...]]] = {
-    battery.ELEMENT_TYPE: battery.INPUT_FIELDS,
+    battery.ELEMENT_TYPE: battery.ALL_INPUT_FIELDS,
     grid.ELEMENT_TYPE: grid.INPUT_FIELDS,
     solar.ELEMENT_TYPE: solar.INPUT_FIELDS,
     load.ELEMENT_TYPE: load.INPUT_FIELDS,

@@ -17,11 +17,6 @@ CONF_PRICE_PRODUCTION: Final = "price_production"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
 
-# Default values for optional fields
-DEFAULTS: Final[dict[str, bool]] = {
-    CONF_CURTAILMENT: True,
-}
-
 # Input field definitions for creating input entities (mix of Number and Switch)
 INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
     InputFieldInfo(
@@ -58,7 +53,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
             translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
         ),
         output_type=OutputType.STATUS,
-        default=True,
     ),
 )
 
@@ -66,17 +60,21 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
 class SolarConfigSchema(TypedDict):
     """Solar element configuration as stored in Home Assistant.
 
-    Schema mode contains entity IDs for forecast sensors.
+    Schema mode contains entity IDs and constant values from the config flow.
+    Values can be:
+    - list[str]: Entity IDs when linking to sensors
+    - float/bool: Constant value when using HAEO Configurable
+    - NotRequired: Field not present when using default
     """
 
     element_type: Literal["solar"]
     name: str
     connection: str  # Element name to connect to
-    forecast: list[str]  # Entity IDs for power forecast sensors
+    forecast: list[str] | float  # Entity IDs or constant kW
 
-    # Optional fields
-    price_production: NotRequired[float]  # $/kWh production incentive
-    curtailment: NotRequired[bool]  # Whether solar can be curtailed
+    # Optional fields (with sensible defaults)
+    curtailment: NotRequired[list[str] | bool]  # Entity IDs or constant boolean (default: True)
+    price_production: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
 
 
 class SolarConfigData(TypedDict):
@@ -89,7 +87,5 @@ class SolarConfigData(TypedDict):
     name: str
     connection: str  # Element name to connect to
     forecast: list[float]  # Loaded power values per period (kW)
-
-    # Optional fields
-    price_production: NotRequired[float]  # $/kWh production incentive
-    curtailment: NotRequired[bool]  # Whether solar can be curtailed
+    curtailment: NotRequired[bool]  # Whether solar can be curtailed (default: True)
+    price_production: NotRequired[float]  # $/kWh production incentive (default: 0.0)

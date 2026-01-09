@@ -41,6 +41,8 @@ from custom_components.haeo.elements.battery import (
     CONF_EFFICIENCY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
+    CONF_MAX_CHARGE_POWER,
+    CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.elements.grid import CONF_IMPORT_PRICE, GRID_POWER_IMPORT
@@ -120,6 +122,8 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
                 CONF_CAPACITY: ["sensor.battery_capacity"],
                 CONF_CONNECTION: "DC Bus",
                 CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+                CONF_MAX_CHARGE_POWER: 5.0,
+                CONF_MAX_DISCHARGE_POWER: 5.0,
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
                 CONF_EFFICIENCY: 95.0,
@@ -217,6 +221,8 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
                 CONF_CAPACITY: ["sensor.battery_capacity"],
                 CONF_CONNECTION: "DC Bus",
                 CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+                CONF_MAX_CHARGE_POWER: 5.0,
+                CONF_MAX_DISCHARGE_POWER: 5.0,
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
                 CONF_EFFICIENCY: 95.0,
