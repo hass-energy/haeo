@@ -7,7 +7,8 @@ this element creates a single battery section that must be connected manually vi
 
 from typing import Final, Literal, TypedDict
 
-ELEMENT_TYPE: Final = "battery_section"
+ElementTypeName = Literal["battery_section"]
+ELEMENT_TYPE: ElementTypeName = "battery_section"
 
 # Configuration field names
 CONF_CAPACITY: Final = "capacity"

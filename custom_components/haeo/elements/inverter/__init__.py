@@ -25,12 +25,12 @@ from .schema import (
     DEFAULTS,
     ELEMENT_TYPE,
     INPUT_FIELDS,
+    ElementTypeName,
     InverterConfigData,
     InverterConfigSchema,
 )
 
 __all__ = [
-    # Schema
     "CONF_CONNECTION",
     "CONF_EFFICIENCY_AC_TO_DC",
     "CONF_EFFICIENCY_DC_TO_AC",
@@ -39,7 +39,6 @@ __all__ = [
     "DEFAULTS",
     "ELEMENT_TYPE",
     "INPUT_FIELDS",
-    # Adapter
     "INVERTER_DC_BUS_POWER_BALANCE",
     "INVERTER_DEVICE_INVERTER",
     "INVERTER_DEVICE_NAMES",
@@ -49,12 +48,12 @@ __all__ = [
     "INVERTER_POWER_ACTIVE",
     "INVERTER_POWER_AC_TO_DC",
     "INVERTER_POWER_DC_TO_AC",
+    "ElementTypeName",
     "InverterAdapter",
     "InverterConfigData",
     "InverterConfigSchema",
     "InverterDeviceName",
     "InverterOutputName",
-    # Flow
     "InverterSubentryFlowHandler",
     "adapter",
 ]

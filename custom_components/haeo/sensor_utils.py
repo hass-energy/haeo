@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN
+from .model import NETWORK_OPTIMIZATION_DURATION
 
 # Default decimal places for values without a unit
 _DEFAULT_DECIMAL_PLACES = 4
@@ -150,6 +151,10 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
         # Make attributes dict mutable and remove unstable fields
         if "attributes" in state_dict and isinstance(state_dict["attributes"], dict):
             state_dict["attributes"] = dict(state_dict["attributes"])
+
+            # Zero out optimization duration since it varies between runs
+            if state_dict["attributes"].get("output_name") == NETWORK_OPTIMIZATION_DURATION:
+                state_dict["state"] = "0.0"
 
         # Remove timestamp-based fields that aren't relevant for functional comparison
         state_dict.pop("last_changed", None)

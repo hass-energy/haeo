@@ -1,7 +1,7 @@
 """Constants for the Home Assistant Energy Optimizer integration."""
 
 import enum
-from typing import Final, Literal
+from typing import Final
 
 # Integration domain
 DOMAIN: Final = "haeo"
@@ -55,31 +55,6 @@ DEFAULT_DEBOUNCE_SECONDS: Final = 2  # 2 seconds debounce window
 
 # Sentinel configurable entity for user configurable values
 CONFIGURABLE_ENTITY_UNIQUE_ID: Final = "haeo_configurable_entity"
-
-# Optimization statuses
-OPTIMIZATION_STATUS_SUCCESS: Final = "success"
-OPTIMIZATION_STATUS_FAILED: Final = "failed"
-OPTIMIZATION_STATUS_PENDING: Final = "pending"
-
-
-type NetworkOutputName = Literal[
-    "network_optimization_cost",
-    "network_optimization_status",
-    "network_optimization_duration",
-]
-NETWORK_OUTPUT_NAMES: Final[frozenset[NetworkOutputName]] = frozenset(
-    [
-        OUTPUT_NAME_OPTIMIZATION_COST := "network_optimization_cost",
-        OUTPUT_NAME_OPTIMIZATION_STATUS := "network_optimization_status",
-        OUTPUT_NAME_OPTIMIZATION_DURATION := "network_optimization_duration",
-    ]
-)
-
-type NetworkDeviceName = Literal["network"]
-
-NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(
-    (NETWORK_DEVICE_NETWORK := "network",),
-)
 
 
 class ConnectivityLevel(enum.StrEnum):

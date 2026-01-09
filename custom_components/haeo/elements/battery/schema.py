@@ -8,7 +8,8 @@ from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
-ELEMENT_TYPE: Final = "battery"
+ElementTypeName = Literal["battery"]
+ELEMENT_TYPE: ElementTypeName = "battery"
 
 # Configuration field names
 CONF_CAPACITY: Final = "capacity"

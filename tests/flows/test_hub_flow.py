@@ -33,6 +33,7 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_4_DURATION,
     DEFAULT_UPDATE_INTERVAL_MINUTES,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import ELEMENT_TYPES
@@ -303,10 +304,11 @@ async def test_hub_supports_subentry_types(hass: HomeAssistant) -> None:
     # Get supported subentry types
     subentry_types = HubConfigFlow.async_get_supported_subentry_types(hub_entry)
 
-    # Should include all element types when advanced_mode is enabled
-    assert set(subentry_types.keys()) == set(ELEMENT_TYPES)
+    # Should include all user-configurable element types (network is auto-created) when advanced_mode is enabled
+    expected_types = {et for et in ELEMENT_TYPES if et != ELEMENT_TYPE_NETWORK}
+    assert set(subentry_types.keys()) == expected_types
 
-    # Verify each type has a flow class
+    # Verify each type has a flow class with required methods
     for flow_class in subentry_types.values():
         assert flow_class is not None
         assert hasattr(flow_class, "async_step_user")

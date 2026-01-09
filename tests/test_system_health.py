@@ -24,11 +24,14 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_3_DURATION,
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 from custom_components.haeo.coordinator import CoordinatorOutput, HaeoDataUpdateCoordinator
+from custom_components.haeo.elements import ELEMENT_TYPE_NETWORK
+from custom_components.haeo.model import (
+    NETWORK_OPTIMIZATION_COST,
+    NETWORK_OPTIMIZATION_DURATION,
+    NETWORK_OPTIMIZATION_STATUS,
+)
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.system_health import async_register, async_system_health_info
 
@@ -68,15 +71,17 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     coordinator.last_update_success_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     coordinator.data = {
         "HAEO Hub": {
-            OUTPUT_NAME_OPTIMIZATION_STATUS: CoordinatorOutput(
-                type=OutputType.STATUS, unit=None, state="success", forecast=None
-            ),
-            OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
-                type=OutputType.COST, unit="$", state=42.75, forecast=None
-            ),
-            OUTPUT_NAME_OPTIMIZATION_DURATION: CoordinatorOutput(
-                type=OutputType.DURATION, unit="s", state=1.234, forecast=None
-            ),
+            ELEMENT_TYPE_NETWORK: {
+                NETWORK_OPTIMIZATION_STATUS: CoordinatorOutput(
+                    type=OutputType.STATUS, unit=None, state="success", forecast=None
+                ),
+                NETWORK_OPTIMIZATION_COST: CoordinatorOutput(
+                    type=OutputType.COST, unit="$", state=42.75, forecast=None
+                ),
+                NETWORK_OPTIMIZATION_DURATION: CoordinatorOutput(
+                    type=OutputType.DURATION, unit="s", state=1.234, forecast=None
+                ),
+            },
         },
         "Battery": {"soc": CoordinatorOutput(type=OutputType.STATUS, unit=None, state=50, forecast=None)},
     }

@@ -473,7 +473,29 @@
       "load_power": { "name": "Power" },
       "network_optimization_cost": { "name": "Cost" },
       "network_optimization_duration": { "name": "Duration" },
-      "network_optimization_status": { "name": "Status" },
+      "network_optimization_status": {
+        "name": "Status",
+        "state": {
+          "infeasible": "Infeasible",
+          "iteration_limit": "Iteration limit reached",
+          "load_error": "Load error",
+          "model_empty": "Empty",
+          "model_error": "Model error",
+          "not_set": "Not set",
+          "objective_bound": "Objective bound reached",
+          "objective_target": "Objective target reached",
+          "optimal": "Optimal",
+          "pending": "Pending",
+          "postsolve_error": "Postsolve error",
+          "presolve_error": "Presolve error",
+          "solution_limit": "Solution limit reached",
+          "solve_error": "Solve error",
+          "time_limit": "Time limit reached",
+          "unbounded": "Unbounded",
+          "unbounded_or_infeasible": "Unbounded or infeasible",
+          "unknown": "Unknown"
+        }
+      },
       "node_power_balance": { "name": "Power balance shadow price" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
       "solar_power": { "name": "Power" }

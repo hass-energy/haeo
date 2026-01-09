@@ -1,7 +1,6 @@
 """Coordinator module for HAEO integration."""
 
 from .coordinator import (
-    STATUS_OPTIONS,
     CoordinatorOutput,
     ForecastPoint,
     HaeoDataUpdateCoordinator,
@@ -10,7 +9,6 @@ from .coordinator import (
 from .network import create_network, evaluate_network_connectivity, update_element
 
 __all__ = [
-    "STATUS_OPTIONS",
     "CoordinatorOutput",
     "ForecastPoint",
     "HaeoDataUpdateCoordinator",

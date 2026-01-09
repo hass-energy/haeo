@@ -34,6 +34,7 @@ from custom_components.haeo.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
 )
 from custom_components.haeo.elements import (
@@ -47,15 +48,15 @@ from custom_components.haeo.elements import (
     node,
 )
 from custom_components.haeo.model import OutputData
-from tests.conftest import ElementTestData
+from tests.conftest import FLOW_ELEMENT_TYPES, ElementTestData
 
-ALL_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(ELEMENT_TYPES)
+ALL_ELEMENT_TYPES: tuple[ElementType, ...] = FLOW_ELEMENT_TYPES
 
 # Element types that use two-step flows (have has_value_source_step = True on flow handler)
 TWO_STEP_FLOW_ELEMENTS: frozenset[ElementType] = frozenset(
     element_type
-    for element_type, entry in ELEMENT_TYPES.items()
-    if getattr(entry.flow_class, "has_value_source_step", False)
+    for element_type, adapter in ELEMENT_TYPES.items()
+    if getattr(adapter.flow_class, "has_value_source_step", False) and element_type != ELEMENT_TYPE_NETWORK
 )
 
 

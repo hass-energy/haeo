@@ -8,7 +8,8 @@ from homeassistant.const import UnitOfPower
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
-ELEMENT_TYPE: Final = "grid"
+ElementTypeName = Literal["grid"]
+ELEMENT_TYPE: ElementTypeName = "grid"
 
 # Configuration field names
 CONF_IMPORT_PRICE: Final = "import_price"

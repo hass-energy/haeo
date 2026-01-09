@@ -6,12 +6,13 @@ from typing import Any
 from homeassistant.components import system_health
 from homeassistant.core import HomeAssistant, callback
 
-from .const import (
-    DOMAIN,
+from .const import DOMAIN
+from .elements import ELEMENT_TYPE_NETWORK
+from .model import (
+    NETWORK_OPTIMIZATION_COST,
+    NETWORK_OPTIMIZATION_DURATION,
+    NETWORK_OPTIMIZATION_STATUS,
     OPTIMIZATION_STATUS_PENDING,
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
 from .util.forecast_times import tiers_to_periods_seconds
 
@@ -52,16 +53,20 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
         # Coordinator status
         health_info[f"{prefix}status"] = "ok" if coordinator.last_update_success else "update_failed"
 
-        hub_outputs: Mapping[str, Any] = coordinator.data.get(hub_key, {}) if coordinator.data else {}
+        hub_outputs: Mapping[str, Any] = {}
+        if coordinator.data:
+            # Look for network device outputs under the hub key
+            hub_devices = coordinator.data.get(hub_key, {})
+            hub_outputs = hub_devices.get(ELEMENT_TYPE_NETWORK, {})
 
-        status_output = hub_outputs.get(OUTPUT_NAME_OPTIMIZATION_STATUS)
+        status_output = hub_outputs.get(NETWORK_OPTIMIZATION_STATUS)
         optimization_status = (
             status_output.state if status_output and status_output.state else OPTIMIZATION_STATUS_PENDING
         )
         health_info[f"{prefix}optimization_status"] = optimization_status
 
-        cost_output = hub_outputs.get(OUTPUT_NAME_OPTIMIZATION_COST)
-        duration_output = hub_outputs.get(OUTPUT_NAME_OPTIMIZATION_DURATION)
+        cost_output = hub_outputs.get(NETWORK_OPTIMIZATION_COST)
+        duration_output = hub_outputs.get(NETWORK_OPTIMIZATION_DURATION)
 
         if cost_output and cost_output.state is not None:
             health_info[f"{prefix}last_optimization_cost"] = f"{float(cost_output.state):.2f}"

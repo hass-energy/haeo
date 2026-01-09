@@ -9,10 +9,13 @@ from typing import Any
 import pytest
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.elements import ELEMENT_TYPES
+from custom_components.haeo.elements import ELEMENT_TYPE_NETWORK, ELEMENT_TYPES, ElementType
 
 # Enable custom component for testing
 pytest_plugins = ["pytest_homeassistant_custom_component"]
+
+# Element types that have user flows (network is auto-created, not user-configurable)
+FLOW_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(et for et in ELEMENT_TYPES if et != ELEMENT_TYPE_NETWORK)
 
 # Entity ID for the configurable sentinel entity (domain.suggested_object_id)
 TEST_CONFIGURABLE_ENTITY_ID = f"{DOMAIN}.configurable_entity"
@@ -58,11 +61,11 @@ def _load_flow_cases(cases: Iterable[dict[str, Any]], *, include_error: bool) ->
 
 @pytest.fixture(scope="session")
 def element_test_data() -> dict[str, ElementTestData]:
-    """Load dynamic element test data for all element types."""
+    """Load dynamic element test data for all element types with user flows."""
 
     data: dict[str, ElementTestData] = {}
 
-    for element_type in ELEMENT_TYPES:
+    for element_type in FLOW_ELEMENT_TYPES:
         module_name = f"tests.flows.test_data.{element_type}"
         module = import_module(module_name)
 

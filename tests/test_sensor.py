@@ -14,19 +14,12 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_NAME,
-    DOMAIN,
-    ELEMENT_TYPE_NETWORK,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
-)
+from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint
 from custom_components.haeo.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.elements.load import LOAD_POWER
 from custom_components.haeo.entities import HaeoSensor
-from custom_components.haeo.model import OutputType
+from custom_components.haeo.model import NETWORK_OPTIMIZATION_DURATION, NETWORK_OPTIMIZATION_STATUS, OutputType
 from custom_components.haeo.sensor import async_setup_entry
 
 
@@ -147,7 +140,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
     coordinator.data = {
         network_key: {
             network_key: {
-                OUTPUT_NAME_OPTIMIZATION_STATUS: _make_output(
+                NETWORK_OPTIMIZATION_STATUS: _make_output(
                     type_=OutputType.STATUS,
                     unit=None,
                     state="pending",
@@ -157,7 +150,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
                     state_class=None,
                     options=("failed", "pending", "success"),
                 ),
-                OUTPUT_NAME_OPTIMIZATION_DURATION: _make_output(
+                NETWORK_OPTIMIZATION_DURATION: _make_output(
                     type_=OutputType.DURATION,
                     unit=UnitOfTime.SECONDS,
                     state=12.3,
@@ -195,12 +188,12 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
     # 3 output sensors + 1 horizon entity = 4 total
     assert len(sensors) == 4
 
-    status_sensor = next(sensor for sensor in sensors if sensor.translation_key == OUTPUT_NAME_OPTIMIZATION_STATUS)
+    status_sensor = next(sensor for sensor in sensors if sensor.translation_key == NETWORK_OPTIMIZATION_STATUS)
     assert status_sensor.device_class is SensorDeviceClass.ENUM
     assert status_sensor.options == ["failed", "pending", "success"]
     assert status_sensor.native_value == "pending"
 
-    duration_sensor = next(sensor for sensor in sensors if sensor.translation_key == OUTPUT_NAME_OPTIMIZATION_DURATION)
+    duration_sensor = next(sensor for sensor in sensors if sensor.translation_key == NETWORK_OPTIMIZATION_DURATION)
     assert duration_sensor.entity_category is EntityCategory.DIAGNOSTIC
     assert duration_sensor.device_class is SensorDeviceClass.DURATION
     assert duration_sensor.state_class is SensorStateClass.MEASUREMENT

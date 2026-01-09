@@ -27,9 +27,16 @@ from .elements.node import NodeOutputName as NodeOutputName
 from .elements.power_connection import POWER_CONNECTION_OUTPUT_NAMES as POWER_CONNECTION_OUTPUT_NAMES
 from .elements.power_connection import PowerConnection as PowerConnection
 from .elements.power_connection import PowerConnectionOutputName as PowerConnectionOutputName
+from .network import COST_UNIT as COST_UNIT
+from .network import OPTIMIZATION_STATUS_OPTIONS as OPTIMIZATION_STATUS_OPTIONS
+from .network import OPTIMIZATION_STATUS_PENDING as OPTIMIZATION_STATUS_PENDING
 from .network import Network as Network
 from .output_data import OutputData
+from .output_names import NETWORK_OPTIMIZATION_COST as NETWORK_OPTIMIZATION_COST
+from .output_names import NETWORK_OPTIMIZATION_DURATION as NETWORK_OPTIMIZATION_DURATION
+from .output_names import NETWORK_OPTIMIZATION_STATUS as NETWORK_OPTIMIZATION_STATUS
 from .output_names import ModelOutputName
+from .output_names import NetworkOutputName as NetworkOutputName
 
 __all__ = [
     "BATTERY_OUTPUT_NAMES",
@@ -38,7 +45,13 @@ __all__ = [
     "CONNECTION_POWER_SOURCE_TARGET",
     "CONNECTION_POWER_TARGET_SOURCE",
     "CONNECTION_TIME_SLICE",
+    "COST_UNIT",
     "MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION",
+    "NETWORK_OPTIMIZATION_COST",
+    "NETWORK_OPTIMIZATION_DURATION",
+    "NETWORK_OPTIMIZATION_STATUS",
+    "OPTIMIZATION_STATUS_OPTIONS",
+    "OPTIMIZATION_STATUS_PENDING",
     "POWER_CONNECTION_OUTPUT_NAMES",
     "Battery",
     "BatteryBalanceConnection",
@@ -50,6 +63,7 @@ __all__ = [
     "Element",
     "ModelOutputName",
     "Network",
+    "NetworkOutputName",
     "Node",
     "NodeOutputName",
     "OutputData",

@@ -155,12 +155,15 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         """Return subentries supported by this integration.
 
         Element types marked as advanced in the registry require advanced_mode enabled.
+        Auto-created elements (like network) are not included as they are not user-configurable.
         """
         advanced_mode = config_entry.data.get(CONF_ADVANCED_MODE, False)
 
-        # Register element flows, filtering advanced types based on mode
+        # Register element flows, filtering:
+        # - Network element (auto-created, not user-configurable)
+        # - Advanced types when not in advanced mode
         return {
-            element_type: entry.flow_class
-            for element_type, entry in ELEMENT_TYPES.items()
-            if not entry.advanced or advanced_mode
+            element_type: adapter.flow_class
+            for element_type, adapter in ELEMENT_TYPES.items()
+            if element_type != ELEMENT_TYPE_NETWORK and (not adapter.advanced or advanced_mode)
         }

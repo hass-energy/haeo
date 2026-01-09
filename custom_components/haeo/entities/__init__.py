@@ -5,8 +5,10 @@ This module provides:
 - HaeoInputNumber: Number entity for configurable parameters
 - HaeoInputSwitch: Switch entity for boolean parameters
 - HaeoHorizonEntity: Sensor providing forecast time windows
+- get_or_create_device: Shared device creation helper
 """
 
+from .device import get_or_create_device
 from .haeo_horizon import HaeoHorizonEntity
 from .haeo_number import ConfigEntityMode, HaeoInputNumber
 from .haeo_sensor import HaeoSensor
@@ -18,4 +20,5 @@ __all__ = [
     "HaeoInputNumber",
     "HaeoInputSwitch",
     "HaeoSensor",
+    "get_or_create_device",
 ]

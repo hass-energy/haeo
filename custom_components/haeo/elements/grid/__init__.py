@@ -26,19 +26,18 @@ from .schema import (
     CONF_IMPORT_PRICE,
     ELEMENT_TYPE,
     INPUT_FIELDS,
+    ElementTypeName,
     GridConfigData,
     GridConfigSchema,
 )
 
 __all__ = [
-    # Schema
     "CONF_CONNECTION",
     "CONF_EXPORT_LIMIT",
     "CONF_EXPORT_PRICE",
     "CONF_IMPORT_LIMIT",
     "CONF_IMPORT_PRICE",
     "ELEMENT_TYPE",
-    # Adapter
     "GRID_COST_EXPORT",
     "GRID_COST_IMPORT",
     "GRID_COST_NET",
@@ -51,12 +50,12 @@ __all__ = [
     "GRID_POWER_MAX_EXPORT_PRICE",
     "GRID_POWER_MAX_IMPORT_PRICE",
     "INPUT_FIELDS",
+    "ElementTypeName",
     "GridAdapter",
     "GridConfigData",
     "GridConfigSchema",
     "GridDeviceName",
     "GridOutputName",
-    # Flow
     "GridSubentryFlowHandler",
     "adapter",
 ]

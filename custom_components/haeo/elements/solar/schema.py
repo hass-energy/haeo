@@ -9,7 +9,8 @@ from homeassistant.const import UnitOfPower
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
-ELEMENT_TYPE: Final = "solar"
+ElementTypeName = Literal["solar"]
+ELEMENT_TYPE: ElementTypeName = "solar"
 
 # Configuration field names
 CONF_FORECAST: Final = "forecast"

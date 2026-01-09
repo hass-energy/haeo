@@ -20,12 +20,12 @@ from .schema import (
     DEFAULTS,
     ELEMENT_TYPE,
     INPUT_FIELDS,
+    ElementTypeName,
     SolarConfigData,
     SolarConfigSchema,
 )
 
 __all__ = [
-    # Schema
     "CONF_CONNECTION",
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
@@ -33,18 +33,17 @@ __all__ = [
     "DEFAULTS",
     "ELEMENT_TYPE",
     "INPUT_FIELDS",
-    # Adapter
     "SOLAR_DEVICE_NAMES",
     "SOLAR_DEVICE_SOLAR",
     "SOLAR_FORECAST_LIMIT",
     "SOLAR_OUTPUT_NAMES",
     "SOLAR_POWER",
+    "ElementTypeName",
     "SolarAdapter",
     "SolarConfigData",
     "SolarConfigSchema",
     "SolarDeviceName",
     "SolarOutputName",
-    # Flow
     "SolarSubentryFlowHandler",
     "adapter",
 ]

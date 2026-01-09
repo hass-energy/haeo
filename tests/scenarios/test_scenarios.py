@@ -28,8 +28,8 @@ from custom_components.haeo.const import (
     CONF_TIER_4_DURATION,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
+from custom_components.haeo.model import NETWORK_OPTIMIZATION_STATUS
 from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
@@ -138,7 +138,7 @@ async def test_scenarios(
             (
                 entry
                 for entry in er.async_entries_for_config_entry(entity_registry, mock_config_entry.entry_id)
-                if entry.unique_id.endswith(f"_{OUTPUT_NAME_OPTIMIZATION_STATUS}")
+                if entry.unique_id.endswith(f"_{NETWORK_OPTIMIZATION_STATUS}")
             ),
             None,
         )
@@ -154,7 +154,7 @@ async def test_scenarios(
 
         # Verify optimization completed successfully
         _LOGGER.info("Optimization status: %s", optimization_status.state)
-        assert optimization_status.state == "success", (
+        assert optimization_status.state == "optimal", (
             f"Optimization should succeed, but got status: {optimization_status.state}"
         )
 

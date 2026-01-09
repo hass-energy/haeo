@@ -8,7 +8,8 @@ from homeassistant.const import PERCENTAGE, UnitOfPower
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
-ELEMENT_TYPE: Final = "inverter"
+ElementTypeName = Literal["inverter"]
+ELEMENT_TYPE: ElementTypeName = "inverter"
 
 # Configuration field names
 CONF_CONNECTION: Final = "connection"

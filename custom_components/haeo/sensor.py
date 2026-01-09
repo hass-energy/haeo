@@ -5,12 +5,11 @@ import logging
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
-from custom_components.haeo.entities import HaeoSensor
+from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
+from custom_components.haeo.entities import HaeoSensor, get_or_create_device
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,9 +37,6 @@ async def async_setup_entry(
 
     horizon_manager = runtime_data.horizon_manager
 
-    # Get the device registry
-    dr = device_registry.async_get(hass)
-
     # Find network subentry for horizon entity's device
     network_subentry = next(
         (s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
@@ -50,14 +46,8 @@ async def async_setup_entry(
         msg = "No network subentry found - integration setup incomplete"
         raise RuntimeError(msg)
 
-    # Get the network device (created in __init__.py)
-    network_device_entry = dr.async_get_or_create(
-        identifiers={(DOMAIN, f"{config_entry.entry_id}_{network_subentry.subentry_id}")},
-        config_entry_id=config_entry.entry_id,
-        config_subentry_id=network_subentry.subentry_id,
-        translation_key=ELEMENT_TYPE_NETWORK,
-        translation_placeholders={"name": network_subentry.title},
-    )
+    # Get the network device using shared helper
+    network_device_entry = get_or_create_device(hass, config_entry, network_subentry)
 
     # Create horizon entity that displays horizon manager state
     horizon_entity = HaeoHorizonEntity(
@@ -74,25 +64,22 @@ async def async_setup_entry(
             # Get all devices under this subentry (may be multiple, e.g., battery regions)
             subentry_devices = coordinator.data.get(subentry.title, {})
 
-            # Pass subentry data as translation placeholders (convert all values to strings)
+            # Build translation placeholders from subentry data
             translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+            translation_placeholders["name"] = subentry.title
 
             for device_name, device_outputs in subentry_devices.items():
-                # Create a unique device identifier that includes device name for sub-devices
-                # Sub-devices are battery partitions, etc. that have a different device_name
-                # than the element type (e.g., "battery_device_normal" vs "battery")
+                # Get or create the device using the shared helper
+                device_entry = get_or_create_device(
+                    hass=hass,
+                    config_entry=config_entry,
+                    subentry=subentry,
+                    device_name=device_name,
+                )
+
+                # Build unique_id suffix - include device_name for sub-devices
                 is_sub_device = device_name != subentry.subentry_type
                 device_id_suffix = f"{subentry.subentry_id}_{device_name}" if is_sub_device else subentry.subentry_id
-
-                # Get or create the device for this element
-                # Device name is already constrained to ElementDeviceName type, so use it directly as translation key
-                device_entry = dr.async_get_or_create(
-                    identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_id_suffix}")},
-                    config_entry_id=config_entry.entry_id,
-                    config_subentry_id=subentry.subentry_id,
-                    translation_key=device_name,
-                    translation_placeholders={"name": subentry.title},
-                )
 
                 for output_name, output_data in device_outputs.items():
                     entities.append(

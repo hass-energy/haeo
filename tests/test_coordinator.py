@@ -38,16 +38,8 @@ from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
-from custom_components.haeo.coordinator import (
-    STATUS_OPTIONS,
-    ForecastPoint,
-    HaeoDataUpdateCoordinator,
-    _build_coordinator_output,
-)
+from custom_components.haeo.coordinator import ForecastPoint, HaeoDataUpdateCoordinator, _build_coordinator_output
 from custom_components.haeo.elements import (
     ELEMENT_TYPE_BATTERY,
     ELEMENT_TYPE_CONNECTION,
@@ -79,7 +71,15 @@ from custom_components.haeo.elements.grid import (
     CONF_IMPORT_PRICE,
 )
 from custom_components.haeo.elements.solar import SOLAR_POWER
-from custom_components.haeo.model import Network, OutputData, OutputType
+from custom_components.haeo.model import (
+    NETWORK_OPTIMIZATION_COST,
+    NETWORK_OPTIMIZATION_DURATION,
+    NETWORK_OPTIMIZATION_STATUS,
+    OPTIMIZATION_STATUS_OPTIONS,
+    Network,
+    OutputData,
+    OutputType,
+)
 
 
 @pytest.fixture
@@ -152,6 +152,24 @@ def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> 
         ),
         subentry_type=ELEMENT_TYPE_GRID,
         title="Test Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(mock_hub_entry, subentry)
+    return subentry
+
+
+@pytest.fixture
+def mock_network_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> ConfigSubentry:
+    """Create a mock network subentry."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK,
+                CONF_NAME: "System",
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_NETWORK,
+        title="System",
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(mock_hub_entry, subentry)
@@ -247,7 +265,7 @@ def test_update_interval_is_none_for_event_driven(
     assert coordinator.update_interval is None
 
 
-@pytest.mark.usefixtures("mock_connection_subentry")
+@pytest.mark.usefixtures("mock_connection_subentry", "mock_network_subentry")
 async def test_async_update_data_returns_outputs(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -316,8 +334,15 @@ async def test_async_update_data_returns_outputs(
         },
     }
 
-    # Mock translations to return the expected network subentry name
-    mock_translations = AsyncMock(return_value={"component.haeo.common.network_subentry_name": "System"})
+    # Mock network adapter to return proper outputs
+    mock_network_adapter = MagicMock()
+    mock_network_adapter.outputs.return_value = {
+        ELEMENT_TYPE_NETWORK: {
+            NETWORK_OPTIMIZATION_COST: OutputData(type=OutputType.COST, unit="$", values=(123.45,)),
+            NETWORK_OPTIMIZATION_STATUS: OutputData(type=OutputType.STATUS, unit=None, values=("Optimal",)),
+            NETWORK_OPTIMIZATION_DURATION: OutputData(type=OutputType.DURATION, unit="s", values=(0.5,)),
+        }
+    }
 
     # Patch coordinator to use mocked _load_from_input_entities
     with (
@@ -325,13 +350,13 @@ async def test_async_update_data_returns_outputs(
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
         patch("custom_components.haeo.coordinator.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.coordinator.dt_util.utcnow", return_value=generated_at),
-        patch("custom_components.haeo.coordinator.coordinator.async_get_translations", mock_translations),
         patch.dict(
             ELEMENT_TYPES,
             {
                 "battery": MagicMock(outputs=mock_battery_adapter.outputs),
                 "grid": MagicMock(outputs=mock_empty_outputs),
                 "connection": MagicMock(outputs=mock_connection_adapter.outputs),
+                ELEMENT_TYPE_NETWORK: mock_network_adapter,
             },
         ),
     ):
@@ -347,19 +372,19 @@ async def test_async_update_data_returns_outputs(
     mock_executor.assert_awaited_once_with(fake_network.optimize)
 
     network_outputs = result["System"][ELEMENT_TYPE_NETWORK]
-    cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
+    cost_output = network_outputs[NETWORK_OPTIMIZATION_COST]
     assert cost_output.type == OutputType.COST
-    assert cost_output.unit == hass.config.currency
+    assert cost_output.unit == "$"
     assert cost_output.state == 123.45
     assert cost_output.forecast is None
 
-    status_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_STATUS]
+    status_output = network_outputs[NETWORK_OPTIMIZATION_STATUS]
     assert status_output.type == OutputType.STATUS
     assert status_output.unit is None
-    assert status_output.state == "success"
+    assert status_output.state == "Optimal"
     assert status_output.forecast is None
 
-    duration_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_DURATION]
+    duration_output = network_outputs[NETWORK_OPTIMIZATION_DURATION]
     assert duration_output.type == OutputType.DURATION
     assert duration_output.state is not None
     assert duration_output.forecast is None
@@ -379,6 +404,7 @@ async def test_async_update_data_returns_outputs(
     mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
 
 
+@pytest.mark.usefixtures("mock_network_subentry")
 async def test_async_update_data_with_empty_input_entities(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -404,6 +430,7 @@ async def test_async_update_data_with_empty_input_entities(
         mock_load.assert_called_once()
 
 
+@pytest.mark.usefixtures("mock_network_subentry")
 async def test_async_update_data_propagates_update_failed(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -425,6 +452,7 @@ async def test_async_update_data_propagates_update_failed(
         await coordinator._async_update_data()
 
 
+@pytest.mark.usefixtures("mock_network_subentry")
 async def test_async_update_data_propagates_value_error(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -446,6 +474,7 @@ async def test_async_update_data_propagates_value_error(
         await coordinator._async_update_data()
 
 
+@pytest.mark.usefixtures("mock_network_subentry")
 async def test_async_update_data_raises_on_missing_model_element(
     hass: HomeAssistant,
     mock_hub_entry: ConfigEntry,
@@ -475,8 +504,13 @@ async def test_async_update_data_raises_on_missing_model_element(
         AsyncMock(return_value=fake_network),
     )
 
+    # Include battery in loaded_configs so the broken adapter is called
     with (
-        patch.object(coordinator, "_load_from_input_entities", return_value={}),
+        patch.object(
+            coordinator,
+            "_load_from_input_entities",
+            return_value={"Test Battery": mock_battery_subentry.data},
+        ),
         pytest.raises(KeyError),
     ):
         await coordinator._async_update_data()
@@ -520,12 +554,12 @@ def test_build_coordinator_output_sets_status_options() -> None:
     """Status outputs should carry enum options."""
 
     output = _build_coordinator_output(
-        OUTPUT_NAME_OPTIMIZATION_STATUS,
+        NETWORK_OPTIMIZATION_STATUS,
         OutputData(type=OutputType.STATUS, unit=None, values=("success",)),
         forecast_times=None,
     )
 
-    assert output.options == STATUS_OPTIONS
+    assert output.options == OPTIMIZATION_STATUS_OPTIONS
     assert output.state == "success"
     assert output.forecast is None
 
@@ -845,7 +879,7 @@ def test_are_inputs_aligned_returns_true_when_aligned(
     assert result is True
 
 
-@pytest.mark.usefixtures("mock_battery_subentry")
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_network_subentry")
 async def test_async_update_data_returns_existing_when_concurrent(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -864,7 +898,7 @@ async def test_async_update_data_returns_existing_when_concurrent(
     assert result == existing_data
 
 
-@pytest.mark.usefixtures("mock_battery_subentry")
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_network_subentry")
 async def test_async_update_data_raises_on_concurrent_first_refresh(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -881,7 +915,7 @@ async def test_async_update_data_raises_on_concurrent_first_refresh(
         await coordinator._async_update_data()  # type: ignore[misc]
 
 
-@pytest.mark.usefixtures("mock_battery_subentry")
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_network_subentry")
 async def test_async_update_data_clears_flags_in_finally(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -1035,7 +1069,7 @@ def test_load_from_input_entities_skips_fields_when_values_none(
     assert "capacity" not in result["Test Battery"]
 
 
-@pytest.mark.usefixtures("mock_battery_subentry")
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_network_subentry")
 async def test_async_update_data_raises_when_runtime_data_none_in_body(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,

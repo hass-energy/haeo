@@ -7,7 +7,8 @@ from homeassistant.components.switch import SwitchEntityDescription
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
-ELEMENT_TYPE: Final = "node"
+ElementTypeName = Literal["node"]
+ELEMENT_TYPE: ElementTypeName = "node"
 
 # Configuration field names
 CONF_IS_SOURCE: Final = "is_source"

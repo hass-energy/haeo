@@ -46,10 +46,10 @@ from .schema import (
     INPUT_FIELDS,
     BatteryConfigData,
     BatteryConfigSchema,
+    ElementTypeName,
 )
 
 __all__ = [
-    # Adapter
     "BATTERY_BALANCE_POWER_DOWN",
     "BATTERY_BALANCE_POWER_UP",
     "BATTERY_DEVICE_BATTERY",
@@ -68,7 +68,6 @@ __all__ = [
     "BATTERY_SOC_MAX",
     "BATTERY_SOC_MIN",
     "BATTERY_STATE_OF_CHARGE",
-    # Schema
     "CONF_CAPACITY",
     "CONF_CONNECTION",
     "CONF_DISCHARGE_COST",
@@ -91,8 +90,8 @@ __all__ = [
     "BatteryConfigSchema",
     "BatteryDeviceName",
     "BatteryOutputName",
-    # Flow
     "BatterySubentryFlowHandler",
+    "ElementTypeName",
     "adapter",
     "sum_output_data",
 ]
