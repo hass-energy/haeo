@@ -67,11 +67,7 @@ class Parser:
             if attr_key not in state.attributes:
                 continue
             forecast = state.attributes[attr_key]
-            if (
-                not isinstance(forecast, Sequence)
-                or isinstance(forecast, (str, bytes))
-                or not forecast
-            ):
+            if not isinstance(forecast, Sequence) or isinstance(forecast, (str, bytes)) or not forecast:
                 continue
             # Check if first item has the entity_name as a key
             first_item = forecast[0]
