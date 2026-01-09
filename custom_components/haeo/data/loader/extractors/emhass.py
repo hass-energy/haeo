@@ -18,6 +18,24 @@ from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 Format = Literal["emhass"]
 DOMAIN: Format = "emhass"
 
+
+class ForecastEntry(Protocol):
+    """Protocol for an EMHASS forecast entry.
+
+    Each entry has a "date" key and a dynamic value key matching the entity name.
+    Values are typically numeric strings (e.g., "0.0", "-29322.0").
+    """
+
+    @property
+    def date(self) -> str:
+        """ISO8601 timestamp string."""
+        ...
+
+    def __getitem__(self, key: str) -> float | str:
+        """Access value by entity name key."""
+        ...
+
+
 # EMHASS uses different attribute keys for different sensor types
 FORECAST_ATTRIBUTE_KEYS = (
     "forecasts",
@@ -35,7 +53,7 @@ class EmhassState(Protocol):
     """Protocol for EMHASS State."""
 
     entity_id: str
-    attributes: Mapping[str, object]
+    attributes: Mapping[str, Sequence[ForecastEntry]]
 
 
 class Parser:
@@ -83,6 +101,19 @@ class Parser:
         )
 
     @staticmethod
+    def _get_forecast(state: EmhassState) -> Sequence[ForecastEntry]:
+        """Get the forecast sequence from a validated EMHASS state.
+
+        This must only be called after detect() returns True.
+        """
+        for attr_key in FORECAST_ATTRIBUTE_KEYS:
+            if attr_key in state.attributes:
+                return state.attributes[attr_key]
+        # detect() guarantees at least one forecast attribute exists
+        msg = "No forecast attribute found - detect() should have returned False"
+        raise RuntimeError(msg)
+
+    @staticmethod
     def extract(
         state: EmhassState,
     ) -> tuple[Sequence[tuple[int, float]], str | None, SensorDeviceClass | None]:
@@ -91,18 +122,16 @@ class Parser:
         Returns: (parsed_data, unit, device_class)
         - unit and device_class are read from state attributes (EMHASS sets these)
         """
-        # detect() guarantees forecast exists
-        forecast = Parser._get_forecast_attribute(state)  # type: ignore[arg-type]
-
         entity_name = Parser._get_entity_name(state.entity_id)
+        forecast = Parser._get_forecast(state)
 
-        # detect() validated all items are Mapping with date and entity_name keys
+        # detect() validated all items have date and entity_name keys
         parsed: list[tuple[int, float]] = [
             (
-                parse_datetime_to_timestamp(item["date"]),  # type: ignore[index]
-                _parse_numeric(item[entity_name]),  # type: ignore[index]
+                parse_datetime_to_timestamp(item["date"]),
+                _parse_numeric(item[entity_name]),
             )
-            for item in forecast  # type: ignore[union-attr]
+            for item in forecast
         ]
         parsed.sort(key=lambda x: x[0])
 
