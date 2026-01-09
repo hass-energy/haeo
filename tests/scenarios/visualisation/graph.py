@@ -395,13 +395,40 @@ def _draw_edges(
     power_edges = [(u, v) for u, v, d in graph.edges(data=True) if d.get("style") == "power"]
     balance_edges = [(u, v) for u, v, d in graph.edges(data=True) if d.get("style") == "balance"]
 
-    edge_params = {"arrows": True, "arrowsize": 15, "arrowstyle": "->", "node_size": 1500, "min_source_margin": 15, "min_target_margin": 15, "ax": ax}
-
     if power_edges:
-        nx.draw_networkx_edges(graph, pos, edgelist=power_edges, edge_color=style.power_edge_color, width=1.5, connectionstyle="arc3,rad=0.1", **edge_params)  # type: ignore[no-untyped-call]
+        nx.draw_networkx_edges(  # type: ignore[no-untyped-call]
+            graph,
+            pos,
+            edgelist=power_edges,
+            edge_color=style.power_edge_color,
+            width=1.5,
+            connectionstyle="arc3,rad=0.1",
+            arrows=True,
+            arrowsize=15,
+            arrowstyle="->",
+            node_size=1500,
+            min_source_margin=15,
+            min_target_margin=15,
+            ax=ax,
+        )
 
     if balance_edges:
-        nx.draw_networkx_edges(graph, pos, edgelist=balance_edges, edge_color=style.balance_edge_color, width=1.2, style="dashed", connectionstyle="arc3,rad=0.15", **edge_params)  # type: ignore[no-untyped-call]
+        nx.draw_networkx_edges(  # type: ignore[no-untyped-call]
+            graph,
+            pos,
+            edgelist=balance_edges,
+            edge_color=style.balance_edge_color,
+            width=1.2,
+            style="dashed",
+            connectionstyle="arc3,rad=0.15",
+            arrows=True,
+            arrowsize=15,
+            arrowstyle="->",
+            node_size=1500,
+            min_source_margin=15,
+            min_target_margin=15,
+            ax=ax,
+        )
 
 
 def _draw_edge_labels(
