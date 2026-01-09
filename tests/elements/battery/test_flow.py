@@ -100,9 +100,7 @@ async def test_get_subentry_returns_none_for_user_flow(hass: HomeAssistant, hub_
 # --- Partition Flow Tests ---
 
 
-async def test_partition_flow_enabled_shows_partition_step(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_flow_enabled_shows_partition_step(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When configure_partitions is True, flow proceeds to partitions step."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -144,18 +142,14 @@ async def test_partition_flow_enabled_shows_partition_step(
     assert result.get("step_id") == "partitions"
 
 
-async def test_partition_flow_completes_with_partition_values(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_flow_completes_with_partition_values(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Complete flow with partition values creates entry with partition config."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     configurable_entity_id = get_configurable_entity_id()
 
     # Mock create_entry to capture the data
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
-    )
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}})
 
     # Step 1: Entity selection with partitions enabled
     step1_input = {
@@ -198,36 +192,17 @@ async def test_partition_flow_completes_with_partition_values(
     # First submission shows form since configurable was selected but values missing
     result = await flow.async_step_partitions(user_input=partition_input)
     assert result.get("type") == FlowResultType.FORM
-
-    # Second submission with values included
-    partition_input_with_values = {
-        CONF_UNDERCHARGE_PERCENTAGE: [configurable_entity_id],
-        CONF_OVERCHARGE_PERCENTAGE: [configurable_entity_id],
-        CONF_UNDERCHARGE_COST: [configurable_entity_id],
-        CONF_OVERCHARGE_COST: [configurable_entity_id],
-        # Values for the configurable fields
-    }
-
-    # Actually, look at the flow - it extracts entity selections from input
-    # then checks for configurable values separately
-    # So we need to provide proper combined input
-
-    # Let's test with entity links instead (simpler path)
-    pass  # This test is covered by test_partition_flow_with_entity_links
+    # Full partition flow with configurable values is tested in test_partition_flow_with_entity_links
 
 
-async def test_partition_flow_with_entity_links(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_flow_with_entity_links(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Complete flow with entity link partition values creates entry."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     configurable_entity_id = get_configurable_entity_id()
 
     # Mock create_entry to capture the data
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
-    )
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}})
 
     # Step 1: Entity selection with partitions enabled
     step1_input = {
@@ -273,17 +248,13 @@ async def test_partition_flow_with_entity_links(
     assert created_data[CONF_OVERCHARGE_PERCENTAGE] == ["sensor.overcharge_pct"]
 
 
-async def test_partition_flow_with_configurable_values(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_flow_with_configurable_values(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Partition step with configurable entity selection includes values."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     configurable_entity_id = get_configurable_entity_id()
 
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
-    )
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}})
 
     # Step 1
     step1_input = {
@@ -310,33 +281,19 @@ async def test_partition_flow_with_configurable_values(
     }
     await flow.async_step_values(user_input=step2_input)
 
-    # Step 3: Partition with configurable entity and values in same input
-    partition_input = {
-        CONF_UNDERCHARGE_PERCENTAGE: [configurable_entity_id],
-        CONF_OVERCHARGE_PERCENTAGE: [configurable_entity_id],
-        CONF_UNDERCHARGE_COST: [],
-        CONF_OVERCHARGE_COST: [],
-        # Configurable values for the fields with configurable entity selected
-        # These would normally come from the form, but we simulate the combined input
-    }
-
-    # First call shows form (no values for configurable fields)
+    # Step 3: First call with no input shows partition form
     result = await flow.async_step_partitions(user_input=None)
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "partitions"
 
 
-async def test_partition_disabled_skips_partition_step(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_disabled_skips_partition_step(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When configure_partitions is False, flow skips directly to create_entry."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     configurable_entity_id = get_configurable_entity_id()
 
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
-    )
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}})
 
     # Step 1: Entity selection without partitions
     step1_input = {
@@ -372,9 +329,7 @@ async def test_partition_disabled_skips_partition_step(
     assert CONF_OVERCHARGE_PERCENTAGE not in created_data
 
 
-async def test_reconfigure_with_existing_partitions_shows_partition_checkbox(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_with_existing_partitions_shows_partition_checkbox(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with existing partition data pre-selects partition checkbox."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
@@ -412,9 +367,7 @@ async def test_reconfigure_with_existing_partitions_shows_partition_checkbox(
     # This is tested by the flow successfully completing reconfigure
 
 
-async def test_partition_flow_validation_requires_configurable_values(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_flow_validation_requires_configurable_values(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Partition step validation requires values when configurable entity selected."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -461,9 +414,7 @@ async def test_partition_flow_validation_requires_configurable_values(
     assert result.get("errors") == {CONF_UNDERCHARGE_PERCENTAGE: "required"}
 
 
-async def test_reconfigure_partition_defaults_entity_links(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with entity link partition values shows entity IDs in defaults."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
@@ -502,9 +453,7 @@ async def test_reconfigure_partition_defaults_entity_links(
     assert defaults[CONF_OVERCHARGE_COST] == []
 
 
-async def test_build_partition_defaults_no_existing_data(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_build_partition_defaults_no_existing_data(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_build_partition_defaults with no existing data returns empty lists."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
@@ -536,16 +485,12 @@ async def test_step1_defaults_entity_mode(hass: HomeAssistant, hub_entry: MockCo
     assert defaults[CONF_EFFICIENCY] == []
 
 
-async def test_partition_flow_skips_step2_when_no_configurable_fields(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_flow_skips_step2_when_no_configurable_fields(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When no configurable entity is selected, step 2 is skipped, goes to partitions."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
-    )
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}})
 
     # Step 1: Entity selection with partitions enabled, but NO configurable entities
     step1_input = {
@@ -569,16 +514,12 @@ async def test_partition_flow_skips_step2_when_no_configurable_fields(
     assert result.get("step_id") == "partitions"
 
 
-async def test_partition_flow_skips_step2_and_partitions_when_all_entity_links(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_partition_flow_skips_step2_and_partitions_when_all_entity_links(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When no configurable entity selected and partitions disabled, goes directly to create."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
-    )
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}})
 
     # Step 1: Entity selection with all entity links, no partitions
     step1_input = {
@@ -601,9 +542,7 @@ async def test_partition_flow_skips_step2_and_partitions_when_all_entity_links(
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
 
-async def test_reconfigure_partition_defaults_scalar_values(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure with scalar partition values shows configurable entity in defaults."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
 
@@ -646,9 +585,7 @@ async def test_reconfigure_partition_defaults_scalar_values(
     assert defaults[CONF_OVERCHARGE_COST] == []
 
 
-async def test_reconfigure_updates_existing_battery(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
-) -> None:
+async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure flow completes and updates existing battery."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     configurable_entity_id = get_configurable_entity_id()
@@ -673,9 +610,7 @@ async def test_reconfigure_updates_existing_battery(
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.context = {"subentry_id": existing_subentry.subentry_id}
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
-    flow.async_update_and_abort = Mock(
-        return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"}
-    )
+    flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
     # Show reconfigure form
     await flow.async_step_reconfigure(user_input=None)
