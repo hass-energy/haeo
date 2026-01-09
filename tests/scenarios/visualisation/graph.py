@@ -49,70 +49,123 @@ def _compute_hierarchical_positions(
     device_groups: dict[str, list[str]],
     graph: "nx.DiGraph[str]",
 ) -> dict[str, tuple[float, float]]:
-    """Compute positions using a hierarchical group-based layout.
+    """Compute positions using a two-level hierarchical layout.
 
-    Places groups in a grid, then positions nodes within each group.
+    First computes group positions based on inter-group connectivity,
+    then positions nodes within each group based on their internal connections.
+    Uses spectral layout (with spring fallback) for both levels to produce
+    topologically meaningful layouts.
     """
     pos: dict[str, tuple[float, float]] = {}
 
-    # Sort groups by size (larger groups first for better placement)
     sorted_groups = sorted(device_groups.items(), key=lambda x: -len(x[1]))
-
-    # Calculate grid dimensions for groups
     n_groups = len(sorted_groups)
     if n_groups == 0:
         return pos
 
-    # Arrange groups in a grid
-    cols = max(1, math.ceil(math.sqrt(n_groups)))
+    # First, compute internal layouts for each group to determine group sizes
+    group_internal_pos: dict[str, dict[str, tuple[float, float]]] = {}
+    group_radii: dict[str, float] = {}
 
-    # Spacing between group centers
-    group_spacing_x = 3.0
-    group_spacing_y = 2.5
-
-    for idx, (_device_name, nodes) in enumerate(sorted_groups):
-        # Calculate group center position in grid
-        row = idx // cols
-        col = idx % cols
-        group_center_x = col * group_spacing_x
-        group_center_y = -row * group_spacing_y  # Negative to go top-to-bottom
-
-        n_nodes = len(nodes)
-        if n_nodes == 1:
-            # Single node - place at group center
-            pos[nodes[0]] = (group_center_x, group_center_y)
-        elif n_nodes <= 4:
-            # Small group - arrange in a tight cluster
-            for i, node in enumerate(nodes):
-                angle = 2 * math.pi * i / n_nodes
-                radius = 0.4
-                x = group_center_x + radius * math.cos(angle)
-                y = group_center_y + radius * math.sin(angle)
-                pos[node] = (x, y)
+    for device_name, nodes in sorted_groups:
+        if len(nodes) == 1:
+            group_internal_pos[device_name] = {nodes[0]: (0.0, 0.0)}
+            group_radii[device_name] = 0.3  # Minimum radius for single node
         else:
-            # Larger group - use subgraph layout
-            subgraph = graph.subgraph(nodes)
-            sub_pos = nx.spring_layout(subgraph, k=0.8, iterations=50, seed=42)  # type: ignore[no-untyped-call]
+            # Compute internal layout - use circular if no internal edges
+            subgraph = graph.subgraph(nodes).copy()
+            internal_edges = subgraph.number_of_edges()
 
-            # Scale and translate to group position
+            if internal_edges > 0:
+                # Has internal structure - use spectral/spring
+                sub_pos = _compute_layout(subgraph, scale=1.0)
+            else:
+                # No internal edges - arrange in a circle
+                sub_pos = {}
+                n = len(nodes)
+                radius = 0.3 + 0.15 * n  # Scale radius with node count
+                for i, node in enumerate(nodes):
+                    angle = 2 * math.pi * i / n
+                    sub_pos[node] = (radius * math.cos(angle), radius * math.sin(angle))
+
+            # Normalize to fit within a reasonable radius
             if sub_pos:
-                # Normalize positions to fit in a box
-                xs = [p[0] for p in sub_pos.values()]
-                ys = [p[1] for p in sub_pos.values()]
-                x_range = max(xs) - min(xs) if len(xs) > 1 else 1
-                y_range = max(ys) - min(ys) if len(ys) > 1 else 1
-                scale = min(1.0 / max(x_range, 0.1), 1.0 / max(y_range, 0.1)) * 0.8
+                max_dist = max(math.sqrt(x**2 + y**2) for x, y in sub_pos.values())
+                group_radii[device_name] = max(0.3, max_dist + 0.2)
+            else:
+                group_radii[device_name] = 0.3
 
-                x_center = (max(xs) + min(xs)) / 2
-                y_center = (max(ys) + min(ys)) / 2
+            group_internal_pos[device_name] = sub_pos
 
-                for node, (x, y) in sub_pos.items():
-                    pos[node] = (
-                        group_center_x + (x - x_center) * scale,
-                        group_center_y + (y - y_center) * scale,
-                    )
+    # Build a metagraph of group connections for group-level layout
+    group_graph: nx.Graph[str] = nx.Graph()
+    node_to_group = {node: device for device, nodes in device_groups.items() for node in nodes}
+
+    for device in device_groups:
+        group_graph.add_node(device)
+
+    # Add edges between groups based on connections between their nodes
+    for edge in graph.edges():
+        src_group = node_to_group.get(edge[0])
+        dst_group = node_to_group.get(edge[1])
+        if src_group and dst_group and src_group != dst_group:
+            if group_graph.has_edge(src_group, dst_group):
+                group_graph[src_group][dst_group]["weight"] += 1
+            else:
+                group_graph.add_edge(src_group, dst_group, weight=1)
+
+    # Compute initial group positions
+    raw_group_pos = _compute_layout(group_graph, scale=1.0)
+
+    # Scale group positions to prevent overlap based on group radii
+    max_radius = max(group_radii.values()) if group_radii else 0.5
+    min_spacing = max_radius * 3.5  # Minimum spacing between group centers
+
+    # Scale the group positions to ensure proper spacing
+    group_pos: dict[str, tuple[float, float]] = {}
+    for device, (x, y) in raw_group_pos.items():
+        group_pos[device] = (x * min_spacing, y * min_spacing)
+
+    # Combine group positions with internal positions
+    for device_name, internal_pos in group_internal_pos.items():
+        group_center = group_pos.get(device_name, (0.0, 0.0))
+        for node, (x, y) in internal_pos.items():
+            pos[node] = (group_center[0] + x, group_center[1] + y)
 
     return pos
+
+
+def _compute_layout(
+    graph: "nx.Graph[str] | nx.DiGraph[str]",
+    scale: float = 1.0,
+) -> dict[str, tuple[float, float]]:
+    """Compute layout using spectral with spring fallback.
+
+    Spectral layout produces topologically meaningful positions but requires
+    a connected graph with at least 3 nodes. Falls back to spring layout for
+    smaller or disconnected graphs.
+    """
+    if len(graph) == 0:
+        return {}
+
+    if len(graph) == 1:
+        node = next(iter(graph.nodes()))
+        return {node: (0.0, 0.0)}
+
+    # Spectral layout needs at least 3 nodes to produce meaningful positions
+    # (2-node graphs produce degenerate eigenvectors that collapse to origin)
+    if len(graph) >= 3:
+        try:
+            undirected = graph.to_undirected() if graph.is_directed() else graph
+            if nx.is_connected(undirected):
+                raw_pos: dict[str, tuple[float, float]] = nx.spectral_layout(graph, scale=scale)  # type: ignore[no-untyped-call]
+                # Refine with spring layout for better spacing
+                return nx.spring_layout(graph, pos=raw_pos, k=scale * 0.5, iterations=50, seed=42)  # type: ignore[no-untyped-call]
+        except Exception:
+            pass
+
+    # Fall back to spring layout for small graphs or disconnected graphs
+    return nx.spring_layout(graph, k=scale * 0.5, iterations=100, seed=42)  # type: ignore[no-untyped-call]
 
 
 def create_graph_visualization(
@@ -202,9 +255,37 @@ def create_graph_visualization(
     fig, ax = plt.subplots(figsize=(14, 10))
     ax.set_title(title, fontsize=14, pad=20)
 
-    # Node size in data units (approximate)
-    node_size = 1200
-    node_radius = 0.15  # Approximate radius in data units
+    # Font settings for nodes
+    node_font_size = 8
+
+    # Pre-compute node labels and dimensions based on text length
+    node_labels: dict[str, str] = {}
+    node_sizes: dict[str, tuple[float, float]] = {}  # (width, height) in data units
+
+    # Size nodes based on text content (character-based sizing)
+    # These factors are tuned for the coordinate system used by the layout
+    char_width = 0.08  # Approximate width per character
+    line_height = 0.18  # Approximate height per line
+    padding = 0.12  # Padding around text
+
+    for node in graph.nodes():
+        element_type = graph.nodes[node].get("element_type", "")
+        display_name = node.split(":")[-1] if ":" in node else node
+        label_text = f"{display_name}\n({element_type})"
+        node_labels[node] = label_text
+
+        # Calculate size based on text content
+        lines = label_text.split("\n")
+        max_line_len = max(len(line) for line in lines)
+        n_lines = len(lines)
+
+        width = max_line_len * char_width + 2 * padding
+        height = n_lines * line_height + 2 * padding
+        node_sizes[node] = (width, height)
+
+    # Calculate approximate node radius for bounding box padding (use max dimension)
+    max_node_dim = max(max(w, h) for w, h in node_sizes.values()) if node_sizes else 0.3
+    node_radius = max_node_dim / 2
 
     # Draw bounding boxes for ALL device groups
     for device_name, nodes in device_groups.items():
@@ -253,33 +334,44 @@ def create_graph_visualization(
             color="#333333",
         )
 
-    # Draw nodes with type-specific colors
+    # Draw nodes as rounded rectangles with text-based sizing
     for node in graph.nodes():
         node_color = graph.nodes[node].get("color", "lightgray")
-        element_type = graph.nodes[node].get("element_type", "")
+        x, y = pos[node]
+        width, height = node_sizes[node]
+        label_text = node_labels[node]
 
-        nx.draw_networkx_nodes(  # type: ignore[no-untyped-call]
-            graph,
-            pos,
-            nodelist=[node],
-            node_color=node_color,
-            node_size=node_size,
-            node_shape="o",
-            edgecolors="black",
-            linewidths=1.5,
-            ax=ax,
+        # Draw rounded rectangle for node
+        node_rect = mpatches.FancyBboxPatch(
+            (x - width / 2, y - height / 2),
+            width,
+            height,
+            boxstyle="round,pad=0.02,rounding_size=0.05",
+            facecolor=node_color,
+            edgecolor="black",
+            linewidth=1.5,
+            zorder=2,
         )
+        ax.add_patch(node_rect)
 
-        # Draw node label - abbreviate names with colons
-        display_name = node.split(":")[-1] if ":" in node else node
-        label_text = f"{display_name}\n({element_type})"
-        nx.draw_networkx_labels(  # type: ignore[no-untyped-call]
-            graph, pos, labels={node: label_text}, font_size=7, font_weight="bold", ax=ax
+        # Draw node label centered in rectangle
+        ax.text(
+            x,
+            y,
+            label_text,
+            fontsize=node_font_size,
+            fontweight="bold",
+            ha="center",
+            va="center",
+            zorder=3,
         )
 
     # Draw edges with arrows, different styles for balance vs power connections
     power_edges = [(u, v) for u, v, d in graph.edges(data=True) if d.get("style") == "power"]
     balance_edges = [(u, v) for u, v, d in graph.edges(data=True) if d.get("style") == "balance"]
+    # Calculate node_size for edge margin calculations (approximate based on max node dimension)
+    # networkx node_size is in points^2, so we need to convert from data units
+    avg_node_size = 1500  # Approximate size for edge margin calculations
 
     if power_edges:
         nx.draw_networkx_edges(  # type: ignore[no-untyped-call]
@@ -291,9 +383,9 @@ def create_graph_visualization(
             arrowsize=15,
             arrowstyle="->",
             width=1.5,
-            node_size=node_size,
-            min_source_margin=12,
-            min_target_margin=12,
+            node_size=avg_node_size,
+            min_source_margin=15,
+            min_target_margin=15,
             ax=ax,
             connectionstyle="arc3,rad=0.1",
         )
@@ -309,24 +401,35 @@ def create_graph_visualization(
             arrowstyle="->",
             width=1.2,
             style="dashed",
-            node_size=node_size,
-            min_source_margin=12,
-            min_target_margin=12,
+            node_size=avg_node_size,
+            min_source_margin=15,
+            min_target_margin=15,
             ax=ax,
             connectionstyle="arc3,rad=0.15",
         )
 
-    # Draw edge labels showing connection names (abbreviated)
-    edge_labels = {(u, v): d.get("name", "").split(":")[-1] for u, v, d in graph.edges(data=True)}
-    nx.draw_networkx_edge_labels(  # type: ignore[no-untyped-call]
-        graph,
-        pos,
-        edge_labels=edge_labels,
-        font_size=6,
-        bbox={"boxstyle": "round,pad=0.15", "facecolor": "white", "edgecolor": "none", "alpha": 0.9},
-        font_color="#333333",
-        ax=ax,
-    )
+    # Draw edge labels showing connection name and type (matching node label style)
+    # Use simple text annotations instead of draw_networkx_edge_labels
+    # to avoid compatibility issues with curved edges
+    for u, v, d in graph.edges(data=True):
+        name = d.get("name", "")
+        display_name = name.split(":")[-1] if ":" in name else name
+        edge_type = d.get("style", "connection")
+        label = f"{display_name}\n({edge_type})"
+        if display_name and u in pos and v in pos:
+            # Position label at midpoint of edge
+            x = (pos[u][0] + pos[v][0]) / 2
+            y = (pos[u][1] + pos[v][1]) / 2
+            ax.annotate(
+                label,
+                (x, y),
+                fontsize=6,
+                fontweight="bold",
+                ha="center",
+                va="center",
+                color="#333333",
+                bbox={"boxstyle": "round,pad=0.15", "facecolor": "white", "edgecolor": "none", "alpha": 0.9},
+            )
 
     # Remove axis and set equal aspect ratio
     ax.axis("off")
