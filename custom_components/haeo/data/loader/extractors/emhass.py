@@ -52,42 +52,32 @@ class Parser:
         return entity_id.split(".", 1)[1] if "." in entity_id else entity_id
 
     @staticmethod
-    def _find_forecast_data(
-        state: State,
-    ) -> tuple[Sequence[object], str, str] | None:
-        """Find the forecast data, attribute key, and value key from state attributes.
+    def _get_forecast_attribute(state: State) -> Sequence[object] | None:
+        """Find the forecast sequence from state attributes.
 
-        Returns: (forecast_list, attribute_key, value_key) or None if not found.
-        Note: Only verifies the first item has the expected structure.
-        Caller must validate all items.
+        Returns the first non-empty sequence attribute that matches an EMHASS forecast key.
         """
-        entity_name = Parser._get_entity_name(state.entity_id)
-
         for attr_key in FORECAST_ATTRIBUTE_KEYS:
             if attr_key not in state.attributes:
                 continue
             forecast = state.attributes[attr_key]
-            if not isinstance(forecast, Sequence) or isinstance(forecast, (str, bytes)) or not forecast:
-                continue
-            # Check if first item has the entity_name as a key
-            first_item = forecast[0]
-            if isinstance(first_item, Mapping) and entity_name in first_item:
-                return forecast, attr_key, entity_name
+            if isinstance(forecast, Sequence) and not isinstance(forecast, (str, bytes)) and forecast:
+                return forecast
         return None
 
     @staticmethod
     def detect(state: State) -> TypeGuard[EmhassState]:
         """Check if data matches EMHASS forecast format."""
-        result = Parser._find_forecast_data(state)
-        if result is None:
+        forecast = Parser._get_forecast_attribute(state)
+        if forecast is None:
             return False
 
-        forecast, _, value_key = result
+        entity_name = Parser._get_entity_name(state.entity_id)
         return all(
             isinstance(item, Mapping)
             and "date" in item
-            and value_key in item
-            and _is_numeric_or_numeric_string(item[value_key])
+            and entity_name in item
+            and _is_numeric_or_numeric_string(item[entity_name])
             and is_parsable_to_datetime(item["date"])
             for item in forecast
         )
@@ -101,17 +91,18 @@ class Parser:
         Returns: (parsed_data, unit, device_class)
         - unit and device_class are read from state attributes (EMHASS sets these)
         """
-        result = Parser._find_forecast_data(state)  # type: ignore[arg-type]
-        # detect() guarantees this is valid
-        forecast, _, value_key = result  # type: ignore[misc]
+        # detect() guarantees forecast exists
+        forecast = Parser._get_forecast_attribute(state)  # type: ignore[arg-type]
 
-        # detect() validated all items are Mapping with date and value_key
+        entity_name = Parser._get_entity_name(state.entity_id)
+
+        # detect() validated all items are Mapping with date and entity_name keys
         parsed: list[tuple[int, float]] = [
             (
                 parse_datetime_to_timestamp(item["date"]),  # type: ignore[index]
-                _parse_numeric(item[value_key]),  # type: ignore[index]
+                _parse_numeric(item[entity_name]),  # type: ignore[index]
             )
-            for item in forecast
+            for item in forecast  # type: ignore[union-attr]
         ]
         parsed.sort(key=lambda x: x[0])
 

@@ -253,4 +253,17 @@ INVALID: list[dict[str, Any]] = [
         "expected_format": None,
         "description": "EMHASS sensor with mixed valid and invalid entries",
     },
+    {
+        "entity_id": "sensor.p_load_forecast",
+        "state": "1500.0",
+        "attributes": {
+            "device_class": "power",
+            "unit_of_measurement": "W",
+            "forecasts": [
+                {"date": "2025-10-06T00:00:00+11:00", "p_load_forecast": ["not", "a", "number"]},
+            ],
+        },
+        "expected_format": None,
+        "description": "EMHASS sensor with value that is a list instead of numeric",
+    },
 ]
