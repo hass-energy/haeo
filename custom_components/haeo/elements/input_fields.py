@@ -5,11 +5,36 @@ and their associated metadata like output type, direction, and time series behav
 """
 
 from dataclasses import dataclass
+from typing import Literal
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 
 from custom_components.haeo.model.const import OutputType
+
+
+@dataclass(frozen=True, slots=True)
+class InputFieldDefaults:
+    """Default pre-selection behavior for config flow fields.
+
+    Attributes:
+        mode: Controls what is pre-selected in step 1:
+            - 'entity': Pre-select the entity specified in `entity`
+            - 'value': Pre-select the HAEO Configurable sentinel entity
+            - None: No pre-selection (empty)
+        entity: Entity ID to pre-select when mode='entity'
+        value: Value to pre-fill in step 2 when mode='value'
+
+    Note:
+        When mode='value', step 2 is always Required. The value is only
+        used for pre-filling the form, not as a fallback. If the user
+        clears step 1 selection, the field is omitted from config.
+
+    """
+
+    mode: Literal["entity", "value"] | None = None
+    entity: str | None = None
+    value: float | bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,7 +48,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         direction: "+" or "-" for power direction attributes
         time_series: Whether this field is time series (list) or scalar
         boundaries: Whether time series values are at boundaries (n+1 values) vs intervals (n values)
-        default: Default value for editable entities when no restored state exists
+        defaults: Default pre-selection behavior for config flow fields
 
     Note:
         Whether a field is optional (can be disabled in config flow) is determined
@@ -38,9 +63,10 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     direction: str | None = None
     time_series: bool = False
     boundaries: bool = False
-    default: float | bool | None = None
+    defaults: InputFieldDefaults | None = None
 
 
 __all__ = [
+    "InputFieldDefaults",
     "InputFieldInfo",
 ]

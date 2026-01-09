@@ -22,7 +22,6 @@ from .schema import (
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
     CONF_MAX_POWER_DC_TO_AC,
-    DEFAULTS,
     ELEMENT_TYPE,
     INPUT_FIELDS,
     InverterConfigData,
@@ -36,7 +35,6 @@ __all__ = [
     "CONF_EFFICIENCY_DC_TO_AC",
     "CONF_MAX_POWER_AC_TO_DC",
     "CONF_MAX_POWER_DC_TO_AC",
-    "DEFAULTS",
     "ELEMENT_TYPE",
     "INPUT_FIELDS",
     # Adapter

@@ -30,11 +30,18 @@ from .schema import (
     CONF_OVERCHARGE_PERCENTAGE,
     CONF_UNDERCHARGE_COST,
     CONF_UNDERCHARGE_PERCENTAGE,
-    DEFAULTS,
     ELEMENT_TYPE,
     BatteryConfigData,
     BatteryConfigSchema,
 )
+
+# Default values for optional fields applied by adapter
+DEFAULTS: Final[dict[str, float]] = {
+    CONF_MIN_CHARGE_PERCENTAGE: 0.0,
+    CONF_MAX_CHARGE_PERCENTAGE: 100.0,
+    CONF_EFFICIENCY: 99.0,
+    CONF_EARLY_CHARGE_INCENTIVE: 0.001,
+}
 
 type BatteryOutputName = Literal[
     "battery_power_charge",

@@ -5,7 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "battery"
@@ -25,14 +25,17 @@ CONF_OVERCHARGE_PERCENTAGE: Final = "overcharge_percentage"
 CONF_UNDERCHARGE_COST: Final = "undercharge_cost"
 CONF_OVERCHARGE_COST: Final = "overcharge_cost"
 CONF_CONNECTION: Final = "connection"
+CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
 
-# Default values for optional fields
-DEFAULTS: Final[dict[str, float]] = {
-    CONF_MIN_CHARGE_PERCENTAGE: 0.0,
-    CONF_MAX_CHARGE_PERCENTAGE: 100.0,
-    CONF_EFFICIENCY: 99.0,
-    CONF_EARLY_CHARGE_INCENTIVE: 0.001,
-}
+# Partition field names (hidden behind checkbox)
+PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
+    (
+        CONF_UNDERCHARGE_PERCENTAGE,
+        CONF_OVERCHARGE_PERCENTAGE,
+        CONF_UNDERCHARGE_COST,
+        CONF_OVERCHARGE_COST,
+    )
+)
 
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
@@ -66,53 +69,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         time_series=True,
     ),
     InputFieldInfo(
-        field_name=CONF_MIN_CHARGE_PERCENTAGE,
-        entity_description=NumberEntityDescription(
-            key=CONF_MIN_CHARGE_PERCENTAGE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_MIN_CHARGE_PERCENTAGE}",
-            native_unit_of_measurement=PERCENTAGE,
-            device_class=NumberDeviceClass.BATTERY,
-            native_min_value=0.0,
-            native_max_value=100.0,
-            native_step=1.0,
-        ),
-        output_type=OutputType.STATE_OF_CHARGE,
-        time_series=True,
-        boundaries=True,
-        default=0.0,
-    ),
-    InputFieldInfo(
-        field_name=CONF_MAX_CHARGE_PERCENTAGE,
-        entity_description=NumberEntityDescription(
-            key=CONF_MAX_CHARGE_PERCENTAGE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_PERCENTAGE}",
-            native_unit_of_measurement=PERCENTAGE,
-            device_class=NumberDeviceClass.BATTERY,
-            native_min_value=0.0,
-            native_max_value=100.0,
-            native_step=1.0,
-        ),
-        output_type=OutputType.STATE_OF_CHARGE,
-        time_series=True,
-        boundaries=True,
-        default=100.0,
-    ),
-    InputFieldInfo(
-        field_name=CONF_EFFICIENCY,
-        entity_description=NumberEntityDescription(
-            key=CONF_EFFICIENCY,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY}",
-            native_unit_of_measurement=PERCENTAGE,
-            device_class=NumberDeviceClass.POWER_FACTOR,
-            native_min_value=50.0,
-            native_max_value=100.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.EFFICIENCY,
-        time_series=True,
-        default=99.0,
-    ),
-    InputFieldInfo(
         field_name=CONF_MAX_CHARGE_POWER,
         entity_description=NumberEntityDescription(
             key=CONF_MAX_CHARGE_POWER,
@@ -143,18 +99,51 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         time_series=True,
     ),
     InputFieldInfo(
-        field_name=CONF_EARLY_CHARGE_INCENTIVE,
+        field_name=CONF_MIN_CHARGE_PERCENTAGE,
         entity_description=NumberEntityDescription(
-            key=CONF_EARLY_CHARGE_INCENTIVE,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_EARLY_CHARGE_INCENTIVE}",
+            key=CONF_MIN_CHARGE_PERCENTAGE,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_MIN_CHARGE_PERCENTAGE}",
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.BATTERY,
             native_min_value=0.0,
-            native_max_value=1.0,
-            native_step=0.001,
+            native_max_value=100.0,
+            native_step=1.0,
         ),
-        output_type=OutputType.PRICE,
-        direction="-",
+        output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
-        default=0.001,
+        boundaries=True,
+        defaults=InputFieldDefaults(mode=None, value=0.0),
+    ),
+    InputFieldInfo(
+        field_name=CONF_MAX_CHARGE_PERCENTAGE,
+        entity_description=NumberEntityDescription(
+            key=CONF_MAX_CHARGE_PERCENTAGE,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_PERCENTAGE}",
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.BATTERY,
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=1.0,
+        ),
+        output_type=OutputType.STATE_OF_CHARGE,
+        time_series=True,
+        boundaries=True,
+        defaults=InputFieldDefaults(mode=None, value=100.0),
+    ),
+    InputFieldInfo(
+        field_name=CONF_EFFICIENCY,
+        entity_description=NumberEntityDescription(
+            key=CONF_EFFICIENCY,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY}",
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.POWER_FACTOR,
+            native_min_value=50.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.EFFICIENCY,
+        time_series=True,
+        defaults=InputFieldDefaults(mode=None, value=99.0),
     ),
     InputFieldInfo(
         field_name=CONF_DISCHARGE_COST,
@@ -168,6 +157,20 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_EARLY_CHARGE_INCENTIVE,
+        entity_description=NumberEntityDescription(
+            key=CONF_EARLY_CHARGE_INCENTIVE,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_EARLY_CHARGE_INCENTIVE}",
+            native_min_value=0.0,
+            native_max_value=1.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        direction="-",
+        time_series=True,
+        defaults=InputFieldDefaults(mode="value", value=0.001),
     ),
     InputFieldInfo(
         field_name=CONF_UNDERCHARGE_PERCENTAGE,
@@ -227,6 +230,14 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
     ),
 )
 
+# Partition input fields (subset of INPUT_FIELDS for partition config step)
+PARTITION_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = tuple(
+    field for field in INPUT_FIELDS if field.field_name in PARTITION_FIELD_NAMES
+)
+
+# All input fields combined (for input entity registration)
+ALL_INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = INPUT_FIELDS
+
 
 class BatteryConfigSchema(TypedDict):
     """Battery element configuration as stored in Home Assistant.
@@ -255,7 +266,10 @@ class BatteryConfigSchema(TypedDict):
     early_charge_incentive: NotRequired[list[str] | float]
     discharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
 
-    # Advanced: undercharge/overcharge regions - can be entity links or constants
+    # Partition configuration checkbox
+    configure_partitions: NotRequired[bool]  # Whether to configure partition fields
+
+    # Partition fields (only present when configure_partitions is True)
     undercharge_percentage: NotRequired[list[str] | float]
     overcharge_percentage: NotRequired[list[str] | float]
     undercharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)

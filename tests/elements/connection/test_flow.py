@@ -95,10 +95,11 @@ async def test_reconfigure_with_deleted_participant(hass: HomeAssistant, hub_ent
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
     # Show reconfigure form - should not error
+    # Entity-first pattern uses step_id="user" for both new and reconfigure
     result = await flow.async_step_reconfigure(user_input=None)
 
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "reconfigure"
+    assert result.get("step_id") == "user"
     # The form should be shown without errors
 
 
@@ -126,11 +127,11 @@ async def test_get_participant_names_skips_unknown_element_types(hass: HomeAssis
     assert "Unknown" not in participants
 
 
-async def test_get_current_subentry_id_returns_none_for_user_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """_get_current_subentry_id should return None during user flow (not reconfigure)."""
+async def test_get_subentry_returns_none_for_user_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_get_subentry should return None during user flow (not reconfigure)."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     # During user flow, _get_reconfigure_subentry will raise
-    subentry_id = flow._get_current_subentry_id()
+    subentry = flow._get_subentry()
 
-    assert subentry_id is None
+    assert subentry is None

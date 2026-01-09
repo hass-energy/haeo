@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES, ELEMENT_OUTPUT_NAMES
-from custom_components.haeo.flows.field_schema import InputMode
 
 
 def test_all_output_names_have_translations() -> None:
@@ -97,43 +96,4 @@ def test_no_unused_device_translations() -> None:
             f"The following device translation keys in en.json are not used:\n"
             f"{', '.join(unused_translations)}\n\n"
             f"Either remove them or add the corresponding device to an element's DEVICE_NAMES"
-        )
-
-
-def test_input_mode_selector_translations() -> None:
-    """Verify that all input mode options have translations in the selector section."""
-    # Load translations directly from file
-    translations_path = Path(__file__).parent.parent / "custom_components" / "haeo" / "translations" / "en.json"
-    with translations_path.open() as f:
-        translations = json.load(f)
-
-    selector_translations = translations.get("selector", {})
-
-    # Check that input_mode selector exists
-    if "input_mode" not in selector_translations:
-        pytest.fail(
-            "Missing 'input_mode' in selector translations.\n\n"
-            "Add it to custom_components/haeo/translations/en.json under selector.input_mode"
-        )
-
-    input_mode_options = selector_translations["input_mode"].get("options", {})
-
-    # Check that all InputMode enum values have translations
-    missing_translations = [mode.value for mode in InputMode if mode.value not in input_mode_options]
-
-    if missing_translations:
-        pytest.fail(
-            f"The following input mode options are missing translations:\n"
-            f"{', '.join(missing_translations)}\n\n"
-            f"Add them to custom_components/haeo/translations/en.json under selector.input_mode.options"
-        )
-
-    # Check no extra options exist
-    extra_options = [opt for opt in input_mode_options if opt not in [mode.value for mode in InputMode]]
-
-    if extra_options:
-        pytest.fail(
-            f"The following selector options are not valid InputMode values:\n"
-            f"{', '.join(extra_options)}\n\n"
-            f"Remove them from selector.input_mode.options or add them to the InputMode enum"
         )

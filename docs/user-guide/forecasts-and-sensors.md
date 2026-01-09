@@ -326,14 +326,14 @@ For values that don't change over time (fixed prices, baseline loads, power limi
 
 ### Direct constant entry
 
-During element configuration, select **Constant** mode for the field and enter your value directly.
+During element configuration, select **Configurable Entity** for the field and enter your value in step 2.
 This is the simplest approach for truly static values.
 
-| Step 1 Selection | Step 2 Entry | Use Case             |
-| ---------------- | ------------ | -------------------- |
-| Constant         | 0.25         | Fixed import price   |
-| Constant         | 15           | Static power limit   |
-| Constant         | 90           | Fixed SOC percentage |
+| Step 1 Selection    | Step 2 Entry | Use Case             |
+| ------------------- | ------------ | -------------------- |
+| Configurable Entity | 0.25         | Fixed import price   |
+| Configurable Entity | 15           | Static power limit   |
+| Configurable Entity | 90           | Fixed SOC percentage |
 
 ### Input number helpers
 
@@ -353,12 +353,12 @@ For values you want to adjust through the Home Assistant UI without reconfigurin
 
 **Using in HAEO configuration**:
 
-During element configuration, select **Entity Link** mode and reference the input_number:
+During element configuration, select the input_number entity in the entity selector:
 
-| Field            | Mode        | Value                           |
-| ---------------- | ----------- | ------------------------------- |
-| **Import Price** | Entity Link | input_number.fixed_import_price |
-| **Import Limit** | Entity Link | input_number.inverter_rating    |
+| Field            | Value                           |
+| ---------------- | ------------------------------- |
+| **Import Price** | input_number.fixed_import_price |
+| **Import Limit** | input_number.inverter_rating    |
 
 HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
 
@@ -370,9 +370,9 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 **When to use each approach**:
 
-- **Direct constant**: Values that rarely change (capacity, efficiency)
-- **Input_number helper**: Values you adjust regularly (target SOC, temporary overrides)
-- **Forecast sensor**: Values that vary over time (prices, solar generation)
+- **Configurable Entity**: Values that rarely change (capacity, efficiency) - enter a constant value in step 2
+- **Input_number helper**: Values you adjust regularly (target SOC, temporary overrides) - select in entity selector
+- **Forecast sensor**: Values that vary over time (prices, solar generation) - select in entity selector
 
 ## Troubleshooting
 

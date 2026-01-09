@@ -22,11 +22,16 @@ from .schema import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
-    DEFAULTS,
     ELEMENT_TYPE,
     SolarConfigData,
     SolarConfigSchema,
 )
+
+# Default values for optional fields applied by adapter
+DEFAULTS: Final[dict[str, bool | float]] = {
+    CONF_CURTAILMENT: True,  # Allow curtailment by default
+    CONF_PRICE_PRODUCTION: 0.0,  # No production incentive
+}
 
 # Solar output names
 type SolarOutputName = Literal[

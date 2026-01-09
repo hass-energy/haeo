@@ -368,7 +368,7 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
 
 # Registry mapping element types to their input field definitions
 _INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo[Any], ...]]] = {
-    battery.ELEMENT_TYPE: battery.INPUT_FIELDS,
+    battery.ELEMENT_TYPE: battery.ALL_INPUT_FIELDS,
     grid.ELEMENT_TYPE: grid.INPUT_FIELDS,
     solar.ELEMENT_TYPE: solar.INPUT_FIELDS,
     load.ELEMENT_TYPE: load.INPUT_FIELDS,
