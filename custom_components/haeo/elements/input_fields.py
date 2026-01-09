@@ -47,7 +47,8 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         output_type: OutputType enum value for categorization and unit spec lookup
         direction: "+" or "-" for power direction attributes
         time_series: Whether this field is time series (list) or scalar
-        defaults: Pre-selection behavior for config flow
+        boundaries: Whether time series values are at boundaries (n+1 values) vs intervals (n values)
+        default: Default value for editable entities when no restored state exists
 
     Note:
         Whether a field is optional (can be disabled in config flow) is determined
@@ -61,6 +62,8 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     output_type: OutputType
     direction: str | None = None
     time_series: bool = False
+    boundaries: bool = False
+    default: float | bool | None = None
     defaults: InputFieldDefaults | None = None
 
 

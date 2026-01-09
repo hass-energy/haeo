@@ -274,6 +274,7 @@ async def test_async_setup_entry_initializes_coordinator(
             super().__init__()
             self.hass = hass_param
             self.config_entry = entry_param
+            self.async_initialize = AsyncMock()
             self.async_refresh = AsyncMock()
             self.cleanup = Mock()
 
@@ -297,6 +298,7 @@ async def test_async_setup_entry_initializes_coordinator(
     runtime_data = mock_hub_entry.runtime_data
     assert runtime_data is not None
     assert runtime_data.coordinator is coordinator
+    coordinator.async_initialize.assert_awaited_once()
     coordinator.async_refresh.assert_awaited_once()
     # forward_mock is called twice: once for INPUT_PLATFORMS, once for OUTPUT_PLATFORMS
     assert forward_mock.await_count == 2
@@ -484,7 +486,7 @@ async def test_async_update_listener(
         connectivity_called = True
 
     monkeypatch.setattr(
-        "custom_components.haeo.network.evaluate_network_connectivity",
+        "custom_components.haeo.coordinator.evaluate_network_connectivity",
         mock_evaluate,
     )
 

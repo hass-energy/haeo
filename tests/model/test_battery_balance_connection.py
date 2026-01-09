@@ -17,7 +17,6 @@ constraints (E >= 0, E <= C) fully bind the solution to exact values.
 """
 
 from dataclasses import dataclass
-from functools import reduce
 from typing import Self
 
 from highspy import Highs
@@ -26,7 +25,7 @@ import numpy as np
 from numpy.typing import NDArray
 import pytest
 
-from custom_components.haeo.model.battery_balance_connection import BatteryBalanceConnection
+from custom_components.haeo.model.elements.battery_balance_connection import BatteryBalanceConnection
 
 
 @dataclass
@@ -57,7 +56,7 @@ class MockBattery:
         solver: Highs,
     ) -> Self:
         """Create a mock battery with SOC constraints."""
-        # Broadcast capacity to T+1 fence posts
+        # Broadcast capacity to T+1 boundaries
         cap = tuple([float(capacity)] * (n_periods + 1)) if isinstance(capacity, float | int) else capacity
 
         # Create cumulative energy variables (T+1 values)
@@ -292,7 +291,6 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
         solver=solver,
         upper="upper",
         lower="lower",
-        capacity_lower=scenario.lower_capacity,
     )
 
     # Set battery references and build constraints
@@ -303,14 +301,13 @@ def test_battery_balance_connection(scenario: BalanceTestScenario, solver: Highs
     upper.build_power_balance(scenario.periods)
     lower.build_power_balance(scenario.periods)
 
-    # Build balance connection constraints
-    connection.build_constraints()
+    # Apply balance connection constraints
+    connection.constraints()
 
-    # Add slack penalties to objective (required for min/max constraint behavior)
-    costs = connection.cost()
-    if len(costs) > 0:
-        # Use reduce to avoid sum() returning Literal[0] when sequence is empty
-        solver.minimize(reduce(lambda a, b: a + b, costs))
+    # Collect cost from element (aggregates all @cost methods)
+    connection_cost = connection.cost()
+    if connection_cost is not None:
+        solver.minimize(connection_cost)
 
     # Solve
     solver.run()
@@ -337,11 +334,10 @@ def test_battery_balance_connection_missing_references(solver: Highs) -> None:
         solver=solver,
         upper="upper",
         lower="lower",
-        capacity_lower=10.0,
     )
 
     with pytest.raises(ValueError, match="Battery references not set"):
-        connection.build_constraints()
+        connection.constraints()
 
 
 def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
@@ -355,11 +351,10 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
         solver=solver,
         upper="upper",
         lower="lower",
-        capacity_lower=10.0,
     )
     # MockBattery provides the same interface as Battery but isn't a subtype
     connection.set_battery_references(upper, lower)  # type: ignore[arg-type]
-    connection.build_constraints()
+    connection.constraints()
 
     # Run solver
     solver.run()
@@ -383,3 +378,31 @@ def test_battery_balance_connection_outputs_structure(solver: Highs) -> None:
     assert outputs["balance_power_up"].unit == "kW"
     assert outputs["balance_power_down"].direction == "+"
     assert outputs["balance_power_up"].direction == "-"
+
+
+def test_battery_balance_connection_raises_without_battery_references() -> None:
+    """Test that constraint methods raise ValueError when battery references not set."""
+    h = Highs()
+    h.setOptionValue("output_flag", False)
+
+    # Create connection without setting battery references
+    conn = BatteryBalanceConnection(
+        name="balance",
+        periods=[1.0, 1.0],
+        solver=h,
+        upper="upper",
+        lower="lower",
+    )
+
+    # Calling constraints without setting battery references should raise
+    with pytest.raises(ValueError, match="Battery references not set"):
+        conn.balance_down_lower_bound()
+
+    with pytest.raises(ValueError, match="Battery references not set"):
+        conn.balance_down_slack_bound()
+
+    with pytest.raises(ValueError, match="Battery references not set"):
+        conn.balance_up_upper_bound()
+
+    with pytest.raises(ValueError, match="Battery references not set"):
+        conn.balance_up_slack_bound()

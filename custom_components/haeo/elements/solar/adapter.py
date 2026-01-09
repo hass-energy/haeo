@@ -10,11 +10,11 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.power_connection import (
+from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
 )
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import SolarSubentryFlowHandler
 from .schema import (
@@ -22,14 +22,11 @@ from .schema import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
+    DEFAULTS,
     ELEMENT_TYPE,
     SolarConfigData,
     SolarConfigSchema,
 )
-
-# Defaults for absent optional fields (no-op values)
-DEFAULT_CURTAILMENT: Final[bool] = True  # Allow curtailment by default
-DEFAULT_PRICE_PRODUCTION: Final[float] = 0.0  # No production incentive
 
 # Solar output names
 type SolarOutputName = Literal[
@@ -75,31 +72,29 @@ class SolarAdapter:
         const_loader_float = ConstantLoader[float](float)
         const_loader_bool = ConstantLoader[bool](bool)
 
-        forecast = await ts_loader.load(
+        forecast = await ts_loader.load_intervals(
             hass=hass,
             value=config[CONF_FORECAST],
             forecast_times=forecast_times,
         )
 
-        # Load optional curtailment with default (allow curtailment)
-        curtailment_value = config.get(CONF_CURTAILMENT, DEFAULT_CURTAILMENT)
-        curtailment = await const_loader_bool.load(value=curtailment_value)
-
-        # Load optional price_production with default
-        price_production_value = config.get(CONF_PRICE_PRODUCTION, DEFAULT_PRICE_PRODUCTION)
-        price_production = await const_loader_float.load(value=price_production_value)
-
-        return {
+        data: SolarConfigData = {
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
             "forecast": forecast,
-            "curtailment": curtailment,
-            "price_production": price_production,
         }
 
-    def create_model_elements(self, config: SolarConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Solar configuration."""
+        # Load optional fields
+        if CONF_PRICE_PRODUCTION in config:
+            data["price_production"] = await const_loader_float.load(value=config[CONF_PRICE_PRODUCTION])
+        if CONF_CURTAILMENT in config:
+            data["curtailment"] = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
+
+        return data
+
+    def model_elements(self, config: SolarConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Solar configuration."""
         return [
             {"element_type": "node", "name": config["name"], "is_source": True, "is_sink": False},
             {
@@ -109,8 +104,8 @@ class SolarAdapter:
                 "target": config["connection"],
                 "max_power_source_target": config["forecast"],
                 "max_power_target_source": 0.0,
-                "fixed_power": not config.get("curtailment", DEFAULT_CURTAILMENT),
-                "price_source_target": config.get("price_production", DEFAULT_PRICE_PRODUCTION),
+                "fixed_power": not config.get("curtailment", DEFAULTS[CONF_CURTAILMENT]),
+                "price_source_target": config.get("price_production"),
             },
         ]
 

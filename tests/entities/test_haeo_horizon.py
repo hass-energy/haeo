@@ -102,7 +102,7 @@ def test_entity_reflects_horizon_manager_timestamps(
     assert attrs is not None
     forecast = attrs["forecast"]
 
-    # Should have same number of fence posts
+    # Should have same number of boundaries
     assert len(forecast) == len(manager_timestamps)
 
     # Timestamps should match
@@ -157,7 +157,7 @@ def test_forecast_attribute_contains_timestamps(
     forecast = attrs["forecast"]
 
     assert isinstance(forecast, list)
-    assert len(forecast) == 4  # 4 fence posts
+    assert len(forecast) == 4  # 4 boundaries
 
     # Each entry should have time and value keys
     for entry in forecast:

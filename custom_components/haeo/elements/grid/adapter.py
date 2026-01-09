@@ -10,8 +10,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.power_connection import (
+from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_COST_SOURCE_TARGET,
     CONNECTION_COST_TARGET_SOURCE,
     CONNECTION_POWER_SOURCE_TARGET,
@@ -19,6 +18,7 @@ from custom_components.haeo.model.power_connection import (
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
     CONNECTION_SHADOW_POWER_MAX_TARGET_SOURCE,
 )
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import GridSubentryFlowHandler
 from .schema import (
@@ -93,13 +93,13 @@ class GridAdapter:
     ) -> GridConfigData:
         """Load grid configuration values from sensors."""
         ts_loader = TimeSeriesLoader()
-        # forecast_times are fence posts, so n_periods = len(forecast_times) - 1
+        # forecast_times are boundaries, so n_periods = len(forecast_times) - 1
         n_periods = max(0, len(forecast_times) - 1)
 
         # Load import_price: entity list, constant, or use default
         import_value = config.get("import_price")
         if isinstance(import_value, list) and import_value:
-            import_price = await ts_loader.load(
+            import_price = await ts_loader.load_intervals(
                 hass=hass,
                 value=import_value,
                 forecast_times=forecast_times,
@@ -112,7 +112,7 @@ class GridAdapter:
         # Load export_price: entity list, constant, or use default
         export_value = config.get("export_price")
         if isinstance(export_value, list) and export_value:
-            export_price = await ts_loader.load(
+            export_price = await ts_loader.load_intervals(
                 hass=hass,
                 value=export_value,
                 forecast_times=forecast_times,
@@ -134,7 +134,7 @@ class GridAdapter:
         import_limit = config.get("import_limit")
         if import_limit is not None:
             if isinstance(import_limit, list) and import_limit:
-                data["import_limit"] = await ts_loader.load(
+                data["import_limit"] = await ts_loader.load_intervals(
                     hass=hass,
                     value=import_limit,
                     forecast_times=forecast_times,
@@ -145,7 +145,7 @@ class GridAdapter:
         export_limit = config.get("export_limit")
         if export_limit is not None:
             if isinstance(export_limit, list) and export_limit:
-                data["export_limit"] = await ts_loader.load(
+                data["export_limit"] = await ts_loader.load_intervals(
                     hass=hass,
                     value=export_limit,
                     forecast_times=forecast_times,
@@ -155,7 +155,7 @@ class GridAdapter:
 
         return data
 
-    def create_model_elements(self, config: GridConfigData) -> list[dict[str, Any]]:
+    def model_elements(self, config: GridConfigData) -> list[dict[str, Any]]:
         """Create model elements for Grid configuration."""
         return [
             # Create Node for the grid (both source and sink - can import and export)

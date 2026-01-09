@@ -3,11 +3,11 @@
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import highs_var
+from highspy.highs import highs_linear_expression, highs_var
 import pytest
 
-from custom_components.haeo.model.connection import Connection
-from custom_components.haeo.model.power_connection import PowerConnection
+from custom_components.haeo.model.elements.connection import Connection
+from custom_components.haeo.model.elements.power_connection import PowerConnection
 
 from . import test_data
 from .test_data.connection_types import ConnectionTestCase, ConnectionTestCaseInputs
@@ -29,8 +29,8 @@ def _solve_connection_scenario(
     # Use the element's solver instance (set in constructor)
     h = element._solver
 
-    # Always call build_constraints to set up constraints (variables already exist)
-    element.build_constraints()
+    # Always call constraints to set up constraints (variables already exist)
+    element.constraints()
 
     if inputs is None:
         # No optimization - just solve with no objective and get outputs directly
@@ -77,8 +77,15 @@ def _solve_connection_scenario(
         h.addConstr(source_vars[i] == element.power_source_target[i] - element.power_target_source[i])
         h.addConstr(target_vars[i] == element.power_source_target[i] - element.power_target_source[i])
 
-    # Objective function
-    cost_terms = list(element.cost())
+    # Apply constraints via reactive pattern
+    element.constraints()
+
+    # Collect cost from element (aggregates all @cost methods)
+    element_cost = element.cost()
+    cost_terms: list[highs_linear_expression] = []
+    if element_cost is not None:
+        cost_terms.append(element_cost)
+
     if source_cost != 0.0:
         cost_terms.append(Highs.qsum(source_vars[i] * source_cost * periods[i] for i in range(n_periods)))
     if target_cost != 0.0:
@@ -145,7 +152,7 @@ def test_connection_validation(case: ConnectionTestCase, solver: Highs) -> None:
 def test_base_connection_power_into_properties(solver: Highs) -> None:
     """Base Connection class power_into_source and power_into_target properties."""
     # Create a base Connection (lossless bidirectional)
-    conn: Connection[str, str] = Connection(
+    conn: Connection[str] = Connection(
         name="test_conn",
         periods=[1.0, 1.0],
         solver=solver,

@@ -10,9 +10,7 @@ from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
-from custom_components.haeo.model.output_data import OutputData
-from custom_components.haeo.model.power_connection import (
-    CONNECTION_POWER_ACTIVE,
+from custom_components.haeo.model.elements.power_connection import (
     CONNECTION_POWER_SOURCE_TARGET,
     CONNECTION_POWER_TARGET_SOURCE,
     CONNECTION_SHADOW_POWER_MAX_SOURCE_TARGET,
@@ -21,6 +19,7 @@ from custom_components.haeo.model.power_connection import (
     POWER_CONNECTION_OUTPUT_NAMES,
     PowerConnectionOutputName,
 )
+from custom_components.haeo.model.output_data import OutputData
 
 from .flow import ConnectionSubentryFlowHandler
 from .schema import (
@@ -37,8 +36,18 @@ from .schema import (
     ConnectionConfigSchema,
 )
 
-# Re-export power connection output names
-CONNECTION_OUTPUT_NAMES: Final[frozenset[PowerConnectionOutputName]] = POWER_CONNECTION_OUTPUT_NAMES
+# Adapter-synthesized output name (computed from model outputs)
+CONNECTION_POWER_ACTIVE: Final = "connection_power_active"
+
+# Connection adapter output names include model outputs + adapter-synthesized outputs
+type ConnectionOutputName = PowerConnectionOutputName | Literal["connection_power_active"]
+
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
+    (
+        *POWER_CONNECTION_OUTPUT_NAMES,
+        CONNECTION_POWER_ACTIVE,
+    )
+)
 
 type ConnectionDeviceName = Literal["connection"]
 
@@ -94,34 +103,34 @@ class ConnectionAdapter:
 
         # Load optional time series fields
         if CONF_MAX_POWER_SOURCE_TARGET in config:
-            data["max_power_source_target"] = await ts_loader.load(
+            data["max_power_source_target"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_MAX_POWER_SOURCE_TARGET], forecast_times=forecast_times
             )
         if CONF_MAX_POWER_TARGET_SOURCE in config:
-            data["max_power_target_source"] = await ts_loader.load(
+            data["max_power_target_source"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_MAX_POWER_TARGET_SOURCE], forecast_times=forecast_times
             )
         if CONF_EFFICIENCY_SOURCE_TARGET in config:
-            data["efficiency_source_target"] = await ts_loader.load(
+            data["efficiency_source_target"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_EFFICIENCY_SOURCE_TARGET], forecast_times=forecast_times
             )
         if CONF_EFFICIENCY_TARGET_SOURCE in config:
-            data["efficiency_target_source"] = await ts_loader.load(
+            data["efficiency_target_source"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_EFFICIENCY_TARGET_SOURCE], forecast_times=forecast_times
             )
         if CONF_PRICE_SOURCE_TARGET in config:
-            data["price_source_target"] = await ts_loader.load(
+            data["price_source_target"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_PRICE_SOURCE_TARGET], forecast_times=forecast_times
             )
         if CONF_PRICE_TARGET_SOURCE in config:
-            data["price_target_source"] = await ts_loader.load(
+            data["price_target_source"] = await ts_loader.load_intervals(
                 hass=hass, value=config[CONF_PRICE_TARGET_SOURCE], forecast_times=forecast_times
             )
 
         return data
 
-    def create_model_elements(self, config: ConnectionConfigData) -> list[dict[str, Any]]:
-        """Create model elements for Connection configuration."""
+    def model_elements(self, config: ConnectionConfigData) -> list[dict[str, Any]]:
+        """Return model element parameters for Connection configuration."""
         return [
             {
                 "element_type": "connection",
@@ -142,11 +151,11 @@ class ConnectionAdapter:
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],
         _config: ConnectionConfigData,
-    ) -> Mapping[ConnectionDeviceName, Mapping[PowerConnectionOutputName, OutputData]]:
+    ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         connection = model_outputs[name]
 
-        connection_outputs: dict[PowerConnectionOutputName, OutputData] = {
+        connection_outputs: dict[ConnectionOutputName, OutputData] = {
             CONNECTION_POWER_SOURCE_TARGET: connection[CONNECTION_POWER_SOURCE_TARGET],
             CONNECTION_POWER_TARGET_SOURCE: connection[CONNECTION_POWER_TARGET_SOURCE],
         }

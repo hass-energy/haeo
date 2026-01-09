@@ -63,7 +63,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
 
     assert result["element_type"] == "battery_section"
     assert result["name"] == "test_section"
-    assert len(result["capacity"]) == 1
-    assert result["capacity"][0] == 10.0
+    assert len(result["capacity"]) == 2  # Boundaries: n+1 values
+    assert result["capacity"] == [10.0, 10.0]  # Broadcast to all boundaries
     assert len(result["initial_charge"]) == 1
     assert result["initial_charge"][0] == 50.0
