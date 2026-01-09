@@ -112,7 +112,7 @@ class ConnectionConfigSchema(TypedDict):
 
     Schema mode contains entity IDs and constant values from the config flow.
     Values can be:
-    - list[str]: Entity IDs when linking to sensors
+    - str: Entity ID when linking to a sensor
     - float: Constant value when using HAEO Configurable
     - NotRequired: Field not present when using default
     """
@@ -123,12 +123,12 @@ class ConnectionConfigSchema(TypedDict):
     target: str  # Target element name
 
     # Optional fields
-    max_power_source_target: NotRequired[list[str] | float]  # Entity IDs or constant kW
-    max_power_target_source: NotRequired[list[str] | float]  # Entity IDs or constant kW
-    efficiency_source_target: NotRequired[list[str] | float]  # Entity IDs or constant %
-    efficiency_target_source: NotRequired[list[str] | float]  # Entity IDs or constant %
-    price_source_target: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
-    price_target_source: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
+    max_power_source_target: NotRequired[str | float]  # Entity ID or constant kW
+    max_power_target_source: NotRequired[str | float]  # Entity ID or constant kW
+    efficiency_source_target: NotRequired[str | float]  # Entity ID or constant %
+    efficiency_target_source: NotRequired[str | float]  # Entity ID or constant %
+    price_source_target: NotRequired[str | float]  # Entity ID or constant $/kWh
+    price_target_source: NotRequired[str | float]  # Entity ID or constant $/kWh
 
 
 class ConnectionConfigData(TypedDict):

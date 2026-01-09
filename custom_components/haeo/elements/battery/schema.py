@@ -250,30 +250,30 @@ class BatteryConfigSchema(TypedDict):
     connection: str  # Element name that battery connects to
 
     # Required sensors - can be entity links or constants
-    capacity: list[str] | float  # Energy sensor entity IDs or constant value (kWh)
-    initial_charge_percentage: list[str] | float  # SOC sensor entity IDs or constant value (%)
+    capacity: str | float  # Energy sensor entity ID or constant value (kWh)
+    initial_charge_percentage: str | float  # SOC sensor entity ID or constant value (%)
 
     # Optional fields - can be entity links, constants, or missing (uses default)
-    min_charge_percentage: NotRequired[list[str] | float]
-    max_charge_percentage: NotRequired[list[str] | float]
-    efficiency: NotRequired[list[str] | float]
+    min_charge_percentage: NotRequired[str | float]
+    max_charge_percentage: NotRequired[str | float]
+    efficiency: NotRequired[str | float]
 
     # Optional power limits - can be entity links or constants
-    max_charge_power: NotRequired[list[str] | float]  # Power sensor entity IDs or constant value (kW)
-    max_discharge_power: NotRequired[list[str] | float]  # Power sensor entity IDs or constant value (kW)
+    max_charge_power: NotRequired[str | float]  # Power sensor entity ID or constant value (kW)
+    max_discharge_power: NotRequired[str | float]  # Power sensor entity ID or constant value (kW)
 
     # Optional price fields - can be entity links or constants
-    early_charge_incentive: NotRequired[list[str] | float]
-    discharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
+    early_charge_incentive: NotRequired[str | float]
+    discharge_cost: NotRequired[list[str] | str | float]  # Price sensors ($/kWh) - list for chaining
 
     # Partition configuration checkbox
     configure_partitions: NotRequired[bool]  # Whether to configure partition fields
 
     # Partition fields (only present when configure_partitions is True)
-    undercharge_percentage: NotRequired[list[str] | float]
-    overcharge_percentage: NotRequired[list[str] | float]
-    undercharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
-    overcharge_cost: NotRequired[list[str] | float]  # Price sensor entity IDs or constant value ($/kWh)
+    undercharge_percentage: NotRequired[str | float]
+    overcharge_percentage: NotRequired[str | float]
+    undercharge_cost: NotRequired[list[str] | str | float]  # Price sensors ($/kWh) - list for chaining
+    overcharge_cost: NotRequired[list[str] | str | float]  # Price sensors ($/kWh) - list for chaining
 
 
 class BatteryConfigData(TypedDict):

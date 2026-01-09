@@ -119,9 +119,9 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 CONF_NAME: "Battery One",
-                CONF_CAPACITY: ["sensor.battery_capacity"],
+                CONF_CAPACITY: "sensor.battery_capacity",
                 CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
                 CONF_MAX_CHARGE_POWER: 5.0,
                 CONF_MAX_DISCHARGE_POWER: 5.0,
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
@@ -163,8 +163,8 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     battery_config = participants["Battery One"]
     assert battery_config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
     assert battery_config[CONF_NAME] == "Battery One"
-    assert battery_config[CONF_CAPACITY] == ["sensor.battery_capacity"]
-    assert battery_config[CONF_INITIAL_CHARGE_PERCENTAGE] == ["sensor.battery_soc"]
+    assert battery_config[CONF_CAPACITY] == "sensor.battery_capacity"
+    assert battery_config[CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
 
     # Verify input states are collected using State.as_dict()
     # Both sensor.battery_capacity and sensor.battery_soc should be collected
@@ -218,9 +218,9 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 CONF_NAME: "Battery",
-                CONF_CAPACITY: ["sensor.battery_capacity"],
+                CONF_CAPACITY: "sensor.battery_capacity",
                 CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
                 CONF_MAX_CHARGE_POWER: 5.0,
                 CONF_MAX_DISCHARGE_POWER: 5.0,
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,

@@ -66,18 +66,23 @@ class HaeoInputNumber(NumberEntity):
         self.device_entry = device_entry
 
         # Determine mode from config value type
-        # Entity IDs are stored as list[str] from EntitySelector
+        # Entity IDs can be list[str] (new format) or str (v0.1 format)
         # Constants are stored as float from NumberSelector
         config_value = subentry.data.get(field_info.field_name)
 
         if isinstance(config_value, list) and config_value:
-            # DRIVEN mode: value comes from external sensors (non-empty list)
+            # DRIVEN mode: value comes from external sensors (list format)
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_ids: list[str] = config_value
             self._attr_native_value = None  # Will be set when data loads
+        elif isinstance(config_value, str):
+            # DRIVEN mode: v0.1 format - single entity ID string
+            self._entity_mode = ConfigEntityMode.DRIVEN
+            self._source_entity_ids = [config_value]
+            self._attr_native_value = None  # Will be set when data loads
         else:
             # EDITABLE mode: value is a constant
-            # Config flow ensures fields in subentry.data are either entity lists or scalars
+            # Config flow ensures fields in subentry.data are either entity IDs or scalars
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_ids = []
             self._attr_native_value = float(config_value)  # type: ignore[arg-type]

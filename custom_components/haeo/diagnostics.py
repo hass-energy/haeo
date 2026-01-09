@@ -28,13 +28,19 @@ from .sensor_utils import get_output_sensors
 def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     """Extract entity IDs from element configuration.
 
-    Entity IDs are stored as list[str] values for fields that reference sensors.
+    Entity IDs can be stored as:
+    - str: Single entity ID for single-value fields
+    - list[str]: Multiple entity IDs for chained forecast/price fields
+
     This function iterates over all config values and collects entity IDs.
     """
     entity_ids: set[str] = set()
     for value in config.values():
-        if isinstance(value, list) and all(isinstance(item, str) for item in value):
-            # Check if items look like entity IDs (contain a dot)
+        if isinstance(value, str) and "." in value:
+            # Single entity ID string
+            entity_ids.add(value)
+        elif isinstance(value, list) and all(isinstance(item, str) for item in value):
+            # List of entity IDs (for chained forecasts/prices)
             entity_ids.update(item for item in value if "." in item)
     return entity_ids
 

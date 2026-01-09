@@ -243,9 +243,10 @@ async def test_partition_flow_with_entity_links(hass: HomeAssistant, hub_entry: 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     # Verify partition fields are in the created config
+    # Single entity selections are stored as strings (not lists)
     created_data = flow.async_create_entry.call_args.kwargs["data"]
-    assert created_data[CONF_UNDERCHARGE_PERCENTAGE] == ["sensor.undercharge_pct"]
-    assert created_data[CONF_OVERCHARGE_PERCENTAGE] == ["sensor.overcharge_pct"]
+    assert created_data[CONF_UNDERCHARGE_PERCENTAGE] == "sensor.undercharge_pct"
+    assert created_data[CONF_OVERCHARGE_PERCENTAGE] == "sensor.overcharge_pct"
 
 
 async def test_partition_flow_with_configurable_values(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:

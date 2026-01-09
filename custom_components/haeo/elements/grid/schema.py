@@ -83,7 +83,8 @@ class GridConfigSchema(TypedDict):
 
     Schema mode contains entity IDs and constant values from the config flow.
     Values can be:
-    - list[str]: Entity IDs when mode is ENTITY_LINK
+    - list[str]: Entity IDs for chained price forecasts
+    - str: Single entity ID
     - float: Constant value when mode is CONSTANT
     - NotRequired: Field not present when mode is NONE
     """
@@ -93,12 +94,13 @@ class GridConfigSchema(TypedDict):
     connection: str  # Element name to connect to
 
     # Price fields: required (user must select an entity or enter a value)
-    import_price: list[str] | float  # Entity IDs or constant $/kWh
-    export_price: list[str] | float  # Entity IDs or constant $/kWh
+    # Lists supported for chaining current + forecast sensors
+    import_price: list[str] | str | float  # Entity ID(s) or constant $/kWh - list for chaining
+    export_price: list[str] | str | float  # Entity ID(s) or constant $/kWh - list for chaining
 
     # Power limit fields (optional)
-    import_limit: NotRequired[list[str] | float]  # Entity IDs or constant kW
-    export_limit: NotRequired[list[str] | float]  # Entity IDs or constant kW
+    import_limit: NotRequired[str | float]  # Entity ID or constant kW
+    export_limit: NotRequired[str | float]  # Entity ID or constant kW
 
 
 class GridConfigData(TypedDict):

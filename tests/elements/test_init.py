@@ -53,13 +53,6 @@ def test_is_element_config_schema_invalid_structure(input_data: dict[str, Any]) 
             "import_price": ["sensor.import"],
             "export_price": ["sensor.export"],
         },
-        # Wrong type for forecast (should be list or float, not plain str)
-        {
-            "element_type": "solar",
-            "name": "test",
-            "connection": "bus",
-            "forecast": "not_a_list",
-        },
         # Wrong type for capacity (bool is rejected - bools are explicitly excluded from
         # constant value handling even though bool is a subclass of int in Python)
         {
@@ -102,8 +95,8 @@ def test_is_element_config_schema_valid_battery() -> None:
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": ["sensor.capacity"],
-        "initial_charge_percentage": ["sensor.soc"],
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.soc",
         "max_charge_power": 5.0,
         "max_discharge_power": 5.0,
     }
@@ -116,8 +109,8 @@ def test_is_element_config_schema_valid_grid() -> None:
         "element_type": "grid",
         "name": "test_grid",
         "connection": "main_bus",
-        "import_price": ["sensor.import"],
-        "export_price": ["sensor.export"],
+        "import_price": ["sensor.import"],  # list for chaining
+        "export_price": ["sensor.export"],  # list for chaining
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -174,8 +167,8 @@ def test_is_element_config_schema_valid_inverter() -> None:
         "element_type": "inverter",
         "name": "test_inverter",
         "connection": "ac_bus",
-        "max_power_dc_to_ac": ["sensor.dc_to_ac"],
-        "max_power_ac_to_dc": ["sensor.ac_to_dc"],
+        "max_power_dc_to_ac": "sensor.dc_to_ac",
+        "max_power_ac_to_dc": "sensor.ac_to_dc",
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -185,8 +178,8 @@ def test_is_element_config_schema_valid_battery_section() -> None:
     valid_config = {
         "element_type": "battery_section",
         "name": "test_section",
-        "capacity": ["sensor.capacity"],
-        "initial_charge": ["sensor.charge"],
+        "capacity": "sensor.capacity",
+        "initial_charge": "sensor.charge",
     }
     assert is_element_config_schema(valid_config) is True
 

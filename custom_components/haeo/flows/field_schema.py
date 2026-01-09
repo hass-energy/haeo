@@ -437,7 +437,8 @@ def convert_entity_selections_to_config(
         Config dict with:
         - Fields with configurable entity: converted to float (from configurable_values)
         - Fields with HAEO input entity kept: preserved scalar value from current_data
-        - Fields with real external entities: kept as list[str]
+        - Fields with single entity: stored as str (single entity ID)
+        - Fields with multiple entities: stored as list[str] (for chaining)
         - Fields with empty selection: omitted (no default fallback)
 
     """
@@ -462,15 +463,26 @@ def convert_entity_selections_to_config(
                     config[field_name] = current_value
                 else:
                     # Unexpected: HAEO input entity but no scalar in current_data
-                    config[field_name] = entities
+                    config[field_name] = _normalize_entity_selection(entities)
             else:
-                # No current_data - shouldn't happen but fall back to entity list
-                config[field_name] = entities
+                # No current_data - shouldn't happen but fall back to entity selection
+                config[field_name] = _normalize_entity_selection(entities)
         else:
-            # Real external entities - keep as list
-            config[field_name] = entities
+            # Real external entities - single entity as str, multiple as list
+            config[field_name] = _normalize_entity_selection(entities)
 
     return config
+
+
+def _normalize_entity_selection(entities: list[str]) -> str | list[str]:
+    """Normalize entity selection to str (single) or list[str] (multiple).
+
+    Single entity selections are stored as strings for v0.1 format compatibility.
+    Multiple entity selections are stored as lists for chaining support.
+    """
+    if len(entities) == 1:
+        return entities[0]
+    return entities
 
 
 __all__ = [

@@ -62,7 +62,8 @@ class SolarConfigSchema(TypedDict):
 
     Schema mode contains entity IDs and constant values from the config flow.
     Values can be:
-    - list[str]: Entity IDs when linking to sensors
+    - list[str]: Entity IDs for chained forecasts
+    - str: Single entity ID
     - float/bool: Constant value when using HAEO Configurable
     - NotRequired: Field not present when using default
     """
@@ -70,11 +71,11 @@ class SolarConfigSchema(TypedDict):
     element_type: Literal["solar"]
     name: str
     connection: str  # Element name to connect to
-    forecast: list[str] | float  # Entity IDs or constant kW
+    forecast: list[str] | str | float  # Entity ID(s) or constant kW - list for chaining
 
     # Optional fields (with sensible defaults)
-    curtailment: NotRequired[list[str] | bool]  # Entity IDs or constant boolean (default: True)
-    price_production: NotRequired[list[str] | float]  # Entity IDs or constant $/kWh
+    curtailment: NotRequired[str | bool]  # Entity ID or constant boolean (default: True)
+    price_production: NotRequired[str | float]  # Entity ID or constant $/kWh
 
 
 class SolarConfigData(TypedDict):
