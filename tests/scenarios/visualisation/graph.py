@@ -110,8 +110,8 @@ def build_graph(
     graph: nx.DiGraph[str] = nx.DiGraph()
     device_groups: dict[str, list[str]] = defaultdict(list)
 
-    # Add non-connection elements as nodes
-    for name, element in network.elements.items():
+    # Add non-connection elements as nodes (sorted for deterministic order)
+    for name, element in sorted(network.elements.items()):
         if isinstance(element, Connection):
             continue
 
@@ -122,8 +122,8 @@ def build_graph(
         graph.add_node(name, color=color, element_type=element_type)
         device_groups[parent_device].append(name)
 
-    # Add connections as edges
-    for name, element in network.elements.items():
+    # Add connections as edges (sorted for deterministic order)
+    for name, element in sorted(network.elements.items()):
         if not isinstance(element, Connection):
             continue
 
@@ -139,7 +139,9 @@ def build_graph(
         edge_style = "balance" if isinstance(element, BatteryBalanceConnection) else "power"
         graph.add_edge(source, target, name=name, style=edge_style)
 
-    return graph, dict(device_groups)
+    # Sort device_groups and their node lists for deterministic order
+    sorted_groups = {k: sorted(v) for k, v in sorted(device_groups.items())}
+    return graph, sorted_groups
 
 
 # =============================================================================
