@@ -191,9 +191,23 @@ def build_entity_selector_with_configurable(
         EntitySelector configured for sensor/input_number/haeo domains.
 
     """
-    # Remove configurable entity from exclude list (it has unit_of_measurement=None
-    # which fails unit filtering, but we always want it available)
-    filtered_exclude = [entity_id for entity_id in (exclude_entities or []) if not is_configurable_entity(entity_id)]
+    # WORKAROUND: Remove configurable entity and HAEO input entities from exclude list.
+    # These entities fail unit filtering because:
+    # - Configurable sentinel has unit_of_measurement=None
+    # - HAEO input entities for price/cost fields lack units (monetary units are user-specific
+    #   and HA doesn't provide a standardized way to determine currency at entity definition time)
+    #
+    # A better approach would be to:
+    # - Derive the user's currency from HA core settings and assign proper units to price fields
+    # - Or use a custom unit matching strategy that handles currency-per-energy patterns
+    #
+    # For now, we bypass unit filtering for all HAEO-created entities since they should
+    # always be re-selectable for their original fields during reconfiguration.
+    filtered_exclude = [
+        entity_id
+        for entity_id in (exclude_entities or [])
+        if not is_configurable_entity(entity_id) and not is_haeo_input_entity(entity_id)
+    ]
 
     # Build config - no device_class filter, rely on unit-based exclusion
     # Include 'number' and 'switch' so HAEO input entities can be re-selected during reconfigure
