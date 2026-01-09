@@ -75,16 +75,12 @@ class HaeoInputNumber(NumberEntity):
             self._entity_mode = ConfigEntityMode.DRIVEN
             self._source_entity_ids: list[str] = config_value
             self._attr_native_value = None  # Will be set when data loads
-        elif isinstance(config_value, int | float):
-            # EDITABLE mode: value is a constant
-            self._entity_mode = ConfigEntityMode.EDITABLE
-            self._source_entity_ids = []
-            self._attr_native_value = float(config_value)
         else:
-            # EDITABLE mode: no value configured, use default
+            # EDITABLE mode: value is a constant
+            # Config flow ensures fields in subentry.data are either entity lists or scalars
             self._entity_mode = ConfigEntityMode.EDITABLE
             self._source_entity_ids = []
-            self._attr_native_value = None
+            self._attr_native_value = float(config_value)  # type: ignore[arg-type]
 
         # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_info.field_name}"
@@ -133,13 +129,6 @@ class HaeoInputNumber(NumberEntity):
         self._horizon_unsub = self._horizon_manager.subscribe(self._handle_horizon_change)
 
         if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Use default value if no config value
-            if (
-                self._attr_native_value is None
-                and self._field_info.defaults is not None
-                and self._field_info.defaults.value is not None
-            ):
-                self._attr_native_value = float(self._field_info.defaults.value)
             # Update forecast for initial value
             self._update_editable_forecast()
         else:

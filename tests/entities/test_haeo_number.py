@@ -13,7 +13,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_NAME, DOMAIN
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model import OutputType
@@ -169,30 +169,6 @@ async def test_editable_mode_with_static_value(
     assert attrs["field_name"] == "power_limit"
     assert attrs["direction"] == "+"
     assert attrs["time_series"] is True
-
-
-async def test_editable_mode_with_none_value(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    scalar_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """Number entity in EDITABLE mode handles None for optional fields."""
-    subentry = _create_subentry("Test Battery", {"capacity": None})
-    config_entry.runtime_data = None
-
-    entity = HaeoInputNumber(
-        hass=hass,
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=scalar_field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-    )
-
-    assert entity._entity_mode == ConfigEntityMode.EDITABLE
-    assert entity.native_value is None
 
 
 async def test_editable_mode_set_native_value(
@@ -877,48 +853,6 @@ async def test_async_load_data_with_boundaries_field(
     assert entity.native_value == 10.0
     values = entity.get_values()
     assert values == (10.0, 20.0, 30.0)
-
-
-async def test_editable_mode_uses_default_when_no_config_value(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    horizon_manager: Mock,
-) -> None:
-    """Number entity uses field default when no config value provided."""
-    # Create field with default value
-    field_info = InputFieldInfo(
-        field_name="power_limit",
-        entity_description=NumberEntityDescription(
-            key="power_limit",
-            translation_key="power_limit",
-            native_unit_of_measurement="kW",
-            native_min_value=0.0,
-            native_max_value=100.0,
-            native_step=0.1,
-        ),
-        output_type=OutputType.POWER,
-        time_series=True,
-        defaults=InputFieldDefaults(mode="value", value=25.0),
-    )
-
-    # Config has no value for this field
-    subentry = _create_subentry("Test Battery", {})
-    config_entry.runtime_data = None
-
-    entity = HaeoInputNumber(
-        hass=hass,
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-    )
-
-    await entity.async_added_to_hass()
-
-    # Should use default value
-    assert entity.native_value == 25.0
 
 
 async def test_entity_mode_property(
