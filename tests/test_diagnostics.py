@@ -44,7 +44,7 @@ from custom_components.haeo.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.elements.grid import CONF_IMPORT_PRICE, GRID_POWER_IMPORT
-from custom_components.haeo.model import OUTPUT_TYPE_POWER
+from custom_components.haeo.model import OutputType
 
 
 async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
@@ -117,9 +117,9 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 CONF_NAME: "Battery One",
-                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CAPACITY: ["sensor.battery_capacity"],
                 CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
                 CONF_EFFICIENCY: 95.0,
@@ -159,8 +159,8 @@ async def test_diagnostics_with_participants(hass: HomeAssistant) -> None:
     battery_config = participants["Battery One"]
     assert battery_config[CONF_ELEMENT_TYPE] == ELEMENT_TYPE_BATTERY
     assert battery_config[CONF_NAME] == "Battery One"
-    assert battery_config[CONF_CAPACITY] == "sensor.battery_capacity"
-    assert battery_config[CONF_INITIAL_CHARGE_PERCENTAGE] == "sensor.battery_soc"
+    assert battery_config[CONF_CAPACITY] == ["sensor.battery_capacity"]
+    assert battery_config[CONF_INITIAL_CHARGE_PERCENTAGE] == ["sensor.battery_soc"]
 
     # Verify input states are collected using State.as_dict()
     # Both sensor.battery_capacity and sensor.battery_soc should be collected
@@ -214,9 +214,9 @@ async def test_diagnostics_skips_network_subentry(hass: HomeAssistant) -> None:
             {
                 CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
                 CONF_NAME: "Battery",
-                CONF_CAPACITY: "sensor.battery_capacity",
+                CONF_CAPACITY: ["sensor.battery_capacity"],
                 CONF_CONNECTION: "DC Bus",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.battery_soc",
+                CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
                 CONF_MIN_CHARGE_PERCENTAGE: 10.0,
                 CONF_MAX_CHARGE_PERCENTAGE: 90.0,
                 CONF_EFFICIENCY: 95.0,
@@ -297,7 +297,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     coordinator.data = {
         "grid": {
             GRID_POWER_IMPORT: CoordinatorOutput(
-                type=OUTPUT_TYPE_POWER,
+                type=OutputType.POWER,
                 unit="kW",
                 state=5.5,
                 forecast=[ForecastPoint(time=datetime(2024, 1, 1, 12, 0, tzinfo=UTC), value=5.5)],

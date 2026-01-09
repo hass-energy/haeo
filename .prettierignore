@@ -8,3 +8,6 @@
 !*.css
 !.prettierrc
 # .md files are handled by mdformat
+
+# Ignore generated coverage reports
+htmlcov/

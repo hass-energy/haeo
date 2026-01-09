@@ -3,7 +3,9 @@
 Brief description of the element (1-2 sentences).
 Focus on what the element represents in the energy system and its primary purpose.
 
-## Configuration Fields
+## Configuration
+
+### Configuration Fields
 
 Provide a table listing all configuration fields with their types, requirements, and descriptions.
 Link to the [Forecasts and Sensors guide](../../user-guide/forecasts-and-sensors.md) for sensor field types.
@@ -13,19 +15,31 @@ Link to the [Forecasts and Sensors guide](../../user-guide/forecasts-and-sensors
 | **name**          | string                                              | Yes      | -       | Unique identifier for this element |
 | **field_example** | [sensor](../../user-guide/forecasts-and-sensors.md) | No       | -       | Example sensor field description   |
 
-### Field-Specific Notes
+### Input Entities
 
-Add H3 subsections for fields that need additional explanation.
+Each configuration field creates a corresponding input entity in Home Assistant.
+Input entities appear as Number or Switch entities with the `config` entity category.
+
+| Input                        | Unit | Description                 |
+| ---------------------------- | ---- | --------------------------- |
+| `number.{name}_field_one`    | kW   | Brief description of input  |
+| `number.{name}_field_two`    | kWh  | Brief description of input  |
+| `switch.{name}_boolean_flag` | -    | Brief description of switch |
+
+Input entities include a `forecast` attribute showing values for each optimization period.
+See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
+
+### Field Details
+
+Add subsections for fields that need additional explanation.
 Keep explanations focused on configuration, not mathematical modeling.
 
-For complex elements, you may group related fields under a descriptive H3 heading, then use H4 subheadings for individual field details.
-Link to the field name in the configuration table where appropriate.
+For complex elements, you may group related fields under a descriptive heading.
 
 ## Configuration Examples
 
 Provide minimal working examples using table format.
 Keep examples realistic and representative of typical use cases.
-For complex elements, provide multiple examples showing different configuration patterns.
 
 ### Basic Configuration
 
@@ -45,34 +59,22 @@ For complex elements, provide multiple examples showing different configuration 
 
 ## Sensors Created
 
+### Sensor Summary
+
 This element creates sensors organized by device.
 Each device groups related sensors for a specific aspect of the element's operation.
 
+| Sensor                         | Unit  | Description                            |
+| ------------------------------ | ----- | -------------------------------------- |
+| `sensor.{name}_sensor_one`     | kW    | Brief description (link to subsection) |
+| `sensor.{name}_sensor_two`     | kWh   | Brief description (link to subsection) |
+| `sensor.{name}_shadow_price_*` | \$/kW | Shadow price sensors                   |
+
+All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
+
 For detailed mathematical formulation, see the [relevant Model Layer documentation](../../modeling/index.md).
 
-### [Device Name] Device
-
-Brief description of what this device represents.
-
-| Sensor                                                | Unit  | Description                            |
-| ----------------------------------------------------- | ----- | -------------------------------------- |
-| [`sensor.{name}_sensor_one`](#sensor-one)             | kW    | Brief description (link to subsection) |
-| [`sensor.{name}_sensor_two`](#sensor-two)             | kWh   | Brief description (link to subsection) |
-| [`sensor.{name}_shadow_price_one`](#shadow-price-one) | \$/kW | Brief description (shadow price)       |
-
-### [Optional Device Name] Device (\*)
-
-Brief description of when this device is created and what it represents.
-
-(\*) Only created when [specific condition is met]
-
-| Sensor                                                    | Unit | Description                            |
-| --------------------------------------------------------- | ---- | -------------------------------------- |
-| [`sensor.{name}_conditional_sensor`](#conditional-sensor) | %    | Brief description (conditional sensor) |
-
----
-
-### Sensor Descriptions
+### Sensor Details
 
 #### Sensor One
 
@@ -93,7 +95,7 @@ Plain-English explanation of when this sensor is created and what it represents.
 
 #### Shadow Price One
 
-Brief explanation of what this specific shadow price represents.
+Brief explanation of shadow price sensors for this element.
 Reference the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
 **Interpretation**:

@@ -26,7 +26,7 @@ HAEO focuses exclusively on optimization and **will not** add features outside t
 - ❌ **Solar forecasting** - Use existing integrations like [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) or [Solcast](https://github.com/BJReplay/ha-solcast-solar)
 - ❌ **Price fetching** - Use integrations like Amber Electric, Nordpool, or Tibber
 - ❌ **Device control** - Use Home Assistant automations
-- ❌ **Load forecasting** - Use existing integrations or template sensors
+- ❌ **Load forecasting** - Use [HAFO](https://hafo.haeo.io) or other integrations
 
 This focused approach means:
 
@@ -74,8 +74,8 @@ This minimizes your total energy cost over a configurable time horizon (default 
 ### Supported Devices
 
 - **Battery**: Energy storage with configurable capacity, charge/discharge rates, and efficiency
-- **Grid**: Bi-directional grid connection with import/export limits and pricing
-- **Photovoltaics**: Solar generation with optional curtailment
+- **Grid**: Bi-directional grid with import/export limits and pricing
+- **Solar**: Solar generation with optional curtailment
 - **Constant Load**: Fixed power loads
 - **Forecast Load**: Variable loads with forecast data
 - **Node**: Virtual metering points for grouping energy flows
@@ -132,13 +132,13 @@ After creating your network, you can add devices through the integration's optio
 
 #### Grid Configuration
 
-- **Name**: Identifier for grid connection
+- **Name**: Identifier for grid
 - **Import/Export Limits**: Maximum power in kW (optional)
 - **Import/Export Prices**: Fixed prices OR forecast sensor entities
     - Use live sensors for real-time pricing
     - Use forecast sensors for time-of-use optimization
 
-#### Photovoltaics Configuration
+#### Solar Configuration
 
 - **Name**: Identifier for solar system
 - **Forecast Sensors**: Entity IDs providing power forecast

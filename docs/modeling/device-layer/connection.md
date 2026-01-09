@@ -8,7 +8,7 @@ Unlike implicit connections created by other devices, Connection allows full con
 ```mermaid
 graph LR
     subgraph "Device"
-        MC["Connection<br/>{name}"]
+        MC["PowerConnection<br/>{name}"]
     end
 
     Source[Source Element]
@@ -18,9 +18,11 @@ graph LR
     MC <-->|links to| Target
 ```
 
-| Model Element                              | Name     | Parameters From Configuration  |
-| ------------------------------------------ | -------- | ------------------------------ |
-| [Connection](../model-layer/connection.md) | `{name}` | All parameters mapped directly |
+| Model Element                                                     | Name     | Parameters From Configuration  |
+| ----------------------------------------------------------------- | -------- | ------------------------------ |
+| [PowerConnection](../model-layer/connections/power-connection.md) | `{name}` | All parameters mapped directly |
+
+The Connection device creates a `PowerConnection` model element, which extends the base `Connection` class to support efficiency, pricing, and power limits.
 
 ## Devices Created
 
@@ -32,18 +34,18 @@ Connection creates 1 device in Home Assistant:
 
 ## Parameter Mapping
 
-The adapter passes user configuration directly to the Connection model:
+The adapter passes user configuration directly to the PowerConnection model:
 
-| User Configuration         | Model Element | Model Parameter            | Notes                          |
-| -------------------------- | ------------- | -------------------------- | ------------------------------ |
-| `source`                   | Connection    | `source`                   | Source element name            |
-| `target`                   | Connection    | `target`                   | Target element name            |
-| `max_power_source_target`  | Connection    | `max_power_source_target`  | Optional, unlimited if not set |
-| `max_power_target_source`  | Connection    | `max_power_target_source`  | Optional, unlimited if not set |
-| `efficiency_source_target` | Connection    | `efficiency_source_target` | Optional, 100% if not set      |
-| `efficiency_target_source` | Connection    | `efficiency_target_source` | Optional, 100% if not set      |
-| `price_source_target`      | Connection    | `price_source_target`      | Optional, no cost if not set   |
-| `price_target_source`      | Connection    | `price_target_source`      | Optional, no cost if not set   |
+| User Configuration         | Model Element   | Model Parameter            | Notes                          |
+| -------------------------- | --------------- | -------------------------- | ------------------------------ |
+| `source`                   | PowerConnection | `source`                   | Source element name            |
+| `target`                   | PowerConnection | `target`                   | Target element name            |
+| `max_power_source_target`  | PowerConnection | `max_power_source_target`  | Optional, unlimited if not set |
+| `max_power_target_source`  | PowerConnection | `max_power_target_source`  | Optional, unlimited if not set |
+| `efficiency_source_target` | PowerConnection | `efficiency_source_target` | Optional, 100% if not set      |
+| `efficiency_target_source` | PowerConnection | `efficiency_target_source` | Optional, 100% if not set      |
+| `price_source_target`      | PowerConnection | `price_source_target`      | Optional, no cost if not set   |
+| `price_target_source`      | PowerConnection | `price_target_source`      | Optional, no cost if not set   |
 
 ## Sensors Created
 
@@ -55,11 +57,9 @@ The adapter passes user configuration directly to the Connection model:
 | `power_target_source`     | kW    | Real-time | Power flow from target to source |
 | `power_max_source_target` | kW    | Real-time | Configured max power (if set)    |
 | `power_max_target_source` | kW    | Real-time | Configured max power (if set)    |
-| `price_source_target`     | \$/kW | Real-time | Configured price (if set)        |
-| `price_target_source`     | \$/kW | Real-time | Configured price (if set)        |
 | `shadow_power_max_*`      | \$/kW | Real-time | Shadow prices for power limits   |
 
-See [Connection Configuration](../../user-guide/elements/connections.md#sensors-created) for complete sensor documentation.
+See [Connection Configuration](../../user-guide/elements/connections.md) for detailed sensor and configuration documentation.
 
 ## Configuration Examples
 
@@ -148,7 +148,7 @@ Use explicit Connection devices when you need:
 
     Mathematical formulation for power flow.
 
-    [:material-arrow-right: Connection model](../model-layer/connection.md)
+    [:material-arrow-right: Connection model](../model-layer/connections/power-connection.md)
 
 - :material-network:{ .lg .middle } **Network overview**
 

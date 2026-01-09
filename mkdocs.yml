@@ -64,9 +64,6 @@ theme:
 plugins:
   - search:
       separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
-  - git-revision-date-localized:
-      enable_creation_date: true
-      type: timeago
 
 markdown_extensions:
   # Python Markdown
@@ -112,6 +109,9 @@ markdown_extensions:
   - pymdownx.tilde
 
 extra:
+  analytics:
+    provider: google
+    property: G-ZQ0CM215M1
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/hass-energy/haeo
@@ -140,9 +140,11 @@ nav:
       - Elements:
           - user-guide/elements/index.md
           - Battery: user-guide/elements/battery.md
+          - Battery Section: user-guide/elements/battery_section.md
           - Grid: user-guide/elements/grid.md
-          - Photovoltaics: user-guide/elements/photovoltaics.md
+          - Inverter: user-guide/elements/inverter.md
           - Load: user-guide/elements/load.md
+          - Solar: user-guide/elements/solar.md
           - Node: user-guide/elements/node.md
           - Connections: user-guide/elements/connections.md
       - Understanding Results: user-guide/optimization.md
@@ -157,14 +159,22 @@ nav:
       - modeling/index.md
       - Model Layer:
           - modeling/model-layer/index.md
-          - Battery: modeling/model-layer/battery.md
-          - SourceSink: modeling/model-layer/source-sink.md
-          - Connection: modeling/model-layer/connection.md
+          - Elements:
+              - modeling/model-layer/elements/index.md
+              - Battery: modeling/model-layer/elements/battery.md
+              - Node: modeling/model-layer/elements/node.md
+          - Connections:
+              - modeling/model-layer/connections/index.md
+              - Connection: modeling/model-layer/connections/connection.md
+              - Power Connection: modeling/model-layer/connections/power-connection.md
+              - Battery Balance Connection: modeling/model-layer/battery-balance-connection.md
       - Device Layer:
           - modeling/device-layer/index.md
           - Battery: modeling/device-layer/battery.md
+          - Battery Section: modeling/device-layer/battery_section.md
           - Grid: modeling/device-layer/grid.md
-          - Photovoltaics: modeling/device-layer/photovoltaics.md
+          - Inverter: modeling/device-layer/inverter.md
+          - Solar: modeling/device-layer/solar.md
           - Load: modeling/device-layer/loads.md
           - Node: modeling/device-layer/node.md
           - Connection: modeling/device-layer/connection.md
@@ -179,6 +189,8 @@ nav:
           - Device Layer Template: developer-guide/templates/device-layer-template.md
       - Architecture: developer-guide/architecture.md
       - Adapter Layer: developer-guide/adapter-layer.md
+      - Horizon Manager: developer-guide/horizon-manager.md
+      - Input Entities: developer-guide/inputs.md
       - Setup: developer-guide/setup.md
       - Typing Philosophy: developer-guide/typing.md
       - Units & Stability: developer-guide/units.md

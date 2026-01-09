@@ -110,7 +110,7 @@ async def test_time_series_loader_load_merges_present_and_forecast(
 
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
-    result = await loader.load(
+    result = await loader.load_intervals(
         hass=hass,
         value=["sensor.present_power", "sensor.forecast_day", "sensor.forecast_night"],
         forecast_times=[100, 250, 400, 700, 850],
@@ -135,7 +135,7 @@ async def test_time_series_loader_load_present_only(hass: HomeAssistant, monkeyp
 
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
-    result = await loader.load(
+    result = await loader.load_intervals(
         hass=hass,
         value=["sensor.a", "sensor.b"],
         forecast_times=[0, 60, 120],
@@ -151,7 +151,7 @@ async def test_time_series_loader_load_returns_empty_for_missing_horizon(hass: H
 
     loader = TimeSeriesLoader()
 
-    result = await loader.load(
+    result = await loader.load_intervals(
         hass=hass,
         value="sensor.any",
         forecast_times=[],
@@ -167,7 +167,7 @@ async def test_time_series_loader_load_requires_entity_ids(hass: HomeAssistant) 
     loader = TimeSeriesLoader()
 
     with pytest.raises(ValueError, match="At least one sensor entity is required"):
-        await loader.load(
+        await loader.load_intervals(
             hass=hass,
             value=(),
             forecast_times=[0, 60],
@@ -188,7 +188,7 @@ async def test_time_series_loader_load_fails_when_no_payloads(
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
     with pytest.raises(ValueError, match="No time series data available"):
-        await loader.load(
+        await loader.load_intervals(
             hass=hass,
             value=["sensor.present", "sensor.forecast"],
             forecast_times=[0, 60],
@@ -209,7 +209,7 @@ async def test_time_series_loader_load_fails_when_sensor_missing(
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
     with pytest.raises(ValueError, match=r"sensor\.missing"):
-        await loader.load(
+        await loader.load_intervals(
             hass=hass,
             value=["sensor.present", "sensor.missing"],
             forecast_times=[0, 60],

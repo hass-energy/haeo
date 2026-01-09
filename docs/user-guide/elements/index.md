@@ -34,7 +34,7 @@ Example layout:
 
 ```mermaid
 graph TD
-    Solar[Photovoltaics] --> Net[Node]
+    Solar[Solar] --> Net[Node]
     Grid[Grid] <--> Net
     Net --> Battery[Battery]
     Battery --> Load[Load]
@@ -51,6 +51,22 @@ When configuring elements:
 2. **Add gradually**: Introduce complexity one element at a time
 3. **Verify each step**: Check that optimization produces reasonable results
 4. **Use realistic values**: Base constraints on actual device specifications
+
+## Advanced Elements
+
+Some elements are only available when **Advanced Mode** is enabled on your hub.
+These elements provide direct access to raw modeling components for advanced users who need fine-grained control.
+
+Advanced elements include:
+
+- **Connection**: Explicit power flow paths between elements
+- **Node**: Virtual power balance points (with advanced source/sink configuration)
+- **Battery Section**: Direct access to model layer Battery element
+
+Most users should use the standard elements which provide automatic connections and optimized behavior.
+Advanced elements require manual connection configuration and are intended for users who understand the underlying model layer.
+
+See the [Configuration guide](../configuration.md#advanced-mode) for details on enabling Advanced Mode.
 
 ## Next Steps
 
@@ -70,11 +86,11 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Grid guide](grid.md)
 
-- :material-weather-sunny:{ .lg .middle } __Photovoltaics configuration__
+- :material-weather-sunny:{ .lg .middle } __Solar configuration__
 
     Solar generation with curtailment options.
 
-    [:material-arrow-right: Photovoltaics guide](photovoltaics.md)
+    [:material-arrow-right: Solar guide](solar.md)
 
 - :material-gauge:{ .lg .middle } __Load configuration__
 
@@ -87,5 +103,17 @@ Explore detailed configuration for each element type:
     Virtual power balance nodes.
 
     [:material-arrow-right: Node guide](node.md)
+
+- :material-battery-charging:{ .lg .middle } __Battery Section configuration__ (Advanced)
+
+    Direct access to model layer Battery element.
+
+    [:material-arrow-right: Battery Section guide](battery_section.md)
+
+- :material-connection:{ .lg .middle } __Connection configuration__ (Advanced)
+
+    Explicit power flow paths between elements.
+
+    [:material-arrow-right: Connections guide](connections.md)
 
 </div>

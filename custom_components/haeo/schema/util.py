@@ -8,7 +8,7 @@ import re
 type UnitSpec = str | type[StrEnum] | Iterable[str]
 
 
-def matches_unit_spec(unit: str, spec: UnitSpec | list[UnitSpec]) -> bool:
+def matches_unit_spec(unit: str, spec: UnitSpec) -> bool:
     """Check if a unit string matches a unit specification.
 
     Args:
@@ -17,7 +17,6 @@ def matches_unit_spec(unit: str, spec: UnitSpec | list[UnitSpec]) -> bool:
             - A string: "kW" (exact match only)
             - An Enum class: UnitOfPower (matches any enum value)
             - An iterable of strings: ("*", "/", "kWh") (pattern match with wildcards)
-            - A list of any of the above: ["kW", "MW"] (matches any)
 
     Returns:
         True if the unit matches the specification
@@ -29,14 +28,8 @@ def matches_unit_spec(unit: str, spec: UnitSpec | list[UnitSpec]) -> bool:
         True
         >>> matches_unit_spec("$/kWh", ('*', '/', "kWh"))
         True
-        >>> matches_unit_spec("kW", ["kW", "MW"])
-        True
 
     """
-    # Handle list of specs - match any
-    if isinstance(spec, list):
-        return any(matches_unit_spec(unit, s) for s in spec)
-
     # Handle string - exact match only
     if isinstance(spec, str):
         return unit == spec

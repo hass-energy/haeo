@@ -6,7 +6,7 @@ from highspy import Highs
 from highspy.highs import HighspyArray
 import pytest
 
-from custom_components.haeo.model.source_sink import SourceSink
+from custom_components.haeo.model.elements.node import Node
 from custom_components.haeo.model.util import broadcast_to_sequence
 
 from . import test_data
@@ -56,15 +56,19 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
 
         element.connection_power = mock_connection_power
 
-        # Call build_constraints() to set up power balance with mocked connection_power
-        element.build_constraints()
+        # Call constraints() to set up power balance with mocked connection_power
+        element.constraints()
 
-        # Collect all cost terms
+        # Collect cost from element (aggregates all @cost methods)
+        element_costs: list[Any] = []
+        if (element_cost := element.cost()) is not None:
+            element_costs.append(element_cost)
+
         input_cost = broadcast_to_sequence(inputs.get("input_cost", 0.0), n_periods)
         output_cost = broadcast_to_sequence(inputs.get("output_cost", 0.0), n_periods)
 
         cost_terms = [
-            *element.cost(),
+            *element_costs,
             *[input_cost[i] * power_in_vars[i] * periods[i] for i in range(n_periods) if input_cost[i] != 0.0],
             *[output_cost[i] * power_out_vars[i] * periods[i] for i in range(n_periods) if output_cost[i] != 0.0],
         ]
@@ -152,7 +156,7 @@ def test_extract_values_converts_highs_variables() -> None:
     variables, h = test_data.highs_sequence(h, "test", 3)
 
     # Create a simple element to test extract_values
-    element = SourceSink(name="test", periods=[1.0, 1.0, 1.0], solver=h)
+    element = Node(name="test", periods=[1.0, 1.0, 1.0], solver=h)
     result = element.extract_values(variables)
 
     assert isinstance(result, tuple)
@@ -165,7 +169,7 @@ def test_extract_values_converts_highs_variables() -> None:
 def test_extract_values_handles_none() -> None:
     """Element.extract_values should return empty tuple for None input."""
     h = Highs()
-    element = SourceSink(name="test", periods=[1.0], solver=h)
+    element = Node(name="test", periods=[1.0], solver=h)
     result = element.extract_values(None)
 
     assert isinstance(result, tuple)

@@ -3,49 +3,66 @@
 The grid represents your connection to the electricity network.
 It allows bidirectional power flow: importing (buying) and exporting (selling) electricity.
 
+!!! note "Connection endpoints"
+
+    Grid elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+
 ## Configuration
 
-| Field                             | Type                                     | Required | Default | Description                                                |
-| --------------------------------- | ---------------------------------------- | -------- | ------- | ---------------------------------------------------------- |
-| **[Name](#name)**                 | String                                   | Yes      | -       | Unique identifier for this grid connection                 |
-| **[Import Price](#import-price)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Price per kWh for importing electricity from grid (\$/kWh) |
-| **[Export Price](#export-price)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
-| **[Import Limit](#import-limit)** | Number (kW)                              | No       | -       | Maximum import power from grid                             |
-| **[Export Limit](#export-limit)** | Number (kW)                              | No       | -       | Maximum export power to grid                               |
+Grid configuration uses a two-step flow (see [Configuration](../configuration.md#two-step-element-configuration) for details):
+
+1. **Step 1**: Enter name, connection, and select input mode for each field (Constant, Entity Link, or Not Configured)
+2. **Step 2**: Enter values or select sensors based on your mode selections
+
+| Field                             | Type   | Required | Default | Description                                                |
+| --------------------------------- | ------ | -------- | ------- | ---------------------------------------------------------- |
+| **[Name](#name)**                 | String | Yes      | -       | Unique identifier for this grid                            |
+| **[Import Price](#import-price)** | Price  | Yes      | -       | Price per kWh for importing electricity from grid (\$/kWh) |
+| **[Export Price](#export-price)** | Price  | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
+| **[Import Limit](#import-limit)** | Power  | No       | -       | Maximum import power from grid                             |
+| **[Export Limit](#export-limit)** | Power  | No       | -       | Maximum export power to grid                               |
 
 ## Name
 
-Unique identifier for this grid connection within your HAEO configuration.
+Unique identifier for this grid within your HAEO configuration.
 Used to create sensor entity IDs and identify the grid in connections.
 
 **Examples**: "Main Grid", "Grid Connection", "Utility"
 
 ## Import Price
 
-Specify one or more Home Assistant sensors providing electricity import pricing.
+Configure the cost of importing electricity from the grid.
+You can use either a constant value or one or more Home Assistant sensors.
+
+**Constant value**: Enter a fixed price in \$/kWh that stays the same for all periods.
+Use this for simple flat-rate tariffs.
+
+**Entity Link**: Select one or more Home Assistant sensors providing electricity import pricing.
+Use this for time-of-use rates or dynamic pricing.
 
 **Sign convention**: Import prices should be positive numbers representing the cost you pay to buy electricity from the grid.
 For example, `0.25` means you pay \$0.25 per kWh imported.
 
-**Single sensor example**:
+**Sensor examples**:
 
-| Field            | Value                           |
-| ---------------- | ------------------------------- |
-| **Import Price** | sensor.electricity_import_price |
+| Scenario                   | Sensors                                                           |
+| -------------------------- | ----------------------------------------------------------------- |
+| Single price sensor        | sensor.electricity_import_price                                   |
+| Today + tomorrow forecasts | sensor.electricity_price_today, sensor.electricity_price_tomorrow |
 
-**Multiple sensors example** (today and tomorrow forecasts):
-
-| Field            | Value                                                             |
-| ---------------- | ----------------------------------------------------------------- |
-| **Import Price** | sensor.electricity_price_today, sensor.electricity_price_tomorrow |
-
-Provide all relevant price sensors (today, tomorrow, etc.) to ensure complete horizon coverage.
+When using sensors, provide all relevant price sensors (today, tomorrow, etc.) to ensure complete horizon coverage.
 See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details on how HAEO processes sensor data.
 
 ## Export Price
 
-Specify one or more Home Assistant sensors providing electricity export pricing.
-Provide all relevant price sensors to ensure complete horizon coverage.
+Configure the revenue for exporting electricity to the grid.
+You can use either a constant value or one or more Home Assistant sensors.
+
+**Constant value**: Enter a fixed price in \$/kWh.
+Use this for simple feed-in tariffs.
+
+**Entity Link**: Select one or more Home Assistant sensors providing export pricing.
+Use this for dynamic feed-in rates.
 
 **Sign convention**: Export prices should be positive numbers representing the revenue you receive for selling electricity to the grid.
 For example, `0.10` means you receive \$0.10 per kWh exported.
@@ -64,7 +81,8 @@ For example, `-0.05` means you pay \$0.05 per kWh to export.
 
 Maximum power that can be imported from the grid (kW).
 
-**Optional** - if not specified, import is unlimited.
+**Optional**: Select "Not Configured" in step 1 to leave import unlimited.
+You can also use a constant value or link to a sensor for dynamic limits.
 
 Use this to model:
 
@@ -79,7 +97,8 @@ Use this to model:
 
 Maximum power that can be exported to the grid (kW).
 
-**Optional** - if not specified, export is unlimited.
+**Optional**: Select "Not Configured" in step 1 to leave export unlimited.
+You can also use a constant value or link to a sensor for dynamic limits.
 
 Use this to model:
 
@@ -96,7 +115,7 @@ Use this to model:
 
 ### Dynamic Pricing with Forecasts
 
-Use multiple sensors for time-varying pricing:
+Use Entity Link mode with multiple sensors for time-varying pricing:
 
 | Field            | Value                                                               |
 | ---------------- | ------------------------------------------------------------------- |
@@ -108,34 +127,56 @@ Use multiple sensors for time-varying pricing:
 
 ### Fixed Pricing
 
-Use single sensor or input_number for constant pricing:
+Use Constant mode for fixed rates, or Entity Link with an input_number for adjustable rates:
 
-| Field            | Value                           |
-| ---------------- | ------------------------------- |
-| **Name**         | Grid Connection                 |
-| **Import Price** | input_number.fixed_import_price |
-| **Export Price** | input_number.fixed_export_price |
-| **Import Limit** | 20                              |
-| **Export Limit** | 5                               |
+| Field            | Mode     | Value |
+| ---------------- | -------- | ----- |
+| **Name**         | -        | Grid  |
+| **Import Price** | Constant | 0.25  |
+| **Export Price** | Constant | 0.08  |
+| **Import Limit** | Constant | 20    |
+| **Export Limit** | Constant | 5     |
 
-For more examples and sensor creation, see the [Forecasts and Sensors guide](../forecasts-and-sensors.md).
+For more examples and sensor configuration, see the [Forecasts and Sensors guide](../forecasts-and-sensors.md).
+
+### Input Entities
+
+Each configured field creates a corresponding input entity in Home Assistant.
+Input entities appear as Number entities with the `config` entity category.
+
+| Input                            | Unit   | Description                               |
+| -------------------------------- | ------ | ----------------------------------------- |
+| `number.{name}_import_price`     | \$/kWh | Import price from configured value/sensor |
+| `number.{name}_export_price`     | \$/kWh | Export price from configured value/sensor |
+| `number.{name}_max_import_power` | kW     | Maximum import power (if configured)      |
+| `number.{name}_max_export_power` | kW     | Maximum export power (if configured)      |
+
+Input entities are only created for fields you configure.
+If you select "Not Configured" for a limit field, no input entity is created for that field.
+
+Input entities include a `forecast` attribute showing values for each optimization period.
+See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
 
 ## Sensors Created
 
+### Sensor Summary
+
 A Grid element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                                   | Unit   | Description                         |
-| ------------------------------------------------------------------------ | ------ | ----------------------------------- |
-| [`sensor.{name}_power_import`](#import-power)                            | kW     | Power imported from grid            |
-| [`sensor.{name}_power_export`](#export-power)                            | kW     | Power exported to grid              |
-| [`sensor.{name}_price_import`](#import-price)                            | \$/kWh | Current import price                |
-| [`sensor.{name}_price_export`](#export-price)                            | \$/kWh | Current export price                |
-| [`sensor.{name}_power_max_import`](#max-import-power)                    | kW     | Maximum import power (when limited) |
-| [`sensor.{name}_power_max_export`](#max-export-power)                    | kW     | Maximum export power (when limited) |
-| [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kW  | Value of additional import capacity |
-| [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kW  | Value of additional export capacity |
+| Sensor                                                                   | Unit  | Description                                 |
+| ------------------------------------------------------------------------ | ----- | ------------------------------------------- |
+| [`sensor.{name}_power_import`](#import-power)                            | kW    | Power imported from grid                    |
+| [`sensor.{name}_power_export`](#export-power)                            | kW    | Power exported to grid                      |
+| [`sensor.{name}_cost_import`](#import-cost)                              | \$    | Cost of importing electricity               |
+| [`sensor.{name}_cost_export`](#export-cost)                              | \$    | Revenue from exporting electricity          |
+| [`sensor.{name}_cost_net`](#net-cost)                                    | \$    | Net cost (import cost minus export revenue) |
+| [`sensor.{name}_power_max_import`](#max-import-power)                    | kW    | Maximum import power (when limited)         |
+| [`sensor.{name}_power_max_export`](#max-export-power)                    | kW    | Maximum export power (when limited)         |
+| [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kW | Value of additional import capacity         |
+| [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kW | Value of additional export capacity         |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
+The `cost_*` sensors are only created when the corresponding price is configured.
 
 ### Import Power
 
@@ -157,23 +198,35 @@ A value of 0 means no export is occurring (either self-consuming all generation 
 
 **Example**: A value of 2.1 kW means the optimization determined that exporting 2.1 kW to the grid at this time maximizes total system value (typically during high export prices or excess generation).
 
-### Import Price
+### Import Cost
 
-The current electricity import price from the configured import price sensor(s).
+The cost of electricity imported from the grid at each time period.
+Calculated as import price multiplied by import power multiplied by period duration.
 
-This is the cost you pay per kWh to buy electricity from the grid.
-Higher prices incentivize reducing imports by using battery storage or shifting loads.
+Values are always positive or zero, representing money you pay to the utility.
+Only created when an import price is configured.
 
-**Example**: A value of 0.25 means you're currently paying \$0.25 per kWh for imported electricity.
+**Example**: A value of \$0.50 means you're paying \$0.50 to import electricity during this time period.
 
-### Export Price
+### Export Cost
 
-The current electricity export price from the configured export price sensor(s).
+The revenue from electricity exported to the grid at each time period.
+Calculated as export price multiplied by export power multiplied by period duration.
 
-This is the revenue you receive per kWh for selling electricity to the grid.
-Higher prices incentivize increasing exports by discharging batteries or curtailing self-consumption.
+Values are always negative or zero, representing money you earn from the utility (revenue is shown as negative cost).
+Only created when an export price is configured.
 
-**Example**: A value of 0.10 means you're currently receiving \$0.10 per kWh for exported electricity.
+**Example**: A value of -\$0.30 means you're earning \$0.30 from exporting electricity during this time period.
+
+### Net Cost
+
+The net cost of grid usage at each time period.
+Calculated as import cost plus export cost.
+
+When both import and export prices are configured, this shows your net spending or earnings.
+Positive values mean net spending; negative values mean net earnings.
+
+**Example**: If you import \$0.50 worth and export \$0.30 worth in a period, the net cost is \$0.20 (net spending).
 
 ### Max Import Power
 

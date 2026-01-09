@@ -1,4 +1,4 @@
-"""Tests for data loading module."""
+"""Tests for network building."""
 
 from typing import cast
 
@@ -7,54 +7,39 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
-from custom_components.haeo.data import load_element_configs, load_network
-from custom_components.haeo.elements import ElementConfigData, ElementConfigSchema
-from custom_components.haeo.elements.battery import (
-    CONF_CAPACITY,
-    CONF_EFFICIENCY,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MIN_CHARGE_PERCENTAGE,
-)
+from custom_components.haeo.coordinator import create_network
+from custom_components.haeo.elements import ElementConfigData
 from custom_components.haeo.elements.connection import CONF_SOURCE, CONF_TARGET
-from custom_components.haeo.elements.load import CONF_CONNECTION, CONF_FORECAST
+from custom_components.haeo.elements.load import CONF_CONNECTION
+from custom_components.haeo.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 
 
-async def test_load_network_successful_loads_load_participant(hass: HomeAssistant) -> None:
-    """load_network should populate the network when all fields are available."""
+async def test_create_network_successful_loads_load_participant(hass: HomeAssistant) -> None:
+    """create_network should populate the network when all fields are available."""
 
     entry = MockConfigEntry(domain=DOMAIN, entry_id="loaded_entry")
     entry.add_to_hass(hass)
 
-    # Set up test sensor
-    hass.states.async_set("sensor.baseload", "2.5", {"unit_of_measurement": "kW"})
-
-    participant_schemas = cast(
-        "dict[str, ElementConfigSchema]",
+    # Provide already-loaded config data (not schemas needing sensor loading)
+    loaded_configs = cast(
+        "dict[str, ElementConfigData]",
         {
-            "node": {
+            "main_bus": {
                 CONF_ELEMENT_TYPE: "node",
                 CONF_NAME: "main_bus",
+                CONF_IS_SOURCE: False,
+                CONF_IS_SINK: False,
             },
-            "load": {
+            "Baseload": {
                 CONF_ELEMENT_TYPE: "load",
                 CONF_NAME: "Baseload",
                 CONF_CONNECTION: "main_bus",
-                CONF_FORECAST: ["sensor.baseload"],
+                "forecast": [2.5, 2.5, 2.5, 2.5],  # Pre-loaded values in kW
             },
         },
     )
 
-    forecast_times = [0, 1800, 3600, 5400, 7200]
-
-    # Load configs first
-    loaded_configs = await load_element_configs(
-        hass,
-        participant_schemas,
-        forecast_times,
-    )
-
-    result = await load_network(
+    result = await create_network(
         entry,
         periods_seconds=[1800] * 4,
         participants=loaded_configs,
@@ -64,82 +49,24 @@ async def test_load_network_successful_loads_load_participant(hass: HomeAssistan
     assert "Baseload" in result.elements
 
 
-async def test_load_network_with_missing_sensors(hass: HomeAssistant) -> None:
-    """Test load_element_configs raises ValueError when sensors are unavailable."""
-    # Create a config with a sensor that doesn't exist
-    participants = cast(
-        "dict[str, ElementConfigSchema]",
-        {
-            "battery": {
-                CONF_ELEMENT_TYPE: "battery",
-                CONF_NAME: "battery",
-                CONF_CAPACITY: "sensor.missing_battery_capacity",  # This sensor doesn't exist
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.missing_battery_soc",  # This sensor doesn't exist
-                CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 80.0,
-                CONF_EFFICIENCY: 95.0,
-            }
-        },
-    )
-
-    forecast_times = [0, 1800, 3600]
-
-    # Should raise ValueError because sensor is missing
-    with pytest.raises(ValueError, match="No time series data available"):
-        await load_element_configs(
-            hass,
-            participants,
-            forecast_times,
-        )
-
-
-async def test_load_network_with_unavailable_sensor_state(hass: HomeAssistant) -> None:
-    """Test load_network raises UpdateFailed when sensor state is unavailable."""
-    # Create sensors with unavailable state
-    hass.states.async_set("sensor.unavailable_capacity", "unavailable")
-    hass.states.async_set("sensor.unavailable_soc", "unavailable")
-
-    participants = cast(
-        "dict[str, ElementConfigSchema]",
-        {
-            "battery": {
-                CONF_ELEMENT_TYPE: "battery",
-                CONF_NAME: "battery",
-                CONF_CAPACITY: "sensor.unavailable_capacity",
-                CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.unavailable_soc",
-                CONF_MIN_CHARGE_PERCENTAGE: 20.0,
-                CONF_MAX_CHARGE_PERCENTAGE: 80.0,
-                CONF_EFFICIENCY: 95.0,
-            }
-        },
-    )
-
-    forecast_times = [0, 1800, 3600]
-
-    # Should raise ValueError because sensor state is unavailable
-    with pytest.raises(ValueError, match="No time series data available"):
-        await load_element_configs(
-            hass,
-            participants,
-            forecast_times,
-        )
-
-
-async def test_load_network_without_participants_raises(hass: HomeAssistant) -> None:
-    """load_network should raise when no participants are provided."""
+async def test_create_network_without_participants_returns_empty_network(hass: HomeAssistant) -> None:
+    """create_network should return an empty network when no participants are provided."""
 
     entry = MockConfigEntry(domain=DOMAIN, entry_id="no_participants")
     entry.add_to_hass(hass)
 
-    with pytest.raises(ValueError, match="No participants configured"):
-        await load_network(
-            entry,
-            periods_seconds=[1800],
-            participants={},
-        )
+    network = await create_network(
+        entry,
+        periods_seconds=[1800],
+        participants={},
+    )
+
+    # Empty network should be returned, not raise an error
+    assert network.name == f"haeo_network_{entry.entry_id}"
+    assert len(network.elements) == 0
 
 
-async def test_load_network_sorts_connections_after_elements(hass: HomeAssistant) -> None:
+async def test_create_network_sorts_connections_after_elements(hass: HomeAssistant) -> None:
     """Connections should be added after their source/target elements."""
 
     entry = MockConfigEntry(domain=DOMAIN, entry_id="sorted_connections")
@@ -157,15 +84,19 @@ async def test_load_network_sorts_connections_after_elements(hass: HomeAssistant
             "node_a": {
                 CONF_ELEMENT_TYPE: "node",
                 CONF_NAME: "node_a",
+                CONF_IS_SOURCE: False,
+                CONF_IS_SINK: False,
             },
             "node_b": {
                 CONF_ELEMENT_TYPE: "node",
                 CONF_NAME: "node_b",
+                CONF_IS_SOURCE: False,
+                CONF_IS_SINK: False,
             },
         },
     )
 
-    network = await load_network(
+    network = await create_network(
         entry,
         periods_seconds=[900],
         participants=participants,
@@ -175,7 +106,7 @@ async def test_load_network_sorts_connections_after_elements(hass: HomeAssistant
     assert list(network.elements.keys()) == ["node_a", "node_b", "line"]
 
 
-async def test_load_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_create_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
     """Failures when adding model elements should be wrapped with ValueError."""
 
     entry = MockConfigEntry(domain=DOMAIN, entry_id="add_failure")
@@ -184,7 +115,7 @@ async def test_load_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypa
     participants = cast(
         "dict[str, ElementConfigData]",
         {
-            "node": {CONF_ELEMENT_TYPE: "node", CONF_NAME: "node"},
+            "node": {CONF_ELEMENT_TYPE: "node", CONF_NAME: "node", CONF_IS_SOURCE: False, CONF_IS_SINK: False},
         },
     )
 
@@ -193,10 +124,10 @@ async def test_load_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypa
         err = RuntimeError("boom")
         raise err
 
-    monkeypatch.setattr("custom_components.haeo.data.Network.add", _raise)
+    monkeypatch.setattr("custom_components.haeo.model.Network.add", _raise)
 
     with pytest.raises(ValueError, match="Failed to add model element 'node'"):
-        await load_network(
+        await create_network(
             entry,
             periods_seconds=[900],
             participants=participants,

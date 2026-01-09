@@ -76,28 +76,32 @@ Use TypedDict to type dictionary-like structures, especially configuration data 
 
 HAEO uses a dual TypedDict pattern for element configuration:
 
-- **Schema mode**: Contains entity IDs as strings (what the user enters)
-- **Data mode**: Contains loaded values (what the optimizer uses)
+- **Schema mode**: Contains entity IDs as strings (what the user enters in config flow)
+- **Data mode**: Contains loaded values (what the optimizer uses at runtime)
+
+Each element defines these types in its own `schema.py` file:
 
 ```python
+# elements/battery/schema.py
+
+
 class BatteryConfigSchema(TypedDict):
     """Schema mode: entity IDs for UI configuration."""
 
     element_type: Literal["battery"]
-    name: NameFieldSchema  # Annotated type for name field
-    capacity: EnergySensorFieldSchema  # Annotated type with loader metadata
+    name: str
+    capacity: str  # Entity ID string
 
 
 class BatteryConfigData(TypedDict):
     """Data mode: loaded values for optimization."""
 
     element_type: Literal["battery"]
-    name: NameFieldData  # Loaded name value
-    capacity: EnergySensorFieldData  # Loaded float value in kWh
+    name: str
+    capacity: list[float]  # Loaded float values in kWh
 ```
 
-Fields use `Annotated` types that attach `FieldMeta` metadata for validation and loading.
-The `load()` function converts from Schema mode to Data mode, performing type narrowing at the boundary.
+The `load()` function in each element's `adapter.py` converts from Schema mode to Data mode, performing validation and data loading at the boundary.
 
 ## TypeGuard for narrowing
 
@@ -118,25 +122,34 @@ def process_element(config: ElementConfigData) -> None:
         print(config["capacity"])  # Type-safe access
 ```
 
-## Annotated for metadata
+## Explicit element schemas
 
-HAEO uses `Annotated` types to attach field metadata without affecting the base type:
+Each element type has its own subfolder under `elements/` with dedicated files:
+
+- **`schema.py`**: Defines `ConfigSchema` and `ConfigData` TypedDicts with explicit types
+- **`flow.py`**: Implements config flow with voluptuous schemas and selectors
+- **`adapter.py`**: Contains `load()` function to convert Schema to Data mode
+
+This explicit approach keeps each element self-contained and makes the types clear at a glance:
 
 ```python
-from typing import Annotated
+# elements/solar/schema.py
+class SolarConfigSchema(TypedDict):
+    element_type: Literal["solar"]
+    name: str
+    connection: str
+    forecast: str  # Entity ID for forecast sensor
 
-# Field type aliases combine base type with metadata
-PowerSensorFieldSchema = Annotated[
-    str | list[str],
-    SensorFieldMeta(accepted_units=[UnitSpec(...)], multiple=True),
-]
 
-
-class PhotovoltaicsConfigSchema(TypedDict):
-    power: PowerSensorFieldSchema  # Entity ID(s) with attached loader metadata
+# elements/solar/flow.py
+def async_get_schema(hass: HomeAssistant) -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Required(CONF_NAME): TextSelector(...),
+            vol.Required(CONF_FORECAST): EntitySelector(...),
+        }
+    )
 ```
-
-The metadata is extracted at runtime using `get_type_hints(cls, include_extras=True)`.
 
 ## Pyright configuration
 

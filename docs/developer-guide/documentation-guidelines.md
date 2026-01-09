@@ -35,7 +35,7 @@ Describe performance qualitatively: explain how users can monitor it and which l
 Refer to HAEO components using shared labels:
 
 - **Hub** for the primary integration entry
-- **Element** for batteries, grids, photovoltaics, loads, and nodes
+- **Element** for batteries, grids, solar, loads, and nodes
 - **Connection** for power flow links between elements
 - **Sensor** for Home Assistant entities created by HAEO
 
@@ -138,7 +138,7 @@ Choose the chart type that best represents the concept:
 HAEO diagrams use consistent semantic colors configured in `docs/javascripts/mermaid-config.js`:
 
 - **Blue** (primary): General elements, neutral components, battery storage
-- **Green** (secondary): Generation sources (photovoltaics, renewable energy)
+- **Green** (secondary): Generation sources (solar, renewable energy)
 - **Red** (tertiary): Consumption (loads, imported power)
 - **Yellow/Amber**: Grid connections, pricing, warnings
 
@@ -157,7 +157,7 @@ These colors automatically adapt for light and dark modes via the mermaid config
 
 ```mermaid
 graph LR
-    Solar[Photovoltaics] --> DCBus[DC Bus]
+    Solar[Solar] --> DCBus[DC Bus]
     Battery[Battery] --> DCBus
     DCBus --> Inverter[Inverter]
     Inverter --> ACBus[AC Bus]
@@ -247,7 +247,7 @@ Use Material for MkDocs grid cards format (match `docs/index.md`):
 
 ### Examples of good Next Steps
 
-From photovoltaics configuration:
+From solar configuration:
 
 1. Connect to network (logical next action after configuring an element)
 2. Understand sensor loading (deepens understanding of the Forecast field)
@@ -316,7 +316,7 @@ It keeps high-level documentation stable while allowing implementation details t
 **High-level pages describe patterns, not implementations:**
 
 - Overview pages explain architectural concepts without enumerating every concrete type
-- Use generic terms: "elements" instead of listing "battery, grid, photovoltaics, loads, nodes"
+- Use generic terms: "elements" instead of listing "battery, grid, solar, loads, nodes"
 - Describe aggregation patterns: "elements contribute constraints" not "battery has SOC constraint, grid has power limit"
 - Point to detail pages rather than duplicating their content
 
@@ -330,10 +330,10 @@ It keeps high-level documentation stable while allowing implementation details t
 
 **❌ Bad: Enumeration in overview**
 
-> HAEO supports batteries, grids, photovoltaics, constant loads, forecast loads, and nodes.
+> HAEO supports batteries, grids, solar, constant loads, forecast loads, and nodes.
 > Batteries have state of charge constraints.
 > Grids have import and export limits.
-> Photovoltaics have generation forecasts.
+> Solar elements have generation forecasts.
 
 This becomes outdated when element types change.
 
@@ -347,7 +347,7 @@ This remains stable as implementations evolve.
 
 **❌ Bad: Implementation details in architecture**
 
-> The `Network` class has methods `add_battery()`, `add_grid()`, `add_photovoltaics()`, etc.
+> The `Network` class has methods `add_battery()`, `add_grid()`, `add_solar()`, etc.
 
 This requires updates whenever element types change.
 

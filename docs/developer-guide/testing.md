@@ -68,7 +68,7 @@ Model element tests are organized in `tests/model/` with structured test data:
 - `test_data/battery.py` - Battery-specific test cases
 - `test_data/connection.py` - Connection test cases
 - `test_data/grid.py` - Grid test cases
-- `test_data/photovoltaics.py` - Photovoltaics test cases
+- `test_data/solar.py` - Solar test cases
 
 ### Test Case Structure
 
@@ -121,13 +121,32 @@ INVALID_CASES = [
 
 ### Adding New Element Tests
 
-When adding a new element type:
+When adding a new element type, create a parallel test directory:
 
-1. Create `tests/model/test_data/new_element.py`
-2. Implement `create(data)` factory function
-3. Define `VALID_CASES` with expected outputs (type, unit, values)
-4. Define `INVALID_CASES` for validation errors
-5. Cases automatically included via aggregation in `__init__.py`
+```
+tests/elements/{element_type}/
+├── __init__.py
+├── test_adapter.py   # Tests for available() and load() functions
+└── test_flow.py      # Config flow tests for user and reconfigure steps
+```
+
+**For adapter tests** (`test_adapter.py`):
+
+1. Test `available()` returns `True` when all required sensors exist
+2. Test `available()` returns `False` when required sensors are missing
+3. Test `load()` correctly transforms `ConfigSchema` to `ConfigData`
+4. Test `load()` handles optional fields appropriately
+
+**For flow tests** (`test_flow.py`):
+
+1. Test user step creates entry with valid input
+2. Test user step shows form initially (no input)
+3. Test validation errors (empty name, duplicate name)
+4. Test reconfigure step preserves current values
+5. Test reconfigure with participant that no longer exists
+6. Test element-specific validation (e.g., source != target for connections)
+
+Also add test data in `tests/flows/test_data/{element_type}.py` for parametrized flow tests.
 
 ## Type Safety Philosophy
 

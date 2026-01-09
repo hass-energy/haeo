@@ -21,8 +21,10 @@ HAEO uses a layered architecture separating user configuration from optimization
 
 ## Component Guides
 
+- [Horizon Manager](horizon-manager.md) - Synchronized forecast time windows
+- [Input Entities](inputs.md) - Intermediate input entity layer
 - [Data Loading](data-loading.md) - Sensor data extraction and loading
-- [Coordinator](coordinator.md) - Data update coordinator pattern
+- [Coordinator](coordinator.md) - Event-driven optimization coordinator
 - [Config Flow](config-flow.md) - Configuration UI patterns
 - [Energy Models](energy-models.md) - Creating new element types
 
