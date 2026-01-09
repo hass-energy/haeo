@@ -34,10 +34,10 @@ Used to create sensor entity IDs and identify the grid in connections.
 Configure the cost of importing electricity from the grid.
 You can use either a constant value or one or more Home Assistant sensors.
 
-**Constant value**: Enter a fixed price in \$/kWh that stays the same for all periods.
+**Configurable Entity**: Select "Configurable Entity" and enter a fixed price in \$/kWh in step 2.
 Use this for simple flat-rate tariffs.
 
-**Entity Link**: Select one or more Home Assistant sensors providing electricity import pricing.
+**Sensor link**: Select one or more Home Assistant sensors providing electricity import pricing.
 Use this for time-of-use rates or dynamic pricing.
 
 **Sign convention**: Import prices should be positive numbers representing the cost you pay to buy electricity from the grid.
@@ -58,10 +58,10 @@ See the [Forecasts and Sensors guide](../forecasts-and-sensors.md) for details o
 Configure the revenue for exporting electricity to the grid.
 You can use either a constant value or one or more Home Assistant sensors.
 
-**Constant value**: Enter a fixed price in \$/kWh.
+**Configurable Entity**: Select "Configurable Entity" and enter a fixed price in \$/kWh in step 2.
 Use this for simple feed-in tariffs.
 
-**Entity Link**: Select one or more Home Assistant sensors providing export pricing.
+**Sensor link**: Select one or more Home Assistant sensors providing export pricing.
 Use this for dynamic feed-in rates.
 
 **Sign convention**: Export prices should be positive numbers representing the revenue you receive for selling electricity to the grid.
