@@ -48,7 +48,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         direction: "+" or "-" for power direction attributes
         time_series: Whether this field is time series (list) or scalar
         boundaries: Whether time series values are at boundaries (n+1 values) vs intervals (n values)
-        default: Default value for editable entities when no restored state exists
+        defaults: Default pre-selection behavior for config flow fields
 
     Note:
         Whether a field is optional (can be disabled in config flow) is determined
@@ -63,7 +63,6 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     direction: str | None = None
     time_series: bool = False
     boundaries: bool = False
-    default: float | bool | None = None
     defaults: InputFieldDefaults | None = None
 
 

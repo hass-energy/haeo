@@ -17,12 +17,6 @@ CONF_PRICE_PRODUCTION: Final = "price_production"
 CONF_CURTAILMENT: Final = "curtailment"
 CONF_CONNECTION: Final = "connection"
 
-# Default values for optional fields
-DEFAULTS: Final[dict[str, bool | float]] = {
-    CONF_CURTAILMENT: True,  # Allow curtailment by default
-    CONF_PRICE_PRODUCTION: 0.0,  # No production incentive
-}
-
 # Input field definitions for creating input entities (mix of Number and Switch)
 INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
     InputFieldInfo(

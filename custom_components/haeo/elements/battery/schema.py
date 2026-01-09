@@ -5,7 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "battery"
@@ -36,14 +36,6 @@ PARTITION_FIELD_NAMES: Final[frozenset[str]] = frozenset(
         CONF_OVERCHARGE_COST,
     )
 )
-
-# Default values for optional fields
-DEFAULTS: Final[dict[str, float]] = {
-    CONF_MIN_CHARGE_PERCENTAGE: 0.0,
-    CONF_MAX_CHARGE_PERCENTAGE: 100.0,
-    CONF_EFFICIENCY: 99.0,
-    CONF_EARLY_CHARGE_INCENTIVE: 0.001,
-}
 
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
@@ -90,7 +82,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
         boundaries=True,
-        default=0.0,
+        defaults=InputFieldDefaults(mode=None, value=0.0),
     ),
     InputFieldInfo(
         field_name=CONF_MAX_CHARGE_PERCENTAGE,
@@ -106,7 +98,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
         boundaries=True,
-        default=100.0,
+        defaults=InputFieldDefaults(mode=None, value=100.0),
     ),
     InputFieldInfo(
         field_name=CONF_EFFICIENCY,
@@ -121,7 +113,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.EFFICIENCY,
         time_series=True,
-        default=99.0,
+        defaults=InputFieldDefaults(mode=None, value=99.0),
     ),
     InputFieldInfo(
         field_name=CONF_MAX_CHARGE_POWER,
@@ -165,7 +157,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
-        default=0.001,
+        defaults=InputFieldDefaults(mode=None, value=0.001),
     ),
     InputFieldInfo(
         field_name=CONF_DISCHARGE_COST,

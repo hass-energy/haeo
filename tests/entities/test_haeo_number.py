@@ -13,7 +13,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_NAME, DOMAIN
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.model import OutputType
@@ -899,7 +899,7 @@ async def test_editable_mode_uses_default_when_no_config_value(
         ),
         output_type=OutputType.POWER,
         time_series=True,
-        default=25.0,
+        defaults=InputFieldDefaults(mode="value", value=25.0),
     )
 
     # Config has no value for this field

@@ -21,14 +21,7 @@ from custom_components.haeo.model.elements.power_connection import (
 from custom_components.haeo.model.output_data import OutputData
 
 from .flow import GridSubentryFlowHandler
-from .schema import (
-    CONF_CONNECTION,
-    DEFAULT_EXPORT_PRICE,
-    DEFAULT_IMPORT_PRICE,
-    ELEMENT_TYPE,
-    GridConfigData,
-    GridConfigSchema,
-)
+from .schema import CONF_CONNECTION, ELEMENT_TYPE, GridConfigData, GridConfigSchema
 
 # Grid-specific output names for translation/sensor mapping
 type GridOutputName = Literal[
@@ -102,17 +95,13 @@ class GridAdapter:
             GridConfigData with all fields populated and defaults applied
 
         """
-        # Determine n_periods from import_price (a required field)
-        import_price = loaded_values["import_price"]
-        n_periods = len(import_price)
-
-        # Apply defaults for required price fields
+        # Build data with required fields (prices must be present in loaded_values)
         data: GridConfigData = {
             "element_type": config["element_type"],
             "name": config["name"],
             "connection": config[CONF_CONNECTION],
-            "import_price": list(loaded_values.get("import_price", [DEFAULT_IMPORT_PRICE] * n_periods)),
-            "export_price": list(loaded_values.get("export_price", [DEFAULT_EXPORT_PRICE] * n_periods)),
+            "import_price": list(loaded_values["import_price"]),
+            "export_price": list(loaded_values["export_price"]),
         }
 
         # Optional limit fields - only include if present
@@ -139,27 +128,23 @@ class GridAdapter:
         n_periods = max(0, len(forecast_times) - 1)
         loaded_values: dict[str, list[float]] = {}
 
-        # Load import_price: entity list, constant, or use default
-        import_value = config.get("import_price")
-        if isinstance(import_value, list) and import_value:
+        # Load import_price: entity list or constant (required field)
+        import_value = config["import_price"]
+        if isinstance(import_value, list):
             loaded_values["import_price"] = await ts_loader.load_intervals(
                 hass=hass, value=import_value, forecast_times=forecast_times
             )
-        elif isinstance(import_value, int | float):
-            loaded_values["import_price"] = [float(import_value)] * n_periods
         else:
-            loaded_values["import_price"] = [DEFAULT_IMPORT_PRICE] * n_periods
+            loaded_values["import_price"] = [float(import_value)] * n_periods
 
-        # Load export_price: entity list, constant, or use default
-        export_value = config.get("export_price")
-        if isinstance(export_value, list) and export_value:
+        # Load export_price: entity list or constant (required field)
+        export_value = config["export_price"]
+        if isinstance(export_value, list):
             loaded_values["export_price"] = await ts_loader.load_intervals(
                 hass=hass, value=export_value, forecast_times=forecast_times
             )
-        elif isinstance(export_value, int | float):
-            loaded_values["export_price"] = [float(export_value)] * n_periods
         else:
-            loaded_values["export_price"] = [DEFAULT_EXPORT_PRICE] * n_periods
+            loaded_values["export_price"] = [float(export_value)] * n_periods
 
         # Load optional limit fields
         import_limit = config.get("import_limit")

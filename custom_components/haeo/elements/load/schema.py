@@ -14,9 +14,6 @@ ELEMENT_TYPE: Final = "load"
 CONF_FORECAST: Final = "forecast"
 CONF_CONNECTION: Final = "connection"
 
-# Default value for empty forecast (kW)
-DEFAULT_FORECAST: Final[float] = 0.0
-
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
     InputFieldInfo(

@@ -5,7 +5,7 @@ from typing import Final, Literal, NotRequired, TypedDict
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.const import UnitOfPower
 
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model.const import OutputType
 
 ELEMENT_TYPE: Final = "grid"
@@ -16,12 +16,6 @@ CONF_EXPORT_PRICE: Final = "export_price"
 CONF_IMPORT_LIMIT: Final = "import_limit"
 CONF_EXPORT_LIMIT: Final = "export_limit"
 CONF_CONNECTION: Final = "connection"
-
-# Default values for optional fields ($/kWh for prices, kW for limits)
-DEFAULT_IMPORT_PRICE: Final[float] = 0.1
-DEFAULT_EXPORT_PRICE: Final[float] = 0.01
-DEFAULT_IMPORT_LIMIT: Final[float] = 30.0
-DEFAULT_EXPORT_LIMIT: Final[float] = 30.0
 
 # Input field definitions for creating input entities
 INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
@@ -65,7 +59,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="+",
-        defaults=InputFieldDefaults(mode="value", value=DEFAULT_IMPORT_LIMIT),
     ),
     InputFieldInfo(
         field_name=CONF_EXPORT_LIMIT,
@@ -81,7 +74,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.POWER_LIMIT,
         time_series=True,
         direction="-",
-        defaults=InputFieldDefaults(mode="value", value=DEFAULT_EXPORT_LIMIT),
     ),
 )
 
