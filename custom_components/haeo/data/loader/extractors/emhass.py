@@ -106,12 +106,8 @@ class Parser:
 
         This must only be called after detect() returns True.
         """
-        for attr_key in FORECAST_ATTRIBUTE_KEYS:
-            if attr_key in state.attributes:
-                return state.attributes[attr_key]
         # detect() guarantees at least one forecast attribute exists
-        msg = "No forecast attribute found - detect() should have returned False"
-        raise RuntimeError(msg)
+        return next(state.attributes[attr_key] for attr_key in FORECAST_ATTRIBUTE_KEYS if attr_key in state.attributes)
 
     @staticmethod
     def extract(
