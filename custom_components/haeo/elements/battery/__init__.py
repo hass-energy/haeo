@@ -52,6 +52,8 @@ from .schema import (
 )
 
 __all__ = [
+    # Schema
+    "ALL_INPUT_FIELDS",
     # Adapter
     "BATTERY_BALANCE_POWER_DOWN",
     "BATTERY_BALANCE_POWER_UP",
@@ -71,8 +73,6 @@ __all__ = [
     "BATTERY_SOC_MAX",
     "BATTERY_SOC_MIN",
     "BATTERY_STATE_OF_CHARGE",
-    # Schema
-    "ALL_INPUT_FIELDS",
     "CONF_CAPACITY",
     "CONF_CONFIGURE_PARTITIONS",
     "CONF_CONNECTION",
@@ -90,8 +90,8 @@ __all__ = [
     "CONF_UNDERCHARGE_PERCENTAGE",
     "ELEMENT_TYPE",
     "INPUT_FIELDS",
-    "PARTITION_FIELD_NAMES",
     "PARTITION_FIELDS",
+    "PARTITION_FIELD_NAMES",
     "BatteryAdapter",
     "BatteryConfigData",
     "BatteryConfigSchema",
