@@ -194,6 +194,26 @@ class ElementAdapter(Protocol):
         """Load configuration values from sensors."""
         ...
 
+    def build_config_data(
+        self,
+        loaded_values: Mapping[str, Any],
+        config: Any,
+    ) -> Any:
+        """Build ConfigData from pre-loaded values.
+
+        This is the single source of truth for ConfigData construction.
+        Both load() and the coordinator use this method.
+
+        Args:
+            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            config: Original ConfigSchema for non-input fields (e.g., connection)
+
+        Returns:
+            ConfigData with all fields populated and defaults applied
+
+        """
+        ...
+
     def model_elements(self, config: Any) -> list[dict[str, Any]]:
         """Return model element parameters for the loaded config."""
         ...

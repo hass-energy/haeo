@@ -125,6 +125,82 @@ class BatteryAdapter:
         ]
         return all(entities_available(config.get(field)) for field in optional_fields)  # type: ignore[arg-type]
 
+    def build_config_data(
+        self,
+        loaded_values: Mapping[str, Any],
+        config: BatteryConfigSchema,
+    ) -> BatteryConfigData:
+        """Build ConfigData from pre-loaded values.
+
+        This is the single source of truth for ConfigData construction.
+        Both load() and the coordinator use this method.
+
+        Args:
+            loaded_values: Dict of field names to loaded values (from input entities or TimeSeriesLoader)
+            config: Original ConfigSchema for non-input fields (element_type, name, connection)
+
+        Returns:
+            BatteryConfigData with all fields populated and defaults applied
+
+        """
+        # Determine array sizes from capacity (a required boundary field)
+        capacity = loaded_values["capacity"]
+        n_boundaries = len(capacity)
+        n_periods = max(0, n_boundaries - 1)
+
+        # Apply defaults for optional fields with defaults
+        min_charge = loaded_values.get(
+            CONF_MIN_CHARGE_PERCENTAGE,
+            [DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]] * n_boundaries,
+        )
+        max_charge = loaded_values.get(
+            CONF_MAX_CHARGE_PERCENTAGE,
+            [DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE]] * n_boundaries,
+        )
+        efficiency = loaded_values.get(
+            CONF_EFFICIENCY,
+            [DEFAULTS[CONF_EFFICIENCY]] * n_periods,
+        )
+
+        # Build data with required fields and defaults
+        data: BatteryConfigData = {
+            "element_type": config["element_type"],
+            "name": config["name"],
+            "connection": config[CONF_CONNECTION],
+            "capacity": list(capacity),
+            "initial_charge_percentage": list(loaded_values["initial_charge_percentage"]),
+            "min_charge_percentage": list(min_charge),
+            "max_charge_percentage": list(max_charge),
+            "efficiency": list(efficiency),
+        }
+
+        # Optional fields without defaults - only include if present in loaded_values
+        if CONF_MAX_CHARGE_POWER in loaded_values:
+            data["max_charge_power"] = list(loaded_values[CONF_MAX_CHARGE_POWER])
+
+        if CONF_MAX_DISCHARGE_POWER in loaded_values:
+            data["max_discharge_power"] = list(loaded_values[CONF_MAX_DISCHARGE_POWER])
+
+        if CONF_DISCHARGE_COST in loaded_values:
+            data["discharge_cost"] = list(loaded_values[CONF_DISCHARGE_COST])
+
+        if CONF_EARLY_CHARGE_INCENTIVE in loaded_values:
+            data["early_charge_incentive"] = list(loaded_values[CONF_EARLY_CHARGE_INCENTIVE])
+
+        if CONF_UNDERCHARGE_PERCENTAGE in loaded_values:
+            data["undercharge_percentage"] = list(loaded_values[CONF_UNDERCHARGE_PERCENTAGE])
+
+        if CONF_OVERCHARGE_PERCENTAGE in loaded_values:
+            data["overcharge_percentage"] = list(loaded_values[CONF_OVERCHARGE_PERCENTAGE])
+
+        if CONF_UNDERCHARGE_COST in loaded_values:
+            data["undercharge_cost"] = list(loaded_values[CONF_UNDERCHARGE_COST])
+
+        if CONF_OVERCHARGE_COST in loaded_values:
+            data["overcharge_cost"] = list(loaded_values[CONF_OVERCHARGE_COST])
+
+        return data
+
     async def load(
         self,
         config: BatteryConfigSchema,
@@ -132,99 +208,70 @@ class BatteryAdapter:
         hass: HomeAssistant,
         forecast_times: Sequence[float],
     ) -> BatteryConfigData:
-        """Load battery configuration values from sensors."""
+        """Load battery configuration values from sensors.
+
+        Uses TimeSeriesLoader to load values, then delegates to build_config_data().
+        """
         loader = TimeSeriesLoader()
+        loaded_values: dict[str, list[float]] = {}
 
-        # Load capacity as boundaries (energy value at each time boundary)
-        capacity = await loader.load_boundaries(hass=hass, forecast_times=forecast_times, value=config.get("capacity"))
-
-        # Load percentage limits as boundaries (they define energy at each boundary)
-        min_charge = await loader.load_boundaries(
-            hass=hass,
-            forecast_times=forecast_times,
-            value=config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]),
+        # Load required fields
+        loaded_values["capacity"] = await loader.load_boundaries(
+            hass=hass, forecast_times=forecast_times, value=config.get("capacity")
         )
-        max_charge = await loader.load_boundaries(
-            hass=hass,
-            forecast_times=forecast_times,
-            value=config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE]),
-        )
-
-        # Load interval-based values (power, rates)
-        initial_charge = await loader.load_intervals(
+        loaded_values["initial_charge_percentage"] = await loader.load_intervals(
             hass=hass, forecast_times=forecast_times, value=config.get("initial_charge_percentage")
         )
-        efficiency = await loader.load_intervals(
-            hass=hass,
-            forecast_times=forecast_times,
-            value=config.get(CONF_EFFICIENCY, DEFAULTS[CONF_EFFICIENCY]),
-        )
 
-        # Build data with defaults applied
-        data: BatteryConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "capacity": capacity,
-            "initial_charge_percentage": initial_charge,
-            "min_charge_percentage": min_charge,
-            "max_charge_percentage": max_charge,
-            "efficiency": efficiency,
-        }
-
-        # Load optional time series fields (no defaults)
-        max_charge_power = config.get(CONF_MAX_CHARGE_POWER)
-        if max_charge_power is not None:
-            data["max_charge_power"] = await loader.load_intervals(
-                hass=hass, forecast_times=forecast_times, value=max_charge_power
+        # Load optional fields with defaults (let build_config_data apply defaults if missing)
+        if CONF_MIN_CHARGE_PERCENTAGE in config:
+            loaded_values[CONF_MIN_CHARGE_PERCENTAGE] = await loader.load_boundaries(
+                hass=hass, forecast_times=forecast_times, value=config[CONF_MIN_CHARGE_PERCENTAGE]
+            )
+        if CONF_MAX_CHARGE_PERCENTAGE in config:
+            loaded_values[CONF_MAX_CHARGE_PERCENTAGE] = await loader.load_boundaries(
+                hass=hass, forecast_times=forecast_times, value=config[CONF_MAX_CHARGE_PERCENTAGE]
+            )
+        if CONF_EFFICIENCY in config:
+            loaded_values[CONF_EFFICIENCY] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=config[CONF_EFFICIENCY]
             )
 
-        max_discharge_power = config.get(CONF_MAX_DISCHARGE_POWER)
-        if max_discharge_power is not None:
-            data["max_discharge_power"] = await loader.load_intervals(
-                hass=hass, forecast_times=forecast_times, value=max_discharge_power
+        # Load optional fields without defaults
+        if CONF_MAX_CHARGE_POWER in config:
+            loaded_values[CONF_MAX_CHARGE_POWER] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=config[CONF_MAX_CHARGE_POWER]
+            )
+        if CONF_MAX_DISCHARGE_POWER in config:
+            loaded_values[CONF_MAX_DISCHARGE_POWER] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=config[CONF_MAX_DISCHARGE_POWER]
+            )
+        if CONF_DISCHARGE_COST in config:
+            loaded_values[CONF_DISCHARGE_COST] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=config[CONF_DISCHARGE_COST]
+            )
+        if CONF_EARLY_CHARGE_INCENTIVE in config:
+            loaded_values[CONF_EARLY_CHARGE_INCENTIVE] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=config[CONF_EARLY_CHARGE_INCENTIVE]
+            )
+        if CONF_UNDERCHARGE_PERCENTAGE in config:
+            loaded_values[CONF_UNDERCHARGE_PERCENTAGE] = await loader.load_boundaries(
+                hass=hass, forecast_times=forecast_times, value=config[CONF_UNDERCHARGE_PERCENTAGE]
+            )
+        if CONF_OVERCHARGE_PERCENTAGE in config:
+            loaded_values[CONF_OVERCHARGE_PERCENTAGE] = await loader.load_boundaries(
+                hass=hass, forecast_times=forecast_times, value=config[CONF_OVERCHARGE_PERCENTAGE]
+            )
+        if CONF_UNDERCHARGE_COST in config:
+            loaded_values[CONF_UNDERCHARGE_COST] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=config[CONF_UNDERCHARGE_COST]
+            )
+        if CONF_OVERCHARGE_COST in config:
+            loaded_values[CONF_OVERCHARGE_COST] = await loader.load_intervals(
+                hass=hass, forecast_times=forecast_times, value=config[CONF_OVERCHARGE_COST]
             )
 
-        discharge_cost = config.get(CONF_DISCHARGE_COST)
-        if discharge_cost is not None:
-            data["discharge_cost"] = await loader.load_intervals(
-                hass=hass, forecast_times=forecast_times, value=discharge_cost
-            )
-
-        early_charge_incentive = config.get(CONF_EARLY_CHARGE_INCENTIVE)
-        if early_charge_incentive is not None:
-            data["early_charge_incentive"] = await loader.load_intervals(
-                hass=hass,
-                forecast_times=forecast_times,
-                value=early_charge_incentive,
-            )
-
-        # Load undercharge/overcharge percentages as boundaries
-        undercharge_percentage = config.get(CONF_UNDERCHARGE_PERCENTAGE)
-        if undercharge_percentage is not None:
-            data["undercharge_percentage"] = await loader.load_boundaries(
-                hass=hass, forecast_times=forecast_times, value=undercharge_percentage
-            )
-
-        overcharge_percentage = config.get(CONF_OVERCHARGE_PERCENTAGE)
-        if overcharge_percentage is not None:
-            data["overcharge_percentage"] = await loader.load_boundaries(
-                hass=hass, forecast_times=forecast_times, value=overcharge_percentage
-            )
-
-        undercharge_cost = config.get(CONF_UNDERCHARGE_COST)
-        if undercharge_cost is not None:
-            data["undercharge_cost"] = await loader.load_intervals(
-                hass=hass, forecast_times=forecast_times, value=undercharge_cost
-            )
-
-        overcharge_cost = config.get(CONF_OVERCHARGE_COST)
-        if overcharge_cost is not None:
-            data["overcharge_cost"] = await loader.load_intervals(
-                hass=hass, forecast_times=forecast_times, value=overcharge_cost
-            )
-
-        return data
+        return self.build_config_data(loaded_values, config)
 
     def model_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
         """Create model elements for Battery configuration.
