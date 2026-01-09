@@ -170,7 +170,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
-        defaults=InputFieldDefaults(mode=None, value=0.001),
+        defaults=InputFieldDefaults(mode="value", value=0.001),
     ),
     InputFieldInfo(
         field_name=CONF_UNDERCHARGE_PERCENTAGE,
@@ -227,7 +227,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
-        defaults=InputFieldDefaults(mode="value", value=0.001),
     ),
 )
 
