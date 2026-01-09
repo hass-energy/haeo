@@ -2,12 +2,14 @@
 
 This module creates network topology diagrams showing model elements and their
 connections as created by the adapter layer. Uses the Network object to extract
-the actual model elements after optimization.
+the actual model elements after optimization, grouped by parent device.
 """
 
+from collections import defaultdict
 import logging
 from pathlib import Path
 
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import networkx as nx
 
@@ -31,6 +33,17 @@ def _get_element_type(element: Element[str]) -> str:
     return "unknown"
 
 
+def _get_parent_device(name: str) -> str:
+    """Extract parent device name from a model element name.
+
+    Model elements follow naming patterns like:
+    - "Battery:undercharge" -> "Battery"
+    - "Battery:node" -> "Battery"
+    - "Switchboard" -> "Switchboard" (no colon = top-level device)
+    """
+    return name.split(":")[0] if ":" in name else name
+
+
 def create_graph_visualization(
     network: Network,
     output_path: str,
@@ -41,18 +54,32 @@ def create_graph_visualization(
     """Create a graph visualization of the network topology.
 
     Uses the Network object to extract model elements and their connections,
-    showing the actual structure created by the adapter layer.
+    showing the actual structure created by the adapter layer with grouping
+    by parent device element.
     """
     # Create directed graph
     graph: nx.DiGraph[str] = nx.DiGraph()
 
     # Color map for model element types
-    color_map = {
+    node_color_map = {
         "battery": "#98df8a",  # Light green
         "node": "#c7c7c7",  # Light gray
         "balance": "#c5b0d5",  # Light purple
         "connection": "#aec7e8",  # Light blue
     }
+
+    # Color map for device group backgrounds (lighter versions)
+    group_color_map = {
+        "battery": "#d4f0c8",  # Very light green
+        "node": "#e8e8e8",  # Very light gray
+        "solar": "#ffe4c4",  # Light orange/peach
+        "grid": "#d4e5f7",  # Light blue
+        "load": "#f5d5d5",  # Light red/pink
+        "inverter": "#e6d8f0",  # Light purple
+    }
+
+    # Track parent devices for grouping
+    device_groups: dict[str, list[str]] = defaultdict(list)
 
     # First pass: add all non-connection elements as nodes
     for name, element in network.elements.items():
@@ -60,12 +87,16 @@ def create_graph_visualization(
             continue  # Handle connections as edges
 
         element_type = _get_element_type(element)
-        fillcolor = color_map.get(element_type, "lightgray")
+        parent_device = _get_parent_device(name)
+        fillcolor = node_color_map.get(element_type, "lightgray")
+
         graph.add_node(
             name,
             color=fillcolor,
             element_type=element_type,
+            parent_device=parent_device,
         )
+        device_groups[parent_device].append(name)
 
     # Second pass: add connections as edges
     for name, element in network.elements.items():
@@ -77,9 +108,13 @@ def create_graph_visualization(
 
         # Ensure both endpoints exist as nodes
         if source not in graph.nodes():
-            graph.add_node(source, color="lightgray", element_type="unknown")
+            parent = _get_parent_device(source)
+            graph.add_node(source, color="lightgray", element_type="unknown", parent_device=parent)
+            device_groups[parent].append(source)
         if target not in graph.nodes():
-            graph.add_node(target, color="lightgray", element_type="unknown")
+            parent = _get_parent_device(target)
+            graph.add_node(target, color="lightgray", element_type="unknown", parent_device=parent)
+            device_groups[parent].append(target)
 
         # Determine edge style based on connection type
         edge_style = "balance" if isinstance(element, BatteryBalanceConnection) else "power"
@@ -90,11 +125,61 @@ def create_graph_visualization(
         return
 
     # Use spring layout for better visual organization
-    pos = nx.spring_layout(graph, k=2.0, iterations=50, seed=42)  # type: ignore[no-untyped-call]
+    pos = nx.spring_layout(graph, k=2.5, iterations=100, seed=42)  # type: ignore[no-untyped-call]
 
     # Create figure
-    fig, ax = plt.subplots(figsize=(14, 10))
+    fig, ax = plt.subplots(figsize=(16, 12))
     ax.set_title(title, fontsize=14, pad=20)
+
+    # Draw bounding boxes for device groups (groups with more than 1 node)
+    for device_name, nodes in device_groups.items():
+        if len(nodes) < 2:
+            continue  # Skip groups with single node
+
+        # Get positions of all nodes in this group
+        node_positions = [pos[node] for node in nodes if node in pos]
+        if not node_positions:
+            continue
+
+        xs = [p[0] for p in node_positions]
+        ys = [p[1] for p in node_positions]
+
+        # Calculate bounding box with padding
+        padding = 0.3
+        min_x, max_x = min(xs) - padding, max(xs) + padding
+        min_y, max_y = min(ys) - padding, max(ys) + padding
+
+        # Determine group color based on first node's element type or device name
+        first_node = nodes[0]
+        element_type = graph.nodes[first_node].get("element_type", "")
+        group_color = group_color_map.get(element_type, group_color_map.get(device_name.lower(), "#f0f0f0"))
+
+        # Draw rounded rectangle for the group
+        rect = mpatches.FancyBboxPatch(
+            (min_x, min_y),
+            max_x - min_x,
+            max_y - min_y,
+            boxstyle="round,pad=0.02,rounding_size=0.08",
+            facecolor=group_color,
+            edgecolor="#999999",
+            linewidth=1.5,
+            alpha=0.6,
+            zorder=0,
+        )
+        ax.add_patch(rect)
+
+        # Add device label above the group
+        label_y = max_y + 0.05
+        ax.text(
+            (min_x + max_x) / 2,
+            label_y,
+            device_name,
+            fontsize=10,
+            fontweight="bold",
+            ha="center",
+            va="bottom",
+            color="#333333",
+        )
 
     # Draw nodes with type-specific colors
     for node in graph.nodes():
@@ -106,10 +191,10 @@ def create_graph_visualization(
             pos,
             nodelist=[node],
             node_color=node_color,
-            node_size=2500,
+            node_size=2000,
             node_shape="o",
             edgecolors="black",
-            linewidths=2,
+            linewidths=1.5,
             ax=ax,
         )
 
@@ -117,7 +202,7 @@ def create_graph_visualization(
         display_name = node.split(":")[-1] if ":" in node else node
         label_text = f"{display_name}\n({element_type})"
         nx.draw_networkx_labels(  # type: ignore[no-untyped-call]
-            graph, pos, labels={node: label_text}, font_size=8, font_weight="bold", ax=ax
+            graph, pos, labels={node: label_text}, font_size=7, font_weight="bold", ax=ax
         )
 
     # Draw edges with arrows, different styles for balance vs power connections
@@ -134,7 +219,7 @@ def create_graph_visualization(
             arrowsize=20,
             arrowstyle="->",
             width=2.0,
-            node_size=2500,
+            node_size=2000,
             min_source_margin=15,
             min_target_margin=15,
             ax=ax,
@@ -152,7 +237,7 @@ def create_graph_visualization(
             arrowstyle="->",
             width=1.5,
             style="dashed",
-            node_size=2500,
+            node_size=2000,
             min_source_margin=15,
             min_target_margin=15,
             ax=ax,
@@ -165,7 +250,7 @@ def create_graph_visualization(
         graph,
         pos,
         edge_labels=edge_labels,
-        font_size=7,
+        font_size=6,
         bbox={"boxstyle": "round,pad=0.2", "facecolor": "white", "edgecolor": "none", "alpha": 0.8},
         font_color="#333333",
         ax=ax,
