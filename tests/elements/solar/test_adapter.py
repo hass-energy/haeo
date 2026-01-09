@@ -54,7 +54,7 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
     assert result["element_type"] == "solar"
     assert result["name"] == "test_solar"
     assert len(result["forecast"]) == 1
-    assert result["curtailment"] is True
+    assert result.get("curtailment") is True
     # price_production is not in result when not configured (uses default in model_elements)
 
 

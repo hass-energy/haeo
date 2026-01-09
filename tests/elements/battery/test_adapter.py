@@ -105,8 +105,8 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
     assert result["name"] == "test_battery"
     assert len(result["capacity"]) == 3  # 3 boundaries for 2 periods
     assert result["capacity"][0] == 10.0
-    assert result["max_charge_power"][0] == 5.0
-    assert result["max_discharge_power"][0] == 5.0
+    assert result.get("max_charge_power", [None])[0] == 5.0
+    assert result.get("max_discharge_power", [None])[0] == 5.0
 
 
 def test_sum_output_data_raises_on_empty_list() -> None:
