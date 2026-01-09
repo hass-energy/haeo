@@ -7,6 +7,7 @@ the actual model elements after optimization, grouped by parent device.
 
 from collections import defaultdict
 import logging
+import math
 from pathlib import Path
 
 import matplotlib.patches as mpatches
@@ -42,6 +43,76 @@ def _get_parent_device(name: str) -> str:
     - "Switchboard" -> "Switchboard" (no colon = top-level device)
     """
     return name.split(":")[0] if ":" in name else name
+
+
+def _compute_hierarchical_positions(
+    device_groups: dict[str, list[str]],
+    graph: "nx.DiGraph[str]",
+) -> dict[str, tuple[float, float]]:
+    """Compute positions using a hierarchical group-based layout.
+
+    Places groups in a grid, then positions nodes within each group.
+    """
+    pos: dict[str, tuple[float, float]] = {}
+
+    # Sort groups by size (larger groups first for better placement)
+    sorted_groups = sorted(device_groups.items(), key=lambda x: -len(x[1]))
+
+    # Calculate grid dimensions for groups
+    n_groups = len(sorted_groups)
+    if n_groups == 0:
+        return pos
+
+    # Arrange groups in a grid
+    cols = max(1, math.ceil(math.sqrt(n_groups)))
+
+    # Spacing between group centers
+    group_spacing_x = 3.0
+    group_spacing_y = 2.5
+
+    for idx, (_device_name, nodes) in enumerate(sorted_groups):
+        # Calculate group center position in grid
+        row = idx // cols
+        col = idx % cols
+        group_center_x = col * group_spacing_x
+        group_center_y = -row * group_spacing_y  # Negative to go top-to-bottom
+
+        n_nodes = len(nodes)
+        if n_nodes == 1:
+            # Single node - place at group center
+            pos[nodes[0]] = (group_center_x, group_center_y)
+        elif n_nodes <= 4:
+            # Small group - arrange in a tight cluster
+            for i, node in enumerate(nodes):
+                angle = 2 * math.pi * i / n_nodes
+                radius = 0.4
+                x = group_center_x + radius * math.cos(angle)
+                y = group_center_y + radius * math.sin(angle)
+                pos[node] = (x, y)
+        else:
+            # Larger group - use subgraph layout
+            subgraph = graph.subgraph(nodes)
+            sub_pos = nx.spring_layout(subgraph, k=0.8, iterations=50, seed=42)  # type: ignore[no-untyped-call]
+
+            # Scale and translate to group position
+            if sub_pos:
+                # Normalize positions to fit in a box
+                xs = [p[0] for p in sub_pos.values()]
+                ys = [p[1] for p in sub_pos.values()]
+                x_range = max(xs) - min(xs) if len(xs) > 1 else 1
+                y_range = max(ys) - min(ys) if len(ys) > 1 else 1
+                scale = min(1.0 / max(x_range, 0.1), 1.0 / max(y_range, 0.1)) * 0.8
+
+                x_center = (max(xs) + min(xs)) / 2
+                y_center = (max(ys) + min(ys)) / 2
+
+                for node, (x, y) in sub_pos.items():
+                    pos[node] = (
+                        group_center_x + (x - x_center) * scale,
+                        group_center_y + (y - y_center) * scale,
+                    )
+
+    return pos
 
 
 def create_graph_visualization(
@@ -124,14 +195,18 @@ def create_graph_visualization(
         _LOGGER.warning("No nodes to visualize")
         return
 
-    # Use spring layout with higher k value to spread groups apart
-    pos = nx.spring_layout(graph, k=3.5, iterations=150, seed=42)  # type: ignore[no-untyped-call]
+    # Use hierarchical group-based layout
+    pos = _compute_hierarchical_positions(device_groups, graph)
 
     # Create figure
-    fig, ax = plt.subplots(figsize=(18, 14))
+    fig, ax = plt.subplots(figsize=(14, 10))
     ax.set_title(title, fontsize=14, pad=20)
 
-    # Draw bounding boxes for ALL device groups (including single-node groups)
+    # Node size in data units (approximate)
+    node_size = 1200
+    node_radius = 0.15  # Approximate radius in data units
+
+    # Draw bounding boxes for ALL device groups
     for device_name, nodes in device_groups.items():
         # Get positions of all nodes in this group
         node_positions = [pos[node] for node in nodes if node in pos]
@@ -141,8 +216,8 @@ def create_graph_visualization(
         xs = [p[0] for p in node_positions]
         ys = [p[1] for p in node_positions]
 
-        # Calculate bounding box with padding (larger padding for single nodes)
-        padding = 0.4 if len(nodes) == 1 else 0.3
+        # Calculate bounding box with tight padding
+        padding = node_radius + 0.15
         min_x, max_x = min(xs) - padding, max(xs) + padding
         min_y, max_y = min(ys) - padding, max(ys) + padding
 
@@ -156,22 +231,22 @@ def create_graph_visualization(
             (min_x, min_y),
             max_x - min_x,
             max_y - min_y,
-            boxstyle="round,pad=0.02,rounding_size=0.08",
+            boxstyle="round,pad=0.02,rounding_size=0.1",
             facecolor=group_color,
-            edgecolor="#999999",
+            edgecolor="#888888",
             linewidth=1.5,
-            alpha=0.6,
+            alpha=0.7,
             zorder=0,
         )
         ax.add_patch(rect)
 
         # Add device label above the group
-        label_y = max_y + 0.05
+        label_y = max_y + 0.08
         ax.text(
             (min_x + max_x) / 2,
             label_y,
             device_name,
-            fontsize=10,
+            fontsize=9,
             fontweight="bold",
             ha="center",
             va="bottom",
@@ -188,7 +263,7 @@ def create_graph_visualization(
             pos,
             nodelist=[node],
             node_color=node_color,
-            node_size=2000,
+            node_size=node_size,
             node_shape="o",
             edgecolors="black",
             linewidths=1.5,
@@ -211,14 +286,14 @@ def create_graph_visualization(
             graph,
             pos,
             edgelist=power_edges,
-            edge_color="#666666",
+            edge_color="#555555",
             arrows=True,
-            arrowsize=20,
+            arrowsize=15,
             arrowstyle="->",
-            width=2.0,
-            node_size=2000,
-            min_source_margin=15,
-            min_target_margin=15,
+            width=1.5,
+            node_size=node_size,
+            min_source_margin=12,
+            min_target_margin=12,
             ax=ax,
             connectionstyle="arc3,rad=0.1",
         )
@@ -230,13 +305,13 @@ def create_graph_visualization(
             edgelist=balance_edges,
             edge_color="#9467bd",  # Purple for balance connections
             arrows=True,
-            arrowsize=20,
+            arrowsize=15,
             arrowstyle="->",
-            width=1.5,
+            width=1.2,
             style="dashed",
-            node_size=2000,
-            min_source_margin=15,
-            min_target_margin=15,
+            node_size=node_size,
+            min_source_margin=12,
+            min_target_margin=12,
             ax=ax,
             connectionstyle="arc3,rad=0.15",
         )
@@ -248,13 +323,14 @@ def create_graph_visualization(
         pos,
         edge_labels=edge_labels,
         font_size=6,
-        bbox={"boxstyle": "round,pad=0.2", "facecolor": "white", "edgecolor": "none", "alpha": 0.8},
+        bbox={"boxstyle": "round,pad=0.15", "facecolor": "white", "edgecolor": "none", "alpha": 0.9},
         font_color="#333333",
         ax=ax,
     )
 
-    # Remove axis
+    # Remove axis and set equal aspect ratio
     ax.axis("off")
+    ax.set_aspect("equal")
     plt.tight_layout()
 
     # Save the graph
