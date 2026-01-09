@@ -124,18 +124,15 @@ def create_graph_visualization(
         _LOGGER.warning("No nodes to visualize")
         return
 
-    # Use spring layout for better visual organization
-    pos = nx.spring_layout(graph, k=2.5, iterations=100, seed=42)  # type: ignore[no-untyped-call]
+    # Use spring layout with higher k value to spread groups apart
+    pos = nx.spring_layout(graph, k=3.5, iterations=150, seed=42)  # type: ignore[no-untyped-call]
 
     # Create figure
-    fig, ax = plt.subplots(figsize=(16, 12))
+    fig, ax = plt.subplots(figsize=(18, 14))
     ax.set_title(title, fontsize=14, pad=20)
 
-    # Draw bounding boxes for device groups (groups with more than 1 node)
+    # Draw bounding boxes for ALL device groups (including single-node groups)
     for device_name, nodes in device_groups.items():
-        if len(nodes) < 2:
-            continue  # Skip groups with single node
-
         # Get positions of all nodes in this group
         node_positions = [pos[node] for node in nodes if node in pos]
         if not node_positions:
@@ -144,8 +141,8 @@ def create_graph_visualization(
         xs = [p[0] for p in node_positions]
         ys = [p[1] for p in node_positions]
 
-        # Calculate bounding box with padding
-        padding = 0.3
+        # Calculate bounding box with padding (larger padding for single nodes)
+        padding = 0.4 if len(nodes) == 1 else 0.3
         min_x, max_x = min(xs) - padding, max(xs) + padding
         min_y, max_y = min(ys) - padding, max(ys) + padding
 
