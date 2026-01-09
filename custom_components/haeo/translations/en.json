@@ -95,6 +95,16 @@
             "name": "Battery Name"
           }
         },
+        "partitions": {
+          "title": "Battery Partitions",
+          "description": "Configure undercharge and overcharge regions for the battery",
+          "data": {
+            "overcharge_cost": "Overcharge Cost",
+            "overcharge_percentage": "Overcharge Percentage",
+            "undercharge_cost": "Undercharge Cost",
+            "undercharge_percentage": "Undercharge Percentage"
+          }
+        },
         "values": {
           "title": "Battery Values",
           "description": "Enter values for the selected input sources",
@@ -108,16 +118,6 @@
             "max_charge_power": "Max Charging Power",
             "max_discharge_power": "Max Discharging Power",
             "min_charge_percentage": "Min Charge Level"
-          }
-        },
-        "partitions": {
-          "title": "Battery Partitions",
-          "description": "Configure undercharge and overcharge regions for the battery",
-          "data": {
-            "overcharge_cost": "Overcharge Cost",
-            "overcharge_percentage": "Overcharge Percentage",
-            "undercharge_cost": "Undercharge Cost",
-            "undercharge_percentage": "Undercharge Percentage"
           }
         }
       },
