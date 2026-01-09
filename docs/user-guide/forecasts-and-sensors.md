@@ -355,10 +355,10 @@ For values you want to adjust through the Home Assistant UI without reconfigurin
 
 During element configuration, select the input_number entity in the entity selector:
 
-| Field            | Value                             |
-| ---------------- | --------------------------------- |
-| **Import Price** | input_number.fixed_import_price   |
-| **Import Limit** | input_number.inverter_rating      |
+| Field            | Value                           |
+| ---------------- | ------------------------------- |
+| **Import Price** | input_number.fixed_import_price |
+| **Import Limit** | input_number.inverter_rating    |
 
 HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
 

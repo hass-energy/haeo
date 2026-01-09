@@ -30,10 +30,10 @@ Use the **existing `suggested_value` mechanism** with no backend changes. The su
 # Backend usage (no changes to HA Core needed)
 suggested_values = {
     "my_choose_field": {
-        "active_choice": "entity",      # which choice is selected by default
-        "entity": "sensor.power",       # suggested value when "entity" is active
-        "fixed": 42,                    # suggested value when "fixed" is active
-        "template": "{{ now() }}"       # suggested value when "template" is active
+        "active_choice": "entity",  # which choice is selected by default
+        "entity": "sensor.power",  # suggested value when "entity" is active
+        "fixed": 42,  # suggested value when "fixed" is active
+        "template": "{{ now() }}",  # suggested value when "template" is active
     }
 }
 schema = self.add_suggested_values_to_schema(schema, suggested_values)
@@ -54,11 +54,9 @@ export interface ChooseSelectorValue {
 }
 ```
 
-
-
 ### 2. Update HaFormData Type
 
-**File: `src/components/ha-form/types.ts`**Define `HaFormChooseData` following the existing naming pattern and add to the union:
+\*\*File: `src/components/ha-form/types.ts`\*\*Define `HaFormChooseData` following the existing naming pattern and add to the union:
 
 ```typescript
 // Define choose data type (follows existing pattern: HaFormStringData, etc.)
@@ -78,8 +76,6 @@ export type HaFormData =
   | HaFormTimeData
   | HaFormChooseData;  // NEW - properly named
 ```
-
-
 
 ### 3. Fix setDefaultValue Function
 
@@ -112,11 +108,9 @@ const setDefaultValue = (
 };
 ```
 
-
-
 ### 4. Update computeInitialHaFormData for Choose Selectors
 
-**File: `src/components/ha-form/compute-initial-ha-form-data.ts`**When no suggested_value is provided, generate defaults for all choices:
+\*\*File: `src/components/ha-form/compute-initial-ha-form-data.ts`\*\*When no suggested_value is provided, generate defaults for all choices:
 
 ```typescript
 } else if ("choose" in selector) {
@@ -139,11 +133,9 @@ const setDefaultValue = (
 }
 ```
 
-
-
 ### 5. Update ha-selector-choose Component
 
-**File: `src/components/ha-selector/ha-selector-choose.ts`**When rendering the sub-selector, pass the appropriate suggested value:
+\*\*File: `src/components/ha-selector/ha-selector-choose.ts`\*\*When rendering the sub-selector, pass the appropriate suggested value:
 
 ```typescript
 private _value(choice?: string): any {
