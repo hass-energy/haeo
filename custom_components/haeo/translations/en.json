@@ -95,9 +95,19 @@
             "name": "Battery Name"
           }
         },
+        "partition_values": {
+          "title": "Battery Partition Values",
+          "description": "Enter values for the partition input sources",
+          "data": {
+            "overcharge_cost": "Overcharge Cost",
+            "overcharge_percentage": "Overcharge Percentage",
+            "undercharge_cost": "Undercharge Cost",
+            "undercharge_percentage": "Undercharge Percentage"
+          }
+        },
         "partitions": {
           "title": "Battery Partitions",
-          "description": "Configure undercharge and overcharge regions for the battery",
+          "description": "Select entities for undercharge and overcharge regions",
           "data": {
             "overcharge_cost": "Overcharge Cost",
             "overcharge_percentage": "Overcharge Percentage",

@@ -399,19 +399,20 @@ async def test_partition_flow_validation_requires_configurable_values(hass: Home
     }
     await flow.async_step_values(user_input=step2_input)
 
-    # Step 3: Select configurable entity but don't provide values
+    # Step 3: Select configurable entity for partition
     partition_input = {
         CONF_UNDERCHARGE_PERCENTAGE: [configurable_entity_id],
         CONF_OVERCHARGE_PERCENTAGE: [],
         CONF_UNDERCHARGE_COST: [],
         CONF_OVERCHARGE_COST: [],
-        # Missing value for undercharge_percentage when configurable is selected
     }
+    await flow.async_step_partitions(user_input=partition_input)
 
-    result = await flow.async_step_partitions(user_input=partition_input)
-    # Should show form with errors
+    # Step 4: Submit empty values - should show validation error
+    result = await flow.async_step_partition_values(user_input={})
+    # Should show form with errors on partition_values step
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "partitions"
+    assert result.get("step_id") == "partition_values"
     assert result.get("errors") == {CONF_UNDERCHARGE_PERCENTAGE: "required"}
 
 
@@ -449,22 +450,24 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
     # Entity links should be preserved
     assert defaults[CONF_UNDERCHARGE_PERCENTAGE] == ["sensor.undercharge"]
     assert defaults[CONF_OVERCHARGE_PERCENTAGE] == ["sensor.overcharge"]
-    # Missing fields should be empty lists
-    assert defaults[CONF_UNDERCHARGE_COST] == []
-    assert defaults[CONF_OVERCHARGE_COST] == []
+    # Missing fields should use defaults.mode (all have mode='value')
+    configurable_entity_id = get_configurable_entity_id()
+    assert defaults[CONF_UNDERCHARGE_COST] == [configurable_entity_id]
+    assert defaults[CONF_OVERCHARGE_COST] == [configurable_entity_id]
 
 
 async def test_build_partition_defaults_no_existing_data(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """_build_partition_defaults with no existing data returns empty lists."""
+    """_build_partition_defaults with no existing data respects defaults.mode."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     defaults = flow._build_partition_defaults(None)
 
-    # All partition fields should be empty lists
-    assert defaults[CONF_UNDERCHARGE_PERCENTAGE] == []
-    assert defaults[CONF_OVERCHARGE_PERCENTAGE] == []
-    assert defaults[CONF_UNDERCHARGE_COST] == []
-    assert defaults[CONF_OVERCHARGE_COST] == []
+    # All partition fields have mode='value', so they should default to configurable entity
+    configurable_entity_id = get_configurable_entity_id()
+    assert defaults[CONF_UNDERCHARGE_PERCENTAGE] == [configurable_entity_id]
+    assert defaults[CONF_OVERCHARGE_PERCENTAGE] == [configurable_entity_id]
+    assert defaults[CONF_UNDERCHARGE_COST] == [configurable_entity_id]
+    assert defaults[CONF_OVERCHARGE_COST] == [configurable_entity_id]
 
 
 async def test_step1_defaults_entity_mode(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -476,14 +479,36 @@ async def test_step1_defaults_entity_mode(hass: HomeAssistant, hub_entry: MockCo
     # should have their entity pre-selected
     defaults = flow._build_step1_defaults("Test Battery", None)
 
-    # early_charge_incentive has mode='value', so should have configurable entity
+    # Fields with mode='value' should have configurable entity pre-selected
     configurable_entity_id = get_configurable_entity_id()
     assert defaults[CONF_EARLY_CHARGE_INCENTIVE] == [configurable_entity_id]
+    assert defaults[CONF_EFFICIENCY] == [configurable_entity_id]
 
     # Fields with mode=None should be empty
     assert defaults[CONF_MIN_CHARGE_PERCENTAGE] == []
     assert defaults[CONF_MAX_CHARGE_PERCENTAGE] == []
-    assert defaults[CONF_EFFICIENCY] == []
+
+
+async def test_build_field_entity_defaults_entity_mode(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_build_field_entity_defaults with mode='entity' pre-selects the specified entity."""
+    from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+    from homeassistant.components.number import NumberEntityDescription
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Create a mock field with mode='entity'
+    mock_field = InputFieldInfo(
+        field_name="test_field",
+        entity_description=NumberEntityDescription(key="test_field"),
+        output_type=None,
+        defaults=InputFieldDefaults(mode="entity", entity="sensor.my_preset_entity"),
+    )
+
+    # Call the internal method with the mock field
+    defaults = flow._build_field_entity_defaults([mock_field], None, entry_id="test_entry", subentry_id="test_subentry")
+
+    # Should pre-select the entity specified in defaults.entity
+    assert defaults["test_field"] == ["sensor.my_preset_entity"]
 
 
 async def test_partition_flow_skips_step2_when_no_configurable_fields(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -581,9 +606,70 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
     configurable_entity_id = get_configurable_entity_id()
     assert defaults[CONF_UNDERCHARGE_PERCENTAGE] == [configurable_entity_id]
     assert defaults[CONF_OVERCHARGE_PERCENTAGE] == [configurable_entity_id]
-    # Fields not in config should be empty
-    assert defaults[CONF_UNDERCHARGE_COST] == []
-    assert defaults[CONF_OVERCHARGE_COST] == []
+    # Fields not in config should use defaults.mode (all have mode='value')
+    assert defaults[CONF_UNDERCHARGE_COST] == [configurable_entity_id]
+    assert defaults[CONF_OVERCHARGE_COST] == [configurable_entity_id]
+
+
+async def test_partition_values_step_completes_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Partition values step with valid input creates entry."""
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    configurable_entity_id = get_configurable_entity_id()
+
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}})
+
+    # Step 1: Entity selection with partitions enabled
+    step1_input = {
+        CONF_NAME: "Test Battery",
+        CONF_CONNECTION: "main_bus",
+        CONF_CAPACITY: [configurable_entity_id],
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+        CONF_MIN_CHARGE_PERCENTAGE: [],
+        CONF_MAX_CHARGE_PERCENTAGE: [],
+        CONF_EFFICIENCY: [],
+        CONF_MAX_CHARGE_POWER: [configurable_entity_id],
+        CONF_MAX_DISCHARGE_POWER: [configurable_entity_id],
+        CONF_EARLY_CHARGE_INCENTIVE: [],
+        CONF_DISCHARGE_COST: [],
+        CONF_CONFIGURE_PARTITIONS: True,
+    }
+    await flow.async_step_user(user_input=step1_input)
+
+    # Step 2: Configurable values
+    step2_input = {
+        CONF_CAPACITY: 10.0,
+        CONF_MAX_CHARGE_POWER: 5.0,
+        CONF_MAX_DISCHARGE_POWER: 5.0,
+    }
+    await flow.async_step_values(user_input=step2_input)
+
+    # Step 3: Partition entity selections - select configurable for undercharge_percentage
+    partition_input = {
+        CONF_UNDERCHARGE_PERCENTAGE: [configurable_entity_id],
+        CONF_OVERCHARGE_PERCENTAGE: ["sensor.overcharge_pct"],
+        CONF_UNDERCHARGE_COST: [],
+        CONF_OVERCHARGE_COST: [],
+    }
+    result = await flow.async_step_partitions(user_input=partition_input)
+
+    # Should proceed to partition_values step
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "partition_values"
+
+    # Step 4: Partition values - provide value for the configurable field
+    partition_values_input = {
+        CONF_UNDERCHARGE_PERCENTAGE: 5.0,
+    }
+    result = await flow.async_step_partition_values(user_input=partition_values_input)
+
+    # Should create entry successfully
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+    # Verify the created config
+    created_data = flow.async_create_entry.call_args.kwargs["data"]
+    assert created_data[CONF_UNDERCHARGE_PERCENTAGE] == 5.0
+    assert created_data[CONF_OVERCHARGE_PERCENTAGE] == ["sensor.overcharge_pct"]
 
 
 async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:

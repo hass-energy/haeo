@@ -440,11 +440,10 @@ class BatteryAdapter:
 
         # 6. Create balance connections between adjacent sections (enforces fill ordering)
         # Balance connections ensure lower sections fill before upper sections
-        # section_capacities was populated during section creation above
+        # The BatteryBalanceConnection derives capacity from connected battery sections directly
         for i in range(len(section_names) - 1):
             lower_section = section_names[i]
             upper_section = section_names[i + 1]
-            lower_capacity = section_capacities[lower_section]
 
             elements.append(
                 {
@@ -452,7 +451,6 @@ class BatteryAdapter:
                     "name": f"{name}:balance:{lower_section.split(':')[-1]}:{upper_section.split(':')[-1]}",
                     "upper": upper_section,
                     "lower": lower_section,
-                    "capacity_lower": lower_capacity,
                 }
             )
 

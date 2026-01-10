@@ -27,7 +27,7 @@ class Amber2MqttForecastEntry(TypedDict):
 
     start_time: str | datetime
     end_time: str | datetime
-    per_kwh: float
+    advanced_price_predicted: float
 
 
 class Amber2MqttAttributes(TypedDict):
@@ -68,8 +68,8 @@ class Parser:
             isinstance(item, Mapping)
             and "start_time" in item
             and "end_time" in item
-            and "per_kwh" in item
-            and isinstance(item["per_kwh"], (int, float))
+            and "advanced_price_predicted" in item
+            and isinstance(item["advanced_price_predicted"], (int, float))
             and is_parsable_to_datetime(item["start_time"])
             and is_parsable_to_datetime(item["end_time"])
             for item in forecasts
@@ -102,7 +102,7 @@ class Parser:
         for item in forecasts:
             start = Parser._round_to_minute(item["start_time"])
             end = Parser._round_to_minute(item["end_time"])
-            price = -item["per_kwh"] if is_feedin else item["per_kwh"]
+            price = -item["advanced_price_predicted"] if is_feedin else item["advanced_price_predicted"]
 
             # Emit start of window and end of window with same price
             parsed.append((start, price))
