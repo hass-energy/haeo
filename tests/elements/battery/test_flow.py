@@ -670,7 +670,7 @@ async def test_partition_values_step_completes_flow(hass: HomeAssistant, hub_ent
     # Verify the created config
     created_data = flow.async_create_entry.call_args.kwargs["data"]
     assert created_data[CONF_UNDERCHARGE_PERCENTAGE] == 5.0
-    assert created_data[CONF_OVERCHARGE_PERCENTAGE] == ["sensor.overcharge_pct"]
+    assert created_data[CONF_OVERCHARGE_PERCENTAGE] == "sensor.overcharge_pct"
 
 
 async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:

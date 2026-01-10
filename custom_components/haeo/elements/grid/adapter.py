@@ -131,20 +131,28 @@ class GridAdapter:
         n_periods = max(0, len(forecast_times) - 1)
         loaded_values: dict[str, list[float]] = {}
 
-        # Load import_price: entity list or constant (required field)
+        # Load import_price: entity ID, entity list, or constant (required field)
         import_value = config["import_price"]
         if isinstance(import_value, list):
             loaded_values["import_price"] = await ts_loader.load_intervals(
                 hass=hass, value=import_value, forecast_times=forecast_times
             )
+        elif isinstance(import_value, str):
+            loaded_values["import_price"] = await ts_loader.load_intervals(
+                hass=hass, value=[import_value], forecast_times=forecast_times
+            )
         else:
             loaded_values["import_price"] = [float(import_value)] * n_periods
 
-        # Load export_price: entity list or constant (required field)
+        # Load export_price: entity ID, entity list, or constant (required field)
         export_value = config["export_price"]
         if isinstance(export_value, list):
             loaded_values["export_price"] = await ts_loader.load_intervals(
                 hass=hass, value=export_value, forecast_times=forecast_times
+            )
+        elif isinstance(export_value, str):
+            loaded_values["export_price"] = await ts_loader.load_intervals(
+                hass=hass, value=[export_value], forecast_times=forecast_times
             )
         else:
             loaded_values["export_price"] = [float(export_value)] * n_periods
@@ -156,7 +164,11 @@ class GridAdapter:
                 loaded_values["import_limit"] = await ts_loader.load_intervals(
                     hass=hass, value=import_limit, forecast_times=forecast_times
                 )
-            elif isinstance(import_limit, int | float):
+            elif isinstance(import_limit, str):
+                loaded_values["import_limit"] = await ts_loader.load_intervals(
+                    hass=hass, value=[import_limit], forecast_times=forecast_times
+                )
+            else:
                 loaded_values["import_limit"] = [float(import_limit)] * n_periods
 
         export_limit = config.get("export_limit")
@@ -165,7 +177,11 @@ class GridAdapter:
                 loaded_values["export_limit"] = await ts_loader.load_intervals(
                     hass=hass, value=export_limit, forecast_times=forecast_times
                 )
-            elif isinstance(export_limit, int | float):
+            elif isinstance(export_limit, str):
+                loaded_values["export_limit"] = await ts_loader.load_intervals(
+                    hass=hass, value=[export_limit], forecast_times=forecast_times
+                )
+            else:
                 loaded_values["export_limit"] = [float(export_limit)] * n_periods
 
         return self.build_config_data(loaded_values, config)
