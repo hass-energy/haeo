@@ -186,6 +186,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
         boundaries=True,
+        defaults=InputFieldDefaults(mode="value", value=0),
     ),
     InputFieldInfo(
         field_name=CONF_UNDERCHARGE_COST,
@@ -199,6 +200,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
+        defaults=InputFieldDefaults(mode="value", value=0),
     ),
     InputFieldInfo(
         field_name=CONF_OVERCHARGE_PERCENTAGE,
@@ -214,6 +216,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
         boundaries=True,
+        defaults=InputFieldDefaults(mode="value", value=100),
     ),
     InputFieldInfo(
         field_name=CONF_OVERCHARGE_COST,
@@ -227,6 +230,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
+        defaults=InputFieldDefaults(mode="value", value=0),
     ),
 )
 

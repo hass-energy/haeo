@@ -161,31 +161,16 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return self.async_show_form(step_id="values", data_schema=schema, errors=errors)
 
     async def async_step_partitions(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle step 3: partition entity selection and configurable values."""
+        """Handle step 3: partition entity selection."""
         errors: dict[str, str] = {}
         subentry = self._get_subentry()
         current_data = dict(subentry.data) if subentry else None
 
-        # Build partition entity selections from user input or defaults
-        if user_input is not None:
-            # Extract entity selections and configurable values from combined input
-            partition_entity_selections = extract_entity_selections(user_input, ())
-            partition_configurable_values = {
-                k: v for k, v in user_input.items() if k not in partition_entity_selections
-            }
+        if user_input is not None and not errors:
+            self._partition_entity_selections = extract_entity_selections(user_input, ())
+            return await self.async_step_partition_values()
 
-            if self._validate_partition_values(partition_entity_selections, partition_configurable_values, errors):
-                main_entity_selections = extract_entity_selections(self._step1_data, _EXCLUDE_KEYS)
-                config = self._build_config(
-                    main_entity_selections,
-                    self._step2_data,
-                    current_data,
-                    partition_entity_selections,
-                    partition_configurable_values,
-                )
-                return self._finalize(config)
-
-        # Build combined schema for partition entity selection and values
+        # Build schema for partition entity selection
         entity_metadata = extract_entity_metadata(self.hass)
         exclusion_map = build_exclusion_map(PARTITION_FIELDS, entity_metadata)
 
@@ -205,13 +190,72 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return self.async_show_form(step_id="partitions", data_schema=schema, errors=errors)
 
+    async def async_step_partition_values(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Handle step 4: configurable value entry for partition fields."""
+        errors: dict[str, str] = {}
+        subentry = self._get_subentry()
+        current_data = dict(subentry.data) if subentry else None
+
+        if user_input is not None and self._validate_partition_values(
+            self._partition_entity_selections, user_input, errors
+        ):
+            main_entity_selections = extract_entity_selections(self._step1_data, _EXCLUDE_KEYS)
+            config = self._build_config(
+                main_entity_selections,
+                self._step2_data,
+                current_data,
+                self._partition_entity_selections,
+                user_input,
+            )
+            return self._finalize(config)
+
+        schema = build_configurable_value_schema(
+            PARTITION_FIELDS, self._partition_entity_selections, current_data
+        )
+
+        # Skip step 4 if no configurable fields need input
+        if not schema.schema:
+            configurable_values = get_configurable_value_defaults(
+                PARTITION_FIELDS, self._partition_entity_selections, current_data
+            )
+            main_entity_selections = extract_entity_selections(self._step1_data, _EXCLUDE_KEYS)
+            config = self._build_config(
+                main_entity_selections,
+                self._step2_data,
+                current_data,
+                self._partition_entity_selections,
+                configurable_values,
+            )
+            return self._finalize(config)
+
+        defaults = get_configurable_value_defaults(
+            PARTITION_FIELDS, self._partition_entity_selections, current_data
+        )
+        schema = self.add_suggested_values_to_schema(schema, defaults)
+
+        return self.async_show_form(step_id="partition_values", data_schema=schema, errors=errors)
+
     def _build_partition_defaults(self, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Build default values for partition form."""
+        """Build default values for partition form.
+
+        Uses the InputFieldDefaults.mode to determine pre-selection:
+        - mode='value': Pre-select the configurable entity
+        - mode='entity': Pre-select the specified entity
+        - mode=None: No pre-selection (empty list)
+        """
         configurable_entity_id = get_configurable_entity_id()
 
         if subentry_data is None:
-            # First setup: no pre-selection for partition fields
-            return {field.field_name: [] for field in PARTITION_FIELDS}
+            # First setup: pre-select based on defaults.mode
+            defaults: dict[str, Any] = {}
+            for field in PARTITION_FIELDS:
+                if field.defaults is not None and field.defaults.mode == "value":
+                    defaults[field.field_name] = [configurable_entity_id]
+                elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
+                    defaults[field.field_name] = [field.defaults.entity]
+                else:
+                    defaults[field.field_name] = []
+            return defaults
 
         # Reconfigure: get entry/subentry IDs for resolving created entities
         subentry = self._get_subentry()
@@ -227,6 +271,11 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             elif field.field_name in subentry_data:
                 resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
                 entity_defaults[field.field_name] = [resolved or configurable_entity_id]
+            elif field.defaults is not None and field.defaults.mode == "value":
+                # Field not previously configured - use defaults.mode
+                entity_defaults[field.field_name] = [configurable_entity_id]
+            elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
+                entity_defaults[field.field_name] = [field.defaults.entity]
             else:
                 entity_defaults[field.field_name] = []
 
