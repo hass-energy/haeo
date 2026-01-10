@@ -143,7 +143,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         ),
         output_type=OutputType.EFFICIENCY,
         time_series=True,
-        defaults=InputFieldDefaults(mode=None, value=99.0),
+        defaults=InputFieldDefaults(mode="value", value=95.0),
     ),
     InputFieldInfo(
         field_name=CONF_DISCHARGE_COST,
