@@ -269,8 +269,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             elif field.field_name in subentry_data:
                 resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
                 entity_defaults[field.field_name] = [resolved or configurable_entity_id]
+            elif field.defaults is not None and field.defaults.mode == "value":
+                # Field not in stored data: use defaults.mode
+                entity_defaults[field.field_name] = [configurable_entity_id]
+            elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
+                entity_defaults[field.field_name] = [field.defaults.entity]
             else:
-                # Field not in stored data: empty selection (user cleared it)
                 entity_defaults[field.field_name] = []
 
         return entity_defaults
