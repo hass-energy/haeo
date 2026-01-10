@@ -22,6 +22,7 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 
+from .adapter import INPUT_FIELDS
 from .schema import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -29,7 +30,6 @@ from .schema import (
     CONF_PRICE_PRODUCTION,
     DEFAULTS,
     ELEMENT_TYPE,
-    INPUT_FIELDS,
     SolarConfigSchema,
 )
 

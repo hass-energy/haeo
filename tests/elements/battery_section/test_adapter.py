@@ -1,6 +1,4 @@
-"""Tests for battery_section adapter load() and available() functions."""
-
-from collections.abc import Sequence
+"""Tests for battery_section adapter available() function."""
 
 from homeassistant.core import HomeAssistant
 
@@ -10,9 +8,6 @@ from custom_components.haeo.elements import battery_section
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
     """Set a sensor state in hass."""
     hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
-
-
-FORECAST_TIMES: Sequence[float] = [0.0, 1800.0]
 
 
 async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
@@ -45,25 +40,3 @@ async def test_available_returns_false_when_sensor_missing(hass: HomeAssistant) 
 
     result = battery_section.adapter.available(config, hass=hass)
     assert result is False
-
-
-async def test_load_returns_config_data(hass: HomeAssistant) -> None:
-    """Battery section load() should return ConfigData with loaded values."""
-    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
-    _set_sensor(hass, "sensor.initial", "50.0", "%")
-
-    config: battery_section.BatterySectionConfigSchema = {
-        "element_type": "battery_section",
-        "name": "test_section",
-        "capacity": ["sensor.capacity"],
-        "initial_charge": ["sensor.initial"],
-    }
-
-    result = await battery_section.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
-
-    assert result["element_type"] == "battery_section"
-    assert result["name"] == "test_section"
-    assert len(result["capacity"]) == 2  # Boundaries: n+1 values
-    assert result["capacity"] == [10.0, 10.0]  # Broadcast to all boundaries
-    assert len(result["initial_charge"]) == 1
-    assert result["initial_charge"][0] == 50.0

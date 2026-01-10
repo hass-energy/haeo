@@ -3,9 +3,12 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal
 
+from homeassistant.components.switch import SwitchEntityDescription
+
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import ConstantLoader
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelOutputName
+from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.model.output_data import OutputData
 
@@ -38,16 +41,31 @@ class NodeAdapter:
         _ = config  # Unused but required by protocol
         return True
 
-    async def load(self, config: NodeConfigSchema, **_kwargs: Any) -> NodeConfigData:
-        """Load node configuration values."""
-        const_loader_bool = ConstantLoader[bool](bool)
-
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "is_source": await const_loader_bool.load(value=config.get("is_source", DEFAULTS[CONF_IS_SOURCE])),
-            "is_sink": await const_loader_bool.load(value=config.get("is_sink", DEFAULTS[CONF_IS_SINK])),
-        }
+    def inputs(
+        self,
+        config: NodeConfigSchema,  # noqa: ARG002
+    ) -> tuple[InputFieldInfo[SwitchEntityDescription], ...]:
+        """Return input field definitions for creating node input entities."""
+        return (
+            InputFieldInfo(
+                field_name=CONF_IS_SOURCE,
+                entity_description=SwitchEntityDescription(
+                    key=CONF_IS_SOURCE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SOURCE}",
+                ),
+                output_type=OutputType.STATUS,
+                default=False,
+            ),
+            InputFieldInfo(
+                field_name=CONF_IS_SINK,
+                entity_description=SwitchEntityDescription(
+                    key=CONF_IS_SINK,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_IS_SINK}",
+                ),
+                output_type=OutputType.STATUS,
+                default=False,
+            ),
+        )
 
     def model_elements(self, config: NodeConfigData) -> list[dict[str, Any]]:
         """Return model element parameters for Node configuration."""

@@ -5,10 +5,8 @@ rather than a physical device. It is auto-created (not manually configurable)
 and provides network-level outputs like optimization cost, status, and duration.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Any, Final, Literal
-
-from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.model import (
@@ -71,22 +69,12 @@ class NetworkAdapter:
         _ = config  # Unused but required by protocol
         return True
 
-    async def load(
-        self,
-        config: NetworkConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> NetworkConfigData:
-        """Load network configuration values.
+    def inputs(self, config: NetworkConfigSchema) -> tuple[()]:  # noqa: ARG002
+        """Return input field definitions for network element.
 
-        Network has no sensor-loaded values, so this is a pass-through.
+        Network has no configurable input fields.
         """
-        _ = hass, forecast_times  # Unused but required by protocol
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-        }
+        return ()
 
     def model_elements(self, config: NetworkConfigData) -> list[dict[str, Any]]:
         """Return model element parameters for Network configuration.

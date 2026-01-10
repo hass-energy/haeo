@@ -1031,10 +1031,15 @@ def test_load_from_input_entities_loads_time_series_fields(
     """Time series fields are loaded as lists from input entities."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
+    # Get the battery subentry config
+    battery_subentry = next(
+        s for s in mock_hub_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_BATTERY
+    )
+
     # Create mock input entities for all required fields
     from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
 
-    for field_info in get_input_fields(ELEMENT_TYPE_BATTERY):
+    for field_info in get_input_fields(ELEMENT_TYPE_BATTERY, battery_subentry.data):
         mock_entity = MagicMock()
         mock_entity.get_values.return_value = (1.0, 2.0, 3.0)
         mock_runtime_data.input_entities[("Test Battery", field_info.field_name)] = mock_entity

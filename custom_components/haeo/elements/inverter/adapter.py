@@ -1,13 +1,16 @@
 """Inverter element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
+from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements.node import NODE_POWER_BALANCE
@@ -21,7 +24,6 @@ from custom_components.haeo.model.output_data import OutputData
 
 from .flow import InverterSubentryFlowHandler
 from .schema import (
-    CONF_CONNECTION,
     CONF_EFFICIENCY_AC_TO_DC,
     CONF_EFFICIENCY_DC_TO_AC,
     CONF_MAX_POWER_AC_TO_DC,
@@ -75,43 +77,69 @@ class InverterAdapter:
             return False
         return ts_loader.available(hass=hass, value=config[CONF_MAX_POWER_AC_TO_DC])
 
-    async def load(
+    def inputs(
         self,
-        config: InverterConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> InverterConfigData:
-        """Load inverter configuration values from sensors."""
-        ts_loader = TimeSeriesLoader()
-        const_loader = ConstantLoader[float](float)
-
-        max_power_dc_to_ac = await ts_loader.load_intervals(
-            hass=hass,
-            value=config[CONF_MAX_POWER_DC_TO_AC],
-            forecast_times=forecast_times,
+        config: InverterConfigSchema,  # noqa: ARG002
+    ) -> tuple[InputFieldInfo[NumberEntityDescription], ...]:
+        """Return input field definitions for creating inverter input entities."""
+        return (
+            InputFieldInfo(
+                field_name=CONF_MAX_POWER_DC_TO_AC,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_POWER_DC_TO_AC,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_DC_TO_AC}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_MAX_POWER_AC_TO_DC,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_POWER_AC_TO_DC,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_AC_TO_DC}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_EFFICIENCY_DC_TO_AC,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EFFICIENCY_DC_TO_AC,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_DC_TO_AC}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.POWER_FACTOR,
+                    native_min_value=50.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.EFFICIENCY,
+                default=100.0,
+            ),
+            InputFieldInfo(
+                field_name=CONF_EFFICIENCY_AC_TO_DC,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EFFICIENCY_AC_TO_DC,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_AC_TO_DC}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.POWER_FACTOR,
+                    native_min_value=50.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.EFFICIENCY,
+                default=100.0,
+            ),
         )
-        max_power_ac_to_dc = await ts_loader.load_intervals(
-            hass=hass,
-            value=config[CONF_MAX_POWER_AC_TO_DC],
-            forecast_times=forecast_times,
-        )
-
-        data: InverterConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "max_power_dc_to_ac": max_power_dc_to_ac,
-            "max_power_ac_to_dc": max_power_ac_to_dc,
-        }
-
-        # Load optional fields
-        if CONF_EFFICIENCY_DC_TO_AC in config:
-            data["efficiency_dc_to_ac"] = await const_loader.load(value=config[CONF_EFFICIENCY_DC_TO_AC])
-        if CONF_EFFICIENCY_AC_TO_DC in config:
-            data["efficiency_ac_to_dc"] = await const_loader.load(value=config[CONF_EFFICIENCY_AC_TO_DC])
-
-        return data
 
     def model_elements(self, config: InverterConfigData) -> list[dict[str, Any]]:
         """Return model element parameters for Inverter configuration.

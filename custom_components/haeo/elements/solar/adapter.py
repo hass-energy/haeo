@@ -1,13 +1,17 @@
 """Solar element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import TYPE_CHECKING, Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.components.switch import SwitchEntityDescription
+from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
-from custom_components.haeo.data.loader import ConstantLoader, TimeSeriesLoader
+from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements.power_connection import (
@@ -16,9 +20,7 @@ from custom_components.haeo.model.elements.power_connection import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import SolarSubentryFlowHandler
 from .schema import (
-    CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
     CONF_PRICE_PRODUCTION,
@@ -27,6 +29,9 @@ from .schema import (
     SolarConfigData,
     SolarConfigSchema,
 )
+
+if TYPE_CHECKING:
+    from .flow import SolarSubentryFlowHandler
 
 # Solar output names
 type SolarOutputName = Literal[
@@ -46,52 +51,75 @@ type SolarDeviceName = Literal["solar"]
 
 SOLAR_DEVICE_NAMES: Final[frozenset[SolarDeviceName]] = frozenset((SOLAR_DEVICE_SOLAR := "solar",))
 
+# Input field definitions for creating input entities (mix of Number and Switch)
+INPUT_FIELDS: Final[tuple[InputFieldInfo[Any], ...]] = (
+    InputFieldInfo(
+        field_name=CONF_FORECAST,
+        entity_description=NumberEntityDescription(
+            key=CONF_FORECAST,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.01,
+        ),
+        output_type=OutputType.POWER,
+        direction="-",
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_PRICE_PRODUCTION,
+        entity_description=NumberEntityDescription(
+            key=CONF_PRICE_PRODUCTION,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_PRICE_PRODUCTION}",
+            native_min_value=-1.0,
+            native_max_value=10.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        direction="+",
+    ),
+    InputFieldInfo(
+        field_name=CONF_CURTAILMENT,
+        entity_description=SwitchEntityDescription(
+            key=CONF_CURTAILMENT,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_CURTAILMENT}",
+        ),
+        output_type=OutputType.STATUS,
+        default=True,
+    ),
+)
+
 
 class SolarAdapter:
     """Adapter for Solar elements."""
 
     element_type: str = ELEMENT_TYPE
-    flow_class: type = SolarSubentryFlowHandler
     advanced: bool = False
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
+
+    @property
+    def flow_class(self) -> type["SolarSubentryFlowHandler"]:
+        """Return the flow handler class for solar elements."""
+        from .flow import SolarSubentryFlowHandler  # noqa: PLC0415
+
+        return SolarSubentryFlowHandler
 
     def available(self, config: SolarConfigSchema, *, hass: HomeAssistant, **_kwargs: Any) -> bool:
         """Check if solar configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
-    async def load(
+    def inputs(
         self,
-        config: SolarConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> SolarConfigData:
-        """Load solar configuration values from sensors."""
-        ts_loader = TimeSeriesLoader()
-        const_loader_float = ConstantLoader[float](float)
-        const_loader_bool = ConstantLoader[bool](bool)
+        config: SolarConfigSchema,  # noqa: ARG002
+    ) -> tuple[InputFieldInfo[Any], ...]:
+        """Return input field definitions for creating solar input entities.
 
-        forecast = await ts_loader.load_intervals(
-            hass=hass,
-            value=config[CONF_FORECAST],
-            forecast_times=forecast_times,
-        )
-
-        data: SolarConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "forecast": forecast,
-        }
-
-        # Load optional fields
-        if CONF_PRICE_PRODUCTION in config:
-            data["price_production"] = await const_loader_float.load(value=config[CONF_PRICE_PRODUCTION])
-        if CONF_CURTAILMENT in config:
-            data["curtailment"] = await const_loader_bool.load(value=config[CONF_CURTAILMENT])
-
-        return data
+        Solar has fixed device structure - all inputs belong to the main solar device.
+        """
+        return INPUT_FIELDS
 
     def model_elements(self, config: SolarConfigData) -> list[dict[str, Any]]:
         """Return model element parameters for Solar configuration."""

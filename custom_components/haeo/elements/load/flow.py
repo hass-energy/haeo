@@ -11,7 +11,8 @@ from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN, U
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
 
-from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, INPUT_FIELDS, LoadConfigSchema
+from .adapter import INPUT_FIELDS
+from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigSchema
 
 
 def _build_schema(

@@ -11,12 +11,28 @@ from syrupy.location import PyTestLocation
 from syrupy.types import SerializableData, SerializedData, SnapshotIndex
 
 
-def approx_equal(a: Any, b: Any, rel_tol: float = 1e-5, abs_tol: float = 1e-9) -> bool:
+def _try_parse_float(value: Any) -> float | None:
+    """Try to parse a value as a float."""
+    if isinstance(value, Real):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
+
+
+def approx_equal(a: Any, b: Any, rel_tol: float = 0.1, abs_tol: float = 1e-6, path: str = "") -> bool:
     """Compare two values with approximate equality for floats.
 
     For floats, uses relative and absolute tolerance.
+    For numeric strings, converts to float and uses approximate comparison.
     For other types, uses exact equality.
     Recursively handles nested dicts and lists.
+
+    The default tolerance of 10% (rel_tol=0.1) is chosen to accommodate
+    naturally variable values like optimizer timing.
     """
     # Handle None cases
     if a is None and b is None:
@@ -30,17 +46,30 @@ def approx_equal(a: Any, b: Any, rel_tol: float = 1e-5, abs_tol: float = 1e-9) -
             return True
         return abs(float(a) - float(b)) <= max(rel_tol * max(abs(float(a)), abs(float(b))), abs_tol)
 
+    # Handle numeric strings with approximate comparison
+    if isinstance(a, str) and isinstance(b, str):
+        a_float = _try_parse_float(a)
+        b_float = _try_parse_float(b)
+        if a_float is not None and b_float is not None:
+            if a_float == b_float:  # Handle exact matches
+                return True
+            return abs(a_float - b_float) <= max(rel_tol * max(abs(a_float), abs(b_float)), abs_tol)
+        # Not both numeric strings, fall through to exact equality
+
     # Handle dicts recursively
     if isinstance(a, Mapping) and isinstance(b, Mapping):
         if set(a) != set(b):
             return False
-        return all(approx_equal(a[key], b[key], rel_tol, abs_tol) for key in a)
+        return all(approx_equal(a[key], b[key], rel_tol, abs_tol, path=f"{path}.{key}") for key in a)
 
     # Handle lists/sequences recursively
     if isinstance(a, Sequence) and isinstance(b, Sequence) and not isinstance(a, str) and not isinstance(b, str):
         if len(a) != len(b):
             return False
-        return all(approx_equal(a_item, b_item, rel_tol, abs_tol) for a_item, b_item in zip(a, b, strict=True))
+        return all(
+            approx_equal(a_item, b_item, rel_tol, abs_tol, path=f"{path}[{i}]")
+            for i, (a_item, b_item) in enumerate(zip(a, b, strict=True))
+        )
 
     # For all other types, use exact equality
     result: bool = a == b

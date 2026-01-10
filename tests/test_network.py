@@ -51,7 +51,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
     return entry
 
 
-async def test_evaluate_network_connectivity_connected(
+def test_evaluate_network_connectivity_connected(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
@@ -67,7 +67,7 @@ async def test_evaluate_network_connectivity_connected(
     )
     hass.config_entries.async_add_subentry(config_entry, node_a)
 
-    await evaluate_network_connectivity(hass, config_entry)
+    evaluate_network_connectivity(hass, config_entry)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)
@@ -75,7 +75,7 @@ async def test_evaluate_network_connectivity_connected(
     assert issue is None
 
 
-async def test_evaluate_network_connectivity_disconnected(
+def test_evaluate_network_connectivity_disconnected(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
@@ -100,7 +100,7 @@ async def test_evaluate_network_connectivity_disconnected(
     hass.config_entries.async_add_subentry(config_entry, node_a)
     hass.config_entries.async_add_subentry(config_entry, node_b)
 
-    await evaluate_network_connectivity(hass, config_entry)
+    evaluate_network_connectivity(hass, config_entry)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)
@@ -109,7 +109,7 @@ async def test_evaluate_network_connectivity_disconnected(
     assert issue.translation_key == "disconnected_network"
 
 
-async def test_evaluate_network_connectivity_resolves_issue(
+def test_evaluate_network_connectivity_resolves_issue(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
@@ -134,7 +134,7 @@ async def test_evaluate_network_connectivity_resolves_issue(
     hass.config_entries.async_add_subentry(config_entry, node_a)
     hass.config_entries.async_add_subentry(config_entry, node_b)
 
-    await evaluate_network_connectivity(hass, config_entry)
+    evaluate_network_connectivity(hass, config_entry)
 
     # Connect the nodes and re-validate
     connection = ConfigSubentry(
@@ -152,7 +152,20 @@ async def test_evaluate_network_connectivity_resolves_issue(
     )
     hass.config_entries.async_add_subentry(config_entry, connection)
 
-    await evaluate_network_connectivity(hass, config_entry)
+    evaluate_network_connectivity(hass, config_entry)
+
+    issue_id = f"disconnected_network_{config_entry.entry_id}"
+    issue_registry = ir.async_get(hass)
+    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is None
+
+
+def test_evaluate_network_connectivity_empty_network(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Empty network should be valid and not create issues."""
+    evaluate_network_connectivity(hass, config_entry)
 
     issue_id = f"disconnected_network_{config_entry.entry_id}"
     issue_registry = ir.async_get(hass)

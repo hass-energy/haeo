@@ -2,8 +2,9 @@
 
 from typing import Any, cast
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.helpers.selector import (
     EntitySelector,
     EntitySelectorConfig,
@@ -18,7 +19,9 @@ import voluptuous as vol
 
 from custom_components.haeo.const import CONF_ELEMENT_TYPE, CONF_NAME, DOMAIN
 from custom_components.haeo.data.loader.extractors import extract_entity_metadata
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_exclusion_map, build_participant_selector
+from custom_components.haeo.model.const import OutputType
 
 from .schema import (
     CONF_CONNECTION,
@@ -28,8 +31,68 @@ from .schema import (
     CONF_MAX_POWER_DC_TO_AC,
     DEFAULTS,
     ELEMENT_TYPE,
-    INPUT_FIELDS,
     InverterConfigSchema,
+)
+
+# Input field definitions for building config flow schemas
+# These must match the definitions in InverterAdapter.inputs()
+INPUT_FIELDS: tuple[InputFieldInfo[NumberEntityDescription], ...] = (
+    InputFieldInfo(
+        field_name=CONF_MAX_POWER_DC_TO_AC,
+        entity_description=NumberEntityDescription(
+            key=CONF_MAX_POWER_DC_TO_AC,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_DC_TO_AC}",
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.POWER_LIMIT,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_MAX_POWER_AC_TO_DC,
+        entity_description=NumberEntityDescription(
+            key=CONF_MAX_POWER_AC_TO_DC,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_POWER_AC_TO_DC}",
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.POWER_LIMIT,
+        time_series=True,
+    ),
+    InputFieldInfo(
+        field_name=CONF_EFFICIENCY_DC_TO_AC,
+        entity_description=NumberEntityDescription(
+            key=CONF_EFFICIENCY_DC_TO_AC,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_DC_TO_AC}",
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.POWER_FACTOR,
+            native_min_value=50.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.EFFICIENCY,
+        default=100.0,
+    ),
+    InputFieldInfo(
+        field_name=CONF_EFFICIENCY_AC_TO_DC,
+        entity_description=NumberEntityDescription(
+            key=CONF_EFFICIENCY_AC_TO_DC,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY_AC_TO_DC}",
+            native_unit_of_measurement=PERCENTAGE,
+            device_class=NumberDeviceClass.POWER_FACTOR,
+            native_min_value=50.0,
+            native_max_value=100.0,
+            native_step=0.1,
+        ),
+        output_type=OutputType.EFFICIENCY,
+        default=100.0,
+    ),
 )
 
 

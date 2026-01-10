@@ -1,14 +1,17 @@
 """Battery element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model import battery as model_battery
 from custom_components.haeo.model import battery_balance_connection as model_balance
@@ -18,10 +21,11 @@ from custom_components.haeo.model.output_data import OutputData
 
 from .flow import BatterySubentryFlowHandler
 from .schema import (
-    CONF_CONNECTION,
+    CONF_CAPACITY,
     CONF_DISCHARGE_COST,
     CONF_EARLY_CHARGE_INCENTIVE,
     CONF_EFFICIENCY,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
@@ -125,106 +129,210 @@ class BatteryAdapter:
         ]
         return all(entities_available(config.get(field)) for field in optional_fields)  # type: ignore[arg-type]
 
-    async def load(
+    def inputs(
         self,
-        config: BatteryConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> BatteryConfigData:
-        """Load battery configuration values from sensors."""
-        loader = TimeSeriesLoader()
+        config: BatteryConfigSchema,  # noqa: ARG002
+    ) -> tuple[InputFieldInfo[NumberEntityDescription], ...]:
+        """Return input field definitions for creating battery input entities.
 
-        # Load capacity as boundaries (energy value at each time boundary)
-        capacity = await loader.load_boundaries(hass=hass, forecast_times=forecast_times, value=config.get("capacity"))
-
-        # Load percentage limits as boundaries (they define energy at each boundary)
-        min_charge = await loader.load_boundaries(
-            hass=hass,
-            forecast_times=forecast_times,
-            value=config.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]),
+        Battery has multiple device sections - undercharge/overcharge fields
+        belong to their respective devices.
+        """
+        return (
+            InputFieldInfo(
+                field_name=CONF_CAPACITY,
+                entity_description=NumberEntityDescription(
+                    key=CONF_CAPACITY,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_CAPACITY}",
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=NumberDeviceClass.ENERGY_STORAGE,
+                    native_min_value=0.1,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.ENERGY,
+                time_series=True,
+                boundaries=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_INITIAL_CHARGE_PERCENTAGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_INITIAL_CHARGE_PERCENTAGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_INITIAL_CHARGE_PERCENTAGE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.BATTERY,
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.STATE_OF_CHARGE,
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_MIN_CHARGE_PERCENTAGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MIN_CHARGE_PERCENTAGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MIN_CHARGE_PERCENTAGE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.BATTERY,
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=1.0,
+                ),
+                output_type=OutputType.STATE_OF_CHARGE,
+                time_series=True,
+                boundaries=True,
+                default=0.0,
+            ),
+            InputFieldInfo(
+                field_name=CONF_MAX_CHARGE_PERCENTAGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_CHARGE_PERCENTAGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_PERCENTAGE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.BATTERY,
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=1.0,
+                ),
+                output_type=OutputType.STATE_OF_CHARGE,
+                time_series=True,
+                boundaries=True,
+                default=100.0,
+            ),
+            InputFieldInfo(
+                field_name=CONF_EFFICIENCY,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EFFICIENCY,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EFFICIENCY}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.POWER_FACTOR,
+                    native_min_value=50.0,
+                    native_max_value=100.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.EFFICIENCY,
+                time_series=True,
+                default=99.0,
+            ),
+            InputFieldInfo(
+                field_name=CONF_MAX_CHARGE_POWER,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_CHARGE_POWER,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_CHARGE_POWER}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER,
+                direction="+",
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_MAX_DISCHARGE_POWER,
+                entity_description=NumberEntityDescription(
+                    key=CONF_MAX_DISCHARGE_POWER,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_MAX_DISCHARGE_POWER}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER,
+                direction="-",
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_EARLY_CHARGE_INCENTIVE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EARLY_CHARGE_INCENTIVE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EARLY_CHARGE_INCENTIVE}",
+                    native_min_value=0.0,
+                    native_max_value=1.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+                default=0.001,
+            ),
+            InputFieldInfo(
+                field_name=CONF_DISCHARGE_COST,
+                entity_description=NumberEntityDescription(
+                    key=CONF_DISCHARGE_COST,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_DISCHARGE_COST}",
+                    native_min_value=0.0,
+                    native_max_value=1.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+            ),
+            InputFieldInfo(
+                field_name=CONF_UNDERCHARGE_PERCENTAGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_UNDERCHARGE_PERCENTAGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_UNDERCHARGE_PERCENTAGE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.BATTERY,
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=1.0,
+                ),
+                output_type=OutputType.STATE_OF_CHARGE,
+                time_series=True,
+                boundaries=True,
+                device_name="battery_device_undercharge",
+            ),
+            InputFieldInfo(
+                field_name=CONF_OVERCHARGE_PERCENTAGE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_OVERCHARGE_PERCENTAGE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_OVERCHARGE_PERCENTAGE}",
+                    native_unit_of_measurement=PERCENTAGE,
+                    device_class=NumberDeviceClass.BATTERY,
+                    native_min_value=0.0,
+                    native_max_value=100.0,
+                    native_step=1.0,
+                ),
+                output_type=OutputType.STATE_OF_CHARGE,
+                time_series=True,
+                boundaries=True,
+                device_name="battery_device_overcharge",
+            ),
+            InputFieldInfo(
+                field_name=CONF_UNDERCHARGE_COST,
+                entity_description=NumberEntityDescription(
+                    key=CONF_UNDERCHARGE_COST,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_UNDERCHARGE_COST}",
+                    native_min_value=0.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+                device_name="battery_device_undercharge",
+            ),
+            InputFieldInfo(
+                field_name=CONF_OVERCHARGE_COST,
+                entity_description=NumberEntityDescription(
+                    key=CONF_OVERCHARGE_COST,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_OVERCHARGE_COST}",
+                    native_min_value=0.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                direction="-",
+                time_series=True,
+                device_name="battery_device_overcharge",
+            ),
         )
-        max_charge = await loader.load_boundaries(
-            hass=hass,
-            forecast_times=forecast_times,
-            value=config.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE]),
-        )
-
-        # Load interval-based values (power, rates)
-        initial_charge = await loader.load_intervals(
-            hass=hass, forecast_times=forecast_times, value=config.get("initial_charge_percentage")
-        )
-        efficiency = await loader.load_intervals(
-            hass=hass,
-            forecast_times=forecast_times,
-            value=config.get(CONF_EFFICIENCY, DEFAULTS[CONF_EFFICIENCY]),
-        )
-
-        # Build data with defaults applied
-        data: BatteryConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "capacity": capacity,
-            "initial_charge_percentage": initial_charge,
-            "min_charge_percentage": min_charge,
-            "max_charge_percentage": max_charge,
-            "efficiency": efficiency,
-        }
-
-        # Load optional time series fields (no defaults)
-        max_charge_power = config.get(CONF_MAX_CHARGE_POWER)
-        if max_charge_power is not None:
-            data["max_charge_power"] = await loader.load_intervals(
-                hass=hass, forecast_times=forecast_times, value=max_charge_power
-            )
-
-        max_discharge_power = config.get(CONF_MAX_DISCHARGE_POWER)
-        if max_discharge_power is not None:
-            data["max_discharge_power"] = await loader.load_intervals(
-                hass=hass, forecast_times=forecast_times, value=max_discharge_power
-            )
-
-        discharge_cost = config.get(CONF_DISCHARGE_COST)
-        if discharge_cost is not None:
-            data["discharge_cost"] = await loader.load_intervals(
-                hass=hass, forecast_times=forecast_times, value=discharge_cost
-            )
-
-        early_charge_incentive = config.get(CONF_EARLY_CHARGE_INCENTIVE)
-        if early_charge_incentive is not None:
-            data["early_charge_incentive"] = await loader.load_intervals(
-                hass=hass,
-                forecast_times=forecast_times,
-                value=early_charge_incentive,
-            )
-
-        # Load undercharge/overcharge percentages as boundaries
-        undercharge_percentage = config.get(CONF_UNDERCHARGE_PERCENTAGE)
-        if undercharge_percentage is not None:
-            data["undercharge_percentage"] = await loader.load_boundaries(
-                hass=hass, forecast_times=forecast_times, value=undercharge_percentage
-            )
-
-        overcharge_percentage = config.get(CONF_OVERCHARGE_PERCENTAGE)
-        if overcharge_percentage is not None:
-            data["overcharge_percentage"] = await loader.load_boundaries(
-                hass=hass, forecast_times=forecast_times, value=overcharge_percentage
-            )
-
-        undercharge_cost = config.get(CONF_UNDERCHARGE_COST)
-        if undercharge_cost is not None:
-            data["undercharge_cost"] = await loader.load_intervals(
-                hass=hass, forecast_times=forecast_times, value=undercharge_cost
-            )
-
-        overcharge_cost = config.get(CONF_OVERCHARGE_COST)
-        if overcharge_cost is not None:
-            data["overcharge_cost"] = await loader.load_intervals(
-                hass=hass, forecast_times=forecast_times, value=overcharge_cost
-            )
-
-        return data
 
     def model_elements(self, config: BatteryConfigData) -> list[dict[str, Any]]:
         """Create model elements for Battery configuration.

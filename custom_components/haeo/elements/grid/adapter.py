@@ -1,13 +1,16 @@
 """Grid element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements.power_connection import (
@@ -22,9 +25,12 @@ from custom_components.haeo.model.output_data import OutputData
 
 from .flow import GridSubentryFlowHandler
 from .schema import (
-    CONF_CONNECTION,
-    DEFAULT_EXPORT_PRICE,
-    DEFAULT_IMPORT_PRICE,
+    CONF_EXPORT_LIMIT,
+    CONF_EXPORT_PRICE,
+    CONF_IMPORT_LIMIT,
+    CONF_IMPORT_PRICE,
+    DEFAULT_EXPORT_LIMIT,
+    DEFAULT_IMPORT_LIMIT,
     ELEMENT_TYPE,
     GridConfigData,
     GridConfigSchema,
@@ -84,76 +90,74 @@ class GridAdapter:
 
         return entities_available(config.get("import_price")) and entities_available(config.get("export_price"))
 
-    async def load(
+    def inputs(
         self,
-        config: GridConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> GridConfigData:
-        """Load grid configuration values from sensors."""
-        ts_loader = TimeSeriesLoader()
-        # forecast_times are boundaries, so n_periods = len(forecast_times) - 1
-        n_periods = max(0, len(forecast_times) - 1)
+        config: GridConfigSchema,  # noqa: ARG002
+    ) -> tuple[InputFieldInfo[NumberEntityDescription], ...]:
+        """Return input field definitions for creating grid input entities.
 
-        # Load import_price: entity list, constant, or use default
-        import_value = config.get("import_price")
-        if isinstance(import_value, list) and import_value:
-            import_price = await ts_loader.load_intervals(
-                hass=hass,
-                value=import_value,
-                forecast_times=forecast_times,
-            )
-        elif isinstance(import_value, (int, float)):
-            import_price = [float(import_value)] * n_periods
-        else:
-            import_price = [DEFAULT_IMPORT_PRICE] * n_periods
-
-        # Load export_price: entity list, constant, or use default
-        export_value = config.get("export_price")
-        if isinstance(export_value, list) and export_value:
-            export_price = await ts_loader.load_intervals(
-                hass=hass,
-                value=export_value,
-                forecast_times=forecast_times,
-            )
-        elif isinstance(export_value, (int, float)):
-            export_price = [float(export_value)] * n_periods
-        else:
-            export_price = [DEFAULT_EXPORT_PRICE] * n_periods
-
-        data: GridConfigData = {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "import_price": import_price,
-            "export_price": export_price,
-        }
-
-        # Load optional power limit fields
-        import_limit = config.get("import_limit")
-        if import_limit is not None:
-            if isinstance(import_limit, list) and import_limit:
-                data["import_limit"] = await ts_loader.load_intervals(
-                    hass=hass,
-                    value=import_limit,
-                    forecast_times=forecast_times,
-                )
-            elif isinstance(import_limit, (int, float)):
-                data["import_limit"] = [float(import_limit)] * n_periods
-
-        export_limit = config.get("export_limit")
-        if export_limit is not None:
-            if isinstance(export_limit, list) and export_limit:
-                data["export_limit"] = await ts_loader.load_intervals(
-                    hass=hass,
-                    value=export_limit,
-                    forecast_times=forecast_times,
-                )
-            elif isinstance(export_limit, (int, float)):
-                data["export_limit"] = [float(export_limit)] * n_periods
-
-        return data
+        Grid has fixed device structure - all inputs belong to the main grid device.
+        """
+        return (
+            InputFieldInfo(
+                field_name=CONF_IMPORT_PRICE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_IMPORT_PRICE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_PRICE}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                time_series=True,
+                direction="-",  # Import = consuming from grid = cost
+            ),
+            InputFieldInfo(
+                field_name=CONF_EXPORT_PRICE,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EXPORT_PRICE,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_PRICE}",
+                    native_min_value=-1.0,
+                    native_max_value=10.0,
+                    native_step=0.001,
+                ),
+                output_type=OutputType.PRICE,
+                time_series=True,
+                direction="+",  # Export = producing to grid = revenue
+            ),
+            InputFieldInfo(
+                field_name=CONF_IMPORT_LIMIT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_IMPORT_LIMIT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_IMPORT_LIMIT}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+                direction="+",
+                default=DEFAULT_IMPORT_LIMIT,
+            ),
+            InputFieldInfo(
+                field_name=CONF_EXPORT_LIMIT,
+                entity_description=NumberEntityDescription(
+                    key=CONF_EXPORT_LIMIT,
+                    translation_key=f"{ELEMENT_TYPE}_{CONF_EXPORT_LIMIT}",
+                    native_unit_of_measurement=UnitOfPower.KILO_WATT,
+                    device_class=NumberDeviceClass.POWER,
+                    native_min_value=0.0,
+                    native_max_value=1000.0,
+                    native_step=0.1,
+                ),
+                output_type=OutputType.POWER_LIMIT,
+                time_series=True,
+                direction="-",
+                default=DEFAULT_EXPORT_LIMIT,
+            ),
+        )
 
     def model_elements(self, config: GridConfigData) -> list[dict[str, Any]]:
         """Create model elements for Grid configuration."""

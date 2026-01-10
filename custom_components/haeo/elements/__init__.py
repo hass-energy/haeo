@@ -26,7 +26,7 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 import logging
 import types
 from typing import (
@@ -167,8 +167,10 @@ class ElementAdapter(Protocol):
     element_type: str
     """The element type identifier."""
 
-    flow_class: type
-    """The config flow handler class for this element type."""
+    @property
+    def flow_class(self) -> type:
+        """The config flow handler class for this element type."""
+        ...
 
     advanced: bool
     """Whether this element type requires advanced mode."""
@@ -180,14 +182,18 @@ class ElementAdapter(Protocol):
         """Check if element configuration can be loaded."""
         ...
 
-    async def load(
-        self,
-        config: Any,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> Any:
-        """Load configuration values from sensors."""
+    def inputs(self, config: Any) -> tuple[InputFieldInfo[Any], ...]:
+        """Return input field definitions for creating input entities.
+
+        Args:
+            config: Element configuration schema (with entity IDs, not loaded values).
+
+        Returns:
+            Tuple of InputFieldInfo for fields that should become input entities.
+            Each InputFieldInfo specifies the field name, entity description,
+            output type, and device name for the input entity.
+
+        """
         ...
 
     def model_elements(self, config: Any) -> list[dict[str, Any]]:
@@ -344,30 +350,25 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     return result
 
 
-# Registry mapping element types to their input field definitions
-_INPUT_FIELDS_REGISTRY: Final[dict[str, tuple[InputFieldInfo[Any], ...]]] = {
-    battery.ELEMENT_TYPE: battery.INPUT_FIELDS,
-    connection.ELEMENT_TYPE: connection.INPUT_FIELDS,
-    grid.ELEMENT_TYPE: grid.INPUT_FIELDS,
-    inverter.ELEMENT_TYPE: inverter.INPUT_FIELDS,
-    load.ELEMENT_TYPE: load.INPUT_FIELDS,
-    node.ELEMENT_TYPE: node.INPUT_FIELDS,
-    solar.ELEMENT_TYPE: solar.INPUT_FIELDS,
-}
-
-
-def get_input_fields(element_type: str) -> tuple[InputFieldInfo[Any], ...]:
+def get_input_fields(
+    element_type: str,
+    config: Mapping[str, Any],
+) -> tuple[InputFieldInfo[Any], ...]:
     """Return input field definitions for an element type.
 
     Args:
         element_type: The element type (e.g., "battery", "grid")
+        config: The element configuration schema
 
     Returns:
         Tuple of InputFieldInfo for fields that should become input entities.
         Returns empty tuple for unknown element types.
 
     """
-    return _INPUT_FIELDS_REGISTRY.get(element_type, ())
+    if not is_element_type(element_type):
+        return ()
+    adapter = ELEMENT_TYPES[element_type]
+    return adapter.inputs(config)
 
 
 __all__ = [

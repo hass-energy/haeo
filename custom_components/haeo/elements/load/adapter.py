@@ -1,13 +1,16 @@
 """Load element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
+from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.const import ConnectivityLevel
 from custom_components.haeo.data.loader import TimeSeriesLoader
+from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.model import ModelOutputName
 from custom_components.haeo.model.const import OutputType
 from custom_components.haeo.model.elements.power_connection import (
@@ -16,8 +19,30 @@ from custom_components.haeo.model.elements.power_connection import (
 )
 from custom_components.haeo.model.output_data import OutputData
 
-from .flow import LoadSubentryFlowHandler
-from .schema import CONF_CONNECTION, CONF_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+from .schema import CONF_FORECAST, DEFAULT_FORECAST, ELEMENT_TYPE, LoadConfigData, LoadConfigSchema
+
+# Input field definitions for creating input entities
+# Defined at module level so it can be imported by flow before adapter class is defined
+INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
+    InputFieldInfo(
+        field_name=CONF_FORECAST,
+        entity_description=NumberEntityDescription(
+            key=CONF_FORECAST,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_FORECAST}",
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            device_class=NumberDeviceClass.POWER,
+            native_min_value=0.0,
+            native_max_value=1000.0,
+            native_step=0.01,
+        ),
+        output_type=OutputType.POWER,
+        direction="+",
+        time_series=True,
+        default=DEFAULT_FORECAST,
+    ),
+)
+
+from .flow import LoadSubentryFlowHandler  # noqa: E402
 
 # Load output names
 type LoadOutputName = Literal[
@@ -53,27 +78,15 @@ class LoadAdapter:
         ts_loader = TimeSeriesLoader()
         return ts_loader.available(hass=hass, value=config[CONF_FORECAST])
 
-    async def load(
+    def inputs(
         self,
-        config: LoadConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> LoadConfigData:
-        """Load load configuration values from sensors."""
-        ts_loader = TimeSeriesLoader()
-        forecast = await ts_loader.load_intervals(
-            hass=hass,
-            value=config[CONF_FORECAST],
-            forecast_times=forecast_times,
-        )
+        config: LoadConfigSchema,  # noqa: ARG002
+    ) -> tuple[InputFieldInfo[NumberEntityDescription], ...]:
+        """Return input field definitions for creating load input entities.
 
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "connection": config[CONF_CONNECTION],
-            "forecast": forecast,
-        }
+        Load has fixed device structure - all inputs belong to the main load device.
+        """
+        return INPUT_FIELDS
 
     def model_elements(self, config: LoadConfigData) -> list[dict[str, Any]]:
         """Create model elements for Load configuration."""

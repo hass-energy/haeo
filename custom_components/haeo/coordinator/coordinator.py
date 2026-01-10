@@ -9,10 +9,9 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory, UnitOfTime
+from homeassistant.const import EntityCategory
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
-from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -23,16 +22,9 @@ from custom_components.haeo.const import (
     CONF_NAME,
     DEFAULT_DEBOUNCE_SECONDS,
     DOMAIN,
-    ELEMENT_TYPE_NETWORK,
-    OPTIMIZATION_STATUS_FAILED,
-    OPTIMIZATION_STATUS_PENDING,
-    OPTIMIZATION_STATUS_SUCCESS,
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
-    NetworkOutputName,
 )
 from custom_components.haeo.elements import (
+    ELEMENT_TYPE_NETWORK,
     ELEMENT_TYPES,
     ElementConfigData,
     ElementConfigSchema,
@@ -42,7 +34,15 @@ from custom_components.haeo.elements import (
     get_input_fields,
     is_element_type,
 )
-from custom_components.haeo.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.model import (
+    NETWORK_OPTIMIZATION_DURATION,
+    OPTIMIZATION_STATUS_OPTIONS,
+    ModelOutputName,
+    Network,
+    NetworkOutputName,
+    OutputData,
+    OutputType,
+)
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 from custom_components.haeo.util.forecast_times import tiers_to_periods_seconds
 
@@ -104,16 +104,6 @@ STATE_CLASS_MAP: dict[OutputType, SensorStateClass | None] = {
     OutputType.DURATION: SensorStateClass.MEASUREMENT,
 }
 
-STATUS_OPTIONS: tuple[str, ...] = tuple(
-    sorted(  # Keep a stable order for enum options in Home Assistant UI
-        {
-            OPTIMIZATION_STATUS_FAILED,
-            OPTIMIZATION_STATUS_PENDING,
-            OPTIMIZATION_STATUS_SUCCESS,
-        }
-    )
-)
-
 
 def _build_coordinator_output(
     output_name: ElementOutputName,
@@ -166,10 +156,10 @@ def _build_coordinator_output(
         state=state,
         forecast=forecast,
         direction=output_data.direction,
-        entity_category=(EntityCategory.DIAGNOSTIC if output_name == OUTPUT_NAME_OPTIMIZATION_DURATION else None),
+        entity_category=(EntityCategory.DIAGNOSTIC if output_name == NETWORK_OPTIMIZATION_DURATION else None),
         device_class=DEVICE_CLASS_MAP.get(output_data.type),
         state_class=STATE_CLASS_MAP.get(output_data.type),
-        options=(STATUS_OPTIONS if output_data.type == OutputType.STATUS else None),
+        options=(OPTIMIZATION_STATUS_OPTIONS if output_data.type == OutputType.STATUS else None),
         advanced=output_data.advanced,
     )
 
@@ -433,7 +423,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         }
 
         # Get input field definitions for this element type
-        input_field_infos = get_input_fields(element_type)
+        input_field_infos = get_input_fields(element_type, element_config)
         input_field_map = {f.field_name: f for f in input_field_infos}
         input_field_names = set(input_field_map.keys())
 
@@ -556,60 +546,62 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 network = self.network
 
             # Perform the optimization
-            cost = await self.hass.async_add_executor_job(network.optimize)
-
-            end_time = time.time()
-            optimization_duration = end_time - start_time
+            await self.hass.async_add_executor_job(network.optimize)
 
             # Record optimization time for debouncing
-            self._last_optimization_time = end_time
+            self._last_optimization_time = time.time()
 
-            _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
+            _LOGGER.debug("Optimization completed successfully")
             dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
 
-            network_output_data: dict[NetworkOutputName, OutputData] = {
-                OUTPUT_NAME_OPTIMIZATION_COST: OutputData(
-                    type=OutputType.COST, unit=self.hass.config.currency, values=(cost,)
-                ),
-                OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
-                    type=OutputType.STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
-                ),
-                OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
-                    type=OutputType.DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
-                ),
-            }
-
-            # Load the network subentry name from translations
-            translations = await async_get_translations(
-                self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
-            )
-            network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
-
-            result: CoordinatorData = {
-                # HAEO outputs use network subentry name as key, network element type as device
-                network_subentry_name: {
-                    ELEMENT_TYPE_NETWORK: {
-                        name: _build_coordinator_output(name, output, forecast_times=None)
-                        for name, output in network_output_data.items()
-                    }
-                }
-            }
-
             # Build nested outputs structure from all network model elements
+            # Include the network's own outputs under the special "network" key
             model_outputs: dict[str, Mapping[ModelOutputName, OutputData]] = {
-                element_name: element.outputs() for element_name, element in network.elements.items()
+                ELEMENT_TYPE_NETWORK: network.outputs(),
+                **{element_name: element.outputs() for element_name, element in network.elements.items()},
             }
 
-            # Process each config element using its outputs function to transform model outputs into device outputs
-            for element_name, element_config in self._participant_configs.items():
-                element_type = element_config[CONF_ELEMENT_TYPE]
+            # Find the network subentry to get its name for result mapping
+            network_subentry = next(
+                (s for s in self.config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK),
+                None,
+            )
+            if network_subentry is None:
+                msg = "Network subentry not found"
+                raise UpdateFailed(msg)
+
+            result: CoordinatorData = {}
+
+            # Process all subentries
+            for subentry in self.config_entry.subentries.values():
+                element_type = subentry.subentry_type
+                if not is_element_type(element_type):
+                    continue
+
+                element_name = subentry.title
                 outputs_fn = ELEMENT_TYPES[element_type].outputs
+
+                # Get the loaded config for this element
+                # For network, use a minimal config since it has no loaded values
+                if element_type == ELEMENT_TYPE_NETWORK:
+                    element_config: ElementConfigData = {
+                        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK,
+                        CONF_NAME: element_name,
+                    }
+                    # Network outputs have no forecast (they're single values)
+                    element_forecast_times: tuple[float, ...] | None = None
+                else:
+                    if element_name not in loaded_configs:
+                        _LOGGER.debug("Skipping element %s - not in loaded configs", element_name)
+                        continue
+                    element_config = loaded_configs[element_name]
+                    element_forecast_times = forecast_timestamps
 
                 # outputs function returns {device_name: {output_name: OutputData}}
                 # May return multiple devices per config element (e.g., battery regions)
                 try:
                     adapter_outputs: Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]] = outputs_fn(
-                        element_name, model_outputs, loaded_configs[element_name]
+                        element_name, model_outputs, element_config
                     )
                 except KeyError:
                     _LOGGER.exception(
@@ -628,7 +620,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         output_name: _build_coordinator_output(
                             output_name,
                             output_data,
-                            forecast_times=forecast_timestamps,
+                            forecast_times=element_forecast_times,
                         )
                         for output_name, output_data in device_outputs.items()
                     }
@@ -648,7 +640,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
 
 __all__ = [
-    "STATUS_OPTIONS",
     "CoordinatorData",
     "CoordinatorOutput",
     "ForecastPoint",

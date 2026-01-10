@@ -1,10 +1,10 @@
-"""Tests for solar adapter load() and available() functions."""
+"""Tests for solar adapter inputs() and available() functions."""
 
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.elements import solar
 
-from ..conftest import FORECAST_TIMES, set_forecast_sensor
+from ..conftest import set_forecast_sensor
 
 
 async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssistant) -> None:
@@ -35,10 +35,8 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
     assert result is False
 
 
-async def test_load_returns_config_data(hass: HomeAssistant) -> None:
-    """Solar load() should return ConfigData with loaded values."""
-    set_forecast_sensor(hass, "sensor.forecast", "5.0", [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}], "kW")
-
+def test_inputs_returns_field_definitions() -> None:
+    """Solar inputs() should return input field definitions."""
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
         "name": "test_solar",
@@ -46,27 +44,35 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "forecast": ["sensor.forecast"],
     }
 
-    result = await solar.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = solar.adapter.inputs(config)
 
-    assert result["element_type"] == "solar"
-    assert result["name"] == "test_solar"
-    assert len(result["forecast"]) == 1
+    # Should return tuple with 3 fields
+    assert len(result) == 3
+
+    # Check field names
+    field_names = [field.field_name for field in result]
+    assert "forecast" in field_names
+    assert "price_production" in field_names
+    assert "curtailment" in field_names
 
 
-async def test_load_with_optional_fields(hass: HomeAssistant) -> None:
-    """Solar load() should include optional constant fields."""
-    set_forecast_sensor(hass, "sensor.forecast", "5.0", [{"datetime": "2024-01-01T00:00:00Z", "value": 5.0}], "kW")
-
+def test_inputs_has_correct_entity_descriptions() -> None:
+    """Solar inputs() should have correct entity description types."""
     config: solar.SolarConfigSchema = {
         "element_type": "solar",
         "name": "test_solar",
         "connection": "dc_bus",
         "forecast": ["sensor.forecast"],
-        "price_production": 0.02,
-        "curtailment": False,
     }
 
-    result = await solar.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
+    result = solar.adapter.inputs(config)
 
-    assert result.get("price_production") == 0.02
-    assert result.get("curtailment") is False
+    # Find each field
+    fields_by_name = {field.field_name: field for field in result}
+
+    # Forecast and price_production should be NumberEntityDescription
+    assert type(fields_by_name["forecast"].entity_description).__name__ == "NumberEntityDescription"
+    assert type(fields_by_name["price_production"].entity_description).__name__ == "NumberEntityDescription"
+
+    # Curtailment should be SwitchEntityDescription
+    assert type(fields_by_name["curtailment"].entity_description).__name__ == "SwitchEntityDescription"

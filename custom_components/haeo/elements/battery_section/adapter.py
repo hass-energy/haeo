@@ -1,6 +1,6 @@
 """Battery section element adapter for model layer integration."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
@@ -71,29 +71,13 @@ class BatterySectionAdapter:
         required_fields = [CONF_CAPACITY, CONF_INITIAL_CHARGE]
         return all(ts_loader.available(hass=hass, value=config[field]) for field in required_fields)
 
-    async def load(
-        self,
-        config: BatterySectionConfigSchema,
-        *,
-        hass: HomeAssistant,
-        forecast_times: Sequence[float],
-    ) -> BatterySectionConfigData:
-        """Load battery section configuration values from sensors."""
-        ts_loader = TimeSeriesLoader()
+    def inputs(self, config: BatterySectionConfigSchema) -> tuple[()]:  # noqa: ARG002
+        """Return input field definitions for battery section.
 
-        capacity = await ts_loader.load_boundaries(
-            hass=hass, value=config[CONF_CAPACITY], forecast_times=forecast_times
-        )
-        initial_charge = await ts_loader.load_intervals(
-            hass=hass, value=config[CONF_INITIAL_CHARGE], forecast_times=forecast_times
-        )
-
-        return {
-            "element_type": config["element_type"],
-            "name": config["name"],
-            "capacity": capacity,
-            "initial_charge": initial_charge,
-        }
+        Battery section has no configurable input fields - capacity and initial charge
+        are loaded from sensors, not input number entities.
+        """
+        return ()
 
     def model_elements(self, config: BatterySectionConfigData) -> list[dict[str, Any]]:
         """Create model elements for BatterySection configuration.

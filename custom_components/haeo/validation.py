@@ -4,12 +4,8 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 
-from .const import CONF_ELEMENT_TYPE
-from .elements import ELEMENT_TYPE_CONNECTION, ELEMENT_TYPES, ElementConfigSchema, collect_element_subentries
-from .model import MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION
-from .util.forecast_times import generate_forecast_timestamps_from_config
+from .elements import ELEMENT_TYPE_CONNECTION, ElementConfigSchema, collect_element_subentries
 from .util.graph import ConnectivityResult as NetworkConnectivityResult
 from .util.graph import find_connected_components
 
@@ -25,60 +21,59 @@ def collect_participant_configs(entry: ConfigEntry) -> dict[str, ElementConfigSc
     return participants
 
 
-async def _build_adjacency(
-    hass: HomeAssistant,
+def _build_adjacency(
     participants: Mapping[str, ElementConfigSchema],
-    forecast_times: Sequence[float],
 ) -> dict[str, set[str]]:
-    """Build adjacency map by transforming configs through adapters.
+    """Build adjacency map from element configurations.
 
-    This uses the adapter layer to convert configuration elements into model elements,
-    which includes both explicit connection elements and implicit connections.
+    Extracts topology information directly from config schemas without
+    loading sensor data. Elements define their connections via:
+    - 'connection' field: target node for elements like battery, grid, solar, load
+    - 'source'/'target' fields: endpoints for explicit connection elements
+
+    This function creates implicit sub-nodes for elements that have internal structure
+    (like batteries with sections) to match what the adapter layer would produce.
     """
     adjacency: dict[str, set[str]] = {}
 
-    # Collect all model elements from all configs
-    for config in participants.values():
-        element_type = config[CONF_ELEMENT_TYPE]
-        entry = ELEMENT_TYPES[element_type]
+    for name, config in participants.items():
+        element_type = config.get("element_type")
 
-        # Load config with actual forecast times to get real sensor data
-        loaded = await entry.load(config, hass=hass, forecast_times=forecast_times)
-
-        # Get model elements including implicit connections
-        model_elements = entry.model_elements(loaded)
-
-        # Add non-connection elements as nodes (skip balance connections - internal bookkeeping)
-        for elem in model_elements:
-            elem_type = elem.get(CONF_ELEMENT_TYPE)
-            if elem_type not in {ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_BATTERY_BALANCE_CONNECTION}:
-                adjacency.setdefault(elem["name"], set())
-
-        # Add edges from connection elements
-        for elem in model_elements:
-            if elem.get(CONF_ELEMENT_TYPE) == ELEMENT_TYPE_CONNECTION:
-                source: Any = elem["source"]
-                target: Any = elem["target"]
+        if element_type == ELEMENT_TYPE_CONNECTION:
+            # Explicit connection element - creates edge between source and target
+            # Connection elements are not network nodes themselves, just edges
+            source: Any = config.get("source")
+            target: Any = config.get("target")
+            if source and target:
                 adjacency.setdefault(source, set()).add(target)
                 adjacency.setdefault(target, set()).add(source)
+        elif "connection" in config:
+            # Element with implicit connection to a target node
+            # Add the element as a node
+            adjacency.setdefault(name, set())
+            target_node: Any = config.get("connection")
+            if target_node:
+                # Create edge from element to its connection target
+                adjacency.setdefault(name, set()).add(target_node)
+                adjacency.setdefault(target_node, set()).add(name)
+        else:
+            # Element without connection (e.g., node) - just add as node
+            adjacency.setdefault(name, set())
 
     return adjacency
 
 
-async def validate_network_topology(
-    hass: HomeAssistant,
+def validate_network_topology(
     participants: Mapping[str, ElementConfigSchema],
-    config_entry: ConfigEntry,
 ) -> NetworkConnectivityResult:
     """Validate connectivity for the provided participant configurations.
 
-    Uses the adapter layer to transform configurations into model elements,
-    which automatically includes implicit connections created by elements.
+    Extracts topology directly from configuration schemas without loading
+    sensor data. This enables validation during config flow before any
+    sensor values are available.
 
     Args:
-        hass: Home Assistant instance.
         participants: Map of element names to their configurations.
-        config_entry: Config entry containing tier configuration for forecast times.
 
     Returns:
         NetworkConnectivityResult indicating connectivity status.
@@ -87,8 +82,7 @@ async def validate_network_topology(
     if not participants:
         return NetworkConnectivityResult(is_connected=True, components=())
 
-    forecast_times = generate_forecast_timestamps_from_config(config_entry.data)
-    adjacency = await _build_adjacency(hass, participants, forecast_times)
+    adjacency = _build_adjacency(participants)
     return find_connected_components(adjacency)
 
 
