@@ -1,5 +1,6 @@
 """Battery element configuration flows."""
 
+from collections.abc import Sequence
 from typing import Any, ClassVar, cast
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult, UnknownSubEntry
@@ -231,110 +232,74 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return self.async_show_form(step_id="partition_values", data_schema=schema, errors=errors)
 
-    def _build_partition_defaults(self, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Build default values for partition form.
+    def _build_field_entity_defaults(
+        self,
+        fields: Sequence[Any],
+        subentry_data: dict[str, Any] | None,
+        entry_id: str,
+        subentry_id: str,
+    ) -> dict[str, list[str]]:
+        """Build entity selection defaults for a list of fields.
 
         Uses the InputFieldDefaults.mode to determine pre-selection:
         - mode='value': Pre-select the configurable entity
         - mode='entity': Pre-select the specified entity
         - mode=None: No pre-selection (empty list)
 
-        Entity links are preserved during reconfigure.
+        For reconfigure, entity links are preserved and scalar values resolve
+        to created HAEO entities.
         """
         configurable_entity_id = get_configurable_entity_id()
+        defaults: dict[str, list[str]] = {}
 
-        if subentry_data is None:
-            # First setup: pre-select based on defaults.mode
-            defaults: dict[str, Any] = {}
-            for field in PARTITION_FIELDS:
-                if field.defaults is not None and field.defaults.mode == "value":
-                    defaults[field.field_name] = [configurable_entity_id]
-                elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
-                    defaults[field.field_name] = [field.defaults.entity]
-                else:
-                    defaults[field.field_name] = []
-            return defaults
+        for field in fields:
+            value = subentry_data.get(field.field_name) if subentry_data else None
 
-        # Reconfigure: get entry/subentry IDs for resolving created entities
-        subentry = self._get_subentry()
-        entry = self._get_entry()
-        entry_id = entry.entry_id
-        subentry_id = subentry.subentry_id if subentry else ""
-
-        entity_defaults: dict[str, Any] = {}
-        for field in PARTITION_FIELDS:
-            value = subentry_data.get(field.field_name)
-            if isinstance(value, list):
-                entity_defaults[field.field_name] = value
-            elif field.field_name in subentry_data:
-                resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
-                entity_defaults[field.field_name] = [resolved or configurable_entity_id]
-            elif field.defaults is not None and field.defaults.mode == "value":
-                # Field not in stored data: use defaults.mode
-                entity_defaults[field.field_name] = [configurable_entity_id]
-            elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
-                entity_defaults[field.field_name] = [field.defaults.entity]
-            else:
-                entity_defaults[field.field_name] = []
-
-        return entity_defaults
-
-    def _build_step1_defaults(self, default_name: str, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Build default values for step 1 form.
-
-        Uses the InputFieldDefaults.mode to determine pre-selection:
-        - mode='value': Pre-select the configurable entity
-        - mode='entity': Pre-select the specified entity
-        - mode=None: No pre-selection (empty list)
-        """
-        configurable_entity_id = get_configurable_entity_id()
-
-        if subentry_data is None:
-            # First setup: pre-select based on defaults.mode (exclude partition fields)
-            defaults: dict[str, Any] = {}
-            for field in INPUT_FIELDS:
-                if field.field_name in PARTITION_FIELD_NAMES:
-                    continue
-                if field.defaults is not None and field.defaults.mode == "value":
-                    defaults[field.field_name] = [configurable_entity_id]
-                elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
-                    defaults[field.field_name] = [field.defaults.entity]
-                else:
-                    defaults[field.field_name] = []
-            defaults[CONF_NAME] = default_name
-            defaults[CONF_CONNECTION] = None
-            defaults[CONF_CONFIGURE_PARTITIONS] = False
-            return defaults
-
-        # Reconfigure: get entry/subentry IDs for resolving created entities
-        subentry = self._get_subentry()
-        entry = self._get_entry()
-        entry_id = entry.entry_id
-        subentry_id = subentry.subentry_id if subentry else ""
-
-        # Exclude partition fields from step 1 defaults
-        entity_defaults: dict[str, Any] = {}
-        for field in INPUT_FIELDS:
-            if field.field_name in PARTITION_FIELD_NAMES:
-                continue
-            value = subentry_data.get(field.field_name)
             if isinstance(value, list):
                 # Entity link: use stored entity IDs
-                entity_defaults[field.field_name] = value
-            elif field.field_name in subentry_data:
+                defaults[field.field_name] = value
+            elif subentry_data is not None and field.field_name in subentry_data:
                 # Scalar value: resolve to the HAEO-created entity
                 resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
-                entity_defaults[field.field_name] = [resolved or configurable_entity_id]
+                defaults[field.field_name] = [resolved or configurable_entity_id]
+            elif field.defaults is not None and field.defaults.mode == "value":
+                # Field not in stored data or first setup: use defaults.mode
+                defaults[field.field_name] = [configurable_entity_id]
+            elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
+                defaults[field.field_name] = [field.defaults.entity]
             else:
-                # Field not in stored data: empty selection (user cleared it)
-                entity_defaults[field.field_name] = []
+                defaults[field.field_name] = []
+
+        return defaults
+
+    def _build_partition_defaults(self, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Build default values for partition form."""
+        subentry = self._get_subentry()
+        entry = self._get_entry()
+        entry_id = entry.entry_id
+        subentry_id = subentry.subentry_id if subentry else ""
+
+        return self._build_field_entity_defaults(PARTITION_FIELDS, subentry_data, entry_id, subentry_id)
+
+    def _build_step1_defaults(self, default_name: str, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Build default values for step 1 form."""
+        subentry = self._get_subentry()
+        entry = self._get_entry()
+        entry_id = entry.entry_id
+        subentry_id = subentry.subentry_id if subentry else ""
+
+        # Filter out partition fields for step 1
+        step1_fields = [f for f in INPUT_FIELDS if f.field_name not in PARTITION_FIELD_NAMES]
+        entity_defaults = self._build_field_entity_defaults(step1_fields, subentry_data, entry_id, subentry_id)
 
         # Check if partitions were previously configured
-        has_partitions = any(subentry_data.get(fn) is not None for fn in PARTITION_FIELD_NAMES)
+        has_partitions = (
+            any(subentry_data.get(fn) is not None for fn in PARTITION_FIELD_NAMES) if subentry_data else False
+        )
 
         return {
-            CONF_NAME: subentry_data.get(CONF_NAME),
-            CONF_CONNECTION: subentry_data.get(CONF_CONNECTION),
+            CONF_NAME: subentry_data.get(CONF_NAME) if subentry_data else default_name,
+            CONF_CONNECTION: subentry_data.get(CONF_CONNECTION) if subentry_data else None,
             CONF_CONFIGURE_PARTITIONS: has_partitions,
             **entity_defaults,
         }
