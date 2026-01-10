@@ -150,8 +150,8 @@ async def test_load_with_limit_entity_lists(hass: HomeAssistant) -> None:
         "connection": "main_bus",
         "import_price": 0.30,
         "export_price": 0.05,
-        "import_limit": ["sensor.import_limit"],
-        "export_limit": ["sensor.export_limit"],
+        "import_limit": "sensor.import_limit",
+        "export_limit": "sensor.export_limit",
     }
 
     result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)

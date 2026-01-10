@@ -23,8 +23,8 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
     config: battery_section.BatterySectionConfigSchema = {
         "element_type": "battery_section",
         "name": "test_section",
-        "capacity": ["sensor.capacity"],
-        "initial_charge": ["sensor.initial"],
+        "capacity": "sensor.capacity",
+        "initial_charge": "sensor.initial",
     }
 
     result = battery_section.adapter.available(config, hass=hass)
@@ -39,8 +39,8 @@ async def test_available_returns_false_when_sensor_missing(hass: HomeAssistant) 
     config: battery_section.BatterySectionConfigSchema = {
         "element_type": "battery_section",
         "name": "test_section",
-        "capacity": ["sensor.capacity"],
-        "initial_charge": ["sensor.missing"],
+        "capacity": "sensor.capacity",
+        "initial_charge": "sensor.missing",
     }
 
     result = battery_section.adapter.available(config, hass=hass)
@@ -55,8 +55,8 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
     config: battery_section.BatterySectionConfigSchema = {
         "element_type": "battery_section",
         "name": "test_section",
-        "capacity": ["sensor.capacity"],
-        "initial_charge": ["sensor.initial"],
+        "capacity": "sensor.capacity",
+        "initial_charge": "sensor.initial",
     }
 
     result = await battery_section.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)

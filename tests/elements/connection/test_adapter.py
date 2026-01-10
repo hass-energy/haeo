@@ -42,12 +42,12 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
         "name": "c1",
         "source": "node_a",
         "target": "node_b",
-        "max_power_source_target": ["sensor.max_power_st"],
-        "max_power_target_source": ["sensor.max_power_ts"],
-        "efficiency_source_target": ["sensor.eff_st"],
-        "efficiency_target_source": ["sensor.eff_ts"],
-        "price_source_target": ["sensor.price_st"],
-        "price_target_source": ["sensor.price_ts"],
+        "max_power_source_target": "sensor.max_power_st",
+        "max_power_target_source": "sensor.max_power_ts",
+        "efficiency_source_target": "sensor.eff_st",
+        "efficiency_target_source": "sensor.eff_ts",
+        "price_source_target": "sensor.price_st",
+        "price_target_source": "sensor.price_ts",
     }
 
     result = connection.adapter.available(config, hass=hass)
@@ -64,8 +64,8 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
         "name": "c1",
         "source": "node_a",
         "target": "node_b",
-        "max_power_source_target": ["sensor.max_power_st"],
-        "max_power_target_source": ["sensor.missing"],
+        "max_power_source_target": "sensor.max_power_st",
+        "max_power_target_source": "sensor.missing",
     }
 
     result = connection.adapter.available(config, hass=hass)
@@ -86,12 +86,12 @@ async def test_load_with_all_optional_fields(hass: HomeAssistant) -> None:
         "name": "c1",
         "source": "node_a",
         "target": "node_b",
-        "max_power_source_target": ["sensor.max_power_st"],
-        "max_power_target_source": ["sensor.max_power_ts"],
-        "efficiency_source_target": ["sensor.eff_st"],
-        "efficiency_target_source": ["sensor.eff_ts"],
-        "price_source_target": ["sensor.price_st"],
-        "price_target_source": ["sensor.price_ts"],
+        "max_power_source_target": "sensor.max_power_st",
+        "max_power_target_source": "sensor.max_power_ts",
+        "efficiency_source_target": "sensor.eff_st",
+        "efficiency_target_source": "sensor.eff_ts",
+        "price_source_target": "sensor.price_st",
+        "price_target_source": "sensor.price_ts",
     }
 
     result = await connection.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)

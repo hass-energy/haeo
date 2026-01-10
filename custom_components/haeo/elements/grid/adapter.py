@@ -69,11 +69,14 @@ class GridAdapter:
         """Check if grid configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        # Helper to check entity list availability
-        def entities_available(value: list[str] | float | None) -> bool:
-            if not isinstance(value, list) or not value:
+        # Helper to check entity availability
+        def entities_available(value: list[str] | str | float | None) -> bool:
+            if value is None or isinstance(value, float | int):
                 return True  # Constants and missing values are always available
-            return ts_loader.available(hass=hass, value=value)
+            if isinstance(value, str):
+                return ts_loader.available(hass=hass, value=[value])
+            # At this point value is a list of strings
+            return ts_loader.available(hass=hass, value=value) if value else True
 
         return entities_available(config.get("import_price")) and entities_available(config.get("export_price"))
 

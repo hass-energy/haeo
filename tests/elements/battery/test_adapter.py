@@ -30,10 +30,10 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": ["sensor.capacity"],
-        "initial_charge_percentage": ["sensor.initial"],
-        "max_charge_power": ["sensor.max_charge"],
-        "max_discharge_power": ["sensor.max_discharge"],
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
+        "max_charge_power": "sensor.max_charge",
+        "max_discharge_power": "sensor.max_discharge",
     }
 
     result = battery.adapter.available(config, hass=hass)
@@ -51,10 +51,10 @@ async def test_available_returns_false_when_required_power_sensor_missing(hass: 
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": ["sensor.capacity"],
-        "initial_charge_percentage": ["sensor.initial"],
-        "max_charge_power": ["sensor.max_charge"],
-        "max_discharge_power": ["sensor.missing"],
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
+        "max_charge_power": "sensor.max_charge",
+        "max_discharge_power": "sensor.missing",
     }
 
     result = battery.adapter.available(config, hass=hass)
@@ -72,10 +72,10 @@ async def test_available_returns_false_when_required_sensor_missing(hass: HomeAs
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": ["sensor.capacity"],
-        "initial_charge_percentage": ["sensor.missing"],
-        "max_charge_power": ["sensor.max_charge"],
-        "max_discharge_power": ["sensor.max_discharge"],
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.missing",
+        "max_charge_power": "sensor.max_charge",
+        "max_discharge_power": "sensor.max_discharge",
     }
 
     result = battery.adapter.available(config, hass=hass)
@@ -93,10 +93,10 @@ async def test_load_returns_config_data(hass: HomeAssistant) -> None:
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": ["sensor.capacity"],
-        "initial_charge_percentage": ["sensor.initial"],
-        "max_charge_power": ["sensor.max_charge"],
-        "max_discharge_power": ["sensor.max_discharge"],
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
+        "max_charge_power": "sensor.max_charge",
+        "max_discharge_power": "sensor.max_discharge",
     }
 
     result = await battery.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
@@ -153,11 +153,11 @@ async def test_load_with_optional_time_series_fields(hass: HomeAssistant) -> Non
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": ["sensor.capacity"],
-        "initial_charge_percentage": ["sensor.initial"],
-        "max_charge_power": ["sensor.max_charge"],
-        "max_discharge_power": ["sensor.max_discharge"],
-        "discharge_cost": ["sensor.discharge_cost"],
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
+        "max_charge_power": "sensor.max_charge",
+        "max_discharge_power": "sensor.max_discharge",
+        "discharge_cost": "sensor.discharge_cost",
     }
 
     result = await battery.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
@@ -183,8 +183,8 @@ async def test_load_with_optional_scalar_fields(hass: HomeAssistant) -> None:
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": ["sensor.capacity"],
-        "initial_charge_percentage": ["sensor.initial"],
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
         "max_charge_power": 5.0,
         "max_discharge_power": 5.0,
         "early_charge_incentive": 0.005,
@@ -212,8 +212,8 @@ def test_build_config_data_applies_defaults_for_optional_fields() -> None:
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": ["sensor.capacity"],  # Will be ignored, using loaded_values
-        "initial_charge_percentage": ["sensor.initial"],  # Will be ignored
+        "capacity": "sensor.capacity",  # Will be ignored, using loaded_values
+        "initial_charge_percentage": "sensor.initial",  # Will be ignored
     }
 
     # Only provide required fields, no optional fields with defaults
@@ -240,8 +240,8 @@ def test_build_config_data_uses_provided_values_over_defaults() -> None:
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": ["sensor.capacity"],
-        "initial_charge_percentage": ["sensor.initial"],
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
     }
 
     loaded_values = {
@@ -267,8 +267,8 @@ def test_build_config_data_includes_optional_fields_without_defaults() -> None:
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": ["sensor.capacity"],
-        "initial_charge_percentage": ["sensor.initial"],
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
     }
 
     loaded_values = {
@@ -293,8 +293,8 @@ def test_build_config_data_omits_optional_fields_not_provided() -> None:
         "element_type": "battery",
         "name": "test_battery",
         "connection": "main_bus",
-        "capacity": ["sensor.capacity"],
-        "initial_charge_percentage": ["sensor.initial"],
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
     }
 
     loaded_values = {
@@ -318,8 +318,8 @@ def test_build_config_data_preserves_non_input_fields_from_config() -> None:
         "element_type": "battery",
         "name": "my_battery",
         "connection": "dc_bus",
-        "capacity": ["sensor.capacity"],
-        "initial_charge_percentage": ["sensor.initial"],
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
     }
 
     loaded_values = {

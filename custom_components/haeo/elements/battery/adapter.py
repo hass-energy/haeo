@@ -104,16 +104,17 @@ class BatteryAdapter:
         """Check if battery configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        # Helper to check entity list availability
-        def entities_available(value: list[str] | float | None) -> bool:
-            if not isinstance(value, list) or not value:
+        # Helper to check entity availability
+        def entity_available(value: str | float | None) -> bool:
+            if value is None or isinstance(value, float | int):
                 return True  # Constants and missing values are always available
-            return ts_loader.available(hass=hass, value=value)
+            # Single entity ID string
+            return ts_loader.available(hass=hass, value=[value])
 
         # Check required fields
-        if not entities_available(config.get("capacity")):
+        if not entity_available(config.get("capacity")):
             return False
-        if not entities_available(config.get("initial_charge_percentage")):
+        if not entity_available(config.get("initial_charge_percentage")):
             return False
 
         # Check optional time series fields if present
@@ -130,7 +131,7 @@ class BatteryAdapter:
             CONF_UNDERCHARGE_PERCENTAGE,
             CONF_OVERCHARGE_PERCENTAGE,
         ]
-        return all(entities_available(config.get(field)) for field in optional_fields)  # type: ignore[arg-type]
+        return all(entity_available(config.get(field)) for field in optional_fields)
 
     def build_config_data(
         self,
