@@ -234,14 +234,26 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_partition_defaults(self, subentry_data: dict[str, Any] | None = None) -> dict[str, Any]:
         """Build default values for partition form.
 
-        All partition fields have defaults.mode='value', so they pre-select the
-        configurable entity by default. Entity links are preserved during reconfigure.
+        Uses the InputFieldDefaults.mode to determine pre-selection:
+        - mode='value': Pre-select the configurable entity
+        - mode='entity': Pre-select the specified entity
+        - mode=None: No pre-selection (empty list)
+
+        Entity links are preserved during reconfigure.
         """
         configurable_entity_id = get_configurable_entity_id()
 
         if subentry_data is None:
-            # First setup: all partition fields have mode='value'
-            return {field.field_name: [configurable_entity_id] for field in PARTITION_FIELDS}
+            # First setup: pre-select based on defaults.mode
+            defaults: dict[str, Any] = {}
+            for field in PARTITION_FIELDS:
+                if field.defaults is not None and field.defaults.mode == "value":
+                    defaults[field.field_name] = [configurable_entity_id]
+                elif field.defaults is not None and field.defaults.mode == "entity" and field.defaults.entity:
+                    defaults[field.field_name] = [field.defaults.entity]
+                else:
+                    defaults[field.field_name] = []
+            return defaults
 
         # Reconfigure: get entry/subentry IDs for resolving created entities
         subentry = self._get_subentry()
@@ -258,8 +270,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 resolved = resolve_configurable_entity_id(entry_id, subentry_id, field.field_name)
                 entity_defaults[field.field_name] = [resolved or configurable_entity_id]
             else:
-                # Field not previously configured - default to configurable entity
-                entity_defaults[field.field_name] = [configurable_entity_id]
+                # Field not in stored data: empty selection (user cleared it)
+                entity_defaults[field.field_name] = []
 
         return entity_defaults
 
