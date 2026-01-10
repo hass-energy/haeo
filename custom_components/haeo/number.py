@@ -54,12 +54,12 @@ async def async_setup_entry(
             if field_info.field_name not in subentry.data:
                 continue
 
-            # Get or create device for this field (may be sub-device based on device_name)
+            # Get or create device for this field (may be sub-device based on device_type)
             device_entry = get_or_create_device(
                 hass=hass,
                 config_entry=config_entry,
                 subentry=subentry,
-                device_name=field_info.device_name,
+                device_name=field_info.device_type,
             )
 
             entity = HaeoInputNumber(

@@ -24,9 +24,10 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         time_series: Whether this field is time series (list) or scalar
         boundaries: Whether time series values are at boundaries (n+1 values) vs intervals (n values)
         default: Default value for editable entities when no restored state exists
-        device_name: Device name for sub-device association. If None, uses main element device.
+        device_type: Device type for sub-device association. If None, uses main element device.
             For partition-specific inputs (e.g., undercharge cost), set to the partition's
-            device name like "battery_device_undercharge".
+            device type like "battery_device_undercharge". This is combined with the
+            element name to form the actual device identifier.
 
     Note:
         Whether a field is optional (can be disabled in config flow) is determined
@@ -42,7 +43,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     time_series: bool = False
     boundaries: bool = False
     default: float | bool | None = None
-    device_name: str | None = None
+    device_type: str | None = None
 
 
 __all__ = [

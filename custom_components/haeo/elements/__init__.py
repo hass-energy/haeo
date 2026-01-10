@@ -191,7 +191,7 @@ class ElementAdapter(Protocol):
         Returns:
             Tuple of InputFieldInfo for fields that should become input entities.
             Each InputFieldInfo specifies the field name, entity description,
-            output type, and device name for the input entity.
+            output type, and device_type for sub-device association.
 
         """
         ...

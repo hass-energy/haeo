@@ -286,7 +286,7 @@ class BatteryAdapter:
                 output_type=OutputType.STATE_OF_CHARGE,
                 time_series=True,
                 boundaries=True,
-                device_name="battery_device_undercharge",
+                device_type="battery_device_undercharge",
             ),
             InputFieldInfo(
                 field_name=CONF_OVERCHARGE_PERCENTAGE,
@@ -302,7 +302,7 @@ class BatteryAdapter:
                 output_type=OutputType.STATE_OF_CHARGE,
                 time_series=True,
                 boundaries=True,
-                device_name="battery_device_overcharge",
+                device_type="battery_device_overcharge",
             ),
             InputFieldInfo(
                 field_name=CONF_UNDERCHARGE_COST,
@@ -316,7 +316,7 @@ class BatteryAdapter:
                 output_type=OutputType.PRICE,
                 direction="-",
                 time_series=True,
-                device_name="battery_device_undercharge",
+                device_type="battery_device_undercharge",
             ),
             InputFieldInfo(
                 field_name=CONF_OVERCHARGE_COST,
@@ -330,7 +330,7 @@ class BatteryAdapter:
                 output_type=OutputType.PRICE,
                 direction="-",
                 time_series=True,
-                device_name="battery_device_overcharge",
+                device_type="battery_device_overcharge",
             ),
         )
 

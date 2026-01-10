@@ -191,7 +191,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
         boundaries=True,
-        device_name="battery_device_undercharge",
+        device_type="battery_device_undercharge",
     ),
     InputFieldInfo(
         field_name=CONF_OVERCHARGE_PERCENTAGE,
@@ -207,7 +207,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
         boundaries=True,
-        device_name="battery_device_overcharge",
+        device_type="battery_device_overcharge",
     ),
     InputFieldInfo(
         field_name=CONF_UNDERCHARGE_COST,
@@ -221,7 +221,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
-        device_name="battery_device_undercharge",
+        device_type="battery_device_undercharge",
     ),
     InputFieldInfo(
         field_name=CONF_OVERCHARGE_COST,
@@ -235,7 +235,7 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.PRICE,
         direction="-",
         time_series=True,
-        device_name="battery_device_overcharge",
+        device_type="battery_device_overcharge",
     ),
 )
 
