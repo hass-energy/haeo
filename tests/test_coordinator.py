@@ -1032,9 +1032,7 @@ def test_load_from_input_entities_loads_time_series_fields(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Get the battery subentry config
-    battery_subentry = next(
-        s for s in mock_hub_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_BATTERY
-    )
+    battery_subentry = next(s for s in mock_hub_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_BATTERY)
 
     # Create mock input entities for all required fields
     from custom_components.haeo.elements import get_input_fields  # noqa: PLC0415
