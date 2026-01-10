@@ -488,6 +488,28 @@ async def test_step1_defaults_entity_mode(hass: HomeAssistant, hub_entry: MockCo
     assert defaults[CONF_MAX_CHARGE_PERCENTAGE] == []
 
 
+async def test_build_field_entity_defaults_entity_mode(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """_build_field_entity_defaults with mode='entity' pre-selects the specified entity."""
+    from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+    from homeassistant.components.number import NumberEntityDescription
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    # Create a mock field with mode='entity'
+    mock_field = InputFieldInfo(
+        field_name="test_field",
+        entity_description=NumberEntityDescription(key="test_field"),
+        output_type=None,
+        defaults=InputFieldDefaults(mode="entity", entity="sensor.my_preset_entity"),
+    )
+
+    # Call the internal method with the mock field
+    defaults = flow._build_field_entity_defaults([mock_field], None, entry_id="test_entry", subentry_id="test_subentry")
+
+    # Should pre-select the entity specified in defaults.entity
+    assert defaults["test_field"] == ["sensor.my_preset_entity"]
+
+
 async def test_partition_flow_skips_step2_when_no_configurable_fields(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """When no configurable entity is selected, step 2 is skipped, goes to partitions."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
