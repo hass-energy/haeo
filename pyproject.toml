@@ -99,6 +99,7 @@ pythonVersion = "3.13"
 typeCheckingMode = "strict"
 stubPath = "stubs"
 include = ["tests", "custom_components"]
+exclude = ["custom_components/hacs"]
 extraPaths = ["."]
 
 # Disable errors that propagate from third-party incomplete types

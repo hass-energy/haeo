@@ -492,6 +492,7 @@ async def test_step1_defaults_entity_mode(hass: HomeAssistant, hub_entry: MockCo
 async def test_build_field_entity_defaults_entity_mode(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """_build_field_entity_defaults with mode='entity' pre-selects the specified entity."""
     from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+    from custom_components.haeo.model.const import OutputType
     from homeassistant.components.number import NumberEntityDescription
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
@@ -500,7 +501,7 @@ async def test_build_field_entity_defaults_entity_mode(hass: HomeAssistant, hub_
     mock_field = InputFieldInfo(
         field_name="test_field",
         entity_description=NumberEntityDescription(key="test_field"),
-        output_type=None,
+        output_type=OutputType.POWER,
         defaults=InputFieldDefaults(mode="entity", entity="sensor.my_preset_entity"),
     )
 
