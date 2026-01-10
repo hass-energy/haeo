@@ -61,6 +61,23 @@ async def test_available_returns_false_when_required_power_sensor_missing(hass: 
     assert result is False
 
 
+async def test_available_returns_false_when_capacity_sensor_missing(hass: HomeAssistant) -> None:
+    """Battery available() returns False when capacity sensor is missing."""
+    _set_sensor(hass, "sensor.initial", "50.0", "%")
+    # capacity sensor is missing
+
+    config: battery.BatteryConfigSchema = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
+        "capacity": "sensor.missing_capacity",
+        "initial_charge_percentage": "sensor.initial",
+    }
+
+    result = battery.adapter.available(config, hass=hass)
+    assert result is False
+
+
 async def test_available_returns_false_when_required_sensor_missing(hass: HomeAssistant) -> None:
     """Battery available() should return False when a required sensor is missing."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
@@ -80,6 +97,67 @@ async def test_available_returns_false_when_required_sensor_missing(hass: HomeAs
 
     result = battery.adapter.available(config, hass=hass)
     assert result is False
+
+
+async def test_available_with_list_entity_ids_all_exist(hass: HomeAssistant) -> None:
+    """Battery available() returns True when list[str] entity IDs all exist."""
+    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
+    _set_sensor(hass, "sensor.initial", "50.0", "%")
+    _set_sensor(hass, "sensor.discharge_cost_1", "0.05", "$/kWh")
+    _set_sensor(hass, "sensor.discharge_cost_2", "0.06", "$/kWh")
+
+    config: battery.BatteryConfigSchema = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
+        # List of entity IDs for chained forecasts
+        "discharge_cost": ["sensor.discharge_cost_1", "sensor.discharge_cost_2"],
+    }
+
+    result = battery.adapter.available(config, hass=hass)
+    assert result is True
+
+
+async def test_available_with_list_entity_ids_one_missing(hass: HomeAssistant) -> None:
+    """Battery available() returns False when list[str] entity ID has one missing."""
+    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
+    _set_sensor(hass, "sensor.initial", "50.0", "%")
+    _set_sensor(hass, "sensor.discharge_cost_1", "0.05", "$/kWh")
+    # sensor.discharge_cost_2 is missing
+
+    config: battery.BatteryConfigSchema = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
+        # List of entity IDs where one is missing
+        "discharge_cost": ["sensor.discharge_cost_1", "sensor.missing"],
+    }
+
+    result = battery.adapter.available(config, hass=hass)
+    assert result is False
+
+
+async def test_available_with_empty_list_returns_true(hass: HomeAssistant) -> None:
+    """Battery available() returns True when list[str] is empty."""
+    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
+    _set_sensor(hass, "sensor.initial", "50.0", "%")
+
+    # This tests the `if value else True` branch for empty lists
+    config: battery.BatteryConfigSchema = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": "main_bus",
+        "capacity": "sensor.capacity",
+        "initial_charge_percentage": "sensor.initial",
+        "discharge_cost": [],  # Empty list
+    }
+
+    result = battery.adapter.available(config, hass=hass)
+    assert result is True
 
 
 async def test_load_returns_config_data(hass: HomeAssistant) -> None:

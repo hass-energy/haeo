@@ -32,6 +32,7 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
 )
+from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics
 from custom_components.haeo.elements import ELEMENT_TYPE_BATTERY
@@ -45,7 +46,13 @@ from custom_components.haeo.elements.battery import (
     CONF_MAX_DISCHARGE_POWER,
     CONF_MIN_CHARGE_PERCENTAGE,
 )
-from custom_components.haeo.elements.grid import CONF_IMPORT_PRICE, GRID_POWER_IMPORT
+from custom_components.haeo.elements.grid import (
+    CONF_EXPORT_PRICE,
+    CONF_IMPORT_PRICE,
+    GRID_POWER_IMPORT,
+)
+from custom_components.haeo.entities.haeo_number import ConfigEntityMode, HaeoInputNumber
+from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 from custom_components.haeo.model import OutputType
 
 
@@ -280,7 +287,9 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
             {
                 CONF_ELEMENT_TYPE: "grid",
                 CONF_NAME: "Grid",
-                CONF_IMPORT_PRICE: ["sensor.grid_import_price"],
+                CONF_CONNECTION: "Main Bus",
+                CONF_IMPORT_PRICE: ["sensor.grid_import_price", "sensor.grid_import_forecast"],
+                CONF_EXPORT_PRICE: 0.08,
             }
         ),
         subentry_type="grid",
@@ -293,6 +302,13 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     hass.states.async_set(
         "sensor.grid_import_price",
         "0.25",
+        {
+            "unit_of_measurement": "$/kWh",
+        },
+    )
+    hass.states.async_set(
+        "sensor.grid_import_forecast",
+        "0.30",
         {
             "unit_of_measurement": "$/kWh",
         },
@@ -345,3 +361,204 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     )
     assert output_entity is not None
     assert output_entity["state"] == "5.5"
+
+    # Verify that list[str] entity IDs are collected from chained price config
+    inputs = diagnostics["inputs"]
+    entity_ids = [inp["entity_id"] for inp in inputs]
+    assert "sensor.grid_import_price" in entity_ids
+    assert "sensor.grid_import_forecast" in entity_ids
+
+
+async def test_diagnostics_captures_editable_entity_values(hass: HomeAssistant) -> None:
+    """Diagnostics captures current values from editable input entities."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery One",
+                CONF_CAPACITY: 10.0,  # Constant value - creates editable entity
+                CONF_CONNECTION: "DC Bus",
+                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,  # Constant - creates editable entity
+                CONF_MAX_CHARGE_POWER: 5.0,
+                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery One",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Create mock editable input entities with current values
+    mock_number = Mock(spec=HaeoInputNumber)
+    mock_number.entity_mode = ConfigEntityMode.EDITABLE
+    mock_number.native_value = 12.5  # Current value differs from config
+
+    mock_switch = Mock(spec=HaeoInputSwitch)
+    mock_switch.entity_mode = ConfigEntityMode.EDITABLE
+    mock_switch.is_on = True
+
+    # Create HaeoRuntimeData with input entities
+    runtime_data = HaeoRuntimeData(
+        horizon_manager=Mock(),
+        input_entities={
+            ("Battery One", CONF_CAPACITY): mock_number,
+            ("Battery One", "some_boolean_field"): mock_switch,
+        },
+    )
+    entry.runtime_data = runtime_data
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    # Verify that editable entity values are captured in config
+    battery_config = diagnostics["config"]["participants"]["Battery One"]
+    assert battery_config[CONF_CAPACITY] == 12.5  # Current entity value, not config value
+    assert battery_config["some_boolean_field"] is True
+
+
+async def test_diagnostics_skips_unknown_element_in_input_entities(hass: HomeAssistant) -> None:
+    """Diagnostics skips input entities for elements not in participants."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery One",
+                CONF_CAPACITY: 10.0,
+                CONF_CONNECTION: "DC Bus",
+                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
+                CONF_MAX_CHARGE_POWER: 5.0,
+                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery One",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Create input entity for an element that doesn't exist in participants
+    mock_number = Mock(spec=HaeoInputNumber)
+    mock_number.entity_mode = ConfigEntityMode.EDITABLE
+    mock_number.native_value = 99.9
+
+    runtime_data = HaeoRuntimeData(
+        horizon_manager=Mock(),
+        input_entities={
+            # This element doesn't exist in participants
+            ("Unknown Element", CONF_CAPACITY): mock_number,
+        },
+    )
+    entry.runtime_data = runtime_data
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    # Verify that Battery One exists unchanged (unknown element was skipped)
+    battery_config = diagnostics["config"]["participants"]["Battery One"]
+    assert battery_config[CONF_CAPACITY] == 10.0  # Original config value preserved
+
+
+async def test_diagnostics_skips_driven_entity_values(hass: HomeAssistant) -> None:
+    """Diagnostics skips sensor-driven entities and keeps config value."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
+            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE_BATTERY,
+                CONF_NAME: "Battery One",
+                CONF_CAPACITY: "sensor.battery_capacity",  # Entity ID - creates driven entity
+                CONF_CONNECTION: "DC Bus",
+                CONF_INITIAL_CHARGE_PERCENTAGE: 50.0,
+                CONF_MAX_CHARGE_POWER: 5.0,
+                CONF_MAX_DISCHARGE_POWER: 5.0,
+                CONF_MIN_CHARGE_PERCENTAGE: 10.0,
+                CONF_MAX_CHARGE_PERCENTAGE: 90.0,
+                CONF_EFFICIENCY: 95.0,
+            }
+        ),
+        subentry_type=ELEMENT_TYPE_BATTERY,
+        title="Battery One",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    # Create mock driven input entity
+    mock_number = Mock(spec=HaeoInputNumber)
+    mock_number.entity_mode = ConfigEntityMode.DRIVEN  # Driven by external sensor
+    mock_number.native_value = 15.0
+
+    # Create HaeoRuntimeData with input entities
+    runtime_data = HaeoRuntimeData(
+        horizon_manager=Mock(),
+        input_entities={
+            ("Battery One", CONF_CAPACITY): mock_number,
+        },
+    )
+    entry.runtime_data = runtime_data
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    # Verify that driven entity value is NOT captured - config value preserved
+    battery_config = diagnostics["config"]["participants"]["Battery One"]
+    assert battery_config[CONF_CAPACITY] == "sensor.battery_capacity"  # Original config value
