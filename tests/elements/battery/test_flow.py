@@ -588,6 +588,67 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
     assert defaults[CONF_OVERCHARGE_COST] == [configurable_entity_id]
 
 
+async def test_partition_values_step_completes_flow(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """Partition values step with valid input creates entry."""
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    configurable_entity_id = get_configurable_entity_id()
+
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}})
+
+    # Step 1: Entity selection with partitions enabled
+    step1_input = {
+        CONF_NAME: "Test Battery",
+        CONF_CONNECTION: "main_bus",
+        CONF_CAPACITY: [configurable_entity_id],
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+        CONF_MIN_CHARGE_PERCENTAGE: [],
+        CONF_MAX_CHARGE_PERCENTAGE: [],
+        CONF_EFFICIENCY: [],
+        CONF_MAX_CHARGE_POWER: [configurable_entity_id],
+        CONF_MAX_DISCHARGE_POWER: [configurable_entity_id],
+        CONF_EARLY_CHARGE_INCENTIVE: [],
+        CONF_DISCHARGE_COST: [],
+        CONF_CONFIGURE_PARTITIONS: True,
+    }
+    await flow.async_step_user(user_input=step1_input)
+
+    # Step 2: Configurable values
+    step2_input = {
+        CONF_CAPACITY: 10.0,
+        CONF_MAX_CHARGE_POWER: 5.0,
+        CONF_MAX_DISCHARGE_POWER: 5.0,
+    }
+    await flow.async_step_values(user_input=step2_input)
+
+    # Step 3: Partition entity selections - select configurable for undercharge_percentage
+    partition_input = {
+        CONF_UNDERCHARGE_PERCENTAGE: [configurable_entity_id],
+        CONF_OVERCHARGE_PERCENTAGE: ["sensor.overcharge_pct"],
+        CONF_UNDERCHARGE_COST: [],
+        CONF_OVERCHARGE_COST: [],
+    }
+    result = await flow.async_step_partitions(user_input=partition_input)
+
+    # Should proceed to partition_values step
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "partition_values"
+
+    # Step 4: Partition values - provide value for the configurable field
+    partition_values_input = {
+        CONF_UNDERCHARGE_PERCENTAGE: 5.0,
+    }
+    result = await flow.async_step_partition_values(user_input=partition_values_input)
+
+    # Should create entry successfully
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+    # Verify the created config
+    created_data = flow.async_create_entry.call_args.kwargs["data"]
+    assert created_data[CONF_UNDERCHARGE_PERCENTAGE] == 5.0
+    assert created_data[CONF_OVERCHARGE_PERCENTAGE] == ["sensor.overcharge_pct"]
+
+
 async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Reconfigure flow completes and updates existing battery."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
