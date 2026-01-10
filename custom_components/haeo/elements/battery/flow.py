@@ -209,9 +209,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             )
             return self._finalize(config)
 
-        schema = build_configurable_value_schema(
-            PARTITION_FIELDS, self._partition_entity_selections, current_data
-        )
+        schema = build_configurable_value_schema(PARTITION_FIELDS, self._partition_entity_selections, current_data)
 
         # Skip step 4 if no configurable fields need input
         if not schema.schema:
@@ -228,9 +226,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             )
             return self._finalize(config)
 
-        defaults = get_configurable_value_defaults(
-            PARTITION_FIELDS, self._partition_entity_selections, current_data
-        )
+        defaults = get_configurable_value_defaults(PARTITION_FIELDS, self._partition_entity_selections, current_data)
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(step_id="partition_values", data_schema=schema, errors=errors)
