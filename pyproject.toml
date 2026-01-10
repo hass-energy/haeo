@@ -37,6 +37,7 @@ dev = [
 required-version = ">=0.14.0"
 line-length = 120
 target-version = "py313"
+exclude = ["custom_components/hacs"]
 
 [tool.ruff.lint]
 # Enable ALL rules and selectively ignore overly strict ones
