@@ -188,6 +188,19 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         boundaries=True,
     ),
     InputFieldInfo(
+        field_name=CONF_UNDERCHARGE_COST,
+        entity_description=NumberEntityDescription(
+            key=CONF_UNDERCHARGE_COST,
+            translation_key=f"{ELEMENT_TYPE}_{CONF_UNDERCHARGE_COST}",
+            native_min_value=0.0,
+            native_max_value=10.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        direction="-",
+        time_series=True,
+    ),
+    InputFieldInfo(
         field_name=CONF_OVERCHARGE_PERCENTAGE,
         entity_description=NumberEntityDescription(
             key=CONF_OVERCHARGE_PERCENTAGE,
@@ -201,19 +214,6 @@ INPUT_FIELDS: Final[tuple[InputFieldInfo[NumberEntityDescription], ...]] = (
         output_type=OutputType.STATE_OF_CHARGE,
         time_series=True,
         boundaries=True,
-    ),
-    InputFieldInfo(
-        field_name=CONF_UNDERCHARGE_COST,
-        entity_description=NumberEntityDescription(
-            key=CONF_UNDERCHARGE_COST,
-            translation_key=f"{ELEMENT_TYPE}_{CONF_UNDERCHARGE_COST}",
-            native_min_value=0.0,
-            native_max_value=10.0,
-            native_step=0.001,
-        ),
-        output_type=OutputType.PRICE,
-        direction="-",
-        time_series=True,
     ),
     InputFieldInfo(
         field_name=CONF_OVERCHARGE_COST,
