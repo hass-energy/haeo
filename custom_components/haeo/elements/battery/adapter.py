@@ -104,12 +104,14 @@ class BatteryAdapter:
         """Check if battery configuration can be loaded."""
         ts_loader = TimeSeriesLoader()
 
-        # Helper to check entity availability
-        def entity_available(value: str | float | None) -> bool:
+        # Helper to check entity availability (handles all config value types)
+        def entity_available(value: list[str] | str | float | None) -> bool:
             if value is None or isinstance(value, float | int):
                 return True  # Constants and missing values are always available
-            # Single entity ID string
-            return ts_loader.available(hass=hass, value=[value])
+            if isinstance(value, str):
+                return ts_loader.available(hass=hass, value=[value])
+            # list[str] for entity chaining
+            return ts_loader.available(hass=hass, value=value) if value else True
 
         # Check required fields
         if not entity_available(config.get("capacity")):
