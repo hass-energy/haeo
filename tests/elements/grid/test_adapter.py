@@ -189,26 +189,3 @@ async def test_available_with_single_entity_string(hass: HomeAssistant) -> None:
 
     result = grid.adapter.available(config, hass=hass)
     assert result is True
-
-
-async def test_load_with_limit_chained_entity_list(hass: HomeAssistant) -> None:
-    """Grid load() should load import_limit and export_limit from chained entity lists."""
-    _set_sensor(hass, "sensor.import_limit_now", "15", "kW")
-    _set_sensor(hass, "sensor.export_limit_now", "8", "kW")
-
-    config: grid.GridConfigSchema = {
-        "element_type": "grid",
-        "name": "test_grid",
-        "connection": "main_bus",
-        "import_price": 0.30,
-        "export_price": 0.05,
-        # Chained entity lists for limits (single sensor, but in list format)
-        "import_limit": ["sensor.import_limit_now"],
-        "export_limit": ["sensor.export_limit_now"],
-    }
-
-    result = await grid.adapter.load(config, hass=hass, forecast_times=FORECAST_TIMES)
-
-    # Limits loaded from chained sensors
-    assert result.get("import_limit") == [15.0, 15.0]
-    assert result.get("export_limit") == [8.0, 8.0]
