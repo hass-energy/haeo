@@ -455,17 +455,28 @@ def convert_entity_selections_to_config(
             if field_name in configurable_values:
                 config[field_name] = configurable_values[field_name]
             # If configurable entity is selected but no value provided, skip (validation should catch this)
-        elif any(is_haeo_input_entity(entity_id) for entity_id in entities):
-            # HAEO input entity kept selected - preserve original scalar value
-            if current_data is not None and field_name in current_data:
+        elif haeo_entity_id := next((entity_id for entity_id in entities if is_haeo_input_entity(entity_id)), None):
+            # HAEO input entity kept selected - get current value from entity state
+            # This is a placeholder meaning "keep current value", so we extract
+            # the float from the entity's state, not the entity ID itself
+            hass = async_get_hass()
+            state = hass.states.get(haeo_entity_id)
+            if state is not None and state.state not in ("unavailable", "unknown"):
+                try:
+                    config[field_name] = float(state.state)
+                except (ValueError, TypeError):
+                    # State is not a valid float - fall back to entity selection
+                    config[field_name] = _normalize_entity_selection(entities)
+            elif current_data is not None and field_name in current_data:
+                # Entity unavailable - try to use stored value as fallback
                 current_value = current_data[field_name]
-                if isinstance(current_value, (float, int, bool)):
-                    config[field_name] = current_value
+                if isinstance(current_value, (float, int)):
+                    config[field_name] = float(current_value)
                 else:
-                    # Unexpected: HAEO input entity but no scalar in current_data
+                    # Stored value is also not a scalar - cannot resolve
                     config[field_name] = _normalize_entity_selection(entities)
             else:
-                # No current_data - shouldn't happen but fall back to entity selection
+                # No state and no current_data - fall back to entity selection
                 config[field_name] = _normalize_entity_selection(entities)
         else:
             # Real external entities - single entity as str, multiple as list
