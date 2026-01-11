@@ -1,0 +1,89 @@
+{
+  "tier_1_count": 5,
+  "tier_1_duration": 1,
+  "tier_2_count": 11,
+  "tier_2_duration": 5,
+  "tier_3_count": 46,
+  "tier_3_duration": 30,
+  "tier_4_count": 48,
+  "tier_4_duration": 60,
+  "participants": {
+    "AC Net": {
+      "name": "AC Net",
+      "element_type": "node"
+    },
+    "Battery": {
+      "name": "Battery",
+      "element_type": "battery",
+      "capacity": "sensor.sigen_plant_rated_energy_capacity",
+      "connection": "DC Net",
+      "discharge_cost": 0.01,
+      "early_charge_incentive": 0.001,
+      "efficiency": 99.0,
+      "initial_charge_percentage": "sensor.sigen_plant_battery_state_of_charge",
+      "max_charge_percentage": 100.0,
+      "max_charge_power": "sensor.sigen_plant_ess_rated_charging_power",
+      "max_discharge_power": "sensor.sigen_plant_ess_rated_discharging_power",
+      "min_charge_percentage": 10.0
+    },
+    "DC Net": {
+      "name": "DC Net",
+      "element_type": "node"
+    },
+    "Grid": {
+      "name": "Grid",
+      "element_type": "grid",
+      "connection": "AC Net",
+      "export_limit": 30.0,
+      "export_price": ["sensor.home_feed_in_forecast", "sensor.home_feed_in_price"],
+      "import_limit": 55.0,
+      "import_price": ["sensor.home_general_price", "sensor.home_general_forecast"]
+    },
+    "Inverter": {
+      "name": "Inverter",
+      "element_type": "connection",
+      "max_power_source_target": "input_number.inverter_power",
+      "max_power_target_source": "input_number.inverter_power",
+      "source": "AC Net",
+      "target": "DC Net"
+    },
+    "Load": {
+      "name": "Load",
+      "element_type": "load",
+      "connection": "AC Net",
+      "forecast": "sensor.load_power_forecast"
+    },
+    "Solar": {
+      "name": "Solar",
+      "element_type": "photovoltaics",
+      "connection": "DC Net",
+      "curtailment": true,
+      "forecast": [
+        "sensor.energy_production_d3_east",
+        "sensor.energy_production_d4_east",
+        "sensor.energy_production_d5_east",
+        "sensor.energy_production_d6_east",
+        "sensor.energy_production_d7_east",
+        "sensor.energy_production_d2_east",
+        "sensor.energy_production_today_east",
+        "sensor.energy_production_tomorrow_east",
+        "sensor.energy_production_d3_north",
+        "sensor.energy_production_d4_north",
+        "sensor.energy_production_d5_north",
+        "sensor.energy_production_d6_north",
+        "sensor.energy_production_d7_north",
+        "sensor.energy_production_d2_north",
+        "sensor.energy_production_today_north",
+        "sensor.energy_production_tomorrow_north",
+        "sensor.energy_production_d3_south",
+        "sensor.energy_production_d4_south",
+        "sensor.energy_production_d5_south",
+        "sensor.energy_production_d6_south",
+        "sensor.energy_production_d7_south",
+        "sensor.energy_production_d2_south",
+        "sensor.energy_production_today_south",
+        "sensor.energy_production_tomorrow_south"
+      ]
+    }
+  }
+}
