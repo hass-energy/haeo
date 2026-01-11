@@ -319,7 +319,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         try:
             element_config = self._load_element_config(element_name)
         except ValueError as err:
-            _LOGGER.error(
+            _LOGGER.exception(
                 "Failed to load config for element %s due to invalid input entities: %s",
                 element_name,
                 err,
