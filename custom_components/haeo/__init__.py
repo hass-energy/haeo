@@ -238,9 +238,6 @@ async def async_remove_config_entry_device(
     """Handle cleanup of stale devices when elements are removed from the HAEO network.
 
     Returns True if device can be removed, False if it should be kept.
-
-    Device identifiers follow this pattern:
-    (DOMAIN, f"{entry_id}_{subentry_id}_{device_name}")
     """
     device_registry = dr.async_get(hass)
     if device_registry.async_get(device_entry.id) is None:
