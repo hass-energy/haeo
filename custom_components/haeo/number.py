@@ -31,7 +31,8 @@ async def async_setup_entry(
     runtime_data = config_entry.runtime_data
     horizon_manager = runtime_data.horizon_manager
 
-    entities: list[HaeoInputNumber] = []
+    # List of (entity, element_name, field_name) tuples for registration
+    entities: list[tuple[HaeoInputNumber, str, str]] = []
 
     for subentry in config_entry.subentries.values():
         # Skip non-element subentries (e.g., network)
@@ -66,15 +67,18 @@ async def async_setup_entry(
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,
             )
-            entities.append(entity)
-
-            # Register in runtime_data for coordinator access
+            # Store entity with its key for registration after async_add_entities
             element_name = subentry.title
             field_name = field_info.field_name
-            runtime_data.input_entities[(element_name, field_name)] = entity
+            entities.append((entity, element_name, field_name))
 
     if entities:
         _LOGGER.debug("Creating %d number entities for HAEO inputs", len(entities))
-        async_add_entities(entities)
+        async_add_entities([entity for entity, _, _ in entities])
+
+        # Register in runtime_data AFTER async_add_entities completes
+        # This ensures entities are added to HA before coordinator tries to watch them
+        for entity, element_name, field_name in entities:
+            runtime_data.input_entities[(element_name, field_name)] = entity
     else:
         _LOGGER.debug("No number entities to create for entry %s", config_entry.entry_id)

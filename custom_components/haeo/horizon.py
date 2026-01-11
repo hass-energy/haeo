@@ -75,6 +75,8 @@ class HorizonManager:
         if self._unsub_timer is not None:
             self._unsub_timer()
             self._unsub_timer = None
+        # Clear all subscribers to prevent stale callbacks during reload
+        self._subscribers.clear()
 
     def _schedule_next_update(self) -> None:
         """Schedule the next horizon update at the next period boundary."""

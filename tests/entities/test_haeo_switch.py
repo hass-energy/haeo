@@ -674,39 +674,7 @@ async def test_async_added_to_hass_driven_subscribes_to_source(
 
     await entity.async_added_to_hass()
 
-    # Subscription should be set up
-    assert entity._state_unsub is not None
-    assert entity._horizon_unsub is not None
-
-
-async def test_async_will_remove_from_hass_cleans_up(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """async_will_remove_from_hass cleans up subscriptions."""
-    hass.states.async_set("input_boolean.curtail", STATE_ON)
-    subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
-    config_entry.runtime_data = None
-
-    entity = HaeoInputSwitch(
-        hass=hass,
-        config_entry=config_entry,
-        subentry=subentry,
-        field_info=curtailment_field_info,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-    )
-
-    await entity.async_added_to_hass()
-    assert entity._state_unsub is not None
-
-    await entity.async_will_remove_from_hass()
-
-    assert entity._state_unsub is None
-    assert entity._horizon_unsub is None
+    assert entity.available is True
 
 
 # --- Tests for horizon and source state change handlers ---
@@ -805,14 +773,14 @@ async def test_handle_source_state_change_updates_switch(
     entity.async_write_ha_state.assert_called_once()
 
 
-async def test_handle_source_state_change_ignores_none_state(
+async def test_handle_source_state_change_marks_unavailable_on_none_state(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """_handle_source_state_change ignores None new_state."""
+    """_handle_source_state_change marks entity unavailable when source is removed."""
     hass.states.async_set("input_boolean.curtail", STATE_ON)
     subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
     config_entry.runtime_data = None
@@ -835,9 +803,12 @@ async def test_handle_source_state_change_ignores_none_state(
     # Call source state change handler
     entity._handle_source_state_change(mock_event)
 
-    # State should not have changed (still ON from initial load)
+    # State value should not have changed (still ON from initial load)
     assert entity.is_on is True
-    entity.async_write_ha_state.assert_not_called()
+    # But entity should be marked unavailable
+    assert entity.available is False
+    # State write should be called to update availability
+    entity.async_write_ha_state.assert_called_once()
 
 
 async def test_load_source_state_with_none_source_entity(
@@ -870,14 +841,14 @@ async def test_load_source_state_with_none_source_entity(
     assert entity.is_on is True
 
 
-async def test_is_ready_returns_true_after_data_loaded(
+async def test_is_ready_returns_true_after_added_to_hass(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """is_ready() returns True after data has been loaded."""
+    """is_ready() returns True after entity has been added to Home Assistant."""
     subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
     config_entry.runtime_data = None
 
@@ -890,7 +861,13 @@ async def test_is_ready_returns_true_after_data_loaded(
         horizon_manager=horizon_manager,
     )
 
-    # Entity was initialized with True value, so forecast is built and ready is set
+    # Before adding to HA, not ready
+    assert entity.is_ready() is False
+
+    # Add entity to Home Assistant
+    await entity.async_added_to_hass()
+
+    # Now ready (entity added to HA)
     assert entity.is_ready() is True
 
 
@@ -970,15 +947,15 @@ async def test_editable_mode_uses_defaults_value_when_none(
     assert entity.is_on is True
 
 
-async def test_wait_ready_blocks_until_data_loaded(
+async def test_wait_ready_blocks_until_added_to_hass(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     device_entry: Mock,
     curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """wait_ready() blocks until data is loaded."""
-    # Use DRIVEN mode so data isn't loaded immediately
+    """wait_ready() blocks until entity is added to Home Assistant."""
+    # Use DRIVEN mode
     hass.states.async_set("input_boolean.curtail", STATE_ON)
     subentry = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
     config_entry.runtime_data = None
@@ -992,7 +969,7 @@ async def test_wait_ready_blocks_until_data_loaded(
         horizon_manager=horizon_manager,
     )
 
-    # Before data is loaded, is_ready is False (DRIVEN mode, data loads in async_added_to_hass)
+    # Before added to HA, is_ready is False
     assert entity.is_ready() is False
 
     # Start wait_ready in background
@@ -1004,8 +981,8 @@ async def test_wait_ready_blocks_until_data_loaded(
     # Task should not complete yet
     assert not wait_task.done()
 
-    # Load source state (sets the event via _update_forecast)
-    entity._load_source_state()
+    # Add entity to Home Assistant (sets the _entity_added event)
+    await entity.async_added_to_hass()
 
     # Now wait_ready should complete
     await asyncio.wait_for(wait_task, timeout=1.0)

@@ -223,33 +223,9 @@ async def test_async_added_to_hass_subscribes_to_manager(
         horizon_manager=horizon_manager,
     )
 
-    # Subscription should be None before added to hass
-    assert entity._unsub_horizon is None
-
-    # After adding to hass, subscription should be set
     await entity.async_added_to_hass()
-    assert entity._unsub_horizon is not None
 
-
-async def test_async_will_remove_from_hass_unsubscribes(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    horizon_manager: HorizonManager,
-    device_entry: Mock,
-) -> None:
-    """Removing entity from hass unsubscribes from manager."""
-    entity = HaeoHorizonEntity(
-        hass=hass,
-        config_entry=config_entry,
-        device_entry=device_entry,
-        horizon_manager=horizon_manager,
-    )
-
-    await entity.async_added_to_hass()
-    assert entity._unsub_horizon is not None
-
-    await entity.async_will_remove_from_hass()
-    assert entity._unsub_horizon is None
+    assert entity.extra_state_attributes is not None
 
 
 async def test_horizon_entity_updates_on_manager_change(

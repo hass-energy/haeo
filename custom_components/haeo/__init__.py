@@ -186,7 +186,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     except TimeoutError:
         not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
         msg = f"Input entities not ready after 30s: {not_ready}"
+        # Unload platforms before raising ConfigEntryNotReady to avoid "already setup" on retry
+        await hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)
         raise ConfigEntryNotReady(msg) from None
+
+    # Import UpdateFailed here to avoid circular import at module level
+    from homeassistant.helpers.update_coordinator import UpdateFailed  # noqa: PLC0415
 
     # Create coordinator after input entities are ready - it reads from them
     coordinator = HaeoDataUpdateCoordinator(hass, entry)
@@ -194,7 +199,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
 
     # Initialize the network and set up subscriptions
     # This must happen before the first refresh
-    await coordinator.async_initialize()
+    try:
+        await coordinator.async_initialize()
+    except UpdateFailed as e:
+        # Input entities are unavailable (e.g., source sensors missing during reload)
+        # Unload platforms before raising ConfigEntryNotReady to avoid "already setup" on retry
+        await hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)
+        raise ConfigEntryNotReady(str(e)) from e
 
     # Trigger initial optimization before output platform setup
     # This populates coordinator.data so sensor platform can create output entities
@@ -217,14 +228,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> boo
     """Unload a config entry."""
     _LOGGER.info("Unloading HAEO integration")
 
+    # Clean up coordinator resources and input entity references before unloading platforms
+    runtime_data = entry.runtime_data
+    if runtime_data is not None:
+        # Clear input entity references to prevent stale references during reload
+        runtime_data.input_entities.clear()
+        if runtime_data.coordinator is not None:
+            runtime_data.coordinator.cleanup()
+
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
-        # Clean up coordinator resources
-        runtime_data = entry.runtime_data
-        if runtime_data is not None and runtime_data.coordinator is not None:
-            runtime_data.coordinator.cleanup()
         entry.runtime_data = None
 
         # Clean up sentinel entities if this is the last HAEO config entry
