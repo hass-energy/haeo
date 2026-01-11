@@ -10,6 +10,7 @@ from typing import Any, Protocol
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import async_get_hass
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
@@ -423,6 +424,9 @@ def convert_entity_selections_to_config(
     configurable_values: dict[str, Any],
     input_fields: tuple[InputFieldInfo[Any], ...] | None = None,  # noqa: ARG001
     current_data: dict[str, Any] | None = None,
+    *,
+    entry_id: str | None = None,
+    subentry_id: str | None = None,
 ) -> dict[str, Any]:
     """Convert entity selections and configurable values to final config format.
 
@@ -431,12 +435,14 @@ def convert_entity_selections_to_config(
         configurable_values: Configurable values from step 2.
         input_fields: Unused, kept for API compatibility.
         current_data: Current stored config (for reconfigure). Used to preserve
-            scalar values when HAEO input entities are kept selected.
+            scalar values when self-referential entities are selected.
+        entry_id: Config entry ID (for detecting self-referential selections).
+        subentry_id: Subentry ID (for detecting self-referential selections).
 
     Returns:
         Config dict with:
         - Fields with configurable entity: converted to float (from configurable_values)
-        - Fields with HAEO input entity kept: preserved scalar value from current_data
+        - Fields with self-referential entity: preserved scalar value from current_data
         - Fields with single entity: stored as str (single entity ID)
         - Fields with multiple entities: stored as list[str] (for chaining)
         - Fields with empty selection: omitted (no default fallback)
@@ -455,34 +461,54 @@ def convert_entity_selections_to_config(
             if field_name in configurable_values:
                 config[field_name] = configurable_values[field_name]
             # If configurable entity is selected but no value provided, skip (validation should catch this)
-        elif haeo_entity_id := next((entity_id for entity_id in entities if is_haeo_input_entity(entity_id)), None):
-            # HAEO input entity kept selected - get current value from entity state
-            # This is a placeholder meaning "keep current value", so we extract
-            # the float from the entity's state, not the entity ID itself
-            hass = async_get_hass()
-            state = hass.states.get(haeo_entity_id)
-            if state is not None and state.state not in ("unavailable", "unknown"):
-                try:
-                    config[field_name] = float(state.state)
-                except (ValueError, TypeError):
-                    # State is not a valid float - fall back to entity selection
-                    config[field_name] = _normalize_entity_selection(entities)
-            elif current_data is not None and field_name in current_data:
-                # Entity unavailable - try to use stored value as fallback
-                current_value = current_data[field_name]
-                if isinstance(current_value, (float, int)):
-                    config[field_name] = float(current_value)
-                else:
-                    # Stored value is also not a scalar - cannot resolve
-                    config[field_name] = _normalize_entity_selection(entities)
-            else:
-                # No state and no current_data - fall back to entity selection
-                config[field_name] = _normalize_entity_selection(entities)
+        elif entry_id and subentry_id and _is_self_referential(entities, entry_id, subentry_id, field_name):
+            # Self-referential selection (this field's own entity is selected)
+            # Preserve the original scalar value from current_data
+            if current_data is None:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="self_referential_no_current_data",
+                    translation_placeholders={"field": field_name},
+                )
+            if field_name not in current_data:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="self_referential_field_missing",
+                    translation_placeholders={"field": field_name},
+                )
+            current_value = current_data[field_name]
+            if not isinstance(current_value, (float, int, bool)):
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="self_referential_invalid_value",
+                    translation_placeholders={
+                        "field": field_name,
+                        "value_type": type(current_value).__name__,
+                    },
+                )
+            config[field_name] = current_value
         else:
-            # Real external entities - single entity as str, multiple as list
+            # Real external entities (including other HAEO entities) - store as entity reference
             config[field_name] = _normalize_entity_selection(entities)
 
     return config
+
+
+def _is_self_referential(
+    entities: list[str],
+    entry_id: str,
+    subentry_id: str,
+    field_name: str,
+) -> bool:
+    """Check if any selected entity is the self-referential entity for this field.
+
+    Returns True if the entity list contains the entity that would be created
+    from this exact entry_id/subentry_id/field_name combination.
+    """
+    self_entity_id = resolve_configurable_entity_id(entry_id, subentry_id, field_name)
+    if self_entity_id is None:
+        return False
+    return self_entity_id in entities
 
 
 def _normalize_entity_selection(entities: list[str]) -> str | list[str]:

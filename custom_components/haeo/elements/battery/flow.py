@@ -315,16 +315,30 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build final config dict from step data."""
         name = self._step1_data.get(CONF_NAME)
         connection = self._step1_data.get(CONF_CONNECTION)
+        entry = self._get_entry()
+        subentry = self._get_subentry()
+        entry_id = entry.entry_id
+        subentry_id = subentry.subentry_id if subentry else None
 
         # Main fields
         config_dict = convert_entity_selections_to_config(
-            entity_selections, configurable_values, INPUT_FIELDS, current_data
+            entity_selections,
+            configurable_values,
+            INPUT_FIELDS,
+            current_data,
+            entry_id=entry_id,
+            subentry_id=subentry_id,
         )
 
         # Partition fields (only if enabled)
         if self._step1_data.get(CONF_CONFIGURE_PARTITIONS):
             partition_config = convert_entity_selections_to_config(
-                partition_entity_selections, partition_configurable_values, PARTITION_FIELDS, current_data
+                partition_entity_selections,
+                partition_configurable_values,
+                PARTITION_FIELDS,
+                current_data,
+                entry_id=entry_id,
+                subentry_id=subentry_id,
             )
             config_dict.update(partition_config)
 
