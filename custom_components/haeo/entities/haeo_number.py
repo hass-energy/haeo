@@ -3,7 +3,10 @@
 import asyncio
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Any
+
+_LOGGER = logging.getLogger(__name__)
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
@@ -206,12 +209,22 @@ class HaeoInputNumber(NumberEntity):
                     forecast_times=list(forecast_timestamps),
                 )
         except Exception:
-            # Loading failed - mark unavailable and return
+            _LOGGER.exception(
+                "Failed to load data for %s.%s from sources %s",
+                self._subentry.title,
+                self._field_info.field_name,
+                self._source_entity_ids,
+            )
             self._attr_available = False
             return
 
         if not values:
-            # No data returned - mark unavailable
+            _LOGGER.warning(
+                "No values returned for %s.%s from sources %s",
+                self._subentry.title,
+                self._field_info.field_name,
+                self._source_entity_ids,
+            )
             self._attr_available = False
             return
 

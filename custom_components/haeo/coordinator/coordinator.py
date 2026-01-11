@@ -235,6 +235,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         Must be called after the coordinator is created but before any optimizations.
         This is called from async_setup_entry after all input entities are loaded.
+
+        Raises:
+            UpdateFailed: If any input entities are unavailable or have no data.
+                The caller should convert this to ConfigEntryNotReady for retry.
+
         """
         # Create network with loaded configurations
         runtime_data = self._get_runtime_data()
