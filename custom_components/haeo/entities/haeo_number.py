@@ -6,8 +6,6 @@ from enum import Enum
 import logging
 from typing import Any
 
-_LOGGER = logging.getLogger(__name__)
-
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import EntityCategory
@@ -21,6 +19,8 @@ from custom_components.haeo.data.loader import TimeSeriesLoader
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ConfigEntityMode(Enum):
