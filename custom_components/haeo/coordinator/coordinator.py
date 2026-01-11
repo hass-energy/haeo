@@ -316,7 +316,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         before this handler is registered.
         """
         # Load the updated config for just this element
-        element_config = self._load_element_config(element_name)
+        try:
+            element_config = self._load_element_config(element_name)
+        except ValueError as err:
+            _LOGGER.error(
+                "Failed to load config for element %s due to invalid input entities: %s",
+                element_name,
+                err,
+            )
+            return
 
         # Update just this element's TrackedParams
         network_module.update_element(self.network, element_config)
