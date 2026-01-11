@@ -971,21 +971,20 @@ def test_trigger_optimization_optimizes_immediately_outside_cooldown(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_from_input_entities_skips_element_when_required_input_missing(
+def test_load_from_input_entities_raises_when_required_input_missing(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading skips element entirely when required input entities are missing."""
+    """Loading raises error when required input entities are missing."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # runtime_data exists but input_entities is empty
     mock_runtime_data.input_entities = {}
 
-    # Should not raise - element is skipped when required fields are missing
-    result = coordinator._load_from_input_entities()
-    # Element should not be in result since required fields (like capacity) are missing
-    assert "Test Battery" not in result
+    # Should raise when required fields are missing
+    with pytest.raises(ValueError, match="Missing required field 'capacity' for element 'Test Battery'"):
+        coordinator._load_from_input_entities()
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
@@ -1015,12 +1014,12 @@ def test_load_from_input_entities_loads_time_series_fields(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
-def test_load_from_input_entities_skips_element_when_required_field_returns_none(
+def test_load_from_input_entities_raises_when_required_field_returns_none(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading skips element when required input entity returns None values."""
+    """Loading raises error when required input entity returns None values."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Create mock input entity that returns None for required field (capacity)
@@ -1028,10 +1027,9 @@ def test_load_from_input_entities_skips_element_when_required_field_returns_none
     mock_entity.get_values.return_value = None
     mock_runtime_data.input_entities[("Test Battery", "capacity")] = mock_entity
 
-    # Should not raise - element is skipped since required field returned None
-    result = coordinator._load_from_input_entities()
-    # Element should not be in result since required field (capacity) returned None
-    assert "Test Battery" not in result
+    # Should raise since required field (capacity) returned None
+    with pytest.raises(ValueError, match="Missing required field 'capacity' for element 'Test Battery'"):
+        coordinator._load_from_input_entities()
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
@@ -1061,16 +1059,15 @@ async def test_async_update_data_raises_when_runtime_data_none_in_body(
         await coordinator._async_update_data()
 
 
-def test_load_from_input_entities_skips_invalid_element_type(
+def test_load_from_input_entities_raises_for_invalid_element_type(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading skips elements with invalid element types (config flow should prevent this)."""
+    """Loading raises error for elements with invalid element types."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     # Inject an invalid element type into participant configs
-    # This tests that invalid configs are skipped (they should never exist due to config flow)
     invalid_config: Any = {
         "Invalid Element": {
             CONF_ELEMENT_TYPE: "invalid_type",
@@ -1079,6 +1076,6 @@ def test_load_from_input_entities_skips_invalid_element_type(
     }
     coordinator._participant_configs = invalid_config
 
-    # Should not raise - just skip the invalid element
-    result = coordinator._load_from_input_entities()
-    assert "Invalid Element" not in result
+    # Should raise for invalid element type
+    with pytest.raises(ValueError, match="Invalid element type 'invalid_type' for element 'Invalid Element'"):
+        coordinator._load_from_input_entities()
